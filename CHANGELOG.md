@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Top-level app wiring (`robolearn.app`):
+  - `build_app()` wires the `MainWindow` shell to the editor, sim,
+    sensors, lessons, console and hint-card panels; registers the
+    active `Tracer` + `RoverSnapshot` provider; and binds the
+    teacher-dashboard shortcut.
+  - `launch()` calls `build_app()` and enters Tk's main loop.
+  - `python -m robolearn` now opens the full UI instead of a placeholder.
+- `HUMAN_TODO.md` enumerates the three deliverables the autonomous
+  build deliberately leaves to a human: recording the README demo GIF,
+  conducting the 5-8 teacher evaluation study, and tagging `v1.0.0`
+  once both are complete.
+- `docs/teachers/curriculum-mapping.md` finalised as the full lesson
+  table with DfE / BCS programme-of-study references.
 - Lesson library content polish (`lessons/library/*.yaml`):
   - Every lesson now cites the exact attainment-target text from
     DfE-00191-2013 (KS3) or DfE-00094-2015 (KS4) plus the BCS

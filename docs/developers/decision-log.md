@@ -111,6 +111,22 @@ fallback to "custom `Text` w/ regex highlight"; this is that fallback.
 
 ---
 
+## 2026-05-26 — App wiring: panels installed via MainWindow.set_slot (Task 20)
+
+**What was considered.** Pull-based or push-based update of the side
+panels after each pupil run.
+
+**What was chosen.** Push. `build_app` registers the Run-button
+callback (`_run_clicked`); after `execute(source)` returns, the
+callback calls `sim.set_world(...)` and `sensors.update_from_rover(...)`
+once. No timers, no background threads, no race conditions.
+
+**Why.** Simpler, headlessly testable, and the simulator is fast
+enough that pupils don't notice an absent live-update tick. A future
+task can add a Tk `after()` poll if interactive playback is wanted.
+
+---
+
 ## 2026-05-26 — UI shell: Tk + ttk frames + bind_all shortcut (Task 11)
 
 **What was considered.** Build the shell as a single big `tk.Tk()` with
