@@ -13,6 +13,11 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — `ui.replay_dialog` scrubs through a `Tracer`'s
+  recorded events via a `ttk.Scale` slider; rendering each event's
+  name, args, timestamp and captured `RoverSnapshot`. 8 unit tests
+  cover empty-tracer fallback, clamp-to-bounds, snapshot rendering,
+  `on_scrub` callback firing and `set_tracer` swap behaviour.
 - **2026-05-26** — `ui.console_panel` exposes a colour-coded read-only
   log (`info` / `warn` / `error` / `hint`) and a hint-card balloon.
   9 unit tests cover line emission, level styling, the read-only

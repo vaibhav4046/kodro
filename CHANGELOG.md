@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Time-travel debugger (`ui.replay_dialog`):
+  - Modal `Toplevel` with a `ttk.Scale` slider that scrubs through a
+    `Tracer`'s recorded events.
+  - Each scrub renders the event's name, args, timestamp and (if
+    available) the `RoverSnapshot` captured at that frame.
+  - Optional `on_scrub` callback notifies the parent UI when the
+    pupil moves the slider.
 - Console + hint card panels (`ui.console_panel`):
   - `ConsolePanel`: read-only `tk.Text` with four colour-coded log
     levels (info / warn / error / hint), timestamps, and a line counter.
