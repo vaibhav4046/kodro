@@ -13,6 +13,12 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — The simulation viewport (`ui.sim_panel`) renders the
+  engine state to a pygame surface, then converts the surface to PPM
+  bytes and loads it into a `tk.PhotoImage`. 7 headless tests prove
+  surface creation, world binding, optional `on_frame` callback,
+  `clear` blanking, idempotent `render_once` with no bound world, and
+  the PPM→PhotoImage conversion.
 - **2026-05-26** — The code editor (`ui.editor_panel`) wraps a
   `tk.Text` widget, exposes `get_source` / `set_source` / `clear`, and
   a regex-driven syntax highlighter applies five tag categories

@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Simulation panel (`ui.sim_panel`):
+  - Embeds an in-memory pygame surface in a `tk.Label` via base64-PPM
+    bytes -- avoids the brittle `SDL_WINDOWID` trick and works under
+    `SDL_VIDEODRIVER=dummy` for tests.
+  - `set_world(world, rover)` binds engine state and renders one frame;
+    `render_once` is idempotent without a bound world; `clear` paints
+    a blank background.
+  - Optional `SimCallbacks.on_frame` fires after every successful
+    render so an outer loop can observe simulation progress.
 - Code editor panel (`ui.editor_panel`):
   - `tk.Text` widget wired to a regex highlighter (keywords, rover-API
     builtins, strings, comments, numbers).

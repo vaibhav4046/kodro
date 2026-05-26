@@ -59,6 +59,24 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Sim panel: pygame surface → PPM bytes → Tk PhotoImage (Task 13)
+
+**What was considered.** Embed pygame in Tk via the classic
+``SDL_WINDOWID`` trick (set the env var to the Tk frame's `winfo_id`,
+re-init pygame, target it as the SDL window), or render to a hidden
+pygame surface and blit it into Tk via PhotoImage.
+
+**What was chosen.** PhotoImage. `pygame.image.tobytes(surface, "RGB")`
+plus a tiny PPM header plus `base64.b64encode` yields data that
+`tk.PhotoImage(format="PPM")` consumes happily. Works headlessly under
+``SDL_VIDEODRIVER=dummy``, no SDL hijack, no platform-specific magic.
+
+**Why.** Reliable headless tests matter more than the few-microsecond
+delta of a direct SDL render -- this is a 60 Hz educational simulator,
+not a 144 Hz shooter.
+
+---
+
 ## 2026-05-26 — Editor panel: pure-tk Text with regex highlighter (Task 12)
 
 **What was considered.** Use the optional `tkcode` package (real
