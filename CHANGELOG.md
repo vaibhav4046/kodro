@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Console + hint card panels (`ui.console_panel`):
+  - `ConsolePanel`: read-only `tk.Text` with four colour-coded log
+    levels (info / warn / error / hint), timestamps, and a line counter.
+  - `HintCardArea`: balloon-style label rendered with a lightbulb prefix;
+    shows the highest-priority hint returned by the hint engine.
 - Right-hand panels (`ui.sensors_panel`, `ui.lessons_panel`):
   - `SensorsPanel`: heading, battery, LIDAR distance, under-rover colour
     and samples-collected rows backed by `tk.StringVar`s; updated by the

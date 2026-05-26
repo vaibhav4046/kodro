@@ -13,6 +13,10 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — `ui.console_panel` exposes a colour-coded read-only
+  log (`info` / `warn` / `error` / `hint`) and a hint-card balloon.
+  9 unit tests cover line emission, level styling, the read-only
+  Text state, and the hint card show/clear/current_rule lifecycle.
 - **2026-05-26** — `ui.sensors_panel` displays a live rover read-out
   (heading, battery, LIDAR distance, under-rover colour, samples
   collected) backed by `tk.StringVar`s; the parent UI calls
