@@ -3,7 +3,7 @@ title: Move and turn
 key_stage: KS3
 ct_concepts: [sequence]
 curriculum_refs:
-  - "DfE Computing programmes of study: Key Stage 3, item 4 (design abstractions)"
+  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 attainment target 4: design, use and evaluate computational abstractions that model the state and behaviour of real-world problems and physical systems."
 prereqs: [01_hello_rover]
 terrain: earth
 intro: |

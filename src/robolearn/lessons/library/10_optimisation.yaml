@@ -3,7 +3,8 @@ title: Optimisation (KS4 stretch)
 key_stage: KS4
 ct_concepts: [algorithmic_efficiency, iteration]
 curriculum_refs:
-  - "DfE Computing GCSE subject content: algorithms (efficiency comparison)"
+  - "DfE 'Computer Science GCSE subject content' (DfE-00094-2015), section 2 'algorithms': understand the meaning of algorithm efficiency and the relevance of empirical performance comparison."
+  - "BCS Csizmadia et al., 2015: algorithmic thinking; evaluation."
 prereqs: [08_pathfinding]
 terrain: mars
 intro: |

@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Lesson library content polish (`lessons/library/*.yaml`):
+  - Every lesson now cites the exact attainment-target text from
+    DfE-00191-2013 (KS3) or DfE-00094-2015 (KS4) plus the BCS
+    Csizmadia et al. (2015) computational-thinking guide.
+  - `docs/teachers/curriculum-mapping.md` rewritten as a full
+    lesson-by-lesson table plus a CT-concept × lesson coverage
+    matrix and a recommended teaching order.
 - First-run welcome wizard (`ui.welcome_wizard`):
   - Four-step modal `Toplevel` asking display name, age band, key
     stage, and starting terrain.

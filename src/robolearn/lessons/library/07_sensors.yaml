@@ -3,7 +3,8 @@ title: Reading sensors
 key_stage: KS3
 ct_concepts: [abstraction, iteration]
 curriculum_refs:
-  - "DfE Computing programmes of study: Key Stage 3, item 4 (computational abstractions)"
+  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 attainment target 4 (computational abstractions of physical systems)."
+  - "BCS Csizmadia et al., 2015: abstraction; data."
 prereqs: [05_iteration]
 terrain: underwater
 intro: |

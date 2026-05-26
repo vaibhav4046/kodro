@@ -3,7 +3,8 @@ title: Functions
 key_stage: KS3
 ct_concepts: [functions, decomposition]
 curriculum_refs:
-  - "DfE Computing programmes of study: Key Stage 3, item 6 (modular programs)"
+  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 attainment target 6: appropriate ways to design and develop modular programs that use procedures or functions."
+  - "BCS Csizmadia et al., 2015: decomposition and abstraction."
 prereqs: [05_iteration]
 terrain: mars
 intro: |

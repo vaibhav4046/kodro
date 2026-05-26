@@ -3,7 +3,8 @@ title: Recursion (KS4 stretch)
 key_stage: KS4
 ct_concepts: [recursion, functions]
 curriculum_refs:
-  - "DfE Computing GCSE subject content: programming techniques (recursion)"
+  - "DfE 'Computer Science GCSE subject content' (DfE-00094-2015), section 3 'programming techniques': understand the use of recursion and the recursive resolution of base cases."
+  - "BCS Csizmadia et al., 2015: recursion as a problem-solving construct."
 prereqs: [06_functions]
 terrain: space
 intro: |
