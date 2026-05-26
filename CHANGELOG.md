@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- First-run welcome wizard (`ui.welcome_wizard`):
+  - Four-step modal `Toplevel` asking display name, age band, key
+    stage, and starting terrain.
+  - `WizardResult` dataclass surfaces the answers to the parent UI
+    via the optional `on_complete` callback.
+  - Coverage gate raised from 75% to 85% per the autonomous-mode
+    override after Task 18.
 - Teacher dashboard (`ui.teacher_dashboard`):
   - `Ctrl+Shift+T` opens a `Toplevel` window with three areas: the
     class-wide concept-strength heatmap, a per-pupil drill-down
