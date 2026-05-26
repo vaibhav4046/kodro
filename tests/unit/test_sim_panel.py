@@ -1,4 +1,4 @@
-"""SimPanel unit tests (Task 13). Run headlessly via SDL_VIDEODRIVER=dummy."""
+"""SimPanel unit tests (Task 13 / canvas refactor)."""
 
 from __future__ import annotations
 
@@ -11,12 +11,12 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 from robolearn.engine.rover import Rover
 from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, World
+from robolearn.engine.world import ArenaBounds, Obstacle, Sample, World
 from robolearn.ui.sim_panel import (
     DEFAULT_SIM_SIZE_PX,
     SimCallbacks,
     SimPanel,
-    _surface_to_photo,
+    _rgb_to_hex,
 )
 
 
@@ -39,7 +39,13 @@ def panel(root: tk.Tk) -> SimPanel:
 
 
 def _world() -> World:
-    return World(terrain=Terrain.MARS, base=(1.0, 1.0), bounds=ArenaBounds(6.0, 6.0))
+    return World(
+        terrain=Terrain.MARS,
+        base=(1.0, 1.0),
+        samples=[Sample(2.0, 2.0)],
+        obstacles=[Obstacle(3.0, 3.0, 0.3)],
+        bounds=ArenaBounds(6.0, 6.0),
+    )
 
 
 def test_panel_has_a_pygame_surface(panel: SimPanel) -> None:
@@ -52,10 +58,14 @@ def test_default_size_constant_is_positive_pair() -> None:
     assert DEFAULT_SIM_SIZE_PX[1] > 0
 
 
-def test_set_world_renders_without_error(panel: SimPanel) -> None:
+def test_set_world_paints_canvas_items(panel: SimPanel) -> None:
     world = _world()
     rover = Rover(world)
     panel.set_world(world, rover)
+    # Base + rover body + heading triangle + obstacle + sample + label text
+    # all live as canvas items.
+    item_count = len(panel._canvas.find_all())  # type: ignore[attr-defined]
+    assert item_count >= 5
 
 
 def test_render_once_invokes_on_frame_callback(root: tk.Tk) -> None:
@@ -68,14 +78,14 @@ def test_render_once_invokes_on_frame_callback(root: tk.Tk) -> None:
     assert fired and fired[-1] == 1
 
 
-def test_clear_resets_state(panel: SimPanel) -> None:
+def test_clear_paints_blank_canvas(panel: SimPanel) -> None:
     world = _world()
     rover = Rover(world)
     panel.set_world(world, rover)
     panel.clear()
-    # After clear the surface contains the blank background colour (20, 20, 30).
-    pixel = panel.surface.get_at((10, 10))
-    assert (pixel.r, pixel.g, pixel.b) == (20, 20, 30)
+    # After clear: only the "pick a lesson" placeholder text remains.
+    items = panel._canvas.find_all()  # type: ignore[attr-defined]
+    assert len(items) == 1
 
 
 def test_render_once_is_idempotent_without_bound_world(panel: SimPanel) -> None:
@@ -83,11 +93,16 @@ def test_render_once_is_idempotent_without_bound_world(panel: SimPanel) -> None:
     panel.render_once()  # must be a no-op, not a crash
 
 
-def test_surface_to_photo_returns_photoimage(root: tk.Tk) -> None:
-    import pygame
+def test_rgb_to_hex_formats_correctly() -> None:
+    assert _rgb_to_hex((0, 0, 0)) == "#000000"
+    assert _rgb_to_hex((255, 255, 255)) == "#ffffff"
+    assert _rgb_to_hex((255, 215, 0)) == "#ffd700"
 
-    surface = pygame.Surface((40, 40))
-    surface.fill((10, 20, 30))
-    photo = _surface_to_photo(surface, master=root)
-    # Either a PhotoImage or None -- both are valid outcomes on weird Tk builds.
-    assert photo is None or isinstance(photo, tk.PhotoImage)
+
+def test_canvas_background_matches_terrain_after_render(panel: SimPanel) -> None:
+    world = _world()
+    rover = Rover(world)
+    panel.set_world(world, rover)
+    bg = panel._canvas.cget("background")  # type: ignore[attr-defined]
+    # Mars terrain colour from sensors: (193, 68, 14) -> #c1440e
+    assert bg.lower() == "#c1440e"
