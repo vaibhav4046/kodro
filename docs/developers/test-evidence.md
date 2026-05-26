@@ -13,6 +13,11 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — `ui.teacher_dashboard` exposes a class heatmap,
+  per-pupil drill-down, and CSV export. 8 unit tests cover empty
+  store, populated store, pupil selection, CSV header + concept
+  columns, the "no chooser path" silent branch and refresh
+  idempotency.
 - **2026-05-26** — `ui.replay_dialog` scrubs through a `Tracer`'s
   recorded events via a `ttk.Scale` slider; rendering each event's
   name, args, timestamp and captured `RoverSnapshot`. 8 unit tests

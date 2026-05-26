@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Teacher dashboard (`ui.teacher_dashboard`):
+  - `Ctrl+Shift+T` opens a `Toplevel` window with three areas: the
+    class-wide concept-strength heatmap, a per-pupil drill-down
+    listing submissions and EMA scores, and an "Export CSV" button.
+  - CSV export writes `pupil_id,display_name,<concept-1>,<concept-2>,...`
+    so a teacher can drop the file straight into Excel / Sheets.
+  - PDF export is deferred (see `docs/developers/known-issues.md` and
+    `HUMAN_TODO.md`).
 - Time-travel debugger (`ui.replay_dialog`):
   - Modal `Toplevel` with a `ttk.Scale` slider that scrubs through a
     `Tracer`'s recorded events.
