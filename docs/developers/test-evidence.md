@@ -13,6 +13,13 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — The code editor (`ui.editor_panel`) wraps a
+  `tk.Text` widget, exposes `get_source` / `set_source` / `clear`, and
+  a regex-driven syntax highlighter applies five tag categories
+  (keyword / rover-API builtin / string / comment / number). Run / Step
+  / Stop / Reset buttons fire registered `EditorCallbacks`. 15 unit
+  tests (`tests/unit/test_editor_panel.py`) exercise round-trip
+  source, palette switching and each button's callback wiring.
 - **2026-05-26** — The Tk main-window shell installs a five-slot
   layout (`topbar` / `editor` / `sim` / `sensors` / `console`), applies
   a dark / light / high-contrast palette via `ttk.Style`, and binds

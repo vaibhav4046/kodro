@@ -59,6 +59,23 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Editor panel: pure-tk Text with regex highlighter (Task 12)
+
+**What was considered.** Use the optional `tkcode` package (real
+syntax tree highlighter), or write a 40-line regex-based highlighter
+inside the editor module.
+
+**What was chosen.** Regex. Five tag categories (keyword, rover-API
+builtin, string, comment, number) cover everything pupils write at
+KS3 / KS4. The pattern table is module-level so it can be swept
+across the whole text on every change.
+
+**Why.** `tkcode` is one more dependency that may not have a Python 3.13
+wheel on classroom estates. Section 2 of the spec already accepts a
+fallback to "custom `Text` w/ regex highlight"; this is that fallback.
+
+---
+
 ## 2026-05-26 — UI shell: Tk + ttk frames + bind_all shortcut (Task 11)
 
 **What was considered.** Build the shell as a single big `tk.Tk()` with

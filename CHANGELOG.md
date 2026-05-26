@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Code editor panel (`ui.editor_panel`):
+  - `tk.Text` widget wired to a regex highlighter (keywords, rover-API
+    builtins, strings, comments, numbers).
+  - Run / Step / Stop / Reset toolbar buttons fire `EditorCallbacks`.
+  - `apply_palette` re-themes the editor in lockstep with the rest of
+    the UI.
 - Tk main-window shell + theme system (`ui.main_window`, `ui.theme`):
   - `Palette` and `ThemeSettings` dataclasses; three built-in themes
     (`dark` / `light` / `high_contrast`) and a dyslexia-friendly font
