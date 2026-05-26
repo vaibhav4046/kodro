@@ -13,6 +13,16 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — The Tk main-window shell installs a five-slot
+  layout (`topbar` / `editor` / `sim` / `sensors` / `console`), applies
+  a dark / light / high-contrast palette via `ttk.Style`, and binds
+  `Ctrl+Shift+T` to a teacher-dashboard callback. The companion
+  `theme.py` module exposes three palettes and a `ThemeSettings`
+  dataclass with a dyslexia-font toggle. 19 unit tests in
+  `tests/unit/test_ui_main_window.py` cover theme lookup, slot
+  installation / replacement / rejection, palette switching, and the
+  teacher-dashboard shortcut wiring. CI now installs `xvfb-run` on the
+  Linux runner so the Tk tests pass headlessly across all three OSes.
 - **2026-05-26** — The pupil-progress memory layer is fully wired:
   - `memory.store`: SQLite schema with `pupils`, `submissions`,
     `concept_strength` (12 unit tests cover round-trip CRUD, the EMA

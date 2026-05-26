@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Tk main-window shell + theme system (`ui.main_window`, `ui.theme`):
+  - `Palette` and `ThemeSettings` dataclasses; three built-in themes
+    (`dark` / `light` / `high_contrast`) and a dyslexia-friendly font
+    toggle (Atkinson Hyperlegible default).
+  - `MainWindow` arranges five named slots (`topbar`, `editor`, `sim`,
+    `sensors`, `console`) and exposes `set_slot` / `get_slot`,
+    `apply_theme`, and an `on_open_teacher_dashboard` callback bound to
+    `Ctrl+Shift+T`.
+  - CI: Linux runner installs `xvfb` and wraps `pytest` with
+    `xvfb-run -a`; Windows / macOS runs `pytest` directly.
 - Pupil-progress memory layer (`memory.store`, `memory.pupil_model`,
   `memory.hint_engine`):
   - SQLite `Store` with `pupils`, `submissions` and `concept_strength`

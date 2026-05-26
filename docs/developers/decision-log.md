@@ -59,6 +59,24 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — UI shell: Tk + ttk frames + bind_all shortcut (Task 11)
+
+**What was considered.** Build the shell as a single big `tk.Tk()` with
+`grid` placements baked into `__init__`, or split slot frames out into a
+`_SlotFrames` dataclass with named accessors.
+
+**What was chosen.** The dataclass. `MainWindow.set_slot("editor",
+widget)` is the public API the next six tasks (12-17) call to install
+their panels. This decouples the shell from any specific panel and lets
+tests substitute small `tk.Frame` stubs.
+
+**Why.** The next six tasks are panel-by-panel; isolating the shell
+from the panels means each task adds one widget without touching
+`MainWindow`. The `bind_all` for `Ctrl+Shift+T` lives here because it is
+a global shortcut, not per-panel.
+
+---
+
 ## 2026-05-26 — Memory: SQLite store + per-concept EMA in one place (Task 10)
 
 **What was considered.** Keep raw success / failure counters and derive
