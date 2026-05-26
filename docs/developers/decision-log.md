@@ -59,6 +59,30 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Grader: pure-function rollup keyed off the trace + AST (Task 9)
+
+**What was considered.** Two grading strategies: (a) instrument the engine
+with grading hooks (e.g. emit a per-tick "current state" stream the
+grader subscribes to), or (b) compute a single roll-up from the recorded
+`Tracer` events.
+
+**What was chosen.** (b). `grade(lesson, tracer, source)` is a pure
+function: it walks the events once, builds a small `_Aggregates`
+dataclass (samples collected, collisions, battery used, distance, step
+count, final position), then dispatches each `SuccessCriterion` against
+the aggregate. `uses_construct` is checked against the pupil source by
+walking the AST; recursion is detected by matching a function's `Call`
+nodes against its own name.
+
+**Why.** Grading is the same job offline (load a stored trace + re-grade
+under a new rubric) and online (just after a run). A pure function keeps
+both paths identical and makes the grader trivial to test with
+hand-constructed "golden" traces. The hint engine in Task 10 reads the
+same trace + the GradeResult.reasons list to surface targeted hints,
+so the grader's output format is final.
+
+---
+
 ## 2026-05-26 — Lesson schema: pydantic with extra=forbid (Task 8)
 
 **What was considered.** Three lesson loaders: hand-rolled `yaml.safe_load`

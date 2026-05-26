@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Lesson auto-grader (`lessons.grader`):
+  - `grade(lesson, tracer, source)` returns a `GradeResult(passed,
+    reasons, score)` -- pure function, no engine handle required.
+  - Aggregates derived from the trace: samples collected, collisions,
+    distance travelled, max battery used, step count, final position.
+  - Per-criterion checks for every field of `SuccessCriterion`
+    (samples_collected, no_collisions, max_battery_used, uses_construct,
+    returns_to_base, max_steps, min_distance_travelled).
+  - AST walk detects each `AllowedConstruct`; recursion detected via a
+    function's `Call` nodes referencing its own name.
+  - Score starts at 100, deducts 20 per failing criterion, never below 0.
 - Lesson schema + YAML loader (`lessons.schema`):
   - Pydantic models for `Lesson`, `WorldDef`, `ObstacleDef`,
     `SuccessCriterion`, `HintRules`, all with `extra="forbid"` to catch

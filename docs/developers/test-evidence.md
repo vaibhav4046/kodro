@@ -13,6 +13,14 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — The auto-grader turns a recorded `Tracer` plus a
+  `Lesson` plus the pupil source into a `GradeResult(passed, reasons,
+  score)`. Aggregates pulled from the trace cover samples collected,
+  collisions, battery use, distance travelled, step count and final
+  position. AST walks detect every `AllowedConstruct` value, including
+  recursion via self-name `Call` matching. 28 unit tests
+  (`tests/unit/test_grader.py`) cover each criterion's pass / fail path
+  plus the score arithmetic. Total suite: 330 tests, 93.3 % coverage.
 - **2026-05-26** — The lesson YAML loader validates every required field
   via Pydantic and refuses unknown keys (`extra="forbid"`). All ten
   bundled lessons (`01_hello_rover` ... `10_optimisation`) parse with
