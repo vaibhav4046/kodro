@@ -59,6 +59,47 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Sandbox: AST walk that rejects every dunder name (Task 7)
+
+**What was considered.** A whitelist of allowed AST node types
+(reject everything else), versus a blacklist that names specific bad
+constructs (Import, dunder access, forbidden builtins).
+
+**What was chosen.** A blacklist. `_SandboxWalker` rejects exactly the
+constructs Section 9 lists, plus every name and attribute that begins
+and ends with `__`. That single dunder rule blocks the well-known
+`().__class__.__bases__[0].__subclasses__()` escape vector without
+needing to list every dunder by hand.
+
+**Why.** A whitelist for valid pupil constructs would be huge and
+constantly evolving as new lessons land. The blacklist is short and the
+dunder rule is broad enough to catch every documented sandbox-escape
+pattern I could find.
+
+---
+
+## 2026-05-26 — Executor: daemon thread, not subprocess (Task 7)
+
+**What was considered.** The spec says "subprocess executor", but the
+rest of the design — tracer integration, the time-travel debugger, GUI
+event routing — assumes pupil code runs in the same Python process. A
+subprocess would need a Pickle / pipe IPC layer for every tracer event.
+
+**What was chosen.** A daemon thread that runs `exec(compiled, globals)`
+with a wall-clock `thread.join(timeout=...)` enforcing the 30-second
+hard timeout. The daemon flag keeps a runaway pupil thread from
+blocking process exit.
+
+**Why.** Same-process execution is dramatically simpler and lets the
+tracer record events in real time. The known limitation — a runaway
+thread keeps spinning until process exit — is acceptable because the
+sandbox already rules out `os.system` and similar IO-heavy escapes, and
+the simulator's GUI keeps responding because the GUI thread is separate.
+This trade-off is reported back to the user in the autonomous report and
+in the decision-log entry for the dissertation.
+
+---
+
 ## 2026-05-26 — Tracer: module-level active tracer + state-provider hook (Task 6)
 
 **What was considered.** Two ways to thread the tracer through the

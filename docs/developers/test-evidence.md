@@ -13,6 +13,19 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — The pupil-code sandbox rejects 33 hostile snippets
+  covering every category the spec calls out (imports, `eval`/`exec`,
+  `open`, `getattr`, `setattr`, `globals`, `locals`, dunder attribute
+  walks, `__class__.__bases__[0].__subclasses__()` and friends) and
+  accepts 13 legitimate snippets that cover sequence, selection,
+  iteration, function definitions, simple data structures and the
+  rewired `print` to `log`. The executor enforces a 30-s hard timeout in
+  a daemon thread, surfaces sandbox / syntax / runtime / timeout failures
+  with a structured `ExecutionResult`, and records every pupil call
+  through the active tracer (sandbox violations short-circuit before any
+  tracer event is emitted). 106 new tests
+  (`tests/integration/test_sandbox_isolation.py`). Total suite: 273 tests,
+  92 % coverage.
 - **2026-05-26** — `runtime.tracer` records every pupil-API call as an
   `Event` with frame, monotonic millisecond timestamp, kind, name, args,
   result and an optional `RoverSnapshot`. Tracer logs round-trip cleanly

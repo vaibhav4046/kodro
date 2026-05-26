@@ -17,6 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Sandbox + executor subsystem (`runtime.sandbox`, `runtime.executor`):
+  - AST walker that rejects `import` / `from ... import`, double-underscore
+    attribute / name access, and a fixed list of forbidden builtins
+    (`open`, `eval`, `exec`, `compile`, `getattr`, `setattr`, `globals`,
+    `locals`, `__import__`, `exit`, `quit`, `input`, `vars`, `delattr`,
+    `breakpoint`).
+  - `SandboxViolation` dataclass reports the kind, name and line number of
+    each rejected construct.
+  - `restricted_globals` exposes every public `rover_api` symbol plus
+    `range`, `len` and `print` (rewired to `rover_api.log`).
+  - `execute` sandbox-checks, compiles and runs pupil code in a daemon
+    thread with a 30-s hard timeout; failures (`sandbox`, `syntax`,
+    `runtime`, `timeout`) are returned as a structured `ExecutionResult`.
+  - 33 hostile snippets and 13 legitimate snippets are exercised
+    end-to-end in `tests/integration/test_sandbox_isolation.py`.
 - Tracer subsystem (`runtime.tracer`):
   - `Event` and `RoverSnapshot` frozen dataclasses; the five `EventKind`
     literals from Section 10 of the spec (`call`, `sensor_read`,
