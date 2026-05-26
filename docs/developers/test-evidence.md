@@ -13,6 +13,15 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — LIDAR, ultrasonic, colour and IMU sensors are
+  implemented and property-tested. 23 unit tests (5 Hypothesis-based)
+  prove: (a) LIDAR distance is monotonic w.r.t. obstacle presence,
+  (b) ultrasonic distance is never greater than its 5-m ceiling,
+  (c) colour-under always returns a valid RGB triple, (d) IMU heading
+  always matches the rover heading, (e) obstacles behind the rover are
+  ignored. Coverage gate raised from 0 to 60 per the autonomous-mode
+  override after Task 4. Total suite: 128 tests, 92 % overall coverage
+  (`tests/unit/test_sensors.py`).
 - **2026-05-26** — The engine subsystem (terrain, world, rover, physics)
   is fully operational with 54 additional unit tests. The four terrains
   expose the spec's gravity / friction / drag constants verbatim; the

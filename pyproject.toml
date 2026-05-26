@@ -136,8 +136,9 @@ addopts = [
     "--cov=robolearn",
     "--cov-branch",
     "--cov-report=term-missing",
-    # Raise to 85 once the implementation tasks land (see Section 12).
-    "--cov-fail-under=0",
+    # Coverage gate progresses per the autonomous-mode override:
+    # 0 (Tasks 1-3) -> 60 (after Task 4) -> 75 (after Task 10) -> 85 (after Task 18).
+    "--cov-fail-under=60",
 ]
 markers = [
     "slow: integration tests that exercise the engine for several frames",

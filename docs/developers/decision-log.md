@@ -59,6 +59,46 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Sensors: closed-form ray-casting over a Pymunk raycast query (Task 4)
+
+**What was considered.** Two LIDAR implementations: query Pymunk's spatial
+hash via `space.segment_query_first`, or compute analytic ray-vs-wall and
+ray-vs-circle intersections in pure Python.
+
+**What was chosen.** The analytic path. `_wall_intersections` solves the
+axis-aligned line equations and `_circle_ray_intersection` solves a single
+quadratic. Both return the smallest positive parameter.
+
+**Why.** (1) Determinism: the analytic path produces the same answer
+regardless of the Pymunk solver state, which means lesson tests are
+reproducible. (2) Property-based testability: Hypothesis can sweep
+rover poses without first having to add a Pymunk body. (3) Zero coupling:
+the renderer (Task 5) and the grader (Task 9) can call the sensors before
+a Pymunk space exists.
+
+The trade-off is duplicated geometry between the sensors and the physics
+layer. Acceptable because LIDAR / ultrasonic only need to handle circular
+obstacles and axis-aligned walls — a 30-line implementation.
+
+---
+
+## 2026-05-26 — Colour sensor returns indicator colours, not literal pixels (Task 4)
+
+**What was considered.** Return the actual pixel under the rover (read
+from the renderer surface), or return a small palette of indicator
+colours ("on base", "on sample", "on terrain X").
+
+**What was chosen.** Indicator colours. `colour_under` checks proximity
+to the base, then any uncollected sample, then falls back to the per-
+terrain background colour.
+
+**Why.** Pupils write `if read_colour() == (255, 215, 0): ...` to check
+for samples. If the renderer changed its tile texture, every lesson would
+break. Indicator colours give a stable contract that survives any visual
+restyle of the simulator.
+
+---
+
 ## 2026-05-26 — Engine: zero-gravity Pymunk space with per-shape friction (Task 3)
 
 **What was considered.** Three ways to model the per-terrain physics from

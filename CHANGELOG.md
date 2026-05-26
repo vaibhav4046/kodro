@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Sensor subsystem (`engine.sensors`):
+  - `lidar_distance`: configurable-angle LIDAR with closed-form ray casting
+    against arena walls and circular obstacles.
+  - `ultrasonic_distance`: forward-facing ultrasonic capped at 5 m.
+  - `colour_under`: returns base / sample indicator colours or the
+    per-terrain background colour for the four supported terrains.
+  - `imu_reading`: returns a frozen `IMUReading` dataclass with heading and
+    body-frame acceleration.
+  - 23 unit tests (5 Hypothesis-based) cover sensor behaviour at boundary
+    conditions; coverage gate raised from 0 to 60 per the autonomous-mode
+    override.
 - Engine subsystem with four modules:
   - `engine.terrain`: `Terrain` StrEnum (earth / mars / underwater / space)
     plus a `TerrainParams` lookup keyed by either enum or string name. The
