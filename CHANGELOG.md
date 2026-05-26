@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Renderer subsystem (`engine.renderer`):
+  - Procedural `draw_background` / `draw_obstacles` / `draw_samples` /
+    `draw_base` / `draw_rover` / `render` free functions plus a frozen
+    `ViewTransform` for world-to-screen mapping.
+  - Four-terrain palette (earth / mars / underwater / space) reused from
+    `engine.sensors` so rendered colours match `read_colour()` indicators.
+  - Rover sprite is a grey body circle with a red heading triangle on top
+    so even from a distance pupils can see which way the rover faces.
+  - Optional grid overlay for the manual visual check.
+  - CLI: `python -m robolearn.engine.renderer --terrain {earth,mars,underwater,space}`
+    opens a demo window. Headless tests use `SDL_VIDEODRIVER=dummy` and
+    `Surface.get_at` pixel sampling.
 - Sensor subsystem (`engine.sensors`):
   - `lidar_distance`: configurable-angle LIDAR with closed-form ray casting
     against arena walls and circular obstacles.

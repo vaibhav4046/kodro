@@ -59,6 +59,25 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Renderer: procedural free functions + headless pixel sampling (Task 5)
+
+**What was considered.** A `Renderer` class that owns a Surface and an
+internal cache, or a flat module of free functions that take the Surface
+explicitly. Tests via image-diff goldens, or per-pixel assertions.
+
+**What was chosen.** Free functions (`draw_background`, `draw_obstacles`,
+`draw_samples`, `draw_base`, `draw_rover`, `render`) plus a frozen
+`ViewTransform` dataclass. Tests sample specific pixels with
+`Surface.get_at` instead of writing golden PNG files.
+
+**Why.** Procedural matches the rest of the codebase. Pixel sampling
+gives a small, readable failure message when the test fails (which I
+proved while debugging the rover-body triangle overlap), versus an
+image-diff that just says "0.4 % of pixels changed". The headless test
+environment uses `SDL_VIDEODRIVER=dummy`, so no display is needed in CI.
+
+---
+
 ## 2026-05-26 — Sensors: closed-form ray-casting over a Pymunk raycast query (Task 4)
 
 **What was considered.** Two LIDAR implementations: query Pymunk's spatial

@@ -13,6 +13,16 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — The renderer paints any combination of the four
+  terrains, samples, obstacles and rover sprite onto a Pygame surface
+  using procedural draw functions and a frozen `ViewTransform`. 17 unit
+  tests pixel-sample the surface to prove: background colour per terrain,
+  base indicator overrides terrain, sample indicator at sample pixel,
+  obstacle pixel at obstacle centre, rover body grey at the rover
+  position, render determinism (two renders produce byte-identical
+  output) and the manual visual-check CLI is exposed via
+  `python -m robolearn.engine.renderer --terrain mars`
+  (`tests/unit/test_renderer.py`).
 - **2026-05-26** — LIDAR, ultrasonic, colour and IMU sensors are
   implemented and property-tested. 23 unit tests (5 Hypothesis-based)
   prove: (a) LIDAR distance is monotonic w.r.t. obstacle presence,
