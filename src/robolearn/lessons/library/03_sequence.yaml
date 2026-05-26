@@ -1,4 +1,36 @@
 id: 03_sequence
 title: Sequence
-status: placeholder
-note: Content authored in Task 19 of the build plan.
+key_stage: KS3
+ct_concepts: [sequence]
+curriculum_refs:
+  - "DfE Computing programmes of study: Key Stage 3, item 4 (design abstractions)"
+prereqs: [02_move_turn]
+terrain: earth
+intro: |
+  Drive a U-shaped path: forward, turn, forward, turn, forward. Then collect
+  the sample at the far end. Every line of your program is one step in the
+  sequence.
+starter_code: |
+  move_forward(3)
+  turn_left(90)
+  move_forward(2)
+  turn_left(90)
+  move_forward(3)
+  collect_sample()
+allowed_constructs: [function_call]
+max_lines: 10
+world:
+  base: [1.0, 1.0]
+  samples:
+    - [1.0, 3.0]
+  obstacles: []
+  width: 6.0
+  height: 6.0
+success_criteria:
+  - samples_collected: 1
+  - max_battery_used: 25.0
+  - no_collisions: true
+hints:
+  on_failure:
+    - "Each move_forward distance should match the gap between corners. Sketch the path on paper first."
+    - "If the rover stops before the sample, increase the last move_forward distance by one metre."

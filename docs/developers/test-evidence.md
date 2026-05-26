@@ -13,6 +13,15 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — The lesson YAML loader validates every required field
+  via Pydantic and refuses unknown keys (`extra="forbid"`). All ten
+  bundled lessons (`01_hello_rover` ... `10_optimisation`) parse with
+  the expected `terrain`, `key_stage` and `ct_concepts`; loader returns
+  them in file-name order so the curriculum sequence is stable. 29 unit
+  tests in `tests/unit/test_lesson_schema.py` cover positive paths,
+  negative paths (missing field, extra field, invalid enum value,
+  negative obstacle radius) and the bundled library round-trip. Total
+  suite: 302 tests, 92.5 % coverage.
 - **2026-05-26** — The pupil-code sandbox rejects 33 hostile snippets
   covering every category the spec calls out (imports, `eval`/`exec`,
   `open`, `getattr`, `setattr`, `globals`, `locals`, dunder attribute

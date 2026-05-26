@@ -59,6 +59,26 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Lesson schema: pydantic with extra=forbid (Task 8)
+
+**What was considered.** Three lesson loaders: hand-rolled `yaml.safe_load`
++ assertions, `attrs` dataclass + manual coercion, or `pydantic` with
+`extra="forbid"`.
+
+**What was chosen.** Pydantic. Every lesson model (`Lesson`, `WorldDef`,
+`ObstacleDef`, `SuccessCriterion`, `HintRules`) sets
+`ConfigDict(extra="forbid")` so a typo in a YAML key (e.g. `obstcles:`)
+fails with a clear validation error rather than silently being dropped.
+Pydantic also coerces the YAML string ``"mars"`` straight into the
+`Terrain` `StrEnum` via a single `field_validator(mode="before")`.
+
+**Why.** The lesson YAMLs are the contract with teachers. A silent typo
+that ships a broken lesson is the worst possible failure mode. Loud,
+line-aware validation errors during `load_library()` mean every problem
+is caught at import time, not during a lesson run.
+
+---
+
 ## 2026-05-26 — Sandbox: AST walk that rejects every dunder name (Task 7)
 
 **What was considered.** A whitelist of allowed AST node types

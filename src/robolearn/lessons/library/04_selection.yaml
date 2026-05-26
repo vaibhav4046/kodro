@@ -1,4 +1,35 @@
 id: 04_selection
 title: Selection (if / else)
-status: placeholder
-note: Content authored in Task 19 of the build plan.
+key_stage: KS3
+ct_concepts: [selection]
+curriculum_refs:
+  - "DfE Computing programmes of study: Key Stage 3, item 7 (Boolean logic)"
+prereqs: [03_sequence]
+terrain: mars
+intro: |
+  Some rocks block the rover's path. Use an if-else statement and the
+  obstacle_ahead() sensor to choose between driving forward and turning
+  out of the way.
+starter_code: |
+  if obstacle_ahead():
+      turn_right(45)
+  else:
+      move_forward(2)
+allowed_constructs: [function_call, if, comparison]
+max_lines: 10
+world:
+  base: [1.0, 1.0]
+  samples:
+    - [5.0, 1.0]
+  obstacles:
+    - {x: 3.0, y: 1.0, r: 0.4}
+  width: 6.0
+  height: 6.0
+success_criteria:
+  - samples_collected: 1
+  - no_collisions: true
+  - uses_construct: if
+hints:
+  on_failure:
+    - "The if-statement runs only once. Repeat it (or use a loop) until the rover passes the rock."
+    - "Did you call collect_sample() once the rover reaches the patch?"

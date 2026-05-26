@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Lesson schema + YAML loader (`lessons.schema`):
+  - Pydantic models for `Lesson`, `WorldDef`, `ObstacleDef`,
+    `SuccessCriterion`, `HintRules`, all with `extra="forbid"` to catch
+    YAML key typos.
+  - `KeyStage`, `CTConcept` and `AllowedConstruct` literal types pinned
+    to the values listed in Section 6 of the spec.
+  - `load_lesson` / `load_library` helpers; the bundled library auto-
+    detects via `DEFAULT_LIBRARY_DIR`.
+  - 10 lesson YAML files rewritten from placeholders to schema-compliant
+    content (sequence / selection / iteration / functions / sensors /
+    pathfinding / recursion / optimisation) — full curriculum text
+    polish lands in Task 19.
 - Sandbox + executor subsystem (`runtime.sandbox`, `runtime.executor`):
   - AST walker that rejects `import` / `from ... import`, double-underscore
     attribute / name access, and a fixed list of forbidden builtins

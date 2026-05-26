@@ -1,4 +1,38 @@
 id: 10_optimisation
 title: Optimisation (KS4 stretch)
-status: placeholder
-note: Content authored in Task 19 of the build plan.
+key_stage: KS4
+ct_concepts: [algorithmic_efficiency, iteration]
+curriculum_refs:
+  - "DfE Computing GCSE subject content: algorithms (efficiency comparison)"
+prereqs: [08_pathfinding]
+terrain: mars
+intro: |
+  Three samples are scattered across the arena. Collect them all using the
+  smallest possible distance travelled. Try a couple of orderings and keep
+  the cheapest one -- this is the simplest form of route optimisation.
+starter_code: |
+  # First pass: try samples in the order given.
+  for target in [(2.0, 6.0), (5.0, 5.0), (7.0, 2.0)]:
+      while not sample_detected():
+          move_forward(0.5)
+      collect_sample()
+allowed_constructs: [for, while, function_call, comparison, assignment]
+max_lines: 22
+world:
+  base: [1.0, 1.0]
+  samples:
+    - [2.0, 6.0]
+    - [5.0, 5.0]
+    - [7.0, 2.0]
+  obstacles: []
+  width: 10.0
+  height: 8.0
+success_criteria:
+  - samples_collected: 3
+  - returns_to_base: true
+  - min_distance_travelled: 0.0
+  - max_battery_used: 70.0
+hints:
+  on_failure:
+    - "If the rover overshoots, lower the per-step distance from 0.5 m to 0.2 m."
+    - "Compare the total distance for at least two different sample orderings."

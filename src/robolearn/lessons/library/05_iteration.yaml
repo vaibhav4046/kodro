@@ -1,4 +1,39 @@
 id: 05_iteration
 title: Iteration with while-loops
-status: placeholder
-note: Content authored in Task 19 of the build plan.
+key_stage: KS3
+ct_concepts: [iteration, selection]
+curriculum_refs:
+  - "DfE Computing programmes of study: Key Stage 3, item 5 (key algorithms)"
+prereqs: [04_selection]
+terrain: mars
+intro: |
+  Drive forward and collect samples while avoiding rocks. Use a while loop
+  so the rover keeps moving until it sees an obstacle, then turn and
+  continue. Every loop iteration is one step.
+starter_code: |
+  while not obstacle_ahead():
+      move_forward(1)
+  turn_left(90)
+  move_forward(2)
+  collect_sample()
+allowed_constructs: [while, if, function_call, comparison]
+max_lines: 12
+world:
+  base: [1.0, 5.0]
+  samples:
+    - [3.0, 6.0]
+    - [4.5, 5.4]
+    - [6.0, 6.4]
+  obstacles:
+    - {x: 8.0, y: 5.5, r: 0.3}
+  width: 10.0
+  height: 8.0
+success_criteria:
+  - samples_collected: 3
+  - max_battery_used: 60.0
+  - no_collisions: true
+  - uses_construct: while
+hints:
+  on_failure:
+    - "Your loop ended early -- have you logged sample_detected() to see when it fires?"
+    - "Try moving in smaller steps (e.g. move_forward(0.5)) so the rover doesn't overshoot a sample."

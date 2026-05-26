@@ -1,4 +1,32 @@
 id: 01_hello_rover
 title: Hello, Rover!
-status: placeholder
-note: Content authored in Task 19 of the build plan.
+key_stage: KS3
+ct_concepts: [sequence]
+curriculum_refs:
+  - "DfE Computing programmes of study: Key Stage 3, item 4 (design abstractions)"
+prereqs: []
+terrain: earth
+intro: |
+  Welcome to RoboLearn. Your first job is to give the rover three
+  instructions in order: drive forward, beep, and write a short message to
+  the console. Read each line of code from top to bottom -- the rover
+  performs them one after another. This is called a "sequence".
+starter_code: |
+  move_forward(2)
+  beep(1)
+  log("hello rover")
+allowed_constructs: [function_call]
+max_lines: 8
+world:
+  base: [1.0, 1.0]
+  samples: []
+  obstacles: []
+  width: 6.0
+  height: 6.0
+success_criteria:
+  - max_battery_used: 5.0
+  - no_collisions: true
+hints:
+  on_failure:
+    - "Check that you call all three functions, in this exact order: move_forward, beep, log."
+    - "Make sure each function name is spelled correctly and ends with parentheses."

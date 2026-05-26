@@ -1,4 +1,37 @@
 id: 09_recursion
 title: Recursion (KS4 stretch)
-status: placeholder
-note: Content authored in Task 19 of the build plan.
+key_stage: KS4
+ct_concepts: [recursion, functions]
+curriculum_refs:
+  - "DfE Computing GCSE subject content: programming techniques (recursion)"
+prereqs: [06_functions]
+terrain: space
+intro: |
+  Draw a square spiral by calling a function that calls itself with a
+  smaller step. Recursion lets you describe an infinite-looking pattern
+  with just a few lines of code -- the base case stops the spiral.
+starter_code: |
+  def spiral(step):
+      if step < 0.5:
+          return
+      move_forward(step)
+      turn_left(90)
+      spiral(step - 0.5)
+
+  spiral(3.0)
+allowed_constructs: [function_def, function_call, if, comparison, recursion, return, arithmetic]
+max_lines: 12
+world:
+  base: [5.0, 5.0]
+  samples: []
+  obstacles: []
+  width: 10.0
+  height: 10.0
+success_criteria:
+  - max_battery_used: 80.0
+  - no_collisions: true
+  - uses_construct: recursion
+hints:
+  on_failure:
+    - "If the rover runs off the arena, your starting step is too big -- try spiral(2.0)."
+    - "Don't forget the base case (the if step < 0.5: return) or the function recurses forever."

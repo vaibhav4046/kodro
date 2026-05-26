@@ -1,4 +1,41 @@
 id: 06_functions
 title: Functions
-status: placeholder
-note: Content authored in Task 19 of the build plan.
+key_stage: KS3
+ct_concepts: [functions, decomposition]
+curriculum_refs:
+  - "DfE Computing programmes of study: Key Stage 3, item 6 (modular programs)"
+prereqs: [05_iteration]
+terrain: mars
+intro: |
+  Wrap the "drive then turn" pattern in a function so you can call it many
+  times. Functions let you give a meaningful name to a sequence of
+  instructions -- this is called "decomposition".
+starter_code: |
+  def hop():
+      move_forward(2)
+      turn_left(90)
+
+  hop()
+  hop()
+  hop()
+  hop()
+allowed_constructs: [function_def, function_call]
+max_lines: 14
+world:
+  base: [3.0, 3.0]
+  samples:
+    - [5.0, 3.0]
+    - [5.0, 5.0]
+    - [3.0, 5.0]
+    - [3.0, 3.0]
+  obstacles: []
+  width: 8.0
+  height: 8.0
+success_criteria:
+  - samples_collected: 4
+  - max_battery_used: 60.0
+  - uses_construct: function_def
+hints:
+  on_failure:
+    - "Define hop() once at the top, then call it four times to walk a square."
+    - "Add collect_sample() inside hop() so each corner picks up its patch."

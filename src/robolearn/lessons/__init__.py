@@ -4,3 +4,31 @@ The ten built-in lessons live under :mod:`robolearn.lessons.library`.
 """
 
 from __future__ import annotations
+
+from .schema import (
+    DEFAULT_LIBRARY_DIR,
+    AllowedConstruct,
+    CTConcept,
+    HintRules,
+    KeyStage,
+    Lesson,
+    ObstacleDef,
+    SuccessCriterion,
+    WorldDef,
+    load_lesson,
+    load_library,
+)
+
+__all__ = (
+    "DEFAULT_LIBRARY_DIR",
+    "AllowedConstruct",
+    "CTConcept",
+    "HintRules",
+    "KeyStage",
+    "Lesson",
+    "ObstacleDef",
+    "SuccessCriterion",
+    "WorldDef",
+    "load_lesson",
+    "load_library",
+)

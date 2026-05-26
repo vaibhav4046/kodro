@@ -1,4 +1,30 @@
 id: 07_sensors
 title: Reading sensors
-status: placeholder
-note: Content authored in Task 19 of the build plan.
+key_stage: KS3
+ct_concepts: [abstraction, iteration]
+curriculum_refs:
+  - "DfE Computing programmes of study: Key Stage 3, item 4 (computational abstractions)"
+prereqs: [05_iteration]
+terrain: underwater
+intro: |
+  Underwater visibility is poor. Combine read_distance() with a while loop
+  so the rover stops one metre before any wall, no matter how far it is.
+starter_code: |
+  while read_distance() > 1.0:
+      move_forward(0.5)
+allowed_constructs: [while, function_call, comparison]
+max_lines: 10
+world:
+  base: [1.0, 1.0]
+  samples:
+    - [5.0, 1.0]
+  obstacles: []
+  width: 6.0
+  height: 6.0
+success_criteria:
+  - samples_collected: 1
+  - no_collisions: true
+hints:
+  on_failure:
+    - "If the rover hits the wall, your while condition is too generous -- try > 1.0 not > 0.1."
+    - "Drive in smaller increments so the loop can react before a collision."
