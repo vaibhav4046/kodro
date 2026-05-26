@@ -17,6 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Tracer subsystem (`runtime.tracer`):
+  - `Event` and `RoverSnapshot` frozen dataclasses; the five `EventKind`
+    literals from Section 10 of the spec (`call`, `sensor_read`,
+    `collision`, `sample`, `battery`).
+  - `Tracer` class with append-only event log, frame counter, monotonic
+    `now_ms()` clock, and a `to_json` / `from_json` round-trip.
+  - Module-level `set_active` / `get_active` / `clear_active` plus a
+    `set_state_provider` hook so the engine can lazily attach
+    `RoverSnapshot`s to each event.
+  - `robolearn.rover_api` now emits an event after every public function:
+    driving / waiting / beep / log are `call`, sensor functions are
+    `sensor_read`, collect / drop are `sample`. Tuple sensor results are
+    serialised as lists so the trace round-trips through JSON.
 - Renderer subsystem (`engine.renderer`):
   - Procedural `draw_background` / `draw_obstacles` / `draw_samples` /
     `draw_base` / `draw_rover` / `render` free functions plus a frozen

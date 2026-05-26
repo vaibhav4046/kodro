@@ -13,6 +13,15 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — `runtime.tracer` records every pupil-API call as an
+  `Event` with frame, monotonic millisecond timestamp, kind, name, args,
+  result and an optional `RoverSnapshot`. Tracer logs round-trip cleanly
+  through `to_json` / `from_json`. The pupil-facing `rover_api`
+  functions now emit events into the active tracer; tests prove that
+  clamped values are recorded (not the raw input), the event kind matches
+  the operation category, sequence is preserved and the no-active
+  fast-path skips the state provider. 22 new tests
+  (`tests/unit/test_tracer.py`). Coverage: tracer at 100 %.
 - **2026-05-26** — The renderer paints any combination of the four
   terrains, samples, obstacles and rover sprite onto a Pygame surface
   using procedural draw functions and a frozen `ViewTransform`. 17 unit

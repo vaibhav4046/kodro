@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import logging
 
+from .runtime.tracer import emit as _emit_event
+
 __all__ = (
     "at_base",
     "beep",
@@ -113,6 +115,7 @@ def move_forward(distance: float) -> None:
     """
     safe = _clamp_finite(float(distance), _MIN_DISTANCE_M, _MAX_DISTANCE_M, name="distance")
     logger.debug("rover_api.move_forward distance=%s", safe)
+    _emit_event("move_forward", (safe,), None, kind="call")
 
 
 def move_backward(distance: float) -> None:
@@ -122,6 +125,7 @@ def move_backward(distance: float) -> None:
     """
     safe = _clamp_finite(float(distance), _MIN_DISTANCE_M, _MAX_DISTANCE_M, name="distance")
     logger.debug("rover_api.move_backward distance=%s", safe)
+    _emit_event("move_backward", (safe,), None, kind="call")
 
 
 def turn_left(angle_deg: float) -> None:
@@ -132,6 +136,7 @@ def turn_left(angle_deg: float) -> None:
     """
     safe = _clamp_finite(float(angle_deg), _MIN_ANGLE_DEG, _MAX_ANGLE_DEG, name="angle_deg")
     logger.debug("rover_api.turn_left angle_deg=%s", safe)
+    _emit_event("turn_left", (safe,), None, kind="call")
 
 
 def turn_right(angle_deg: float) -> None:
@@ -141,16 +146,18 @@ def turn_right(angle_deg: float) -> None:
     """
     safe = _clamp_finite(float(angle_deg), _MIN_ANGLE_DEG, _MAX_ANGLE_DEG, name="angle_deg")
     logger.debug("rover_api.turn_right angle_deg=%s", safe)
+    _emit_event("turn_right", (safe,), None, kind="call")
 
 
 def wait(seconds: float) -> None:
     """Pause for ``seconds`` seconds of simulated time.
 
-    Values outside ``[0, 60]`` are clamped — a single ``wait`` call should
+    Values outside ``[0, 60]`` are clamped -- a single ``wait`` call should
     never freeze the simulator for longer than a minute of in-world time.
     """
     safe = _clamp_finite(float(seconds), _MIN_WAIT_S, _MAX_WAIT_S, name="seconds")
     logger.debug("rover_api.wait seconds=%s", safe)
+    _emit_event("wait", (safe,), None, kind="call")
 
 
 # --- Sensing ---------------------------------------------------------------
@@ -164,7 +171,9 @@ def read_distance() -> float:
         no obstacle is visible. Before the engine is wired in (Task 3), the
         stub always returns :data:`INFINITY_METRES`.
     """
-    return INFINITY_METRES
+    result = INFINITY_METRES
+    _emit_event("read_distance", (), result, kind="sensor_read")
+    return result
 
 
 def read_colour() -> tuple[int, int, int]:
@@ -174,7 +183,9 @@ def read_colour() -> tuple[int, int, int]:
         Three integers in ``[0, 255]``. Before the engine is wired in
         (Task 3), the stub always returns :data:`DEFAULT_COLOUR`.
     """
-    return DEFAULT_COLOUR
+    result = DEFAULT_COLOUR
+    _emit_event("read_colour", (), list(result), kind="sensor_read")
+    return result
 
 
 def read_heading() -> float:
@@ -183,12 +194,16 @@ def read_heading() -> float:
     Zero degrees corresponds to "east"; anticlockwise rotation is positive.
     The value is wrapped into ``[0, 360)`` before being returned.
     """
-    return DEFAULT_HEADING_DEG
+    result = DEFAULT_HEADING_DEG
+    _emit_event("read_heading", (), result, kind="sensor_read")
+    return result
 
 
 def read_battery() -> float:
     """Return the rover's battery level as a percentage in ``[0, 100]``."""
-    return DEFAULT_BATTERY_PCT
+    result = DEFAULT_BATTERY_PCT
+    _emit_event("read_battery", (), result, kind="sensor_read")
+    return result
 
 
 def obstacle_ahead(threshold_m: float = 0.5) -> bool:
@@ -203,8 +218,10 @@ def obstacle_ahead(threshold_m: float = 0.5) -> bool:
         Before the engine is wired in (Task 3), the stub always returns
         ``False``.
     """
-    _clamp_finite(float(threshold_m), _MIN_DISTANCE_M, _MAX_DISTANCE_M, name="threshold_m")
-    return False
+    safe = _clamp_finite(float(threshold_m), _MIN_DISTANCE_M, _MAX_DISTANCE_M, name="threshold_m")
+    result = False
+    _emit_event("obstacle_ahead", (safe,), result, kind="sensor_read")
+    return result
 
 
 def sample_detected(radius_m: float = 0.3) -> bool:
@@ -217,13 +234,17 @@ def sample_detected(radius_m: float = 0.3) -> bool:
         ``True`` when a sample is in range. Before the engine is wired in
         (Task 3), the stub always returns ``False``.
     """
-    _clamp_finite(float(radius_m), _MIN_DISTANCE_M, _MAX_DISTANCE_M, name="radius_m")
-    return False
+    safe = _clamp_finite(float(radius_m), _MIN_DISTANCE_M, _MAX_DISTANCE_M, name="radius_m")
+    result = False
+    _emit_event("sample_detected", (safe,), result, kind="sensor_read")
+    return result
 
 
 def at_base() -> bool:
     """Return True when the rover currently overlaps the base tile."""
-    return False
+    result = False
+    _emit_event("at_base", (), result, kind="sensor_read")
+    return result
 
 
 # --- Acting ----------------------------------------------------------------
@@ -236,7 +257,9 @@ def collect_sample() -> bool:
         ``True`` if a sample was picked up; otherwise ``False``. Before the
         engine is wired in (Task 3), the stub always returns ``False``.
     """
-    return False
+    result = False
+    _emit_event("collect_sample", (), result, kind="sample")
+    return result
 
 
 def drop_sample() -> bool:
@@ -246,7 +269,9 @@ def drop_sample() -> bool:
         ``True`` if a sample was dropped; otherwise ``False``. Before the
         engine is wired in (Task 3), the stub always returns ``False``.
     """
-    return False
+    result = False
+    _emit_event("drop_sample", (), result, kind="sample")
+    return result
 
 
 def beep(times: int = 1) -> None:
@@ -265,6 +290,7 @@ def beep(times: int = 1) -> None:
         )
     )
     logger.debug("rover_api.beep times=%s", clamped)
+    _emit_event("beep", (clamped,), None, kind="call")
 
 
 def log(message: object) -> None:
@@ -284,3 +310,4 @@ def log(message: object) -> None:
             type(message).__name__,
         )
     logger.info("pupil-log: %s", text)
+    _emit_event("log", (text,), None, kind="call")

@@ -59,6 +59,48 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Tracer: module-level active tracer + state-provider hook (Task 6)
+
+**What was considered.** Two ways to thread the tracer through the
+procedural pupil API: (a) pass an explicit `tracer` argument to every
+function (breaks the locked-in signatures in Section 4), or (b) keep a
+module-level "active tracer" that `emit()` consults.
+
+**What was chosen.** Option (b). `robolearn.runtime.tracer` exposes
+`set_active`, `get_active` and `clear_active`. `rover_api` calls
+`emit(name, args, result, kind=...)` after each public function; if no
+tracer is active, `emit` returns immediately so pupil code outside the UI
+shell never pays a cost.
+
+The same module also exposes `set_state_provider(callable)`. When the
+engine wiring lands (later tasks), the UI shell registers a callable that
+returns a fresh `RoverSnapshot`; until then the snapshot is `None`. This
+keeps the engine optional rather than a hard dependency of the API.
+
+**Why.** Preserves the spec's Section 4 signatures verbatim. Tests can
+swap the active tracer in / out trivially (a `tests/conftest.py` autouse
+fixture resets both module globals between tests).
+
+---
+
+## 2026-05-26 — JSON round-trip drops tuple semantics on purpose (Task 6)
+
+**What was considered.** Encode tuples in `Event.args` and `Event.result`
+as either `[1, 2, 3]` (lossy: tuple → list) or `{"_tuple": [1, 2, 3]}`
+(lossless but custom).
+
+**What was chosen.** Lossy. `to_json` converts tuples to lists,
+`from_json` converts back to tuples for `Event.args` but leaves results
+as whatever JSON decoded. Sensor results that are tuples are emitted as
+`list(rgb)` in `rover_api`, so the round-trip is exact.
+
+**Why.** Grader (Task 9) doesn't care about list-vs-tuple, and a custom
+encoding would force the dissertation reader to learn a non-standard
+JSON dialect just to inspect the trace. Decision-log entry exists so the
+next person sees this is deliberate.
+
+---
+
 ## 2026-05-26 — Renderer: procedural free functions + headless pixel sampling (Task 5)
 
 **What was considered.** A `Renderer` class that owns a Surface and an
