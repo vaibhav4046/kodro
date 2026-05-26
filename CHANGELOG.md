@@ -17,6 +17,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Pupil-progress memory layer (`memory.store`, `memory.pupil_model`,
+  `memory.hint_engine`):
+  - SQLite `Store` with `pupils`, `submissions` and `concept_strength`
+    tables; EMA update embedded in `update_concept_strength(alpha=0.3)`.
+  - `PupilStrength` model with `update_on_submission`,
+    `passing_streak`, `weakest_concepts`, `suggest_next_lesson` (with
+    stretch-lesson promotion after 5 consecutive passes) and a
+    `class_heatmap` mapping for the teacher dashboard.
+  - Hint engine ships 24 rules covering: empty submissions, starter-code
+    unchanged, while-with-no-progress, `while True` without break,
+    multiple / single collisions, battery drained, negative move
+    arguments, excessive turns, missing iteration / selection / function
+    / recursion constructs, missing `collect_sample`, drives-only,
+    turns-only, very-few-steps, distance-zero, exceeded max_lines,
+    disallowed construct, missing `at_base` check, defined-but-not-
+    called functions, missing sensor reads for sensor lessons, and
+    collision-prone last action.
+  - Coverage gate raised to 75% per the autonomous-mode override.
 - Lesson auto-grader (`lessons.grader`):
   - `grade(lesson, tracer, source)` returns a `GradeResult(passed,
     reasons, score)` -- pure function, no engine handle required.

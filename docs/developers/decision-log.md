@@ -59,6 +59,43 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Memory: SQLite store + per-concept EMA in one place (Task 10)
+
+**What was considered.** Keep raw success / failure counters and derive
+the score on read, or persist the rolling EMA score alongside the
+counters.
+
+**What was chosen.** Both. The `concept_strength` table has columns
+`score`, `successes`, `failures`, `last_seen`. `update_concept_strength`
+performs the EMA step (`alpha=0.3` per Section 7.2) and bumps the
+counters in lockstep.
+
+**Why.** EMA-only loses raw history (the teacher dashboard wants both the
+rolling score and the "12 attempts" badge). Counter-only would force
+every read to walk the submission table to recompute EMA. Storing both
+keeps writes O(1) and lets the dashboard render with no extra queries.
+
+---
+
+## 2026-05-26 — Hint engine: 24 ordered rules with three tests each (Task 10)
+
+**What was considered.** A single big "diagnose" function with internal
+branches, or an ordered list of small `HintRule` dataclasses that
+`find_first_hint` walks.
+
+**What was chosen.** The list. Adding a new rule is one entry plus three
+tests; removing a rule is line-deletion. Order in the list IS the
+priority because `find_first_hint` returns the first match.
+
+**Why.** Hint rules will be the most-edited code in this project once
+real teachers start playing. Anything that makes adding a rule fast
+(one tuple entry, three tests, no central diagnose() to grow) keeps the
+hint library healthy. The override required 20+ real rules with at
+least three unit tests each; this commit ships 24 with exactly that
+coverage.
+
+---
+
 ## 2026-05-26 — Grader: pure-function rollup keyed off the trace + AST (Task 9)
 
 **What was considered.** Two grading strategies: (a) instrument the engine

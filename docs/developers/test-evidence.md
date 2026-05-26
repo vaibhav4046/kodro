@@ -13,6 +13,18 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — The pupil-progress memory layer is fully wired:
+  - `memory.store`: SQLite schema with `pupils`, `submissions`,
+    `concept_strength` (12 unit tests cover round-trip CRUD, the EMA
+    update, and the context-manager close behaviour).
+  - `memory.pupil_model`: EMA-driven concept strengths, `passing_streak`,
+    `weakest_concepts`, `suggest_next_lesson` (with stretch-lesson
+    promotion after `STREAK_BEFORE_STRETCH=5` consecutive passes) and
+    a class-wide `class_heatmap` (14 unit tests).
+  - `memory.hint_engine`: 24 rules and 78 hint-engine tests (three per
+    rule plus six sanity checks). Coverage gate raised from 60 to 75 per
+    the autonomous-mode override after Task 10. Total suite: 434 tests,
+    93.8 % coverage.
 - **2026-05-26** — The auto-grader turns a recorded `Tracer` plus a
   `Lesson` plus the pupil source into a `GradeResult(passed, reasons,
   score)`. Aggregates pulled from the trace cover samples collected,
