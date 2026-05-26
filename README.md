@@ -45,7 +45,7 @@ collect_sample()
 
 | Platform | One-liner |
 | --- | --- |
-| Windows | Download `RoboLearn-windows.exe` from the latest [release](https://github.com/vaibhav4046/robolearn/releases) |
+| Windows | Download [`RoboLearn-windows-x64.exe`](https://github.com/vaibhav4046/robolearn/releases/download/v0.20.0/RoboLearn-windows-x64.exe) (27 MB, bundles Python + Tcl/Tk + Pygame) |
 | macOS | Download `RoboLearn-macos.dmg` from the latest [release](https://github.com/vaibhav4046/robolearn/releases) |
 | Linux | `pip install robolearn && python -m robolearn` |
 

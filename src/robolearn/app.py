@@ -66,18 +66,27 @@ def build_app(
         initial_source=starting_lesson.starter_code if lessons else "move_forward(5)",
     )
     sim = SimPanel(win.frames.sim)
-    sensors = SensorsPanel(win.frames.sensors)
-    lessons_panel = LessonsPanel(win.frames.sensors, lessons=lessons)
-    console = ConsolePanel(win.frames.console)
-    hint_card = HintCardArea(win.frames.console)
+
+    # The right-hand slot stacks SensorsPanel on top of LessonsPanel inside
+    # a single wrapper frame; the bottom slot stacks HintCardArea above
+    # ConsolePanel. Wrapping avoids mixing pack/grid via `in_=` arguments
+    # (which painted blank on some Tk builds).
+    right_wrap = tk.Frame(win.frames.sensors)
+    sensors = SensorsPanel(right_wrap)
+    lessons_panel = LessonsPanel(right_wrap, lessons=lessons)
+    sensors.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+    lessons_panel.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+
+    bottom_wrap = tk.Frame(win.frames.console)
+    hint_card = HintCardArea(bottom_wrap)
+    console = ConsolePanel(bottom_wrap)
+    hint_card.pack(side=tk.TOP, fill=tk.X)
+    console.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
     win.set_slot("editor", editor)
     win.set_slot("sim", sim)
-    win.set_slot("sensors", sensors)
-    win.set_slot("console", console)
-    # The hint card lives above the console, in the same slot frame.
-    hint_card.pack(in_=win.frames.console, side=tk.TOP, fill=tk.X)
-    lessons_panel.pack(in_=win.frames.sensors, side=tk.BOTTOM, fill=tk.X)
+    win.set_slot("sensors", right_wrap)
+    win.set_slot("console", bottom_wrap)
 
     app = App(
         main_window=win,

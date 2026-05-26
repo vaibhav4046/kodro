@@ -1,17 +1,93 @@
 """PyInstaller wrapper used by ``release.yml`` and by developers locally.
 
 Produces a single-file binary under ``dist/`` for the host platform.
-Full implementation lands in Task 21 of the build plan.
+The bundle includes the 10 lesson YAMLs, Pygame's bundled SDL2, and
+(on Windows) Tcl/Tk so end-users do not need a system Python install
+with a working Tk.
+
+Usage::
+
+    python scripts/build_exe.py            # uses the current OS
+    python scripts/build_exe.py --debug    # console-attached build
 """
 
 from __future__ import annotations
 
+import argparse
+import shutil
+import subprocess
 import sys
+from pathlib import Path
+
+REPO_ROOT: Path = Path(__file__).resolve().parent.parent
+DIST_DIR: Path = REPO_ROOT / "dist"
+BUILD_DIR: Path = REPO_ROOT / "build"
 
 
-def main() -> int:
-    sys.stdout.write("scripts/build_exe.py is a stub — wired in Task 21.\n")
+def main(argv: list[str] | None = None) -> int:
+    """Build a single-file PyInstaller binary for the current platform."""
+    parser = argparse.ArgumentParser(description="Build RoboLearn into a single-file binary.")
+    parser.add_argument(
+        "--debug", action="store_true", help="produce a console-attached build for diagnostics"
+    )
+    parser.add_argument(
+        "--clean", action="store_true", help="remove dist/ and build/ before running PyInstaller"
+    )
+    args = parser.parse_args(argv)
+
+    if args.clean:
+        shutil.rmtree(DIST_DIR, ignore_errors=True)
+        shutil.rmtree(BUILD_DIR, ignore_errors=True)
+
+    pathsep = ";" if sys.platform.startswith("win") else ":"
+    library_src = (REPO_ROOT / "src" / "robolearn" / "lessons" / "library").as_posix()
+    add_data = f"{library_src}{pathsep}robolearn/lessons/library"
+
+    cmd = [
+        sys.executable,
+        "-m",
+        "PyInstaller",
+        "--noconfirm",
+        "--onefile",
+        "--name",
+        "robolearn",
+        "--paths",
+        (REPO_ROOT / "src").as_posix(),
+        "--add-data",
+        add_data,
+        "--collect-submodules",
+        "robolearn",
+        "--collect-data",
+        "robolearn",
+        "--hidden-import",
+        "robolearn.app",
+    ]
+    if not args.debug:
+        cmd.append("--windowed")
+    cmd.append((REPO_ROOT / "src" / "robolearn" / "__main__.py").as_posix())
+
+    sys.stdout.write("Running: " + " ".join(cmd) + "\n")
+    result = subprocess.run(cmd, check=False, cwd=REPO_ROOT)
+    if result.returncode != 0:
+        sys.stderr.write(f"PyInstaller failed with exit code {result.returncode}\n")
+        return result.returncode
+
+    binary_path = _resolve_binary_path()
+    if binary_path is not None:
+        sys.stdout.write(f"Built: {binary_path}\n")
     return 0
+
+
+def _resolve_binary_path() -> Path | None:
+    """Return the path to the binary PyInstaller produced (if any)."""
+    candidates = (
+        DIST_DIR / "robolearn.exe",
+        DIST_DIR / "robolearn",
+    )
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
 
 
 if __name__ == "__main__":

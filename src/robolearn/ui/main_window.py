@@ -133,15 +133,17 @@ class MainWindow:
     def set_slot(self, slot: SlotName, widget: tk.Widget) -> None:
         """Place ``widget`` inside the named slot's frame.
 
-        Tests pass small ``tk.Frame`` stubs; real panels (Tasks 12-17)
-        supply their own widget subclasses.
+        The widget must already have the slot frame as its parent;
+        :meth:`set_slot` packs it with fill=BOTH, expand=True. Mixing
+        pack-with-`in_=` and grid in the same window caused painting
+        glitches on some Tk builds, so we pack directly.
         """
         if slot not in self._slots:
             raise KeyError(f"unknown slot: {slot}")
         previous = self._slots[slot]
         if previous is not None:
             previous.destroy()
-        widget.pack(in_=self.frames.asdict()[slot], fill=tk.BOTH, expand=True)
+        widget.pack(fill=tk.BOTH, expand=True)
         self._slots[slot] = widget
 
     def get_slot(self, slot: SlotName) -> tk.Widget | None:
@@ -163,14 +165,19 @@ class MainWindow:
         """Create the five slot frames and grid them per Section 8.1."""
         topbar = ttk.Frame(self._root, height=44)
         topbar.grid(row=0, column=0, columnspan=3, sticky="ew")
-        editor = ttk.Frame(self._root)
+        topbar.grid_propagate(False)
+        editor = ttk.Frame(self._root, width=320, height=480)
         editor.grid(row=1, column=0, sticky="nsew")
-        sim = ttk.Frame(self._root)
+        editor.pack_propagate(False)
+        sim = ttk.Frame(self._root, width=520, height=480)
         sim.grid(row=1, column=1, sticky="nsew")
-        sensors = ttk.Frame(self._root)
+        sim.pack_propagate(False)
+        sensors = ttk.Frame(self._root, width=300, height=480)
         sensors.grid(row=1, column=2, sticky="nsew")
-        console = ttk.Frame(self._root, height=140)
+        sensors.pack_propagate(False)
+        console = ttk.Frame(self._root, height=180)
         console.grid(row=2, column=0, columnspan=3, sticky="ew")
+        console.pack_propagate(False)
         # Column weights: editor 2 / sim 4 / sensors 2.
         self._root.grid_columnconfigure(0, weight=2)
         self._root.grid_columnconfigure(1, weight=4)
