@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Right-hand panels (`ui.sensors_panel`, `ui.lessons_panel`):
+  - `SensorsPanel`: heading, battery, LIDAR distance, under-rover colour
+    and samples-collected rows backed by `tk.StringVar`s; updated by the
+    parent UI via `update_from_rover(rover)`.
+  - `LessonsPanel`: scrollable `tk.Listbox` of lessons plus a pupil-
+    progress drawer; exposes `set_lessons`, `select(index)`,
+    `selected_lesson()` and `update_pupil_memory(strengths)`.
 - Simulation panel (`ui.sim_panel`):
   - Embeds an in-memory pygame surface in a `tk.Label` via base64-PPM
     bytes -- avoids the brittle `SDL_WINDOWID` trick and works under

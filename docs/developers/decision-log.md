@@ -59,6 +59,23 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Side panels: passive readouts updated by the parent (Task 14)
+
+**What was considered.** Two designs: (a) each side panel pulls state
+from a global registry on a Tk `after()` timer, or (b) panels are
+passive widgets and the parent UI pushes updates on every step.
+
+**What was chosen.** (b). `SensorsPanel.update_from_rover(rover)` and
+`LessonsPanel.update_pupil_memory(strengths)` are pure methods --
+no threads, no timers. The parent UI calls them whenever it wants a
+refresh.
+
+**Why.** Headless tests can call the update methods directly. No race
+conditions between the engine loop and the UI loop. Tk's main loop
+is the single source of update timing.
+
+---
+
 ## 2026-05-26 — Sim panel: pygame surface → PPM bytes → Tk PhotoImage (Task 13)
 
 **What was considered.** Embed pygame in Tk via the classic
