@@ -49,8 +49,8 @@ dev = [
 robolearn = "robolearn.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/robolearn/robolearn"
-Issues = "https://github.com/robolearn/robolearn/issues"
+Homepage = "https://github.com/vaibhav4046/robolearn"
+Issues = "https://github.com/vaibhav4046/robolearn/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robolearn"]

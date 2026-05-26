@@ -1,8 +1,8 @@
 site_name: RoboLearn
 site_description: Offline desktop rover simulator for the UK Computing curriculum.
 site_url: https://robolearn.github.io
-repo_url: https://github.com/robolearn/robolearn
-repo_name: robolearn/robolearn
+repo_url: https://github.com/vaibhav4046/robolearn
+repo_name: vaibhav4046/robolearn
 docs_dir: .
 site_dir: ../site
 

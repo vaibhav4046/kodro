@@ -1,6 +1,6 @@
 # RoboLearn
 
-[![CI](https://github.com/robolearn/robolearn/actions/workflows/ci.yml/badge.svg)](https://github.com/robolearn/robolearn/actions/workflows/ci.yml)
+[![CI](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
@@ -25,7 +25,7 @@ weaknesses.
 ## Quick start (developers)
 
 ```bash
-git clone https://github.com/robolearn/robolearn.git
+git clone https://github.com/vaibhav4046/robolearn.git
 cd robolearn
 pip install -e ".[dev]"
 python -m robolearn
@@ -45,8 +45,8 @@ collect_sample()
 
 | Platform | One-liner |
 | --- | --- |
-| Windows | Download `RoboLearn-windows.exe` from the latest [release](https://github.com/robolearn/robolearn/releases) |
-| macOS | Download `RoboLearn-macos.dmg` from the latest [release](https://github.com/robolearn/robolearn/releases) |
+| Windows | Download `RoboLearn-windows.exe` from the latest [release](https://github.com/vaibhav4046/robolearn/releases) |
+| macOS | Download `RoboLearn-macos.dmg` from the latest [release](https://github.com/vaibhav4046/robolearn/releases) |
 | Linux | `pip install robolearn && python -m robolearn` |
 
 ## Documentation
