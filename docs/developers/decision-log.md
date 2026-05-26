@@ -59,6 +59,48 @@ the hint engine (Task 10) without changing the public signatures.
 
 ---
 
+## 2026-05-26 — Engine: zero-gravity Pymunk space with per-shape friction (Task 3)
+
+**What was considered.** Three ways to model the per-terrain physics from
+Section 5: (a) drive a true 2D side-view with Pymunk's gravity vector,
+(b) ignore Pymunk and integrate motion ourselves, (c) keep a 2D top-down
+view where the rover slides on a horizontal plane and only obstacle
+collisions matter.
+
+**What was chosen.** Option (c). The Pymunk space has zero gravity, four
+static boundary segments, and per-shape friction read from the terrain
+registry. The "gravity" magnitudes from the spec are stored on
+:class:`TerrainParams` and influence the rover's battery drain model (and
+will inform sensor noise in Task 4), but they do not bend trajectories.
+
+**Why.** A top-down rover that "falls" toward the bottom of the screen
+would confuse pupils — Mars in the simulator should look like Mars, not
+like a billiard table tilted south. The wheel-friction physics for a top-
+down rover are dominated by surface friction anyway, which we apply via
+Pymunk's per-shape friction coefficient. The same code path handles all
+four terrains by swapping one `TerrainParams` lookup.
+
+---
+
+## 2026-05-26 — `on_collision` callbacks with begin + post_solve split (Task 3)
+
+**What was considered.** Wire only a `begin` callback and read impulse off
+the arbiter, or wire `begin` (record the collision happened) + `post_solve`
+(fill in the contact impulse once Pymunk has solved it).
+
+**What was chosen.** The split: `begin` appends a `CollisionEvent` with
+impulse zero; `post_solve` reaches back into the last event of the same
+type and overwrites the impulse with the magnitude of
+`arbiter.total_impulse`.
+
+**Why.** Pymunk 7's begin handler runs *before* the constraint solver, so
+`arbiter.total_impulse` is `(0, 0)` there. Reading impulse in `post_solve`
+gives the true magnitude. Splitting also keeps the collision counter
+correct: each touch is counted exactly once regardless of how many post-
+solve frames the contact spans.
+
+---
+
 ## 2026-05-26 — Package-root re-exports of the rover API (Task 2)
 
 **What was considered.** Force pupils to write

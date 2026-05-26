@@ -17,3 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   logged); no function ever raises. Package root re-exports every public
   symbol so `from robolearn import move_forward` works alongside the
   explicit `from robolearn.rover_api import move_forward`.
+- Engine subsystem with four modules:
+  - `engine.terrain`: `Terrain` StrEnum (earth / mars / underwater / space)
+    plus a `TerrainParams` lookup keyed by either enum or string name. The
+    gravity / friction / drag constants from Section 5 of the spec live
+    here in one place.
+  - `engine.world`: `World`, `Sample`, `Obstacle`, `ArenaBounds`
+    dataclasses, with convenience accessors for uncollected samples,
+    completion check and base-distance.
+  - `engine.rover`: `Rover` entity with `move`, `turn`, `try_collect`,
+    `try_drop`, `register_collision`, `at_base` and the
+    `RoverState` snapshot dataclass. Battery model implements the
+    0.1 %/m, 0.05 %/°, +1 %/collision spec.
+  - `engine.physics`: `PhysicsSpace` wrapper around `pymunk.Space` that
+    creates the four boundary walls, places the rover and any obstacles,
+    and records every collision via begin + post-solve handlers. Damping
+    is set to `1 - drag` to model underwater resistance.

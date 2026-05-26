@@ -13,3 +13,12 @@ the dissertation chapter on verification.
   cover the full API surface and the package-root re-exports; coverage on
   `src/robolearn/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
+- **2026-05-26** — The engine subsystem (terrain, world, rover, physics)
+  is fully operational with 54 additional unit tests. The four terrains
+  expose the spec's gravity / friction / drag constants verbatim; the
+  Pymunk wrapper builds a four-walled arena, lets the rover collide with
+  walls and obstacles, and records every contact via `begin` +
+  `post_solve` handlers. Rover dead-reckoning, battery drain
+  (0.1 %/m, 0.05 %/°, +1 %/collision) and sample collection all behave
+  per Section 5 of the spec. Coverage: `terrain.py`, `world.py` 100 %,
+  `rover.py` 99 %, `physics.py` 92 %.
