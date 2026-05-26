@@ -1,0 +1,64 @@
+site_name: RoboLearn
+site_description: Offline desktop rover simulator for the UK Computing curriculum.
+site_url: https://robolearn.github.io
+repo_url: https://github.com/robolearn/robolearn
+repo_name: robolearn/robolearn
+docs_dir: .
+site_dir: ../site
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - For teachers:
+      - Getting started: teachers/getting-started.md
+      - Classroom setup: teachers/classroom-setup.md
+      - Curriculum mapping: teachers/curriculum-mapping.md
+  - For pupils:
+      - API cheatsheet: pupils/api-cheatsheet.md
+  - For developers:
+      - Architecture: developers/architecture.md
+      - Extending lessons: developers/extending-lessons.md
+      - Decision log: developers/decision-log.md
+      - Test evidence: developers/test-evidence.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets

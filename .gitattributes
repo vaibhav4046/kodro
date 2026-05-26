@@ -1,0 +1,27 @@
+# Normalise line endings across platforms — keep everything LF in the index.
+* text=auto eol=lf
+
+# Source / config / docs are explicitly LF.
+*.py     text eol=lf
+*.toml   text eol=lf
+*.yaml   text eol=lf
+*.yml    text eol=lf
+*.md     text eol=lf
+*.cfg    text eol=lf
+*.ini    text eol=lf
+LICENSE  text eol=lf
+
+# Binary assets — never let Git touch them.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.ttf    binary
+*.otf    binary
+*.woff   binary
+*.woff2  binary
+*.wav    binary
+*.mp3    binary
+*.ogg    binary
+*.db     binary

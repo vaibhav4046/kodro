@@ -1,0 +1,52 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+wheels/
+pip-wheel-metadata/
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# Hatch
+.hatch/
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# Runtime / user data
+*.db
+*.db-journal
+~/.robolearn/
+
+# Docs build
+site/
+
+# OS junk
+Thumbs.db
+desktop.ini
+
+# PyInstaller artefacts
+*.spec.bak

@@ -1,0 +1,156 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "robolearn"
+version = "0.1.0"
+description = "Offline desktop rover simulator that teaches the UK Computing curriculum through procedural Python."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "RoboLearn contributors" }]
+keywords = ["education", "stem", "robotics", "simulator", "ks3", "ks4"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: MacOS X",
+    "Environment :: Win32 (MS Windows)",
+    "Environment :: X11 Applications",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Education",
+    "Topic :: Games/Entertainment :: Simulation",
+]
+dependencies = [
+    "pygame-ce>=2.5",
+    "pymunk>=6.6",
+    "pyyaml>=6.0",
+    "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "ruff>=0.6.0",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "types-PyYAML",
+    "pyinstaller>=6.6",
+    "mkdocs-material>=9.5",
+]
+
+[project.scripts]
+robolearn = "robolearn.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/robolearn/robolearn"
+Issues = "https://github.com/robolearn/robolearn/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/robolearn"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/robolearn",
+    "tests",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+]
+
+# ---------- ruff -----------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+extend-exclude = ["build", "dist", ".hatch", "site"]
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",      # pycodestyle / pyflakes
+    "I",                # isort
+    "B",                # bugbear
+    "UP",               # pyupgrade
+    "D",                # pydocstyle
+    "ANN",              # annotations
+    "RUF",              # ruff-specific
+    "SIM",              # simplify
+    "C4",               # comprehensions
+    "PTH",              # use pathlib
+    "TID",              # tidy imports
+]
+ignore = [
+    "D203",   # 1 blank line before class — conflicts with D211
+    "D213",   # multi-line summary second line — conflicts with D212
+    "ANN401", # `Any` allowed where genuinely needed
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D", "ANN", "S101"]
+"scripts/**" = ["D", "ANN", "INP001"]
+"examples/**" = ["D", "ANN", "INP001"]
+"src/robolearn/__main__.py" = ["D"]
+
+[tool.ruff.format]
+line-ending = "lf"
+quote-style = "double"
+indent-style = "space"
+
+# ---------- mypy -----------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+files = ["src", "tests"]
+strict = true
+warn_unreachable = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_reexport = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["pygame.*", "pymunk.*", "tkcode.*"]
+ignore_missing_imports = true
+
+# ---------- pytest ---------------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=robolearn",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    # Raise to 85 once the implementation tasks land (see Section 12).
+    "--cov-fail-under=0",
+]
+markers = [
+    "slow: integration tests that exercise the engine for several frames",
+    "ui: tests that require an embedded pygame surface",
+]
+
+[tool.coverage.run]
+source = ["src/robolearn"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
