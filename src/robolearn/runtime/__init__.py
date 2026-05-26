@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+from .binding import (
+    clear_active as clear_active_engine,
+)
+from .binding import (
+    get_active_rover,
+    get_active_world,
+    set_active_rover,
+    set_active_world,
+)
 from .executor import DEFAULT_TIMEOUT_S, ExecutionResult, execute
 from .sandbox import (
     FORBIDDEN_NAMES,
@@ -33,13 +42,18 @@ __all__ = (
     "SandboxViolation",
     "Tracer",
     "clear_active",
+    "clear_active_engine",
     "emit",
     "execute",
     "find_violations",
     "get_active",
+    "get_active_rover",
+    "get_active_world",
     "get_state_provider",
     "is_safe",
     "restricted_globals",
     "set_active",
+    "set_active_rover",
+    "set_active_world",
     "set_state_provider",
 )

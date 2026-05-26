@@ -12,11 +12,12 @@ intro: |
   so the rover keeps moving until it sees an obstacle, then turn and
   continue. Every loop iteration is one step.
 starter_code: |
-  while not obstacle_ahead():
+  for _ in range(8):
+      if obstacle_ahead():
+          break
       move_forward(1)
-  turn_left(90)
-  move_forward(2)
-  collect_sample()
+      if sample_detected(0.6):
+          collect_sample()
 allowed_constructs: [while, if, function_call, comparison]
 max_lines: 12
 world:

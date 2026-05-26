@@ -1,25 +1,29 @@
 """Public, procedural API used by pupil code.
 
-This is the single most important module in the project: every signature is
-locked-in by Section 4 of the build spec and pupils write code against the
-free functions in here. The bodies are intentionally thin -- they will be
-wired through :mod:`robolearn.runtime.tracer` (Task 6) and into the OO
-engine (Tasks 3-5) by later build-plan tasks. Until then they return safe
-defaults and clamp their inputs so that no pupil call can ever raise.
+This is the single most important module in the project: every signature
+is locked-in by Section 4 of the build spec and pupils write code
+against the free functions in here. The bodies are deliberately thin:
+
+* if a real engine is bound via :mod:`robolearn.runtime.binding`, each
+  call drives it (drive the rover, read its sensors, attempt to collect
+  a sample, etc.);
+* otherwise every call returns its documented safe default so tests
+  and standalone scripts keep working.
 
 Design rules (Section 4):
 
-* Every public function carries full type annotations using PEP 604 unions.
+* Every public function carries full type annotations using PEP 604
+  unions.
 * No function raises on bad input -- it clamps, warns via :mod:`logging`
   and returns a safe default.
-* Every call will eventually be appended to the active tracer; this hookup
-  lands in Task 6 without changing any of the signatures below.
+* Every call is appended to the active tracer (if one is registered).
 """
 
 from __future__ import annotations
 
 import logging
 
+from .runtime.binding import get_active_rover
 from .runtime.tracer import emit as _emit_event
 
 __all__ = (
@@ -58,9 +62,7 @@ DEFAULT_HEADING_DEG: float = 0.0
 #: Default battery percentage before the engine is wired in.
 DEFAULT_BATTERY_PCT: float = 100.0
 
-# Argument clamp ranges. Picked to be generous enough that legitimate pupil
-# code is never silently truncated, but tight enough that fat-finger inputs
-# (a stray ``1e9`` for ``move_forward`` say) do not flood the engine.
+# Argument clamp ranges (see Section 4).
 _MIN_DISTANCE_M: float = 0.0
 _MAX_DISTANCE_M: float = 1000.0
 _MIN_ANGLE_DEG: float = -3600.0
@@ -72,18 +74,8 @@ _MAX_BEEP_TIMES: int = 16
 
 
 def _clamp_finite(value: float, low: float, high: float, *, name: str) -> float:
-    """Clamp ``value`` into ``[low, high]``, replacing NaN/inf with ``low``.
-
-    Args:
-        value: The candidate value to clamp.
-        low: Inclusive lower bound.
-        high: Inclusive upper bound.
-        name: Argument name, used in warning messages.
-
-    Returns:
-        A finite ``float`` inside ``[low, high]``.
-    """
-    if value != value:  # NaN check; NaN is the only value not equal to itself.
+    """Clamp ``value`` into ``[low, high]``, replacing NaN/inf with ``low``."""
+    if value != value:  # NaN
         logger.warning("rover_api: %s received NaN, clamping to %s", name, low)
         return low
     if value == float("inf") or value == float("-inf"):
@@ -107,54 +99,47 @@ def _clamp_finite(value: float, low: float, high: float, *, name: str) -> float:
 
 
 def move_forward(distance: float) -> None:
-    """Drive the rover forward by ``distance`` metres.
-
-    Negative distances and non-finite values are clamped to zero and logged.
-    The maximum allowed step is :data:`_MAX_DISTANCE_M` (1000 m); larger
-    values are clamped down.
-    """
+    """Drive the rover forward by ``distance`` metres."""
     safe = _clamp_finite(float(distance), _MIN_DISTANCE_M, _MAX_DISTANCE_M, name="distance")
+    rover = get_active_rover()
+    if rover is not None:
+        rover.move(safe)
     logger.debug("rover_api.move_forward distance=%s", safe)
     _emit_event("move_forward", (safe,), None, kind="call")
 
 
 def move_backward(distance: float) -> None:
-    """Drive the rover backward by ``distance`` metres.
-
-    Same clamping rules as :func:`move_forward`.
-    """
+    """Drive the rover backward by ``distance`` metres."""
     safe = _clamp_finite(float(distance), _MIN_DISTANCE_M, _MAX_DISTANCE_M, name="distance")
+    rover = get_active_rover()
+    if rover is not None:
+        rover.move(-safe)
     logger.debug("rover_api.move_backward distance=%s", safe)
     _emit_event("move_backward", (safe,), None, kind="call")
 
 
 def turn_left(angle_deg: float) -> None:
-    """Turn the rover ``angle_deg`` degrees anticlockwise.
-
-    Values outside ``[-3600, 3600]`` are clamped (ten full revolutions either
-    way is far more than any lesson needs).
-    """
+    """Turn the rover ``angle_deg`` degrees anticlockwise."""
     safe = _clamp_finite(float(angle_deg), _MIN_ANGLE_DEG, _MAX_ANGLE_DEG, name="angle_deg")
+    rover = get_active_rover()
+    if rover is not None:
+        rover.turn(safe)
     logger.debug("rover_api.turn_left angle_deg=%s", safe)
     _emit_event("turn_left", (safe,), None, kind="call")
 
 
 def turn_right(angle_deg: float) -> None:
-    """Turn the rover ``angle_deg`` degrees clockwise.
-
-    Same clamping rules as :func:`turn_left`.
-    """
+    """Turn the rover ``angle_deg`` degrees clockwise."""
     safe = _clamp_finite(float(angle_deg), _MIN_ANGLE_DEG, _MAX_ANGLE_DEG, name="angle_deg")
+    rover = get_active_rover()
+    if rover is not None:
+        rover.turn(-safe)
     logger.debug("rover_api.turn_right angle_deg=%s", safe)
     _emit_event("turn_right", (safe,), None, kind="call")
 
 
 def wait(seconds: float) -> None:
-    """Pause for ``seconds`` seconds of simulated time.
-
-    Values outside ``[0, 60]`` are clamped -- a single ``wait`` call should
-    never freeze the simulator for longer than a minute of in-world time.
-    """
+    """Pause for ``seconds`` seconds of simulated time."""
     safe = _clamp_finite(float(seconds), _MIN_WAIT_S, _MAX_WAIT_S, name="seconds")
     logger.debug("rover_api.wait seconds=%s", safe)
     _emit_event("wait", (safe,), None, kind="call")
@@ -164,85 +149,78 @@ def wait(seconds: float) -> None:
 
 
 def read_distance() -> float:
-    """Return distance in metres to the nearest obstacle directly ahead.
+    """Return distance in metres to the nearest obstacle directly ahead."""
+    rover = get_active_rover()
+    if rover is not None:
+        from .engine.sensors import lidar_distance
 
-    Returns:
-        ``float``: A non-negative distance, or :data:`INFINITY_METRES` when
-        no obstacle is visible. Before the engine is wired in (Task 3), the
-        stub always returns :data:`INFINITY_METRES`.
-    """
-    result = INFINITY_METRES
+        result = lidar_distance(rover)
+    else:
+        result = INFINITY_METRES
     _emit_event("read_distance", (), result, kind="sensor_read")
     return result
 
 
 def read_colour() -> tuple[int, int, int]:
-    """Return the ``(red, green, blue)`` colour directly beneath the rover.
+    """Return the RGB colour directly beneath the rover."""
+    rover = get_active_rover()
+    if rover is not None:
+        from .engine.sensors import colour_under
 
-    Returns:
-        Three integers in ``[0, 255]``. Before the engine is wired in
-        (Task 3), the stub always returns :data:`DEFAULT_COLOUR`.
-    """
-    result = DEFAULT_COLOUR
+        result = colour_under(rover)
+    else:
+        result = DEFAULT_COLOUR
     _emit_event("read_colour", (), list(result), kind="sensor_read")
     return result
 
 
 def read_heading() -> float:
-    """Return the current heading in degrees.
-
-    Zero degrees corresponds to "east"; anticlockwise rotation is positive.
-    The value is wrapped into ``[0, 360)`` before being returned.
-    """
-    result = DEFAULT_HEADING_DEG
+    """Return the current heading in degrees."""
+    rover = get_active_rover()
+    result = float(rover.state.heading_deg) if rover is not None else DEFAULT_HEADING_DEG
     _emit_event("read_heading", (), result, kind="sensor_read")
     return result
 
 
 def read_battery() -> float:
     """Return the rover's battery level as a percentage in ``[0, 100]``."""
-    result = DEFAULT_BATTERY_PCT
+    rover = get_active_rover()
+    result = float(rover.state.battery_pct) if rover is not None else DEFAULT_BATTERY_PCT
     _emit_event("read_battery", (), result, kind="sensor_read")
     return result
 
 
 def obstacle_ahead(threshold_m: float = 0.5) -> bool:
-    """Return True if an obstacle is closer than ``threshold_m`` metres.
-
-    Args:
-        threshold_m: Distance threshold in metres. Clamped to
-            ``[0, _MAX_DISTANCE_M]``.
-
-    Returns:
-        ``True`` if the front-facing distance is at most ``threshold_m``.
-        Before the engine is wired in (Task 3), the stub always returns
-        ``False``.
-    """
+    """Return True if an obstacle is closer than ``threshold_m`` metres."""
     safe = _clamp_finite(float(threshold_m), _MIN_DISTANCE_M, _MAX_DISTANCE_M, name="threshold_m")
-    result = False
+    rover = get_active_rover()
+    if rover is not None:
+        from .engine.sensors import lidar_distance
+
+        result = bool(lidar_distance(rover) <= safe)
+    else:
+        result = False
     _emit_event("obstacle_ahead", (safe,), result, kind="sensor_read")
     return result
 
 
 def sample_detected(radius_m: float = 0.3) -> bool:
-    """Return True if a collectible sample is within ``radius_m`` metres.
-
-    Args:
-        radius_m: Detection radius. Clamped to ``[0, _MAX_DISTANCE_M]``.
-
-    Returns:
-        ``True`` when a sample is in range. Before the engine is wired in
-        (Task 3), the stub always returns ``False``.
-    """
+    """Return True if a collectible sample is within ``radius_m`` metres."""
     safe = _clamp_finite(float(radius_m), _MIN_DISTANCE_M, _MAX_DISTANCE_M, name="radius_m")
-    result = False
+    rover = get_active_rover()
+    if rover is not None:
+        nearest = rover._nearest_sample(safe)
+        result = nearest is not None
+    else:
+        result = False
     _emit_event("sample_detected", (safe,), result, kind="sensor_read")
     return result
 
 
 def at_base() -> bool:
     """Return True when the rover currently overlaps the base tile."""
-    result = False
+    rover = get_active_rover()
+    result = bool(rover.at_base()) if rover is not None else False
     _emit_event("at_base", (), result, kind="sensor_read")
     return result
 
@@ -251,36 +229,23 @@ def at_base() -> bool:
 
 
 def collect_sample() -> bool:
-    """Attempt to collect a nearby sample.
-
-    Returns:
-        ``True`` if a sample was picked up; otherwise ``False``. Before the
-        engine is wired in (Task 3), the stub always returns ``False``.
-    """
-    result = False
+    """Attempt to collect a nearby sample."""
+    rover = get_active_rover()
+    result = bool(rover.try_collect()) if rover is not None else False
     _emit_event("collect_sample", (), result, kind="sample")
     return result
 
 
 def drop_sample() -> bool:
-    """Attempt to drop a held sample at the rover's current position.
-
-    Returns:
-        ``True`` if a sample was dropped; otherwise ``False``. Before the
-        engine is wired in (Task 3), the stub always returns ``False``.
-    """
-    result = False
+    """Attempt to drop a held sample at the rover's current position."""
+    rover = get_active_rover()
+    result = bool(rover.try_drop()) if rover is not None else False
     _emit_event("drop_sample", (), result, kind="sample")
     return result
 
 
 def beep(times: int = 1) -> None:
-    """Play an audible cue ``times`` times.
-
-    Args:
-        times: Number of beeps in ``[0, 16]``. Values outside this range are
-            clamped and a warning is logged.
-    """
+    """Play an audible cue ``times`` times."""
     clamped = int(
         _clamp_finite(
             float(times),
@@ -294,13 +259,7 @@ def beep(times: int = 1) -> None:
 
 
 def log(message: object) -> None:
-    """Print ``message`` to the simulator console.
-
-    Args:
-        message: Anything stringifiable. Non-string values are coerced via
-            :func:`str`. Errors during coercion are caught and replaced with
-            a fallback so this function never raises.
-    """
+    """Print ``message`` to the simulator console."""
     try:
         text = message if isinstance(message, str) else str(message)
     except Exception:

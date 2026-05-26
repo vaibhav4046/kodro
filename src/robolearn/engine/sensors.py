@@ -158,7 +158,7 @@ def _wall_intersections(
     if abs(dx) > epsilon:
         for wall_x in (0.0, bounds.width):
             t = (wall_x - x) / dx
-            if t <= 0.0:
+            if t < 0.0:
                 continue
             hit_y = y + t * dy
             if 0.0 <= hit_y <= bounds.height:
@@ -166,7 +166,7 @@ def _wall_intersections(
     if abs(dy) > epsilon:
         for wall_y in (0.0, bounds.height):
             t = (wall_y - y) / dy
-            if t <= 0.0:
+            if t < 0.0:
                 continue
             hit_x = x + t * dx
             if 0.0 <= hit_x <= bounds.width:

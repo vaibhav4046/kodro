@@ -17,10 +17,12 @@ from robolearn.engine.terrain import Terrain
 from robolearn.engine.world import ArenaBounds, World
 from robolearn.lessons.schema import Lesson, load_library
 from robolearn.memory.store import Store
+from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
 from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
 from robolearn.ui.console_panel import ConsolePanel, HintCardArea
 from robolearn.ui.editor_panel import EditorCallbacks, EditorPanel
+from robolearn.ui.lesson_editor import LessonEditor, load_custom_lessons
 from robolearn.ui.lessons_panel import LessonsCallbacks, LessonsPanel
 from robolearn.ui.main_window import MainWindow
 from robolearn.ui.sensors_panel import SensorsPanel
@@ -53,13 +55,17 @@ def build_app(
     """Build (but do not enter the main loop of) the full application."""
     win = main_window or MainWindow()
     store = Store(db_path or DEFAULT_DB_PATH)
-    lessons = library if library is not None else load_library()
+    if library is not None:
+        lessons = list(library)
+    else:
+        lessons = list(load_library()) + list(load_custom_lessons())
     starting_lesson = lessons[0] if lessons else _default_lesson()
     world = _world_from_lesson(starting_lesson)
     rover = Rover(world)
     tracer = Tracer()
     set_active(tracer)
-    set_state_provider(lambda: _snapshot(rover))
+    set_active_rover(rover)
+    set_active_world(world)
 
     editor = EditorPanel(
         win.frames.editor,
@@ -97,6 +103,8 @@ def build_app(
         lessons=lessons,
         current_lesson=starting_lesson if lessons else None,
     )
+    # Snapshot provider reads through `app.rover` so reset replacements stick.
+    set_state_provider(lambda: _snapshot(app.rover))
 
     editor._callbacks = EditorCallbacks(
         on_run=lambda src: _run_clicked(app, sim, sensors, console, hint_card, src),
@@ -106,6 +114,21 @@ def build_app(
         on_select=lambda lsn: _lesson_selected(app, lsn, editor, sim, sensors, console, hint_card),
     )
     win.on_open_teacher_dashboard(lambda: TeacherDashboard(win.root, store))
+
+    from tkinter import ttk
+
+    def _open_lesson_editor() -> None:
+        def _on_saved(_lesson: Lesson) -> None:
+            app.lessons = list(load_library()) + list(load_custom_lessons())
+            lessons_panel.set_lessons(app.lessons)
+            console.log(f"Reloaded {len(app.lessons)} lessons.", level="info")
+
+        LessonEditor(win.root, on_saved=_on_saved)
+
+    ttk.Button(win.frames.topbar, text="New lesson…", command=_open_lesson_editor).pack(
+        side=tk.RIGHT, padx=8, pady=6
+    )
+
     sim.set_world(world, rover)
     sensors.update_from_rover(rover)
     console.log("RoboLearn ready. Pick a lesson on the right, write code, press Run.")
@@ -198,6 +221,8 @@ def _reset_clicked(
     app.world = _world_from_lesson(app.current_lesson or _default_lesson())
     app.rover = Rover(app.world)
     app.tracer.clear()
+    set_active_rover(app.rover)
+    set_active_world(app.world)
     sim.set_world(app.world, app.rover)
     sensors.update_from_rover(app.rover)
     hint_card.clear()
