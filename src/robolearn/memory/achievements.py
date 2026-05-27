@@ -191,7 +191,7 @@ CATALOGUE: tuple[AchievementDef, ...] = (
 
 def ensure_schema(store: Store) -> None:
     """Create the unlocked-achievements table if it doesn't exist."""
-    store._conn.executescript(SCHEMA_SQL)  # type: ignore[attr-defined]
+    store._conn.executescript(SCHEMA_SQL)
 
 
 def unlocked_ids(store: Store, pupil_id: str) -> set[str]:
@@ -266,12 +266,12 @@ ToastPlacement = Literal["top-right", "top-left", "bottom-right"]
 
 
 def show_toast(
-    parent_root: object, achievement: AchievementDef, *, duration_ms: int = 2200
+    parent_root: "object", achievement: AchievementDef, *, duration_ms: int = 2200
 ) -> None:
     """Display a non-blocking toast for ``achievement`` in the top-right corner."""
     import tkinter as tk
 
-    top = tk.Toplevel(parent_root)
+    top = tk.Toplevel(parent_root)  # type: ignore[arg-type]
     top.overrideredirect(True)
     top.configure(bg="#161b22")
     top.attributes("-topmost", True)
