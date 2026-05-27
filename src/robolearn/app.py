@@ -193,6 +193,10 @@ def _snapshot(rover: Rover) -> RoverSnapshot:
     )
 
 
+#: Wall-clock gap between animation frames during Run playback (ms).
+ANIMATION_TICK_MS: int = 90
+
+
 def _run_clicked(
     app: App,
     sim: SimPanel,
@@ -201,17 +205,77 @@ def _run_clicked(
     hint_card: HintCardArea,
     source: str,
 ) -> None:
+    """Auto-reset, execute pupil code, then animate the tracer events."""
+    # 1) Wipe console + world so every Run starts identically.
+    _reset_clicked(app, sim, sensors, console, hint_card)
     console.log("Running…", level="info")
+    # 2) Execute pupil code -- the engine is wired so sensors return real
+    #    values. The tracer captures every call.
     result = run_pupil_code(source, timeout_s=5.0)
-    if result.success:
-        console.log(f"Run finished in {result.duration_ms} ms", level="info")
-    else:
+    if not result.success:
         console.log(
             f"{result.error_kind}: {result.error_message} (line {result.error_line})",
             level="error",
         )
+        return
+    events = app.tracer.events()
+    # 3) Reset the engine state again so the animation starts from frame 0.
+    app.world = _world_from_lesson(app.current_lesson or _default_lesson())
+    app.rover = Rover(app.world)
+    set_active_rover(None)  # animation drives the rover manually
+    set_active_world(app.world)
+    sensors.clear_charts()
     sim.set_world(app.world, app.rover)
     sensors.update_from_rover(app.rover)
+    # 4) Walk the events at ANIMATION_TICK_MS intervals so the pupil
+    #    actually sees the rover move, the charts climb / drain, and the
+    #    samples disappear one at a time.
+    _animate_playback(app, sim, sensors, console, events, 0, result.duration_ms)
+
+
+def _animate_playback(
+    app: App,
+    sim: SimPanel,
+    sensors: SensorsPanel,
+    console: ConsolePanel,
+    events: list,  # type: ignore[type-arg]
+    index: int,
+    total_ms: int,
+) -> None:
+    """Apply events[index] to the rover, repaint, schedule the next tick."""
+    if index >= len(events):
+        console.log(
+            f"Run finished in {total_ms} ms ({len(events)} events animated)",
+            level="info",
+        )
+        set_active_rover(app.rover)
+        return
+    event = events[index]
+    name = event.name
+    args = event.args
+    rover = app.rover
+    if name == "move_forward" and args:
+        rover.move(float(args[0]))
+    elif name == "move_backward" and args:
+        rover.move(-float(args[0]))
+    elif name == "turn_left" and args:
+        rover.turn(float(args[0]))
+    elif name == "turn_right" and args:
+        rover.turn(-float(args[0]))
+    elif name == "collect_sample":
+        rover.try_collect()
+    elif name == "drop_sample":
+        rover.try_drop()
+    elif name == "log" and args:
+        console.log(f"log: {args[0]}", level="hint")
+    elif name == "beep":
+        console.log("beep!", level="info")
+    sim.set_world(app.world, app.rover)
+    sensors.update_from_rover(app.rover)
+    sim.after(
+        ANIMATION_TICK_MS,
+        lambda: _animate_playback(app, sim, sensors, console, events, index + 1, total_ms),
+    )
 
 
 def _reset_clicked(
