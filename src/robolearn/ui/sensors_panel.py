@@ -16,6 +16,7 @@ from tkinter import ttk
 
 from robolearn.engine.rover import Rover
 from robolearn.engine.sensors import IMUReading, imu_reading, lidar_distance
+from robolearn.ui.charts import LineChart, MiniMap
 
 
 @dataclass(slots=True)
@@ -36,6 +37,12 @@ class SensorsPanel(ttk.Frame):
         """Build the panel widgets."""
         super().__init__(parent)
         self._rows = self._build_rows()
+        self._lidar_chart = LineChart(self, label="LIDAR (m)", colour="#58a6ff")
+        self._lidar_chart.pack(fill=tk.X, padx=4, pady=(6, 2))
+        self._battery_chart = LineChart(self, label="Battery %", colour="#3fb950", warn_below=20.0)
+        self._battery_chart.pack(fill=tk.X, padx=4, pady=2)
+        self._minimap = MiniMap(self)
+        self._minimap.pack(fill=tk.X, padx=4, pady=(6, 4))
 
     # --- public API ---------------------------------------------------------
 
@@ -49,12 +56,22 @@ class SensorsPanel(ttk.Frame):
         reading: IMUReading = imu_reading(rover)
         _ = reading  # currently displayed via heading row; reserved for future
         self._rows.samples.set(f"{state.samples_collected}")
-        # Colour readout is the under-tile colour; lazy-evaluate here so the
-        # panel never queries the world directly.
         from robolearn.engine.sensors import colour_under
 
         r, g, b = colour_under(rover)
         self._rows.colour.set(f"#{r:02x}{g:02x}{b:02x}")
+        # Live charts + mini-map.
+        if not math.isinf(distance):
+            self._lidar_chart.push(distance)
+        self._battery_chart.push(state.battery_pct)
+        self._minimap.set_world_bounds(rover.world.bounds.width, rover.world.bounds.height)
+        self._minimap.push_position(state.x, state.y)
+
+    def clear_charts(self) -> None:
+        """Wipe chart series + trail (called on Reset)."""
+        self._lidar_chart.clear()
+        self._battery_chart.clear()
+        self._minimap.clear()
 
     def clear(self) -> None:
         """Blank every readout (used between missions)."""
