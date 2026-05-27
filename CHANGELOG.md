@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **P1 polish:** Sun-Valley (`sv-ttk`) theme applied globally so ttk
+  widgets pick up a modern look on Windows / macOS / Linux. Splash
+  screen displayed for ~250 ms at launch
+  (`robolearn.ui.splash.show_splash`). Per-terrain particle effects
+  (`engine.particles`): grass for Earth, dust for Mars, bubbles for
+  Underwater, stars for Space. Particles render under the rover sprite
+  in the SimPanel canvas.
+
+### Added
 - Initial repository scaffold: directory tree, `pyproject.toml`, CI workflows,
   governance files, empty module stubs with docstrings.
 - Public, procedural pupil-facing API

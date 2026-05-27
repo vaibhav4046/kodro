@@ -136,8 +136,11 @@ def build_app(
 
 
 def launch() -> None:
-    """Build the app and enter the Tk main loop."""
+    """Build the app, show a splash, then enter the Tk main loop."""
+    from robolearn.ui.splash import show_splash
+
     app = build_app()
+    show_splash(app.main_window.root)
     app.main_window.root.mainloop()
 
 

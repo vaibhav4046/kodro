@@ -30,6 +30,7 @@ dependencies = [
     "pymunk>=6.6",
     "pyyaml>=6.0",
     "pydantic>=2.6",
+    "sv-ttk>=2.6",
 ]
 
 [project.optional-dependencies]
