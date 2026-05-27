@@ -28,6 +28,9 @@ class _Widgets:
     scale: ttk.Scale
     info_label: ttk.Label
     snapshot_label: ttk.Label
+    canvas: tk.Canvas
+    prev_btn: ttk.Button
+    next_btn: ttk.Button
 
 
 class ReplayDialog:
@@ -96,12 +99,47 @@ class ReplayDialog:
                     f"samples {snapshot.samples_collected}"
                 )
             )
+        self._draw_ghost_trail(idx)
         if self._on_scrub is not None:
             self._on_scrub(event)
+
+    def _draw_ghost_trail(self, current_idx: int) -> None:
+        """Paint a 320x200 mini-arena with translucent ghost positions."""
+        c = self._widgets.canvas
+        c.delete("all")
+        c.create_rectangle(2, 2, 318, 198, outline="#30363d", width=1)
+        snapshots = [
+            (i, e.rover_state)
+            for i, e in enumerate(self._events[: current_idx + 1])
+            if e.rover_state is not None
+        ]
+        if not snapshots:
+            c.create_text(160, 100, text="(no rover snapshots)", fill="#8b949e")
+            return
+        # Assume a 10x10 world for ghost-trail layout if no other info.
+        world_w, world_h = 10.0, 10.0
+
+        def to_screen(wx: float, wy: float) -> tuple[float, float]:
+            sx = 4 + (wx / world_w) * 312
+            sy = 196 - (wy / world_h) * 192
+            return (sx, sy)
+
+        # Translucent ghosts every 5 frames.
+        for _i, snap in snapshots[::5]:
+            gx, gy = to_screen(snap.x, snap.y)
+            c.create_oval(gx - 5, gy - 5, gx + 5, gy + 5, fill="#1f6feb", outline="")
+        # Current rover position on top.
+        last = snapshots[-1][1]
+        lx, ly = to_screen(last.x, last.y)
+        c.create_oval(lx - 8, ly - 8, lx + 8, ly + 8, fill="#ff3c3c", outline="#ffffff")
 
     def current_frame(self) -> int:
         """Return the current slider position as an integer frame index."""
         return int(float(self._widgets.scale.get()))
+
+    def step(self, delta: int) -> None:
+        """Move the slider by ``delta`` frames (clamped)."""
+        self.scrub_to(self.current_frame() + delta)
 
     def destroy(self) -> None:
         """Close the dialog."""
@@ -113,19 +151,38 @@ class ReplayDialog:
         outer = ttk.Frame(self._window, padding=8)
         outer.pack(fill=tk.BOTH, expand=True)
         total = len(self._events)
+        nav = ttk.Frame(outer)
+        nav.pack(fill=tk.X, padx=4)
+        prev_btn = ttk.Button(nav, text="◀", width=3, command=lambda: self.step(-1))
+        prev_btn.pack(side=tk.LEFT)
         scale = ttk.Scale(
-            outer,
+            nav,
             from_=0,
             to=max(0, total - 1),
             orient=tk.HORIZONTAL,
             command=self._on_scale_move,
         )
-        scale.pack(fill=tk.X, padx=4)
+        scale.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=4)
+        next_btn = ttk.Button(nav, text="▶", width=3, command=lambda: self.step(1))
+        next_btn.pack(side=tk.LEFT)
+        canvas = tk.Canvas(outer, width=320, height=200, bg="#0d1117", highlightthickness=0)
+        canvas.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
         info_label = ttk.Label(outer, text="", font=("TkFixedFont", 10))
         info_label.pack(fill=tk.X, padx=4, pady=(8, 2))
         snapshot_label = ttk.Label(outer, text="", font=("TkFixedFont", 10))
         snapshot_label.pack(fill=tk.X, padx=4, pady=(0, 4))
-        return _Widgets(scale=scale, info_label=info_label, snapshot_label=snapshot_label)
+        # Vim-style J / K / L stepping.
+        self._window.bind("<KeyPress-j>", lambda _e: self.step(-1))
+        self._window.bind("<KeyPress-l>", lambda _e: self.step(1))
+        self._window.bind("<KeyPress-k>", lambda _e: self.step(0))
+        return _Widgets(
+            scale=scale,
+            info_label=info_label,
+            snapshot_label=snapshot_label,
+            canvas=canvas,
+            prev_btn=prev_btn,
+            next_btn=next_btn,
+        )
 
     def _reconfigure_scale(self) -> None:
         total = len(self._events)
