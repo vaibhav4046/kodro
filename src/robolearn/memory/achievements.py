@@ -197,7 +197,7 @@ def ensure_schema(store: Store) -> None:
 def unlocked_ids(store: Store, pupil_id: str) -> set[str]:
     """Return the set of achievement IDs already unlocked for the pupil."""
     ensure_schema(store)
-    rows = store._conn.execute(  # type: ignore[attr-defined]
+    rows = store._conn.execute(
         "SELECT achievement_id FROM unlocked_achievements WHERE pupil_id = ?",
         (pupil_id,),
     ).fetchall()
@@ -223,7 +223,7 @@ def check_and_unlock(
             continue
     now_ms = int(datetime.now(UTC).timestamp() * 1000)
     for ach in fresh:
-        store._conn.execute(  # type: ignore[attr-defined,unused-ignore]
+        store._conn.execute(
             "INSERT OR IGNORE INTO unlocked_achievements VALUES (?, ?, ?)",
             (ctx.pupil_id, ach.id, now_ms),
         )
@@ -266,7 +266,7 @@ ToastPlacement = Literal["top-right", "top-left", "bottom-right"]
 
 
 def show_toast(
-    parent_root: "object", achievement: AchievementDef, *, duration_ms: int = 2200
+    parent_root: object, achievement: AchievementDef, *, duration_ms: int = 2200
 ) -> None:
     """Display a non-blocking toast for ``achievement`` in the top-right corner."""
     import tkinter as tk
