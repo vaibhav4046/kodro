@@ -92,6 +92,7 @@ def execute(source: str, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> ExecutionRe
     thread.start()
     thread.join(timeout=timeout_s)
     if thread.is_alive():
+        _force_kill_thread(thread)
         return ExecutionResult(
             success=False,
             error_kind="timeout",
@@ -143,3 +144,32 @@ def _pupil_line(exc: BaseException) -> int | None:
         if frame.filename == "<pupil>":
             return frame.lineno
     return None
+
+
+def _force_kill_thread(thread: threading.Thread) -> None:
+    """Raise SystemExit inside a still-running thread.
+
+    Uses the CPython internal ``PyThreadState_SetAsyncExc`` to break a
+    daemon thread out of its bytecode loop. The pupil thread sees a
+    SystemExit at the next bytecode boundary and unwinds, which is
+    essential for clean test teardown on Linux CI (coverage flush
+    raced with live pupil threads, causing SIGABRT).
+    """
+    import ctypes
+
+    ident = thread.ident
+    if ident is None:
+        return
+    for _ in range(3):
+        if not thread.is_alive():
+            return
+        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+            ctypes.c_ulong(ident), ctypes.py_object(SystemExit)
+        )
+        if res == 0:
+            return
+        if res > 1:
+            # More than one thread affected -- roll back and bail.
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_ulong(ident), None)
+            return
+        thread.join(timeout=0.5)
