@@ -1,0 +1,144 @@
+"""Turn a natural-language brief into a validated RoboLearn lesson.
+
+The generator asks a local Ollama model to emit JSON matching the
+lesson schema, then validates it through the same Pydantic model the
+bundled lessons use. If the model returns malformed JSON or a schema
+violation, the generator retries up to :data:`MAX_ATTEMPTS` times,
+feeding the validation error back into the prompt. Anything that still
+fails surfaces as :class:`GenerationError` — never a crash.
+"""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+
+from pydantic import ValidationError
+
+from robolearn.lessons.schema import Lesson
+
+from .ollama_client import DEFAULT_MODEL, OllamaClient, OllamaError
+
+#: How many times to retry on malformed / invalid model output.
+MAX_ATTEMPTS: int = 3
+
+_SYSTEM_PROMPT: str = """\
+You are a UK secondary-school Computing teacher authoring a lesson for a
+rover-programming simulator called RoboLearn. Pupils write short Python
+against this exact API (no other functions exist):
+move_forward(distance), move_backward(distance), turn_left(angle_deg),
+turn_right(angle_deg), wait(seconds), read_distance(), read_colour(),
+read_heading(), read_battery(), obstacle_ahead(threshold_m),
+sample_detected(radius_m), at_base(), collect_sample(), drop_sample(),
+beep(times), log(message).
+
+You MUST reply with a single JSON object and nothing else. The schema:
+
+{
+  "id": "snake_case_id",
+  "title": "Human title",
+  "key_stage": "KS3" or "KS4",
+  "ct_concepts": ["sequence"|"selection"|"iteration"|"functions"|
+                  "decomposition"|"abstraction"|"recursion"|
+                  "algorithmic_efficiency"],  // at least one
+  "curriculum_refs": ["free text reference"],
+  "prereqs": [],
+  "terrain": "earth"|"mars"|"underwater"|"space",
+  "intro": "One short paragraph addressed to the pupil.",
+  "starter_code": "valid python using only the API above",
+  "allowed_constructs": ["assignment"|"arithmetic"|"comparison"|"for"|
+                         "function_call"|"function_def"|"if"|"logical"|
+                         "recursion"|"return"|"while"],  // at least one
+  "max_lines": 12,
+  "world": {
+     "base": [x, y],
+     "samples": [[x, y], ...],
+     "obstacles": [{"x": x, "y": y, "r": radius}],
+     "width": 10.0,
+     "height": 10.0
+  },
+  "success_criteria": [
+     {"samples_collected": 1},
+     {"no_collisions": true}
+  ],
+  "hints": {"on_failure": ["..."], "on_success": ["..."]}
+}
+
+Coordinates are metres inside a width x height arena (default 10x10).
+Keep starter_code runnable and short. Do not invent API functions.
+"""
+
+
+class GenerationError(RuntimeError):
+    """Raised when a valid lesson could not be generated."""
+
+
+@dataclass(slots=True)
+class GenerationResult:
+    """A successfully generated + validated lesson plus the raw JSON."""
+
+    lesson: Lesson
+    raw_json: str
+    attempts: int
+
+
+def generate_lesson(
+    brief: str,
+    *,
+    client: OllamaClient | None = None,
+    model: str = DEFAULT_MODEL,
+    max_attempts: int = MAX_ATTEMPTS,
+) -> GenerationResult:
+    """Generate a validated :class:`Lesson` from a plain-language ``brief``.
+
+    Args:
+        brief: What the teacher wants, e.g. "a Mars lesson where pupils
+            use a while loop to collect three samples".
+        client: Optional pre-built :class:`OllamaClient` (tests inject a
+            fake here). Defaults to a localhost client.
+        model: Model name to use.
+        max_attempts: Retry budget for malformed output.
+
+    Returns:
+        A :class:`GenerationResult`.
+
+    Raises:
+        GenerationError: If no valid lesson could be produced.
+    """
+    ollama = client or OllamaClient(model=model)
+    prompt = f"Brief: {brief}\n\nReturn the lesson JSON now."
+    last_error = ""
+    for attempt in range(1, max_attempts + 1):
+        try:
+            raw = ollama.generate(
+                prompt,
+                system=_SYSTEM_PROMPT,
+                model=model,
+                json_mode=True,
+                temperature=0.6,
+            )
+        except OllamaError as exc:
+            raise GenerationError(f"Ollama unavailable: {exc}") from exc
+        cleaned = _extract_json(raw)
+        try:
+            payload = json.loads(cleaned)
+            lesson = Lesson.model_validate(payload)
+            return GenerationResult(lesson=lesson, raw_json=cleaned, attempts=attempt)
+        except (json.JSONDecodeError, ValidationError) as exc:
+            last_error = str(exc)
+            prompt = (
+                f"Brief: {brief}\n\nYour previous reply was invalid:\n{last_error}\n\n"
+                "Return corrected lesson JSON only."
+            )
+    raise GenerationError(
+        f"could not produce a valid lesson after {max_attempts} attempts: {last_error}"
+    )
+
+
+def _extract_json(text: str) -> str:
+    """Best-effort pull of the first ``{...}`` block from a model reply."""
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end < start:
+        return text.strip()
+    return text[start : end + 1]

@@ -125,8 +125,53 @@ def build_app(
 
         LessonEditor(win.root, on_saved=_on_saved)
 
+    def _open_ai_studio() -> None:
+        from robolearn.ui.ai_studio import AIStudio
+
+        def _on_saved(_lesson: Lesson) -> None:
+            app.lessons = list(load_library()) + list(load_custom_lessons())
+            lessons_panel.set_lessons(app.lessons)
+            console.log(
+                f"AI wrote lesson '{_lesson.id}'. Reloaded {len(app.lessons)} lessons.",
+                level="hint",
+            )
+
+        AIStudio(win.root, on_saved=_on_saved)
+
+    def _explain_code() -> None:
+        from robolearn.ai import OllamaError, explain_code, is_available
+
+        if not is_available():
+            console.log(
+                "AI tutor needs a local Ollama server. See AI Studio for setup.",
+                level="warn",
+            )
+            return
+        source = editor.get_source()
+        console.log("Asking the local AI tutor…", level="info")
+
+        def _worker() -> None:
+            try:
+                title = app.current_lesson.title if app.current_lesson else ""
+                explanation = explain_code(source, lesson_title=title)
+            except OllamaError as exc:
+                err = str(exc)
+                win.root.after(0, lambda: console.log(f"AI tutor error: {err}", level="error"))
+                return
+            win.root.after(0, lambda: console.log(f"AI tutor: {explanation}", level="hint"))
+
+        import threading
+
+        threading.Thread(target=_worker, name="ai-explain", daemon=True).start()
+
+    ttk.Button(win.frames.topbar, text="✨ AI Studio", command=_open_ai_studio).pack(
+        side=tk.RIGHT, padx=4, pady=6
+    )
+    ttk.Button(win.frames.topbar, text="Explain my code", command=_explain_code).pack(
+        side=tk.RIGHT, padx=4, pady=6
+    )
     ttk.Button(win.frames.topbar, text="New lesson…", command=_open_lesson_editor).pack(
-        side=tk.RIGHT, padx=8, pady=6
+        side=tk.RIGHT, padx=4, pady=6
     )
 
     sim.set_world(world, rover)
