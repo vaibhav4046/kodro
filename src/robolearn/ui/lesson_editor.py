@@ -71,6 +71,9 @@ class LessonEditor:
         self._window.transient(parent.winfo_toplevel())
         self._w = self._build_widgets()
         self._saved_lesson: Lesson | None = None
+        from robolearn.ui._lift import bring_to_front
+
+        bring_to_front(self._window)
 
     # --- public API ---------------------------------------------------------
 

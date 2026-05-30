@@ -90,3 +90,48 @@ def test_studio_generate_saves_lesson(root: tk.Tk, tmp_path: Path) -> None:
         assert saved == ["studio_demo"]
     finally:
         studio.destroy()
+
+
+class _GarbageClient(OllamaClient):
+    def available(self) -> bool:  # type: ignore[override]
+        return True
+
+    def models(self) -> list[str]:  # type: ignore[override]
+        return ["llama3.2:3b"]
+
+    def generate(self, prompt: str, **_: object) -> str:  # type: ignore[override]
+        return "this is not json at all"
+
+
+def test_studio_generate_failure_shows_error(root: tk.Tk, tmp_path: Path) -> None:
+    studio = AIStudio(root, client=_GarbageClient(), custom_dir=tmp_path)
+    try:
+        studio._worker("bad brief", "llama3.2:3b")  # type: ignore[attr-defined]
+        root.update()
+        # No lesson file written on failure.
+        assert list(tmp_path.glob("*.yaml")) == []
+        # Error surfaced in the output box.
+        text = studio._output.get("1.0", "end-1c")  # type: ignore[attr-defined]
+        assert "failed" in text.lower()
+    finally:
+        studio.destroy()
+
+
+def test_studio_on_generate_empty_brief(root: tk.Tk) -> None:
+    studio = AIStudio(root, client=_UpClient())
+    try:
+        studio._brief.delete("1.0", tk.END)  # type: ignore[attr-defined]
+        studio._on_generate()  # type: ignore[attr-defined]
+        assert "Enter a brief" in studio._status.get()  # type: ignore[attr-defined]
+    finally:
+        studio.destroy()
+
+
+def test_lift_helper_does_not_raise(root: tk.Tk) -> None:
+    from robolearn.ui._lift import bring_to_front
+
+    top = tk.Toplevel(root)
+    try:
+        bring_to_front(top)
+    finally:
+        top.destroy()

@@ -46,6 +46,9 @@ class AIStudio:
         self._window.configure(bg="#0d1117")
         self._available = self._probe_available()
         self._build_widgets()
+        from robolearn.ui._lift import bring_to_front
+
+        bring_to_front(self._window)
 
     # --- public API ---------------------------------------------------------
 
