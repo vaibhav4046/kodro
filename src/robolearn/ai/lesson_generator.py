@@ -121,10 +121,10 @@ def generate_lesson(
             raise GenerationError(f"Ollama unavailable: {exc}") from exc
         cleaned = _extract_json(raw)
         try:
-            payload = json.loads(cleaned)
+            payload = _coerce_payload(json.loads(cleaned))
             lesson = Lesson.model_validate(payload)
-            return GenerationResult(lesson=lesson, raw_json=cleaned, attempts=attempt)
-        except (json.JSONDecodeError, ValidationError) as exc:
+            return GenerationResult(lesson=lesson, raw_json=json.dumps(payload), attempts=attempt)
+        except (json.JSONDecodeError, ValidationError, TypeError) as exc:
             last_error = str(exc)
             prompt = (
                 f"Brief: {brief}\n\nYour previous reply was invalid:\n{last_error}\n\n"
@@ -142,3 +142,114 @@ def _extract_json(text: str) -> str:
     if start == -1 or end == -1 or end < start:
         return text.strip()
     return text[start : end + 1]
+
+
+# Small local models often emit near-miss enum values. Map the common ones
+# back onto the schema's vocabulary so a single typo doesn't fail the whole
+# generation.
+_CONCEPT_SYNONYMS: dict[str, str] = {
+    "algorithms": "algorithmic_efficiency",
+    "algorithm": "algorithmic_efficiency",
+    "efficiency": "algorithmic_efficiency",
+    "optimisation": "algorithmic_efficiency",
+    "optimization": "algorithmic_efficiency",
+    "loop": "iteration",
+    "loops": "iteration",
+    "looping": "iteration",
+    "repetition": "iteration",
+    "condition": "selection",
+    "conditional": "selection",
+    "conditionals": "selection",
+    "branching": "selection",
+    "function": "functions",
+    "procedures": "functions",
+    "procedure": "functions",
+    "sequencing": "sequence",
+    "recursive": "recursion",
+}
+_VALID_CONCEPTS: frozenset[str] = frozenset(
+    {
+        "sequence",
+        "selection",
+        "iteration",
+        "functions",
+        "decomposition",
+        "abstraction",
+        "recursion",
+        "algorithmic_efficiency",
+    }
+)
+
+_CONSTRUCT_SYNONYMS: dict[str, str] = {
+    "for_loop": "for",
+    "while_loop": "while",
+    "if_statement": "if",
+    "if_else": "if",
+    "conditional": "if",
+    "function_definition": "function_def",
+    "def": "function_def",
+    "call": "function_call",
+    "comparison_operator": "comparison",
+}
+_VALID_CONSTRUCTS: frozenset[str] = frozenset(
+    {
+        "assignment",
+        "arithmetic",
+        "comparison",
+        "for",
+        "function_call",
+        "function_def",
+        "if",
+        "logical",
+        "recursion",
+        "return",
+        "while",
+    }
+)
+
+
+def _coerce_payload(payload: object) -> dict[str, object]:
+    """Normalise a near-miss model payload toward the lesson schema."""
+    if not isinstance(payload, dict):
+        raise TypeError("model did not return a JSON object")
+    out = dict(payload)
+    out["ct_concepts"] = _coerce_enum_list(
+        out.get("ct_concepts"), _CONCEPT_SYNONYMS, _VALID_CONCEPTS, fallback="sequence"
+    )
+    out["allowed_constructs"] = _coerce_enum_list(
+        out.get("allowed_constructs"),
+        _CONSTRUCT_SYNONYMS,
+        _VALID_CONSTRUCTS,
+        fallback="function_call",
+    )
+    # Terrain + key-stage casing.
+    terrain = out.get("terrain")
+    if isinstance(terrain, str):
+        out["terrain"] = terrain.strip().lower()
+    ks = out.get("key_stage")
+    if isinstance(ks, str):
+        out["key_stage"] = ks.strip().upper().replace(" ", "")
+    return out
+
+
+def _coerce_enum_list(
+    value: object,
+    synonyms: dict[str, str],
+    valid: frozenset[str],
+    *,
+    fallback: str,
+) -> list[str]:
+    """Map a list of free-text tags onto a closed enum vocabulary."""
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list):
+        return [fallback]
+    out: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        key = item.strip().lower().replace(" ", "_").replace("-", "_")
+        mapped = synonyms.get(key, key)
+        if mapped in valid and mapped not in out:
+            out.append(mapped)
+    return out or [fallback]

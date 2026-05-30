@@ -125,6 +125,23 @@ def test_generate_lesson_raises_on_schema_violation() -> None:
         generate_lesson("x", client=client, max_attempts=1)
 
 
+def test_generate_lesson_coerces_concept_synonyms() -> None:
+    # A model emitting "algorithms"/"loops" should be coerced, not rejected.
+    payload = json.loads(_VALID_LESSON_JSON)
+    payload["ct_concepts"] = ["algorithms", "loops"]
+    payload["allowed_constructs"] = ["for_loop", "if_statement"]
+    payload["terrain"] = "MARS"
+    payload["key_stage"] = "ks3"
+    client = _FakeClient(reply=json.dumps(payload))
+    result = generate_lesson("x", client=client)
+    concepts = result.lesson.ct_concepts
+    assert "algorithmic_efficiency" in concepts
+    assert "iteration" in concepts
+    assert "for" in result.lesson.allowed_constructs
+    assert result.lesson.terrain.value == "mars"
+    assert result.lesson.key_stage == "KS3"
+
+
 # --- tutor -----------------------------------------------------------------
 
 
