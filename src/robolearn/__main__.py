@@ -21,13 +21,15 @@ def main(argv: list[str] | None = None) -> int:
     log_dir = Path.home() / ".robolearn"
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / "startup.log"
-    logging.basicConfig(
-        filename=str(log_path),
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        filemode="a",
-    )
+    # Attach a fresh FileHandler each call rather than relying on
+    # logging.basicConfig (which is idempotent and would pin the log path
+    # to whatever home was on the very first call -- wrong if the process
+    # is reused, as in the test suite).
     logger = logging.getLogger("robolearn.startup")
+    logger.setLevel(logging.INFO)
+    handler = logging.FileHandler(str(log_path), mode="a", encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logger.addHandler(handler)
     logger.info("---- startup at %s ----", datetime.datetime.now().isoformat())
     try:
         from robolearn import app as _app
