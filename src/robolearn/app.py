@@ -9,6 +9,7 @@ on first launch and the teacher dashboard behind ``Ctrl+Shift+T``.
 from __future__ import annotations
 
 import tkinter as tk
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -278,6 +279,13 @@ def _run_clicked(
     _animate_playback(app, sim, sensors, console, events, 0, result.duration_ms)
 
 
+#: Number of eased sub-frames a single move / turn animates across.
+TWEEN_FRAMES: int = 14
+
+#: Milliseconds between tween sub-frames (~60 fps).
+TWEEN_FRAME_MS: int = 16
+
+
 def _animate_playback(
     app: App,
     sim: SimPanel,
@@ -287,7 +295,7 @@ def _animate_playback(
     index: int,
     total_ms: int,
 ) -> None:
-    """Apply events[index] to the rover, repaint, schedule the next tick."""
+    """Apply events[index], tweening motion smoothly, then chain the next."""
     if index >= len(events):
         console.log(
             f"Run finished in {total_ms} ms ({len(events)} events animated)",
@@ -295,19 +303,32 @@ def _animate_playback(
         )
         set_active_rover(app.rover)
         return
+
+    def _next() -> None:
+        _animate_playback(app, sim, sensors, console, events, index + 1, total_ms)
+
     event = events[index]
     name = event.name
     args = event.args
     rover = app.rover
-    if name == "move_forward" and args:
-        rover.move(float(args[0]))
-    elif name == "move_backward" and args:
-        rover.move(-float(args[0]))
-    elif name == "turn_left" and args:
-        rover.turn(float(args[0]))
-    elif name == "turn_right" and args:
-        rover.turn(-float(args[0]))
-    elif name == "collect_sample":
+    state = rover.state
+
+    if name in ("move_forward", "move_backward") and args:
+        start = (state.x, state.y)
+        signed = float(args[0]) * (1.0 if name == "move_forward" else -1.0)
+        rover.move(signed)  # engine applies clamp + battery drain
+        end = (state.x, state.y)
+        _tween(app, sim, sensors, start, end, (state.heading_deg, state.heading_deg), _next)
+        return
+    if name in ("turn_left", "turn_right") and args:
+        start_h = state.heading_deg
+        signed = float(args[0]) * (1.0 if name == "turn_left" else -1.0)
+        rover.turn(signed)
+        end_h = state.heading_deg
+        pos = (state.x, state.y)
+        _tween(app, sim, sensors, pos, pos, (start_h, end_h), _next)
+        return
+    if name == "collect_sample":
         rover.try_collect()
     elif name == "drop_sample":
         rover.try_drop()
@@ -315,11 +336,41 @@ def _animate_playback(
         console.log(f"log: {args[0]}", level="hint")
     elif name == "beep":
         console.log("beep!", level="info")
-    sim.set_world(app.world, app.rover)
+    sim.refresh()
+    sensors.update_from_rover(rover)
+    sim.after(ANIMATION_TICK_MS, _next)
+
+
+def _tween(
+    app: App,
+    sim: SimPanel,
+    sensors: SensorsPanel,
+    start_xy: tuple[float, float],
+    end_xy: tuple[float, float],
+    heading: tuple[float, float],
+    done: Callable[[], None],
+    frame: int = 0,
+) -> None:
+    """Quintic-ease the rover from start to end over :data:`TWEEN_FRAMES`."""
+    from robolearn.ui.premium import ease_in_out_quintic
+
+    state = app.rover.state
+    if frame > TWEEN_FRAMES:
+        state.x, state.y = end_xy
+        state.heading_deg = heading[1]
+        sim.refresh()
+        sensors.update_from_rover(app.rover)
+        done()
+        return
+    t = ease_in_out_quintic(frame / TWEEN_FRAMES)
+    state.x = start_xy[0] + (end_xy[0] - start_xy[0]) * t
+    state.y = start_xy[1] + (end_xy[1] - start_xy[1]) * t
+    state.heading_deg = heading[0] + (heading[1] - heading[0]) * t
+    sim.refresh()
     sensors.update_from_rover(app.rover)
     sim.after(
-        ANIMATION_TICK_MS,
-        lambda: _animate_playback(app, sim, sensors, console, events, index + 1, total_ms),
+        TWEEN_FRAME_MS,
+        lambda: _tween(app, sim, sensors, start_xy, end_xy, heading, done, frame + 1),
     )
 
 

@@ -99,10 +99,47 @@ def test_rgb_to_hex_formats_correctly() -> None:
     assert _rgb_to_hex((255, 215, 0)) == "#ffd700"
 
 
-def test_canvas_background_matches_terrain_after_render(panel: SimPanel) -> None:
+def test_render_paints_gradient_and_rover(panel: SimPanel) -> None:
     world = _world()
     rover = Rover(world)
     panel.set_world(world, rover)
-    bg = panel._canvas.cget("background")  # type: ignore[attr-defined]
-    # Mars terrain colour from sensors: (193, 68, 14) -> #c1440e
-    assert bg.lower() == "#c1440e"
+    # The premium render draws a multi-band gradient + glow + rover, so the
+    # canvas should hold many more items than the old flat fill (>20).
+    assert len(panel._canvas.find_all()) > 20  # type: ignore[attr-defined]
+
+
+def test_render_skips_collected_samples(panel: SimPanel) -> None:
+    world = World(
+        terrain=Terrain.SPACE,
+        base=(1.0, 1.0),
+        samples=[Sample(2.0, 2.0, collected=True), Sample(4.0, 4.0)],
+        obstacles=[Obstacle(3.0, 3.0, 0.5)],
+        bounds=ArenaBounds(6.0, 6.0),
+    )
+    rover = Rover(world)
+    panel.set_world(world, rover)
+    assert len(panel._canvas.find_all()) > 10  # type: ignore[attr-defined]
+
+
+def test_refresh_keeps_particles(panel: SimPanel) -> None:
+    world = _world()
+    rover = Rover(world)
+    panel.set_world(world, rover)
+    before = panel._particles  # type: ignore[attr-defined]
+    panel.refresh()
+    # refresh() must NOT recreate the particle system (trail persists).
+    assert panel._particles is before  # type: ignore[attr-defined]
+
+
+def test_refresh_without_world_is_safe(panel: SimPanel) -> None:
+    panel.clear()
+    panel.refresh()  # no bound world -> no-op, must not raise
+
+
+@pytest.mark.parametrize("terrain", list(Terrain))
+def test_render_each_terrain(root: tk.Tk, terrain: Terrain) -> None:
+    world = World(terrain=terrain, base=(1.0, 1.0), bounds=ArenaBounds(8.0, 8.0))
+    panel = SimPanel(root, size_px=(160, 160))
+    rover = Rover(world)
+    panel.set_world(world, rover)
+    assert len(panel._canvas.find_all()) > 10  # type: ignore[attr-defined]

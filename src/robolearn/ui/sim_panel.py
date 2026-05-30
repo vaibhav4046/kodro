@@ -20,6 +20,7 @@ from tkinter import ttk
 import pygame
 
 from robolearn.engine import renderer
+from robolearn.engine.particles import ParticleSystem, system_for_terrain
 from robolearn.engine.rover import Rover
 from robolearn.engine.sensors import (
     COLOUR_BASE_INDICATOR,
@@ -73,6 +74,7 @@ class SimPanel(ttk.Frame):
         self._canvas.pack(fill=tk.BOTH, expand=True)
         self._world: World | None = None
         self._rover: Rover | None = None
+        self._particles: ParticleSystem | None = None
         self._draw_blank()
 
     # --- public API ---------------------------------------------------------
@@ -86,99 +88,145 @@ class SimPanel(ttk.Frame):
         """Bind a world + rover and paint one frame."""
         self._world = world
         self._rover = rover
+        self._particles = system_for_terrain(world.terrain)
+        self.render_once()
+
+    def refresh(self) -> None:
+        """Repaint the current world + rover without resetting particles."""
         self.render_once()
 
     def render_once(self) -> None:
-        """Composite a frame onto the canvas."""
+        """Composite a premium-styled frame onto the canvas."""
         if self._world is None or self._rover is None:
             return
+        from robolearn.ui import premium
+
         self._canvas.delete("all")
         view = renderer.transform_for(self._surface, self._world)
-        # 1) terrain background
-        self._canvas.configure(background=_rgb_to_hex(TERRAIN_COLOURS[self._world.terrain]))
-        # 2) base station
+        w = self._canvas.winfo_reqwidth() or self._size_px[0]
+        h = self._canvas.winfo_reqheight() or self._size_px[1]
+        base_colour = TERRAIN_COLOURS[self._world.terrain]
+        # 1) terrain gradient background (darker top -> base colour bottom).
+        top = premium.lerp_colour(base_colour, (10, 12, 18), 0.55)
+        premium.draw_vertical_gradient(self._canvas, 0, 0, w, h, top, base_colour, bands=40)
+        # 1b) faint metre grid.
+        self._draw_grid(view, w, h)
+        # 2) particles BELOW everything else so trails sit under the rover.
+        if self._particles is not None:
+            self._particles.emit(self._rover.state.x, self._rover.state.y, count=2)
+            self._particles.update(0.05)
+            for p in self._particles.alive():
+                px, py = view.to_screen(p.x, p.y)
+                self._canvas.create_oval(
+                    px - p.radius_px,
+                    py - p.radius_px,
+                    px + p.radius_px,
+                    py + p.radius_px,
+                    fill=_rgb_to_hex(p.colour),
+                    outline="",
+                )
+        # 3) base station with a green glow.
         bx, by = view.to_screen(*self._world.base)
-        self._canvas.create_oval(
-            bx - 12,
-            by - 12,
-            bx + 12,
-            by + 12,
-            fill=_rgb_to_hex(COLOUR_BASE_INDICATOR),
-            outline="",
+        premium.draw_glow_circle(
+            self._canvas, bx, by, 11, COLOUR_BASE_INDICATOR, base_colour, layers=4
         )
-        # 3) obstacles
+        # 4) obstacles with a soft drop shadow.
         for obstacle in self._world.obstacles:
             cx, cy = view.to_screen(obstacle.x, obstacle.y)
-            r = max(2, round(obstacle.radius * view.scale_x))
+            r = max(3, round(obstacle.radius * view.scale_x))
             self._canvas.create_oval(
-                cx - r,
-                cy - r,
-                cx + r,
-                cy + r,
-                fill="#222222",
-                outline="#444444",
-                width=1,
+                cx - r + 2, cy - r + 3, cx + r + 2, cy + r + 3, fill="#05070b", outline=""
             )
-        # 4) uncollected samples
+            self._canvas.create_oval(
+                cx - r, cy - r, cx + r, cy + r, fill="#1b1f27", outline="#3a3f4a", width=1
+            )
+        # 5) uncollected samples — pulsing gold glow.
         for sample in self._world.samples:
             if sample.collected:
                 continue
             sx, sy = view.to_screen(sample.x, sample.y)
-            self._canvas.create_oval(
-                sx - 7,
-                sy - 7,
-                sx + 7,
-                sy + 7,
-                fill=_rgb_to_hex(COLOUR_SAMPLE_INDICATOR),
-                outline="#000000",
-                width=1,
+            premium.draw_glow_circle(
+                self._canvas, sx, sy, 6, COLOUR_SAMPLE_INDICATOR, base_colour, layers=4
             )
-        # 5) rover (body circle + heading triangle)
-        rx, ry = view.to_screen(self._rover.state.x, self._rover.state.y)
-        body_r = 16
-        self._canvas.create_oval(
-            rx - body_r,
-            ry - body_r,
-            rx + body_r,
-            ry + body_r,
-            fill="#dcdcdc",
-            outline="#000000",
-            width=1,
-        )
-        rad = math.radians(self._rover.state.heading_deg)
-        tip_x = rx + round(body_r * math.cos(rad))
-        tip_y = ry - round(body_r * math.sin(rad))
-        left_rad = rad + math.radians(140)
-        right_rad = rad - math.radians(140)
-        left_x = rx + round(body_r * math.cos(left_rad))
-        left_y = ry - round(body_r * math.sin(left_rad))
-        right_x = rx + round(body_r * math.cos(right_rad))
-        right_y = ry - round(body_r * math.sin(right_rad))
-        self._canvas.create_polygon(
-            tip_x,
-            tip_y,
-            left_x,
-            left_y,
-            right_x,
-            right_y,
-            fill="#ff3c3c",
-            outline="#000000",
-            width=1,
-        )
-        # 6) coordinate text in corner
+        # 6) rover: shadow, body, ring, heading cone.
+        self._draw_rover(view)
+        # 7) HUD chip top-left.
+        st = self._rover.state
+        self._canvas.create_rectangle(6, 6, 196, 26, fill="#0d1117", outline="#30363d", width=1)
         self._canvas.create_text(
-            6,
-            6,
-            anchor=tk.NW,
+            12,
+            16,
+            anchor=tk.W,
             text=(
-                f"pos ({self._rover.state.x:.1f}, {self._rover.state.y:.1f})  "
-                f"heading {self._rover.state.heading_deg:.0f}°"
+                f"pos ({st.x:.1f}, {st.y:.1f})   "
+                f"hdg {st.heading_deg:.0f}°   bat {st.battery_pct:.0f}%"
             ),
-            fill="#ffffff",
+            fill="#c9d1d9",
             font=("TkFixedFont", 9),
         )
         if self._callbacks.on_frame is not None:
             self._callbacks.on_frame()
+
+    def _draw_grid(self, view: renderer.ViewTransform, w: int, h: int) -> None:
+        """Draw a faint metre grid for depth."""
+        if self._world is None:
+            return
+        scale_x = w / max(0.1, self._world.bounds.width)
+        scale_y = h / max(0.1, self._world.bounds.height)
+        step = 1.0
+        x = 0.0
+        while x <= self._world.bounds.width + 1e-9:
+            sx = round(x * scale_x)
+            self._canvas.create_line(sx, 0, sx, h, fill="#ffffff", width=1, stipple="gray12")
+            x += step
+        y = 0.0
+        while y <= self._world.bounds.height + 1e-9:
+            sy = round(h - y * scale_y)
+            self._canvas.create_line(0, sy, w, sy, fill="#ffffff", width=1, stipple="gray12")
+            y += step
+
+    def _draw_rover(self, view: renderer.ViewTransform) -> None:
+        """Draw a premium rover: shadow, gradient body, accent ring, cone."""
+        if self._rover is None:
+            return
+        rx, ry = view.to_screen(self._rover.state.x, self._rover.state.y)
+        body_r = 15
+        rad = math.radians(self._rover.state.heading_deg)
+        # Drop shadow.
+        self._canvas.create_oval(
+            rx - body_r + 2,
+            ry - body_r + 4,
+            rx + body_r + 2,
+            ry + body_r + 4,
+            fill="#04060a",
+            outline="",
+        )
+        # Heading cone (direction beam).
+        cone_len = 34
+        spread = math.radians(26)
+        cone = [
+            rx,
+            ry,
+            rx + cone_len * math.cos(rad - spread),
+            ry - cone_len * math.sin(rad - spread),
+            rx + cone_len * math.cos(rad + spread),
+            ry - cone_len * math.sin(rad + spread),
+        ]
+        self._canvas.create_polygon(cone, fill="#1f6feb", outline="", stipple="gray25")
+        # Body.
+        self._canvas.create_oval(
+            rx - body_r, ry - body_r, rx + body_r, ry + body_r, fill="#e8ecf1", outline=""
+        )
+        # Accent ring.
+        self._canvas.create_oval(
+            rx - body_r, ry - body_r, rx + body_r, ry + body_r, outline="#58a6ff", width=3
+        )
+        # Heading nub.
+        nub_x = rx + (body_r - 3) * math.cos(rad)
+        nub_y = ry - (body_r - 3) * math.sin(rad)
+        self._canvas.create_oval(
+            nub_x - 4, nub_y - 4, nub_x + 4, nub_y + 4, fill="#ff3c3c", outline=""
+        )
 
     def clear(self) -> None:
         """Detach the bound world/rover and paint a blank background."""
