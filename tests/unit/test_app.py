@@ -24,15 +24,15 @@ from robolearn.app import (
 from robolearn.engine.rover import Rover
 from robolearn.ui.main_window import MainWindow
 
-#: The headless GitHub macOS runner deadlocks inside ``root.update()`` when an
-#: ``after()``-driven animation is in flight (a long-standing Aqua-in-CI Tk
-#: quirk). The three tests that pump the event loop through a real Run
-#: animation are therefore skipped on Darwin; the same code paths are
-#: exercised on Linux (xvfb) and Windows, and the synchronous Step/grade
-#: tests below still run everywhere.
+#: The headless GitHub macOS runner intermittently deadlocks inside
+#: ``root.update()`` (a long-standing Aqua-in-CI Tk quirk), so every test that
+#: pumps the Tk event loop is skipped on Darwin. The same code paths run on
+#: Linux (xvfb) and Windows, and the synchronous Step/Stop/grade/welcome
+#: tests below still run on macOS, so the grade-on-Run wiring stays covered
+#: on all three platforms.
 _skip_darwin_anim = pytest.mark.skipif(
     sys.platform == "darwin",
-    reason="headless macOS Tk hangs in root.update() during after()-driven animation",
+    reason="headless macOS Tk intermittently hangs in root.update()",
 )
 
 
@@ -87,6 +87,7 @@ def test_run_button_drives_and_animates(app_ctx: App) -> None:
     assert app_ctx.rover.state.x >= app_ctx.world.base[0]
 
 
+@_skip_darwin_anim
 def test_reset_button_restores_world(app_ctx: App) -> None:
     editor = app_ctx.main_window.get_slot("editor")
     assert editor is not None
@@ -96,6 +97,7 @@ def test_reset_button_restores_world(app_ctx: App) -> None:
     assert app_ctx.rover.state.x == app_ctx.world.base[0]
 
 
+@_skip_darwin_anim
 def test_run_with_invalid_code_does_not_crash(app_ctx: App) -> None:
     editor = app_ctx.main_window.get_slot("editor")
     assert editor is not None
