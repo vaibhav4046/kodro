@@ -31,7 +31,7 @@ from robolearn.memory.store import Store
 from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
 from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
-from robolearn.ui import a11y
+from robolearn.ui import a11y, sounds
 from robolearn.ui.console_panel import ConsolePanel, HintCardArea
 from robolearn.ui.editor_panel import EditorCallbacks, EditorPanel
 from robolearn.ui.lesson_editor import LessonEditor, load_custom_lessons
@@ -482,6 +482,9 @@ def _animate_playback(
     rover = app.rover
     state = rover.state
 
+    if getattr(event, "kind", None) == "collision":
+        sounds.play_collision()
+
     if name in ("move_forward", "move_backward") and args:
         start = (state.x, state.y)
         signed = float(args[0]) * (1.0 if name == "move_forward" else -1.0)
@@ -498,7 +501,8 @@ def _animate_playback(
         _tween(app, sim, sensors, pos, pos, (start_h, end_h), _next)
         return
     if name == "collect_sample":
-        rover.try_collect()
+        if rover.try_collect():
+            sounds.play_collect()
     elif name == "drop_sample":
         rover.try_drop()
     elif name == "log" and args:
@@ -628,13 +632,15 @@ def _finish_run(app: App, console: ConsolePanel) -> None:
     result = grade(lesson, app.tracer, app.last_source)
     collisions, battery_used = _run_aggregates(events)
 
-    # 1) Verdict + score.
+    # 1) Verdict + score (with a matching sound cue).
     if result.passed:
         console.log(f"✅ Passed!  Score {result.score}/100", level="hint")
+        sounds.play_pass()
     else:
         console.log(f"❌ Not passed yet — score {result.score}/100", level="warn")
         for reason in result.reasons:
             console.log(f"   • {reason}", level="warn")
+        sounds.play_fail()
 
     # 2) Banner: green pass, or an actionable hint / orange nudge on fail.
     hint_card = app.hint_card
@@ -707,12 +713,15 @@ def _apply_event_instant(
     rover = app.rover
     name = getattr(event, "name", "")
     args = getattr(event, "args", ()) or ()
+    if getattr(event, "kind", None) == "collision":
+        sounds.play_collision()
     if name in ("move_forward", "move_backward") and args:
         rover.move(float(args[0]) * (1.0 if name == "move_forward" else -1.0))
     elif name in ("turn_left", "turn_right") and args:
         rover.turn(float(args[0]) * (1.0 if name == "turn_left" else -1.0))
     elif name == "collect_sample":
-        rover.try_collect()
+        if rover.try_collect():
+            sounds.play_collect()
     elif name == "drop_sample":
         rover.try_drop()
     elif name == "log" and args:
