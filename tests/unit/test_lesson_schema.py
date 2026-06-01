@@ -192,9 +192,9 @@ def test_load_library_missing_directory_raises(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_bundled_library_has_ten_lessons() -> None:
+def test_bundled_library_has_twelve_lessons() -> None:
     lessons = load_library()
-    assert len(lessons) == 10
+    assert len(lessons) == 12
 
 
 def test_bundled_library_ids_match_filename_prefix() -> None:
@@ -210,6 +210,8 @@ def test_bundled_library_ids_match_filename_prefix() -> None:
         "08_pathfinding",
         "09_recursion",
         "10_optimisation",
+        "11_decomposition",
+        "12_abstraction",
     ]
     assert [lsn.id for lsn in lessons] == expected
 
@@ -227,6 +229,8 @@ def test_default_library_dir_resolves_to_library_folder() -> None:
         ("07_sensors", Terrain.UNDERWATER, "KS3"),
         ("09_recursion", Terrain.SPACE, "KS4"),
         ("10_optimisation", Terrain.MARS, "KS4"),
+        ("11_decomposition", Terrain.MARS, "KS4"),
+        ("12_abstraction", Terrain.UNDERWATER, "KS4"),
     ],
 )
 def test_each_bundled_lesson_has_expected_terrain_and_key_stage(
