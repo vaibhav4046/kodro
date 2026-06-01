@@ -3,6 +3,21 @@
 One line per demonstrable capability, appended as each task lands. Used by
 the dissertation chapter on verification.
 
+- **2026-05-30** — The learning loop is closed end-to-end: pressing **Run**
+  now grades the attempt, logs a pass/fail verdict + 0–100 score, surfaces
+  an offline hint on failure (clears on pass), persists the submission to
+  SQLite, updates the per-concept strength model, and unlocks
+  achievements. Nine new headless integration tests prove it on the real
+  wired app: a criteria-free lesson records a passing submission, clears
+  the hint card, and drains battery (proving the rover actually moved — no
+  longer a vacuous pass); a sample lesson with non-collecting code records
+  a failing submission and shows a hint; **Step** advances one trace event
+  per click across turn/move/collect/drop/log/beep then grades; **Stop**
+  flags + clears the session; the first-run wizard writes its sentinel and
+  renames the pupil via `Store.set_display_name`. A latent bug was fixed in
+  passing: `_reset_clicked` now re-asserts the active `Tracer` so a Run
+  always records its events. Full suite: **621 passed, 1 skipped, 92.53 %
+  coverage** (`tests/unit/test_app.py`, `tests/unit/test_store.py`).
 - **2026-05-26** — Repository scaffold installs cleanly and the smoke test
   asserts that `robolearn.__version__` exists, all subpackages import, and
   CI is green on Ubuntu, macOS and Windows
