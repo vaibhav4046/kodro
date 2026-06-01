@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **Procedural sound effects** (`robolearn.ui.sounds`): a bright chime on
+  pass, a low buzz on fail, a blip on sample-collect and a thud on
+  collision. Tones are synthesised at runtime from the standard library
+  (no asset files, no network) and the mixer is hard-guarded — on any
+  machine without audio (CI, locked-down classrooms) every cue is a silent
+  no-op that never raises or blocks. Tests use SDL's headless `dummy`
+  driver.
 - **Two new KS4 stretch lessons** (12 bundled in total): `11_decomposition`
   (break a patrol into named helper subroutines) and `12_abstraction`
   (use `obstacle_ahead()` as a sensor abstraction to avoid a crash),

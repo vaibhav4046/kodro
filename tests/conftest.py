@@ -2,9 +2,16 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 
 import pytest
+
+# Force SDL to a headless dummy audio device before pygame is imported
+# anywhere, so the procedural sound effects can initialise the mixer in CI
+# (and any machine without a sound card) without touching real hardware,
+# raising, or blocking.
+os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 from robolearn.runtime import tracer as _tracer
 
