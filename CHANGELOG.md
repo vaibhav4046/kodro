@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **Confetti celebration overlay** on a passing Run — a static "🎉 Mission
+  complete 🎉" + confetti burst painted on the sim canvas, cleared by the
+  next Run/Reset (no timer, so it can't stall the event loop on any
+  platform).
 - **Procedural sound effects** (`robolearn.ui.sounds`): a bright chime on
   pass, a low buzz on fail, a blip on sample-collect and a thud on
   collision. Tones are synthesised at runtime from the standard library

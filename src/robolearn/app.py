@@ -65,6 +65,7 @@ class App:
     progress_label: tk.Widget | None = None
     editor: EditorPanel | None = None
     console: ConsolePanel | None = None
+    sim: SimPanel | None = None
     a11y_settings: a11y.A11ySettings | None = None
     step_events: list[object] | None = None
     step_index: int = 0
@@ -134,6 +135,7 @@ def build_app(
         lessons_panel=lessons_panel,
         editor=editor,
         console=console,
+        sim=sim,
         a11y_settings=a11y.load(A11Y_PATH),
     )
     # Snapshot provider reads through `app.rover` so reset replacements stick.
@@ -636,6 +638,9 @@ def _finish_run(app: App, console: ConsolePanel) -> None:
     if result.passed:
         console.log(f"✅ Passed!  Score {result.score}/100", level="hint")
         sounds.play_pass()
+        if app.sim is not None:
+            with contextlib.suppress(Exception):
+                app.sim.celebrate()
     else:
         console.log(f"❌ Not passed yet — score {result.score}/100", level="warn")
         for reason in result.reasons:

@@ -75,6 +75,7 @@ class SimPanel(ttk.Frame):
         self._world: World | None = None
         self._rover: Rover | None = None
         self._particles: ParticleSystem | None = None
+        self._celebrating = False
         self._draw_blank()
 
     # --- public API ---------------------------------------------------------
@@ -95,6 +96,39 @@ class SimPanel(ttk.Frame):
         """Repaint the current world + rover without resetting particles."""
         self.render_once()
 
+    #: Confetti palette for the celebration overlay.
+    _CONFETTI = ("#f0883e", "#3fb950", "#58a6ff", "#d29922", "#ff7b72", "#a371f7")
+
+    def celebrate(self) -> None:
+        """Draw a static confetti + 'mission complete' overlay on the canvas.
+
+        It is painted on top of the current frame and cleared by the next
+        :meth:`render_once` (i.e. the next Run or Reset), so there is no
+        timer/animation -- safe to call from any thread or platform.
+        """
+        canvas = self._canvas
+        width = canvas.winfo_reqwidth() or self._size_px[0]
+        height = canvas.winfo_reqheight() or self._size_px[1]
+        for i in range(48):
+            x = (i * 53) % max(8, width - 8)
+            y = (i * 29) % max(8, height - 14)
+            colour = self._CONFETTI[i % len(self._CONFETTI)]
+            canvas.create_rectangle(x, y, x + 6, y + 10, fill=colour, outline="", tags="celebrate")
+        canvas.create_text(
+            width // 2,
+            height // 2,
+            text="🎉  MISSION COMPLETE  🎉",
+            fill="#3fb950",
+            font=("TkDefaultFont", 16, "bold"),
+            tags="celebrate",
+        )
+        self._celebrating = True
+
+    @property
+    def is_celebrating(self) -> bool:
+        """Whether a celebration overlay is currently painted (used by tests)."""
+        return self._celebrating
+
     def render_once(self) -> None:
         """Composite a premium-styled frame onto the canvas."""
         if self._world is None or self._rover is None:
@@ -102,6 +136,7 @@ class SimPanel(ttk.Frame):
         from robolearn.ui import premium
 
         self._canvas.delete("all")
+        self._celebrating = False  # any celebration overlay is now cleared
         view = renderer.transform_for(self._surface, self._world)
         w = self._canvas.winfo_reqwidth() or self._size_px[0]
         h = self._canvas.winfo_reqheight() or self._size_px[1]
