@@ -41,6 +41,7 @@ from robolearn.ui.editor_panel import EditorCallbacks, EditorPanel
 from robolearn.ui.lesson_editor import LessonEditor, load_custom_lessons
 from robolearn.ui.lessons_panel import LessonsCallbacks, LessonsPanel
 from robolearn.ui.main_window import MainWindow
+from robolearn.ui.replay_dialog import ReplayDialog
 from robolearn.ui.sensors_panel import SensorsPanel
 from robolearn.ui.sim_panel import SimPanel
 from robolearn.ui.teacher_dashboard import TeacherDashboard
@@ -212,6 +213,9 @@ def build_app(
         side=tk.RIGHT, padx=4, pady=6
     )
     ttk.Button(win.frames.topbar, text="New lesson…", command=_open_lesson_editor).pack(
+        side=tk.RIGHT, padx=4, pady=6
+    )
+    ttk.Button(win.frames.topbar, text="▶ Replay", command=lambda: _replay_last(app, console)).pack(
         side=tk.RIGHT, padx=4, pady=6
     )
 
@@ -815,6 +819,19 @@ def _stop_clicked(app: App, console: ConsolePanel) -> None:
     app.step_events = None
     app.step_index = 0
     console.log("Stop requested.", level="warn")
+
+
+def _replay_last(app: App, console: ConsolePanel) -> ReplayDialog | None:
+    """Open the time-travel replay on the most recent run's trace.
+
+    Replays the in-memory tracer (which holds the last Run's events until
+    the next Run resets it). Returns the dialog, or ``None`` when there is
+    nothing to replay yet.
+    """
+    if len(app.tracer) == 0:
+        console.log("Nothing to replay yet — press Run first.", level="warn")
+        return None
+    return ReplayDialog(app.main_window.root, app.tracer)
 
 
 # Provide a callable named main() so the existing `python -m robolearn`

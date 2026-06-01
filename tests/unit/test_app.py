@@ -241,6 +241,17 @@ def test_a11y_controls_change_and_persist(
     assert (tmp_path / "a11y.toml").exists()  # type: ignore[attr-defined]
 
 
+def test_replay_last_warns_when_no_run(app_ctx: App) -> None:
+    """Replay with an empty tracer warns and opens no dialog (macOS-safe)."""
+    from robolearn.app import _replay_last
+
+    app_ctx.tracer.clear()
+    assert app_ctx.console is not None
+    result = _replay_last(app_ctx, app_ctx.console)
+    assert result is None
+    assert "Nothing to replay" in app_ctx.console.text()
+
+
 def test_progress_strip_reflects_store(app_ctx: App) -> None:
     """The topbar progress strip renders streak / passed / last score."""
     from robolearn.app import _progress_text, _refresh_progress
