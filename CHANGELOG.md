@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Closed the learning loop (P0).** Pressing **Run** now grades the
+  attempt the moment the animation ends: the console prints a pass/fail
+  verdict with a 0–100 score and one line per unmet criterion, the hint
+  card surfaces the first matching rule from the offline hint engine on
+  failure (and clears on success), the submission is persisted to the
+  SQLite store (code, trace, score, battery, collisions), the rolling
+  per-concept strength model is updated, and any freshly-earned
+  achievement fires a toast. Previously the pupil ran code and the app
+  said nothing — the single biggest gap surfaced by the 100-persona QA.
+- **Run now always records its trace.** `_reset_clicked` re-asserts the
+  active `Tracer`, state provider and engine bindings before every
+  execution, so a detached module-global tracer can no longer silently
+  swallow a run's events (some headless integration tests were passing
+  vacuously because of this).
+
 ### Added
+- **Step** advances the rover one trace event per click and grades when
+  the trace is exhausted; **Stop** halts an in-flight animation or step
+  session. Both are wired through `EditorCallbacks`.
+- **First-run welcome wizard** is shown on first launch (guarded by a
+  `~/.robolearn/config.toml` sentinel) and persists the pupil's chosen
+  display name via the new `Store.set_display_name`.
 - **P1 polish:** Sun-Valley (`sv-ttk`) theme applied globally so ttk
   widgets pick up a modern look on Windows / macOS / Linux. Splash
   screen displayed for ~250 ms at launch
