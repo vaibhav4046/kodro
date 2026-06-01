@@ -22,6 +22,25 @@ lessons. A pupil-progress memory layer adapts the difficulty and surfaces
 personalised hints. A teacher dashboard summarises class-wide strengths and
 weaknesses.
 
+## Features
+
+- **Closed learning loop** — press **Run**, watch the rover animate, then
+  get an immediate verdict: a green pass / orange fail banner, a 0–100
+  score, a specific hint on failure, and a sound cue.
+- **12 curriculum-mapped lessons** (KS3 → KS4) covering sequence,
+  selection, iteration, functions, sensors, recursion, decomposition and
+  abstraction, each with DfE/BCS references.
+- **Adaptive memory** — per-concept strength model, recommended-next
+  lesson, achievements + streaks, and a teacher dashboard. A top-bar
+  progress strip shows streak / lessons passed / last score.
+- **Accessibility** — text-size controls (`A-` / `A+`), a high-contrast
+  toggle (persisted offline), and keyboard shortcuts (F5/Ctrl+Enter run,
+  Esc stop, Ctrl+R reset).
+- **Procedural sound effects** synthesised at runtime — no asset files,
+  silently disabled on machines without audio.
+- **Optional local AI** (Ollama on `localhost`) to generate extra lessons
+  and explain code — strictly offline, no cloud, no account.
+
 ## Quick start (developers)
 
 ```bash

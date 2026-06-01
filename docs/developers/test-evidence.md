@@ -3,6 +3,23 @@
 One line per demonstrable capability, appended as each task lands. Used by
 the dissertation chapter on verification.
 
+- **2026-06-01** — Post-QA feature program (driven by the 100-persona
+  review) shipped and verified across Linux/macOS/Windows CI:
+  (a) **accessibility** — `robolearn.ui.a11y` text-scaling and
+  high-contrast settings persist to `~/.robolearn/a11y.toml` and reapply
+  on launch; `A-`/`A+` and the contrast toggle are covered by Tk-free unit
+  tests plus a synchronous app test (`test_a11y.py`, `test_app.py`);
+  keyboard shortcuts F5/Esc/Ctrl+R are bound. (b) **content** — the
+  bundled library grows from 10 to 12 with two KS4 stretch lessons
+  (decomposition, abstraction), schema-validated (`test_lesson_schema.py`).
+  (c) **feedback** — a green pass / orange fail verdict banner and a
+  top-bar progress strip (streak / passed / last score) are unit-tested
+  (`test_console_panel.py`, `test_app.py`). (d) **audio** —
+  `robolearn.ui.sounds` synthesises pass/fail/collect/collision tones from
+  the standard library with a hard-guarded mixer that no-ops on
+  audio-less machines, tested under SDL's headless `dummy` driver
+  (`test_sounds.py`). A per-test `--timeout=120` was added to CI so a hung
+  GUI test fails fast with a traceback instead of burning to the 6 h cap.
 - **2026-05-30** — The learning loop is closed end-to-end: pressing **Run**
   now grades the attempt, logs a pass/fail verdict + 0–100 score, surfaces
   an offline hint on failure (clears on pass), persists the submission to
