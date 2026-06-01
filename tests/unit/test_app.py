@@ -217,6 +217,27 @@ def test_welcome_skips_when_sentinel_exists(
     assert calls == []  # short-circuited before constructing the wizard
 
 
+def test_progress_strip_reflects_store(app_ctx: App) -> None:
+    """The topbar progress strip renders streak / passed / last score."""
+    from robolearn.app import _progress_text, _refresh_progress
+
+    app_ctx.store.record_submission(
+        pupil_id=app_ctx.pupil_id,
+        lesson_id="01_hello_rover",
+        code="move_forward(1)",
+        passed=True,
+        score=77,
+        reasons=[],
+    )
+    text = _progress_text(app_ctx)
+    assert "Streak" in text
+    assert "passed" in text
+    assert "Last 77" in text
+    _refresh_progress(app_ctx)
+    assert app_ctx.progress_label is not None
+    assert app_ctx.progress_label.cget("text") == text  # type: ignore[attr-defined]
+
+
 # --- pure helpers (no Tk) --------------------------------------------------
 
 

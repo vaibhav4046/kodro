@@ -19,9 +19,14 @@ from robolearn.engine.terrain import Terrain
 from robolearn.engine.world import ArenaBounds, World
 from robolearn.lessons.grader import grade
 from robolearn.lessons.schema import Lesson, load_library
-from robolearn.memory.achievements import PupilContext, check_and_unlock, show_toast
+from robolearn.memory.achievements import (
+    PupilContext,
+    check_and_unlock,
+    daily_streak,
+    show_toast,
+)
 from robolearn.memory.hint_engine import HintContext, find_first_hint
-from robolearn.memory.pupil_model import update_on_submission
+from robolearn.memory.pupil_model import attempted_lesson_ids, update_on_submission
 from robolearn.memory.store import Store
 from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
@@ -56,6 +61,7 @@ class App:
     stop_requested: bool = False
     hint_card: HintCardArea | None = None
     lessons_panel: LessonsPanel | None = None
+    progress_label: tk.Widget | None = None
     step_events: list[object] | None = None
     step_index: int = 0
 
@@ -195,6 +201,13 @@ def build_app(
     ttk.Button(win.frames.topbar, text="New lesson…", command=_open_lesson_editor).pack(
         side=tk.RIGHT, padx=4, pady=6
     )
+
+    # At-a-glance progress: streak / lessons passed / last score. Updated
+    # after every Run so the reward for finishing is always on screen.
+    progress = ttk.Label(win.frames.topbar, text="", anchor=tk.W)
+    progress.pack(side=tk.LEFT, padx=10, pady=6)
+    app.progress_label = progress
+    _refresh_progress(app)
 
     sim.set_world(world, rover)
     sensors.update_from_rover(rover)
@@ -504,6 +517,25 @@ def _lesson_selected(
     _log_lesson_brief(console, lesson)
 
 
+def _progress_text(app: App) -> str:
+    """Build the topbar progress string from the store."""
+    streak = daily_streak(app.store, app.pupil_id)
+    passed = len(attempted_lesson_ids(app.store, app.pupil_id))
+    subs = app.store.list_submissions(pupil_id=app.pupil_id)
+    last = f"{subs[-1].score}" if subs else "—"
+    fire = "🔥" if streak > 0 else "·"
+    return f"{fire} Streak {streak}    ✓ {passed} passed    ★ Last {last}"
+
+
+def _refresh_progress(app: App) -> None:
+    """Recompute and render the at-a-glance progress strip (best-effort)."""
+    label = app.progress_label
+    if label is None:
+        return
+    with contextlib.suppress(Exception):
+        label.configure(text=_progress_text(app))  # type: ignore[call-arg]
+
+
 def _run_aggregates(events: list) -> tuple[int, float]:  # type: ignore[type-arg]
     """Return ``(collisions, battery_used_pct)`` derived from trace events."""
     collisions = sum(1 for e in events if getattr(e, "kind", None) == "collision")
@@ -588,6 +620,9 @@ def _finish_run(app: App, console: ConsolePanel) -> None:
     # 6) Refresh the lessons panel so the recommended-next badge updates.
     if app.lessons_panel is not None and hasattr(app.lessons_panel, "set_lessons"):
         app.lessons_panel.set_lessons(app.lessons)
+
+    # 7) Refresh the at-a-glance progress strip (streak / passed / score).
+    _refresh_progress(app)
 
 
 def _apply_event_instant(

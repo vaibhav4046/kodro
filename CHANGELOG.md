@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **At-a-glance progress strip** in the top bar — daily streak, lessons
+  passed and last score — refreshed after every Run so the reward for
+  finishing is always visible (`_refresh_progress`).
 - **Step** advances the rover one trace event per click and grades when
   the trace is exhausted; **Stop** halts an in-flight animation or step
   session. Both are wired through `EditorCallbacks`.
