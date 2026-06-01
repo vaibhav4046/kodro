@@ -7,11 +7,23 @@ and keep event-loop pumping short.
 
 from __future__ import annotations
 
+import sys
 import time
 import tkinter as tk
 from collections.abc import Iterator
 
 import pytest
+
+#: The headless GitHub macOS runner deadlocks inside ``root.update()`` when an
+#: ``after()``-driven animation is in flight (a long-standing Aqua-in-CI Tk
+#: quirk). The three tests that pump the event loop through a real Run
+#: animation are therefore skipped on Darwin; the same code paths are
+#: exercised on Linux (xvfb) and Windows, and the synchronous Step/grade
+#: tests below still run everywhere.
+_skip_darwin_anim = pytest.mark.skipif(
+    sys.platform == "darwin",
+    reason="headless macOS Tk hangs in root.update() during after()-driven animation",
+)
 
 from robolearn.app import (
     App,
@@ -66,6 +78,7 @@ def test_build_app_wires_every_panel(app_ctx: App) -> None:
         assert win.get_slot(slot) is not None
 
 
+@_skip_darwin_anim
 def test_run_button_drives_and_animates(app_ctx: App) -> None:
     editor = app_ctx.main_window.get_slot("editor")
     assert editor is not None
@@ -91,6 +104,7 @@ def test_run_with_invalid_code_does_not_crash(app_ctx: App) -> None:
     assert app_ctx.rover is not None
 
 
+@_skip_darwin_anim
 def test_run_pass_records_submission_and_clears_hint(app_ctx: App) -> None:
     """A passing run is graded, persisted, and clears the hint card."""
     editor = app_ctx.main_window.get_slot("editor")
@@ -111,6 +125,7 @@ def test_run_pass_records_submission_and_clears_hint(app_ctx: App) -> None:
     assert app_ctx.rover.state.battery_pct < 100.0
 
 
+@_skip_darwin_anim
 def test_run_fail_records_and_surfaces_hint(app_ctx: App) -> None:
     """A failing run records a failing submission and shows a hint."""
     editor = app_ctx.main_window.get_slot("editor")
