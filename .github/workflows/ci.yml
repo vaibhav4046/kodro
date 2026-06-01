@@ -52,13 +52,16 @@ jobs:
       - name: Mypy
         run: mypy src/robolearn
 
+      # --timeout converts any hung GUI/thread test into a fast failure
+      # with a full per-thread traceback instead of burning to the 6h cap.
+      # thread method works cross-platform (signal/SIGALRM does not).
       - name: Pytest (Linux with xvfb)
         if: runner.os == 'Linux'
-        run: xvfb-run -a pytest
+        run: xvfb-run -a pytest --timeout=120 --timeout-method=thread
 
       - name: Pytest (Windows / macOS)
         if: runner.os != 'Linux'
-        run: pytest
+        run: pytest --timeout=120 --timeout-method=thread
 
       - name: Upload coverage to artifact
         if: matrix.os == 'ubuntu-latest'
