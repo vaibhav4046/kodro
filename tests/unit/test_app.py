@@ -241,6 +241,7 @@ def test_a11y_controls_change_and_persist(
     assert (tmp_path / "a11y.toml").exists()  # type: ignore[attr-defined]
 
 
+@_skip_darwin_anim  # opening a Toplevel segfaults the headless macOS runner
 def test_trophies_dialog_opens_and_lists_all(app_ctx: App) -> None:
     """The trophy case opens and lists every catalogue entry."""
     from robolearn.app import _show_trophies
