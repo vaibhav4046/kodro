@@ -11,6 +11,7 @@ from robolearn.memory.achievements import (
     CATALOGUE,
     AchievementDef,
     PupilContext,
+    achievement_status,
     check_and_unlock,
     daily_streak,
     ensure_schema,
@@ -69,6 +70,21 @@ def test_catalogue_has_at_least_15_entries() -> None:
 def test_catalogue_ids_are_unique() -> None:
     ids = [a.id for a in CATALOGUE]
     assert len(ids) == len(set(ids))
+
+
+def test_achievement_status_tracks_unlocks(tmp_path: Path) -> None:
+    store = Store(tmp_path / "p.db")
+    pupil = store.create_pupil()
+    status = achievement_status(store, pupil.id)
+    assert len(status) == len(CATALOGUE)
+    assert all(not unlocked for _, unlocked in status)
+    # A failing submission unlocks 'first_failure'.
+    ctx = PupilContext(
+        pupil_id=pupil.id, lesson=_lesson(), submission=_sub(pupil.id, passed=False, score=0)
+    )
+    check_and_unlock(store, ctx)
+    by_id = {ach.id: unlocked for ach, unlocked in achievement_status(store, pupil.id)}
+    assert by_id["first_failure"] is True
 
 
 def test_ensure_schema_creates_table(tmp_path: Path) -> None:

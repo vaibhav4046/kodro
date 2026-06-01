@@ -218,6 +218,9 @@ def build_app(
     ttk.Button(win.frames.topbar, text="▶ Replay", command=lambda: _replay_last(app, console)).pack(
         side=tk.RIGHT, padx=4, pady=6
     )
+    ttk.Button(win.frames.topbar, text="🏆 Trophies", command=lambda: _show_trophies(app)).pack(
+        side=tk.RIGHT, padx=4, pady=6
+    )
 
     # At-a-glance progress: streak / lessons passed / last score. Updated
     # after every Run so the reward for finishing is always on screen.
@@ -832,6 +835,38 @@ def _replay_last(app: App, console: ConsolePanel) -> ReplayDialog | None:
         console.log("Nothing to replay yet — press Run first.", level="warn")
         return None
     return ReplayDialog(app.main_window.root, app.tracer)
+
+
+def _show_trophies(app: App) -> tk.Toplevel:
+    """Open a trophy-case window listing unlocked + locked achievements."""
+    from tkinter import ttk
+
+    from robolearn.memory.achievements import achievement_status
+
+    top = tk.Toplevel(app.main_window.root)
+    top.title("Trophy case")
+    top.transient(app.main_window.root.winfo_toplevel())
+    frame = ttk.Frame(top, padding=12)
+    frame.pack(fill=tk.BOTH, expand=True)
+    rows = achievement_status(app.store, app.pupil_id)
+    unlocked_n = sum(1 for _, unlocked in rows if unlocked)
+    ttk.Label(
+        frame,
+        text=f"Trophies unlocked: {unlocked_n} / {len(rows)}",
+        font=("TkDefaultFont", 12, "bold"),
+    ).pack(anchor=tk.W, pady=(0, 8))
+    for ach, unlocked in rows:
+        mark = ach.icon if unlocked else "🔒"
+        colour = "#3fb950" if unlocked else "#8b949e"
+        tk.Label(
+            frame,
+            text=f"{mark}  {ach.title} — {ach.description}",
+            anchor=tk.W,
+            justify=tk.LEFT,
+            fg=colour,
+            wraplength=440,
+        ).pack(anchor=tk.W)
+    return top
 
 
 # Provide a callable named main() so the existing `python -m robolearn`

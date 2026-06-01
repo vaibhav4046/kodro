@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **Trophy case** — a top-bar "🏆 Trophies" button opens a window listing
+  all 16 achievements with locked/unlocked state and an unlocked count.
+  The achievements existed but were only ever glimpsed as a fleeting
+  unlock toast; `achievement_status()` exposes the full set.
 - **Replay last run** — a top-bar button opens the existing time-travel
   replay dialog on the most recent run's trace (`Tracer.from_json` /
   `ReplayDialog` were already built but unreachable from the UI). Warns

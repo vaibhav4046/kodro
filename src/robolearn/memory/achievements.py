@@ -204,6 +204,20 @@ def unlocked_ids(store: Store, pupil_id: str) -> set[str]:
     return {row["achievement_id"] for row in rows}
 
 
+def achievement_status(
+    store: Store,
+    pupil_id: str,
+    catalogue: Iterable[AchievementDef] = CATALOGUE,
+) -> list[tuple[AchievementDef, bool]]:
+    """Return every achievement paired with whether the pupil has unlocked it.
+
+    Powers the trophy-case view: the order matches the catalogue, and the
+    boolean is ``True`` for unlocked achievements.
+    """
+    unlocked = unlocked_ids(store, pupil_id)
+    return [(ach, ach.id in unlocked) for ach in catalogue]
+
+
 def check_and_unlock(
     store: Store,
     ctx: PupilContext,
