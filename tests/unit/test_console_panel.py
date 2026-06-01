@@ -81,3 +81,25 @@ def test_hint_card_clear_resets_rule(root: tk.Tk) -> None:
     area.show(Hint(rule_name="x", message="msg"))
     area.clear()
     assert area.current_rule is None
+
+
+def test_hint_card_show_success_green_banner(root: tk.Tk) -> None:
+    area = HintCardArea(root)
+    area.show(Hint(rule_name="x", message="msg"))  # leave a stale rule
+    area.show_success("Mission complete! Score 100/100")
+    assert area.current_rule is None  # success carries no rule
+    assert "Mission complete" in area.text()
+    assert "✅" in area.text()
+
+
+def test_hint_card_show_failure_orange_banner(root: tk.Tk) -> None:
+    area = HintCardArea(root)
+    area.show_failure("Not passed yet — score 60/100.")
+    assert area.current_rule is None
+    assert "Not passed yet" in area.text()
+
+
+def test_hint_card_text_roundtrips(root: tk.Tk) -> None:
+    area = HintCardArea(root)
+    area.show(Hint(rule_name="r", message="do the thing"))
+    assert "do the thing" in area.text()
