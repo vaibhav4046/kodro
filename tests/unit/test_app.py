@@ -163,6 +163,9 @@ def test_step_advances_then_finishes(app_ctx: App) -> None:
             break
         editor._callbacks.on_step(src)  # type: ignore[attr-defined]
     assert app_ctx.step_events is None
+    # The criteria-free default lesson passes -> green success banner.
+    assert app_ctx.hint_card is not None
+    assert "Mission complete" in app_ctx.hint_card.text()
 
 
 def test_stop_sets_flag_and_clears_step(app_ctx: App) -> None:

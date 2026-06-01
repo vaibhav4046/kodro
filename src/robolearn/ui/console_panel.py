@@ -102,14 +102,28 @@ class HintCardArea(ttk.Frame):
         self._rule_name: str | None = None
 
     def show(self, hint: Hint) -> None:
-        """Render ``hint`` as a single visible balloon."""
+        """Render ``hint`` as a single visible balloon (amber)."""
         self._rule_name = hint.rule_name
-        self._label.configure(text=f"💡  {hint.message}")
+        self._label.configure(text=f"💡  {hint.message}", fg="#d29922")
+
+    def show_success(self, message: str) -> None:
+        """Render a green pass banner (no hint rule attached)."""
+        self._rule_name = None
+        self._label.configure(text=f"✅  {message}", fg="#3fb950")
+
+    def show_failure(self, message: str) -> None:
+        """Render an orange not-passed banner when no specific hint matched."""
+        self._rule_name = None
+        self._label.configure(text=f"⚠  {message}", fg="#f0883e")
 
     def clear(self) -> None:
         """Hide any visible hint."""
         self._rule_name = None
         self._label.configure(text="")
+
+    def text(self) -> str:
+        """Return the currently displayed banner text (used by tests)."""
+        return str(self._label.cget("text"))
 
     @property
     def current_rule(self) -> str | None:

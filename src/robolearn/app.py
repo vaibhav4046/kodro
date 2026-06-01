@@ -569,7 +569,7 @@ def _finish_run(app: App, console: ConsolePanel) -> None:
         for reason in result.reasons:
             console.log(f"   • {reason}", level="warn")
 
-    # 2) Actionable hint on failure (cleared on success).
+    # 2) Banner: green pass, or an actionable hint / orange nudge on fail.
     hint_card = app.hint_card
     if not result.passed:
         ctx = HintContext(
@@ -583,8 +583,12 @@ def _finish_run(app: App, console: ConsolePanel) -> None:
             if hint_card is not None:
                 hint_card.show(hint)
             console.log(f"💡 {hint.message}", level="hint")
+        elif hint_card is not None:
+            hint_card.show_failure(
+                f"Not passed yet — score {result.score}/100. Tweak your code and run again."
+            )
     elif hint_card is not None:
-        hint_card.clear()
+        hint_card.show_success(f"Mission complete!  Score {result.score}/100")
 
     # 3) Persist the submission (history is everything *before* this one).
     history = tuple(app.store.list_submissions(pupil_id=app.pupil_id))

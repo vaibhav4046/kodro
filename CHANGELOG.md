@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **Pass/fail verdict banner** in the hint card: a green "✅ Mission
+  complete! Score N/100" on success, the matching hint (amber) or an
+  orange "Not passed yet" nudge on failure. The success case used to just
+  blank the card, so finishing felt like nothing happened.
 - **At-a-glance progress strip** in the top bar — daily streak, lessons
   passed and last score — refreshed after every Run so the reward for
   finishing is always visible (`_refresh_progress`).
