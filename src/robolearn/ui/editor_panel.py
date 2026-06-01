@@ -128,6 +128,10 @@ class EditorPanel(ttk.Frame):
         """Empty the editor (alias for ``set_source('')``)."""
         self.set_source("")
 
+    def set_font_size(self, size: int) -> None:
+        """Rescale the code font, keeping the configured family."""
+        self._text.configure(font=(self._settings.effective_code_font(), size))
+
     def apply_palette(self, palette: Palette | str) -> None:
         """Re-style the editor with the given palette."""
         if isinstance(palette, str):

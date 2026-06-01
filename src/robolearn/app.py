@@ -31,6 +31,7 @@ from robolearn.memory.store import Store
 from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
 from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
+from robolearn.ui import a11y
 from robolearn.ui.console_panel import ConsolePanel, HintCardArea
 from robolearn.ui.editor_panel import EditorCallbacks, EditorPanel
 from robolearn.ui.lesson_editor import LessonEditor, load_custom_lessons
@@ -62,6 +63,9 @@ class App:
     hint_card: HintCardArea | None = None
     lessons_panel: LessonsPanel | None = None
     progress_label: tk.Widget | None = None
+    editor: EditorPanel | None = None
+    console: ConsolePanel | None = None
+    a11y_settings: a11y.A11ySettings | None = None
     step_events: list[object] | None = None
     step_index: int = 0
 
@@ -128,6 +132,9 @@ def build_app(
         pupil_id=pupil.id,
         hint_card=hint_card,
         lessons_panel=lessons_panel,
+        editor=editor,
+        console=console,
+        a11y_settings=a11y.load(A11Y_PATH),
     )
     # Snapshot provider reads through `app.rover` so reset replacements stick.
     set_state_provider(lambda: _snapshot(app.rover))
@@ -209,17 +216,77 @@ def build_app(
     app.progress_label = progress
     _refresh_progress(app)
 
+    # Accessibility controls: text scaling + high-contrast toggle.
+    ttk.Button(
+        win.frames.topbar, text="A-", width=3, command=lambda: _change_text_scale(app, larger=False)
+    ).pack(side=tk.LEFT, padx=(8, 0), pady=6)
+    ttk.Button(
+        win.frames.topbar, text="A+", width=3, command=lambda: _change_text_scale(app, larger=True)
+    ).pack(side=tk.LEFT, padx=(0, 0), pady=6)
+    ttk.Button(
+        win.frames.topbar, text="◑ Contrast", command=lambda: _toggle_high_contrast(app)
+    ).pack(side=tk.LEFT, padx=(4, 0), pady=6)
+    _apply_a11y(app)
+
     sim.set_world(world, rover)
     sensors.update_from_rover(rover)
     console.log("RoboLearn ready. Pick a lesson on the right, write code, press Run.")
     if app.current_lesson is not None:
         _log_lesson_brief(console, app.current_lesson)
-    # Ctrl+Enter runs the current program from anywhere.
+
+    # Keyboard shortcuts (accessibility / power users): Ctrl+Enter and F5
+    # run, Esc stops, Ctrl+R resets. bind_all so they work from any focus.
+    def _run_shortcut(_e: object) -> str:
+        _run_clicked(app, sim, sensors, console, hint_card, editor.get_source())
+        return "break"
+
+    win.root.bind_all("<Control-Return>", _run_shortcut)
+    win.root.bind_all("<F5>", _run_shortcut)
+    win.root.bind_all("<Escape>", lambda _e: _stop_clicked(app, console))
     win.root.bind_all(
-        "<Control-Return>",
-        lambda _e: _run_clicked(app, sim, sensors, console, hint_card, editor.get_source()),
+        "<Control-r>", lambda _e: _reset_clicked(app, sim, sensors, console, hint_card)
+    )
+    win.root.bind_all(
+        "<Control-R>", lambda _e: _reset_clicked(app, sim, sensors, console, hint_card)
     )
     return app
+
+
+#: Path the accessibility settings persist to (offline, per-machine).
+A11Y_PATH: Path = Path.home() / ".robolearn" / "a11y.toml"
+
+
+def _apply_a11y(app: App) -> None:
+    """Apply the current accessibility settings to every text widget."""
+    settings = app.a11y_settings or a11y.A11ySettings()
+    with contextlib.suppress(Exception):
+        if app.editor is not None:
+            app.editor.set_font_size(settings.code_size())
+        if app.console is not None:
+            app.console.set_font_size(settings.text_size())
+            app.console.set_high_contrast(settings.high_contrast)
+        if app.hint_card is not None:
+            app.hint_card.set_font_size(settings.text_size())
+
+
+def _change_text_scale(app: App, *, larger: bool) -> None:
+    """Nudge the text scale one step, re-apply, and persist."""
+    settings = app.a11y_settings or a11y.A11ySettings()
+    settings.text_scale = a11y.stepped_scale(settings.text_scale, larger=larger)
+    app.a11y_settings = settings
+    _apply_a11y(app)
+    with contextlib.suppress(Exception):
+        a11y.save(A11Y_PATH, settings)
+
+
+def _toggle_high_contrast(app: App) -> None:
+    """Flip high-contrast mode, re-apply, and persist."""
+    settings = app.a11y_settings or a11y.A11ySettings()
+    settings.high_contrast = not settings.high_contrast
+    app.a11y_settings = settings
+    _apply_a11y(app)
+    with contextlib.suppress(Exception):
+        a11y.save(A11Y_PATH, settings)
 
 
 def _log_lesson_brief(console: ConsolePanel, lesson: Lesson) -> None:

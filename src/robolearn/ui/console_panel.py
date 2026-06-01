@@ -51,6 +51,9 @@ class ConsolePanel(ttk.Frame):
         self._text.tag_configure(self._tags.error, foreground="#f85149")
         self._text.tag_configure(self._tags.hint, foreground="#58a6ff")
         self._line_count = 0
+        # Remember the theme defaults so high-contrast mode can toggle back.
+        self._default_bg = self._text.cget("background")
+        self._default_fg = self._text.cget("foreground")
 
     # --- public API ---------------------------------------------------------
 
@@ -79,6 +82,17 @@ class ConsolePanel(ttk.Frame):
     def text(self) -> str:
         """Return the full console contents (used by tests)."""
         return self._text.get("1.0", "end-1c")
+
+    def set_font_size(self, size: int) -> None:
+        """Rescale the console font (accessibility text scaling)."""
+        self._text.configure(font=("TkFixedFont", size))
+
+    def set_high_contrast(self, enabled: bool) -> None:
+        """Switch the console to a pure black/white palette (or back)."""
+        if enabled:
+            self._text.configure(background="#000000", foreground="#ffffff")
+        else:
+            self._text.configure(background=self._default_bg, foreground=self._default_fg)
 
 
 class HintCardArea(ttk.Frame):
@@ -115,6 +129,10 @@ class HintCardArea(ttk.Frame):
         """Render an orange not-passed banner when no specific hint matched."""
         self._rule_name = None
         self._label.configure(text=f"⚠  {message}", fg="#f0883e")
+
+    def set_font_size(self, size: int) -> None:
+        """Rescale the hint-card font (accessibility text scaling)."""
+        self._label.configure(font=("TkDefaultFont", size))
 
     def clear(self) -> None:
         """Hide any visible hint."""

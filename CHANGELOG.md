@@ -24,6 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **Accessibility pass.** Text-size controls (`A-` / `A+`) rescale the
+  editor, console and hint fonts; a high-contrast toggle switches the
+  console to pure black-on-white; both preferences persist offline to
+  `~/.robolearn/a11y.toml` and reapply on launch. New keyboard shortcuts:
+  `F5` (also `Ctrl+Enter`) run, `Esc` stop, `Ctrl+R` reset. The settings
+  logic is Tk-free and unit-tested (`robolearn.ui.a11y`).
 - **Pass/fail verdict banner** in the hint card: a green "✅ Mission
   complete! Score N/100" on success, the matching hint (amber) or an
   orange "Not passed yet" nudge on failure. The success case used to just
