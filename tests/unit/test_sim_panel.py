@@ -53,6 +53,19 @@ def test_panel_has_a_pygame_surface(panel: SimPanel) -> None:
     assert panel.surface.get_size() == (120, 120)
 
 
+def test_celebrate_overlay_paints_and_clears(panel: SimPanel) -> None:
+    rover = Rover(_world())
+    panel.set_world(_world(), rover)
+    assert panel.is_celebrating is False
+    panel.celebrate()
+    assert panel.is_celebrating is True
+    assert panel._canvas.find_withtag("celebrate")  # type: ignore[attr-defined]
+    # The next repaint clears the overlay.
+    panel.refresh()
+    assert panel.is_celebrating is False
+    assert not panel._canvas.find_withtag("celebrate")  # type: ignore[attr-defined]
+
+
 def test_default_size_constant_is_positive_pair() -> None:
     assert DEFAULT_SIM_SIZE_PX[0] > 0
     assert DEFAULT_SIM_SIZE_PX[1] > 0
