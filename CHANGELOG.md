@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **Replay last run** — a top-bar button opens the existing time-travel
+  replay dialog on the most recent run's trace (`Tracer.from_json` /
+  `ReplayDialog` were already built but unreachable from the UI). Warns
+  when there is nothing to replay yet.
 - **Adaptive next-lesson recommendation** surfaced after every Run — the
   per-concept strength model (`suggest_next_lesson`) already existed but
   was invisible; the console now logs "👉 Recommended next: …" so the
