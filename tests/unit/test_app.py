@@ -166,6 +166,9 @@ def test_step_advances_then_finishes(app_ctx: App) -> None:
     # The criteria-free default lesson passes -> green success banner.
     assert app_ctx.hint_card is not None
     assert "Mission complete" in app_ctx.hint_card.text()
+    # The adaptive recommender surfaces a next lesson in the console.
+    assert app_ctx.console is not None
+    assert "Recommended next" in app_ctx.console.text()
 
 
 def test_stop_sets_flag_and_clears_step(app_ctx: App) -> None:

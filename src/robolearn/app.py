@@ -26,7 +26,11 @@ from robolearn.memory.achievements import (
     show_toast,
 )
 from robolearn.memory.hint_engine import HintContext, find_first_hint
-from robolearn.memory.pupil_model import attempted_lesson_ids, update_on_submission
+from robolearn.memory.pupil_model import (
+    attempted_lesson_ids,
+    suggest_next_lesson,
+    update_on_submission,
+)
 from robolearn.memory.store import Store
 from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
@@ -699,11 +703,22 @@ def _finish_run(app: App, console: ConsolePanel) -> None:
         with contextlib.suppress(Exception):
             show_toast(app.main_window.root, ach)
 
-    # 6) Refresh the lessons panel so the recommended-next badge updates.
+    # 6) Surface the adaptive recommender's next pick (it is otherwise
+    #    invisible). Skip if it points back at the current lesson.
+    recommended = suggest_next_lesson(app.store, app.pupil_id, app.lessons)
+    if recommended is not None and (
+        app.current_lesson is None or recommended.id != app.current_lesson.id
+    ):
+        console.log(
+            f"👉 Recommended next: {recommended.id} — {recommended.title}",
+            level="hint",
+        )
+
+    # 8) Refresh the lessons panel so the recommended-next badge updates.
     if app.lessons_panel is not None and hasattr(app.lessons_panel, "set_lessons"):
         app.lessons_panel.set_lessons(app.lessons)
 
-    # 7) Refresh the at-a-glance progress strip (streak / passed / score).
+    # 9) Refresh the at-a-glance progress strip (streak / passed / score).
     _refresh_progress(app)
 
 
