@@ -220,6 +220,24 @@ def test_welcome_skips_when_sentinel_exists(
     assert calls == []  # short-circuited before constructing the wizard
 
 
+def test_a11y_controls_change_and_persist(
+    app_ctx: App, tmp_path: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A-/A+ and the contrast toggle mutate, apply and persist settings."""
+    import robolearn.app as app_mod
+    from robolearn.ui.a11y import A11ySettings
+
+    monkeypatch.setattr(app_mod, "A11Y_PATH", tmp_path / "a11y.toml")  # type: ignore[operator]
+    app_ctx.a11y_settings = A11ySettings()
+    app_mod._change_text_scale(app_ctx, larger=True)
+    assert app_ctx.a11y_settings is not None
+    assert app_ctx.a11y_settings.text_scale > 1.0
+    before = app_ctx.a11y_settings.high_contrast
+    app_mod._toggle_high_contrast(app_ctx)
+    assert app_ctx.a11y_settings.high_contrast is not before
+    assert (tmp_path / "a11y.toml").exists()  # type: ignore[attr-defined]
+
+
 def test_progress_strip_reflects_store(app_ctx: App) -> None:
     """The topbar progress strip renders streak / passed / last score."""
     from robolearn.app import _progress_text, _refresh_progress
