@@ -1,0 +1,35 @@
+id: 12_abstraction
+title: Abstraction (KS4 stretch)
+key_stage: KS4
+ct_concepts: [abstraction, selection]
+curriculum_refs:
+  - "DfE 'Computer Science GCSE subject content' (DfE-00094-2015), section 3 'programming techniques': use abstraction to manage complexity and treat sensors as an abstract interface to the environment."
+  - "BCS Csizmadia et al., 2015: abstraction as hiding detail to manage complexity."
+prereqs: [07_sensors]
+terrain: underwater
+intro: |
+  Don't hard-code the route -- ask the world. The starter drives blindly
+  and crashes. Use obstacle_ahead() to decide when to turn, so one short
+  program copes with whatever is in the way. Reading a sensor is an
+  abstraction: you get "is something there?" without caring how it is
+  measured.
+starter_code: |
+  # This drives straight and will crash. Add a sensor check to avoid it.
+  while read_battery() > 40:
+      move_forward(1)
+allowed_constructs: [while, if, function_call, comparison]
+max_lines: 14
+world:
+  base: [5.0, 1.0]
+  samples: []
+  obstacles: [{x: 5.0, y: 4.0, r: 0.6}]
+  width: 10.0
+  height: 10.0
+success_criteria:
+  - no_collisions: true
+  - uses_construct: if
+  - min_distance_travelled: 3.0
+hints:
+  on_failure:
+    - "Check obstacle_ahead() BEFORE you move, then turn_left(90) when it is True."
+    - "Wrap the move in an if/else so the rover only drives forward when the way is clear."

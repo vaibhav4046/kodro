@@ -1,0 +1,41 @@
+id: 11_decomposition
+title: Decomposition (KS4 stretch)
+key_stage: KS4
+ct_concepts: [decomposition, functions]
+curriculum_refs:
+  - "DfE 'Computer Science GCSE subject content' (DfE-00094-2015), section 3 'programming techniques': decompose a problem into smaller sub-problems and implement each as a subroutine."
+  - "BCS Csizmadia et al., 2015: decomposition as a core computational-thinking strand."
+prereqs: [06_functions]
+terrain: mars
+intro: |
+  Break the patrol into named jobs. Write one small helper function per
+  leg of the route, then call them in order. Decomposition turns a single
+  long problem into a few short ones you can read and test on their own.
+starter_code: |
+  def leg_one():
+      move_forward(3)
+      collect_sample()
+
+  def leg_two():
+      turn_left(90)
+      move_forward(3)
+      collect_sample()
+
+  leg_one()
+  # TODO: call leg_two() so the rover reaches the second sample too
+allowed_constructs: [function_def, function_call]
+max_lines: 16
+world:
+  base: [1.0, 1.0]
+  samples: [[4.0, 1.0], [4.0, 4.0]]
+  obstacles: []
+  width: 10.0
+  height: 10.0
+success_criteria:
+  - samples_collected: 2
+  - no_collisions: true
+  - uses_construct: function_def
+hints:
+  on_failure:
+    - "You collected the first sample but not the second -- call leg_two() as well."
+    - "Each helper should do exactly one leg of the route; then call them in order."

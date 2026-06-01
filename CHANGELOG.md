@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **Two new KS4 stretch lessons** (12 bundled in total): `11_decomposition`
+  (break a patrol into named helper subroutines) and `12_abstraction`
+  (use `obstacle_ahead()` as a sensor abstraction to avoid a crash),
+  each with DfE/BCS curriculum references and failure hints.
 - **Accessibility pass.** Text-size controls (`A-` / `A+`) rescale the
   editor, console and hint fonts; a high-contrast toggle switches the
   console to pure black-on-white; both preferences persist offline to
