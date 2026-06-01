@@ -27,16 +27,26 @@ from robolearn.ui.main_window import MainWindow
 @pytest.fixture(scope="module")
 def app_ctx(tmp_path_factory: pytest.TempPathFactory) -> Iterator[App]:
     """Build the full app once for the whole module."""
+    import robolearn.app as app_mod
+
+    # Achievement toasts spawn a secondary tk.Toplevel. On a headless
+    # macOS (Aqua) runner mapping that window blocks root.update() forever,
+    # so neutralise toasts for every app test -- the unlock logic itself is
+    # covered elsewhere; here we only care about the Run/Step/grade wiring.
+    _orig_toast = app_mod.show_toast
+    app_mod.show_toast = lambda *a, **k: None  # type: ignore[assignment]
     tmp = tmp_path_factory.mktemp("app") / "p.db"
     try:
         win = MainWindow()
         win.root.withdraw()
         app = build_app(main_window=win, db_path=tmp)
     except (tk.TclError, RuntimeError) as exc:  # pragma: no cover
+        app_mod.show_toast = _orig_toast
         pytest.skip(f"Tk unavailable: {exc}")
     try:
         yield app
     finally:
+        app_mod.show_toast = _orig_toast
         app.store.close()
         win.destroy()
 
