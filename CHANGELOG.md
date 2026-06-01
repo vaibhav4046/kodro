@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **Adaptive next-lesson recommendation** surfaced after every Run — the
+  per-concept strength model (`suggest_next_lesson`) already existed but
+  was invisible; the console now logs "👉 Recommended next: …" so the
+  adaptivity is actually used.
 - **Confetti celebration overlay** on a passing Run — a static "🎉 Mission
   complete 🎉" + confetti burst painted on the sim canvas, cleared by the
   next Run/Reset (no timer, so it can't stall the event loop on any
