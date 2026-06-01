@@ -241,6 +241,21 @@ def test_a11y_controls_change_and_persist(
     assert (tmp_path / "a11y.toml").exists()  # type: ignore[attr-defined]
 
 
+def test_trophies_dialog_opens_and_lists_all(app_ctx: App) -> None:
+    """The trophy case opens and lists every catalogue entry."""
+    from robolearn.app import _show_trophies
+    from robolearn.memory.achievements import CATALOGUE
+
+    dialog = _show_trophies(app_ctx)
+    try:
+        assert dialog is not None
+        labels = list(dialog.winfo_children()[0].winfo_children())
+        # header + one row per achievement
+        assert len(labels) >= len(CATALOGUE)
+    finally:
+        dialog.destroy()
+
+
 def test_replay_last_warns_when_no_run(app_ctx: App) -> None:
     """Replay with an empty tracer warns and opens no dialog (macOS-safe)."""
     from robolearn.app import _replay_last
