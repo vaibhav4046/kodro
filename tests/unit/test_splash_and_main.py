@@ -66,6 +66,10 @@ def test_main_handles_app_exception(monkeypatch: pytest.MonkeyPatch, tmp_path: P
 
     monkeypatch.setattr(app_mod, "main", _boom)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    # The fatal-error handler pops a modal messagebox for the .exe user;
+    # stub it so the headless test (and CI under xvfb) never blocks on a
+    # dialog that no one can dismiss.
+    monkeypatch.setattr("tkinter.messagebox.showerror", lambda *a, **k: None)
     # Guarded top-level: returns 1, never raises.
     rc = main_mod.main([])
     assert rc == 1
