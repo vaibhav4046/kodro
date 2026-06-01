@@ -14,6 +14,16 @@ from collections.abc import Iterator
 
 import pytest
 
+from robolearn.app import (
+    App,
+    _default_lesson,
+    _snapshot,
+    _world_from_lesson,
+    build_app,
+)
+from robolearn.engine.rover import Rover
+from robolearn.ui.main_window import MainWindow
+
 #: The headless GitHub macOS runner deadlocks inside ``root.update()`` when an
 #: ``after()``-driven animation is in flight (a long-standing Aqua-in-CI Tk
 #: quirk). The three tests that pump the event loop through a real Run
@@ -24,16 +34,6 @@ _skip_darwin_anim = pytest.mark.skipif(
     sys.platform == "darwin",
     reason="headless macOS Tk hangs in root.update() during after()-driven animation",
 )
-
-from robolearn.app import (
-    App,
-    _default_lesson,
-    _snapshot,
-    _world_from_lesson,
-    build_app,
-)
-from robolearn.engine.rover import Rover
-from robolearn.ui.main_window import MainWindow
 
 
 @pytest.fixture(scope="module")
