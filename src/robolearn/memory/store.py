@@ -144,6 +144,13 @@ class Store:
         )
         return Pupil(id=pid, display_name=display_name, created_at=now)
 
+    def set_display_name(self, pupil_id: str, display_name: str) -> None:
+        """Rename an existing pupil (used by the first-run welcome wizard)."""
+        self._conn.execute(
+            "UPDATE pupils SET display_name = ? WHERE id = ?",
+            (display_name, pupil_id),
+        )
+
     def get_pupil(self, pupil_id: str) -> Pupil | None:
         """Return the pupil with the given id, or ``None`` if not found."""
         row = self._conn.execute(

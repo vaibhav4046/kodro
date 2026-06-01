@@ -425,3 +425,46 @@ function object (asserted by `test_package_root_reexports_full_api`).
 `__init__.py # exports public Rover API only`. The shorter form is what
 lesson YAMLs will embed in their `starter_code`, and shorter imports keep
 the curriculum-mapped lesson code legible at the back of the classroom.
+
+---
+
+## 2026-05-30 — Grade-on-Run closes the learning loop
+
+**What was considered.** A separate **Submit** button that grades the
+attempt, versus grading automatically at the end of every **Run**.
+
+**What was chosen.** Grade automatically when the Run animation finishes
+(`_finish_run`). The pupil presses one button, watches the rover move,
+and is immediately told whether the mission was met, why not, what to
+try next (hint card), and what they earned (achievement toast). The
+submission, trace, score and updated concept-strength all persist in the
+same step.
+
+**Why.** A 100-persona QA pass (impatient learner → world-class
+reviewer) scored the build 4.6/10 with one dominant complaint: the app
+*ran* code but never *responded* to it — no pass/fail, no hint, no
+reward. A hidden Submit button would not have fixed the perception that
+"nothing happens." Coupling feedback to Run makes the consequence of
+each attempt unmissable, which is the core of formative-assessment
+pedagogy. The grader, hint engine, store and achievement modules already
+existed and were unit-tested; the gap was purely that the UI never
+called them.
+
+---
+
+## 2026-05-30 — Re-bind runtime globals on every reset
+
+**What was considered.** Trust the one-time binding done in `build_app`,
+versus re-asserting the active tracer / state-provider / engine handles
+at the start of every world reset.
+
+**What was chosen.** Re-bind in `_reset_clicked`, which runs before every
+Run and Step.
+
+**Why.** The tracer, rover and world are reached through module-level
+globals so the procedural pupil API can stay free-function. Anything that
+detaches those globals between runs (the autouse test fixture does
+exactly this for isolation; a future multi-window session could too)
+would leave Run executing into a dead tracer and silently recording zero
+events. Re-binding at reset makes a Run self-sufficient and turned a
+class of vacuously-passing integration tests into real ones.

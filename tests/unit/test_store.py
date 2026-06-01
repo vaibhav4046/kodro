@@ -34,6 +34,21 @@ def test_get_pupil_returns_none_for_unknown(tmp_path: Path) -> None:
     assert store.get_pupil("nope") is None
 
 
+def test_set_display_name_renames_pupil(tmp_path: Path) -> None:
+    store = Store(tmp_path / "p.db")
+    p = store.create_pupil("Pupil")
+    store.set_display_name(p.id, "Ada")
+    renamed = store.get_pupil(p.id)
+    assert renamed is not None
+    assert renamed.display_name == "Ada"
+
+
+def test_set_display_name_unknown_pupil_is_noop(tmp_path: Path) -> None:
+    store = Store(tmp_path / "p.db")
+    store.set_display_name("ghost", "Nobody")  # must not raise
+    assert store.get_pupil("ghost") is None
+
+
 def test_list_pupils_orders_by_creation(tmp_path: Path) -> None:
     store = Store(tmp_path / "p.db")
     a = store.create_pupil("a")
