@@ -109,7 +109,7 @@ address.
 
 ## 4. Curriculum alignment
 
-The twelve bundled lessons map to the UK Computing programme of study and
+The thirteen bundled lessons map to the UK Computing programme of study and
 GCSE subject content, covering sequence, selection, iteration, functions,
 sensors/abstraction, decomposition and recursion across KS3 and KS4. Each
 lesson YAML carries explicit DfE/BCS curriculum references, and the

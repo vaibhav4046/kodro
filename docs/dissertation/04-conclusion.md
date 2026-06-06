@@ -14,7 +14,7 @@ in the introduction, the project delivered:
   single per-call trace and validated against explicit per-lesson criteria;
 - a pupil-progress memory model (per-concept strength, recommendations,
   achievements, streaks) and a teacher dashboard plus offline HTML reporting;
-- twelve curriculum-mapped lessons spanning KS3 and KS4; and
+- thirteen curriculum-mapped lessons spanning KS3 and KS4; and
 - a one-download desktop binary, built and released through a disciplined,
   fully green CI process.
 
@@ -52,7 +52,7 @@ the loop was closed and polished.
    [evaluation chapter](../developers/evaluation.md) and
    `HUMAN_TODO.md`: 5–8 teachers, task-based sessions, a SUS questionnaire
    and interviews, using the built-in dashboard and HTML report as evidence.
-2. **Broaden content** beyond twelve lessons, and add worked-example and
+2. **Broaden content** beyond the current lessons, and add worked-example and
    Parsons-problem lesson types.
 3. **Deepen accessibility** (screen-reader labelling, a bundled
    OpenDyslexic-style font) toward a formal WCAG-style assessment.
