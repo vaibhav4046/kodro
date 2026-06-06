@@ -108,6 +108,10 @@ class EditorPanel(ttk.Frame):
         self._settings = settings or ThemeSettings()
         self._build_widgets()
         self.set_source(initial_source)
+        # Remember the themed colours so high-contrast mode can toggle back.
+        self._hc_bg = self._text.cget("background")
+        self._hc_fg = self._text.cget("foreground")
+        self._hc_insert = self._text.cget("insertbackground")
 
     # --- public API ---------------------------------------------------------
 
@@ -131,6 +135,17 @@ class EditorPanel(ttk.Frame):
     def set_font_size(self, size: int) -> None:
         """Rescale the code font, keeping the configured family."""
         self._text.configure(font=(self._settings.effective_code_font(), size))
+
+    def set_high_contrast(self, enabled: bool) -> None:
+        """Switch the editor to a pure black/white palette (or back)."""
+        if enabled:
+            self._text.configure(
+                background="#000000", foreground="#ffffff", insertbackground="#ffffff"
+            )
+        else:
+            self._text.configure(
+                background=self._hc_bg, foreground=self._hc_fg, insertbackground=self._hc_insert
+            )
 
     def apply_palette(self, palette: Palette | str) -> None:
         """Re-style the editor with the given palette."""

@@ -293,6 +293,7 @@ def _apply_a11y(app: App) -> None:
     with contextlib.suppress(Exception):
         if app.editor is not None:
             app.editor.set_font_size(settings.code_size())
+            app.editor.set_high_contrast(settings.high_contrast)
         if app.console is not None:
             app.console.set_font_size(settings.text_size())
             app.console.set_high_contrast(settings.high_contrast)

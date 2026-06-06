@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each with DfE/BCS curriculum references and failure hints.
 - **Accessibility pass.** Text-size controls (`A-` / `A+`) rescale the
   editor, console and hint fonts; a high-contrast toggle switches the
-  console to pure black-on-white; both preferences persist offline to
+  editor and console to pure black-on-white; both preferences persist offline to
   `~/.robolearn/a11y.toml` and reapply on launch. New keyboard shortcuts:
   `F5` (also `Ctrl+Enter`) run, `Esc` stop, `Ctrl+R` reset. The settings
   logic is Tk-free and unit-tested (`robolearn.ui.a11y`).

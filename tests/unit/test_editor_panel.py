@@ -44,6 +44,21 @@ def test_set_source_replaces_contents(panel: EditorPanel) -> None:
     assert panel.get_source().startswith("turn_left(90)")
 
 
+def test_high_contrast_toggles_editor_colours(panel: EditorPanel) -> None:
+    default_bg = panel._text.cget("background")  # type: ignore[attr-defined]
+    panel.set_high_contrast(True)
+    assert panel._text.cget("background") == "#000000"  # type: ignore[attr-defined]
+    assert panel._text.cget("foreground") == "#ffffff"  # type: ignore[attr-defined]
+    panel.set_high_contrast(False)
+    assert panel._text.cget("background") == default_bg  # type: ignore[attr-defined]
+
+
+def test_set_font_size_changes_font(panel: EditorPanel) -> None:
+    panel.set_font_size(20)
+    # tk returns the font spec; the size component should be present.
+    assert "20" in str(panel._text.cget("font"))  # type: ignore[attr-defined]
+
+
 def test_clear_empties_editor(panel: EditorPanel) -> None:
     panel.clear()
     assert panel.get_source() == ""
