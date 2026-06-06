@@ -217,6 +217,9 @@ def build_app(
     ttk.Button(win.frames.topbar, text="New lesson…", command=_open_lesson_editor).pack(
         side=tk.RIGHT, padx=4, pady=6
     )
+    ttk.Button(
+        win.frames.topbar, text="↺ Starter code", command=lambda: _restore_starter(app, console)
+    ).pack(side=tk.RIGHT, padx=4, pady=6)
     ttk.Button(win.frames.topbar, text="▶ Replay", command=lambda: _replay_last(app, console)).pack(
         side=tk.RIGHT, padx=4, pady=6
     )
@@ -323,6 +326,15 @@ def _toggle_high_contrast(app: App) -> None:
     _apply_a11y(app)
     with contextlib.suppress(Exception):
         a11y.save(A11Y_PATH, settings)
+
+
+def _restore_starter(app: App, console: ConsolePanel) -> None:
+    """Reset the editor back to the current lesson's starter code."""
+    lesson = app.current_lesson
+    if lesson is None or app.editor is None:
+        return
+    app.editor.set_source(lesson.starter_code)
+    console.log("Restored the lesson's starter code.", level="info")
 
 
 def _sound_button_text(app: App) -> str:
