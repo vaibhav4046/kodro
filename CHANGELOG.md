@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **"Orbital Rover" mission bar** — implements the signature chrome from the
+  Claude Design handoff (`Rover Simulator.html`): a wordmark + `ROVER
+  SIMULATOR` mono subtitle, a run-status dot (idle / running / complete /
+  error, in the design's phosphor-cyan palette) wired to the run lifecycle,
+  and a **sim-speed slider** that scales playback (0.25×–4×) via
+  `orbital.scaled_delay`. Tk-free tokens/helpers in `robolearn.ui.orbital`.
 - **Passed-lesson ticks** — the lessons list now shows a ✓ next to lessons
   the pupil has passed (• otherwise), updated after every Run, so progress
   through the curriculum is visible at a glance (`LessonsPanel.set_completed`).

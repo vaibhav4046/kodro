@@ -365,6 +365,24 @@ def test_restore_starter_resets_editor_code(app_ctx: App) -> None:
     assert app_ctx.editor.get_source().strip() == lesson.starter_code.strip()
 
 
+def test_mission_bar_status_and_speed(app_ctx: App) -> None:
+    """The mission-bar status dot recolours and the speed slider sets the factor."""
+    from robolearn.app import _set_speed, _set_status
+    from robolearn.ui import orbital
+
+    assert app_ctx.status_dot is not None
+    _set_status(app_ctx, "run")
+    assert str(app_ctx.status_dot.cget("foreground")) == orbital.CYAN  # type: ignore[attr-defined]
+    _set_status(app_ctx, "error")
+    assert str(app_ctx.status_dot.cget("foreground")) == orbital.DANGER  # type: ignore[attr-defined]
+
+    _set_speed(app_ctx, 2.0)
+    assert app_ctx.speed_factor == 2.0
+    _set_speed(app_ctx, "not-a-number")
+    assert app_ctx.speed_factor == 1.0
+    _set_status(app_ctx, "idle")  # leave clean
+
+
 def test_progress_strip_reflects_store(app_ctx: App) -> None:
     """The topbar progress strip renders streak / passed / last score."""
     from robolearn.app import _progress_text, _refresh_progress
