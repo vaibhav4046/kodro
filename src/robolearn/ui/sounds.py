@@ -25,6 +25,21 @@ _state: bool | None = None
 #: Cache of built Sound objects keyed by effect name.
 _cache: dict[str, Any] = {}
 
+#: User mute switch. When ``False`` every ``play_*`` is a no-op even if a
+#: device is available (for SEN pupils and quiet classrooms).
+_enabled: bool = True
+
+
+def set_enabled(enabled: bool) -> None:
+    """Enable or mute all sound effects."""
+    global _enabled
+    _enabled = bool(enabled)
+
+
+def is_enabled() -> bool:
+    """Whether sound effects are currently un-muted."""
+    return _enabled
+
 
 def _ensure_init() -> bool:
     """Lazily initialise the mixer once; return whether audio is usable."""
@@ -51,9 +66,10 @@ def is_available() -> bool:
 
 
 def reset() -> None:
-    """Forget the cached init state + sounds (used by tests)."""
-    global _state
+    """Forget the cached init state + sounds, and un-mute (used by tests)."""
+    global _state, _enabled
     _state = None
+    _enabled = True
     _cache.clear()
 
 
@@ -80,7 +96,7 @@ def _tone(frequency: float, duration_ms: int, volume: float = 0.3) -> Any:
 
 def _play(name: str, builder: Callable[[], Any]) -> None:
     """Play (and cache) the named effect; never raise."""
-    if not _ensure_init():
+    if not _enabled or not _ensure_init():
         return
     try:
         sound = _cache.get(name)

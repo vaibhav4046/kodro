@@ -308,6 +308,24 @@ def test_replay_last_warns_when_no_run(app_ctx: App) -> None:
     assert "Nothing to replay" in app_ctx.console.text()
 
 
+def test_sound_toggle_flips_persists_and_applies(
+    app_ctx: App, tmp_path: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The sound toggle mutes effects, persists the choice, and re-applies."""
+    import robolearn.app as app_mod
+    from robolearn.ui import sounds
+    from robolearn.ui.a11y import A11ySettings
+
+    monkeypatch.setattr(app_mod, "A11Y_PATH", tmp_path / "a11y.toml")  # type: ignore[operator]
+    app_ctx.a11y_settings = A11ySettings(sound_enabled=True)
+    app_mod._toggle_sound(app_ctx)
+    assert app_ctx.a11y_settings.sound_enabled is False
+    assert sounds.is_enabled() is False
+    assert (tmp_path / "a11y.toml").exists()  # type: ignore[attr-defined]
+    app_mod._toggle_sound(app_ctx)  # restore for other tests
+    assert sounds.is_enabled() is True
+
+
 def test_progress_strip_reflects_store(app_ctx: App) -> None:
     """The topbar progress strip renders streak / passed / last score."""
     from robolearn.app import _progress_text, _refresh_progress

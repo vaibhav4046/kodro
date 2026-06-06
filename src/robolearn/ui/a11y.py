@@ -35,6 +35,7 @@ class A11ySettings:
 
     text_scale: float = 1.0
     high_contrast: bool = False
+    sound_enabled: bool = True
 
     def code_size(self) -> int:
         """Scaled point size for the monospaced editor font."""
@@ -57,8 +58,13 @@ def stepped_scale(scale: float, *, larger: bool) -> float:
 
 def to_toml(settings: A11ySettings) -> str:
     """Serialise ``settings`` to a minimal TOML document."""
-    flag = "true" if settings.high_contrast else "false"
-    return f"text_scale = {clamp_scale(settings.text_scale)}\nhigh_contrast = {flag}\n"
+    contrast = "true" if settings.high_contrast else "false"
+    sound = "true" if settings.sound_enabled else "false"
+    return (
+        f"text_scale = {clamp_scale(settings.text_scale)}\n"
+        f"high_contrast = {contrast}\n"
+        f"sound_enabled = {sound}\n"
+    )
 
 
 def from_mapping(data: dict[str, object]) -> A11ySettings:
@@ -68,7 +74,11 @@ def from_mapping(data: dict[str, object]) -> A11ySettings:
         scale = clamp_scale(float(raw))  # type: ignore[arg-type]
     except (TypeError, ValueError):
         scale = 1.0
-    return A11ySettings(text_scale=scale, high_contrast=bool(data.get("high_contrast", False)))
+    return A11ySettings(
+        text_scale=scale,
+        high_contrast=bool(data.get("high_contrast", False)),
+        sound_enabled=bool(data.get("sound_enabled", True)),
+    )
 
 
 def load(path: Path) -> A11ySettings:
