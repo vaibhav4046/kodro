@@ -8,6 +8,7 @@ from pathlib import Path
 
 from robolearn.lessons.schema import Lesson, WorldDef
 from robolearn.memory.achievements import (
+    BUNDLED_LESSON_COUNT,
     CATALOGUE,
     AchievementDef,
     PupilContext,
@@ -117,6 +118,44 @@ def test_three_in_a_row_breaks_on_intervening_fail(tmp_path: Path) -> None:
     )
     fresh = {a.id for a in check_and_unlock(store, ctx)}
     assert "three_in_a_row" not in fresh
+
+
+def test_bundled_lesson_count_matches_library() -> None:
+    # Self-policing: if lessons are added without bumping the constant, the
+    # "Curriculum complete" achievement would be wrong -- fail loudly here.
+    from robolearn.lessons.schema import load_library
+
+    assert len(load_library()) == BUNDLED_LESSON_COUNT
+
+
+def test_curriculum_complete_unlocks_at_full_count(tmp_path: Path) -> None:
+    store = Store(tmp_path / "p.db")
+    pupil = store.create_pupil()
+    prior = tuple(
+        _sub(pupil.id, f"lesson_{i}", passed=True) for i in range(BUNDLED_LESSON_COUNT - 1)
+    )
+    ctx = PupilContext(
+        pupil_id=pupil.id,
+        lesson=_lesson("lesson_final"),
+        submission=_sub(pupil.id, "lesson_final", passed=True),
+        history=prior,
+    )
+    assert "ten_lessons" in {a.id for a in check_and_unlock(store, ctx)}
+
+
+def test_curriculum_complete_not_before_full_count(tmp_path: Path) -> None:
+    store = Store(tmp_path / "p.db")
+    pupil = store.create_pupil()
+    prior = tuple(
+        _sub(pupil.id, f"lesson_{i}", passed=True) for i in range(BUNDLED_LESSON_COUNT - 2)
+    )
+    ctx = PupilContext(
+        pupil_id=pupil.id,
+        lesson=_lesson("lesson_final"),
+        submission=_sub(pupil.id, "lesson_final", passed=True),
+        history=prior,
+    )
+    assert "ten_lessons" not in {a.id for a in check_and_unlock(store, ctx)}
 
 
 def test_achievement_status_tracks_unlocks(tmp_path: Path) -> None:

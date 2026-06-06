@@ -58,6 +58,12 @@ CREATE TABLE IF NOT EXISTS unlocked_achievements (
 """
 
 
+#: Number of lessons in the bundled library. The "Curriculum complete"
+#: achievement tracks this; bump it when lessons are added (the catalogue
+#: already hardcodes specific lesson ids, so this stays consistent).
+BUNDLED_LESSON_COUNT: int = 12
+
+
 def _passed(c: PupilContext) -> bool:
     return c.submission.passed
 
@@ -186,9 +192,12 @@ CATALOGUE: tuple[AchievementDef, ...] = (
     AchievementDef(
         "ten_lessons",
         "Curriculum complete",
-        "Pass all ten bundled lessons.",
+        "Pass every bundled lesson.",
         "🏆",
-        lambda c: len({s.lesson_id for s in (*c.history, c.submission) if s.passed}) >= 10,
+        lambda c: (
+            len({s.lesson_id for s in (*c.history, c.submission) if s.passed})
+            >= BUNDLED_LESSON_COUNT
+        ),
     ),
 )
 
