@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Dark theme retuned to the Orbital Rover palette** — the shared dark
+  `Palette` now uses the design's void/navy chrome, phosphor-cyan accent and
+  warm-paper text, so the code editor (which reads the palette) matches the
+  mission bar's identity. Semantic panel colours (pass/fail banners) are
+  unchanged.
+
 ### Added
 - **"Orbital Rover" mission bar** — implements the signature chrome from the
   Claude Design handoff (`Rover Simulator.html`): a wordmark + `ROVER

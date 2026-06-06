@@ -40,17 +40,20 @@ class Palette:
     code_font: str = DEFAULT_CODE_FONT
 
 
+# Dark theme retuned to the "Orbital Rover" mission-control palette
+# (void / navy chrome, phosphor-cyan accent, warm paper text) from the
+# Claude Design handoff -- see robolearn.ui.orbital for the source tokens.
 _DARK_PALETTE: Palette = Palette(
     name="dark",
-    bg="#0d1117",
-    bg_alt="#161b22",
-    fg="#c9d1d9",
-    fg_muted="#8b949e",
-    accent="#58a6ff",
-    warn="#d29922",
-    error="#f85149",
-    ok="#3fb950",
-    border="#30363d",
+    bg="#08090f",
+    bg_alt="#161a2d",
+    fg="#f5f0e4",
+    fg_muted="#9a958a",
+    accent="#5ce0d8",
+    warn="#e0b45c",
+    error="#d06a6a",
+    ok="#7cc49b",
+    border="#2a2d3d",
 )
 
 
