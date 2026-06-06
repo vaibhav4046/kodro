@@ -40,11 +40,31 @@ jobs:
       - name: Build binary
         run: python scripts/build_exe.py
 
+      # Package exactly one clean, platform-named asset per OS. macOS
+      # --windowed emits a robolearn.app *directory*; uploading dist/* would
+      # flatten it into junk files (Info.plist, CodeResources, ...), so zip
+      # the bundle instead. Linux/Windows are single-file binaries.
+      - name: Package release asset
+        shell: bash
+        run: |
+          mkdir -p out
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cp dist/robolearn.exe out/robolearn-windows.exe
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            if [ -d dist/robolearn.app ]; then
+              (cd dist && zip -r -q ../out/robolearn-macos.zip robolearn.app)
+            else
+              cp dist/robolearn out/robolearn-macos
+            fi
+          else
+            cp dist/robolearn out/robolearn-linux
+          fi
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
-          path: dist/*
+          path: out/*
 
   publish-release:
     name: Publish GitHub release
