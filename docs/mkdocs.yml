@@ -44,6 +44,13 @@ nav:
       - Decision log: developers/decision-log.md
       - Test evidence: developers/test-evidence.md
       - Evaluation: developers/evaluation.md
+  - Dissertation (draft):
+      - Overview: dissertation/README.md
+      - Introduction: dissertation/00-introduction.md
+      - Background: dissertation/01-background.md
+      - Design & architecture: dissertation/02-design.md
+      - Implementation: dissertation/03-implementation.md
+      - Conclusion & future work: dissertation/04-conclusion.md
 
 markdown_extensions:
   - admonition
