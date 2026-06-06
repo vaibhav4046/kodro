@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Console + hint card reskinned** to the Orbital Rover chrome — navy
+  panels, warm-paper text, cyan hints, brass warnings, danger-red errors
+  (the green/orange pass-fail banners stay semantic).
+- **Viewport chrome** reskinned to void background + navy HUD chip.
 - **Dark theme retuned to the Orbital Rover palette** — the shared dark
   `Palette` now uses the design's void/navy chrome, phosphor-cyan accent and
   warm-paper text, so the code editor (which reads the palette) matches the
