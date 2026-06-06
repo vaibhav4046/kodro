@@ -37,7 +37,7 @@ from robolearn.memory.store import Store
 from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
 from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
-from robolearn.ui import a11y, sounds
+from robolearn.ui import a11y, orbital, sounds
 from robolearn.ui.console_panel import ConsolePanel, HintCardArea
 from robolearn.ui.editor_panel import EditorCallbacks, EditorPanel
 from robolearn.ui.lesson_editor import LessonEditor, load_custom_lessons
@@ -74,6 +74,9 @@ class App:
     console: ConsolePanel | None = None
     sim: SimPanel | None = None
     a11y_settings: a11y.A11ySettings | None = None
+    status_dot: tk.Widget | None = None
+    status_label: tk.Widget | None = None
+    speed_factor: float = 1.0
     step_events: list[object] | None = None
     step_index: int = 0
 
@@ -231,6 +234,50 @@ def build_app(
         win.frames.topbar, text="📄 Report", command=lambda: _export_report(app, console)
     ).pack(side=tk.RIGHT, padx=4, pady=6)
 
+    # Mission bar (from the "Orbital Rover" design handoff): wordmark +
+    # subtitle, a run-status dot, and a sim-speed slider.
+    brand = ttk.Frame(win.frames.topbar)
+    brand.pack(side=tk.LEFT, padx=(8, 4), pady=2)
+    ttk.Label(brand, text="◇", foreground=orbital.CYAN, font=(orbital.FONT_DISPLAY, 16)).pack(
+        side=tk.LEFT, padx=(0, 6)
+    )
+    wordmark = ttk.Frame(brand)
+    wordmark.pack(side=tk.LEFT)
+    ttk.Label(wordmark, text="Orbital Rover", font=(orbital.FONT_DISPLAY, 13, "bold")).pack(
+        anchor=tk.W
+    )
+    ttk.Label(
+        wordmark,
+        text="ROVER SIMULATOR",
+        foreground=orbital.FG_MUTED,
+        font=(orbital.FONT_MONO, 7),
+    ).pack(anchor=tk.W)
+    ttk.Separator(win.frames.topbar, orient=tk.VERTICAL).pack(
+        side=tk.LEFT, fill=tk.Y, padx=8, pady=8
+    )
+    status_dot = ttk.Label(win.frames.topbar, text="●", foreground=orbital.status_colour("idle"))
+    status_dot.pack(side=tk.LEFT, padx=(2, 4), pady=6)
+    status_lbl = ttk.Label(
+        win.frames.topbar,
+        text=orbital.status_label("idle"),
+        foreground=orbital.FG_MUTED,
+        font=(orbital.FONT_MONO, 8),
+    )
+    status_lbl.pack(side=tk.LEFT, padx=(0, 10), pady=6)
+    app.status_dot = status_dot
+    app.status_label = status_lbl
+    ttk.Label(
+        win.frames.topbar, text="SPEED", foreground=orbital.FG_MUTED, font=(orbital.FONT_MONO, 8)
+    ).pack(side=tk.LEFT, padx=(0, 4), pady=6)
+    ttk.Scale(
+        win.frames.topbar,
+        from_=orbital.MIN_SPEED,
+        to=orbital.MAX_SPEED,
+        value=1.0,
+        length=90,
+        command=lambda value: _set_speed(app, value),
+    ).pack(side=tk.LEFT, padx=(0, 10), pady=6)
+
     # At-a-glance progress: streak / lessons passed / last score. Updated
     # after every Run so the reward for finishing is always on screen.
     progress = ttk.Label(win.frames.topbar, text="", anchor=tk.W)
@@ -329,6 +376,23 @@ def _toggle_high_contrast(app: App) -> None:
     _apply_a11y(app)
     with contextlib.suppress(Exception):
         a11y.save(A11Y_PATH, settings)
+
+
+def _set_status(app: App, state: str) -> None:
+    """Update the mission-bar run-status dot + label (best-effort)."""
+    with contextlib.suppress(Exception):
+        if app.status_dot is not None:
+            app.status_dot.configure(foreground=orbital.status_colour(state))  # type: ignore[call-arg]
+        if app.status_label is not None:
+            app.status_label.configure(text=orbital.status_label(state))  # type: ignore[call-arg]
+
+
+def _set_speed(app: App, value: object) -> None:
+    """Set the sim-speed multiplier from the mission-bar slider."""
+    try:
+        app.speed_factor = orbital.clamp_speed(float(value))  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        app.speed_factor = 1.0
 
 
 def _restore_starter(app: App, console: ConsolePanel) -> None:
@@ -490,6 +554,7 @@ def _run_clicked(
     app.step_events = None
     app.step_index = 0
     _reset_clicked(app, sim, sensors, console, hint_card)
+    _set_status(app, "run")
     console.log("Running…", level="info")
     # 2) Execute pupil code -- the engine is wired so sensors return real
     #    values. The tracer captures every call.
@@ -499,6 +564,7 @@ def _run_clicked(
             f"{result.error_kind}: {result.error_message} (line {result.error_line})",
             level="error",
         )
+        _set_status(app, "error")
         return
     app.last_duration_ms = result.duration_ms
     events = app.tracer.events()
@@ -584,7 +650,7 @@ def _animate_playback(
         console.log("beep!", level="info")
     sim.refresh()
     sensors.update_from_rover(rover)
-    sim.after(ANIMATION_TICK_MS, _next)
+    sim.after(orbital.scaled_delay(ANIMATION_TICK_MS, app.speed_factor), _next)
 
 
 def _tween(
@@ -615,7 +681,7 @@ def _tween(
     sim.refresh()
     sensors.update_from_rover(app.rover)
     sim.after(
-        TWEEN_FRAME_MS,
+        orbital.scaled_delay(TWEEN_FRAME_MS, app.speed_factor),
         lambda: _tween(app, sim, sensors, start_xy, end_xy, heading, done, frame + 1),
     )
 
@@ -642,6 +708,7 @@ def _reset_clicked(
     hint_card.clear()
     console.clear()
     console.log("World reset.", level="info")
+    _set_status(app, "idle")
 
 
 def _source_for_lesson(app: App, lesson: Lesson) -> tuple[str, bool]:
@@ -808,6 +875,7 @@ def _finish_run(app: App, console: ConsolePanel) -> None:
 
     # 9) Refresh the at-a-glance progress strip (streak / passed / score).
     _refresh_progress(app)
+    _set_status(app, "done")
 
 
 def _apply_event_instant(
@@ -860,7 +928,9 @@ def _step_clicked(
                 f"{result.error_kind}: {result.error_message} (line {result.error_line})",
                 level="error",
             )
+            _set_status(app, "error")
             return
+        _set_status(app, "run")
         app.last_duration_ms = result.duration_ms
         app.step_events = list(app.tracer.events())
         app.step_index = 0
@@ -903,6 +973,7 @@ def _stop_clicked(app: App, console: ConsolePanel) -> None:
     app.step_events = None
     app.step_index = 0
     console.log("Stop requested.", level="warn")
+    _set_status(app, "idle")
 
 
 def _replay_last(app: App, console: ConsolePanel) -> ReplayDialog | None:
