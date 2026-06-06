@@ -72,6 +72,53 @@ def test_catalogue_ids_are_unique() -> None:
     assert len(ids) == len(set(ids))
 
 
+def test_three_in_a_row_unlocks_on_third_consecutive_pass(tmp_path: Path) -> None:
+    store = Store(tmp_path / "p.db")
+    pupil = store.create_pupil()
+    history = (
+        _sub(pupil.id, "01_hello_rover", passed=True),
+        _sub(pupil.id, "02_move_turn", passed=True),
+    )
+    ctx = PupilContext(
+        pupil_id=pupil.id,
+        lesson=_lesson("03_sequence"),
+        submission=_sub(pupil.id, "03_sequence", passed=True),
+        history=history,
+    )
+    fresh = {a.id for a in check_and_unlock(store, ctx)}
+    assert "three_in_a_row" in fresh
+
+
+def test_three_in_a_row_not_unlocked_on_second_pass(tmp_path: Path) -> None:
+    store = Store(tmp_path / "p.db")
+    pupil = store.create_pupil()
+    ctx = PupilContext(
+        pupil_id=pupil.id,
+        lesson=_lesson("02_move_turn"),
+        submission=_sub(pupil.id, "02_move_turn", passed=True),
+        history=(_sub(pupil.id, "01_hello_rover", passed=True),),
+    )
+    fresh = {a.id for a in check_and_unlock(store, ctx)}
+    assert "three_in_a_row" not in fresh
+
+
+def test_three_in_a_row_breaks_on_intervening_fail(tmp_path: Path) -> None:
+    store = Store(tmp_path / "p.db")
+    pupil = store.create_pupil()
+    history = (
+        _sub(pupil.id, "01_hello_rover", passed=True),
+        _sub(pupil.id, "02_move_turn", passed=False),
+    )
+    ctx = PupilContext(
+        pupil_id=pupil.id,
+        lesson=_lesson("03_sequence"),
+        submission=_sub(pupil.id, "03_sequence", passed=True),
+        history=history,
+    )
+    fresh = {a.id for a in check_and_unlock(store, ctx)}
+    assert "three_in_a_row" not in fresh
+
+
 def test_achievement_status_tracks_unlocks(tmp_path: Path) -> None:
     store = Store(tmp_path / "p.db")
     pupil = store.create_pupil()
