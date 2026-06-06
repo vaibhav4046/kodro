@@ -43,6 +43,7 @@ nav:
       - Extending lessons: developers/extending-lessons.md
       - Decision log: developers/decision-log.md
       - Test evidence: developers/test-evidence.md
+      - Evaluation: developers/evaluation.md
 
 markdown_extensions:
   - admonition
