@@ -48,6 +48,16 @@ def test_load_missing_returns_default(tmp_path: Path) -> None:
     assert load(tmp_path / "nope.toml") == A11ySettings()
 
 
+def test_sound_enabled_roundtrips(tmp_path: Path) -> None:
+    path = tmp_path / "a11y.toml"
+    save(path, A11ySettings(sound_enabled=False))
+    assert load(path).sound_enabled is False
+
+
+def test_sound_enabled_defaults_true() -> None:
+    assert from_mapping({}).sound_enabled is True
+
+
 def test_load_invalid_toml_returns_default(tmp_path: Path) -> None:
     path = tmp_path / "bad.toml"
     path.write_text("not = = valid", encoding="utf-8")

@@ -244,6 +244,9 @@ def build_app(
     ttk.Button(
         win.frames.topbar, text="◑ Contrast", command=lambda: _toggle_high_contrast(app)
     ).pack(side=tk.LEFT, padx=(4, 0), pady=6)
+    sound_btn = ttk.Button(win.frames.topbar, text=_sound_button_text(app))
+    sound_btn.configure(command=lambda: _toggle_sound(app, sound_btn))
+    sound_btn.pack(side=tk.LEFT, padx=(4, 0), pady=6)
     _apply_a11y(app)
 
     sim.set_world(world, rover)
@@ -290,6 +293,7 @@ def _export_report(app: App, console: ConsolePanel) -> None:
 def _apply_a11y(app: App) -> None:
     """Apply the current accessibility settings to every text widget."""
     settings = app.a11y_settings or a11y.A11ySettings()
+    sounds.set_enabled(settings.sound_enabled)
     with contextlib.suppress(Exception):
         if app.editor is not None:
             app.editor.set_font_size(settings.code_size())
@@ -319,6 +323,25 @@ def _toggle_high_contrast(app: App) -> None:
     _apply_a11y(app)
     with contextlib.suppress(Exception):
         a11y.save(A11Y_PATH, settings)
+
+
+def _sound_button_text(app: App) -> str:
+    """Label for the sound toggle, reflecting the current mute state."""
+    settings = app.a11y_settings or a11y.A11ySettings()
+    return "🔊 Sound" if settings.sound_enabled else "🔇 Muted"
+
+
+def _toggle_sound(app: App, button: tk.Widget | None = None) -> None:
+    """Mute / un-mute sound effects, persist, and refresh the button label."""
+    settings = app.a11y_settings or a11y.A11ySettings()
+    settings.sound_enabled = not settings.sound_enabled
+    app.a11y_settings = settings
+    sounds.set_enabled(settings.sound_enabled)
+    with contextlib.suppress(Exception):
+        a11y.save(A11Y_PATH, settings)
+    if button is not None:
+        with contextlib.suppress(Exception):
+            button.configure(text=_sound_button_text(app))  # type: ignore[call-arg]
 
 
 def _log_lesson_brief(console: ConsolePanel, lesson: Lesson) -> None:

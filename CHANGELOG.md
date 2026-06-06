@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- **Sound on/off toggle** — a top-bar 🔊/🔇 button mutes all sound effects
+  for SEN pupils and quiet classrooms. The choice persists with the other
+  accessibility settings in `~/.robolearn/a11y.toml` and re-applies on
+  launch (`A11ySettings.sound_enabled`, `sounds.set_enabled`).
 
 ## [0.64.0] - 2026-06-06
 
