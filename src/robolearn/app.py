@@ -252,6 +252,8 @@ def build_app(
     sound_btn.pack(side=tk.LEFT, padx=(4, 0), pady=6)
     _apply_a11y(app)
 
+    with contextlib.suppress(Exception):
+        lessons_panel.set_completed(attempted_lesson_ids(store, pupil.id))
     sim.set_world(world, rover)
     sensors.update_from_rover(rover)
     console.log("RoboLearn ready. Pick a lesson on the right, write code, press Run.")
@@ -796,9 +798,11 @@ def _finish_run(app: App, console: ConsolePanel) -> None:
             level="hint",
         )
 
-    # 8) Refresh the lessons panel so the recommended-next badge updates.
+    # 8) Refresh the lessons panel: reload list + tick passed lessons.
     if app.lessons_panel is not None and hasattr(app.lessons_panel, "set_lessons"):
         app.lessons_panel.set_lessons(app.lessons)
+        with contextlib.suppress(Exception):
+            app.lessons_panel.set_completed(attempted_lesson_ids(app.store, app.pupil_id))
 
     # 9) Refresh the at-a-glance progress strip (streak / passed / score).
     _refresh_progress(app)

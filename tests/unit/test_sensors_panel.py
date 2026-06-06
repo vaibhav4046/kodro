@@ -107,6 +107,18 @@ def test_lessons_panel_set_lessons_replaces_list(root: tk.Tk) -> None:
     assert tuple(lsn.id for lsn in panel.lessons) == ("b", "c", "d")
 
 
+def test_lessons_panel_marks_completed_with_tick(root: tk.Tk) -> None:
+    panel = LessonsPanel(root, lessons=[_lesson("a"), _lesson("b")])
+    panel.set_completed({"a"})
+    first = panel._listbox.get(0)  # type: ignore[attr-defined]
+    second = panel._listbox.get(1)  # type: ignore[attr-defined]
+    assert first.startswith("✓") and "a" in first
+    assert second.startswith("•") and "b" in second
+    # Replacing the list keeps the completed marks.
+    panel.set_lessons([_lesson("a"), _lesson("b")])
+    assert panel._listbox.get(0).startswith("✓")  # type: ignore[attr-defined]
+
+
 def test_lessons_panel_selected_lesson_returns_none_when_no_selection(root: tk.Tk) -> None:
     panel = LessonsPanel(root, lessons=[_lesson("a")])
     assert panel.selected_lesson() is None

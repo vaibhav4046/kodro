@@ -35,6 +35,7 @@ class LessonsPanel(ttk.Frame):
         super().__init__(parent)
         self._callbacks = callbacks or LessonsCallbacks()
         self._lessons: list[Lesson] = list(lessons)
+        self._completed: set[str] = set()
         self._build_widgets()
         self._populate_listbox()
 
@@ -48,6 +49,11 @@ class LessonsPanel(ttk.Frame):
     def set_lessons(self, lessons: Iterable[Lesson]) -> None:
         """Replace the lesson list and refresh the listbox."""
         self._lessons = list(lessons)
+        self._populate_listbox()
+
+    def set_completed(self, lesson_ids: Iterable[str]) -> None:
+        """Mark which lesson ids the pupil has passed (shown with a tick)."""
+        self._completed = set(lesson_ids)
         self._populate_listbox()
 
     def selected_lesson(self) -> Lesson | None:
@@ -97,7 +103,8 @@ class LessonsPanel(ttk.Frame):
     def _populate_listbox(self) -> None:
         self._listbox.delete(0, tk.END)
         for lesson in self._lessons:
-            self._listbox.insert(tk.END, f"{lesson.id}  {lesson.title}")
+            mark = "✓" if lesson.id in self._completed else "•"
+            self._listbox.insert(tk.END, f"{mark} {lesson.id}  {lesson.title}")
 
     def _on_listbox_select(self, _event: tk.Event[tk.Misc]) -> None:
         lesson = self.selected_lesson()

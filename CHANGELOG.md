@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Passed-lesson ticks** — the lessons list now shows a ✓ next to lessons
+  the pupil has passed (• otherwise), updated after every Run, so progress
+  through the curriculum is visible at a glance (`LessonsPanel.set_completed`).
 - **Resume your last attempt** — selecting a lesson you've worked on before
   reloads your most recent code instead of the starter, so progress survives
   closing the app (`_source_for_lesson`). "↺ Starter code" still starts fresh.
