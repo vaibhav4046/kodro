@@ -69,9 +69,9 @@ def test_line_count_flags_overrun(panel: EditorPanel) -> None:
     panel.set_source("a\nb\nc\n")  # 3 > 2
     label = panel._line_label  # type: ignore[attr-defined]
     assert "Lines: 3 / 2" in label.cget("text")
-    assert label.cget("foreground") == "#f0883e"
+    assert str(label.cget("foreground")) == "#f0883e"
     panel.set_source("a\n")  # 1 <= 2
-    assert label.cget("foreground") != "#f0883e"
+    assert str(label.cget("foreground")) != "#f0883e"
 
 
 def test_clear_empties_editor(panel: EditorPanel) -> None:
