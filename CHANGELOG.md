@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **First-run profile is written as valid TOML.** The welcome wizard wrote
+  `~/.robolearn/config.toml` by raw string interpolation, so a display name
+  containing a quote or newline produced a malformed file. The values are
+  now JSON-escaped (valid TOML basic strings); found by an adversarial code
+  review of this milestone's changes.
 - **Closed the learning loop (P0).** Pressing **Run** now grades the
   attempt the moment the animation ends: the console prints a pass/fail
   verdict with a 0–100 score and one line per unmet criterion, the hint

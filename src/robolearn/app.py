@@ -9,6 +9,7 @@ on first launch and the teacher dashboard behind ``Ctrl+Shift+T``.
 from __future__ import annotations
 
 import contextlib
+import json
 import tkinter as tk
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -362,12 +363,15 @@ def _maybe_show_welcome(app: App) -> None:
     def _done(result: WizardResult) -> None:
         try:
             WELCOME_SENTINEL.parent.mkdir(parents=True, exist_ok=True)
+            # json.dumps emits a correctly-escaped double-quoted string,
+            # which is also a valid TOML basic string. The display name is
+            # free text, so a stray quote/newline must not corrupt the file.
             WELCOME_SENTINEL.write_text(
                 "# RoboLearn local profile (no cloud, no account).\n"
-                f'display_name = "{result.display_name}"\n'
-                f'age_band = "{result.age_band}"\n'
-                f'key_stage = "{result.key_stage}"\n'
-                f'terrain = "{result.terrain.value}"\n',
+                f"display_name = {json.dumps(result.display_name)}\n"
+                f"age_band = {json.dumps(result.age_band)}\n"
+                f"key_stage = {json.dumps(result.key_stage)}\n"
+                f"terrain = {json.dumps(result.terrain.value)}\n",
                 encoding="utf-8",
             )
             app.store.set_display_name(app.pupil_id, result.display_name)

@@ -204,6 +204,32 @@ def test_welcome_writes_sentinel_and_renames(
     assert pupil is not None and pupil.display_name == "Ada"
 
 
+def test_welcome_config_is_valid_toml_for_tricky_name(
+    app_ctx: App, tmp_path: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A display name with a quote/newline must still write parseable TOML."""
+    import tomllib
+
+    import robolearn.app as app_mod
+    from robolearn.engine.terrain import Terrain
+    from robolearn.ui.welcome_wizard import WizardResult
+
+    sentinel = tmp_path / "config.toml"  # type: ignore[operator]
+    monkeypatch.setattr(app_mod, "WELCOME_SENTINEL", sentinel)
+    tricky = 'Ada "the\nGreat"'
+
+    class _FakeWizard:
+        def __init__(self, _parent: object, *, on_complete=None) -> None:  # type: ignore[no-untyped-def]
+            if on_complete is not None:
+                on_complete(WizardResult(tricky, "13-14", "KS3", Terrain.MARS))
+
+    monkeypatch.setattr("robolearn.ui.welcome_wizard.WelcomeWizard", _FakeWizard)
+    app_mod._maybe_show_welcome(app_ctx)
+    data = tomllib.loads(sentinel.read_text(encoding="utf-8"))  # type: ignore[attr-defined]
+    assert data["display_name"] == tricky
+    assert data["terrain"] == "mars"
+
+
 def test_welcome_skips_when_sentinel_exists(
     app_ctx: App, tmp_path: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
