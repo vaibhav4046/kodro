@@ -1,7 +1,7 @@
 """PyInstaller wrapper used by ``release.yml`` and by developers locally.
 
 Produces a single-file binary under ``dist/`` for the host platform.
-The bundle includes the 10 lesson YAMLs, Pygame's bundled SDL2, and
+The bundle includes the bundled lesson YAMLs, Pygame's bundled SDL2, and
 (on Windows) Tcl/Tk so end-users do not need a system Python install
 with a working Tk.
 

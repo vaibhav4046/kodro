@@ -64,9 +64,9 @@ collect_sample()
 
 | Platform | One-liner |
 | --- | --- |
-| Windows | Download `robolearn.exe` from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) (~27 MB, bundles Python + Tcl/Tk + Pygame) |
-| macOS | Download the macOS build from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest), or `pip install -e . && python -m robolearn` |
-| Linux | `pip install robolearn && python -m robolearn` |
+| Windows | Download `robolearn-windows.exe` from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) (~27 MB, bundles Python + Tcl/Tk + Pygame) and double-click it |
+| macOS | Download `robolearn-macos.zip` from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest), unzip and open `robolearn.app` — or `pip install -e . && python -m robolearn` |
+| Linux | Download the `robolearn-linux` binary from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) and `chmod +x` it — or `pip install -e . && python -m robolearn` |
 
 ## Documentation
 
