@@ -1,0 +1,37 @@
+id: 15_parameters
+title: Functions with parameters (KS4 stretch)
+key_stage: KS4
+ct_concepts: [functions]
+curriculum_refs:
+  - "DfE 'Computer Science GCSE subject content' (DfE-00094-2015), section 3 'programming techniques': use subroutines with parameters to generalise behaviour."
+  - "BCS Csizmadia et al., 2015: parameterisation as a step beyond simple subroutines."
+prereqs: [06_functions]
+terrain: mars
+intro: |
+  One function, many jobs. The starter's `hop` always moves the same fixed
+  distance, so it can only reach one sample. Give it a `distance` parameter
+  and call it with different values to reach every sample. A parameter is an
+  input that lets a single function be reused for different cases.
+starter_code: |
+  # hop always moves 2m. Add a `distance` parameter and pass different values.
+  def hop():
+      move_forward(2)
+      collect_sample()
+
+  hop()
+allowed_constructs: [function_def, function_call, arithmetic]
+max_lines: 16
+world:
+  base: [1.0, 1.0]
+  samples: [[3.0, 1.0], [6.0, 1.0], [8.0, 1.0]]
+  obstacles: []
+  width: 10.0
+  height: 10.0
+success_criteria:
+  - samples_collected: 3
+  - no_collisions: true
+  - uses_construct: function_def
+hints:
+  on_failure:
+    - "The samples are at different gaps, so a fixed 2m hop can't reach them all -- add a `distance` parameter."
+    - "Define `def hop(distance):` then call hop(2), hop(3), hop(2) to step between the samples."

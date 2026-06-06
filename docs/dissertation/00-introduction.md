@@ -58,7 +58,7 @@ single SQLite file a teacher can copy) trivial to reason about.
 
 This project contributes a complete, working artefact and the engineering
 record behind it. Concretely, it delivers: a tested, cross-platform desktop
-application with fourteen curriculum-mapped lessons; an automated grader and a
+application with fifteen curriculum-mapped lessons; an automated grader and a
 twenty-four-rule offline hint engine, both driven by a single per-call
 execution trace and validated against explicit, declarative success
 criteria; an adaptive per-concept strength model that recommends the next
