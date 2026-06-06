@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged.
 
 ### Added
+- **Rover pen trail** — the viewport now traces the rover's path as a
+  phosphor-cyan trail while it drives (the design's signature "pen trail"),
+  cleared on Reset or lesson change. Capped at 400 points.
 - **"Orbital Rover" mission bar** — implements the signature chrome from the
   Claude Design handoff (`Rover Simulator.html`): a wordmark + `ROVER
   SIMULATOR` mono subtitle, a run-status dot (idle / running / complete /

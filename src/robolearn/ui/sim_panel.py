@@ -77,6 +77,7 @@ class SimPanel(ttk.Frame):
         self._rover: Rover | None = None
         self._particles: ParticleSystem | None = None
         self._celebrating = False
+        self._trail: list[tuple[float, float]] = []
         self._draw_blank()
 
     # --- public API ---------------------------------------------------------
@@ -87,11 +88,17 @@ class SimPanel(ttk.Frame):
         return self._surface
 
     def set_world(self, world: World, rover: Rover) -> None:
-        """Bind a world + rover and paint one frame."""
+        """Bind a world + rover and paint one frame (clears the pen trail)."""
         self._world = world
         self._rover = rover
         self._particles = system_for_terrain(world.terrain)
+        self._trail = []
         self.render_once()
+
+    @property
+    def trail(self) -> tuple[tuple[float, float], ...]:
+        """Snapshot of the rover's recorded pen trail (used by tests)."""
+        return tuple(self._trail)
 
     def refresh(self) -> None:
         """Repaint the current world + rover without resetting particles."""
@@ -147,6 +154,18 @@ class SimPanel(ttk.Frame):
         premium.draw_vertical_gradient(self._canvas, 0, 0, w, h, top, base_colour, bands=40)
         # 1b) faint metre grid.
         self._draw_grid(view, w, h)
+        # 1c) rover pen trail (Orbital Rover cyan), recorded as it drives.
+        pos = (self._rover.state.x, self._rover.state.y)
+        if not self._trail or self._trail[-1] != pos:
+            self._trail.append(pos)
+            if len(self._trail) > 400:
+                self._trail = self._trail[-400:]
+        if len(self._trail) >= 2:
+            pts: list[float] = []
+            for tx, ty in self._trail:
+                sx, sy = view.to_screen(tx, ty)
+                pts.extend((sx, sy))
+            self._canvas.create_line(*pts, fill=orbital.CYAN, width=2, smooth=True)
         # 2) particles BELOW everything else so trails sit under the rover.
         if self._particles is not None:
             self._particles.emit(self._rover.state.x, self._rover.state.y, count=2)
