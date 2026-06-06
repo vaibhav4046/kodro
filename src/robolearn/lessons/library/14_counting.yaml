@@ -1,0 +1,37 @@
+id: 14_counting
+title: Counting with a variable (KS4 stretch)
+key_stage: KS4
+ct_concepts: [iteration]
+curriculum_refs:
+  - "DfE 'Computer Science GCSE subject content' (DfE-00094-2015), section 3 'programming techniques': use variables and assignment, and the count-controlled accumulator pattern within iteration."
+  - "BCS Csizmadia et al., 2015: variables and iteration as core programming constructs."
+prereqs: [05_iteration]
+terrain: earth
+intro: |
+  Keep a running tally. The starter collects one sample and adds 1 to a
+  counter; turn it into a loop that repeats until the counter reaches the
+  target. A variable you add to on each pass is called an accumulator -- it
+  is how programs count things while they iterate.
+starter_code: |
+  # A counter variable, but no loop yet.
+  count = 0
+  move_forward(2)
+  collect_sample()
+  count = count + 1
+  # TODO: wrap the move/collect/count in a while loop until count == 3
+allowed_constructs: [while, for, assignment, arithmetic, comparison, function_call]
+max_lines: 16
+world:
+  base: [1.0, 1.0]
+  samples: [[3.0, 1.0], [5.0, 1.0], [7.0, 1.0]]
+  obstacles: []
+  width: 10.0
+  height: 10.0
+success_criteria:
+  - samples_collected: 3
+  - no_collisions: true
+  - uses_construct: while
+hints:
+  on_failure:
+    - "You collected one sample. Put the move/collect/count lines inside a `while count < 3:` loop."
+    - "Remember to add 1 to count inside the loop, or it will never reach 3 and will loop forever."
