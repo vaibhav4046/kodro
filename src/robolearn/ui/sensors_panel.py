@@ -16,6 +16,7 @@ from tkinter import ttk
 
 from robolearn.engine.rover import Rover
 from robolearn.engine.sensors import IMUReading, imu_reading, lidar_distance
+from robolearn.ui import orbital
 from robolearn.ui.charts import LineChart, MiniMap
 
 
@@ -37,9 +38,11 @@ class SensorsPanel(ttk.Frame):
         """Build the panel widgets."""
         super().__init__(parent)
         self._rows = self._build_rows()
-        self._lidar_chart = LineChart(self, label="LIDAR (m)", colour="#58a6ff")
+        self._lidar_chart = LineChart(self, label="LIDAR (m)", colour=orbital.CYAN)
         self._lidar_chart.pack(fill=tk.X, padx=4, pady=(6, 2))
-        self._battery_chart = LineChart(self, label="Battery %", colour="#3fb950", warn_below=20.0)
+        self._battery_chart = LineChart(
+            self, label="Battery %", colour=orbital.SUCCESS, warn_below=20.0
+        )
         self._battery_chart.pack(fill=tk.X, padx=4, pady=2)
         self._minimap = MiniMap(self)
         self._minimap.pack(fill=tk.X, padx=4, pady=(6, 4))

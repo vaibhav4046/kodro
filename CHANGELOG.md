@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Telemetry rail reskinned** — the LIDAR/battery mini-charts and the
+  rover-trail mini-map now use the design's tokens: navy panels, a cyan
+  trail and series lines, warm-paper labels, brass/success/danger accents.
 - **Console + hint card reskinned** to the Orbital Rover chrome — navy
   panels, warm-paper text, cyan hints, brass warnings, danger-red errors
   (the green/orange pass-fail banners stay semantic).

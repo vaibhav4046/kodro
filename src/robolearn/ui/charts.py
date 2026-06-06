@@ -12,6 +12,8 @@ import tkinter as tk
 from collections import deque
 from dataclasses import dataclass
 
+from robolearn.ui import orbital
+
 #: Maximum stored datapoints before downsampling kicks in.
 MAX_POINTS: int = 200
 
@@ -34,13 +36,13 @@ class LineChart(tk.Canvas):
         parent: tk.Misc,
         *,
         label: str,
-        colour: str = "#58a6ff",
+        colour: str = orbital.CYAN,
         warn_below: float | None = None,
         width: int = 220,
         height: int = 60,
     ) -> None:
         """Build the chart canvas."""
-        super().__init__(parent, width=width, height=height, bg="#0d1117", highlightthickness=0)
+        super().__init__(parent, width=width, height=height, bg=orbital.NAVY, highlightthickness=0)
         self._series = _Series(
             label=label, colour=colour, data=deque(maxlen=MAX_POINTS), warn_below=warn_below
         )
@@ -66,7 +68,7 @@ class LineChart(tk.Canvas):
                 self._width // 2,
                 self._height // 2,
                 text=self._series.label,
-                fill="#8b949e",
+                fill=orbital.FG_MUTED,
                 font=("TkDefaultFont", 9),
             )
             return
@@ -100,7 +102,7 @@ class LineChart(tk.Canvas):
             6,
             anchor=tk.NW,
             text=f"{self._series.label}  {data[-1]:.2f}",
-            fill="#c9d1d9",
+            fill=orbital.PAPER,
             font=("TkDefaultFont", 9, "bold"),
         )
 
@@ -122,7 +124,7 @@ class MiniMap(tk.Canvas):
 
     def __init__(self, parent: tk.Misc, *, width: int = 220, height: int = 140) -> None:
         """Build the mini-map canvas."""
-        super().__init__(parent, width=width, height=height, bg="#0d1117", highlightthickness=0)
+        super().__init__(parent, width=width, height=height, bg=orbital.NAVY, highlightthickness=0)
         self._width = width
         self._height = height
         self._world_w = 10.0
@@ -150,13 +152,15 @@ class MiniMap(tk.Canvas):
         """Repaint the trail."""
         self.delete("all")
         # Arena outline.
-        self.create_rectangle(2, 2, self._width - 2, self._height - 2, outline="#30363d", width=1)
+        self.create_rectangle(
+            2, 2, self._width - 2, self._height - 2, outline=orbital.BORDER, width=1
+        )
         if not self._trail:
             self.create_text(
                 self._width // 2,
                 self._height // 2,
                 text="rover trail",
-                fill="#8b949e",
+                fill=orbital.FG_MUTED,
                 font=("TkDefaultFont", 9),
             )
             return
@@ -166,11 +170,11 @@ class MiniMap(tk.Canvas):
             sx, sy = self._to_screen(wx, wy)
             pts.extend((sx, sy))
         if len(pts) >= 4:
-            self.create_line(*pts, fill="#58a6ff", width=2, smooth=True)
+            self.create_line(*pts, fill=orbital.CYAN, width=2, smooth=True)
         # Head marker.
         last_x, last_y = self._trail[-1]
         sx, sy = self._to_screen(last_x, last_y)
-        self.create_oval(sx - 4, sy - 4, sx + 4, sy + 4, fill="#ff3c3c", outline="")
+        self.create_oval(sx - 4, sy - 4, sx + 4, sy + 4, fill=orbital.DANGER, outline="")
 
     @property
     def trail(self) -> tuple[tuple[float, float], ...]:
