@@ -95,6 +95,59 @@ release is tagged (`v0.x.0`).
   drive it through its callbacks, asserting the end-to-end Run → grade →
   hint → persist → reward flow — the evidence that the loop genuinely closes.
 
-> *Optional: include one or two short, representative code listings here
-> (e.g. the `grade()` signature, or a hint rule) and one screenshot of the
-> running application.*
+## 4.7 Representative code listings
+
+These short excerpts illustrate the design principles in §3. The grader and
+hint-rule listings are verbatim from the working source as of tag
+`v0.51.0`; the pupil-API excerpt is paraphrased for brevity (the real
+function adds the warning log). *Add one screenshot of the running
+application alongside them when you typeset the report.*
+
+**The grader is pure** — lesson + trace + source in, a structured result
+out — which is what makes it testable with synthetic traces
+(`lessons/grader.py`):
+
+```python
+@dataclass(frozen=True, slots=True)
+class GradeResult:
+    passed: bool
+    reasons: list[str]   # one pupil-facing line per failed criterion
+    score: int           # 0-100
+
+def grade(lesson: Lesson, tracer: Tracer, source: str = "") -> GradeResult:
+    aggregates = _compute_aggregates(tracer.events())
+    reasons: list[str] = []
+    for criterion in lesson.success_criteria:
+        reason = _check_criterion(criterion, aggregates, lesson, source)
+        if reason is not None:
+            reasons.append(reason)
+    score = max(0, 100 - SCORE_PENALTY_PER_FAILURE * len(reasons))
+    return GradeResult(passed=not reasons, reasons=reasons, score=score)
+```
+
+**Hints are declarative rules** over a context built from the same trace
+plus the grade (`memory/hint_engine.py`):
+
+```python
+HintRule(
+    name="empty_submission",
+    when=lambda c: c.step_count == 0 and not c.passed,
+    say="Your code didn't call any rover functions. Try `move_forward(5)` to start.",
+)
+```
+
+**The pupil API never raises** — every function clamps non-finite or
+out-of-range input to a safe default and logs a warning, so a beginner's
+slip is a gentle correction rather than a stack trace (`rover_api.py`,
+paraphrased):
+
+```python
+def move_forward(distance: float) -> None:
+    safe = _clamp_finite(distance, low=0.0, high=MAX_STEP, name="move_forward")
+    _engine().move(safe)   # via the module-level binding
+```
+
+Together these three excerpts show the project's recurring shape: a small,
+safe, procedural surface; pure decision logic over a single trace; and
+declarative data (criteria, rules, lessons) rather than bespoke code per
+lesson.
