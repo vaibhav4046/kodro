@@ -63,6 +63,12 @@ CREATE TABLE IF NOT EXISTS unlocked_achievements (
 #: already hardcodes specific lesson ids, so this stays consistent).
 BUNDLED_LESSON_COUNT: int = 12
 
+#: One representative lesson per terrain (Earth, Mars, underwater, space).
+#: Passing all four is what "Globetrotter" requires.
+TERRAIN_REPRESENTATIVE_LESSONS: frozenset[str] = frozenset(
+    {"01_hello_rover", "05_iteration", "07_sensors", "09_recursion"}
+)
+
 
 def _passed(c: PupilContext) -> bool:
     return c.submission.passed
@@ -183,10 +189,11 @@ CATALOGUE: tuple[AchievementDef, ...] = (
         "Globetrotter",
         "Pass lessons on all four terrains.",
         "🌍",
+        # Fires only once a lesson on every terrain has been passed -- the
+        # old check fired on passing any single one of the four.
         lambda c: (
-            _passed(c)
-            and c.submission.lesson_id
-            in ("01_hello_rover", "05_iteration", "07_sensors", "09_recursion")
+            {s.lesson_id for s in (*c.history, c.submission) if s.passed}
+            >= TERRAIN_REPRESENTATIVE_LESSONS
         ),
     ),
     AchievementDef(
