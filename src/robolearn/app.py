@@ -31,6 +31,7 @@ from robolearn.memory.pupil_model import (
     suggest_next_lesson,
     update_on_submission,
 )
+from robolearn.memory.report import export_progress_report
 from robolearn.memory.store import Store
 from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
@@ -221,6 +222,9 @@ def build_app(
     ttk.Button(win.frames.topbar, text="🏆 Trophies", command=lambda: _show_trophies(app)).pack(
         side=tk.RIGHT, padx=4, pady=6
     )
+    ttk.Button(
+        win.frames.topbar, text="📄 Report", command=lambda: _export_report(app, console)
+    ).pack(side=tk.RIGHT, padx=4, pady=6)
 
     # At-a-glance progress: streak / lessons passed / last score. Updated
     # after every Run so the reward for finishing is always on screen.
@@ -267,6 +271,19 @@ def build_app(
 
 #: Path the accessibility settings persist to (offline, per-machine).
 A11Y_PATH: Path = Path.home() / ".robolearn" / "a11y.toml"
+
+#: Default path the teacher progress report is written to.
+REPORT_PATH: Path = Path.home() / ".robolearn" / "progress-report.html"
+
+
+def _export_report(app: App, console: ConsolePanel) -> None:
+    """Write the pupil's HTML progress report and log where it landed."""
+    try:
+        path = export_progress_report(app.store, app.pupil_id, REPORT_PATH, lessons=app.lessons)
+    except Exception as exc:  # pragma: no cover - filesystem edge cases
+        console.log(f"Could not save report: {exc}", level="error")
+        return
+    console.log(f"📄 Saved progress report to {path}", level="hint")
 
 
 def _apply_a11y(app: App) -> None:
