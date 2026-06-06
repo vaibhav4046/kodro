@@ -106,6 +106,7 @@ class EditorPanel(ttk.Frame):
         super().__init__(parent)
         self._callbacks = callbacks or EditorCallbacks()
         self._settings = settings or ThemeSettings()
+        self._line_limit: int | None = None
         self._build_widgets()
         self.set_source(initial_source)
         # Remember the themed colours so high-contrast mode can toggle back.
@@ -125,8 +126,26 @@ class EditorPanel(ttk.Frame):
         self._text.delete("1.0", tk.END)
         self._text.insert("1.0", source)
         self._highlight()
+        self._update_line_count()
         if self._callbacks.on_change is not None:
             self._callbacks.on_change(source)
+
+    def set_line_limit(self, limit: int | None) -> None:
+        """Set the lesson's ``max_lines`` so the counter can flag overruns."""
+        self._line_limit = limit
+        self._update_line_count()
+
+    def _update_line_count(self) -> None:
+        """Refresh the 'Lines: N / limit' indicator and colour it on overrun."""
+        count = sum(1 for line in self.get_source().splitlines() if line.strip())
+        if self._line_limit:
+            over = count > self._line_limit
+            self._line_label.configure(
+                text=f"Lines: {count} / {self._line_limit}",
+                foreground="#f0883e" if over else self._line_default_fg,
+            )
+        else:
+            self._line_label.configure(text=f"Lines: {count}", foreground=self._line_default_fg)
 
     def clear(self) -> None:
         """Empty the editor (alias for ``set_source('')``)."""
@@ -189,6 +208,10 @@ class EditorPanel(ttk.Frame):
         reset_btn.pack(side=tk.LEFT, padx=2)
         self._buttons = _ButtonRefs(run=run_btn, step=step_btn, stop=stop_btn, reset=reset_btn)
 
+        self._line_label = ttk.Label(toolbar, text="Lines: 0")
+        self._line_label.pack(side=tk.RIGHT, padx=6)
+        self._line_default_fg = self._line_label.cget("foreground")
+
         self._text = tk.Text(self, wrap=tk.NONE, undo=True, tabs="4c")
         scrollbar = ttk.Scrollbar(self, orient=tk.VERTICAL, command=self._text.yview)
         self._text.configure(yscrollcommand=scrollbar.set)
@@ -219,6 +242,7 @@ class EditorPanel(ttk.Frame):
         if not self._text.edit_modified():
             return
         self._highlight()
+        self._update_line_count()
         if self._callbacks.on_change is not None:
             self._callbacks.on_change(self.get_source())
         self._text.edit_modified(False)
