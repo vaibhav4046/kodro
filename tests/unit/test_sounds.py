@@ -32,6 +32,15 @@ def test_play_is_noop_when_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     assert sounds.is_available() is False
 
 
+def test_play_noops_when_builder_returns_none() -> None:
+    # If a sound can't be synthesised (builder returns None), _play must not
+    # cache it or raise -- it just stays silent.
+    sounds.reset()
+    assert sounds.is_available()
+    sounds._play("none_effect", lambda: None)
+    assert "none_effect" not in sounds._cache
+
+
 def test_tone_builds_audible_buffer() -> None:
     sounds.reset()
     assert sounds.is_available()
