@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Restore starter code** — a top-bar "↺ Starter code" button puts the
+  current lesson's starter back in the editor, so a pupil who tangles their
+  code can start over in one click (the Reset button only resets the world).
 - **Sound on/off toggle** — a top-bar 🔊/🔇 button mutes all sound effects
   for SEN pupils and quiet classrooms. The choice persists with the other
   accessibility settings in `~/.robolearn/a11y.toml` and re-applies on

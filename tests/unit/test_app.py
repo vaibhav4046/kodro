@@ -326,6 +326,18 @@ def test_sound_toggle_flips_persists_and_applies(
     assert sounds.is_enabled() is True
 
 
+def test_restore_starter_resets_editor_code(app_ctx: App) -> None:
+    """Restoring puts the current lesson's starter code back in the editor."""
+    from robolearn.app import _restore_starter
+
+    lesson = app_ctx.lessons[0]
+    app_ctx.current_lesson = lesson
+    assert app_ctx.editor is not None and app_ctx.console is not None
+    app_ctx.editor.set_source("# scribbled over\nmove_forward(99)\n")
+    _restore_starter(app_ctx, app_ctx.console)
+    assert app_ctx.editor.get_source().strip() == lesson.starter_code.strip()
+
+
 def test_progress_strip_reflects_store(app_ctx: App) -> None:
     """The topbar progress strip renders streak / passed / last score."""
     from robolearn.app import _progress_text, _refresh_progress
