@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **`14_counting` lesson** (KS4 stretch) — the accumulator pattern: keep a
+  running tally in a variable to count samples inside a loop (14 lessons).
 - **`13_nested_loops` lesson** (KS4 stretch) — sweep a 2-D field of samples
   by nesting one loop inside another; brings the bundled library to 13.
 - **Teacher progress report** — a top-bar "📄 Report" button writes a

@@ -27,7 +27,7 @@ weaknesses.
 - **Closed learning loop** — press **Run**, watch the rover animate, then
   get an immediate verdict: a green pass / orange fail banner, a 0–100
   score, a specific hint on failure, and a sound cue.
-- **13 curriculum-mapped lessons** (KS3 → KS4) covering sequence,
+- **14 curriculum-mapped lessons** (KS3 → KS4) covering sequence,
   selection, iteration, functions, sensors, recursion, decomposition and
   abstraction, each with DfE/BCS references.
 - **Adaptive memory** — per-concept strength model, recommended-next
