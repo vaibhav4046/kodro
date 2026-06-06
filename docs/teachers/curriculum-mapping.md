@@ -20,16 +20,21 @@ al., 2015).
 | `08_pathfinding` | Pathfinding basics | KS3 / KS4 | Mars | iteration, selection, decomposition | DfE-00191-2013 KS3 AT 5; DfE-00094-2015 §2 (algorithms) |
 | `09_recursion` | Recursion (stretch) | KS4 | Space | recursion, functions | DfE-00094-2015 §3 (programming techniques: recursion) |
 | `10_optimisation` | Optimisation (stretch) | KS4 | Mars | algorithmic efficiency, iteration | DfE-00094-2015 §2 (algorithm efficiency) |
+| `11_decomposition` | Decomposition (stretch) | KS4 | Mars | decomposition, functions | DfE-00094-2015 §3 (decompose into subroutines) |
+| `12_abstraction` | Abstraction (stretch) | KS4 | Underwater | abstraction, selection | DfE-00094-2015 §3 (abstraction; sensors as interface) |
+| `13_nested_loops` | Nested loops (stretch) | KS4 | Space | iteration | DfE-00094-2015 §3 (nested iteration) |
+| `14_counting` | Counting with a variable (stretch) | KS4 | Earth | iteration | DfE-00094-2015 §3 (variables; accumulator pattern) |
+| `15_parameters` | Functions with parameters (stretch) | KS4 | Mars | functions | DfE-00094-2015 §3 (subroutines with parameters) |
 
 ## Skills coverage matrix
 
 | BCS computational-thinking concept | Lessons that exercise it |
 | --- | --- |
 | Sequence | 01, 02, 03 |
-| Selection | 04, 05, 08 |
-| Iteration | 05, 07, 08, 10 |
-| Functions / decomposition | 06, 08 |
-| Abstraction | 07 |
+| Selection | 04, 05, 08, 12 |
+| Iteration | 05, 07, 08, 10, 13, 14 |
+| Functions / decomposition | 06, 08, 11, 15 |
+| Abstraction | 07, 12 |
 | Recursion | 09 |
 | Algorithmic efficiency | 10 |
 
@@ -66,3 +71,10 @@ KS4 stretch:
 8. `09_recursion`, `10_optimisation` — single-period each. The
    recursion lesson focuses on the base case; the optimisation lesson
    asks pupils to compare two orderings and pick the cheaper.
+9. `11_decomposition`, `15_parameters` — deepen subroutines: split a
+   route into named helper functions, then generalise one of them with a
+   `distance` parameter.
+10. `12_abstraction` — treat a sensor (`obstacle_ahead()`) as an abstract
+    interface so one short program copes with any arrangement.
+11. `13_nested_loops`, `14_counting` — nested iteration and the
+    count-controlled accumulator pattern complete the iteration strand.
