@@ -192,9 +192,9 @@ def test_load_library_missing_directory_raises(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_bundled_library_has_fourteen_lessons() -> None:
+def test_bundled_library_has_fifteen_lessons() -> None:
     lessons = load_library()
-    assert len(lessons) == 14
+    assert len(lessons) == 15
 
 
 def test_bundled_library_ids_match_filename_prefix() -> None:
@@ -214,6 +214,7 @@ def test_bundled_library_ids_match_filename_prefix() -> None:
         "12_abstraction",
         "13_nested_loops",
         "14_counting",
+        "15_parameters",
     ]
     assert [lsn.id for lsn in lessons] == expected
 
@@ -235,6 +236,7 @@ def test_default_library_dir_resolves_to_library_folder() -> None:
         ("12_abstraction", Terrain.UNDERWATER, "KS4"),
         ("13_nested_loops", Terrain.SPACE, "KS4"),
         ("14_counting", Terrain.EARTH, "KS4"),
+        ("15_parameters", Terrain.MARS, "KS4"),
     ],
 )
 def test_each_bundled_lesson_has_expected_terrain_and_key_stage(

@@ -14,7 +14,7 @@ in the introduction, the project delivered:
   single per-call trace and validated against explicit per-lesson criteria;
 - a pupil-progress memory model (per-concept strength, recommendations,
   achievements, streaks) and a teacher dashboard plus offline HTML reporting;
-- fourteen curriculum-mapped lessons spanning KS3 and KS4; and
+- fifteen curriculum-mapped lessons spanning KS3 and KS4; and
 - a one-download desktop binary, built and released through a disciplined,
   fully green CI process.
 

@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **`15_parameters` lesson** (KS4 stretch) — functions with parameters: the
+  samples sit at different gaps, so a fixed-distance hop can't reach them
+  all until you parameterise it (15 lessons).
 - **`14_counting` lesson** (KS4 stretch) — the accumulator pattern: keep a
   running tally in a variable to count samples inside a loop (14 lessons).
 - **`13_nested_loops` lesson** (KS4 stretch) — sweep a 2-D field of samples
