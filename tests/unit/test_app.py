@@ -326,6 +326,33 @@ def test_sound_toggle_flips_persists_and_applies(
     assert sounds.is_enabled() is True
 
 
+def test_source_for_lesson_resume_vs_starter(app_ctx: App) -> None:
+    """A lesson with no history yields its starter; with history, the last code."""
+    import dataclasses
+
+    from robolearn.app import _source_for_lesson
+
+    pupil = app_ctx.store.create_pupil("resume-test")
+    probe = dataclasses.replace(app_ctx, pupil_id=pupil.id)
+    lesson = app_ctx.lessons[0]
+
+    src, resumed = _source_for_lesson(probe, lesson)
+    assert resumed is False
+    assert src.strip() == lesson.starter_code.strip()
+
+    app_ctx.store.record_submission(
+        pupil_id=pupil.id,
+        lesson_id=lesson.id,
+        code="move_forward(7)",
+        passed=False,
+        score=0,
+        reasons=[],
+    )
+    src2, resumed2 = _source_for_lesson(probe, lesson)
+    assert resumed2 is True
+    assert src2 == "move_forward(7)"
+
+
 def test_restore_starter_resets_editor_code(app_ctx: App) -> None:
     """Restoring puts the current lesson's starter code back in the editor."""
     from robolearn.app import _restore_starter

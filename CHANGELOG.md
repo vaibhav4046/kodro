@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Resume your last attempt** — selecting a lesson you've worked on before
+  reloads your most recent code instead of the starter, so progress survives
+  closing the app (`_source_for_lesson`). "↺ Starter code" still starts fresh.
 - **Restore starter code** — a top-bar "↺ Starter code" button puts the
   current lesson's starter back in the editor, so a pupil who tangles their
   code can start over in one click (the Reset button only resets the world).

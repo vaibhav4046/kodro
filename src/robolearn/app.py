@@ -641,6 +641,18 @@ def _reset_clicked(
     console.log("World reset.", level="info")
 
 
+def _source_for_lesson(app: App, lesson: Lesson) -> tuple[str, bool]:
+    """Pick the editor source for ``lesson``.
+
+    The pupil's last attempt if they have one, otherwise the starter code.
+    Returns ``(source, resumed)``.
+    """
+    submissions = app.store.list_submissions(pupil_id=app.pupil_id, lesson_id=lesson.id)
+    if submissions and submissions[-1].code.strip():
+        return submissions[-1].code, True
+    return lesson.starter_code, False
+
+
 def _lesson_selected(
     app: App,
     lesson: Lesson,
@@ -651,11 +663,17 @@ def _lesson_selected(
     hint_card: HintCardArea,
 ) -> None:
     app.current_lesson = lesson
-    editor.set_source(lesson.starter_code)
+    source, resumed = _source_for_lesson(app, lesson)
+    editor.set_source(source)
     app.step_events = None
     app.step_index = 0
     _reset_clicked(app, sim, sensors, console, hint_card)
     _log_lesson_brief(console, lesson)
+    if resumed:
+        console.log(
+            "Resumed your last attempt for this lesson — press ↺ Starter code to start fresh.",
+            level="info",
+        )
 
 
 def _progress_text(app: App) -> str:
