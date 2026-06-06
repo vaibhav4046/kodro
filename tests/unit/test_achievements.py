@@ -6,6 +6,8 @@ import time
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from robolearn.lessons.schema import Lesson, WorldDef
 from robolearn.memory.achievements import (
     BUNDLED_LESSON_COUNT,
@@ -66,6 +68,27 @@ def _sub(
 
 def test_catalogue_has_at_least_15_entries() -> None:
     assert len(CATALOGUE) >= 15
+
+
+@pytest.mark.parametrize("ach", CATALOGUE, ids=[a.id for a in CATALOGUE])
+def test_every_predicate_runs_without_raising(ach: AchievementDef) -> None:
+    """No predicate may raise. check_and_unlock swallows exceptions, so a
+    crashing predicate would silently disable its achievement forever; this
+    test makes that failure mode loud."""
+    rich_history = (
+        _sub("pid", "01_hello_rover", passed=True),
+        _sub("pid", "04_selection", passed=False),
+        _sub("pid", "05_iteration", passed=True),
+    )
+    contexts = [
+        PupilContext("pid", _lesson(), _sub("pid", passed=True, score=100)),
+        PupilContext("pid", _lesson(key_stage="KS4"), _sub("pid", passed=False, score=0)),
+        PupilContext("pid", _lesson(), _sub("pid", passed=True), history=rich_history),
+        PupilContext("pid", _lesson(), _sub("pid", passed=True)),  # empty history
+    ]
+    for ctx in contexts:
+        result = ach.predicate(ctx)
+        assert isinstance(result, bool)
 
 
 def test_catalogue_ids_are_unique() -> None:
