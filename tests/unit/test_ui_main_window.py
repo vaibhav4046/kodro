@@ -74,7 +74,7 @@ def test_high_contrast_theme_sets_flag_on_settings() -> None:
 
 def test_main_window_creates_root_with_title(window: MainWindow) -> None:
     assert window.root is not None
-    assert window.root.title() == "RoboLearn"
+    assert window.root.title() == "RoboLearn · Orbital Rover"
 
 
 def test_default_geometry_constant_is_wxh_string() -> None:
