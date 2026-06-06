@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   vacuously because of this).
 
 ### Added
+- **Teacher progress report** — a top-bar "📄 Report" button writes a
+  self-contained, offline HTML report (`robolearn.memory.report`) to
+  `~/.robolearn/progress-report.html`: summary, every submission, per-concept
+  strengths and achievements. Tk-free + deterministic, so it is fully
+  unit-tested; intended as evidence for the teacher evaluation study.
 - **Trophy case** — a top-bar "🏆 Trophies" button opens a window listing
   all 16 achievements with locked/unlocked state and an unlocked count.
   The achievements existed but were only ever glimpsed as a fleeting

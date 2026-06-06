@@ -257,6 +257,20 @@ def test_trophies_dialog_opens_and_lists_all(app_ctx: App) -> None:
         dialog.destroy()
 
 
+def test_export_report_writes_and_logs(
+    app_ctx: App, tmp_path: object, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Report button writes an HTML file and logs its path (no dialog)."""
+    import robolearn.app as app_mod
+
+    out = tmp_path / "r.html"  # type: ignore[operator]
+    monkeypatch.setattr(app_mod, "REPORT_PATH", out)
+    assert app_ctx.console is not None
+    app_mod._export_report(app_ctx, app_ctx.console)
+    assert out.exists()  # type: ignore[attr-defined]
+    assert "progress report" in app_ctx.console.text()
+
+
 def test_replay_last_warns_when_no_run(app_ctx: App) -> None:
     """Replay with an empty tracer warns and opens no dialog (macOS-safe)."""
     from robolearn.app import _replay_last
