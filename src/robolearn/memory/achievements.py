@@ -79,7 +79,11 @@ CATALOGUE: tuple[AchievementDef, ...] = (
         "On a roll",
         "Pass three lessons in a row.",
         "🔥",
-        lambda c: sum(1 for s in c.history[-3:] if s.passed) == 3 and _passed(c),
+        # Three consecutive passes = the two most-recent prior submissions
+        # plus the current one (the old check required four in a row).
+        lambda c: (
+            _passed(c) and len(c.history) >= 2 and c.history[-1].passed and c.history[-2].passed
+        ),
     ),
     AchievementDef(
         "no_collisions",
