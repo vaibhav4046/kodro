@@ -51,6 +51,7 @@ nav:
       - Design & architecture: dissertation/02-design.md
       - Implementation: dissertation/03-implementation.md
       - Conclusion & future work: dissertation/04-conclusion.md
+      - Glossary & abbreviations: dissertation/05-glossary.md
 
 markdown_extensions:
   - admonition

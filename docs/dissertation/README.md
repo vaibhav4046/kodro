@@ -30,6 +30,7 @@ accurate and verifiable.
 | Implementation | [`03-implementation.md`](03-implementation.md) | Grounded draft |
 | Evaluation | [`../developers/evaluation.md`](../developers/evaluation.md) | Grounded draft |
 | Conclusion & future work | [`04-conclusion.md`](04-conclusion.md) | Grounded draft |
+| Glossary & abbreviations | [`05-glossary.md`](05-glossary.md) | Reference |
 
 ## Integrity note
 
