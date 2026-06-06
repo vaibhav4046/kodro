@@ -28,6 +28,7 @@ from robolearn.engine.sensors import (
     TERRAIN_COLOURS,
 )
 from robolearn.engine.world import World
+from robolearn.ui import orbital
 
 #: Default pixel dimensions for the embedded simulation surface.
 DEFAULT_SIM_SIZE_PX: tuple[int, int] = (480, 480)
@@ -67,7 +68,7 @@ class SimPanel(ttk.Frame):
             self,
             width=size_px[0],
             height=size_px[1],
-            background="#0d1117",
+            background=orbital.VOID,
             highlightthickness=0,
             bd=0,
         )
@@ -187,7 +188,9 @@ class SimPanel(ttk.Frame):
         self._draw_rover(view)
         # 7) HUD chip top-left.
         st = self._rover.state
-        self._canvas.create_rectangle(6, 6, 196, 26, fill="#0d1117", outline="#30363d", width=1)
+        self._canvas.create_rectangle(
+            6, 6, 196, 26, fill=orbital.NAVY, outline=orbital.BORDER, width=1
+        )
         self._canvas.create_text(
             12,
             16,
@@ -273,7 +276,7 @@ class SimPanel(ttk.Frame):
 
     def _draw_blank(self) -> None:
         self._canvas.delete("all")
-        self._canvas.configure(background="#0d1117")
+        self._canvas.configure(background=orbital.VOID)
         self._canvas.create_text(
             self._size_px[0] // 2,
             self._size_px[1] // 2,
