@@ -121,6 +121,31 @@ unmissable; the [evaluation](../developers/evaluation.md) explains why a
 heuristic review identified the *absence* of this loop as the single biggest
 weakness of an earlier build.
 
+The sequence below shows the full path of one Run, from the button press to
+every feedback channel firing:
+
+```mermaid
+sequenceDiagram
+    actor Pupil
+    participant Editor
+    participant Sandbox as Sandbox + Executor
+    participant Tracer
+    participant Sim as Sim animation
+    participant Grader
+    participant Feedback as Console / hint / sound / store
+
+    Pupil->>Editor: press Run
+    Editor->>Sandbox: execute(source)
+    Sandbox->>Tracer: record each rover-API call as an Event
+    Sandbox-->>Editor: ExecutionResult (ok / error)
+    Editor->>Sim: animate the recorded events (tween)
+    Sim->>Grader: on finish, grade(lesson, tracer, source)
+    Grader-->>Feedback: GradeResult (passed, score, reasons)
+    Feedback->>Pupil: verdict banner + score; hint on fail; sound; confetti
+    Feedback->>Feedback: persist submission, update strengths, unlock achievements
+    Feedback->>Pupil: recommend the next lesson
+```
+
 ## 3.10 User interface
 
 The UI is Tkinter with the Sun-Valley theme. The main window hosts an editor
