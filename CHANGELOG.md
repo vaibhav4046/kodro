@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Lessons list + progress drawer reskinned** — navy panels with
+  warm-paper text and a phosphor-cyan selection highlight, matching the rest
+  of the Orbital Rover chrome.
 - **Telemetry rail reskinned** — the LIDAR/battery mini-charts and the
   rover-trail mini-map now use the design's tokens: navy panels, a cyan
   trail and series lines, warm-paper labels, brass/success/danger accents.

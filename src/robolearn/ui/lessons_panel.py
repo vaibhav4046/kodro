@@ -12,6 +12,7 @@ from tkinter import ttk
 
 from robolearn.lessons.schema import Lesson
 from robolearn.memory.pupil_model import PupilStrength
+from robolearn.ui import orbital
 
 
 @dataclass(slots=True)
@@ -88,7 +89,17 @@ class LessonsPanel(ttk.Frame):
         title.pack(side=tk.TOP, anchor=tk.W, padx=4, pady=2)
         list_frame = ttk.Frame(self)
         list_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=4)
-        self._listbox = tk.Listbox(list_frame, activestyle="dotbox", exportselection=False)
+        self._listbox = tk.Listbox(
+            list_frame,
+            activestyle="dotbox",
+            exportselection=False,
+            background=orbital.NAVY,
+            foreground=orbital.PAPER,
+            selectbackground=orbital.CYAN,
+            selectforeground=orbital.VOID,
+            highlightthickness=0,
+            borderwidth=0,
+        )
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self._listbox.yview)
         self._listbox.configure(yscrollcommand=scrollbar.set)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -97,7 +108,16 @@ class LessonsPanel(ttk.Frame):
 
         memory_title = ttk.Label(self, text="Your progress", font=("TkDefaultFont", 10, "bold"))
         memory_title.pack(side=tk.TOP, anchor=tk.W, padx=4, pady=(8, 2))
-        self._memory_text = tk.Text(self, height=6, width=28, state=tk.DISABLED)
+        self._memory_text = tk.Text(
+            self,
+            height=6,
+            width=28,
+            state=tk.DISABLED,
+            background=orbital.NAVY,
+            foreground=orbital.PAPER,
+            highlightthickness=0,
+            borderwidth=0,
+        )
         self._memory_text.pack(side=tk.TOP, fill=tk.X, padx=4, pady=2)
 
     def _populate_listbox(self) -> None:
