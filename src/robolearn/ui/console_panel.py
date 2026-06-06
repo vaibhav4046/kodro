@@ -19,6 +19,7 @@ from tkinter import ttk
 from typing import Literal
 
 from robolearn.memory.hint_engine import Hint
+from robolearn.ui import orbital
 
 #: Log levels surfaced by :class:`ConsolePanel`.
 LogLevel = Literal["info", "warn", "error", "hint"]
@@ -46,10 +47,13 @@ class ConsolePanel(ttk.Frame):
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self._text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self._tags = _ConsoleTags()
-        self._text.tag_configure(self._tags.info, foreground="#c9d1d9")
-        self._text.tag_configure(self._tags.warn, foreground="#d29922")
-        self._text.tag_configure(self._tags.error, foreground="#f85149")
-        self._text.tag_configure(self._tags.hint, foreground="#58a6ff")
+        # Orbital Rover console chrome: navy panel, warm-paper text, cyan
+        # hints, brass warnings, danger errors.
+        self._text.configure(background=orbital.NAVY, foreground=orbital.PAPER)
+        self._text.tag_configure(self._tags.info, foreground=orbital.PAPER)
+        self._text.tag_configure(self._tags.warn, foreground=orbital.WARNING)
+        self._text.tag_configure(self._tags.error, foreground=orbital.DANGER)
+        self._text.tag_configure(self._tags.hint, foreground=orbital.CYAN)
         self._line_count = 0
         # Remember the theme defaults so high-contrast mode can toggle back.
         self._default_bg = self._text.cget("background")
@@ -109,8 +113,8 @@ class HintCardArea(ttk.Frame):
             wraplength=520,
             padx=8,
             pady=6,
-            bg="#161b22",
-            fg="#d29922",
+            bg=orbital.NAVY_2,
+            fg=orbital.WARNING,
         )
         self._label.pack(side=tk.TOP, fill=tk.X)
         self._rule_name: str | None = None
