@@ -106,6 +106,7 @@ def build_app(
         win.frames.editor,
         initial_source=starting_lesson.starter_code if lessons else "move_forward(5)",
     )
+    editor.set_line_limit(starting_lesson.max_lines if lessons else None)
     sim = SimPanel(win.frames.sim)
 
     # The right-hand slot stacks SensorsPanel on top of LessonsPanel inside
@@ -667,6 +668,7 @@ def _lesson_selected(
     app.current_lesson = lesson
     source, resumed = _source_for_lesson(app, lesson)
     editor.set_source(source)
+    editor.set_line_limit(lesson.max_lines)
     app.step_events = None
     app.step_index = 0
     _reset_clicked(app, sim, sensors, console, hint_card)

@@ -59,6 +59,21 @@ def test_set_font_size_changes_font(panel: EditorPanel) -> None:
     assert "20" in str(panel._text.cget("font"))  # type: ignore[attr-defined]
 
 
+def test_line_count_indicator_counts_nonblank_lines(panel: EditorPanel) -> None:
+    panel.set_source("a = 1\n\nb = 2\n")  # 2 non-blank lines
+    assert "Lines: 2" in panel._line_label.cget("text")  # type: ignore[attr-defined]
+
+
+def test_line_count_flags_overrun(panel: EditorPanel) -> None:
+    panel.set_line_limit(2)
+    panel.set_source("a\nb\nc\n")  # 3 > 2
+    label = panel._line_label  # type: ignore[attr-defined]
+    assert "Lines: 3 / 2" in label.cget("text")
+    assert label.cget("foreground") == "#f0883e"
+    panel.set_source("a\n")  # 1 <= 2
+    assert label.cget("foreground") != "#f0883e"
+
+
 def test_clear_empties_editor(panel: EditorPanel) -> None:
     panel.clear()
     assert panel.get_source() == ""
