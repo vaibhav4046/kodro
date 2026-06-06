@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.64.0] - 2026-06-06
+
+> This release line (git tags `v0.34.0`–`v0.64.0`, all cut on 2026-06-06)
+> consolidates the milestone that closed the formative-feedback learning
+> loop and then built out accessibility, audio and game-juice, an adaptive
+> next-lesson recommender, replay, a trophy case, an offline teacher
+> report, content depth (15 curriculum lessons) and the draft dissertation
+> chapters — fixing several real correctness bugs along the way. The
+> entries below are grouped Added/Fixed; the per-feature history is in the
+> tags and commit log.
+
 ### Fixed
 - **First-run profile is written as valid TOML.** The welcome wizard wrote
   `~/.robolearn/config.toml` by raw string interpolation, so a display name
