@@ -1,0 +1,35 @@
+id: 13_nested_loops
+title: Nested loops (KS4 stretch)
+key_stage: KS4
+ct_concepts: [iteration]
+curriculum_refs:
+  - "DfE 'Computer Science GCSE subject content' (DfE-00094-2015), section 3 'programming techniques': use nested iteration to traverse two-dimensional structures."
+  - "BCS Csizmadia et al., 2015: iteration and the composition of control structures."
+prereqs: [05_iteration]
+terrain: space
+intro: |
+  Sweep the whole field, not just one row. The starter collects a single
+  row of samples; wrap it in a second loop so the rover repeats the sweep
+  for every row. A loop inside a loop is "nested iteration" -- the inner
+  loop runs in full on each pass of the outer loop.
+starter_code: |
+  # This sweeps ONE row. Wrap it in a second loop to cover every row.
+  for col in range(3):
+      move_forward(2)
+      collect_sample()
+allowed_constructs: [for, while, function_call, arithmetic, assignment, comparison]
+max_lines: 16
+world:
+  base: [1.0, 1.0]
+  samples: [[3.0, 2.0], [5.0, 2.0], [7.0, 2.0], [3.0, 4.0], [5.0, 4.0], [7.0, 4.0]]
+  obstacles: []
+  width: 10.0
+  height: 10.0
+success_criteria:
+  - samples_collected: 6
+  - no_collisions: true
+  - uses_construct: for
+hints:
+  on_failure:
+    - "You collected one row. Add an outer loop so the inner sweep repeats for each row."
+    - "After each row, turn and move to the next row before sweeping again."
