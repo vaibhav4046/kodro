@@ -3,6 +3,13 @@
 One line per demonstrable capability, appended as each task lands. Used by
 the dissertation chapter on verification.
 
+- **2026-06-06** — Packaged-binary smoke check: the PyInstaller one-file
+  build (`dist/robolearn.exe`, v0.59) was launched on Windows 11 and
+  confirmed to start cleanly — a process with main-window title
+  "RoboLearn" came up using ~73 MB, and `~/.robolearn/startup.log` recorded
+  "robolearn package imported OK" with no fatal error. This verifies the
+  shipped download imports its bundled package and opens its main UI window
+  on a real desktop (the automated suite otherwise runs the UI headlessly).
 - **2026-06-01** — Post-QA feature program (driven by the 100-persona
   review) shipped and verified across Linux/macOS/Windows CI:
   (a) **accessibility** — `robolearn.ui.a11y` text-scaling and
