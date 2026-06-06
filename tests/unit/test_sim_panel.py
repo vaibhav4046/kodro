@@ -53,6 +53,20 @@ def test_panel_has_a_pygame_surface(panel: SimPanel) -> None:
     assert panel.surface.get_size() == (120, 120)
 
 
+def test_pen_trail_records_then_clears_on_new_world(panel: SimPanel) -> None:
+    rover = Rover(_world())
+    panel.set_world(_world(), rover)
+    assert len(panel.trail) >= 1  # start point recorded
+    rover.state.x += 1.0
+    panel.refresh()
+    rover.state.x += 1.0
+    panel.refresh()
+    assert len(panel.trail) >= 3
+    # Binding a new world resets the trail.
+    panel.set_world(_world(), Rover(_world()))
+    assert len(panel.trail) == 1
+
+
 def test_celebrate_overlay_paints_and_clears(panel: SimPanel) -> None:
     rover = Rover(_world())
     panel.set_world(_world(), rover)
