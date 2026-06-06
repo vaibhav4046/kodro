@@ -158,6 +158,34 @@ def test_curriculum_complete_not_before_full_count(tmp_path: Path) -> None:
     assert "ten_lessons" not in {a.id for a in check_and_unlock(store, ctx)}
 
 
+def test_all_terrains_not_unlocked_on_single_terrain(tmp_path: Path) -> None:
+    store = Store(tmp_path / "p.db")
+    pupil = store.create_pupil()
+    ctx = PupilContext(
+        pupil_id=pupil.id,
+        lesson=_lesson("01_hello_rover"),
+        submission=_sub(pupil.id, "01_hello_rover", passed=True),
+    )
+    assert "all_terrains" not in {a.id for a in check_and_unlock(store, ctx)}
+
+
+def test_all_terrains_unlocks_after_all_four(tmp_path: Path) -> None:
+    store = Store(tmp_path / "p.db")
+    pupil = store.create_pupil()
+    prior = (
+        _sub(pupil.id, "01_hello_rover", passed=True),
+        _sub(pupil.id, "05_iteration", passed=True),
+        _sub(pupil.id, "07_sensors", passed=True),
+    )
+    ctx = PupilContext(
+        pupil_id=pupil.id,
+        lesson=_lesson("09_recursion"),
+        submission=_sub(pupil.id, "09_recursion", passed=True),
+        history=prior,
+    )
+    assert "all_terrains" in {a.id for a in check_and_unlock(store, ctx)}
+
+
 def test_achievement_status_tracks_unlocks(tmp_path: Path) -> None:
     store = Store(tmp_path / "p.db")
     pupil = store.create_pupil()
