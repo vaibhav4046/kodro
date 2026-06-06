@@ -39,22 +39,45 @@ built:
 
 ## 1.4 Scope and constraints
 
-- **Hard constraint:** 100% offline — no cloud services, no accounts, no
-  paid APIs, no third-party data processing. (An optional AI tutor uses a
-  *local* Ollama server on `localhost` only; it degrades gracefully when
-  absent.) *Explain why this matters for schools: cost, safeguarding, GDPR.*
-- Single-machine, single-pupil-per-install data model.
+The defining constraint is that RoboLearn runs **fully offline**: it makes no
+use of cloud services, user accounts, paid APIs or third-party data
+processing of any kind. This is a deliberate design position rather than a
+limitation. UK schools operate on tight budgets and locked-down networks,
+and any tool that handles minors' data must satisfy safeguarding and data
+protection obligations; an application that keeps every byte on the local
+machine sidesteps the recurring cost and the data-governance burden in one
+move. *Support this paragraph with the relevant cost and data-protection
+references in the background chapter.* The one concession — an optional AI
+tutor — connects only to a *local* Ollama server on `localhost` and degrades
+silently to a no-op when that server is absent, so the offline guarantee is
+never broken. The data model is single-machine and single-pupil-per-install,
+which is adequate for the target deployment and keeps the storage layer (a
+single SQLite file a teacher can copy) trivial to reason about.
 
 ## 1.5 Contributions
 
-> List what the project delivers. Grounded options:
-> - a working, tested, cross-platform application (12 curriculum lessons);
-> - an auto-grader + 24-rule offline hint engine driven by a per-call trace;
-> - an adaptive per-concept strength model and teacher reporting;
-> - a documented engineering process (decision log, test evidence,
->   evaluation) suitable for critical reflection.
+This project contributes a complete, working artefact and the engineering
+record behind it. Concretely, it delivers: a tested, cross-platform desktop
+application with twelve curriculum-mapped lessons; an automated grader and a
+twenty-four-rule offline hint engine, both driven by a single per-call
+execution trace and validated against explicit, declarative success
+criteria; an adaptive per-concept strength model that recommends the next
+lesson, together with achievement and streak tracking and a teacher-facing
+dashboard and progress report; and a disciplined development process —
+recorded in a decision log, a running test-evidence log and an evaluation —
+that makes the work reproducible and provides the basis for critical
+reflection.
 
 ## 1.6 Report structure
 
-> One short paragraph signposting the remaining chapters (Background,
-> Design, Implementation, Evaluation, Conclusion).
+The remainder of this report is organised as follows. The **Background**
+chapter situates RoboLearn against computational-thinking pedagogy, existing
+programming-education tools and the literature on formative feedback. The
+**Design** chapter sets out the layered architecture and the key design
+decisions, chief among them the choice to couple feedback to every Run. The
+**Implementation** chapter describes how the design was realised, the notable
+techniques, and the engineering challenges that arose. The **Evaluation**
+chapter reports the automated verification and the heuristic persona review,
+and specifies the human study that remains as future work. The
+**Conclusion** reflects on the outcome, states the limitations, and sets out
+the next steps.
