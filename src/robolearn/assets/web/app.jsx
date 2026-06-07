@@ -128,6 +128,47 @@ rover.say("Survey done")`
     const sensorRef = useRef(600);
     const [sensorDist, setSensorDist] = useState(600);
 
+    // RoboLearn bridge: lessons (from Python), currently-loaded lesson id,
+    // pupil + verdict + hint after a graded Run. The React app stays
+    // unchanged when there's no bridge (browser preview).
+    const [lessons, setLessons] = useState([]);
+    const [currentLessonId, setCurrentLessonId] = useState(null);
+    const currentLessonIdRef = useRef(null);
+    useEffect(() => { currentLessonIdRef.current = currentLessonId; }, [currentLessonId]);
+    useEffect(() => {
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
+      window.RoboLearn.listLessons().then(ls => { if (Array.isArray(ls)) setLessons(ls); });
+    }, []);
+    function loadLesson(lesson) {
+      if (!lesson) return;
+      setCurrentLessonId(lesson.id);
+      setPrograms(p => ({ ...p, [activeTab]: lesson.starterCode || '' }));
+      setConsoleLines(l => [
+        ...l,
+        { type: 'sys', text: '─── ' + lesson.id + ' · ' + lesson.title + ' [' + lesson.keyStage + '] ───' },
+        { type: 'out', text: (lesson.intro || '').trim() },
+      ]);
+    }
+    async function gradeWithBridge(source) {
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
+      const lessonId = currentLessonIdRef.current;
+      if (!lessonId) return;
+      try {
+        const r = await window.RoboLearn.submitAttempt(lessonId, source, null);
+        if (!r) return;
+        if (r.ok === false) { setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') }]); return; }
+        const tag = r.passed ? 'ok' : 'err';
+        setConsoleLines(l => {
+          const lines = [...l, { type: tag, text: (r.passed ? '✓ PASS' : '✗ NOT YET') + '  Score: ' + r.score + '/100' }];
+          if (!r.passed && Array.isArray(r.reasons)) r.reasons.forEach(reason => lines.push({ type: 'err', text: '  · ' + reason }));
+          if (r.hint && r.hint.message) lines.push({ type: 'sys', text: '💡 Hint: ' + r.hint.message });
+          return lines;
+        });
+      } catch (err) {
+        setConsoleLines(l => [...l, { type: 'err', text: 'Bridge error: ' + err }]);
+      }
+    }
+
     const ctrl = useRef({ running: false, abort: false });
     const genRef = useRef(null);
     const sayTimer = useRef(null);
@@ -340,6 +381,8 @@ rover.say("Survey done")`
       live.current.moving = false; sync();
       setRunState('done');
       addConsole('Program finished.', 'ok');
+      // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
+      gradeWithBridge(code);
     }
     function haltProgram(state) {
       ctrl.current.running = false; ctrl.current.abort = false;
@@ -505,8 +548,10 @@ rover.say("Survey done")`
 
     return (
       <div className="app">
+        <a className="skip-link" href="#editor-main">Skip to code editor</a>
+        <h1 className="sr-only">RoboLearn — Orbital Rover Python coding simulator</h1>
         {/* ---- mission bar ---- */}
-        <div className="missionbar">
+        <div className="missionbar" role="banner">
           <div className="brand">
             <div className="brand-mark" dangerouslySetInnerHTML={{ __html: ORBIT_SVG }}></div>
             <div className="brand-text">
@@ -537,16 +582,32 @@ rover.say("Survey done")`
         </div>
 
         {/* ---- workspace ---- */}
-        <div className="workspace" style={{ ['--editor-w']: editorW + 'px', ['--tele-w']: teleW + 'px' }}>
+        <main id="editor-main" className="workspace" style={{ ['--editor-w']: editorW + 'px', ['--tele-w']: teleW + 'px' }}>
           {/* left column: editor + console */}
           <div className="panel" style={{ gridColumn: 1 }}>
             <div className="editor-panel" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div className="panel-head">
                 <div className="tabs">
                   {Object.keys(EXAMPLES).map(k => (
-                    <div key={k} className={'tab' + (activeTab === k ? ' active' : '')} onClick={() => setActiveTab(k)}>{EXAMPLES[k].label}</div>
+                    <button key={k} type="button" className={'tab' + (activeTab === k ? ' active' : '')} aria-pressed={activeTab === k} onClick={() => setActiveTab(k)}>{EXAMPLES[k].label}</button>
                   ))}
                 </div>
+                {lessons.length > 0 && (
+                  <div className="lesson-picker">
+                    <label htmlFor="lesson-select" className="eyebrow">Lesson</label>
+                    <select
+                      id="lesson-select"
+                      className="lesson-select"
+                      value={currentLessonId || ''}
+                      onChange={e => loadLesson(lessons.find(l => l.id === e.target.value))}
+                    >
+                      <option value="" disabled>Pick a lesson…</option>
+                      {lessons.map(l => (
+                        <option key={l.id} value={l.id}>{l.id} · {l.title} [{l.keyStage}]</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
               <div className="api-hint">
@@ -580,10 +641,10 @@ rover.say("Survey done")`
           <div className="panel view-panel" style={{ gridColumn: 3 }} onPointerDown={camDrag} onWheel={camWheel}>
             <div className="terrain-switch">
               {['earth', 'mars', 'underwater', 'space'].map(id => (
-                <div key={id} className={'terrain-btn' + (terrainId === id ? ' active' : '')} onClick={() => onTerrain(id)}>
+                <button type="button" key={id} className={'terrain-btn' + (terrainId === id ? ' active' : '')} aria-pressed={terrainId === id} onClick={() => onTerrain(id)}>
                   <span className="tdot" style={{ background: TERRAINS[id].dot, boxShadow: terrainId === id ? '0 0 8px ' + TERRAINS[id].dot : 'none' }}></span>
                   {TERRAINS[id].label}
-                </div>
+                </button>
               ))}
             </div>
             <window.Viewport terrain={terrain} rover={rover} trail={trail} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />
@@ -600,7 +661,7 @@ rover.say("Survey done")`
             </div>
             <window.Telemetry rover={rover} terrain={terrain} sensorDist={sensorDist} odometer={odo} />
           </div>
-        </div>
+        </main>
 
         <window.TweaksPanel title="Tweaks">
           <window.TweakSection label="Camera" />
