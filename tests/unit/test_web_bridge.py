@@ -66,6 +66,41 @@ def test_get_pupil_summary_carries_display_name(api: BridgeAPI) -> None:
     assert isinstance(summary["displayName"], str)
 
 
+def test_multi_pupil_create_select_rename(api: BridgeAPI) -> None:
+    """A shared machine can hold several pupils; the active one is switchable."""
+    first = api.get_pupil_summary()["id"]
+    # Create a second pupil -> becomes active.
+    made = api.create_pupil("Ada")
+    assert made["ok"] is True and made["displayName"] == "Ada"
+    assert api.get_pupil_summary()["id"] == made["id"] != first
+
+    pupils = api.list_pupils()
+    assert {p["displayName"] for p in pupils} >= {"Ada"}
+    assert sum(1 for p in pupils if p["active"]) == 1  # exactly one active
+
+    # Switch back to the first pupil.
+    sel = api.select_pupil(first)
+    assert sel["ok"] is True
+    assert api.get_pupil_summary()["id"] == first
+
+    # Unknown pupil is rejected.
+    assert api.select_pupil("nope")["ok"] is False
+
+    # Rename.
+    assert api.rename_pupil(made["id"], "Ada L.")["displayName"] == "Ada L."
+
+
+def test_submission_recorded_against_active_pupil(api: BridgeAPI) -> None:
+    """Switching pupil routes submissions to that pupil's history."""
+    lessons = api.list_lessons()
+    lid, starter = lessons[0]["id"], lessons[0]["starterCode"]
+    p2 = api.create_pupil("Grace")["id"]  # active = Grace
+    api.submit_attempt(lid, starter, None)
+    subs_grace = api._store.list_submissions(pupil_id=p2)  # type: ignore[attr-defined]
+    assert len(subs_grace) >= 1
+    assert all(s.pupil_id == p2 for s in subs_grace)
+
+
 def test_submit_attempt_grades_and_persists(api: BridgeAPI) -> None:
     """A real Run hits the Python engine: executes, grades, returns verdict + hint."""
     lessons = api.list_lessons()
