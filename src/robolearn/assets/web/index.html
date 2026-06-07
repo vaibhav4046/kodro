@@ -91,10 +91,11 @@
     })();
   </script>
 
-  <!-- Vendored React + Babel (offline, no CDN) -->
+  <!-- Vendored React (offline, no CDN). Babel is NOT loaded at runtime: the
+       JSX is pre-compiled into bundle.js by scripts/build_web.cjs, so the app
+       starts fast (no 3 MB Babel parse + no per-file transpile). -->
   <script src="vendor/react.production.min.js"></script>
   <script src="vendor/react-dom.production.min.js"></script>
-  <script src="vendor/babel.min.js"></script>
 
   <!-- interpreter is plain JS -->
   <script src="interpreter.js"></script>
@@ -105,13 +106,7 @@
   <!-- RoboLearn bridge: lessons + grader + persistence (provided by Python) -->
   <script src="bridge.js"></script>
 
-  <!-- React components (Babel) -->
-  <script type="text/babel" src="terrains.jsx"></script>
-  <script type="text/babel" src="Rover.jsx"></script>
-  <script type="text/babel" src="Viewport.jsx"></script>
-  <script type="text/babel" src="Editor.jsx"></script>
-  <script type="text/babel" src="Telemetry.jsx"></script>
-  <script type="text/babel" src="tweaks-panel.jsx"></script>
-  <script type="text/babel" src="app.jsx"></script>
+  <!-- Pre-compiled React components + app (generated from the .jsx sources) -->
+  <script src="bundle.js"></script>
 </body>
 </html>
