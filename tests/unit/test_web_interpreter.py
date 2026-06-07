@@ -168,6 +168,32 @@ def test_nested_if_else_takes_inner_else_branch() -> None:
     assert r["prints"] == ["b"]
 
 
+def test_user_function_returns_value_in_expression() -> None:
+    """A pure helper called in an expression returns its value (was NameError)."""
+    r = _drive_prints("def double(x):\n    return x * 2\n\narea = double(5)\nprint(area)")
+    assert r["error"] is None, r["error"]
+    assert r["prints"] == ["10"]
+
+
+def test_recursive_function_returns_value() -> None:
+    r = _drive_prints(
+        "def fact(n):\n"
+        "    if n < 2:\n"
+        "        return 1\n"
+        "    return n * fact(n - 1)\n"
+        "\n"
+        "print(fact(5))"
+    )
+    assert r["error"] is None, r["error"]
+    assert r["prints"] == ["120"]
+
+
+def test_function_without_return_yields_none() -> None:
+    r = _drive_prints("def noop():\n    return\n\nx = noop()\nprint(x)")
+    assert r["error"] is None, r["error"]
+    assert r["prints"] == ["None"]
+
+
 def test_nested_if_else_inside_loop() -> None:
     """Nested if/elif/else inside a for-loop (the autopilot's control shape)."""
     src = (

@@ -487,13 +487,28 @@
               return null;  // an action used as a value -> None
             }
           }
+          // User-defined function used as a value, e.g. `area = double(5)`.
+          // Run its body synchronously (animation events are produced but
+          // ignored in an expression) and return its `return` value -- this
+          // matches the Python engine, which evaluates such calls fine.
+          if (callee.k === 'name' && funcs[callee.v]) {
+            const ufn = funcs[callee.v];
+            const uargs = node.args.map(evalExpr);
+            const usaved = {};
+            ufn.params.forEach((pn, i) => { usaved[pn] = scope[pn]; scope[pn] = uargs[i]; });
+            let rv = null;
+            try {
+              for (const _ev of execBlock(ufn.body)) { void _ev; }
+            } catch (e) {
+              if (e === RETURN) { rv = RETURN.value; }
+              else { ufn.params.forEach(pn => { scope[pn] = usaved[pn]; }); throw e; }
+            }
+            ufn.params.forEach(pn => { scope[pn] = usaved[pn]; });
+            return rv;
+          }
           const fn = evalExpr(callee);
           const args = node.args.map(evalExpr);
           if (typeof fn === 'function') return fn.apply(null, args);
-          // user-defined function (note: cannot animate inside; sensors/print ok via simple eval)
-          if (callee.k === 'name' && funcs[callee.v]) {
-            throw new RoverError('User functions that move the rover must be called on their own line.', curLine);
-          }
           throw new RoverError('"' + describe(callee) + '" is not callable.', curLine);
         }
 
@@ -555,7 +570,9 @@
               return;
             }
             case 'def': funcs[s.name] = s; yield { type: 'step', line: s.line }; return;
-            case 'return': throw RETURN;  // unwinds to the enclosing function call
+            case 'return':  // carry the value + unwind to the enclosing call
+              RETURN.value = s.expr ? evalExpr(s.expr) : null;
+              throw RETURN;
             default: throw new RoverError('Unknown statement.', s.line);
           }
         }

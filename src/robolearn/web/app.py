@@ -124,14 +124,13 @@ class BridgeAPI:
         # captured -- the design's React console can still show partial
         # progress.
         verdict = grade(lesson, tracer, source or "")
-        hint = find_first_hint(
-            HintContext(
-                lesson=lesson,
-                source=source or "",
-                events=tuple(events),
-                grade_result=verdict,
-            )
+        ctx = HintContext(
+            lesson=lesson,
+            source=source or "",
+            events=tuple(events),
+            grade_result=verdict,
         )
+        hint = find_first_hint(ctx)
         if not result.success:
             error_reason = f"{result.error_kind}: {result.error_message} (line {result.error_line})"
             # Do NOT persist a 0-score row for a syntax/runtime error: a pupil
@@ -157,6 +156,8 @@ class BridgeAPI:
             score=verdict.score,
             reasons=list(verdict.reasons),
             duration_ms=result.duration_ms,
+            battery_used=ctx.battery_used,
+            collisions=ctx.collisions,
         )
         return {
             "ok": True,
