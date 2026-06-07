@@ -169,7 +169,6 @@ rover.say("Survey done")`
     const trailColor = t.trail === 'cyan' ? '#5ce0d8' : t.trail === 'amber' ? '#e0b45c' : t.trail === 'white' ? '#f5f0e4' : null;
 
     const terrain = TERRAINS[terrainId];
-    const code = currentLessonId ? lessonCode : programs[activeTab];
 
     // live rover state (authoritative for sensors/animation)
     const startState = () => ({ x: 0, y: 0, heading: 0, speed: 50, battery: 100, moving: false, led: null, scanning: false, penDown: false });
@@ -192,6 +191,10 @@ rover.say("Survey done")`
     // active (QA re-score rank 11).
     const [lessonCode, setLessonCode] = useState('');
     const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
+    // The editor's current source: a lesson's own buffer when one is loaded,
+    // otherwise the active example tab. (Declared AFTER the state above to
+    // avoid a temporal-dead-zone ReferenceError.)
+    const code = currentLessonId ? lessonCode : programs[activeTab];
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     useEffect(() => {

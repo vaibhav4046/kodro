@@ -6,27 +6,66 @@
    Exposes window.Viewport
    ========================================================================== */
 (function () {
-  const { useMemo } = React;
+  const { useMemo, memo } = React;
   const GROUND = window.TERRAIN_GROUND;
   const WALL = window.TERRAINS.WALL;
 
   const DUST = { earth: '#b9a878', mars: '#d89a6a', underwater: 'rgba(190,220,222,0.55)', space: '#9a9ca6' };
   const HORIZON = { earth: 'rgba(28,46,31,0.5)', mars: 'rgba(46,22,16,0.5)', underwater: 'rgba(4,22,31,0.55)', space: 'rgba(7,8,15,0.55)' };
 
+  // The rover pushes one segment array per pen-down move and appends points to
+  // the LAST segment as it drives (app.jsx pushTrailPoint, in place). Earlier
+  // segments are never mutated again, so a finished segment's SVG path string
+  // can be built once and cached by array identity — only the in-progress leg
+  // is rebuilt per frame. This turns the old per-frame rebuild of every path
+  // (O(N) per frame, O(N^2) cumulative over an N-point spiral) into work that
+  // scales with the current leg, not the whole trail.
+  const pathCache = new WeakMap();
+  function buildPath(seg) {
+    return seg.map((p, j) => (j === 0 ? 'M' : 'L') + (GROUND / 2 + p.x).toFixed(1) + ' ' + (GROUND / 2 + p.y).toFixed(1)).join(' ');
+  }
+  function cachedPath(seg) {
+    let d = pathCache.get(seg);
+    if (d === undefined) { d = buildPath(seg); pathCache.set(seg, d); }
+    return d;
+  }
+
+  function TrailPath({ d, accent }) {
+    return (
+      <g>
+        <path d={d} fill="none" stroke="#000" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" opacity="0.18" />
+        <path d={d} fill="none" stroke={accent} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" opacity="0.78" />
+      </g>
+    );
+  }
+
+  // Completed segments (all but the last) are immutable, so this layer only
+  // re-renders when a new leg starts (count grows) or the colour changes — NOT
+  // on every animation frame. memo with a count-based compare skips it during a
+  // move, when only the live segment is growing. (A naive memo on `segments`
+  // identity would wrongly skip: the array ref is stable while the last segment
+  // mutates in place — see app.jsx, setTrail only fires on segment add/reset.)
+  const CompletedTrail = memo(
+    function CompletedTrail({ segments, count, accent }) {
+      const paths = [];
+      for (let i = 0; i < count; i++) {
+        const seg = segments[i];
+        if (seg.length < 2) continue;
+        paths.push(<TrailPath key={i} d={cachedPath(seg)} accent={accent} />);
+      }
+      return paths;
+    },
+    (a, b) => a.accent === b.accent && a.count === b.count
+  );
+
   function Trail({ segments, accent }) {
     if (!segments || !segments.length) return null;
+    const last = segments[segments.length - 1];
     return (
       <svg width={GROUND} height={GROUND} style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none', overflow: 'visible' }}>
-        {segments.map((seg, i) => {
-          if (seg.length < 2) return null;
-          const d = seg.map((p, j) => (j === 0 ? 'M' : 'L') + (GROUND / 2 + p.x).toFixed(1) + ' ' + (GROUND / 2 + p.y).toFixed(1)).join(' ');
-          return (
-            <g key={i}>
-              <path d={d} fill="none" stroke="#000" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" opacity="0.18" />
-              <path d={d} fill="none" stroke={accent} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" opacity="0.78" />
-            </g>
-          );
-        })}
+        <CompletedTrail segments={segments} count={segments.length - 1} accent={accent} />
+        {/* in-progress leg: rebuilt each frame, bounded by the decimation + per-segment cap in pushTrailPoint */}
+        {last && last.length >= 2 ? <TrailPath d={buildPath(last)} accent={accent} /> : null}
       </svg>
     );
   }
