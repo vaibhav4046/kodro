@@ -169,3 +169,21 @@ def test_get_hint_returns_dict_or_none(api: BridgeAPI) -> None:
 def test_log_accepts_known_levels(api: BridgeAPI) -> None:
     for level in ("info", "warning", "error", "debug", "unknown"):
         assert api.log(level, f"test {level}") == {"ok": True}
+
+
+def test_startup_failure_message_guides_to_webview2() -> None:
+    """A pywebview start failure yields actionable guidance, not a raw crash."""
+    from robolearn.web.app import _startup_failure_message
+
+    msg = _startup_failure_message(RuntimeError("WebView2Runtime not found"))
+    assert "WebView2" in msg
+    assert "developer.microsoft.com" in msg
+    assert "python -m robolearn" in msg  # offers the Tk fallback
+
+
+def test_report_startup_failure_is_safe_off_windows(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Off Windows the handler writes to stderr and never raises."""
+    import robolearn.web.app as appmod
+
+    monkeypatch.setattr(appmod.sys, "platform", "linux")
+    appmod._report_startup_failure(RuntimeError("boom"))  # must not raise

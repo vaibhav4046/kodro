@@ -17,6 +17,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -340,10 +341,43 @@ def build_app(*, db_path: Path | None = None) -> WebApp:
     return WebApp(window=window, api=api)
 
 
+def _startup_failure_message(exc: BaseException) -> str:
+    """Human-readable guidance for a pywebview start failure."""
+    return (
+        "RoboLearn could not open its window.\n\n"
+        "This usually means the Microsoft Edge WebView2 Runtime is missing. "
+        "It is free and installs in under a minute:\n\n"
+        "    https://developer.microsoft.com/microsoft-edge/webview2/\n\n"
+        "Install it, then start RoboLearn again. (You can also use the classic "
+        "interface with:  python -m robolearn)\n\n"
+        f"Technical details: {type(exc).__name__}: {exc}"
+    )
+
+
+def _report_startup_failure(exc: BaseException) -> None:
+    """Show a friendly native dialog instead of a silent crash / raw traceback."""
+    message = _startup_failure_message(exc)
+    LOG.error("web UI failed to start: %s", exc)
+    if sys.platform.startswith("win"):
+        with contextlib.suppress(Exception):
+            import ctypes
+
+            # MB_OK | MB_ICONERROR | MB_SETFOREGROUND
+            ctypes.windll.user32.MessageBoxW(0, message, "RoboLearn", 0x10 | 0x10000)
+            return
+    sys.stderr.write(message + "\n")
+
+
 def launch(*, db_path: Path | None = None, debug: bool = False) -> None:
     """Build and enter the pywebview main loop. Blocks until the window closes."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     with contextlib.suppress(Exception):
         _ = json  # keep json imported (used implicitly by pywebview)
     build_app(db_path=db_path)
-    webview.start(debug=debug)
+    try:
+        webview.start(debug=debug)
+    except Exception as exc:  # e.g. WebView2 runtime missing
+        # Tell the user what to do (native dialog) rather than crash silently
+        # with a raw traceback in the packaged, windowed .exe.
+        _report_startup_failure(exc)
+        raise SystemExit(1) from exc
