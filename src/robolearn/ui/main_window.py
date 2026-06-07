@@ -21,6 +21,15 @@ from typing import Any
 
 from .theme import Palette, ThemeName, ThemeSettings
 
+
+def _lerp_hex(c1: str, c2: str, t: float) -> str:
+    """Linear blend between two ``#rrggbb`` colours (``t`` in ``[0, 1]``)."""
+    a = (int(c1[1:3], 16), int(c1[3:5], 16), int(c1[5:7], 16))
+    b = (int(c2[1:3], 16), int(c2[3:5], 16), int(c2[5:7], 16))
+    m = tuple(round(a[i] + (b[i] - a[i]) * t) for i in range(3))
+    return f"#{m[0]:02x}{m[1]:02x}{m[2]:02x}"
+
+
 #: Hidden hotkey that opens the teacher dashboard (Section 8.4).
 TEACHER_DASHBOARD_SHORTCUT: str = "<Control-Shift-T>"
 
@@ -119,16 +128,104 @@ class MainWindow:
         if self._owns_root:
             self._root.configure(bg=palette.bg)
         self._style.theme_use("clam")
-        self._style.configure("Robo.TFrame", background=palette.bg)
-        self._style.configure(
-            "Robo.Topbar.TFrame",
-            background=palette.bg_alt,
-            borderwidth=1,
-            relief="flat",
-        )
+        self._apply_ttk_palette(palette)
         for frame in self.frames.asdict().values():
             frame.configure(style="Robo.TFrame")
         self.frames.topbar.configure(style="Robo.Topbar.TFrame")
+
+    def _apply_ttk_palette(self, palette: Palette) -> None:
+        """Restyle every ttk widget class to the palette (clam honours this).
+
+        Without this the ttk widgets keep clam's light-grey default, which
+        clashes badly with the dark "Orbital Rover" chrome. clam is fully
+        re-colourable via ``style.configure``/``map`` (unlike the image-based
+        themes), so we paint buttons, scales, scrollbars, entries and frames
+        to match.
+        """
+        s = self._style
+        bg, bg_alt, fg = palette.bg, palette.bg_alt, palette.fg
+        fg_muted, accent, border = palette.fg_muted, palette.accent, palette.border
+        hover = _lerp_hex(bg_alt, fg, 0.14)
+        press = _lerp_hex(bg_alt, fg, 0.22)
+        ui_font = self.settings.effective_ui_font()
+
+        # Base: everything inherits these unless overridden.
+        s.configure(
+            ".",
+            background=bg,
+            foreground=fg,
+            fieldbackground=bg_alt,
+            bordercolor=border,
+            lightcolor=bg_alt,
+            darkcolor=bg_alt,
+            troughcolor=bg_alt,
+            arrowcolor=fg_muted,
+            insertcolor=fg,
+            focuscolor=accent,
+            font=(ui_font, 10),
+        )
+        s.configure("Robo.TFrame", background=bg)
+        s.configure("Robo.Topbar.TFrame", background=bg_alt, borderwidth=0, relief="flat")
+        s.configure("TFrame", background=bg)
+        s.configure("TLabel", background=bg, foreground=fg)
+        s.configure("TLabelframe", background=bg, bordercolor=border)
+        s.configure("TLabelframe.Label", background=bg, foreground=fg_muted)
+
+        # Ghost buttons (the design's default control: outlined, transparent).
+        s.configure(
+            "TButton",
+            background=bg_alt,
+            foreground=fg,
+            bordercolor=border,
+            relief="flat",
+            padding=(12, 5),
+            anchor="center",
+        )
+        s.map(
+            "TButton",
+            background=[("disabled", bg), ("pressed", press), ("active", hover)],
+            foreground=[("disabled", fg_muted)],
+            bordercolor=[("active", fg_muted), ("focus", accent)],
+        )
+        # Accent button (the cyan "Run" / primary action).
+        s.configure(
+            "Accent.TButton",
+            background=accent,
+            foreground=bg,
+            bordercolor=accent,
+            relief="flat",
+            padding=(12, 5),
+        )
+        s.map(
+            "Accent.TButton",
+            background=[
+                ("disabled", bg_alt),
+                ("pressed", _lerp_hex(accent, bg, 0.30)),
+                ("active", _lerp_hex(accent, bg, 0.15)),
+            ],
+            foreground=[("disabled", fg_muted)],
+        )
+
+        # Sliders, scrollbars, separators, entries.
+        for scale in ("Horizontal.TScale", "Vertical.TScale", "TScale"):
+            s.configure(scale, background=accent, troughcolor=bg_alt, bordercolor=border)
+        for sb in ("Vertical.TScrollbar", "Horizontal.TScrollbar"):
+            s.configure(sb, background=bg_alt, troughcolor=bg, bordercolor=bg, arrowcolor=fg_muted)
+            s.map(sb, background=[("active", border)])
+        s.configure("TSeparator", background=border)
+        s.configure("TEntry", fieldbackground=bg_alt, foreground=fg, bordercolor=border)
+        s.configure("TCombobox", fieldbackground=bg_alt, foreground=fg, bordercolor=border)
+        s.configure("TCheckbutton", background=bg, foreground=fg)
+        s.map("TCheckbutton", background=[("active", bg)])
+        s.configure("TRadiobutton", background=bg, foreground=fg)
+        s.map("TRadiobutton", background=[("active", bg)])
+        s.configure("TNotebook", background=bg, bordercolor=border)
+        s.configure("TNotebook.Tab", background=bg_alt, foreground=fg_muted, padding=(10, 4))
+        s.map(
+            "TNotebook.Tab",
+            background=[("selected", bg)],
+            foreground=[("selected", fg)],
+        )
 
     def set_slot(self, slot: SlotName, widget: tk.Widget) -> None:
         """Place ``widget`` inside the named slot's frame.
