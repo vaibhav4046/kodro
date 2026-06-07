@@ -255,7 +255,15 @@ rover.say("Survey done")`
       if (!live.current.penDown) return;
       const segs = trailRef.current;
       if (!segs.length) return;
-      segs[segs.length - 1].push({ x: live.current.x, y: live.current.y });
+      const seg = segs[segs.length - 1];
+      const last = seg[seg.length - 1];
+      const x = live.current.x, y = live.current.y;
+      // Decimate (skip points <6cm from the last) + cap, so a long run can't
+      // grow the trail unboundedly or rebuild a huge SVG path each frame
+      // (QA re-score rank 8 performance).
+      if (last && Math.abs(x - last.x) < 6 && Math.abs(y - last.y) < 6) return;
+      if (seg.length > 1500) return;
+      seg.push({ x, y });
     };
 
     function addConsole(text, type) {

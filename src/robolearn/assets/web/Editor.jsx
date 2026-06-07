@@ -97,14 +97,39 @@
       // Escape releases the textarea so keyboard-only users are never trapped
       // by Tab-inserts-spaces (WCAG 2.1.2 No Keyboard Trap).
       if (e.key === 'Escape') { e.target.blur(); return; }
+      const ta = e.target;
+      const s = ta.selectionStart, en = ta.selectionEnd;
+      const val = ta.value;
+      if (e.key === 'Tab' && e.shiftKey) {
+        // Shift+Tab: dedent up to 4 leading spaces on the current line.
+        e.preventDefault();
+        const ls = val.lastIndexOf('\n', s - 1) + 1;
+        const lead = val.slice(ls).match(/^ {1,4}/);
+        if (lead) {
+          const cut = lead[0].length;
+          onChange(val.slice(0, ls) + val.slice(ls + cut));
+          requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = Math.max(ls, s - cut); });
+        }
+        return;
+      }
       if (e.key === 'Tab') {
         e.preventDefault();
-        const ta = e.target;
-        const s = ta.selectionStart, en = ta.selectionEnd;
-        const val = ta.value;
-        const next = val.slice(0, s) + '    ' + val.slice(en);
-        onChange(next);
+        onChange(val.slice(0, s) + '    ' + val.slice(en));
         requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = s + 4; });
+        return;
+      }
+      if (e.key === 'Enter') {
+        // Auto-indent: keep the current line's leading spaces, and add 4 more
+        // after a line that opens a block (ends with ':').
+        e.preventDefault();
+        const ls = val.lastIndexOf('\n', s - 1) + 1;
+        const lineToCursor = val.slice(ls, s);
+        const indent = (lineToCursor.match(/^ */) || [''])[0];
+        const extra = /:\s*$/.test(lineToCursor) ? '    ' : '';
+        const ins = '\n' + indent + extra;
+        onChange(val.slice(0, s) + ins + val.slice(en));
+        const caret = s + ins.length;
+        requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = caret; });
       }
     }
 
