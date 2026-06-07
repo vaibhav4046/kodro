@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Autopilot demo** — a flagship "self-driving rover" example (now the
+  default program in the web UI): it reads its lidar, probes left/right when
+  a boulder looms, steers toward the clearer side, and finishes with a survey
+  spiral — pure sense-think-act, no waypoints. Verified to drive ~36 legs and
+  dodge ~25 obstacles in the interpreter.
+
 ### Fixed
+- **Nested `if/else` was broken in the interpreter** (real correctness bug):
+  an `if` node carries `.branches`, not `.body`, so the conditional-linking
+  pass skipped recursion into `if` bodies — a nested `else` survived to
+  execution as `Unknown statement`. Any program with a conditional inside an
+  `if` (e.g. the autopilot's steering logic) failed. Now linked correctly;
+  regression-tested (`test_nested_if_else*`).
 - **JS↔Python API parity** (re-score round, 2.87→6.7): the in-browser
   interpreter and the Python grader were two engines that didn't agree on
   the lesson vocabulary. Now reconciled — `interpreter.js` also accepts the

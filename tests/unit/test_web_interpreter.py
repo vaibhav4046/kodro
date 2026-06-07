@@ -111,6 +111,80 @@ def test_design_rover_api_still_works() -> None:
     assert r["moves"] == 2
 
 
+def _drive_prints(src: str) -> list:
+    """Drive a program and return its print outputs (for control-flow tests)."""
+    harness = f"""
+      global.window = {{}};
+      const fs = require('fs');
+      eval(fs.readFileSync({json.dumps(str(INTERP))}, 'utf8'));
+      const host = {{ sensor() {{ return 0; }} }};
+      const out = [];
+      try {{
+        for (const ev of global.window.RoverLang.compile({json.dumps(src)}).run(host)) {{
+          if (ev.type === 'print') out.push(ev.text);
+        }}
+        process.stdout.write(JSON.stringify({{ error: null, prints: out }}));
+      }} catch (e) {{
+        const msg = (e && e.message) || String(e);
+        process.stdout.write(JSON.stringify({{ error: msg, prints: out }}));
+      }}
+    """
+    proc = subprocess.run(
+        [str(_NODE), "-e", harness], capture_output=True, text=True, timeout=30, check=False
+    )
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout)
+
+
+def test_nested_if_else_links_inner_else() -> None:
+    """A nested if/else inside an if-body must execute (was 'Unknown statement')."""
+    src = (
+        "if 1 > 0:\n"
+        "    if 2 > 1:\n"
+        '        print("a")\n'
+        "    else:\n"
+        '        print("b")\n'
+        '    print("c")\n'
+        "else:\n"
+        '    print("d")'
+    )
+    r = _drive_prints(src)
+    assert r["error"] is None, r["error"]
+    assert r["prints"] == ["a", "c"]
+
+
+def test_nested_if_else_takes_inner_else_branch() -> None:
+    src = (
+        "if 1 > 0:\n"
+        "    if 2 < 1:\n"
+        '        print("a")\n'
+        "    else:\n"
+        '        print("b")\n'
+        "else:\n"
+        '    print("d")'
+    )
+    r = _drive_prints(src)
+    assert r["error"] is None, r["error"]
+    assert r["prints"] == ["b"]
+
+
+def test_nested_if_else_inside_loop() -> None:
+    """Nested if/elif/else inside a for-loop (the autopilot's control shape)."""
+    src = (
+        "for i in range(3):\n"
+        "    if i > 0:\n"
+        "        if i > 1:\n"
+        '            print("big")\n'
+        "        else:\n"
+        '            print("one")\n'
+        "    else:\n"
+        '        print("zero")'
+    )
+    r = _drive_prints(src)
+    assert r["error"] is None, r["error"]
+    assert r["prints"] == ["zero", "one", "big"]
+
+
 def test_nonfinite_distance_via_power_clamps_to_lower_bound() -> None:
     """``10 ** 400`` -> Infinity is the only infinity a pupil can actually type
     (the tokenizer lexes ``1e308`` as the name ``e308``). A non-finite magnitude
