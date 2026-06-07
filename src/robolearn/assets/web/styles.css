@@ -626,3 +626,29 @@ body.a11y-readable .api-hint { font-size: 12px !important; }
 @media (prefers-reduced-motion: reduce) {
   .confetti { animation: none; display:none; }
 }
+
+/* Keyboard-shortcuts help modal (premium polish + QA keyboard legend). */
+.modal-backdrop {
+  position:fixed; inset:0; z-index:80; display:flex; align-items:center; justify-content:center;
+  background:rgba(8,9,15,0.66); backdrop-filter:blur(3px); animation:fade-in 160ms var(--ease);
+}
+.modal {
+  width:min(420px,92vw); background:linear-gradient(180deg,var(--navy-2),var(--navy));
+  border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-menu);
+  padding:18px 20px; animation:pop-in 180ms var(--ease);
+}
+.modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.shortcut-list { display:flex; flex-direction:column; gap:9px; }
+.shortcut-list > div { display:flex; align-items:baseline; gap:14px; }
+.shortcut-list dt { flex:none; min-width:130px; }
+.shortcut-list dd { margin:0; color:var(--fg-2); font-size:13px; }
+kbd {
+  font-family:var(--font-mono); font-size:11px; color:var(--fg-1);
+  background:var(--navy-3); border:1px solid var(--border); border-bottom-width:2px;
+  border-radius:4px; padding:2px 6px; margin:0 1px;
+}
+@keyframes fade-in { from{opacity:0;} to{opacity:1;} }
+@keyframes pop-in { from{opacity:0;transform:translateY(8px) scale(0.98);} to{opacity:1;transform:none;} }
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop, .modal { animation:none; }
+}

@@ -227,6 +227,7 @@ rover.say("Survey done")`
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
+    const [showHelp, setShowHelp] = useState(false);
     function toggleSound() {
       setMuted(m => { const next = !m; if (window.RLSound) window.RLSound.setMuted(next); return next; });
     }
@@ -774,9 +775,12 @@ rover.say("Survey done")`
 
     // keyboard shortcuts
     useEffect(() => {
+      const typingIn = (el) => el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable);
       const h = (e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); onRun(); }
         else if (e.key === 'F10') { e.preventDefault(); onStep(); }
+        else if (e.key === 'Escape' && showHelp) { setShowHelp(false); }
+        else if (e.key === '?' && !typingIn(e.target)) { e.preventDefault(); setShowHelp(s => !s); }
       };
       window.addEventListener('keydown', h);
       return () => window.removeEventListener('keydown', h);
@@ -905,6 +909,7 @@ rover.say("Survey done")`
                     </select>
                   </label>
                 )}
+                <button className="btn-mini" title="Keyboard shortcuts (?)" onClick={() => setShowHelp(true)}>? Help</button>
                 <button className="btn-mini" aria-pressed={!muted} title={muted ? 'Sound off' : 'Sound on'} onClick={toggleSound}>{muted ? '🔇 Sound' : '🔊 Sound'}</button>
                 <button className="btn-mini" aria-pressed={readable} title="Dyslexia-friendly / larger text" onClick={() => setReadable(v => !v)}>Aa Readable</button>
                 <button className="btn-mini" onClick={exportReportClick}>Export report</button>
@@ -960,6 +965,26 @@ rover.say("Survey done")`
           <window.TweakSection label="Path trace" />
           <window.TweakRadio label="Trail color" value={t.trail} options={['terrain', 'cyan', 'amber']} onChange={v => setTweak('trail', v)} />
         </window.TweaksPanel>
+
+        {showHelp && (
+          <div className="modal-backdrop" onClick={() => setShowHelp(false)}>
+            <div className="modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <span className="eyebrow">Keyboard shortcuts</span>
+                <button className="btn-mini" aria-label="Close" onClick={() => setShowHelp(false)}>✕</button>
+              </div>
+              <dl className="shortcut-list">
+                <div><dt><kbd>Ctrl</kbd>+<kbd>Enter</kbd></dt><dd>Run / Pause the program</dd></div>
+                <div><dt><kbd>F10</kbd></dt><dd>Step one instruction</dd></div>
+                <div><dt><kbd>Tab</kbd></dt><dd>Indent (in the editor)</dd></div>
+                <div><dt><kbd>Shift</kbd>+<kbd>Tab</kbd></dt><dd>Dedent (in the editor)</dd></div>
+                <div><dt><kbd>Enter</kbd></dt><dd>Auto-indent the next line</dd></div>
+                <div><dt><kbd>Esc</kbd></dt><dd>Leave the editor / close this</dd></div>
+                <div><dt><kbd>?</kbd></dt><dd>Show this help</dd></div>
+              </dl>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
