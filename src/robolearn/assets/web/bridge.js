@@ -52,6 +52,10 @@
     submitAttempt: (lessonId, source, traceJson) =>
       call("submit_attempt", lessonId, source, traceJson),
     getPupilSummary: () => call("get_pupil_summary"),
+    listPupils: () => call("list_pupils"),
+    createPupil: (name) => call("create_pupil", name),
+    selectPupil: (id) => call("select_pupil", id),
+    renamePupil: (id, name) => call("rename_pupil", id, name),
     getHint: (lessonId, source, errKind) =>
       call("get_hint", lessonId, source, errKind),
     exportReport: () => call("export_report"),

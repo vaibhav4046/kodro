@@ -86,12 +86,43 @@ class BridgeAPI:
         return None
 
     def get_pupil_summary(self) -> dict[str, Any]:
-        """Return the pupil's display name + recent score summary."""
+        """Return the active pupil's display name + recent score summary."""
         pupil = next((p for p in self._store.list_pupils() if p.id == self._pupil_id), None)
         return {
             "id": self._pupil_id,
             "displayName": pupil.display_name if pupil else "Pupil",
         }
+
+    # --- multi-pupil (shared-machine identity) ----------------------------
+
+    def list_pupils(self) -> list[dict[str, Any]]:
+        """Return every pupil on this machine + which one is active."""
+        return [
+            {"id": p.id, "displayName": p.display_name, "active": p.id == self._pupil_id}
+            for p in self._store.list_pupils()
+        ]
+
+    def create_pupil(self, display_name: str = "") -> dict[str, Any]:
+        """Create a pupil, make them active, and return them."""
+        name = (display_name or "").strip() or "Pupil"
+        pupil = self._store.create_pupil(name)
+        self._pupil_id = pupil.id
+        LOG.info("created + selected pupil %s (%s)", pupil.id, name)
+        return {"ok": True, "id": pupil.id, "displayName": pupil.display_name}
+
+    def select_pupil(self, pupil_id: str) -> dict[str, Any]:
+        """Switch the active pupil (so the right person's progress is recorded)."""
+        if any(p.id == pupil_id for p in self._store.list_pupils()):
+            self._pupil_id = pupil_id
+            LOG.info("selected pupil %s", pupil_id)
+            return {"ok": True, "id": pupil_id}
+        return {"ok": False, "reason": f"unknown pupil: {pupil_id}"}
+
+    def rename_pupil(self, pupil_id: str, display_name: str) -> dict[str, Any]:
+        """Rename a pupil."""
+        name = (display_name or "").strip() or "Pupil"
+        self._store.set_display_name(pupil_id, name)
+        return {"ok": True, "id": pupil_id, "displayName": name}
 
     def submit_attempt(
         self, lesson_id: str, source: str, trace_json: str | None = None

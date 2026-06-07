@@ -185,6 +185,33 @@ rover.say("Survey done")`
     // pupil + verdict + hint after a graded Run. The React app stays
     // unchanged when there's no bridge (browser preview).
     const [lessons, setLessons] = useState([]);
+    // Multi-pupil: list + active id, so shared classroom machines keep each
+    // pupil's progress separate (re-score / "do-all").
+    const [pupils, setPupils] = useState([]);
+    const [activePupilId, setActivePupilId] = useState(null);
+    function reloadPupils() {
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
+      window.RoboLearn.listPupils().then(ps => {
+        if (!Array.isArray(ps)) return;
+        setPupils(ps);
+        const active = ps.find(p => p.active);
+        if (active) setActivePupilId(active.id);
+      });
+    }
+    useEffect(reloadPupils, []);
+    async function onPupilChange(e) {
+      const val = e.target.value;
+      if (val === '__new__') {
+        const r = await window.RoboLearn.createPupil('Pupil ' + (pupils.length + 1));
+        if (r && r.ok) { setActivePupilId(r.id); reloadPupils(); }
+      } else {
+        const r = await window.RoboLearn.selectPupil(val);
+        if (r && r.ok) setActivePupilId(val);
+      }
+      // Switching identity: clear the current verdict (it was the other pupil's).
+      setLessonVerdict(null);
+      setConsoleLines(l => [...l, { type: 'sys', text: 'Switched pupil.' }]);
+    }
     const [currentLessonId, setCurrentLessonId] = useState(null);
     // Lessons keep their OWN editable buffer so loading one never clobbers the
     // example tabs (autopilot.py etc.); the editor shows it while a lesson is
@@ -825,6 +852,15 @@ rover.say("Survey done")`
               <div className="console-head">
                 <span className="eyebrow">Console</span>
                 <div className="ph-spacer" style={{ flex: 1 }}></div>
+                {pupils.length > 0 && (
+                  <label className="pupil-pick" title="Who is using this machine">
+                    <span className="eyebrow" style={{ marginRight: 4 }}>Pupil</span>
+                    <select className="lesson-select" value={activePupilId || ''} onChange={onPupilChange} aria-label="Active pupil">
+                      {pupils.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
+                      <option value="__new__">+ New pupil…</option>
+                    </select>
+                  </label>
+                )}
                 <button className="btn-mini" aria-pressed={readable} title="Dyslexia-friendly / larger text" onClick={() => setReadable(v => !v)}>Aa Readable</button>
                 <button className="btn-mini" onClick={exportReportClick}>Export report</button>
                 <button className="btn-mini" onClick={() => setConsoleLines([{ type: 'sys', text: 'Console cleared.' }])}>Clear</button>
