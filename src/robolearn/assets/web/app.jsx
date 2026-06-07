@@ -9,6 +9,55 @@
 
   // ---------------- example programs ----------------
   const EXAMPLES = {
+    autopilot: {
+      label: 'autopilot.py',
+      code: `# AUTOPILOT - the rover drives itself, like a self-driving car.
+# It reads its lidar, probes left + right when a boulder looms,
+# steers toward the clearer side, then surveys the field.
+# No waypoints - pure sense-think-act. Press Run and watch.
+rover.set_speed(74)
+rover.pen_down()
+rover.led("cyan")
+rover.say("Autopilot engaged")
+
+legs = 0
+dodges = 0
+scans = 0
+
+# Cruise forward; when a boulder is within 130cm, scan + dodge.
+while legs < 28:
+    ahead = rover.distance()
+    if ahead < 130:
+        rover.led("amber")
+        rover.scan()
+        scans = scans + 1
+        rover.turn_left(55)
+        left = rover.distance()
+        rover.turn_right(110)
+        right = rover.distance()
+        if left > right:
+            rover.turn_left(140)
+        else:
+            rover.turn_left(20)
+        dodges = dodges + 1
+        rover.led("cyan")
+    else:
+        rover.forward(58)
+        legs = legs + 1
+
+# Survey sweep: expand into a spiral to map the cleared area.
+rover.led("green")
+step = 28
+for ring in range(8):
+    rover.forward(step)
+    rover.turn_right(50)
+    step = step + 16
+
+rover.say("Area mapped")
+print("Legs driven:", legs)
+print("Boulders dodged:", dodges)
+print("Lidar scans:", scans)`
+    },
     drive: {
       label: 'starter.py',
       code: `# Welcome to Orbital Rover.
@@ -98,7 +147,7 @@ rover.say("Survey done")`
 
   function App() {
     const [terrainId, setTerrainId] = useState(() => localStorage.getItem('or_terrain') || 'mars');
-    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('or_tab') || 'square');
+    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('or_tab') || 'autopilot');
     const [programs, setPrograms] = useState(() => {
       try { const s = JSON.parse(localStorage.getItem('or_programs')); if (s) return s; } catch (e) {}
       const o = {}; Object.keys(EXAMPLES).forEach(k => o[k] = EXAMPLES[k].code); return o;
@@ -284,6 +333,7 @@ rover.say("Survey done")`
 
     async function animateMove(ev) {
       const s = live.current;
+      const myToken = ctrl.current.token;  // run epoch captured at move start
       const a = s.heading * Math.PI / 180;
       const dirx = Math.sin(a) * ev.dir, diry = -Math.cos(a) * ev.dir;
       const total = ev.distance;
@@ -313,6 +363,11 @@ rover.say("Survey done")`
         sync();
         return false;
       });
+      // A Reset/restart while this move was animating bumps the token: bail
+      // before touching the shared odometer or halting, so a stale in-flight
+      // move can't corrupt the fresh run (phantom odometer add, or a spurious
+      // 'error' state stomped over the Reset the user just pressed).
+      if (ctrl.current.token !== myToken) { s.moving = false; return false; }
       // Settle battery on the distance actually travelled (handles a crash
       // that stopped the move early), relative to the pre-move level b0.
       const travelled = Math.hypot(s.x - x0, s.y - y0);
@@ -331,10 +386,12 @@ rover.say("Survey done")`
 
     async function animateTurn(ev) {
       const s = live.current;
+      const myToken = ctrl.current.token;  // run epoch captured at turn start
       const h0 = s.heading;
       const dur = (Math.abs(ev.deg) / 180) * 650 / speedMulRef.current;
       s.moving = true;
       await frames(dur, (p) => { s.heading = h0 + ev.deg * p; setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading))); sync(); return false; });
+      if (ctrl.current.token !== myToken) { s.moving = false; return false; }  // superseded by Reset/restart
       s.heading = h0 + ev.deg; s.moving = false;
       s.battery = Math.max(0, s.battery - Math.abs(ev.deg) * 0.004);
       sync();
@@ -461,16 +518,16 @@ rover.say("Survey done")`
         if (!cont) break;
       }
       if (ctrl.current.token !== myToken) return;  // superseded by a reset/restart/resume
-      // Only a user-pressed Pause should land here as 'paused': the loop stopped
-      // with the generator still live (genRef set) while the UI still reads
-      // 'running'. A finish/halt nulls genRef and has already set 'done'/'error',
-      // so the genRef guard stops a stale pump from resurrecting a dead run.
-      if (!ctrl.current.running && genRef.current && runStateRef.current === 'running') {
+      // The loop only exits with running=false. finish/halt null the generator
+      // (and already set 'done'/'error'); a Reset bumps the token (returned just
+      // above). So a still-live generator here means the user pressed Pause.
+      // Do NOT also gate on runStateRef === 'running': the 'running' commit can
+      // lag behind a fast Pause, which would drop the pause transition and then
+      // wedge the UI in a phantom 'running' with no pump driving it.
+      if (!ctrl.current.running && genRef.current) {
         setRunState('paused');
       }
     }
-    const runStateRef = useRef('idle');
-    useEffect(() => { runStateRef.current = runState; }, [runState]);
 
     function onRun() {
       // Pause: gate on the synchronous ref, not the (stale until re-render)
@@ -494,6 +551,12 @@ rover.say("Survey done")`
           pumpLoop(myToken);
         }, 50);
       } else if (runState === 'paused') {
+        // `runState` is a lagging closure: after a Reset/finish nulled the
+        // generator it can still read 'paused' for a frame. Only a live
+        // generator is actually resumable — resuming a null gen would spin a
+        // pump that exits instantly yet leaves running=true, wedging the UI in
+        // a phantom 'running'. genRef is the synchronous truth.
+        if (!genRef.current) return;
         if (ctrl.current.running || ctrl.current.advancing) return;  // already running / mid-step
         ctrl.current.token++;  // new pump epoch: orphan any prior pump
         const myToken = ctrl.current.token;
@@ -521,6 +584,7 @@ rover.say("Survey done")`
           advance(true);
         }, 50);
       } else if (runState === 'paused') {
+        if (!genRef.current) return;  // stale 'paused' after a Reset/finish: nothing to step
         ctrl.current.abort = false;
         advance(true);
       }

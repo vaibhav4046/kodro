@@ -144,7 +144,10 @@
     const out = [];
     for (let i = 0; i < stmts.length; i++) {
       const s = stmts[i];
-      if (s.body) linkConditionals.recurse(s);
+      // 'if' nodes carry `.branches` (not `.body`); recurse on either so a
+      // nested if/elif/else inside an if-body is linked too (else the inner
+      // 'else' survives to execution as an "Unknown statement").
+      if (s.body || s.branches) linkConditionals.recurse(s);
       if (s.kind === 'elif' || s.kind === 'else') {
         const prev = out[out.length - 1];
         if (!prev || (prev.kind !== 'if')) {
