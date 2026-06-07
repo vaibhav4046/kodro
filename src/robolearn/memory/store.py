@@ -100,36 +100,17 @@ class ConceptStrength:
     last_seen: int | None
 
 
-class _LockedConnection:
-    """Thin lock-guarding proxy around a sqlite3 connection.
-
-    ``check_same_thread=False`` lets the pywebview bridge thread reach the
-    connection; this lock serialises every statement so cross-thread calls
-    can't interleave. Unknown attributes pass straight through.
-    """
-
-    def __init__(self, conn: sqlite3.Connection, lock: threading.RLock) -> None:
-        self._conn = conn
-        self._lock = lock
-
-    def execute(self, *args: Any, **kwargs: Any) -> sqlite3.Cursor:
-        with self._lock:
-            return self._conn.execute(*args, **kwargs)
-
-    def executescript(self, *args: Any, **kwargs: Any) -> sqlite3.Cursor:
-        with self._lock:
-            return self._conn.executescript(*args, **kwargs)
-
-    def close(self) -> None:
-        with self._lock:
-            self._conn.close()
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._conn, name)
-
-
 class Store:
-    """SQLite-backed persistence layer."""
+    """SQLite-backed persistence layer.
+
+    The packaged desktop app opens the Store on the main thread but the
+    pywebview bridge services API calls on a *different* (pooled) thread.
+    Sharing one SQLite connection across threads is fragile (it raised
+    ``ProgrammingError`` and, with a lock, deadlocked on Windows/macOS), so
+    each thread gets its **own** connection to the same file via
+    :class:`threading.local`. SQLite handles file-level concurrency; an
+    in-memory database (tests only) keeps a single shared connection.
+    """
 
     def __init__(self, db_path: Path | str | None = None) -> None:
         """Open (or create) the SQLite file at ``db_path``.
@@ -143,21 +124,46 @@ class Store:
             path = db_path
         if isinstance(path, Path) and str(path) != ":memory:":
             path.parent.mkdir(parents=True, exist_ok=True)
-        # check_same_thread=False: the pywebview JS bridge dispatches API calls
-        # on a different (and sometimes pooled) thread from the one that opened
-        # the Store, so SQLite must allow cross-thread use. A lock serialises
-        # access so those calls can never interleave (sqlite3 is autocommit
-        # here). See _LockedConnection.
-        raw = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
-        raw.row_factory = sqlite3.Row
-        self._conn = _LockedConnection(raw, threading.RLock())
+        self._path = path
+        self._is_memory = str(path) == ":memory:"
+        self._closed = False
+        self._local = threading.local()
+        # An in-memory DB cannot be reopened per thread (each connection is a
+        # separate database), so keep one shared connection for that case.
+        self._memory_conn = self._new_connection() if self._is_memory else None
         self._conn.executescript(SCHEMA_SQL)
+
+    def _new_connection(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self._path, isolation_level=None, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    @property
+    def _conn(self) -> sqlite3.Connection:
+        """Return this thread's connection (opening one on first use)."""
+        if self._closed:
+            raise sqlite3.ProgrammingError("Cannot operate on a closed Store.")
+        if self._is_memory:
+            assert self._memory_conn is not None
+            return self._memory_conn
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = self._new_connection()
+            self._local.conn = conn
+        return conn
 
     # --- lifecycle ----------------------------------------------------------
 
     def close(self) -> None:
-        """Close the underlying SQLite connection."""
-        self._conn.close()
+        """Close this thread's connection (and the shared in-memory one)."""
+        self._closed = True
+        if self._memory_conn is not None:
+            self._memory_conn.close()
+            return
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            conn.close()
+            self._local.conn = None
 
     def __enter__(self) -> Store:
         """Return ``self`` so the store can be used as a context manager."""
