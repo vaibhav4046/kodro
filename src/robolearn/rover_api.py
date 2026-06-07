@@ -31,15 +31,21 @@ __all__ = (
     "beep",
     "collect_sample",
     "drop_sample",
+    "led",
     "log",
     "move_backward",
     "move_forward",
     "obstacle_ahead",
+    "pen_down",
+    "pen_up",
     "read_battery",
     "read_colour",
     "read_distance",
     "read_heading",
     "sample_detected",
+    "say",
+    "scan",
+    "set_speed",
     "turn_left",
     "turn_right",
     "wait",
@@ -270,3 +276,39 @@ def log(message: object) -> None:
         )
     logger.info("pupil-log: %s", text)
     _emit_event("log", (text,), None, kind="call")
+
+
+def say(message: object) -> None:
+    """Show a short speech bubble above the rover (a friendlier ``log``)."""
+    try:
+        text = message if isinstance(message, str) else str(message)
+    except Exception:
+        text = "<unprintable object>"
+    logger.debug("rover_api.say %s", text)
+    _emit_event("say", (text,), None, kind="call")
+
+
+def led(colour: str = "cyan") -> None:
+    """Light the rover's status LED a colour (visual cue only)."""
+    _emit_event("led", (str(colour),), None, kind="call")
+
+
+def scan() -> None:
+    """Sweep the surroundings with a radar ping (a visual flourish)."""
+    _emit_event("scan", (), None, kind="call")
+
+
+def set_speed(percent: float) -> None:
+    """Set the rover's drive speed as a percentage (clamped 0-100)."""
+    clamped = _clamp_finite(float(percent), 0.0, 100.0, name="percent")
+    _emit_event("set_speed", (clamped,), None, kind="call")
+
+
+def pen_down() -> None:
+    """Lower the trail pen so the rover draws its path."""
+    _emit_event("pen_down", (), None, kind="call")
+
+
+def pen_up() -> None:
+    """Lift the trail pen so the rover stops drawing."""
+    _emit_event("pen_up", (), None, kind="call")

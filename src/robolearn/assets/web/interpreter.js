@@ -50,9 +50,13 @@
   };
   const LESSON_SENSOR = {
     distance: 'distance', heading: 'heading', battery: 'battery',
-    gravity: 'gravity', temperature: 'temperature', ground: 'ground', light: 'light'
+    gravity: 'gravity', temperature: 'temperature', ground: 'ground', light: 'light',
+    // Python pupil-API sensor names (lessons use these) -> design sensors.
+    read_distance: 'distance', read_heading: 'heading', read_battery: 'battery',
+    read_colour: 'ground'
   };
   const OBSTACLE_AHEAD_CM = 40;
+  const AT_BASE_CM = 20;
 
   // =========================================================================
   // 1. LINE / BLOCK STRUCTURING (indentation -> nested statement lists)
@@ -224,8 +228,15 @@
         toks.push({ t: 'name', v: src.slice(i, j) }); i = j; continue;
       }
       if (/[0-9]/.test(c) || (c === '.' && /[0-9]/.test(src[i + 1]))) {
-        let j = i + 1; while (j < n && /[0-9.]/.test(src[j])) j++;
-        toks.push({ t: 'num', v: parseFloat(src.slice(i, j)) }); i = j; continue;
+        let j = i + 1;
+        while (j < n && /[0-9._]/.test(src[j])) j++;  // digits, '.', and 1_000 separators
+        // optional scientific-notation exponent: e / E [+/-] digits
+        if (j < n && (src[j] === 'e' || src[j] === 'E') && /[0-9+\-]/.test(src[j + 1] || '')) {
+          j++;
+          if (src[j] === '+' || src[j] === '-') j++;
+          while (j < n && /[0-9]/.test(src[j])) j++;
+        }
+        toks.push({ t: 'num', v: parseFloat(src.slice(i, j).replace(/_/g, '')) }); i = j; continue;
       }
       if (c === '"' || c === "'") {
         let j = i + 1, s = '';
@@ -357,6 +368,7 @@
   // =========================================================================
   const BREAK = { signal: 'break' };
   const CONTINUE = { signal: 'continue' };
+  const RETURN = { signal: 'return' };
 
   function makeBuiltins(host) {
     return {
@@ -461,7 +473,14 @@
               const d = host.sensor('distance', []);
               return typeof d === 'number' && d < OBSTACLE_AHEAD_CM;
             }
-            if (v in LESSON_MOTION || v === 'beep' || v === 'log' || v === 'collect_sample') {
+            if (v === 'sample_detected') return false;  // JS sim has no samples; Python grades them
+            if (v === 'at_base') {
+              const bx = host.sensor('x', []), by = host.sensor('y', []);
+              return typeof bx === 'number' && typeof by === 'number'
+                ? Math.hypot(bx, by) < AT_BASE_CM : true;
+            }
+            if (v in LESSON_MOTION || v === 'beep' || v === 'log'
+                || v === 'collect_sample' || v === 'drop_sample') {
               return null;  // an action used as a value -> None
             }
           }
@@ -533,7 +552,7 @@
               return;
             }
             case 'def': funcs[s.name] = s; yield { type: 'step', line: s.line }; return;
-            case 'return': return;
+            case 'return': throw RETURN;  // unwinds to the enclosing function call
             default: throw new RoverError('Unknown statement.', s.line);
           }
         }
@@ -557,7 +576,9 @@
             if (callee.k === 'name' && !(callee.v in scope) && !funcs[callee.v]) {
               const v = callee.v;
               if (v === 'move_forward' || v === 'move_backward') {
-                const metres = num(expr.args.length ? evalExpr(expr.args[0]) : 1, 1);
+                // Default to 1 m when omitted; motionEvent clamps the magnitude
+                // (incl. non-finite from e.g. `move_forward(10 ** 400)`).
+                const metres = expr.args.length ? evalExpr(expr.args[0]) : 1;
                 yield motionEvent(LESSON_MOTION[v], [metres * 100], line);  // m -> cm
                 return;
               }
@@ -566,7 +587,8 @@
               if (v === 'beep') { yield { type: 'print', line: line, text: 'beep' }; return; }
               if (v === 'log') { const a = expr.args.map(evalExpr); yield { type: 'print', line: line, text: a.map(pyStr).join(' ') }; return; }
               if (v === 'collect_sample') { yield { type: 'print', line: line, text: 'Sample collected.' }; return; }
-              if (v === 'obstacle_ahead') { yield { type: 'step', line: line }; return; }
+              if (v === 'drop_sample') { yield { type: 'print', line: line, text: 'Sample dropped.' }; return; }
+              if (v === 'obstacle_ahead' || v === 'sample_detected' || v === 'at_base') { yield { type: 'step', line: line }; return; }
             }
             // print(...)
             if (callee.k === 'name' && callee.v === 'print') {
@@ -581,7 +603,8 @@
               const saved = {};
               fn.params.forEach((pn, idx) => { saved[pn] = scope[pn]; scope[pn] = args[idx]; });
               yield { type: 'step', line: line };
-              yield* execBlock(fn.body);
+              try { yield* execBlock(fn.body); }
+              catch (e) { if (e !== RETURN) { fn.params.forEach(pn => { scope[pn] = saved[pn]; }); throw e; } }
               fn.params.forEach(pn => { scope[pn] = saved[pn]; });
               return;
             }
@@ -593,12 +616,12 @@
 
         function motionEvent(name, args, line) {
           switch (name) {
-            case 'forward': return { type: 'move', dir: 1, distance: clampNum(args[0], 100, 0, 4000), line: line };
-            case 'backward': return { type: 'move', dir: -1, distance: clampNum(args[0], 100, 0, 4000), line: line };
-            case 'turn_right': return { type: 'turn', deg: clampNum(args[0], 90, -3600, 3600), line: line };
-            case 'turn_left': return { type: 'turn', deg: -clampNum(args[0], 90, -3600, 3600), line: line };
-            case 'set_speed': return { type: 'speed', value: clampNum(args[0], 50, 0, 100), line: line };
-            case 'wait': case 'sleep': return { type: 'wait', seconds: clampNum(args[0], 1, 0, 10), line: line };
+            case 'forward': return { type: 'move', dir: 1, distance: clampNum(args[0], 0, 4000, 100), line: line };
+            case 'backward': return { type: 'move', dir: -1, distance: clampNum(args[0], 0, 4000, 100), line: line };
+            case 'turn_right': return { type: 'turn', deg: clampNum(args[0], -3600, 3600, 90), line: line };
+            case 'turn_left': return { type: 'turn', deg: -clampNum(args[0], -3600, 3600, 90), line: line };
+            case 'set_speed': return { type: 'speed', value: clampNum(args[0], 0, 100, 50), line: line };
+            case 'wait': case 'sleep': return { type: 'wait', seconds: clampNum(args[0], 0, 10, 1), line: line };
             case 'pen_down': return { type: 'pen', down: true, line: line };
             case 'pen_up': return { type: 'pen', down: false, line: line };
             case 'stop': return { type: 'halt', line: line };
@@ -614,10 +637,27 @@
     };
   }
 
-  function num(v, d) { const n = Number(v); return isFinite(n) ? n : d; }
-  // Clamp a numeric arg to a finite range so a pupil's huge/NaN value cannot
-  // freeze the animation (adversarial QA adv1: forward(1e308) -> dur Infinity).
-  function clampNum(v, d, lo, hi) { return Math.max(lo, Math.min(hi, num(v, d))); }
+  // Clamp a pupil-supplied magnitude into [lo, hi]. A *missing* argument
+  // (undefined) falls back to `dflt`; a *present* but non-finite value (NaN or
+  // +/-Infinity -- e.g. `forward(10 ** 400)`, the only inf a pupil can type
+  // since the tokenizer rejects `1e308`) maps to the lower bound `lo`. This
+  // mirrors the Python engine's rover_api._clamp_finite so the animated and
+  // graded paths agree, and guarantees a finite magnitude so the value can
+  // never overflow app.jsx's animation duration and soft-hang the UI.
+  function clampNum(v, lo, hi, dflt) {
+    const n = (v === undefined) ? dflt : Number(v);
+    if (!isFinite(n)) return lo;            // NaN / +/-Infinity -> lower bound
+    return Math.max(lo, Math.min(hi, n));
+  }
+  // Frame-loop progress guard shared with app.jsx animateMove/animateTurn:
+  // returns progress in [0, 1] for `elapsedMs` of a `durationMs` animation. A
+  // non-finite or non-positive duration completes immediately (1) so a frame
+  // loop can never wedge at p=0 forever (defence-in-depth behind clampNum).
+  function frameProgress(elapsedMs, durationMs) {
+    if (!(durationMs > 0) || !isFinite(durationMs)) return 1;
+    const p = elapsedMs / durationMs;
+    return p < 0 ? 0 : (p > 1 ? 1 : p);
+  }
   function describe(node) { return node.k === 'name' ? node.v : node.k; }
 
   function binop(op, l, r) {
@@ -652,6 +692,7 @@
     RoverError: RoverError,
     MOTION_METHODS: MOTION_METHODS,
     SENSOR_METHODS: SENSOR_METHODS,
-    pyStr: pyStr
+    pyStr: pyStr,
+    frameProgress: frameProgress
   };
 })();

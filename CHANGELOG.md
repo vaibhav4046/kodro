@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **JS↔Python API parity** (re-score round, 2.87→6.7): the in-browser
+  interpreter and the Python grader were two engines that didn't agree on
+  the lesson vocabulary. Now reconciled — `interpreter.js` also accepts the
+  Python sensor names (`read_distance`/`read_heading`/`read_battery`/
+  `read_colour`/`sample_detected`/`at_base`/`drop_sample`), and Python
+  `rover_api` gains the missing action verbs (`say`/`led`/`scan`/
+  `set_speed`/`pen_down`/`pen_up`). A new **conformance test**
+  (`test_web_lesson_parity`) runs every bundled lesson's starter through
+  *both* engines and fails on any unresolved verb.
+- **JS recursion was broken**: `return` only ended the current statement,
+  not the function, so a base case never stopped — `09_recursion` recursed
+  until the JS stack overflowed. `return` now unwinds to the enclosing call.
+- **Scientific-notation + `1_000` numeric literals** now tokenize in the
+  interpreter (`move_forward(1e3)` no longer throws `Expected ")"`).
+- **Stale lesson verdict** cleared on terrain switch (it was graded against
+  the lesson's own world).
 - **Web lessons were dead-on-arrival** (100-persona QA, #1 finding, avg 2.87/10):
   every lesson's starter code uses the bare verbs `move_forward()`,
   `turn_left()`, `obstacle_ahead()`, `collect_sample()`, `beep()`, `log()`,
