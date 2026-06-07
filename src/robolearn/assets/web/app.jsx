@@ -189,12 +189,14 @@ rover.say("Survey done")`
     // Lessons keep their OWN editable buffer so loading one never clobbers the
     // example tabs (autopilot.py etc.); the editor shows it while a lesson is
     // active (QA re-score rank 11).
-    const [lessonCode, setLessonCode] = useState('');
+    const [lessonBuffers, setLessonBuffers] = useState({});  // per-lesson editable code
     const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
     // The editor's current source: a lesson's own buffer when one is loaded,
     // otherwise the active example tab. (Declared AFTER the state above to
     // avoid a temporal-dead-zone ReferenceError.)
-    const code = currentLessonId ? lessonCode : programs[activeTab];
+    const code = currentLessonId
+      ? (lessonBuffers[currentLessonId] !== undefined ? lessonBuffers[currentLessonId] : '')
+      : programs[activeTab];
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     useEffect(() => {
@@ -211,7 +213,9 @@ rover.say("Survey done")`
       if (!lesson) return;
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
-      setLessonCode(lesson.starterCode || '');  // own buffer, not the example tab
+      // Seed this lesson's buffer from its starter ONLY if it has no edits yet,
+      // so switching A -> B -> A preserves the pupil's work in A (rank 6).
+      setLessonBuffers(b => b[lesson.id] !== undefined ? b : { ...b, [lesson.id]: lesson.starterCode || '' });
       setConsoleLines(l => [
         ...l,
         { type: 'sys', text: '─── ' + lesson.id + ' · ' + lesson.title + ' [' + lesson.keyStage + '] ───' },
@@ -632,7 +636,7 @@ rover.say("Survey done")`
     }
 
     function onCodeChange(v) {
-      if (currentLessonId) setLessonCode(v);            // edit the lesson buffer
+      if (currentLessonId) setLessonBuffers(b => ({ ...b, [currentLessonId]: v }));  // per-lesson buffer
       else setPrograms(p => ({ ...p, [activeTab]: v })); // edit the example tab
     }
 

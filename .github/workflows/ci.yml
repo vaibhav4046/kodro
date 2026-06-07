@@ -26,6 +26,13 @@ jobs:
     env:
       SDL_VIDEODRIVER: dummy
       PYTHONIOENCODING: utf-8
+      # The JS<->Python lesson-parity test (test_web_lesson_parity.py) skips
+      # its JS half when Node is off PATH. The runner images ship Node today,
+      # but that is incidental -- if a future image drops it, the JS half would
+      # skip silently and a verb desync could land green. setup-node below
+      # pins Node so it is always present; this flag makes the parity test FAIL
+      # (not skip) if it ever isn't, so the guarantee can never erode silently.
+      ROBOLEARN_REQUIRE_NODE: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,6 +43,11 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: pyproject.toml
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
       - name: Install xvfb (Linux only)
         if: runner.os == 'Linux'

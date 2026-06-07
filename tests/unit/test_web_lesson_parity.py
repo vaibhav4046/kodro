@@ -11,6 +11,7 @@ error -- i.e. every API verb a real lesson uses exists on both sides.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -24,6 +25,11 @@ ROOT = Path(__file__).resolve().parents[2]
 INTERP = ROOT / "src" / "robolearn" / "assets" / "web" / "interpreter.js"
 FIXTURE = ROOT / "tests" / "fixtures" / "run_interp.cjs"
 _NODE = shutil.which("node")
+# CI sets ROBOLEARN_REQUIRE_NODE=1 so a missing Node is a hard failure, not a
+# silent skip: the JS half of the conformance suite must run wherever the build
+# is gated, or a JS-vs-Python verb desync could land unnoticed. Local dev
+# without Node still skips cleanly.
+_REQUIRE_NODE = os.environ.get("ROBOLEARN_REQUIRE_NODE") == "1"
 
 _LESSONS = list(load_library())
 
@@ -53,7 +59,7 @@ def test_starter_has_no_name_error_in_python(lesson) -> None:  # type: ignore[no
 _JS_NAME_OR_PARSE = ("not defined", "Expected", "Unexpected", "has no method", "not callable")
 
 
-@pytest.mark.skipif(_NODE is None, reason="Node.js not available")
+@pytest.mark.skipif(_NODE is None and not _REQUIRE_NODE, reason="Node.js not available")
 @pytest.mark.parametrize("lesson", _LESSONS, ids=[lesson.id for lesson in _LESSONS])
 def test_starter_has_no_name_error_in_js(lesson) -> None:  # type: ignore[no-untyped-def]
     """No lesson verb is undefined / mis-parsed in the in-browser JS interpreter.
@@ -61,6 +67,10 @@ def test_starter_has_no_name_error_in_js(lesson) -> None:  # type: ignore[no-unt
     As with Python, sensor loops may hit the step cap without a world; that is
     fine. We fail only on a name/parse error (a verb the JS engine lacks).
     """
+    if _NODE is None:
+        # Only reachable when ROBOLEARN_REQUIRE_NODE=1 (CI): the skipif above
+        # no longer fired, so a missing Node must fail loudly rather than skip.
+        pytest.fail("ROBOLEARN_REQUIRE_NODE=1 but Node.js is not on PATH: the JS parity half cannot run")
     proc = subprocess.run(
         [str(_NODE), str(FIXTURE), str(INTERP)],
         input=lesson.starter_code,
