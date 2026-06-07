@@ -596,3 +596,17 @@ body.a11y-readable .cline { font-size: 14px; }
 body.a11y-readable .lesson-intro,
 body.a11y-readable .lesson-title { font-size: 14px; }
 body.a11y-readable .api-hint { font-size: 12px !important; }
+
+/* Lesson reading-age chip + plain-English glossary (KS1/KS2 scaffolding). */
+.lesson-age {
+  font-family:var(--font-mono); font-size:9px; letter-spacing:0.08em;
+  color:var(--void); background:var(--brass); padding:2px 6px; border-radius:3px;
+}
+.lesson-glossary { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
+.lesson-glossary .gloss-item { display:flex; gap:8px; align-items:baseline; }
+.lesson-glossary dt {
+  font-weight:700; color:var(--cyan); font-size:12px; min-width:74px; flex:none;
+  font-family:var(--font-mono);
+}
+.lesson-glossary dd { margin:0; color:var(--fg-2); font-size:12px; line-height:1.5; }
+.pupil-pick { display:flex; align-items:center; }

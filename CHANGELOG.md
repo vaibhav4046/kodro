@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KS1/KS2 onboarding lessons + reading scaffolding** — three new
+  age-appropriate lessons (`00_first_drive` KS1 age 6, `00b_repeat_square`
+  KS2 age 9, `00c_look_first` KS2 age 10) in plain language, extending the
+  curriculum below the KS3/KS4 core. The lesson schema gains optional
+  `reading_age` and a plain-English `glossary` ({term: definition}); the web
+  lesson card shows an "Age N+" chip and an inline glossary so jargon
+  (loop, sensor, obstacle) is always explained. `KeyStage` now allows
+  KS1/KS2. Library is 18 lessons; both engines run all of them (conformance).
+- **Multi-pupil accounts** — see above; bridge list/create/select/rename +
+  a "Pupil" picker so shared machines keep each pupil's progress separate.
 - **Autopilot demo** — a flagship "self-driving rover" example (now the
   default program in the web UI): it reads its lidar, probes left/right when
   a boulder looms, steers toward the clearer side, and finishes with a survey

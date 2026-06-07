@@ -826,6 +826,7 @@ rover.say("Survey done")`
                     <div className="lesson-card-head">
                       <span className="lesson-badge">{lesson.keyStage}</span>
                       <span className="lesson-title">{lesson.id} · {lesson.title}</span>
+                      {lesson.readingAge ? <span className="lesson-age" title="Reading age">Age {lesson.readingAge}+</span> : null}
                       {lessonVerdict && (
                         <span className={'lesson-verdict ' + (lessonVerdict.passed ? 'pass' : 'fail')}>
                           {lessonVerdict.passed ? '✓ Complete' : '✗ Not yet'} · {lessonVerdict.score}/100
@@ -833,6 +834,15 @@ rover.say("Survey done")`
                       )}
                     </div>
                     {lesson.intro ? <p className="lesson-intro">{lesson.intro.trim()}</p> : null}
+                    {lesson.glossary && Object.keys(lesson.glossary).length > 0 && (
+                      <dl className="lesson-glossary">
+                        {Object.keys(lesson.glossary).map(term => (
+                          <div key={term} className="gloss-item">
+                            <dt>{term}</dt><dd>{lesson.glossary[term]}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
                     {lessonVerdict && !lessonVerdict.passed && lessonVerdict.reasons.length > 0 && (
                       <ul className="lesson-reasons">
                         {lessonVerdict.reasons.map((r, i) => <li key={i}>{r}</li>)}
