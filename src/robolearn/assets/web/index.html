@@ -10,6 +10,8 @@
     @keyframes dust { 0%{transform:translate(0,0);opacity:0;} 10%{opacity:0.8;} 90%{opacity:0.8;} 100%{transform:translate(var(--drift),-60px);opacity:0;} }
     @keyframes bub { 0%{transform:translateY(0) translateX(0);opacity:0;} 8%{opacity:0.7;} 92%{opacity:0.7;} 100%{transform:translateY(-105vh) translateX(var(--drift));opacity:0;} }
     @keyframes twk { 0%,100%{opacity:0.25;} 50%{opacity:1;} }
+    /* boot skeleton pulse (used by the inline offline safety net below) */
+    @keyframes rlpulse { 0%,100%{opacity:0.35;} 50%{opacity:1;} }
     .radar-sweep { animation: radarspin 1s linear infinite; }
     @keyframes radarspin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
     .caustics {
@@ -24,31 +26,68 @@
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <!-- Inline boot skeleton. A successful React mount (createRoot.render)
+         clears #root and removes this node; if it is still here after a few
+         seconds the app never started, and the safety net below takes over. -->
+    <div id="rl-boot" aria-hidden="true"
+         style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+                background:#08090f;color:#8b93a7;font-family:system-ui,Segoe UI,Roboto,sans-serif;
+                font-size:15px;letter-spacing:0.4px">
+      <div style="animation:rlpulse 1.4s ease-in-out infinite">Initialising simulator...</div>
+    </div>
+  </div>
 
-  <!-- Crash safety net: if anything throws before/while React mounts (a JSX
-       runtime error, a corrupt vendored asset), paint a plain-HTML message
-       into #root instead of leaving a blank white window. -->
+  <!-- Offline boot safety net - must run BEFORE the vendored React/Babel scripts.
+       If any .jsx fails to compile, a vendored library is corrupt, or nothing
+       mounts within a few seconds, paint a plain-HTML message into #root instead
+       of leaving the pupil at a blank window. Dependency-free on purpose: it uses
+       no React, since React itself may be the thing that failed. -->
   <script>
     (function () {
-      function fallback(msg) {
+      var shown = false;
+      // The app has mounted once React has removed the boot skeleton from #root.
+      function booting() { return !!document.getElementById('rl-boot'); }
+      function fallback(detail) {
+        if (shown || !booting()) return;  // already painted, or app mounted fine
         var root = document.getElementById('root');
-        if (!root || root.getAttribute('data-mounted') === '1' || root.childElementCount > 0) return;
+        if (!root) return;
+        shown = true;
         root.innerHTML =
-          '<div role="alert" style="font-family:system-ui,Segoe UI,sans-serif;color:#f5f0e4;'
+          '<div role="alert" style="font-family:system-ui,Segoe UI,Roboto,sans-serif;color:#f5f0e4;'
           + 'background:#08090f;min-height:100vh;display:flex;align-items:center;justify-content:center;'
           + 'text-align:center;padding:40px;line-height:1.6">'
-          + '<div><h1 style="color:#5ce0d8;font-size:22px;margin-bottom:10px">RoboLearn could not start</h1>'
-          + '<p style="max-width:520px;color:#d9d3c4">Something went wrong loading the simulator. '
-          + 'Try reopening the app. If it keeps happening, the desktop fallback (python -m robolearn) '
-          + 'always works.</p>'
-          + '<pre style="margin-top:14px;color:#9a958a;font-size:12px;white-space:pre-wrap">' + msg + '</pre>'
+          + '<div style="max-width:520px">'
+          + '<h1 style="color:#5ce0d8;font-size:22px;margin:0 0 10px">The simulator failed to load</h1>'
+          + '<p style="margin:0 0 16px;color:#d9d3c4">Please reopen the app. If this keeps happening, '
+          + 'the application files may be incomplete.</p>'
+          + '<pre id="rl-boot-detail" style="margin:0;color:#9a958a;font-size:12px;text-align:left;'
+          + 'white-space:pre-wrap;word-break:break-word;max-height:160px;overflow:auto;background:#0e1018;'
+          + 'border:1px solid #1c2030;border-radius:6px;padding:10px 12px;display:none"></pre>'
           + '</div></div>';
+        // Insert the raw error via textContent (never innerHTML): a JSX
+        // SyntaxError message quotes the offending source, which may contain
+        // markup that would otherwise corrupt this fallback page.
+        if (detail) {
+          var pre = document.getElementById('rl-boot-detail');
+          if (pre) { pre.textContent = String(detail).slice(0, 600); pre.style.display = 'block'; }
+        }
       }
-      window.addEventListener('error', function (e) { fallback((e && e.message) || 'script error'); });
+      function messageOf(e) {
+        if (e && e.message) return e.message;
+        // Resource-load failures (a missing/corrupt <script>) expose the URL, not a message.
+        if (e && e.target && (e.target.src || e.target.href)) return 'Failed to load ' + (e.target.src || e.target.href);
+        return 'Script error';
+      }
+      // Capture phase (3rd arg true) also catches <script>/<link> load failures,
+      // which fire an error event that does not bubble to window.
+      window.addEventListener('error', function (e) { fallback(messageOf(e)); }, true);
       window.addEventListener('unhandledrejection', function (e) {
-        fallback((e && e.reason && (e.reason.message || e.reason)) || 'promise error');
+        var r = e && e.reason;
+        fallback((r && (r.message || r)) || 'Unhandled promise rejection');
       });
+      // Silent-failure backstop: nothing threw, but nothing mounted either.
+      setTimeout(function () { fallback('The interface did not start within the expected time.'); }, 4000);
     })();
   </script>
 
