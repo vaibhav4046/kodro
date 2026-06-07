@@ -287,7 +287,7 @@ class SimPanel(ttk.Frame):
                 f"pos ({st.x:.1f}, {st.y:.1f})   "
                 f"hdg {st.heading_deg:.0f}°   bat {st.battery_pct:.0f}%"
             ),
-            fill="#c9d1d9",
+            fill=orbital.PAPER,
             font=("TkFixedFont", 9),
         )
         if self._callbacks.on_frame is not None:
@@ -340,14 +340,14 @@ class SimPanel(ttk.Frame):
             rx + cone_len * math.cos(rad + spread),
             ry - cone_len * math.sin(rad + spread),
         ]
-        self._canvas.create_polygon(cone, fill="#1f6feb", outline="", stipple="gray25")
+        self._canvas.create_polygon(cone, fill=orbital.CYAN, outline="", stipple="gray25")
         # Body.
         self._canvas.create_oval(
             rx - body_r, ry - body_r, rx + body_r, ry + body_r, fill="#e8ecf1", outline=""
         )
         # Accent ring.
         self._canvas.create_oval(
-            rx - body_r, ry - body_r, rx + body_r, ry + body_r, outline="#58a6ff", width=3
+            rx - body_r, ry - body_r, rx + body_r, ry + body_r, outline=orbital.CYAN, width=3
         )
         # Heading nub.
         nub_x = rx + (body_r - 3) * math.cos(rad)
@@ -371,6 +371,6 @@ class SimPanel(ttk.Frame):
             self._size_px[0] // 2,
             self._size_px[1] // 2,
             text="Pick a lesson on the right and press Run.",
-            fill="#8b949e",
+            fill=orbital.FG_MUTED,
             font=("TkDefaultFont", 10),
         )

@@ -278,6 +278,9 @@ def build_app(
         command=lambda value: _set_speed(app, value),
     ).pack(side=tk.LEFT, padx=(0, 10), pady=6)
 
+    ttk.Separator(win.frames.topbar, orient=tk.VERTICAL).pack(
+        side=tk.LEFT, fill=tk.Y, padx=6, pady=10
+    )
     # At-a-glance progress: streak / lessons passed / last score. Updated
     # after every Run so the reward for finishing is always on screen.
     progress = ttk.Label(win.frames.topbar, text="", anchor=tk.W)
@@ -285,6 +288,9 @@ def build_app(
     app.progress_label = progress
     _refresh_progress(app)
 
+    ttk.Separator(win.frames.topbar, orient=tk.VERTICAL).pack(
+        side=tk.LEFT, fill=tk.Y, padx=6, pady=10
+    )
     # Accessibility controls: text scaling + high-contrast toggle.
     ttk.Button(
         win.frames.topbar, text="A-", width=3, command=lambda: _change_text_scale(app, larger=False)
