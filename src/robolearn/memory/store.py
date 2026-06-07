@@ -130,12 +130,26 @@ class Store:
         self._local = threading.local()
         # An in-memory DB cannot be reopened per thread (each connection is a
         # separate database), so keep one shared connection for that case.
-        self._memory_conn = self._new_connection() if self._is_memory else None
-        self._conn.executescript(SCHEMA_SQL)
+        if self._is_memory:
+            self._memory_conn: sqlite3.Connection | None = self._new_connection()
+            self._memory_conn.executescript(SCHEMA_SQL)
+        else:
+            self._memory_conn = None
+            # Apply the schema on a THROWAWAY connection and close it, so no
+            # connection lingers on the constructing thread holding a file
+            # lock -- a lingering writer made a worker thread's connection hang
+            # on Windows/macOS CI. Per-thread connections open lazily after.
+            init = self._new_connection()
+            try:
+                init.executescript(SCHEMA_SQL)
+            finally:
+                init.close()
 
     def _new_connection(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._path, isolation_level=None, check_same_thread=False)
         conn.row_factory = sqlite3.Row
+        # Never block forever on a locked database: wait up to 5s, then error.
+        conn.execute("PRAGMA busy_timeout = 5000")
         return conn
 
     @property
