@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Standalone desktop app** — the web UI now packages into a single
+  double-clickable `RoboLearn.exe` (PyInstaller spec `robolearn-web.spec`)
+  that bundles pywebview, the engine and the vendored design; no Python
+  install required. Verified launching + rendering the full UI.
+- **Offline sound design** — `sound.js` synthesises every cue with the Web
+  Audio API (no audio files): drive/turn/scan/LED/speech, a pass arpeggio,
+  a fail cadence and a crash burst, with a persisted "🔊 Sound" toggle.
+- **Celebration confetti** on a lesson pass (honours `prefers-reduced-motion`).
 - **KS1/KS2 onboarding lessons + reading scaffolding** — three new
   age-appropriate lessons (`00_first_drive` KS1 age 6, `00b_repeat_square`
   KS2 age 9, `00c_look_first` KS2 age 10) in plain language, extending the
