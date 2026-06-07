@@ -192,6 +192,12 @@ rover.say("Survey done")`
     // active (QA re-score rank 11).
     const [lessonCode, setLessonCode] = useState('');
     const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
+    // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
+    const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
+    useEffect(() => {
+      document.body.classList.toggle('a11y-readable', readable);
+      try { localStorage.setItem('or_readable', readable ? '1' : '0'); } catch (e) { void e; }
+    }, [readable]);
     const currentLessonIdRef = useRef(null);
     useEffect(() => { currentLessonIdRef.current = currentLessonId; }, [currentLessonId]);
     useEffect(() => {
@@ -806,6 +812,7 @@ rover.say("Survey done")`
               <div className="console-head">
                 <span className="eyebrow">Console</span>
                 <div className="ph-spacer" style={{ flex: 1 }}></div>
+                <button className="btn-mini" aria-pressed={readable} title="Dyslexia-friendly / larger text" onClick={() => setReadable(v => !v)}>Aa Readable</button>
                 <button className="btn-mini" onClick={exportReportClick}>Export report</button>
                 <button className="btn-mini" onClick={() => setConsoleLines([{ type: 'sys', text: 'Console cleared.' }])}>Clear</button>
               </div>
