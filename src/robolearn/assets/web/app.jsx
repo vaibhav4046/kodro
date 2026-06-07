@@ -169,7 +169,10 @@ rover.say("Survey done")`
       }
     }
 
-    const ctrl = useRef({ running: false, abort: false });
+    // `token` is a monotonic run id: every reset/start bumps it, so a stale
+    // pump loop or a pending start setTimeout that fires after a Reset is
+    // ignored (fixes the Run/Step/Reset mash races, QA adv5).
+    const ctrl = useRef({ running: false, abort: false, token: 0 });
     const genRef = useRef(null);
     const sayTimer = useRef(null);
 
@@ -281,6 +284,9 @@ rover.say("Survey done")`
       s.moving = true;
       // new trail segment if pen down
       if (s.penDown) { trailRef.current.push([{ x: x0, y: y0 }]); setTrail([...trailRef.current]); }
+      // Battery drains smoothly across the move (was a no-op: subtracted 0).
+      const b0 = s.battery;
+      const drainFull = total * 0.011 / terrain.traction;
       let crashed = false;
       await frames(dur, (p) => {
         const nx = x0 + dirx * total * p;
@@ -291,15 +297,16 @@ rover.say("Survey done")`
           return true; // stop frame loop, keep last safe pos
         }
         s.x = nx; s.y = ny;
-        s.battery = Math.max(0, s.battery - (Math.abs(total * (p)) > 0 ? 0 : 0));
+        s.battery = Math.max(0, b0 - drainFull * p);
         pushTrailPoint();
         setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading)));
         sync();
         return false;
       });
-      // battery drain by distance actually travelled
+      // Settle battery on the distance actually travelled (handles a crash
+      // that stopped the move early), relative to the pre-move level b0.
       const travelled = Math.hypot(s.x - x0, s.y - y0);
-      s.battery = Math.max(0, s.battery - travelled * 0.011 / terrain.traction);
+      s.battery = Math.max(0, b0 - travelled * 0.011 / terrain.traction);
       odoRef.current += travelled; setOdo(odoRef.current);
       s.moving = false; sync();
       if (crashed) {
@@ -406,6 +413,7 @@ rover.say("Survey done")`
     function resetRover(clearConsole) {
       ctrl.current.abort = true;
       ctrl.current.running = false;
+      ctrl.current.token++;  // invalidate any in-flight pump / pending start
       live.current = startState();
       trailRef.current = []; setTrail([]);
       odoRef.current = 0; setOdo(0);
@@ -418,11 +426,12 @@ rover.say("Survey done")`
       if (clearConsole) setConsoleLines([{ type: 'sys', text: 'Reset. Rover at origin.' }]);
     }
 
-    async function pumpLoop() {
-      while (ctrl.current.running) {
+    async function pumpLoop(myToken) {
+      while (ctrl.current.running && ctrl.current.token === myToken) {
         const cont = await advance(false);
         if (!cont) break;
       }
+      if (ctrl.current.token !== myToken) return;  // superseded by a reset/restart
       if (ctrl.current.running === false && runStateRef.current === 'running') {
         // graceful pause (Pause pressed)
         if (genRef.current) setRunState('paused');
@@ -439,18 +448,20 @@ rover.say("Survey done")`
       // start fresh or resume
       if (runState === 'idle' || runState === 'done' || runState === 'error') {
         resetRover(false);
+        const myToken = ctrl.current.token;  // captured after reset's bump
         // reset clears abort after 30ms; compile after
         setTimeout(() => {
+          if (ctrl.current.token !== myToken) return;  // a Reset landed first
           if (!compileFresh()) return;
           ctrl.current.abort = false; ctrl.current.running = true;
           setRunState('running');
           addConsole('Deployed on ' + terrain.name + '.', 'sys');
-          pumpLoop();
+          pumpLoop(myToken);
         }, 50);
       } else if (runState === 'paused') {
         ctrl.current.abort = false; ctrl.current.running = true;
         setRunState('running');
-        pumpLoop();
+        pumpLoop(ctrl.current.token);
       }
     }
 
@@ -458,7 +469,9 @@ rover.say("Survey done")`
       if (runState === 'running') { ctrl.current.running = false; return; }
       if (runState === 'idle' || runState === 'done' || runState === 'error') {
         resetRover(false);
+        const myToken = ctrl.current.token;
         setTimeout(() => {
+          if (ctrl.current.token !== myToken) return;
           if (!compileFresh()) return;
           ctrl.current.abort = false;
           setRunState('paused');
@@ -575,8 +588,8 @@ rover.say("Survey done")`
             <span className="num" style={{ fontSize: 11, color: 'var(--fg-2)', width: 30 }}>{speedMul.toFixed(1)}×</span>
           </div>
           <div className="bar-spacer"></div>
-          <div className="bar-status">
-            <span className={'status-dot ' + runState}></span>
+          <div className="bar-status" role="status" aria-live="polite" aria-label={'Status: ' + statusLabel}>
+            <span className={'status-dot ' + runState} aria-hidden="true"></span>
             <span>{statusLabel}</span>
           </div>
         </div>
