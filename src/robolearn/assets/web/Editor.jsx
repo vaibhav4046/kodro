@@ -94,6 +94,9 @@
     const lines = code.split('\n');
 
     function handleKey(e) {
+      // Escape releases the textarea so keyboard-only users are never trapped
+      // by Tab-inserts-spaces (WCAG 2.1.2 No Keyboard Trap).
+      if (e.key === 'Escape') { e.target.blur(); return; }
       if (e.key === 'Tab') {
         e.preventDefault();
         const ta = e.target;
@@ -124,6 +127,8 @@
               value={code}
               spellCheck={false}
               readOnly={readOnly}
+              aria-label="Python code editor. Press Tab to indent, Escape to move focus out."
+              aria-multiline="true"
               onChange={e => onChange(e.target.value)}
               onKeyDown={handleKey}
               style={{ minWidth: 'max-content' }}
