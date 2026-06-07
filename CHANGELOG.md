@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Web lessons were dead-on-arrival** (100-persona QA, #1 finding, avg 2.87/10):
+  every lesson's starter code uses the bare verbs `move_forward()`,
+  `turn_left()`, `obstacle_ahead()`, `collect_sample()`, `beep()`, `log()`,
+  but the design's `interpreter.js` only knew `rover.forward()`, so loading
+  any lesson and pressing Run threw `Name "..." is not defined` on line 1.
+  `interpreter.js` now speaks the full RoboLearn lesson API (bare verbs +
+  sensors), scaling `move_forward`/`move_backward` metres→cm so on-screen
+  motion matches what the Python grader scores. The design's `rover.*` API
+  still works. Contract-tested through Node (`test_web_interpreter`).
+- **Adversarial: huge motion magnitudes froze the rover** (QA adv1):
+  `move_forward(99999999)` overflowed the animation; magnitudes are now
+  clamped (distance ≤ 40 m, turn ≤ 3600°, speed 0–100, wait 0–10 s).
+
 ### Added
 - **NEW web UI** (`python -m robolearn.web`) — the actual Claude Design
   rover-simulator React/CSS prototype is now vendored under

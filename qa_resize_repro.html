@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+* { box-sizing:border-box; margin:0; padding:0; }
+html,body { height:100%; }
+body { overflow:hidden; font-family:monospace; }
+.app { display:grid; grid-template-rows:56px 1fr; height:100vh; }
+.missionbar { display:flex; align-items:center; gap:20px; padding:0 18px; background:#161a2d; }
+.workspace { display:grid; min-height:0; background:#08090f; }
+/* exact rule injected by app.jsx line 691 */
+.workspace { grid-template-columns:var(--editor-w) 5px 1fr 5px var(--tele-w); }
+.panel { min-width:0; min-height:0; display:flex; flex-direction:column; }
+.editor-panel { border-right:0.5px solid #fff3; background:#0f1220; }
+.view-panel { background:#000; position:relative; overflow:hidden; }
+.tele-panel { background:#0f1220; border-left:0.5px solid #fff3; }
+.resizer { width:5px; background:#333; }
+.tele-section { padding:14px; }
+.gauges { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.gauge { background:#08090f; border:0.5px solid #fff3; border-radius:6px; padding:11px 12px; }
+.terrain-switch { position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; gap:3px; padding:4px; }
+.terrain-btn { padding:7px 13px; white-space:nowrap; }
+</style></head>
+<body>
+<div class="app">
+  <div class="missionbar">MISSION BAR — Run Step Reset — Sim speed</div>
+  <main class="workspace" id="ws">
+    <div class="panel" style="grid-column:1"><div class="editor-panel" style="flex:1">EDITOR</div></div>
+    <div class="resizer" style="grid-column:2"></div>
+    <div class="panel view-panel" style="grid-column:3">
+      <div class="terrain-switch"><button class="terrain-btn">EARTH</button><button class="terrain-btn">MARS</button><button class="terrain-btn">UNDERWATER</button><button class="terrain-btn">SPACE</button></div>
+      VIEWPORT
+    </div>
+    <div class="resizer" style="grid-column:4"></div>
+    <div class="panel tele-panel" style="grid-column:5" id="tele">
+      <div class="tele-section"><div class="gauges"><div class="gauge">Grav</div><div class="gauge">Temp</div><div class="gauge">Pres</div><div class="gauge">Light</div></div></div>
+    </div>
+  </main>
+</div>
+<script>
+function setW(editorW, teleW){
+  const ws = document.getElementById('ws');
+  ws.style.setProperty('--editor-w', editorW+'px');
+  ws.style.setProperty('--tele-w', teleW+'px');
+}
+function report(label){
+  const ws = document.getElementById('ws');
+  const tele = document.getElementById('tele');
+  const view = document.querySelector('.view-panel');
+  const sw = document.querySelector('.terrain-switch');
+  const vp = view.getBoundingClientRect();
+  const tr = tele.getBoundingClientRect();
+  const swr = sw.getBoundingClientRect();
+  return {
+    label,
+    win: [window.innerWidth, window.innerHeight],
+    docScrollW: document.documentElement.scrollWidth,
+    bodyScrollW: document.body.scrollWidth,
+    horizOverflow: document.documentElement.scrollWidth - window.innerWidth,
+    viewW: Math.round(vp.width),
+    teleW: Math.round(tr.width),
+    teleRight: Math.round(tr.right),
+    teleClipped: Math.round(tr.right) - window.innerWidth, // >0 => telemetry pushed off right edge
+    switchW: Math.round(swr.width),
+    switchOverflowsViewport: Math.round(swr.width) - Math.round(vp.width), // >0 => terrain switch wider than its column
+  };
+}
+window.__setW = setW;
+window.__report = report;
+</script>
+</body></html>
