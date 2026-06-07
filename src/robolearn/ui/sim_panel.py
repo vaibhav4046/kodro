@@ -45,6 +45,45 @@ def _rgb_to_hex(rgb: tuple[int, int, int]) -> str:
     return f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
 
 
+#: Fraction of the viewport height given to the sky (above the horizon).
+_HORIZON_FRAC: float = 0.16
+
+#: How far the far edge of the floor is squeezed toward the centre (0..1).
+_FAR_SQUEEZE: float = 0.42
+
+
+class _PerspectiveView:
+    """Wrap a flat :class:`renderer.ViewTransform` into a tilted 3-D floor.
+
+    The design's hero viewport is a 3-D diorama. tk.Canvas has no real 3-D,
+    so we fake it: take the flat top-down ``(sx, sy)`` and project it onto a
+    receding ground plane — rows higher up the screen sit nearer the horizon
+    and squeeze toward the centre, so straight world lines converge. Because
+    every element (grid, trail, rover, obstacles) draws through
+    ``view.to_screen``, wrapping the view tilts the whole scene at once.
+    """
+
+    def __init__(self, flat: renderer.ViewTransform, w: int, h: int) -> None:
+        """Build the perspective wrapper around ``flat`` for a ``w``x``h`` canvas."""
+        self._flat = flat
+        self._w = w
+        self._h = h
+        self._horizon = h * _HORIZON_FRAC
+        self.scale_x = getattr(flat, "scale_x", 1.0) * 0.72
+        self.scale_y = getattr(flat, "scale_y", 1.0)
+
+    def to_screen(self, wx: float, wy: float) -> tuple[float, float]:
+        """Project a world point onto the tilted floor."""
+        sx, sy = self._flat.to_screen(wx, wy)
+        floor = self._h - self._horizon
+        py = self._horizon + floor * (sy / self._h)
+        depth = (py - self._horizon) / max(1.0, floor)  # 0 far .. 1 near
+        scale = _FAR_SQUEEZE + (1.0 - _FAR_SQUEEZE) * depth
+        cx = self._w / 2
+        px = cx + (sx - cx) * scale
+        return (px, py)
+
+
 class SimPanel(ttk.Frame):
     """A Tk widget that paints the engine world onto a :class:`tk.Canvas`."""
 
@@ -78,9 +117,21 @@ class SimPanel(ttk.Frame):
         self._particles: ParticleSystem | None = None
         self._celebrating = False
         self._trail: list[tuple[float, float]] = []
+        self._perspective = True  # 3-D diorama by default (the design's hero)
         self._draw_blank()
 
     # --- public API ---------------------------------------------------------
+
+    def set_perspective(self, enabled: bool) -> None:
+        """Toggle the 3-D perspective floor (vs a flat top-down view)."""
+        self._perspective = bool(enabled)
+        if self._world is not None:
+            self.render_once()
+
+    @property
+    def is_perspective(self) -> bool:
+        """Whether the 3-D perspective floor is active (used by tests)."""
+        return self._perspective
 
     @property
     def surface(self) -> pygame.Surface:
@@ -145,14 +196,32 @@ class SimPanel(ttk.Frame):
 
         self._canvas.delete("all")
         self._celebrating = False  # any celebration overlay is now cleared
-        view = renderer.transform_for(self._surface, self._world)
         w = self._canvas.winfo_reqwidth() or self._size_px[0]
         h = self._canvas.winfo_reqheight() or self._size_px[1]
+        flat = renderer.transform_for(self._surface, self._world)
+        view: renderer.ViewTransform | _PerspectiveView = (
+            _PerspectiveView(flat, w, h) if self._perspective else flat
+        )
         base_colour = TERRAIN_COLOURS[self._world.terrain]
-        # 1) terrain gradient background (darker top -> base colour bottom).
-        top = premium.lerp_colour(base_colour, (10, 12, 18), 0.55)
-        premium.draw_vertical_gradient(self._canvas, 0, 0, w, h, top, base_colour, bands=40)
-        # 1b) faint metre grid.
+        # 1) backdrop: a sky band + receding ground split by a horizon when in
+        #    3-D, or a single flat gradient in top-down mode.
+        if self._perspective:
+            horizon_y = round(h * _HORIZON_FRAC)
+            sky_haze = premium.lerp_colour(base_colour, (22, 26, 38), 0.55)
+            premium.draw_vertical_gradient(
+                self._canvas, 0, 0, w, horizon_y, (8, 9, 15), sky_haze, bands=24
+            )
+            ground_top = premium.lerp_colour(base_colour, (255, 255, 255), 0.10)
+            premium.draw_vertical_gradient(
+                self._canvas, 0, horizon_y, w, h, ground_top, base_colour, bands=40
+            )
+            self._canvas.create_line(
+                0, horizon_y, w, horizon_y, fill=_rgb_to_hex(sky_haze), width=2
+            )
+        else:
+            top = premium.lerp_colour(base_colour, (10, 12, 18), 0.55)
+            premium.draw_vertical_gradient(self._canvas, 0, 0, w, h, top, base_colour, bands=40)
+        # 1b) faint metre grid (receding into the horizon in 3-D).
         self._draw_grid(view, w, h)
         # 1c) rover pen trail (Orbital Rover cyan), recorded as it drives.
         pos = (self._rover.state.x, self._rover.state.y)
@@ -224,25 +293,27 @@ class SimPanel(ttk.Frame):
         if self._callbacks.on_frame is not None:
             self._callbacks.on_frame()
 
-    def _draw_grid(self, view: renderer.ViewTransform, w: int, h: int) -> None:
-        """Draw a faint metre grid for depth."""
+    def _draw_grid(self, view: renderer.ViewTransform | _PerspectiveView, w: int, h: int) -> None:
+        """Draw a metre grid via ``view`` so it recedes in 3-D / squares in 2-D."""
         if self._world is None:
             return
-        scale_x = w / max(0.1, self._world.bounds.width)
-        scale_y = h / max(0.1, self._world.bounds.height)
+        bw = self._world.bounds.width
+        bh = self._world.bounds.height
         step = 1.0
         x = 0.0
-        while x <= self._world.bounds.width + 1e-9:
-            sx = round(x * scale_x)
-            self._canvas.create_line(sx, 0, sx, h, fill="#ffffff", width=1, stipple="gray12")
+        while x <= bw + 1e-9:
+            x0, y0 = view.to_screen(x, 0.0)
+            x1, y1 = view.to_screen(x, bh)
+            self._canvas.create_line(x0, y0, x1, y1, fill="#ffffff", width=1, stipple="gray12")
             x += step
         y = 0.0
-        while y <= self._world.bounds.height + 1e-9:
-            sy = round(h - y * scale_y)
-            self._canvas.create_line(0, sy, w, sy, fill="#ffffff", width=1, stipple="gray12")
+        while y <= bh + 1e-9:
+            x0, y0 = view.to_screen(0.0, y)
+            x1, y1 = view.to_screen(bw, y)
+            self._canvas.create_line(x0, y0, x1, y1, fill="#ffffff", width=1, stipple="gray12")
             y += step
 
-    def _draw_rover(self, view: renderer.ViewTransform) -> None:
+    def _draw_rover(self, view: renderer.ViewTransform | _PerspectiveView) -> None:
         """Draw a premium rover: shadow, gradient body, accent ring, cone."""
         if self._rover is None:
             return

@@ -67,6 +67,19 @@ def test_pen_trail_records_then_clears_on_new_world(panel: SimPanel) -> None:
     assert len(panel.trail) == 1
 
 
+def test_perspective_toggle_renders_both_modes(panel: SimPanel) -> None:
+    world = _world()
+    rover = Rover(world)
+    panel.set_world(world, rover)
+    assert panel.is_perspective is True
+    assert len(panel._canvas.find_all()) > 10  # type: ignore[attr-defined]
+    panel.set_perspective(False)
+    assert panel.is_perspective is False
+    assert len(panel._canvas.find_all()) > 10  # type: ignore[attr-defined]  # flat still draws
+    panel.set_perspective(True)
+    assert panel.is_perspective is True
+
+
 def test_celebrate_overlay_paints_and_clears(panel: SimPanel) -> None:
     rover = Rover(_world())
     panel.set_world(_world(), rover)
