@@ -344,7 +344,13 @@ rover.say("Survey done")`
         // Respect prefers-reduced-motion: snap straight to the final position
         // (p=1) with no interpolation, so the rover teleports rather than
         // animating (WCAG 2.3.3, vestibular safety).
-        if (PREFERS_REDUCED_MOTION()) { onFrame(1); resolve('done'); return; }
+        if (PREFERS_REDUCED_MOTION()) {
+          // Snap with NO animation, but still sample the swept path so a
+          // boulder/wall mid-route halts the rover instead of being tunnelled
+          // through (the collision check lives in onFrame). QA rank 4.
+          for (const p of [0.25, 0.5, 0.75, 1]) { if (onFrame(p)) break; }
+          resolve('done'); return;
+        }
         const start = performance.now();
         const tick = () => {
           if (ctrl.current.abort) { resolve('abort'); return; }

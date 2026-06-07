@@ -698,11 +698,23 @@
     }
     throw new RoverError('Unknown operator "' + op + '".');
   }
+  // Python-style equality: True==1 / False==0 and element-wise list/tuple
+  // compare, so the in-browser branch matches what the Python grader scores.
+  function pyEqual(a, b) {
+    if (typeof a === 'boolean') a = a ? 1 : 0;
+    if (typeof b === 'boolean') b = b ? 1 : 0;
+    if (Array.isArray(a) && Array.isArray(b)) {
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (!pyEqual(a[i], b[i])) return false;
+      return true;
+    }
+    return a === b;
+  }
   function compare(op, l, r) {
     switch (op) {
       case '<': return l < r; case '>': return l > r;
       case '<=': return l <= r; case '>=': return l >= r;
-      case '==': return l === r; case '!=': return l !== r;
+      case '==': return pyEqual(l, r); case '!=': return !pyEqual(l, r);
     }
     return false;
   }
