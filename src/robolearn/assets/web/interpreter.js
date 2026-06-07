@@ -36,6 +36,24 @@
     temperature: 1, x: 1, y: 1, ground: 1, light: 1, gravity: 1
   };
 
+  // RoboLearn lesson API (bare verbs used by every lesson YAML) mapped onto
+  // the design's motion/sensor handlers, so lesson starter code RUNS on
+  // screen and matches what the Python grader scores. move_forward/backward
+  // take METRES (the lesson + grader unit); the design world is in cm, so we
+  // scale x100 below. Everything else shares units (degrees, 0-100 speed).
+  const LESSON_MOTION = {
+    move_forward: 'forward', move_backward: 'backward',
+    turn_left: 'turn_left', turn_right: 'turn_right',
+    set_speed: 'set_speed', pen_down: 'pen_down', pen_up: 'pen_up',
+    wait: 'wait', sleep: 'sleep', stop: 'stop',
+    scan: 'scan', led: 'led', say: 'say'
+  };
+  const LESSON_SENSOR = {
+    distance: 'distance', heading: 'heading', battery: 'battery',
+    gravity: 'gravity', temperature: 'temperature', ground: 'ground', light: 'light'
+  };
+  const OBSTACLE_AHEAD_CM = 40;
+
   // =========================================================================
   // 1. LINE / BLOCK STRUCTURING (indentation -> nested statement lists)
   // =========================================================================
@@ -434,6 +452,19 @@
             }
             throw new RoverError('rover has no method "' + name + '".', curLine);
           }
+          // Bare-verb RoboLearn sensor functions used in an expression, e.g.
+          // `if obstacle_ahead():` or `d = distance()`.
+          if (callee.k === 'name' && !(callee.v in scope) && !funcs[callee.v]) {
+            const v = callee.v;
+            if (v in LESSON_SENSOR) return host.sensor(LESSON_SENSOR[v], node.args.map(evalExpr));
+            if (v === 'obstacle_ahead') {
+              const d = host.sensor('distance', []);
+              return typeof d === 'number' && d < OBSTACLE_AHEAD_CM;
+            }
+            if (v in LESSON_MOTION || v === 'beep' || v === 'log' || v === 'collect_sample') {
+              return null;  // an action used as a value -> None
+            }
+          }
           const fn = evalExpr(callee);
           const args = node.args.map(evalExpr);
           if (typeof fn === 'function') return fn.apply(null, args);
@@ -522,6 +553,21 @@
               if (name in SENSOR_METHODS) { host.sensor(name, expr.args.map(evalExpr)); yield { type: 'step', line: line }; return; }
               throw new RoverError('rover has no method "' + name + '".', line);
             }
+            // Bare-verb RoboLearn lesson API on its own line.
+            if (callee.k === 'name' && !(callee.v in scope) && !funcs[callee.v]) {
+              const v = callee.v;
+              if (v === 'move_forward' || v === 'move_backward') {
+                const metres = num(expr.args.length ? evalExpr(expr.args[0]) : 1, 1);
+                yield motionEvent(LESSON_MOTION[v], [metres * 100], line);  // m -> cm
+                return;
+              }
+              if (v in LESSON_MOTION) { yield motionEvent(LESSON_MOTION[v], expr.args.map(evalExpr), line); return; }
+              if (v in LESSON_SENSOR) { host.sensor(LESSON_SENSOR[v], expr.args.map(evalExpr)); yield { type: 'step', line: line }; return; }
+              if (v === 'beep') { yield { type: 'print', line: line, text: 'beep' }; return; }
+              if (v === 'log') { const a = expr.args.map(evalExpr); yield { type: 'print', line: line, text: a.map(pyStr).join(' ') }; return; }
+              if (v === 'collect_sample') { yield { type: 'print', line: line, text: 'Sample collected.' }; return; }
+              if (v === 'obstacle_ahead') { yield { type: 'step', line: line }; return; }
+            }
             // print(...)
             if (callee.k === 'name' && callee.v === 'print') {
               const args = expr.args.map(evalExpr);
@@ -547,12 +593,12 @@
 
         function motionEvent(name, args, line) {
           switch (name) {
-            case 'forward': return { type: 'move', dir: 1, distance: num(args[0], 100), line: line };
-            case 'backward': return { type: 'move', dir: -1, distance: num(args[0], 100), line: line };
-            case 'turn_right': return { type: 'turn', deg: num(args[0], 90), line: line };
-            case 'turn_left': return { type: 'turn', deg: -num(args[0], 90), line: line };
-            case 'set_speed': return { type: 'speed', value: num(args[0], 50), line: line };
-            case 'wait': case 'sleep': return { type: 'wait', seconds: num(args[0], 1), line: line };
+            case 'forward': return { type: 'move', dir: 1, distance: clampNum(args[0], 100, 0, 4000), line: line };
+            case 'backward': return { type: 'move', dir: -1, distance: clampNum(args[0], 100, 0, 4000), line: line };
+            case 'turn_right': return { type: 'turn', deg: clampNum(args[0], 90, -3600, 3600), line: line };
+            case 'turn_left': return { type: 'turn', deg: -clampNum(args[0], 90, -3600, 3600), line: line };
+            case 'set_speed': return { type: 'speed', value: clampNum(args[0], 50, 0, 100), line: line };
+            case 'wait': case 'sleep': return { type: 'wait', seconds: clampNum(args[0], 1, 0, 10), line: line };
             case 'pen_down': return { type: 'pen', down: true, line: line };
             case 'pen_up': return { type: 'pen', down: false, line: line };
             case 'stop': return { type: 'halt', line: line };
@@ -569,6 +615,9 @@
   }
 
   function num(v, d) { const n = Number(v); return isFinite(n) ? n : d; }
+  // Clamp a numeric arg to a finite range so a pupil's huge/NaN value cannot
+  // freeze the animation (adversarial QA adv1: forward(1e308) -> dur Infinity).
+  function clampNum(v, d, lo, hi) { return Math.max(lo, Math.min(hi, num(v, d))); }
   function describe(node) { return node.k === 'name' ? node.v : node.k; }
 
   function binop(op, l, r) {
