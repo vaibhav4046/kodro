@@ -66,11 +66,47 @@ def test_get_pupil_summary_carries_display_name(api: BridgeAPI) -> None:
     assert isinstance(summary["displayName"], str)
 
 
-def test_submit_attempt_returns_jsonable_ack(api: BridgeAPI) -> None:
-    result = api.submit_attempt("01_hello_rover", "move_forward(1)", None)
+def test_submit_attempt_grades_and_persists(api: BridgeAPI) -> None:
+    """A real Run hits the Python engine: executes, grades, returns verdict + hint."""
+    lessons = api.list_lessons()
+    target_id = lessons[0]["id"]  # 01_hello_rover -- simplest path
+    starter = lessons[0]["starterCode"]
+    result = api.submit_attempt(target_id, starter, None)
     assert result["ok"] is True
-    assert result["lessonId"] == "01_hello_rover"
-    assert json.dumps(result)
+    assert result["lessonId"] == target_id
+    # Real grading -- not a stub.
+    assert result["graded"] is True
+    assert isinstance(result["passed"], bool)
+    assert isinstance(result["score"], int) and 0 <= result["score"] <= 100
+    assert isinstance(result["reasons"], list)
+    # Tracer events serialise as flat dicts.
+    assert isinstance(result["events"], list)
+    # JSON round-trip (this is what crosses the wire).
+    assert json.loads(json.dumps(result))["lessonId"] == target_id
+
+
+def test_submit_attempt_with_runtime_error_returns_reason_and_records(api: BridgeAPI) -> None:
+    """A pupil typo produces a graded:True, passed:False payload + a stored row."""
+    lessons = api.list_lessons()
+    target_id = lessons[0]["id"]
+    result = api.submit_attempt(target_id, "nonexistent_thing()", None)
+    assert result["ok"] is True
+    assert result["graded"] is True
+    assert result["passed"] is False
+    assert any("runtime" in r or "syntax" in r or "sandbox" in r for r in result["reasons"])
+
+
+def test_submit_attempt_unknown_lesson_returns_reason(api: BridgeAPI) -> None:
+    result = api.submit_attempt("does-not-exist", "move_forward(1)", None)
+    assert result["ok"] is False
+    assert "unknown lesson" in result["reason"]
+
+
+def test_get_hint_returns_dict_or_none(api: BridgeAPI) -> None:
+    lessons = api.list_lessons()
+    # Empty source against any lesson should match the "no events" hint or None.
+    result = api.get_hint(lessons[0]["id"], "")
+    assert result is None or set(result.keys()) == {"ruleName", "message"}
 
 
 def test_log_accepts_known_levels(api: BridgeAPI) -> None:

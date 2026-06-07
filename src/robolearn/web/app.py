@@ -23,8 +23,16 @@ from typing import Any
 
 import webview
 
+from robolearn.engine.rover import Rover
+from robolearn.engine.terrain import Terrain
+from robolearn.engine.world import ArenaBounds, World
+from robolearn.lessons.grader import grade
 from robolearn.lessons.schema import Lesson, load_library
+from robolearn.memory.hint_engine import HintContext, find_first_hint
 from robolearn.memory.store import Store
+from robolearn.runtime.binding import set_active_rover, set_active_world
+from robolearn.runtime.executor import execute as run_pupil_code
+from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
 
 LOG = logging.getLogger("robolearn.web")
 
@@ -88,17 +96,106 @@ class BridgeAPI:
     def submit_attempt(
         self, lesson_id: str, source: str, trace_json: str | None = None
     ) -> dict[str, Any]:
-        """Persist an attempt (grading wired in a follow-up commit)."""
-        _ = trace_json
-        LOG.info("submit_attempt lesson=%s source_len=%d", lesson_id, len(source or ""))
-        return {"ok": True, "lessonId": lesson_id, "graded": False}
+        """Run the source through the Python engine, grade it, return verdict + hint.
+
+        The React shell is the UI; this method is the trace-driven Python
+        engine the dissertation actually claims. We rebuild the lesson world,
+        bind a fresh tracer / rover, execute the source in the existing
+        sandbox, grade against the lesson's success_criteria, and surface
+        the first matching hint -- all the same code paths the Tk app uses.
+        """
+        _ = trace_json  # currently unused; reserved for client-side trace
+        lesson = self._find_lesson(lesson_id)
+        if lesson is None:
+            return {"ok": False, "reason": f"unknown lesson: {lesson_id}"}
+
+        world = _world_from_lesson(lesson)
+        rover = Rover(world)
+        tracer = Tracer()
+        set_active(tracer)
+        set_active_rover(rover)
+        set_active_world(world)
+        set_state_provider(lambda: _snapshot(rover))
+
+        result = run_pupil_code(source or "", timeout_s=5.0)
+        events = tracer.events()
+
+        # Even on a runtime error we grade against whatever the tracer
+        # captured -- the design's React console can still show partial
+        # progress.
+        verdict = grade(lesson, tracer, source or "")
+        hint = find_first_hint(
+            HintContext(
+                lesson=lesson,
+                source=source or "",
+                events=tuple(events),
+                grade_result=verdict,
+            )
+        )
+        if not result.success:
+            error_reason = f"{result.error_kind}: {result.error_message} (line {result.error_line})"
+            self._store.record_submission(
+                pupil_id=self._pupil_id,
+                lesson_id=lesson.id,
+                code=source or "",
+                passed=False,
+                score=0,
+                reasons=[error_reason],
+                duration_ms=result.duration_ms,
+            )
+            return {
+                "ok": True,
+                "lessonId": lesson_id,
+                "graded": True,
+                "passed": False,
+                "score": 0,
+                "reasons": [error_reason],
+                "hint": _hint_to_dict(hint),
+                "events": _events_to_dicts(events),
+            }
+
+        self._store.record_submission(
+            pupil_id=self._pupil_id,
+            lesson_id=lesson.id,
+            code=source or "",
+            passed=verdict.passed,
+            score=verdict.score,
+            reasons=list(verdict.reasons),
+            duration_ms=result.duration_ms,
+        )
+        return {
+            "ok": True,
+            "lessonId": lesson_id,
+            "graded": True,
+            "passed": verdict.passed,
+            "score": verdict.score,
+            "reasons": list(verdict.reasons),
+            "hint": _hint_to_dict(hint),
+            "events": _events_to_dicts(events),
+        }
 
     def get_hint(
         self, lesson_id: str, source: str, error_kind: str | None = None
     ) -> dict[str, str] | None:
-        """Return a hint dict, or ``None`` if no hint matches (stub for now)."""
-        _ = (lesson_id, source, error_kind)
-        return None
+        """Return the first matching hint for ``source`` against ``lesson_id``."""
+        _ = error_kind
+        lesson = self._find_lesson(lesson_id)
+        if lesson is None:
+            return None
+        world = _world_from_lesson(lesson)
+        rover = Rover(world)
+        tracer = Tracer()
+        set_active(tracer)
+        set_active_rover(rover)
+        set_active_world(world)
+        set_state_provider(lambda: _snapshot(rover))
+        run_pupil_code(source or "", timeout_s=5.0)
+        events = tuple(tracer.events())
+        verdict = grade(lesson, tracer, source or "")
+        hint = find_first_hint(
+            HintContext(lesson=lesson, source=source or "", events=events, grade_result=verdict)
+        )
+        return _hint_to_dict(hint)
 
     def export_report(self) -> dict[str, Any]:
         """Stub for the progress-report exporter (wired in follow-up)."""
@@ -112,6 +209,12 @@ class BridgeAPI:
         return {"ok": True}
 
     # --- private helpers --------------------------------------------------
+
+    def _find_lesson(self, lesson_id: str) -> Lesson | None:
+        for lesson in self._lessons:
+            if lesson.id == lesson_id:
+                return lesson
+        return None
 
     @staticmethod
     def _lesson_to_dict(lesson: Lesson) -> dict[str, Any]:
@@ -129,6 +232,57 @@ class BridgeAPI:
         }
 
 
+def _world_from_lesson(lesson: Lesson) -> World:
+    """Build a fresh :class:`World` from the lesson's ``WorldDef``."""
+    from robolearn.engine.world import Obstacle, Sample
+
+    wd = lesson.world
+    return World(
+        terrain=Terrain(lesson.terrain),
+        base=tuple(wd.base),  # type: ignore[arg-type]
+        samples=[Sample(s[0], s[1]) for s in wd.samples],
+        obstacles=[Obstacle(o.x, o.y, o.r) for o in wd.obstacles],
+        bounds=ArenaBounds(width=wd.width, height=wd.height),
+    )
+
+
+def _snapshot(rover: Rover) -> RoverSnapshot:
+    """Capture the rover's current state for tracer events."""
+    s = rover.state
+    return RoverSnapshot(
+        x=s.x,
+        y=s.y,
+        heading_deg=s.heading_deg,
+        battery_pct=s.battery_pct,
+        samples_held=s.samples_held,
+        samples_collected=s.samples_collected,
+        collisions=s.collisions,
+    )
+
+
+def _hint_to_dict(hint: Any) -> dict[str, str] | None:
+    """Serialise a :class:`Hint` (or ``None``) for the JS bridge."""
+    if hint is None:
+        return None
+    return {"ruleName": hint.rule_name, "message": hint.message}
+
+
+def _events_to_dicts(events: Any) -> list[dict[str, Any]]:
+    """Serialise tracer events as plain dicts for the JS bridge."""
+    out: list[dict[str, Any]] = []
+    for ev in events:
+        out.append(
+            {
+                "frame": ev.frame,
+                "kind": ev.kind,
+                "name": ev.name,
+                "args": list(ev.args) if ev.args else [],
+                "result": ev.result,
+            }
+        )
+    return out
+
+
 def build_app(*, db_path: Path | None = None) -> WebApp:
     """Build the pywebview window pointing at the vendored design."""
     if not INDEX_HTML.exists():
@@ -144,7 +298,6 @@ def build_app(*, db_path: Path | None = None) -> WebApp:
         height=DEFAULT_GEOMETRY[1],
         min_size=(1024, 640),
         background_color="#08090f",
-        on_top=True,
     )
     return WebApp(window=window, api=api)
 

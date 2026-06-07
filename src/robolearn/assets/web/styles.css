@@ -477,3 +477,57 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
   opacity:0; animation:hintfade 5s var(--ease) forwards;
 }
 @keyframes hintfade { 0%{opacity:0;} 12%{opacity:0.9;} 78%{opacity:0.9;} 100%{opacity:0;} }
+
+/* ============================================================================
+   RoboLearn — accessibility hardening + bridge widgets (QA pass)
+   ========================================================================== */
+
+/* Higher-contrast text tokens (WCAG 2.1 AA). The design's opacity-based
+   --fg-2/3/4 fell below 4.5:1 on --navy; these solid values clear it. */
+:root {
+  --fg-2:#d9d3c4;   /* >= 7:1 on --navy */
+  --fg-3:#b3ad9e;   /* >= 4.5:1 on --navy */
+}
+
+/* Visible keyboard focus on every interactive control. */
+a:focus-visible, button:focus-visible, select:focus-visible,
+textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible,
+.tab:focus-visible, .ctrl:focus-visible, .terrain-btn:focus-visible {
+  outline:3px solid var(--cyan);
+  outline-offset:2px;
+  border-radius:4px;
+}
+
+/* Respect reduced-motion: kill the ambient/loop animations. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration:0.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.001ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+
+/* Screen-reader-only utility + skip link. */
+.sr-only {
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+.skip-link {
+  position:absolute; left:8px; top:-40px; z-index:999;
+  background:var(--cyan); color:var(--void); padding:8px 14px;
+  border-radius:0 0 6px 6px; font-family:var(--font-body); font-weight:600;
+  transition:top 120ms var(--ease);
+}
+.skip-link:focus { top:0; }
+
+/* Lesson picker (bridge-driven). */
+.lesson-picker { display:flex; align-items:center; gap:8px; margin-left:14px; }
+.lesson-picker .eyebrow { color:var(--fg-3); }
+.lesson-select {
+  background:var(--navy-2); color:var(--fg-1);
+  border:1px solid var(--border); border-radius:5px;
+  font-family:var(--font-mono); font-size:11px; padding:5px 8px;
+  cursor:pointer; max-width:280px;
+}
+.lesson-select:hover { border-color:var(--fg-3); }
