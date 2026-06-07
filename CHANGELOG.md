@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged.
 
 ### Added
+- **3-D diorama viewport** — the hero viewport now renders the world on a
+  tilted, receding ground plane (perspective grid converging to a horizon,
+  a sky band, and depth-squeezed rover/trail/obstacles), evoking the
+  design's 3-D scene. A `_PerspectiveView` wraps the flat transform so every
+  element tilts together; `set_perspective(False)` falls back to flat
+  top-down. Defaults to 3-D.
 - **Telemetry gauges** — the sensors rail now leads with the design's
   instrument cluster: a **compass dial** (cardinal ticks + cyan heading
   needle) and circular **arc gauges** for battery and LIDAR, above the
