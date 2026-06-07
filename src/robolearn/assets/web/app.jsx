@@ -173,10 +173,14 @@ rover.say("Survey done")`
       }
     }
 
-    // `token` is a monotonic run id: every reset/start bumps it, so a stale
-    // pump loop or a pending start setTimeout that fires after a Reset is
-    // ignored (fixes the Run/Step/Reset mash races, QA adv5).
-    const ctrl = useRef({ running: false, abort: false, token: 0 });
+    // `token` is a monotonic run id: every reset/start/resume bumps it, so a
+    // stale pump loop or a pending start setTimeout that fires after a Reset is
+    // ignored. `advancing` is a synchronous single-flight latch so two advance()
+    // calls can never overlap (a pump step racing a manual Step). `startTimer`
+    // and `abortTimer` hold the deferred-start / abort-clear handles so any new
+    // control action can cancel them. Together these fix the Run/Step/Reset
+    // mash races (QA adv5).
+    const ctrl = useRef({ running: false, abort: false, advancing: false, token: 0, startTimer: null, abortTimer: null });
     const genRef = useRef(null);
     const sayTimer = useRef(null);
 
@@ -261,7 +265,9 @@ rover.say("Survey done")`
         const start = performance.now();
         const tick = () => {
           if (ctrl.current.abort) { resolve('abort'); return; }
-          const p = durationMs <= 0 ? 1 : Math.min(1, (performance.now() - start) / durationMs);
+          // Non-finite / <=0 duration completes immediately (p=1); this guards
+          // against a pathological value wedging the loop at p=0 forever.
+          const p = window.RoverLang.frameProgress(performance.now() - start, durationMs);
           const stop = onFrame(p);
           if (p >= 1 || stop) { resolve('done'); return; }
           setTimeout(tick, 16);
@@ -346,37 +352,48 @@ rover.say("Survey done")`
     }
 
     // ---------- one interpreter step ----------
+    // `advancing` is a synchronous re-entrancy latch: a pump iteration and a
+    // manual Step (or two Steps) must never drive the same generator at once,
+    // or they double-consume gen.next() and run overlapping animations that
+    // stomp live.current. The latch wraps the whole body (incl. the awaited
+    // animation) so the next driver bails until this one settles.
     async function advance(stepMode) {
-      const gen = genRef.current;
-      if (!gen) return false;
-      let res;
-      try { res = gen.next(); }
-      catch (e) { handleRuntimeError(e); return false; }
-      if (res.done) { finishProgram(); return false; }
-      const ev = res.value;
-      if (ev.line) setActiveLine(ev.line);
-      switch (ev.type) {
-        case 'step': await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
-        case 'print': addConsole(ev.text, 'out'); await delay(stepMode ? 0 : 90 / speedMulRef.current); break;
-        case 'move': return await animateMove(ev);
-        case 'turn': return await animateTurn(ev);
-        case 'speed': live.current.speed = Math.max(0, Math.min(100, ev.value)); sync(); break;
-        case 'wait': await delay(ev.seconds * 1000 / speedMulRef.current); break;
-        case 'pen':
-          live.current.penDown = ev.down;
-          if (ev.down) { trailRef.current.push([{ x: live.current.x, y: live.current.y }]); setTrail([...trailRef.current]); }
-          break;
-        case 'halt': live.current.moving = false; sync(); break;
-        case 'led': live.current.led = (ev.color in LED_COLORS) ? LED_COLORS[ev.color] : terrain.accent; sync(); break;
-        case 'say': showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
-        case 'scan':
-          live.current.scanning = true; sync();
-          addConsole('Scanning. Nearest obstacle ' + Math.round(rayDistance(live.current.x, live.current.y, live.current.heading)) + ' cm ahead.', 'sys');
-          await delay(1000 / speedMulRef.current);
-          live.current.scanning = false; sync();
-          break;
+      if (ctrl.current.advancing) return false;
+      ctrl.current.advancing = true;
+      try {
+        const gen = genRef.current;
+        if (!gen) return false;
+        let res;
+        try { res = gen.next(); }
+        catch (e) { handleRuntimeError(e); return false; }
+        if (res.done) { finishProgram(); return false; }
+        const ev = res.value;
+        if (ev.line) setActiveLine(ev.line);
+        switch (ev.type) {
+          case 'step': await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
+          case 'print': addConsole(ev.text, 'out'); await delay(stepMode ? 0 : 90 / speedMulRef.current); break;
+          case 'move': return await animateMove(ev);
+          case 'turn': return await animateTurn(ev);
+          case 'speed': live.current.speed = Math.max(0, Math.min(100, ev.value)); sync(); break;
+          case 'wait': await delay(ev.seconds * 1000 / speedMulRef.current); break;
+          case 'pen':
+            live.current.penDown = ev.down;
+            if (ev.down) { trailRef.current.push([{ x: live.current.x, y: live.current.y }]); setTrail([...trailRef.current]); }
+            break;
+          case 'halt': live.current.moving = false; sync(); break;
+          case 'led': live.current.led = (ev.color in LED_COLORS) ? LED_COLORS[ev.color] : terrain.accent; sync(); break;
+          case 'say': showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
+          case 'scan':
+            live.current.scanning = true; sync();
+            addConsole('Scanning. Nearest obstacle ' + Math.round(rayDistance(live.current.x, live.current.y, live.current.heading)) + ' cm ahead.', 'sys');
+            await delay(1000 / speedMulRef.current);
+            live.current.scanning = false; sync();
+            break;
+        }
+        return true;
+      } finally {
+        ctrl.current.advancing = false;
       }
-      return true;
     }
 
     function handleRuntimeError(e) {
@@ -414,9 +431,17 @@ rover.say("Survey done")`
         return false;
       }
     }
+    // Cancel any deferred start / abort-clear left over from a prior control
+    // action so a queued Run can't fire after a Reset (the stale-callback race).
+    function clearPending() {
+      if (ctrl.current.startTimer) { clearTimeout(ctrl.current.startTimer); ctrl.current.startTimer = null; }
+      if (ctrl.current.abortTimer) { clearTimeout(ctrl.current.abortTimer); ctrl.current.abortTimer = null; }
+    }
     function resetRover(clearConsole) {
+      clearPending();
       ctrl.current.abort = true;
       ctrl.current.running = false;
+      ctrl.current.advancing = false;  // abandon any in-flight advance latch
       ctrl.current.token++;  // invalidate any in-flight pump / pending start
       live.current = startState();
       trailRef.current = []; setTrail([]);
@@ -426,7 +451,7 @@ rover.say("Survey done")`
       setSay('');
       sync();
       genRef.current = null;
-      setTimeout(() => { ctrl.current.abort = false; }, 30);
+      ctrl.current.abortTimer = setTimeout(() => { ctrl.current.abort = false; ctrl.current.abortTimer = null; }, 30);
       if (clearConsole) setConsoleLines([{ type: 'sys', text: 'Reset. Rover at origin.' }]);
     }
 
@@ -435,17 +460,22 @@ rover.say("Survey done")`
         const cont = await advance(false);
         if (!cont) break;
       }
-      if (ctrl.current.token !== myToken) return;  // superseded by a reset/restart
-      if (ctrl.current.running === false && runStateRef.current === 'running') {
-        // graceful pause (Pause pressed)
-        if (genRef.current) setRunState('paused');
+      if (ctrl.current.token !== myToken) return;  // superseded by a reset/restart/resume
+      // Only a user-pressed Pause should land here as 'paused': the loop stopped
+      // with the generator still live (genRef set) while the UI still reads
+      // 'running'. A finish/halt nulls genRef and has already set 'done'/'error',
+      // so the genRef guard stops a stale pump from resurrecting a dead run.
+      if (!ctrl.current.running && genRef.current && runStateRef.current === 'running') {
+        setRunState('paused');
       }
     }
     const runStateRef = useRef('idle');
     useEffect(() => { runStateRef.current = runState; }, [runState]);
 
     function onRun() {
-      if (runState === 'running') { // pause
+      // Pause: gate on the synchronous ref, not the (stale until re-render)
+      // runState closure, so a Run pressed right after a resume still pauses.
+      if (ctrl.current.running) {
         ctrl.current.running = false;
         return;
       }
@@ -454,7 +484,8 @@ rover.say("Survey done")`
         resetRover(false);
         const myToken = ctrl.current.token;  // captured after reset's bump
         // reset clears abort after 30ms; compile after
-        setTimeout(() => {
+        ctrl.current.startTimer = setTimeout(() => {
+          ctrl.current.startTimer = null;
           if (ctrl.current.token !== myToken) return;  // a Reset landed first
           if (!compileFresh()) return;
           ctrl.current.abort = false; ctrl.current.running = true;
@@ -463,18 +494,25 @@ rover.say("Survey done")`
           pumpLoop(myToken);
         }, 50);
       } else if (runState === 'paused') {
+        if (ctrl.current.running || ctrl.current.advancing) return;  // already running / mid-step
+        ctrl.current.token++;  // new pump epoch: orphan any prior pump
+        const myToken = ctrl.current.token;
         ctrl.current.abort = false; ctrl.current.running = true;
         setRunState('running');
-        pumpLoop(ctrl.current.token);
+        pumpLoop(myToken);
       }
     }
 
     function onStep() {
-      if (runState === 'running') { ctrl.current.running = false; return; }
+      // A Step while a pump is live pauses it (same as Run), gated on the
+      // synchronous ref so it works in the gap before runState commits.
+      if (ctrl.current.running) { ctrl.current.running = false; return; }
+      if (ctrl.current.advancing) return;  // a step/animation is in flight: ignore
       if (runState === 'idle' || runState === 'done' || runState === 'error') {
         resetRover(false);
         const myToken = ctrl.current.token;
-        setTimeout(() => {
+        ctrl.current.startTimer = setTimeout(() => {
+          ctrl.current.startTimer = null;
           if (ctrl.current.token !== myToken) return;
           if (!compileFresh()) return;
           ctrl.current.abort = false;
@@ -495,6 +533,7 @@ rover.say("Survey done")`
       resetRover(false);
       setTerrainId(id);
       setRunState('idle');
+      setLessonVerdict(null);  // verdict was graded on the lesson's own world
       setConsoleLines([{ type: 'sys', text: 'Switched to ' + TERRAINS[id].name + '. ' + TERRAINS[id].coord }]);
     }
 
