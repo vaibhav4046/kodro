@@ -134,15 +134,10 @@ class BridgeAPI:
         )
         if not result.success:
             error_reason = f"{result.error_kind}: {result.error_message} (line {result.error_line})"
-            self._store.record_submission(
-                pupil_id=self._pupil_id,
-                lesson_id=lesson.id,
-                code=source or "",
-                passed=False,
-                score=0,
-                reasons=[error_reason],
-                duration_ms=result.duration_ms,
-            )
+            # Do NOT persist a 0-score row for a syntax/runtime error: a pupil
+            # iterating on a typo would otherwise flood their history with 0s
+            # and skew the pupil model. Matches the Tk app, which returns before
+            # grading on an execution error.
             return {
                 "ok": True,
                 "lessonId": lesson_id,
@@ -198,8 +193,17 @@ class BridgeAPI:
         return _hint_to_dict(hint)
 
     def export_report(self) -> dict[str, Any]:
-        """Stub for the progress-report exporter (wired in follow-up)."""
-        return {"ok": False, "reason": "not implemented yet"}
+        """Write the pupil's HTML progress report next to the database."""
+        from robolearn.memory.report import export_progress_report
+
+        path = DEFAULT_DB_PATH.parent / "progress-report.html"
+        try:
+            out = export_progress_report(self._store, self._pupil_id, path, lessons=self._lessons)
+            LOG.info("exported progress report to %s", out)
+            return {"ok": True, "path": str(out)}
+        except Exception as exc:  # pragma: no cover - defensive
+            LOG.warning("export_report failed: %s", exc)
+            return {"ok": False, "reason": str(exc)}
 
     def log(self, level: str, msg: str) -> dict[str, bool]:
         """Forward a JS-side log line to the Python logger."""

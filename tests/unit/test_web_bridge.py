@@ -85,15 +85,37 @@ def test_submit_attempt_grades_and_persists(api: BridgeAPI) -> None:
     assert json.loads(json.dumps(result))["lessonId"] == target_id
 
 
-def test_submit_attempt_with_runtime_error_returns_reason_and_records(api: BridgeAPI) -> None:
-    """A pupil typo produces a graded:True, passed:False payload + a stored row."""
+def test_submit_attempt_with_runtime_error_returns_reason_without_recording(
+    api: BridgeAPI,
+) -> None:
+    """A pupil typo returns graded:False-pass but does NOT persist a 0-score row."""
     lessons = api.list_lessons()
     target_id = lessons[0]["id"]
+    before = len(api._store.list_submissions(pupil_id=api._pupil_id))  # type: ignore[attr-defined]
     result = api.submit_attempt(target_id, "nonexistent_thing()", None)
     assert result["ok"] is True
     assert result["graded"] is True
     assert result["passed"] is False
     assert any("runtime" in r or "syntax" in r or "sandbox" in r for r in result["reasons"])
+    after = len(api._store.list_submissions(pupil_id=api._pupil_id))  # type: ignore[attr-defined]
+    assert after == before, "execution errors must not pollute submission history"
+
+
+def test_export_report_writes_html(api: BridgeAPI, tmp_path: Path) -> None:
+    import robolearn.web.app as webapp
+
+    # Redirect the report next to a temp DB dir so the test doesn't touch ~/.
+    original = webapp.DEFAULT_DB_PATH
+    webapp.DEFAULT_DB_PATH = tmp_path / "pupil.db"
+    try:
+        result = api.export_report()
+    finally:
+        webapp.DEFAULT_DB_PATH = original
+    assert result["ok"] is True
+    out = Path(result["path"])
+    assert out.exists()
+    assert out.suffix == ".html"
+    assert "<html" in out.read_text(encoding="utf-8").lower()
 
 
 def test_submit_attempt_unknown_lesson_returns_reason(api: BridgeAPI) -> None:
