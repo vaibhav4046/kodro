@@ -109,3 +109,67 @@ def test_design_rover_api_still_works() -> None:
     r = _drive("rover.forward(100)\nrover.turn_right(90)")
     assert r["error"] is None
     assert r["moves"] == 2
+
+
+def test_nonfinite_distance_via_power_clamps_to_lower_bound() -> None:
+    """``10 ** 400`` -> Infinity is the only infinity a pupil can actually type
+    (the tokenizer lexes ``1e308`` as the name ``e308``). A non-finite magnitude
+    clamps to the lower bound -- matching the Python engine's
+    ``rover_api._clamp_finite`` -- and, being finite, can never overflow
+    app.jsx's animation duration to Infinity and soft-hang the UI."""
+    r = _drive("rover.forward(10 ** 400)")
+    assert r["error"] is None
+    assert r["moveDist"] == 0
+
+    r = _drive("move_forward(10 ** 400)")
+    assert r["error"] is None
+    assert r["moveDist"] == 0
+
+
+def test_adversarial_turn_magnitude_is_clamped() -> None:
+    """A huge turn clamps to +/-3600 deg (10 full turns) so animateTurn, which
+    has no collision early-exit, cannot spin for hours (turn_left(1e9) was
+    ~1000 h). Non-finite -> lower bound, exactly as Python turn_left/right do."""
+    assert abs(_drive("turn_left(10 ** 400)")["turnDeg"]) == 3600
+    assert abs(_drive("turn_right(999999999)")["turnDeg"]) == 3600
+
+
+def _frame_progress() -> dict:
+    """Evaluate ``RoverLang.frameProgress`` -- the frame-loop guard shared with
+    app.jsx ``frames()`` -- under Node across pathological and normal durations.
+    Inf/NaN cannot cross JSON, so the cases are built in JS."""
+    harness = f"""
+      global.window = {{}};
+      const fs = require('fs');
+      eval(fs.readFileSync({json.dumps(str(INTERP))}, 'utf8'));
+      const fp = global.window.RoverLang.frameProgress;
+      process.stdout.write(JSON.stringify({{
+        infinite: fp(0, Infinity),
+        nan: fp(0, NaN),
+        zero: fp(0, 0),
+        negative: fp(0, -5),
+        hugeElapsed: fp(1e308 * 10, 100),
+        midway: fp(50, 100),
+        past_end: fp(999, 100),
+      }}));
+    """
+    proc = subprocess.run(
+        [str(_NODE), "-e", harness], capture_output=True, text=True, timeout=30, check=False
+    )
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout)
+
+
+def test_frame_progress_always_terminates() -> None:
+    """frames() reschedules until p>=1, so the guard must yield 1 for any
+    non-finite or non-positive duration -- otherwise the ~60fps loop wedges at
+    p=0 forever (the original forward(<huge>) soft-hang). Finite durations
+    advance normally and saturate at 1 past the end."""
+    fp = _frame_progress()
+    assert fp["infinite"] == 1
+    assert fp["nan"] == 1
+    assert fp["zero"] == 1
+    assert fp["negative"] == 1
+    assert fp["hugeElapsed"] == 1
+    assert fp["midway"] == 0.5
+    assert fp["past_end"] == 1
