@@ -12,10 +12,11 @@
     autopilot: {
       label: 'autopilot.py',
       code: `# AUTOPILOT - the rover drives itself, like a self-driving car.
-# It reads its lidar, probes left + right when a boulder looms,
-# steers toward the clearer side, then surveys the field.
-# No waypoints - pure sense-think-act. Press Run and watch.
-rover.set_speed(74)
+# Every step it reads its lidar. It ONLY moves forward when the way
+# is clear, so it can never hit a boulder OR the arena wall. When
+# something looms it scans, probes left + right, and steers toward
+# the side with more room. Pure sense-think-act. Press Run and watch.
+rover.set_speed(72)
 rover.pen_down()
 rover.led("cyan")
 rover.say("Autopilot engaged")
@@ -23,36 +24,36 @@ rover.say("Autopilot engaged")
 legs = 0
 dodges = 0
 scans = 0
+steps = 0
 
-# Cruise forward; when a boulder is within 130cm, scan + dodge.
-while legs < 28:
+# Self-drive: it only moves forward when the lidar says the way is clear,
+# so it can never hit a boulder OR the arena wall. Whenever something looms
+# it scans, probes left + right, and steers toward the side with more room -
+# so it roams the whole field, dodging as it goes. Always terminates.
+while legs < 60 and steps < 220:
+    steps = steps + 1
     ahead = rover.distance()
-    if ahead < 130:
+
+    if ahead < 150:
+        # Boulder or wall ahead: scan, sense both sides, steer clear.
         rover.led("amber")
         rover.scan()
         scans = scans + 1
-        rover.turn_left(55)
+        rover.turn_left(60)
         left = rover.distance()
-        rover.turn_right(110)
+        rover.turn_right(120)
         right = rover.distance()
         if left > right:
-            rover.turn_left(140)
+            rover.turn_left(150)
         else:
-            rover.turn_left(20)
+            rover.turn_left(25)
         dodges = dodges + 1
         rover.led("cyan")
     else:
-        rover.forward(58)
+        rover.forward(40)
         legs = legs + 1
 
-# Survey sweep: expand into a spiral to map the cleared area.
 rover.led("green")
-step = 28
-for ring in range(8):
-    rover.forward(step)
-    rover.turn_right(50)
-    step = step + 16
-
 rover.say("Area mapped")
 print("Legs driven:", legs)
 print("Boulders dodged:", dodges)
