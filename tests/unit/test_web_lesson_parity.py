@@ -70,7 +70,9 @@ def test_starter_has_no_name_error_in_js(lesson) -> None:  # type: ignore[no-unt
     if _NODE is None:
         # Only reachable when ROBOLEARN_REQUIRE_NODE=1 (CI): the skipif above
         # no longer fired, so a missing Node must fail loudly rather than skip.
-        pytest.fail("ROBOLEARN_REQUIRE_NODE=1 but Node.js is not on PATH: the JS parity half cannot run")
+        pytest.fail(
+            "ROBOLEARN_REQUIRE_NODE=1 but Node.js is not on PATH: JS parity half cannot run"
+        )
     proc = subprocess.run(
         [str(_NODE), str(FIXTURE), str(INTERP)],
         input=lesson.starter_code,
