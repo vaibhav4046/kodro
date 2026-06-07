@@ -22,6 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   clamped (distance ≤ 40 m, turn ≤ 3600°, speed 0–100, wait 0–10 s).
 
 ### Added
+- **JSX compile-check in CI** — `test_web_jsx_valid` transforms every vendored
+  `.jsx` with the bundled Babel (via Node) so a syntax error that would
+  white-screen the app is caught as a failing test, not at runtime.
+- **Web accessibility round 2** (100-persona QA): the console is a
+  `role="log"` `aria-live="polite"` region (errors `role="alert"`) so
+  verdicts/crashes are announced; the editor exposes an `aria-label` and
+  **Escape releases focus** (fixes the Tab keyboard-trap, WCAG 2.1.2); the
+  layout now **reflows to a single column below ~1100px / at 200% zoom**
+  (WCAG 1.4.10) instead of crushing the viewport off-screen on Chromebooks;
+  the API hint bar now lists the real lesson verbs (`move_forward`,
+  `obstacle_ahead`, `collect_sample`).
 - **NEW web UI** (`python -m robolearn.web`) — the actual Claude Design
   rover-simulator React/CSS prototype is now vendored under
   `src/robolearn/assets/web/` (with React 18, Babel standalone, and 14 TTF

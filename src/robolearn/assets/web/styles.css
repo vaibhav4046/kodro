@@ -531,3 +531,22 @@ textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible,
   cursor:pointer; max-width:280px;
 }
 .lesson-select:hover { border-color:var(--fg-3); }
+
+/* Readable minimum type (QA #10: 8.5-11px caps were sub-legible). */
+.api-hint { font-size:11px !important; line-height:1.5; }
+.cline { font-size:12px; }
+.tab { font-size:12px; }
+
+/* Responsive fallback (QA #5/#6): below ~1100px and at 200% zoom the fixed
+   3-column grid crushed the viewport off-screen. Stack to one column and
+   allow the page to scroll instead of clipping (WCAG 1.4.10 reflow). */
+@media (max-width: 1099px) {
+  html, body { overflow:auto; height:auto; }
+  .app { height:auto; min-height:100vh; grid-template-rows:auto 1fr; }
+  .workspace { display:flex; flex-direction:column; height:auto; min-height:0; }
+  .workspace > .resizer, .workspace > .resizer-row { display:none; }
+  .workspace > .panel, .view-panel, .tele-panel, .editor-panel {
+    width:100% !important; max-width:100%; min-height:300px; border-right:none;
+  }
+  .missionbar { flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px; }
+}
