@@ -10,10 +10,16 @@ critical-reflection part of the dissertation.
 
 - **Python 3.12/3.13** — the language pupils write, so the implementation
   language matches the teaching language.
-- **Pygame-CE + Pymunk** for the simulation/physics; **Tkinter + ttk** with
-  the Sun-Valley theme for the UI (ships with Python, no heavyweight GUI
-  dependency); **Pydantic v2** for lesson validation; **SQLite** (stdlib)
-  for storage.
+- **Pygame-CE + Pymunk** for the simulation/physics; **Pydantic v2** for
+  lesson validation; **SQLite** (stdlib) for storage.
+- **User interface — two front-ends over one engine.** The original UI is
+  **Tkinter + ttk**; it ships with Python and renders on any machine, and it
+  remains the guaranteed-offline fallback. After user-evaluation feedback
+  that the Tk chrome read as dated, a second front-end was added: the
+  **pywebview** desktop window rendering an offline-vendored HTML/CSS/React
+  design (Edge WebView2 on Windows, WebKit/WebKitGTK elsewhere). Both
+  front-ends drive the *same* engine, grader, lesson library and store — see
+  §4.8 for the rationale, the bridge contract, and the dual-interpreter risk.
 - **Process and quality:** `pytest` + `pytest-cov` + Hypothesis;
   `ruff` (lint + format); `mypy --strict`; PyInstaller for the desktop
   binary; GitHub Actions for CI. Conventional Commits throughout.
@@ -151,3 +157,70 @@ Together these three excerpts show the project's recurring shape: a small,
 safe, procedural surface; pure decision logic over a single trace; and
 declarative data (criteria, rules, lessons) rather than bespoke code per
 lesson.
+
+## 4.8 Re-platforming the UI: a web front-end over the same engine
+
+### Motivation
+
+The Tkinter UI met every functional and pedagogical requirement, but
+formative user-evaluation (a panel of simulated personas — see §5)
+consistently scored its *visual modernity* low: ttk's widget set has no
+border-radius, no compositing, no GPU animation, and a mid-2000s default
+aesthetic. For a tool whose audience benchmarks "good software" against
+web and mobile apps, this is a genuine adoption risk, not vanity.
+
+Rather than fight the toolkit, a second front-end was introduced built in
+the medium the reference design was authored in — HTML/CSS/React — while
+preserving the project's hard constraints (100 % offline, no cloud, no
+accounts, no paid services) and its existing, well-tested Python engine.
+
+### Decision record (ADR-style)
+
+- **Context.** A polished React/CSS rover-simulator prototype existed as a
+  design artefact. The Tk UI could approximate its palette but not its
+  fidelity.
+- **Decision.** Vendor the prototype verbatim under
+  `src/robolearn/assets/web/` and render it in a **pywebview** desktop
+  window (`python -m robolearn.web`). Keep Tkinter (`python -m robolearn`)
+  as the fallback for machines without a WebView2/WebKit runtime.
+- **Offline compliance.** React 18, ReactDOM and Babel-standalone are
+  vendored as local minified files; the three webfonts (Cormorant Garamond,
+  Inter Tight, JetBrains Mono — 14 TTFs) are downloaded once at build time
+  and referenced by a rewritten `vendor/fonts.css`. `index.html` loads
+  **only** local assets; a runtime audit confirms no non-localhost request
+  on the hot path. The sole networked module remains the optional local
+  Ollama tutor (`localhost:11434`), unchanged.
+- **Bridge.** `robolearn.web.app.BridgeAPI` is exposed to JavaScript as
+  `window.pywebview.api.*` and wrapped by `assets/web/bridge.js` as
+  `window.RoboLearn.*`. On a graded run the React app calls
+  `submitAttempt(lessonId, source)`, and the **Python** side rebuilds the
+  lesson world, records a `Tracer`, executes the source in the existing
+  sandbox (`runtime.executor`), grades it against the lesson's
+  `success_criteria` (`lessons.grader`), resolves a hint
+  (`memory.hint_engine`) and persists the submission (`memory.store`) —
+  i.e. the design is *only* the view; the trace-driven engine remains the
+  single source of truth. The contract is locked by `tests/unit/
+  test_web_bridge.py` (lesson listing, grade-and-persist, runtime-error
+  path, unknown-lesson, hint shape).
+
+### Known risk: the dual interpreter
+
+The vendored design ships its own small JavaScript interpreter
+(`interpreter.js`) for instant in-browser animation, whose surface
+(`rover.forward()`) differs from the Python pupil API (`move_forward()`).
+This is a deliberate, documented trade-off: the JS interpreter gives
+zero-latency visual feedback, while **grading, persistence and hints run
+exclusively through the canonical Python engine** via the bridge, so the
+assessment of correctness is never delegated to the browser. The planned
+convergence (future work) is to replace `interpreter.js` with a thin RPC
+that streams real `Tracer` events from Python and animates from them,
+eliminating the second interpreter and guaranteeing semantic parity.
+
+### Packaging note
+
+The web front-end requires a system WebView runtime: **Edge WebView2** on
+Windows (pre-installed on Windows 11; a bootstrapper ships for Windows 10),
+**WKWebView** on macOS (system framework), and **WebKitGTK** on Linux
+(`gir1.2-webkit2-4.1`). When absent, the application degrades to the
+Tkinter front-end with no loss of function. `pywebview>=5.4` is pinned in
+`pyproject.toml`, and `assets/web/**` is force-included in the wheel.
