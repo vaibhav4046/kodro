@@ -41,13 +41,21 @@ weaknesses.
 - **Optional local AI** (Ollama on `localhost`) to generate extra lessons
   and explain code — strictly offline, no cloud, no account.
 
+## Quick start
+
+**Just want the app?** Download **`RoboLearn-windows.exe`** from the
+[latest release](https://github.com/vaibhav4046/robolearn/releases/latest) and
+double-click it — the full mission-control desktop app (the modern web UI in a
+native window), no Python install required.
+
 ## Quick start (developers)
 
 ```bash
 git clone https://github.com/vaibhav4046/robolearn.git
 cd robolearn
 pip install -e ".[dev]"
-python -m robolearn
+python -m robolearn.web   # modern web UI (pywebview)  — or:
+python -m robolearn       # classic Tk UI (fallback)
 ```
 
 ## Quick start (pupils)
@@ -64,7 +72,7 @@ collect_sample()
 
 | Platform | One-liner |
 | --- | --- |
-| Windows | Download `robolearn-windows.exe` from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) (~27 MB, bundles Python + Tcl/Tk + Pygame) and double-click it |
+| Windows | Download **`RoboLearn-windows.exe`** from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) (~33 MB, the modern web UI; bundles Python + WebView2 bridge) and double-click it. The classic Tk build ships alongside as `robolearn-windows-tk.exe` |
 | macOS | Download `robolearn-macos.zip` from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest), unzip and open `robolearn.app` — or `pip install -e . && python -m robolearn` |
 | Linux | Download the `robolearn-linux` binary from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) and `chmod +x` it — or `pip install -e . && python -m robolearn` |
 
