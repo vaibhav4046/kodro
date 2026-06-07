@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 from robolearn.memory.store import (
@@ -11,6 +12,41 @@ from robolearn.memory.store import (
     Store,
     Submission,
 )
+
+
+def test_store_usable_across_threads(tmp_path: Path) -> None:
+    """The pywebview bridge runs on another thread; the Store must cope.
+
+    Regression for ``sqlite3.ProgrammingError: SQLite objects created in a
+    thread can only be used in that same thread`` -- the packaged desktop app
+    opens the Store on the main thread but services API calls on the webview
+    thread.
+    """
+    store = Store(tmp_path / "threads.db")  # opened on the main thread
+    results: dict[str, object] = {}
+
+    def worker() -> None:
+        try:
+            pupil = store.create_pupil("Across")
+            store.record_submission(
+                pupil_id=pupil.id,
+                lesson_id="00_first_drive",
+                code="move_forward(2)",
+                passed=True,
+                score=100,
+                reasons=[],
+            )
+            results["name"] = store.list_pupils()[0].display_name
+            results["subs"] = len(store.list_submissions(pupil_id=pupil.id))
+        except Exception as exc:
+            results["error"] = repr(exc)
+
+    t = threading.Thread(target=worker)
+    t.start()
+    t.join()
+    assert "error" not in results, results.get("error")
+    assert results["name"] == "Across"
+    assert results["subs"] == 1
 
 
 def test_store_creates_schema_on_init(tmp_path: Path) -> None:

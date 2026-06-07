@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -99,6 +100,34 @@ class ConceptStrength:
     last_seen: int | None
 
 
+class _LockedConnection:
+    """Thin lock-guarding proxy around a sqlite3 connection.
+
+    ``check_same_thread=False`` lets the pywebview bridge thread reach the
+    connection; this lock serialises every statement so cross-thread calls
+    can't interleave. Unknown attributes pass straight through.
+    """
+
+    def __init__(self, conn: sqlite3.Connection, lock: threading.RLock) -> None:
+        self._conn = conn
+        self._lock = lock
+
+    def execute(self, *args: Any, **kwargs: Any) -> sqlite3.Cursor:
+        with self._lock:
+            return self._conn.execute(*args, **kwargs)
+
+    def executescript(self, *args: Any, **kwargs: Any) -> sqlite3.Cursor:
+        with self._lock:
+            return self._conn.executescript(*args, **kwargs)
+
+    def close(self) -> None:
+        with self._lock:
+            self._conn.close()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._conn, name)
+
+
 class Store:
     """SQLite-backed persistence layer."""
 
@@ -114,8 +143,14 @@ class Store:
             path = db_path
         if isinstance(path, Path) and str(path) != ":memory:":
             path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(path, isolation_level=None)
-        self._conn.row_factory = sqlite3.Row
+        # check_same_thread=False: the pywebview JS bridge dispatches API calls
+        # on a different (and sometimes pooled) thread from the one that opened
+        # the Store, so SQLite must allow cross-thread use. A lock serialises
+        # access so those calls can never interleave (sqlite3 is autocommit
+        # here). See _LockedConnection.
+        raw = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
+        raw.row_factory = sqlite3.Row
+        self._conn = _LockedConnection(raw, threading.RLock())
         self._conn.executescript(SCHEMA_SQL)
 
     # --- lifecycle ----------------------------------------------------------

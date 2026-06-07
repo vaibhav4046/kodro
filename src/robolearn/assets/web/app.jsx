@@ -226,6 +226,10 @@ rover.say("Survey done")`
       : programs[activeTab];
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
+    const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
+    function toggleSound() {
+      setMuted(m => { const next = !m; if (window.RLSound) window.RLSound.setMuted(next); return next; });
+    }
     useEffect(() => {
       document.body.classList.toggle('a11y-readable', readable);
       try { localStorage.setItem('or_readable', readable ? '1' : '0'); } catch (e) { void e; }
@@ -259,6 +263,7 @@ rover.say("Survey done")`
         if (r.ok === false) { setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') }]); return; }
         // Persist the verdict in a panel that survives Reset (QA #3).
         setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null });
+        if (r.passed) { sfx('pass'); celebrate(); } else { sfx('fail'); }
         const tag = r.passed ? 'ok' : 'err';
         setConsoleLines(l => {
           const lines = [...l, { type: tag, text: (r.passed ? '✓ PASS' : '✗ NOT YET') + '  Score: ' + r.score + '/100' }];
@@ -310,6 +315,30 @@ rover.say("Survey done")`
       const ts = new Date();
       const hh = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0') + ':' + String(ts.getSeconds()).padStart(2, '0');
       setConsoleLines(l => [...l, { type: type || 'out', text, ts: hh }]);
+    }
+
+    // Fire a synthesised sound cue (no-op if sound.js absent or muted).
+    function sfx(kind) { try { if (window.RLSound) window.RLSound.play(kind); } catch (e) { void e; } }
+
+    // Lightweight celebration: a one-shot confetti burst on a lesson pass.
+    function celebrate() {
+      try {
+        const host = document.getElementById('editor-main') || document.body;
+        const layer = document.createElement('div');
+        layer.className = 'confetti-layer';
+        const colors = ['#5ce0d8', '#e0b45c', '#7cc49b', '#c8685a', '#f5f0e4'];
+        for (let i = 0; i < 80; i++) {
+          const p = document.createElement('i');
+          p.className = 'confetti';
+          p.style.left = Math.round(8 + (i / 80) * 84) + '%';
+          p.style.background = colors[i % colors.length];
+          p.style.animationDelay = (i % 10) * 40 + 'ms';
+          p.style.transform = 'rotate(' + (i * 31 % 360) + 'deg)';
+          layer.appendChild(p);
+        }
+        host.appendChild(layer);
+        setTimeout(() => { if (layer.parentNode) layer.parentNode.removeChild(layer); }, 2600);
+      } catch (e) { void e; }
     }
 
     // ---------- geometry / sensors ----------
@@ -444,6 +473,7 @@ rover.say("Survey done")`
       if (crashed) {
         setCrashKey(k => k + 1);
         const what = crashed.type === 'wall' ? 'arena boundary' : terrain.obstacleLabel.toLowerCase();
+        sfx('crash');
         addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Rover halted.', 'err');
         haltProgram('error');
         return false;
@@ -496,8 +526,8 @@ rover.say("Survey done")`
         switch (ev.type) {
           case 'step': await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
           case 'print': addConsole(ev.text, 'out'); await delay(stepMode ? 0 : 90 / speedMulRef.current); break;
-          case 'move': return await animateMove(ev);
-          case 'turn': return await animateTurn(ev);
+          case 'move': sfx('move'); return await animateMove(ev);
+          case 'turn': sfx('turn'); return await animateTurn(ev);
           case 'speed': live.current.speed = Math.max(0, Math.min(100, ev.value)); sync(); break;
           case 'wait': await delay(ev.seconds * 1000 / speedMulRef.current); break;
           case 'pen':
@@ -505,9 +535,10 @@ rover.say("Survey done")`
             if (ev.down) { trailRef.current.push([{ x: live.current.x, y: live.current.y }]); setTrail([...trailRef.current]); }
             break;
           case 'halt': live.current.moving = false; sync(); break;
-          case 'led': live.current.led = (ev.color in LED_COLORS) ? LED_COLORS[ev.color] : terrain.accent; sync(); break;
-          case 'say': showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
+          case 'led': sfx('led'); live.current.led = (ev.color in LED_COLORS) ? LED_COLORS[ev.color] : terrain.accent; sync(); break;
+          case 'say': sfx('say'); showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
           case 'scan':
+            sfx('scan');
             live.current.scanning = true; sync();
             addConsole('Scanning. Nearest obstacle ' + Math.round(rayDistance(live.current.x, live.current.y, live.current.heading)) + ' cm ahead.', 'sys');
             await delay(1000 / speedMulRef.current);
@@ -597,6 +628,9 @@ rover.say("Survey done")`
     }
 
     function onRun() {
+      // Resume the AudioContext here, inside the click gesture (browsers block
+      // audio that starts outside a user gesture).
+      if (window.RLSound) window.RLSound.resume();
       // Pause: gate on the synchronous ref, not the (stale until re-render)
       // runState closure, so a Run pressed right after a resume still pauses.
       if (ctrl.current.running) {
@@ -871,6 +905,7 @@ rover.say("Survey done")`
                     </select>
                   </label>
                 )}
+                <button className="btn-mini" aria-pressed={!muted} title={muted ? 'Sound off' : 'Sound on'} onClick={toggleSound}>{muted ? '🔇 Sound' : '🔊 Sound'}</button>
                 <button className="btn-mini" aria-pressed={readable} title="Dyslexia-friendly / larger text" onClick={() => setReadable(v => !v)}>Aa Readable</button>
                 <button className="btn-mini" onClick={exportReportClick}>Export report</button>
                 <button className="btn-mini" onClick={() => setConsoleLines([{ type: 'sys', text: 'Console cleared.' }])}>Clear</button>
