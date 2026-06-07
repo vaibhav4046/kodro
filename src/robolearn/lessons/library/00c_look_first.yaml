@@ -1,0 +1,39 @@
+id: 00c_look_first
+title: Look Before You Move
+key_stage: KS2
+reading_age: 10
+ct_concepts: [selection]
+curriculum_refs:
+  - "DfE 'Computing programmes of study: Key Stages 1 and 2' (DfE-00171-2013), KS2: use sequence, selection, and repetition in programs; work with variables and various forms of input and output."
+prereqs: [00b_repeat_square]
+terrain: mars
+glossary:
+  sensor: "A part that lets the rover measure the world around it, like its eyes."
+  if: "Do something ONLY when a question is true."
+  obstacle: "A rock or wall in the way that the rover must not hit."
+intro: |
+  A clever rover looks before it moves.
+  "obstacle_ahead()" asks the sensor a yes/no question:
+  is there a rock right in front of me?
+  Use "if" to turn out of the way first, then drive on safely.
+starter_code: |
+  if obstacle_ahead():
+      turn_left(90)
+
+  move_forward(3)
+allowed_constructs: [function_call, if]
+max_lines: 8
+world:
+  base: [1.0, 1.0]
+  samples: []
+  obstacles:
+    - {x: 1.0, y: 2.2, r: 0.4}
+  width: 6.0
+  height: 6.0
+success_criteria:
+  - uses_construct: if
+  - no_collisions: true
+hints:
+  on_failure:
+    - "Ask the sensor first: 'if obstacle_ahead():' then turn out of the way."
+    - "After the if, drive forward. Keep the move_forward OUTSIDE the if so it always runs."

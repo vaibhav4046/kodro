@@ -265,6 +265,8 @@ class BridgeAPI:
             if hasattr(lesson.terrain, "value")
             else str(lesson.terrain),
             "maxLines": lesson.max_lines,
+            "readingAge": lesson.reading_age,
+            "glossary": dict(lesson.glossary),
         }
 
 

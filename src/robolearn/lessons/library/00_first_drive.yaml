@@ -1,0 +1,35 @@
+id: 00_first_drive
+title: Drive to the Flag
+key_stage: KS1
+reading_age: 6
+ct_concepts: [sequence]
+curriculum_refs:
+  - "DfE 'Computing programmes of study: Key Stages 1 and 2' (DfE-00171-2013), KS1: create and debug simple programs; use logical reasoning to predict the behaviour of simple programs."
+prereqs: []
+terrain: earth
+glossary:
+  forward: "Go straight ahead, the way the rover is facing."
+  program: "A list of steps for the rover to do, one after another."
+intro: |
+  Let's drive the rover!
+  Each line tells the rover one thing to do.
+  The rover does them in order, from the top.
+  Make the rover go forward to reach the flag.
+starter_code: |
+  move_forward(2)
+  move_forward(2)
+allowed_constructs: [function_call]
+max_lines: 6
+world:
+  base: [1.0, 1.0]
+  samples: []
+  obstacles: []
+  width: 6.0
+  height: 6.0
+success_criteria:
+  - min_distance_travelled: 3.0
+  - no_collisions: true
+hints:
+  on_failure:
+    - "Use move_forward to drive the rover ahead. Try move_forward(2)."
+    - "You can use move_forward more than once to go further."

@@ -1,0 +1,37 @@
+id: 00b_repeat_square
+title: Make a Square
+key_stage: KS2
+reading_age: 9
+ct_concepts: [iteration]
+curriculum_refs:
+  - "DfE 'Computing programmes of study: Key Stages 1 and 2' (DfE-00171-2013), KS2: design, write and debug programs that accomplish specific goals; use sequence, selection, and repetition in programs."
+prereqs: [00_first_drive]
+terrain: earth
+glossary:
+  loop: "A way to repeat the same steps again and again, without writing them out each time."
+  repeat: "Do something more than once."
+  turn: "Spin the rover to face a new direction, measured in degrees."
+intro: |
+  A square has four equal sides.
+  Instead of writing the same steps four times, we use a loop.
+  "for side in range(4)" repeats the lines below it four times.
+  Drive forward, then turn, four times - and you draw a square!
+starter_code: |
+  for side in range(4):
+      move_forward(2)
+      turn_right(90)
+allowed_constructs: [function_call, for]
+max_lines: 8
+world:
+  base: [1.0, 1.0]
+  samples: []
+  obstacles: []
+  width: 8.0
+  height: 8.0
+success_criteria:
+  - uses_construct: for
+  - no_collisions: true
+hints:
+  on_failure:
+    - "Use a loop: 'for side in range(4):' then indent the steps to repeat."
+    - "Inside the loop, move_forward and then turn_right(90) to make each corner."

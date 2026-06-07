@@ -22,7 +22,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from robolearn.engine.terrain import Terrain
 
 #: UK key stages currently supported by the lesson library.
-KeyStage = Literal["KS3", "KS4"]
+KeyStage = Literal["KS1", "KS2", "KS3", "KS4"]
 
 #: Computational-thinking concepts a lesson may exercise.
 CTConcept = Literal[
@@ -125,6 +125,12 @@ class Lesson(BaseModel):
     world: WorldDef
     success_criteria: list[SuccessCriterion] = Field(default_factory=list)
     hints: HintRules = Field(default_factory=HintRules)
+    #: Optional reading-age (years) so the UI can flag age-appropriateness;
+    #: KS1/KS2 lessons set this low (5-11). ``None`` = unspecified.
+    reading_age: int | None = Field(default=None, ge=4, le=18)
+    #: Optional plain-English glossary {term: definition} shown to younger
+    #: learners so jargon (lidar, loop, sensor) is always explained in-context.
+    glossary: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("terrain", mode="before")
     @classmethod
