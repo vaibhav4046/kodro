@@ -197,7 +197,11 @@ def test_function_without_return_yields_none() -> None:
 def test_python_style_equality() -> None:
     """== matches CPython: True==1, False==0, list element-wise, int==float."""
     r = _drive_prints(
-        "print(True == 1)\nprint(False == 0)\nprint([1, 2] == [1, 2])\nprint(2 == 2.0)\nprint(1 != 2)"
+        "print(True == 1)\n"
+        "print(False == 0)\n"
+        "print([1, 2] == [1, 2])\n"
+        "print(2 == 2.0)\n"
+        "print(1 != 2)"
     )
     assert r["error"] is None, r["error"]
     assert r["prints"] == ["True", "True", "True", "True", "True"]
