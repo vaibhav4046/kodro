@@ -610,3 +610,19 @@ body.a11y-readable .api-hint { font-size: 12px !important; }
 }
 .lesson-glossary dd { margin:0; color:var(--fg-2); font-size:12px; line-height:1.5; }
 .pupil-pick { display:flex; align-items:center; }
+
+/* Celebration confetti on a lesson pass (premium juice). Pointer-events none
+   so it never blocks the UI; honours reduced-motion. */
+.confetti-layer { position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:60; }
+.confetti {
+  position:absolute; top:-12px; width:8px; height:14px; border-radius:2px; opacity:0;
+  animation: confetti-fall 2.2s var(--ease) forwards;
+}
+@keyframes confetti-fall {
+  0% { top:-12px; opacity:0; }
+  10% { opacity:1; }
+  100% { top:108%; opacity:0.9; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confetti { animation: none; display:none; }
+}
