@@ -26,6 +26,32 @@
 <body>
   <div id="root"></div>
 
+  <!-- Crash safety net: if anything throws before/while React mounts (a JSX
+       runtime error, a corrupt vendored asset), paint a plain-HTML message
+       into #root instead of leaving a blank white window. -->
+  <script>
+    (function () {
+      function fallback(msg) {
+        var root = document.getElementById('root');
+        if (!root || root.getAttribute('data-mounted') === '1' || root.childElementCount > 0) return;
+        root.innerHTML =
+          '<div role="alert" style="font-family:system-ui,Segoe UI,sans-serif;color:#f5f0e4;'
+          + 'background:#08090f;min-height:100vh;display:flex;align-items:center;justify-content:center;'
+          + 'text-align:center;padding:40px;line-height:1.6">'
+          + '<div><h1 style="color:#5ce0d8;font-size:22px;margin-bottom:10px">RoboLearn could not start</h1>'
+          + '<p style="max-width:520px;color:#d9d3c4">Something went wrong loading the simulator. '
+          + 'Try reopening the app. If it keeps happening, the desktop fallback (python -m robolearn) '
+          + 'always works.</p>'
+          + '<pre style="margin-top:14px;color:#9a958a;font-size:12px;white-space:pre-wrap">' + msg + '</pre>'
+          + '</div></div>';
+      }
+      window.addEventListener('error', function (e) { fallback((e && e.message) || 'script error'); });
+      window.addEventListener('unhandledrejection', function (e) {
+        fallback((e && e.reason && (e.reason.message || e.reason)) || 'promise error');
+      });
+    })();
+  </script>
+
   <!-- Vendored React + Babel (offline, no CDN) -->
   <script src="vendor/react.production.min.js"></script>
   <script src="vendor/react-dom.production.min.js"></script>
