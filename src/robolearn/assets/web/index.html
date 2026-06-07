@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RoboLearn · Orbital Rover</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* ambient particle keyframes (referenced by terrains.jsx) */
+    @keyframes dust { 0%{transform:translate(0,0);opacity:0;} 10%{opacity:0.8;} 90%{opacity:0.8;} 100%{transform:translate(var(--drift),-60px);opacity:0;} }
+    @keyframes bub { 0%{transform:translateY(0) translateX(0);opacity:0;} 8%{opacity:0.7;} 92%{opacity:0.7;} 100%{transform:translateY(-105vh) translateX(var(--drift));opacity:0;} }
+    @keyframes twk { 0%,100%{opacity:0.25;} 50%{opacity:1;} }
+    .radar-sweep { animation: radarspin 1s linear infinite; }
+    @keyframes radarspin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+    .caustics {
+      background:
+        radial-gradient(circle at 20% 30%, rgba(120,220,230,0.25), transparent 18%),
+        radial-gradient(circle at 70% 50%, rgba(120,220,230,0.2), transparent 16%),
+        radial-gradient(circle at 45% 75%, rgba(120,220,230,0.22), transparent 20%),
+        radial-gradient(circle at 85% 20%, rgba(120,220,230,0.18), transparent 14%);
+      animation: caust 14s ease-in-out infinite alternate;
+    }
+    @keyframes caust { from{transform:translate(0,0) scale(1);} to{transform:translate(-3%,2%) scale(1.08);} }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Vendored React + Babel (offline, no CDN) -->
+  <script src="vendor/react.production.min.js"></script>
+  <script src="vendor/react-dom.production.min.js"></script>
+  <script src="vendor/babel.min.js"></script>
+
+  <!-- interpreter is plain JS -->
+  <script src="interpreter.js"></script>
+
+  <!-- RoboLearn bridge: lessons + grader + persistence (provided by Python) -->
+  <script src="bridge.js"></script>
+
+  <!-- React components (Babel) -->
+  <script type="text/babel" src="terrains.jsx"></script>
+  <script type="text/babel" src="Rover.jsx"></script>
+  <script type="text/babel" src="Viewport.jsx"></script>
+  <script type="text/babel" src="Editor.jsx"></script>
+  <script type="text/babel" src="Telemetry.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="app.jsx"></script>
+</body>
+</html>

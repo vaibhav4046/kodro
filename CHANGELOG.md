@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **NEW web UI** (`python -m robolearn.web`) — the actual Claude Design
+  rover-simulator React/CSS prototype is now vendored under
+  `src/robolearn/assets/web/` (with React 18, Babel standalone, and 14 TTF
+  font files vendored locally — fully offline, no CDN) and rendered in a
+  desktop window via **pywebview** (Edge WebView2 on Windows). A new
+  `robolearn.web.app.BridgeAPI` exposes the existing lesson library +
+  pupil store to the React shell via `window.pywebview.api.*`, bridged by
+  `assets/web/bridge.js`. The Tk app at `python -m robolearn` is unchanged
+  and stays as a fallback. This is the *modern, sleek* UI medium the design
+  was built in — closes the "looks like a Macintosh game" gap.
+
 ### Changed
 - **Full dark ttk theme** — every ttk widget (buttons, slider, scrollbars,
   entries, separators, notebook) is now repainted from the active palette
