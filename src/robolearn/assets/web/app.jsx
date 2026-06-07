@@ -133,6 +133,7 @@ rover.say("Survey done")`
     // unchanged when there's no bridge (browser preview).
     const [lessons, setLessons] = useState([]);
     const [currentLessonId, setCurrentLessonId] = useState(null);
+    const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
     const currentLessonIdRef = useRef(null);
     useEffect(() => { currentLessonIdRef.current = currentLessonId; }, [currentLessonId]);
     useEffect(() => {
@@ -142,6 +143,7 @@ rover.say("Survey done")`
     function loadLesson(lesson) {
       if (!lesson) return;
       setCurrentLessonId(lesson.id);
+      setLessonVerdict(null);
       setPrograms(p => ({ ...p, [activeTab]: lesson.starterCode || '' }));
       setConsoleLines(l => [
         ...l,
@@ -157,6 +159,8 @@ rover.say("Survey done")`
         const r = await window.RoboLearn.submitAttempt(lessonId, source, null);
         if (!r) return;
         if (r.ok === false) { setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') }]); return; }
+        // Persist the verdict in a panel that survives Reset (QA #3).
+        setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null });
         const tag = r.passed ? 'ok' : 'err';
         setConsoleLines(l => {
           const lines = [...l, { type: tag, text: (r.passed ? '✓ PASS' : '✗ NOT YET') + '  Score: ' + r.score + '/100' }];
@@ -627,6 +631,32 @@ rover.say("Survey done")`
                 <b>move_forward(m)</b> · <b>move_backward(m)</b> · <b>turn_left(°)</b> · <b>turn_right(°)</b> · <b>set_speed(0–100)</b> · <b>pen_down/up()</b> · <b>scan()</b> · <b>led("cyan")</b> · <b>say("…")</b> · <b>collect_sample()</b>
                 <span className="sep"> — sensors return values: </span><b>distance()</b> · <b>heading()</b> · <b>battery()</b> · <b>obstacle_ahead()</b> · <b>gravity()</b> · <b>temperature()</b>
               </div>
+              {(() => {
+                const lesson = lessons.find(l => l.id === currentLessonId);
+                if (!lesson) return null;
+                return (
+                  <section className="lesson-card" aria-label="Current lesson">
+                    <div className="lesson-card-head">
+                      <span className="lesson-badge">{lesson.keyStage}</span>
+                      <span className="lesson-title">{lesson.id} · {lesson.title}</span>
+                      {lessonVerdict && (
+                        <span className={'lesson-verdict ' + (lessonVerdict.passed ? 'pass' : 'fail')}>
+                          {lessonVerdict.passed ? '✓ Complete' : '✗ Not yet'} · {lessonVerdict.score}/100
+                        </span>
+                      )}
+                    </div>
+                    {lesson.intro ? <p className="lesson-intro">{lesson.intro.trim()}</p> : null}
+                    {lessonVerdict && !lessonVerdict.passed && lessonVerdict.reasons.length > 0 && (
+                      <ul className="lesson-reasons">
+                        {lessonVerdict.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                      </ul>
+                    )}
+                    {lessonVerdict && lessonVerdict.hint && lessonVerdict.hint.message && (
+                      <p className="lesson-hint">💡 {lessonVerdict.hint.message}</p>
+                    )}
+                  </section>
+                );
+              })()}
             </div>
             <div className="resizer-row" onPointerDown={e => startDrag('console', e)} style={{ height: 5, cursor: 'row-resize', background: 'transparent', position: 'relative' }}>
               <div style={{ position: 'absolute', inset: '0 0', borderTop: '0.5px solid var(--border)' }}></div>
