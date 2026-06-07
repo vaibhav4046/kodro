@@ -6,6 +6,10 @@
   const TERRAINS = window.TERRAINS;
   const WALL = TERRAINS.WALL;
   const R = 30; // rover collision radius (cm)
+  // Live check (re-evaluated per move) so toggling the OS setting takes effect.
+  const PREFERS_REDUCED_MOTION = () =>
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
 
   // ---------------- example programs ----------------
   const EXAMPLES = {
@@ -165,7 +169,7 @@ rover.say("Survey done")`
     const trailColor = t.trail === 'cyan' ? '#5ce0d8' : t.trail === 'amber' ? '#e0b45c' : t.trail === 'white' ? '#f5f0e4' : null;
 
     const terrain = TERRAINS[terrainId];
-    const code = programs[activeTab];
+    const code = currentLessonId ? lessonCode : programs[activeTab];
 
     // live rover state (authoritative for sensors/animation)
     const startState = () => ({ x: 0, y: 0, heading: 0, speed: 50, battery: 100, moving: false, led: null, scanning: false, penDown: false });
@@ -183,6 +187,10 @@ rover.say("Survey done")`
     // unchanged when there's no bridge (browser preview).
     const [lessons, setLessons] = useState([]);
     const [currentLessonId, setCurrentLessonId] = useState(null);
+    // Lessons keep their OWN editable buffer so loading one never clobbers the
+    // example tabs (autopilot.py etc.); the editor shows it while a lesson is
+    // active (QA re-score rank 11).
+    const [lessonCode, setLessonCode] = useState('');
     const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
     const currentLessonIdRef = useRef(null);
     useEffect(() => { currentLessonIdRef.current = currentLessonId; }, [currentLessonId]);
@@ -194,7 +202,7 @@ rover.say("Survey done")`
       if (!lesson) return;
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
-      setPrograms(p => ({ ...p, [activeTab]: lesson.starterCode || '' }));
+      setLessonCode(lesson.starterCode || '');  // own buffer, not the example tab
       setConsoleLines(l => [
         ...l,
         { type: 'sys', text: '─── ' + lesson.id + ' · ' + lesson.title + ' [' + lesson.keyStage + '] ───' },
@@ -312,6 +320,10 @@ rover.say("Survey done")`
     // backgrounded; ~16ms cadence gives ~60fps while visible.
     function frames(durationMs, onFrame) {
       return new Promise(resolve => {
+        // Respect prefers-reduced-motion: snap straight to the final position
+        // (p=1) with no interpolation, so the rover teleports rather than
+        // animating (WCAG 2.3.3, vestibular safety).
+        if (PREFERS_REDUCED_MOTION()) { onFrame(1); resolve('done'); return; }
         const start = performance.now();
         const tick = () => {
           if (ctrl.current.abort) { resolve('abort'); return; }
@@ -603,8 +615,25 @@ rover.say("Survey done")`
     }
 
     function onCodeChange(v) {
-      setPrograms(p => ({ ...p, [activeTab]: v }));
-      if (runState !== 'idle') { /* keep state; user can re-run */ }
+      if (currentLessonId) setLessonCode(v);            // edit the lesson buffer
+      else setPrograms(p => ({ ...p, [activeTab]: v })); // edit the example tab
+    }
+
+    async function exportReportClick() {
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
+        setConsoleLines(l => [...l, { type: 'warn', text: 'Report export needs the desktop app.' }]);
+        return;
+      }
+      try {
+        const r = await window.RoboLearn.exportReport();
+        if (r && r.ok) {
+          setConsoleLines(l => [...l, { type: 'ok', text: 'Progress report saved: ' + r.path }]);
+        } else {
+          setConsoleLines(l => [...l, { type: 'err', text: 'Report export failed: ' + ((r && r.reason) || 'unknown') }]);
+        }
+      } catch (e) {
+        setConsoleLines(l => [...l, { type: 'err', text: 'Report export error: ' + e }]);
+      }
     }
 
     // apply terrain accent to CSS var
@@ -710,7 +739,7 @@ rover.say("Survey done")`
               <div className="panel-head">
                 <div className="tabs">
                   {Object.keys(EXAMPLES).map(k => (
-                    <button key={k} type="button" className={'tab' + (activeTab === k ? ' active' : '')} aria-pressed={activeTab === k} onClick={() => setActiveTab(k)}>{EXAMPLES[k].label}</button>
+                    <button key={k} type="button" className={'tab' + (!currentLessonId && activeTab === k ? ' active' : '')} aria-pressed={!currentLessonId && activeTab === k} onClick={() => { setCurrentLessonId(null); setActiveTab(k); }}>{EXAMPLES[k].label}</button>
                   ))}
                 </div>
                 {lessons.length > 0 && (
@@ -769,6 +798,7 @@ rover.say("Survey done")`
               <div className="console-head">
                 <span className="eyebrow">Console</span>
                 <div className="ph-spacer" style={{ flex: 1 }}></div>
+                <button className="btn-mini" onClick={exportReportClick}>Export report</button>
                 <button className="btn-mini" onClick={() => setConsoleLines([{ type: 'sys', text: 'Console cleared.' }])}>Clear</button>
               </div>
               <div className="console-out" ref={consoleEndRef} role="log" aria-live="polite" aria-label="Program output and lesson feedback">
