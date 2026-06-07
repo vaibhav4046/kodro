@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged.
 
 ### Added
+- **Telemetry gauges** — the sensors rail now leads with the design's
+  instrument cluster: a **compass dial** (cardinal ticks + cyan heading
+  needle) and circular **arc gauges** for battery and LIDAR, above the
+  existing history charts. New `Compass` + `ArcGauge` canvas widgets.
 - **Rover pen trail** — the viewport now traces the rover's path as a
   phosphor-cyan trail while it drives (the design's signature "pen trail"),
   cleared on Reset or lesson change. Capped at 400 points.

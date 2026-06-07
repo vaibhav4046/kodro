@@ -6,7 +6,7 @@ import tkinter as tk
 
 import pytest
 
-from robolearn.ui.charts import MAX_POINTS, LineChart, MiniMap
+from robolearn.ui.charts import MAX_POINTS, ArcGauge, Compass, LineChart, MiniMap
 
 
 @pytest.fixture
@@ -20,6 +20,23 @@ def root():  # type: ignore[no-untyped-def]
         yield r
     finally:
         r.destroy()
+
+
+# --- Compass + ArcGauge -------------------------------------------
+
+
+def test_compass_wraps_heading(root: tk.Tk) -> None:
+    c = Compass(root)
+    c.set_heading(450.0)
+    assert c.heading == 90.0
+    assert len(c.find_all()) > 0  # drew dial + needle
+
+
+def test_arcgauge_stores_value_and_draws(root: tk.Tk) -> None:
+    g = ArcGauge(root, label="BATTERY", max_value=100.0, unit="%")
+    g.set(75.0)
+    assert g.value == 75.0
+    assert len(g.find_all()) > 0
 
 
 # --- LineChart ----------------------------------------------------

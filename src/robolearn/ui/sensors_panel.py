@@ -17,7 +17,7 @@ from tkinter import ttk
 from robolearn.engine.rover import Rover
 from robolearn.engine.sensors import IMUReading, imu_reading, lidar_distance
 from robolearn.ui import orbital
-from robolearn.ui.charts import LineChart, MiniMap
+from robolearn.ui.charts import ArcGauge, Compass, LineChart, MiniMap
 
 
 @dataclass(slots=True)
@@ -38,6 +38,19 @@ class SensorsPanel(ttk.Frame):
         """Build the panel widgets."""
         super().__init__(parent)
         self._rows = self._build_rows()
+        # Gauge row (the design's compass + circular gauges).
+        gauge_row = ttk.Frame(self)
+        gauge_row.pack(fill=tk.X, padx=4, pady=(4, 2))
+        self._compass = Compass(gauge_row, size=84)
+        self._compass.pack(side=tk.LEFT, padx=1)
+        self._battery_gauge = ArcGauge(
+            gauge_row, label="BATTERY", max_value=100.0, colour=orbital.SUCCESS, unit="%", size=84
+        )
+        self._battery_gauge.pack(side=tk.LEFT, padx=1)
+        self._lidar_gauge = ArcGauge(
+            gauge_row, label="LIDAR m", max_value=12.0, colour=orbital.CYAN, size=84
+        )
+        self._lidar_gauge.pack(side=tk.LEFT, padx=1)
         self._lidar_chart = LineChart(self, label="LIDAR (m)", colour=orbital.CYAN)
         self._lidar_chart.pack(fill=tk.X, padx=4, pady=(6, 2))
         self._battery_chart = LineChart(
@@ -63,6 +76,10 @@ class SensorsPanel(ttk.Frame):
 
         r, g, b = colour_under(rover)
         self._rows.colour.set(f"#{r:02x}{g:02x}{b:02x}")
+        # Gauges (compass + circular).
+        self._compass.set_heading(state.heading_deg)
+        self._battery_gauge.set(state.battery_pct)
+        self._lidar_gauge.set(12.0 if math.isinf(distance) else min(12.0, distance))
         # Live charts + mini-map.
         if not math.isinf(distance):
             self._lidar_chart.push(distance)
@@ -83,6 +100,9 @@ class SensorsPanel(ttk.Frame):
         self._rows.distance.set("--")
         self._rows.colour.set("--")
         self._rows.samples.set("--")
+        self._compass.set_heading(0.0)
+        self._battery_gauge.set(0.0)
+        self._lidar_gauge.set(0.0)
 
     # --- private ------------------------------------------------------------
 

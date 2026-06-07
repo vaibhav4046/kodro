@@ -8,6 +8,7 @@ new dependencies. The chart auto-downsamples past 200 datapoints.
 
 from __future__ import annotations
 
+import math
 import tkinter as tk
 from collections import deque
 from dataclasses import dataclass
@@ -185,3 +186,116 @@ class MiniMap(tk.Canvas):
         sx = 4 + (wx / self._world_w) * (self._width - 8)
         sy = self._height - 4 - (wy / self._world_h) * (self._height - 8)
         return (sx, sy)
+
+
+class Compass(tk.Canvas):
+    """A heading dial with cardinal ticks and a cyan needle (design gauge)."""
+
+    def __init__(self, parent: tk.Misc, *, size: int = 96) -> None:
+        """Build the compass canvas."""
+        super().__init__(parent, width=size, height=size, bg=orbital.NAVY, highlightthickness=0)
+        self._size = size
+        self._heading = 0.0
+        self.redraw()
+
+    def set_heading(self, heading_deg: float) -> None:
+        """Point the needle at ``heading_deg`` (0 = north, clockwise)."""
+        self._heading = float(heading_deg) % 360.0
+        self.redraw()
+
+    @property
+    def heading(self) -> float:
+        """Current heading in degrees (used by tests)."""
+        return self._heading
+
+    def redraw(self) -> None:
+        """Repaint the dial + needle."""
+        self.delete("all")
+        c = self._size / 2
+        r = c - 8
+        self.create_oval(c - r, c - r, c + r, c + r, outline=orbital.BORDER, width=1)
+        for label, ang in (("N", 0), ("E", 90), ("S", 180), ("W", 270)):
+            rad = math.radians(ang)
+            tx = c + (r - 8) * math.sin(rad)
+            ty = c - (r - 8) * math.cos(rad)
+            colour = orbital.CYAN if label == "N" else orbital.FG_MUTED
+            self.create_text(tx, ty, text=label, fill=colour, font=("TkDefaultFont", 8, "bold"))
+        rad = math.radians(self._heading)
+        nx = c + (r - 12) * math.sin(rad)
+        ny = c - (r - 12) * math.cos(rad)
+        # tail (muted) + head (cyan) needle.
+        self.create_line(
+            c,
+            c,
+            c - (r - 18) * math.sin(rad),
+            c + (r - 18) * math.cos(rad),
+            fill=orbital.FG_MUTED,
+            width=2,
+        )
+        self.create_line(c, c, nx, ny, fill=orbital.CYAN, width=3)
+        self.create_oval(c - 3, c - 3, c + 3, c + 3, fill=orbital.PAPER, outline="")
+        self.create_text(
+            c,
+            self._size - 8,
+            text=f"{self._heading:03.0f}°",
+            fill=orbital.PAPER,
+            font=("TkDefaultFont", 8, "bold"),
+        )
+
+
+class ArcGauge(tk.Canvas):
+    """A 270-degree arc gauge filled to ``value / max_value`` (design gauge)."""
+
+    def __init__(
+        self,
+        parent: tk.Misc,
+        *,
+        label: str,
+        max_value: float = 100.0,
+        colour: str = orbital.CYAN,
+        unit: str = "",
+        size: int = 96,
+    ) -> None:
+        """Build the gauge canvas."""
+        super().__init__(parent, width=size, height=size, bg=orbital.NAVY, highlightthickness=0)
+        self._size = size
+        self._label = label
+        self._max = max(1e-6, max_value)
+        self._colour = colour
+        self._unit = unit
+        self._value = 0.0
+        self.redraw()
+
+    def set(self, value: float) -> None:
+        """Set the gauge value and redraw."""
+        self._value = float(value)
+        self.redraw()
+
+    @property
+    def value(self) -> float:
+        """Current value (used by tests)."""
+        return self._value
+
+    def redraw(self) -> None:
+        """Repaint the track + value arc + readout."""
+        self.delete("all")
+        pad = 12
+        box = (pad, pad, self._size - pad, self._size - pad)
+        frac = min(1.0, max(0.0, self._value / self._max))
+        # 270-degree sweep starting bottom-left (225) going clockwise.
+        self.create_arc(*box, start=-45, extent=-270, style=tk.ARC, outline=orbital.BORDER, width=6)
+        if frac > 0:
+            self.create_arc(
+                *box, start=-45, extent=-270 * frac, style=tk.ARC, outline=self._colour, width=6
+            )
+        c = self._size / 2
+        self.create_text(
+            c,
+            c - 2,
+            text=f"{self._value:.0f}{self._unit}",
+            fill=orbital.PAPER,
+            font=("TkDefaultFont", 11, "bold"),
+        )
+        self.create_text(
+            c, c + 14, text=self._label, fill=orbital.FG_MUTED, font=("TkDefaultFont", 7)
+        )
