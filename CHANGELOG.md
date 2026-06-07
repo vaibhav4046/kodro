@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Full dark ttk theme** — every ttk widget (buttons, slider, scrollbars,
+  entries, separators, notebook) is now repainted from the active palette
+  via clam `style.configure`/`map`, so the controls match the dark Orbital
+  Rover chrome instead of clam's light-grey default. The editor's **Run**
+  button is now a cyan `Accent.TButton`; Step/Stop/Reset are ghost buttons.
+  This closes the biggest UI gap against the design (light buttons on dark).
 - **Lessons list + progress drawer reskinned** — navy panels with
   warm-paper text and a phosphor-cyan selection highlight, matching the rest
   of the Orbital Rover chrome.

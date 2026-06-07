@@ -198,7 +198,7 @@ class EditorPanel(ttk.Frame):
         toolbar = ttk.Frame(self)
         toolbar.pack(side=tk.TOP, fill=tk.X, padx=2, pady=2)
 
-        run_btn = ttk.Button(toolbar, text="Run", command=self._on_run)
+        run_btn = ttk.Button(toolbar, text="▶ Run", command=self._on_run, style="Accent.TButton")
         run_btn.pack(side=tk.LEFT, padx=2)
         step_btn = ttk.Button(toolbar, text="Step", command=self._on_step)
         step_btn.pack(side=tk.LEFT, padx=2)
