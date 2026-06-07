@@ -75,6 +75,34 @@ def main(argv: list[str] | None = None) -> int:
     binary_path = _resolve_binary_path()
     if binary_path is not None:
         sys.stdout.write(f"Built: {binary_path}\n")
+
+    web_rc = _build_web_app()
+    if web_rc != 0:
+        return web_rc
+    return 0
+
+
+def _build_web_app() -> int:
+    """On Windows, also build the pywebview desktop app (RoboLearn.exe).
+
+    The web UI ships in a pywebview window; its spec pulls in pywebview +
+    pythonnet, which are Windows-specific here, so it is built on Windows only.
+    The Tk binary above remains the cross-platform fallback.
+    """
+    if not sys.platform.startswith("win"):
+        return 0
+    spec = REPO_ROOT / "robolearn-web.spec"
+    if not spec.exists():
+        return 0
+    cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", spec.as_posix()]
+    sys.stdout.write("Running (web app): " + " ".join(cmd) + "\n")
+    result = subprocess.run(cmd, check=False, cwd=REPO_ROOT)
+    if result.returncode != 0:
+        sys.stderr.write(f"Web-app PyInstaller failed with exit code {result.returncode}\n")
+        return result.returncode
+    web_binary = DIST_DIR / "RoboLearn.exe"
+    if web_binary.exists():
+        sys.stdout.write(f"Built: {web_binary}\n")
     return 0
 
 

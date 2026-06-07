@@ -2,13 +2,17 @@
 # PyInstaller spec for the RoboLearn DESKTOP APP (the web UI in a pywebview
 # window). Produces a single windowed RoboLearn.exe -- double-clickable, no
 # Python install required. The Tk fallback ships from robolearn.spec.
+import os
+
 from PyInstaller.utils.hooks import (
     collect_data_files,
     collect_dynamic_libs,
     collect_submodules,
 )
 
-ROOT = "D:/project/robolearn"
+# SPECPATH is injected by PyInstaller and points at this spec's directory
+# (the repo root), so the build is portable across machines and CI runners.
+ROOT = SPECPATH.replace(os.sep, "/")
 
 datas = [
     (f"{ROOT}/src/robolearn/lessons/library", "robolearn/lessons/library"),

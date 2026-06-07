@@ -49,7 +49,12 @@ jobs:
         run: |
           mkdir -p out
           if [ "$RUNNER_OS" = "Windows" ]; then
-            cp dist/robolearn.exe out/robolearn-windows.exe
+            # Headline: the pywebview desktop app (Claude web UI). The Tk build
+            # ships alongside as a fallback.
+            if [ -f dist/RoboLearn.exe ]; then
+              cp dist/RoboLearn.exe out/RoboLearn-windows.exe
+            fi
+            cp dist/robolearn.exe out/robolearn-windows-tk.exe
           elif [ "$RUNNER_OS" = "macOS" ]; then
             if [ -d dist/robolearn.app ]; then
               (cd dist && zip -r -q ../out/robolearn-macos.zip robolearn.app)
