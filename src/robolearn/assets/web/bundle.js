@@ -2541,12 +2541,30 @@ rover.say("Survey done")`
     const [vibePrompt, setVibePrompt] = useState('');
     const [vibeBusy, setVibeBusy] = useState(false);
     const [vibeError, setVibeError] = useState(null);
-    useEffect(() => {
+    // The pywebview bridge injects asynchronously AFTER React mounts, so a
+    // one-shot check at mount races it and can leave the panel "offline"
+    // forever. Poll briefly at mount, and re-check every time the panel is
+    // opened -- so starting Ollama later lights it up without a restart.
+    function refreshAiStatus() {
       if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
       window.RoboLearn.aiStatus().then(s => {
         if (s) setAiInfo(s);
       }).catch(() => {});
+    }
+    useEffect(() => {
+      let tries = 0;
+      const t = setInterval(() => {
+        tries += 1;
+        if (window.RoboLearn && window.RoboLearn.isAvailable()) {
+          refreshAiStatus();
+          clearInterval(t);
+        } else if (tries > 20) clearInterval(t);
+      }, 500);
+      return () => clearInterval(t);
     }, []);
+    useEffect(() => {
+      if (vibeOpen) refreshAiStatus();
+    }, [vibeOpen]);
     async function vibeGenerate() {
       if (vibeBusy || !vibePrompt.trim()) return;
       setVibeBusy(true);

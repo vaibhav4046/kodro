@@ -258,9 +258,10 @@ class BridgeAPI:
         "log(text), say(text), led(colour), scan(), wait(seconds), read_distance(), "
         "obstacle_ahead(), collect_sample(), sample_detected(), at_base(), "
         "pen_down(), pen_up(). Plain procedural Python only: for/while/if, "
-        "simple variables, def with no classes or imports. The pupil is a child: "
-        "keep it short, add a one-line # comment per step. "
-        "Reply with ONLY the Python code. No markdown fences, no prose."
+        "simple variables, def with no classes or imports. Define every "
+        "variable before you use it. No f-strings, lists, dicts or input(). "
+        "The pupil is a child: keep it short, add a one-line # comment per "
+        "step. Reply with ONLY the Python code. No markdown fences, no prose."
     )
 
     def _pick_ai_model(self, installed: list[str]) -> str | None:
@@ -326,7 +327,34 @@ class BridgeAPI:
         code = _strip_code_fences(raw)
         if not code.strip():
             return {"ok": False, "reason": "The model returned no code. Try rephrasing."}
-        return {"ok": True, "code": code, "model": model}
+
+        # Validate through the same sandbox the Run button uses, so the pupil
+        # is never handed code that crashes on line 1. One self-repair round:
+        # feed the error back to the model and re-validate.
+        error = self._validate_generated(code)
+        if error is not None:
+            with contextlib.suppress(OllamaError):
+                repaired = _strip_code_fences(
+                    client.generate(
+                        f"Your previous program failed with: {error}\n"
+                        f"Program:\n{code}\n"
+                        "Fix it. Reply with ONLY the corrected Python code.",
+                        system=self._AI_SYSTEM_PROMPT,
+                        model=model,
+                        temperature=0.2,
+                    )
+                )
+                if repaired.strip() and self._validate_generated(repaired) is None:
+                    return {"ok": True, "code": repaired, "model": model, "repaired": True}
+        return {"ok": True, "code": code, "model": model, "validated": error is None}
+
+    @staticmethod
+    def _validate_generated(code: str) -> str | None:
+        """Run AI code through the sandboxed executor; return the error or None."""
+        result = run_pupil_code(code, timeout_s=5.0)
+        if result.success:
+            return None
+        return f"{result.error_kind}: {result.error_message} (line {result.error_line})"
 
     def speak(self, text: str) -> dict[str, Any]:
         """Speak ``text`` aloud with the OS's offline TTS voice (fire-and-forget)."""
