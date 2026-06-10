@@ -2514,6 +2514,23 @@ rover.say("Survey done")`
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
     const [showHelp, setShowHelp] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    // Click-away + Escape close the settings popover.
+    useEffect(() => {
+      if (!settingsOpen) return undefined;
+      const close = e => {
+        if (!e.target.closest || !e.target.closest('.settings-wrap')) setSettingsOpen(false);
+      };
+      const key = e => {
+        if (e.key === 'Escape') setSettingsOpen(false);
+      };
+      document.addEventListener('pointerdown', close);
+      document.addEventListener('keydown', key);
+      return () => {
+        document.removeEventListener('pointerdown', close);
+        document.removeEventListener('keydown', key);
+      };
+    }, [settingsOpen]);
 
     // --- AI vibe coding (local Ollama: Qwen/Gemma; graceful when absent) ---
     const [aiInfo, setAiInfo] = useState({
@@ -3569,7 +3586,61 @@ rover.say("Survey done")`
     }, /*#__PURE__*/React.createElement("span", {
       className: 'status-dot ' + runState,
       "aria-hidden": "true"
-    }), /*#__PURE__*/React.createElement("span", null, statusLabel))), /*#__PURE__*/React.createElement("main", {
+    }), /*#__PURE__*/React.createElement("span", null, statusLabel)), /*#__PURE__*/React.createElement("div", {
+      className: "bar-divider"
+    }), /*#__PURE__*/React.createElement("button", {
+      className: "icon-btn",
+      title: "Keyboard shortcuts (?)",
+      "aria-label": "Keyboard shortcuts",
+      onClick: () => setShowHelp(true)
+    }, "?"), /*#__PURE__*/React.createElement("div", {
+      className: "settings-wrap"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "icon-btn",
+      title: "Settings",
+      "aria-label": "Settings",
+      "aria-expanded": settingsOpen,
+      onClick: () => setSettingsOpen(o => !o)
+    }, "\u2699"), settingsOpen && /*#__PURE__*/React.createElement("div", {
+      className: "settings-pop",
+      role: "menu",
+      "aria-label": "Settings"
+    }, pupils.length > 0 && /*#__PURE__*/React.createElement("label", {
+      className: "set-row"
+    }, /*#__PURE__*/React.createElement("span", null, "Pupil"), /*#__PURE__*/React.createElement("select", {
+      className: "lesson-select",
+      value: activePupilId || '',
+      onChange: onPupilChange,
+      "aria-label": "Active pupil"
+    }, pupils.map(p => /*#__PURE__*/React.createElement("option", {
+      key: p.id,
+      value: p.id
+    }, p.displayName)), /*#__PURE__*/React.createElement("option", {
+      value: "__new__"
+    }, "+ New pupil\u2026"))), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      "aria-pressed": !muted,
+      onClick: toggleSound
+    }, /*#__PURE__*/React.createElement("span", null, "Sound"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, muted ? 'Off' : 'On')), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      "aria-pressed": readable,
+      onClick: () => setReadable(v => !v)
+    }, /*#__PURE__*/React.createElement("span", null, "Readable text"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, readable ? 'On' : 'Off')), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      onClick: () => {
+        setSettingsOpen(false);
+        exportReportClick();
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Export progress report"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192"))))), /*#__PURE__*/React.createElement("main", {
       id: "editor-main",
       className: "workspace",
       style: {
@@ -3696,42 +3767,7 @@ rover.say("Survey done")`
       style: {
         flex: 1
       }
-    }), pupils.length > 0 && /*#__PURE__*/React.createElement("label", {
-      className: "pupil-pick",
-      title: "Who is using this machine"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow",
-      style: {
-        marginRight: 4
-      }
-    }, "Pupil"), /*#__PURE__*/React.createElement("select", {
-      className: "lesson-select",
-      value: activePupilId || '',
-      onChange: onPupilChange,
-      "aria-label": "Active pupil"
-    }, pupils.map(p => /*#__PURE__*/React.createElement("option", {
-      key: p.id,
-      value: p.id
-    }, p.displayName)), /*#__PURE__*/React.createElement("option", {
-      value: "__new__"
-    }, "+ New pupil\u2026"))), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      title: "Keyboard shortcuts (?)",
-      onClick: () => setShowHelp(true)
-    }, "? Help"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-pressed": !muted,
-      title: muted ? 'Sound off' : 'Sound on',
-      onClick: toggleSound
-    }, muted ? '🔇 Sound' : '🔊 Sound'), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-pressed": readable,
-      title: "Dyslexia-friendly / larger text",
-      onClick: () => setReadable(v => !v)
-    }, "Aa Readable"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      onClick: exportReportClick
-    }, "Export report"), /*#__PURE__*/React.createElement("button", {
+    }), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       onClick: () => setConsoleLines([{
         type: 'sys',

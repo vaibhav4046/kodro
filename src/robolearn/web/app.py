@@ -454,7 +454,10 @@ def _speak_async(text: str) -> None:
     offline). Elsewhere it is a silent no-op -- voice is a Windows-app perk;
     the simulator itself never depends on it.
     """
-    if not sys.platform.startswith("win"):
+    # Read through a variable so mypy (which narrows sys.platform per-OS and
+    # runs on Linux/macOS in CI) doesn't mark the Windows body unreachable.
+    platform: str = sys.platform
+    if not platform.startswith("win"):
         return
     import subprocess
     import threading
@@ -499,7 +502,8 @@ def _report_startup_failure(exc: BaseException) -> None:
     """Show a friendly native dialog instead of a silent crash / raw traceback."""
     message = _startup_failure_message(exc)
     LOG.error("web UI failed to start: %s", exc)
-    if sys.platform.startswith("win"):
+    platform: str = sys.platform  # via a variable: see _speak_async
+    if platform.startswith("win"):
         with contextlib.suppress(Exception):
             import ctypes
 
