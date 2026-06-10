@@ -507,9 +507,13 @@ def _report_startup_failure(exc: BaseException) -> None:
         with contextlib.suppress(Exception):
             import ctypes
 
-            # MB_OK | MB_ICONERROR | MB_SETFOREGROUND
-            ctypes.windll.user32.MessageBoxW(0, message, "RoboLearn", 0x10 | 0x10000)
-            return
+            # getattr: ctypes.windll only exists (and only type-checks) on
+            # Windows; CI runs mypy on Linux/macOS too.
+            windll = getattr(ctypes, "windll", None)
+            if windll is not None:
+                # MB_OK | MB_ICONERROR | MB_SETFOREGROUND
+                windll.user32.MessageBoxW(0, message, "RoboLearn", 0x10 | 0x10000)
+                return
     sys.stderr.write(message + "\n")
 
 
