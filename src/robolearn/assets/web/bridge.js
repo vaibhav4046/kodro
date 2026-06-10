@@ -61,7 +61,9 @@
     exportReport: () => call("export_report"),
     aiStatus: () => call("ai_status"),
     aiGenerate: (prompt, lessonId) => call("ai_generate", prompt, lessonId),
-    speak: (text) => call("speak", text),
+    aiChat: (messages, lessonId) => call("ai_chat", messages, lessonId),
+    listen: (timeoutS) => call("listen", timeoutS),
+    speak: (text, voice) => call("speak", text, voice || "female"),
     log: (level, msg) => call("log", level, msg),
   };
 

@@ -232,3 +232,20 @@ def test_ai_model_preference_prefers_qwen_then_gemma(api: BridgeAPI) -> None:
     pick2 = api._pick_ai_model(["llama3.2:3b", "gemma3:4b"])
     assert pick2 == "gemma3:4b"
     assert api._pick_ai_model([]) is None
+
+
+def test_ai_chat_rejects_empty_history(api: BridgeAPI) -> None:
+    assert api.ai_chat([])["ok"] is False
+
+
+def test_listen_returns_friendly_shape(api: BridgeAPI) -> None:
+    """listen() never raises; returns ok+text or ok=False+reason (audio-dependent)."""
+    r = api.listen(2)
+    assert isinstance(r, dict) and "ok" in r
+    assert r["ok"] is True or "reason" in r
+
+
+def test_speak_accepts_voice_gender(api: BridgeAPI) -> None:
+    assert api.speak("hello", voice="female")["ok"] is True
+    assert api.speak("hello", voice="male")["ok"] is True
+    assert api.speak("", voice="female")["ok"] is False

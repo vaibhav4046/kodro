@@ -263,20 +263,49 @@ rover.say("Survey done")`
       return () => clearInterval(t);
     }, []);
     useEffect(() => { if (vibeOpen) refreshAiStatus(); }, [vibeOpen]);
-    async function vibeGenerate() {
-      if (vibeBusy || !vibePrompt.trim()) return;
-      setVibeBusy(true); setVibeError(null);
+    // Chat thread: [{role:'user'|'ai', kind:'text'|'code', text}]
+    const [vibeMsgs, setVibeMsgs] = useState([]);
+    const [micBusy, setMicBusy] = useState(false);
+    const [voiceGender, setVoiceGender] = useState(() => localStorage.getItem('or_voice') || 'female');
+    useEffect(() => { try { localStorage.setItem('or_voice', voiceGender); } catch (e) { void e; } }, [voiceGender]);
+    const vibeEndRef = useRef(null);
+    useEffect(() => { if (vibeEndRef.current) vibeEndRef.current.scrollIntoView({ block: 'end' }); }, [vibeMsgs, vibeBusy]);
+
+    async function vibeSend() {
+      const text = vibePrompt.trim();
+      if (vibeBusy || !text) return;
+      const next = [...vibeMsgs, { role: 'user', kind: 'text', text }];
+      setVibeMsgs(next); setVibePrompt(''); setVibeBusy(true); setVibeError(null);
       try {
-        const r = await window.RoboLearn.aiGenerate(vibePrompt, currentLessonIdRef.current);
-        if (r && r.ok) {
-          setVibeOpen(false);
-          addConsole('AI (' + r.model + ') wrote a program. Read it, then press Run.', 'sys');
-          typewriteCode(r.code);
+        const history = next.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
+        const r = await window.RoboLearn.aiChat(history, currentLessonIdRef.current);
+        if (r && r.ok && r.type === 'question') {
+          setVibeMsgs(m => [...m, { role: 'ai', kind: 'text', text: r.text }]);
+          if (!muted) window.RoboLearn.speak(r.text, voiceGender);
+        } else if (r && r.ok && r.type === 'code') {
+          setVibeMsgs(m => [...m, { role: 'ai', kind: 'code', text: r.code, model: r.model }]);
         } else {
           setVibeError((r && r.reason) || 'Generation failed.');
         }
       } catch (e) { setVibeError(String(e)); }
       setVibeBusy(false);
+    }
+
+    function vibeApply(code, model) {
+      setVibeOpen(false);
+      addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
+      typewriteCode(code);
+    }
+
+    async function vibeMic() {
+      if (micBusy) return;
+      setMicBusy(true); setVibeError(null);
+      try {
+        const r = await window.RoboLearn.listen(6);
+        if (r && r.ok) setVibePrompt(p => (p ? p + ' ' : '') + r.text);
+        else setVibeError((r && r.reason) || 'Voice input failed.');
+      } catch (e) { setVibeError(String(e)); }
+      setMicBusy(false);
     }
 
     // Typewriter: animate code into the active editor buffer like live typing.
@@ -659,7 +688,7 @@ rover.say("Survey done")`
             // SAPI via the bridge); silent in browser preview or when muted.
             if (window.RoboLearn && window.RoboLearn.isAvailable()
                 && (!window.RLSound || !window.RLSound.isMuted())) {
-              window.RoboLearn.speak(ev.text);
+              window.RoboLearn.speak(ev.text, voiceGender);
             }
             showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
           case 'scan':
@@ -966,6 +995,9 @@ rover.say("Survey done")`
                 <button className="set-row set-btn" role="menuitem" aria-pressed={readable} onClick={() => setReadable(v => !v)}>
                   <span>Readable text</span><span className="set-val">{readable ? 'On' : 'Off'}</span>
                 </button>
+                <button className="set-row set-btn" role="menuitem" onClick={() => setVoiceGender(v => v === 'female' ? 'male' : 'female')}>
+                  <span>Voice</span><span className="set-val">{voiceGender === 'female' ? 'Female' : 'Male'}</span>
+                </button>
                 <button className="set-row set-btn" role="menuitem" onClick={() => { setSettingsOpen(false); exportReportClick(); }}>
                   <span>Export progress report</span><span className="set-val">→</span>
                 </button>
@@ -1116,23 +1148,40 @@ rover.say("Survey done")`
               {aiInfo.available ? (
                 <div className="vibe-body">
                   <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
-                  <textarea
-                    className="vibe-input"
-                    rows={3}
-                    placeholder='e.g. "drive in a triangle, beeping at each corner" or "explore and dodge every boulder"'
-                    value={vibePrompt}
-                    onChange={e => setVibePrompt(e.target.value)}
-                    onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') vibeGenerate(); }}
-                    aria-label="Describe what the rover should do"
-                    autoFocus
-                  />
-                  {vibeError && <p className="vibe-error" role="alert">{vibeError}</p>}
-                  <div className="vibe-actions">
-                    <span className="vibe-hint">The code is typed into the editor for you to read — nothing runs until you press Run.</span>
-                    <button className="ctrl ctrl-run" disabled={vibeBusy || !vibePrompt.trim()} onClick={vibeGenerate}>
-                      {vibeBusy ? 'Thinking…' : 'Generate'}
-                    </button>
+                  <div className="vibe-thread" role="log" aria-live="polite" aria-label="AI conversation">
+                    {vibeMsgs.length === 0 && (
+                      <p className="vibe-empty">Chat with the AI like a coding partner. It may ask a question first — e.g. try <i>"explore the field"</i> or <i>"draw a star"</i>.</p>
+                    )}
+                    {vibeMsgs.map((m, i) => m.kind === 'code' ? (
+                      <div key={i} className="vibe-msg ai code">
+                        <pre className="vibe-code">{m.text}</pre>
+                        <div className="vibe-code-actions">
+                          <button className="ctrl ctrl-run" onClick={() => vibeApply(m.text, m.model)}>✓ Apply to editor</button>
+                          <button className="btn-mini" onClick={() => { setVibeMsgs(ms => [...ms, { role: 'user', kind: 'text', text: '(discarded — try again)' }]); }}>Discard</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={i} className={'vibe-msg ' + m.role}><span>{m.text}</span></div>
+                    ))}
+                    {vibeBusy && <div className="vibe-msg ai thinking"><span>Thinking…</span></div>}
+                    <div ref={vibeEndRef}></div>
                   </div>
+                  {vibeError && <p className="vibe-error" role="alert">{vibeError}</p>}
+                  <div className="vibe-inputrow">
+                    <button className="icon-btn" title="Speak your request (offline)" aria-label="Voice input" disabled={micBusy} onClick={vibeMic}>{micBusy ? '…' : '🎤'}</button>
+                    <textarea
+                      className="vibe-input"
+                      rows={2}
+                      placeholder='Say what the rover should do — the AI may ask you a question back'
+                      value={vibePrompt}
+                      onChange={e => setVibePrompt(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); vibeSend(); } }}
+                      aria-label="Describe what the rover should do"
+                      autoFocus
+                    />
+                    <button className="ctrl ctrl-run" disabled={vibeBusy || !vibePrompt.trim()} onClick={vibeSend}>Send</button>
+                  </div>
+                  <span className="vibe-hint">Apply types the code into the editor — nothing runs until you press Run.</span>
                 </div>
               ) : (
                 <div className="vibe-body">
