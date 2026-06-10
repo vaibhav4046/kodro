@@ -59,6 +59,9 @@
     getHint: (lessonId, source, errKind) =>
       call("get_hint", lessonId, source, errKind),
     exportReport: () => call("export_report"),
+    aiStatus: () => call("ai_status"),
+    aiGenerate: (prompt, lessonId) => call("ai_generate", prompt, lessonId),
+    speak: (text) => call("speak", text),
     log: (level, msg) => call("log", level, msg),
   };
 

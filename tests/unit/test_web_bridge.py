@@ -187,3 +187,48 @@ def test_report_startup_failure_is_safe_off_windows(monkeypatch) -> None:  # typ
 
     monkeypatch.setattr(appmod.sys, "platform", "linux")
     appmod._report_startup_failure(RuntimeError("boom"))  # must not raise
+
+
+def test_ai_status_degrades_gracefully_without_ollama(api: BridgeAPI) -> None:
+    """No local Ollama server -> available False, never an exception."""
+    s = api.ai_status()
+    assert isinstance(s, dict)
+    assert s["available"] in (True, False)
+    if not s["available"]:
+        assert s["model"] is None and s["models"] == []
+
+
+def test_ai_generate_without_server_returns_guidance(api: BridgeAPI) -> None:
+    r = api.ai_generate("drive in a square")
+    assert isinstance(r, dict)
+    if not r.get("ok"):
+        # Offline guidance must tell the pupil how to enable it.
+        assert "Ollama" in r["reason"] or "model" in r["reason"].lower()
+
+
+def test_ai_generate_rejects_empty_prompt(api: BridgeAPI) -> None:
+    r = api.ai_generate("   ")
+    assert r["ok"] is False
+
+
+def test_strip_code_fences() -> None:
+    from robolearn.web.app import _strip_code_fences
+
+    fenced = "```python\nmove_forward(2)\nbeep(1)\n```"
+    assert _strip_code_fences(fenced) == "move_forward(2)\nbeep(1)\n"
+    bare = "turn_left(90)"
+    assert _strip_code_fences(bare) == "turn_left(90)\n"
+
+
+def test_speak_rejects_empty_and_caps_length(api: BridgeAPI) -> None:
+    assert api.speak("")["ok"] is False
+    # A long string must not raise; it is truncated to 200 chars internally.
+    assert api.speak("hello " * 100)["ok"] in (True, False)
+
+
+def test_ai_model_preference_prefers_qwen_then_gemma(api: BridgeAPI) -> None:
+    pick = api._pick_ai_model(["llama3.2:3b", "gemma3:4b", "qwen2.5-coder:3b"])
+    assert pick == "qwen2.5-coder:3b"
+    pick2 = api._pick_ai_model(["llama3.2:3b", "gemma3:4b"])
+    assert pick2 == "gemma3:4b"
+    assert api._pick_ai_model([]) is None

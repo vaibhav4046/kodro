@@ -32,6 +32,22 @@ class OllamaError(RuntimeError):
     """Raised when an explicit Ollama call fails."""
 
 
+#: URL prefixes a client may talk to. RoboLearn's hard constraint is 100%
+#: offline: the ONLY permitted network peer is a local Ollama server.
+_ALLOWED_PREFIXES: tuple[str, ...] = (
+    "http://localhost:",
+    "http://127.0.0.1:",
+    "http://[::1]:",
+)
+
+
+def _require_local(url: str) -> str:
+    """Return ``url`` unchanged if it targets localhost; raise otherwise."""
+    if not url.startswith(_ALLOWED_PREFIXES):
+        raise OllamaError(f"refusing non-local URL (offline constraint): {url}")
+    return url
+
+
 @dataclass(slots=True)
 class OllamaClient:
     """Thin wrapper around the Ollama REST API.
@@ -125,13 +141,13 @@ class OllamaClient:
             body["system"] = system
         data = json.dumps(body).encode("utf-8")
         request = urllib.request.Request(
-            f"{self.base_url}/api/generate",
+            _require_local(f"{self.base_url}/api/generate"),
             data=data,
             headers={"Content-Type": "application/json"},
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_s) as resp:
+            with urllib.request.urlopen(request, timeout=self.timeout_s) as resp:  # nosec B310 - localhost enforced
                 for raw_line in resp:
                     line = raw_line.decode("utf-8").strip()
                     if not line:
@@ -158,9 +174,9 @@ class OllamaClient:
     # --- transport ----------------------------------------------------------
 
     def _get(self, path: str, *, timeout_s: float) -> dict[str, object]:
-        request = urllib.request.Request(f"{self.base_url}{path}", method="GET")
+        request = urllib.request.Request(_require_local(f"{self.base_url}{path}"), method="GET")
         try:
-            with urllib.request.urlopen(request, timeout=timeout_s) as resp:
+            with urllib.request.urlopen(request, timeout=timeout_s) as resp:  # nosec B310 - localhost enforced
                 return json.loads(resp.read().decode("utf-8"))  # type: ignore[no-any-return]
         except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
             raise OllamaError(f"GET {path} failed: {exc}") from exc
@@ -168,13 +184,13 @@ class OllamaClient:
     def _post(self, path: str, body: dict[str, object]) -> dict[str, object]:
         data = json.dumps(body).encode("utf-8")
         request = urllib.request.Request(
-            f"{self.base_url}{path}",
+            _require_local(f"{self.base_url}{path}"),
             data=data,
             headers={"Content-Type": "application/json"},
             method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_s) as resp:
+            with urllib.request.urlopen(request, timeout=self.timeout_s) as resp:  # nosec B310 - localhost enforced
                 return json.loads(resp.read().decode("utf-8"))  # type: ignore[no-any-return]
         except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
             raise OllamaError(f"POST {path} failed: {exc}") from exc
