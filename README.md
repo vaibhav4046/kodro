@@ -48,6 +48,18 @@ weaknesses.
 double-click it — the full mission-control desktop app (the modern web UI in a
 native window), no Python install required.
 
+Three ways to code, all offline:
+
+- **Type Python** in the editor (lessons KS1–KS4, hints, live 3D rover).
+- **🧩 Blocks** — stack Scratch-style blocks; they turn into real Python that
+  types itself into the editor.
+- **✨ Vibe** — describe what the rover should do and a **local** AI model
+  (Qwen 2.5 Coder or Gemma via [Ollama](https://ollama.com)) writes the code.
+  No cloud, no account: `ollama pull qwen2.5-coder:3b` and the panel lights up.
+
+The rover also **speaks** its `say()` lines aloud using your computer's
+built-in offline voice.
+
 ## Quick start (developers)
 
 ```bash

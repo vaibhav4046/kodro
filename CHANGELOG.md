@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Vibe coding (local AI)** — a "✨ Vibe" panel: describe what the rover
+  should do and a **local** Ollama model (Qwen 2.5 Coder / Gemma preference)
+  writes the Python, which is typed live into the editor (typewriter
+  animation) for the pupil to read and Run. Localhost-only, no cloud, no
+  account; graceful 3-step guide when Ollama is absent. The generated code
+  runs through the same sandbox as hand-typed code.
+- **Blocks mode (Scratch-style)** — a "🧩 Blocks" panel with a click-to-stack
+  palette (move/turn/beep/say/LED/scan/collect, repeat-N and if-obstacle
+  containers with nesting), editable amounts, and "Insert code" that turns
+  the stack into real Python typed live into the editor.
+- **Rover voice** — `say()` lines are spoken aloud with the OS's built-in
+  offline TTS (Windows SAPI; zero new dependencies); respects the sound mute.
+- **Security hardening** — the Ollama client now *enforces* localhost-only
+  URLs; pip-audit clean (pip itself patched); sandbox `exec` documented;
+  AI prompt/speech length caps.
 - **Standalone desktop app** — the web UI now packages into a single
   double-clickable `RoboLearn.exe` (PyInstaller spec `robolearn-web.spec`)
   that bundles pywebview, the engine and the vendored design; no Python
