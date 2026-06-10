@@ -84,7 +84,11 @@ def execute(source: str, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> ExecutionRe
 
     def _worker() -> None:
         try:
-            exec(compiled, globals_dict)
+            # This exec IS the product: it runs the pupil's lesson code, and
+            # the sandbox is the restricted globals built above (no builtins
+            # beyond the allow-list, no import, no file/network access) plus
+            # the AST validation in sandbox.py and the timeout below.
+            exec(compiled, globals_dict)  # nosec B102 - sandboxed pupil code
         except BaseException as exc:
             captured.append(exc)
 

@@ -2514,6 +2514,188 @@ rover.say("Survey done")`
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
     const [showHelp, setShowHelp] = useState(false);
+
+    // --- AI vibe coding (local Ollama: Qwen/Gemma; graceful when absent) ---
+    const [aiInfo, setAiInfo] = useState({
+      available: false,
+      model: null
+    });
+    const [vibeOpen, setVibeOpen] = useState(false);
+    const [vibePrompt, setVibePrompt] = useState('');
+    const [vibeBusy, setVibeBusy] = useState(false);
+    const [vibeError, setVibeError] = useState(null);
+    useEffect(() => {
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
+      window.RoboLearn.aiStatus().then(s => {
+        if (s) setAiInfo(s);
+      }).catch(() => {});
+    }, []);
+    async function vibeGenerate() {
+      if (vibeBusy || !vibePrompt.trim()) return;
+      setVibeBusy(true);
+      setVibeError(null);
+      try {
+        const r = await window.RoboLearn.aiGenerate(vibePrompt, currentLessonIdRef.current);
+        if (r && r.ok) {
+          setVibeOpen(false);
+          addConsole('AI (' + r.model + ') wrote a program. Read it, then press Run.', 'sys');
+          typewriteCode(r.code);
+        } else {
+          setVibeError(r && r.reason || 'Generation failed.');
+        }
+      } catch (e) {
+        setVibeError(String(e));
+      }
+      setVibeBusy(false);
+    }
+
+    // Typewriter: animate code into the active editor buffer like live typing.
+    const typeRef = useRef(null);
+    function typewriteCode(codeText) {
+      if (typeRef.current) {
+        clearInterval(typeRef.current);
+        typeRef.current = null;
+      }
+      const lessonId = currentLessonIdRef.current;
+      const setCode = v => {
+        if (lessonId) setLessonBuffers(b => ({
+          ...b,
+          [lessonId]: v
+        }));else setPrograms(p => ({
+          ...p,
+          [activeTab]: v
+        }));
+      };
+      if (PREFERS_REDUCED_MOTION() || codeText.length > 4000) {
+        setCode(codeText);
+        return;
+      }
+      let i = 0;
+      setCode('');
+      typeRef.current = setInterval(() => {
+        i = Math.min(codeText.length, i + 3);
+        setCode(codeText.slice(0, i));
+        if (i >= codeText.length) {
+          clearInterval(typeRef.current);
+          typeRef.current = null;
+        }
+      }, 12);
+    }
+
+    // --- Scratch-style blocks mode -----------------------------------------
+    const BLOCK_DEFS = [{
+      k: 'forward',
+      label: 'move forward',
+      unit: 'm',
+      val: 2,
+      code: v => 'move_forward(' + v + ')',
+      color: 'var(--cyan)'
+    }, {
+      k: 'back',
+      label: 'move backward',
+      unit: 'm',
+      val: 1,
+      code: v => 'move_backward(' + v + ')',
+      color: 'var(--cyan)'
+    }, {
+      k: 'left',
+      label: 'turn left',
+      unit: '°',
+      val: 90,
+      code: v => 'turn_left(' + v + ')',
+      color: 'var(--warning)'
+    }, {
+      k: 'right',
+      label: 'turn right',
+      unit: '°',
+      val: 90,
+      code: v => 'turn_right(' + v + ')',
+      color: 'var(--warning)'
+    }, {
+      k: 'beep',
+      label: 'beep',
+      code: () => 'beep(1)',
+      color: 'var(--brass)'
+    }, {
+      k: 'say',
+      label: 'say hello',
+      code: () => 'say("hello")',
+      color: 'var(--brass)'
+    }, {
+      k: 'led',
+      label: 'LED cyan',
+      code: () => 'led("cyan")',
+      color: 'var(--brass)'
+    }, {
+      k: 'scan',
+      label: 'scan',
+      code: () => 'scan()',
+      color: 'var(--success)'
+    }, {
+      k: 'collect',
+      label: 'collect sample',
+      code: () => 'collect_sample()',
+      color: 'var(--success)'
+    }, {
+      k: 'repeat',
+      label: 'repeat',
+      unit: '×',
+      val: 4,
+      container: true,
+      code: v => 'for i in range(' + v + '):',
+      color: 'var(--mars)'
+    }, {
+      k: 'ifobs',
+      label: 'if obstacle ahead',
+      container: true,
+      code: () => 'if obstacle_ahead():',
+      color: 'var(--mars)'
+    }];
+    const [blocksOpen, setBlocksOpen] = useState(false);
+    const [blocks, setBlocks] = useState([]); // {k,label,val,indent,container,color,unit}
+    const [blockIndent, setBlockIndent] = useState(0);
+    function addBlock(def) {
+      setBlocks(bs => [...bs, {
+        k: def.k,
+        label: def.label,
+        val: def.val,
+        indent: blockIndent,
+        container: !!def.container,
+        color: def.color,
+        unit: def.unit
+      }]);
+      if (def.container) setBlockIndent(d => Math.min(3, d + 1));
+      sfx('led');
+    }
+    function endBlock() {
+      setBlockIndent(d => Math.max(0, d - 1));
+    }
+    function removeBlock(i) {
+      setBlocks(bs => bs.filter((_, j) => j !== i));
+    }
+    function blocksToPython() {
+      const defs = {};
+      BLOCK_DEFS.forEach(d => {
+        defs[d.k] = d;
+      });
+      const lines = [];
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        lines.push('    '.repeat(b.indent) + defs[b.k].code(b.val));
+        if (b.container) {
+          const next = blocks[i + 1];
+          // An empty container needs a body to be valid Python.
+          if (!next || next.indent <= b.indent) lines.push('    '.repeat(b.indent + 1) + 'pass');
+        }
+      }
+      return lines.join('\n') + '\n';
+    }
+    function insertBlocksCode() {
+      if (!blocks.length) return;
+      setBlocksOpen(false);
+      addConsole('Blocks turned into Python. Read it, then press Run.', 'sys');
+      typewriteCode(blocksToPython());
+    }
     function toggleSound() {
       setMuted(m => {
         const next = !m;
@@ -2997,6 +3179,11 @@ rover.say("Survey done")`
             break;
           case 'say':
             sfx('say');
+            // Rover speaks aloud with the OS's offline TTS voice (Windows
+            // SAPI via the bridge); silent in browser preview or when muted.
+            if (window.RoboLearn && window.RoboLearn.isAvailable() && (!window.RLSound || !window.RLSound.isMuted())) {
+              window.RoboLearn.speak(ev.text);
+            }
             showSay(ev.text);
             await delay(stepMode ? 0 : 200 / speedMulRef.current);
             break;
@@ -3431,7 +3618,15 @@ rover.say("Survey done")`
     }, "Pick a lesson\u2026"), lessons.map(l => /*#__PURE__*/React.createElement("option", {
       key: l.id,
       value: l.id
-    }, l.id, " \xB7 ", l.title, " [", l.keyStage, "]"))))), /*#__PURE__*/React.createElement(window.Editor, {
+    }, l.id, " \xB7 ", l.title, " [", l.keyStage, "]")))), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini btn-vibe",
+      title: aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)',
+      onClick: () => setVibeOpen(true)
+    }, "\u2728 Vibe"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      title: "Build the program from blocks",
+      onClick: () => setBlocksOpen(true)
+    }, "\uD83E\uDDE9 Blocks")), /*#__PURE__*/React.createElement(window.Editor, {
       code: code,
       onChange: onCodeChange,
       activeLine: activeLine,
@@ -3684,7 +3879,136 @@ rover.say("Survey done")`
       value: t.trail,
       options: ['terrain', 'cyan', 'amber'],
       onChange: v => setTweak('trail', v)
-    })), showHelp && /*#__PURE__*/React.createElement("div", {
+    })), vibeOpen && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => !vibeBusy && setVibeOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal modal-wide",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Code with AI",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\u2728 Vibe coding \u2014 describe it, the AI writes it"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setVibeOpen(false)
+    }, "\u2715")), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
+      className: "vibe-body"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it."), /*#__PURE__*/React.createElement("textarea", {
+      className: "vibe-input",
+      rows: 3,
+      placeholder: "e.g. \"drive in a triangle, beeping at each corner\" or \"explore and dodge every boulder\"",
+      value: vibePrompt,
+      onChange: e => setVibePrompt(e.target.value),
+      onKeyDown: e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') vibeGenerate();
+      },
+      "aria-label": "Describe what the rover should do",
+      autoFocus: true
+    }), vibeError && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, vibeError), /*#__PURE__*/React.createElement("div", {
+      className: "vibe-actions"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "vibe-hint"
+    }, "The code is typed into the editor for you to read \u2014 nothing runs until you press Run."), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      disabled: vibeBusy || !vibePrompt.trim(),
+      onClick: vibeGenerate
+    }, vibeBusy ? 'Thinking…' : 'Generate'))) : /*#__PURE__*/React.createElement("div", {
+      className: "vibe-body"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "AI is offline. Vibe coding uses a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account):"), /*#__PURE__*/React.createElement("ol", {
+      className: "vibe-steps"
+    }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen RoboLearn \u2014 this panel lights up automatically"))))), blocksOpen && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => setBlocksOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal modal-wide",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Block coding",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83E\uDDE9 Blocks \u2014 click blocks to build, then turn them into Python"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setBlocksOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "blocks-palette"
+    }, BLOCK_DEFS.map(d => /*#__PURE__*/React.createElement("button", {
+      key: d.k,
+      className: "block-chip",
+      style: {
+        borderColor: d.color
+      },
+      onClick: () => addBlock(d)
+    }, d.label, d.unit ? ' ' + d.val + d.unit : '')), /*#__PURE__*/React.createElement("button", {
+      className: "block-chip block-end",
+      onClick: endBlock,
+      disabled: blockIndent === 0
+    }, "\u21A4 end block")), /*#__PURE__*/React.createElement("div", {
+      className: "blocks-program",
+      "aria-label": "Your program"
+    }, blocks.length === 0 && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-hint"
+    }, "Click blocks above \u2014 they stack here like Scratch."), blocks.map((b, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "block-row",
+      style: {
+        marginLeft: b.indent * 22 + 'px',
+        borderLeftColor: b.color
+      }
+    }, /*#__PURE__*/React.createElement("span", null, b.label), b.val !== undefined && /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      className: "block-num",
+      value: b.val,
+      min: 1,
+      max: b.unit === '°' ? 360 : 20,
+      "aria-label": b.label + ' amount',
+      onChange: e => {
+        const v = Number(e.target.value) || 1;
+        setBlocks(bs => bs.map((x, j) => j === i ? {
+          ...x,
+          val: v
+        } : x));
+      }
+    }), b.unit && /*#__PURE__*/React.createElement("span", {
+      className: "vibe-hint"
+    }, b.unit), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": 'remove ' + b.label,
+      onClick: () => removeBlock(i)
+    }, "\u2715")))), /*#__PURE__*/React.createElement("div", {
+      className: "vibe-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: !blocks.length,
+      onClick: () => {
+        setBlocks([]);
+        setBlockIndent(0);
+      }
+    }, "Clear"), /*#__PURE__*/React.createElement("span", {
+      className: "vibe-hint",
+      style: {
+        flex: 1
+      }
+    }, "Turns into real Python \u2014 watch it type itself into the editor."), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      disabled: !blocks.length,
+      onClick: insertBlocksCode
+    }, "Insert code \u2192")))), showHelp && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => setShowHelp(false)
     }, /*#__PURE__*/React.createElement("div", {

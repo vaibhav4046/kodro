@@ -245,6 +245,100 @@ class BridgeAPI:
         )
         return {"ok": True}
 
+    # --- AI vibe coding (local Ollama only; graceful when absent) ----------
+
+    #: Installed-model preference for code generation. Qwen's coder models
+    #: are best-in-class locally; Gemma is the common school-laptop fallback.
+    _AI_MODEL_PREFERENCE = ("qwen2.5-coder", "qwen", "codegemma", "gemma", "llama")
+
+    _AI_SYSTEM_PROMPT = (
+        "You write Python programs for RoboLearn, an educational rover simulator. "
+        "Use ONLY these functions: move_forward(metres), move_backward(metres), "
+        "turn_left(degrees), turn_right(degrees), set_speed(percent), beep(times), "
+        "log(text), say(text), led(colour), scan(), wait(seconds), read_distance(), "
+        "obstacle_ahead(), collect_sample(), sample_detected(), at_base(), "
+        "pen_down(), pen_up(). Plain procedural Python only: for/while/if, "
+        "simple variables, def with no classes or imports. The pupil is a child: "
+        "keep it short, add a one-line # comment per step. "
+        "Reply with ONLY the Python code. No markdown fences, no prose."
+    )
+
+    def _pick_ai_model(self, installed: list[str]) -> str | None:
+        for pref in self._AI_MODEL_PREFERENCE:
+            for name in installed:
+                if name.lower().startswith(pref):
+                    return name
+        return installed[0] if installed else None
+
+    def ai_status(self) -> dict[str, Any]:
+        """Report whether a local Ollama server is up and which model we'd use."""
+        from robolearn.ai.ollama_client import OllamaClient
+
+        client = OllamaClient()
+        if not client.available():
+            return {"available": False, "models": [], "model": None}
+        installed = client.models()
+        return {
+            "available": True,
+            "models": installed,
+            "model": self._pick_ai_model(installed),
+        }
+
+    def ai_generate(self, prompt: str, lesson_id: str | None = None) -> dict[str, Any]:
+        """Generate rover Python from a natural-language prompt via local Ollama.
+
+        The code is returned for the pupil to review and Run -- it is never
+        executed automatically, and when it IS run it goes through the same
+        sandbox as hand-typed code.
+        """
+        from robolearn.ai.ollama_client import OllamaClient, OllamaError
+
+        text = (prompt or "").strip()
+        if not text:
+            return {"ok": False, "reason": "Describe what the rover should do first."}
+        if len(text) > 2000:
+            text = text[:2000]
+        client = OllamaClient()
+        if not client.available():
+            return {
+                "ok": False,
+                "reason": "AI is offline. Start Ollama (ollama serve) and pull a model "
+                "such as qwen2.5-coder:3b or gemma3.",
+            }
+        model = self._pick_ai_model(client.models())
+        if model is None:
+            return {
+                "ok": False,
+                "reason": "Ollama is running but has no models. Try: ollama pull qwen2.5-coder:3b",
+            }
+        user_prompt = text
+        lesson = self._find_lesson(lesson_id) if lesson_id else None
+        if lesson is not None:
+            user_prompt = (
+                f"Lesson: {lesson.title}. Goal: {lesson.intro.strip()[:400]}\nPupil request: {text}"
+            )
+        try:
+            raw = client.generate(
+                user_prompt, system=self._AI_SYSTEM_PROMPT, model=model, temperature=0.4
+            )
+        except OllamaError as exc:
+            return {"ok": False, "reason": f"AI generation failed: {exc}"}
+        code = _strip_code_fences(raw)
+        if not code.strip():
+            return {"ok": False, "reason": "The model returned no code. Try rephrasing."}
+        return {"ok": True, "code": code, "model": model}
+
+    def speak(self, text: str) -> dict[str, Any]:
+        """Speak ``text`` aloud with the OS's offline TTS voice (fire-and-forget)."""
+        snippet = (text or "").strip()[:200]
+        if not snippet:
+            return {"ok": False, "reason": "nothing to say"}
+        try:
+            _speak_async(snippet)
+            return {"ok": True}
+        except Exception as exc:  # pragma: no cover - depends on host TTS
+            return {"ok": False, "reason": str(exc)}
+
     # --- private helpers --------------------------------------------------
 
     def _find_lesson(self, lesson_id: str) -> Lesson | None:
@@ -339,6 +433,53 @@ def build_app(*, db_path: Path | None = None) -> WebApp:
         background_color="#08090f",
     )
     return WebApp(window=window, api=api)
+
+
+def _strip_code_fences(raw: str) -> str:
+    """Strip markdown code fences a model may wrap around its code."""
+    text = raw.strip()
+    if text.startswith("```"):
+        first_newline = text.find("\n")
+        if first_newline != -1:
+            text = text[first_newline + 1 :]
+        if text.rstrip().endswith("```"):
+            text = text.rstrip()[:-3]
+    return text.strip() + "\n"
+
+
+def _speak_async(text: str) -> None:
+    """Speak ``text`` with the OS's built-in offline TTS, without blocking.
+
+    On Windows this uses SAPI through PowerShell (no extra dependency, fully
+    offline). Elsewhere it is a silent no-op -- voice is a Windows-app perk;
+    the simulator itself never depends on it.
+    """
+    if not sys.platform.startswith("win"):
+        return
+    import subprocess
+    import threading
+
+    # SAPI rejects no markup here; text is passed as a single argument to
+    # PowerShell -EncodedCommand-free form with quoting hardened by replacing
+    # quotes (the snippet is <=200 chars of pupil say() text).
+    safe = text.replace("'", " ").replace('"', " ")
+    script = (
+        "Add-Type -AssemblyName System.Speech; "
+        "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+        f"$s.Speak('{safe}')"
+    )
+
+    def run() -> None:
+        with contextlib.suppress(Exception):
+            subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                capture_output=True,
+                timeout=30,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                check=False,
+            )
+
+    threading.Thread(target=run, daemon=True).start()
 
 
 def _startup_failure_message(exc: BaseException) -> str:

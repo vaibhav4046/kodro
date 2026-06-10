@@ -228,6 +228,98 @@ rover.say("Survey done")`
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
     const [showHelp, setShowHelp] = useState(false);
+
+    // --- AI vibe coding (local Ollama: Qwen/Gemma; graceful when absent) ---
+    const [aiInfo, setAiInfo] = useState({ available: false, model: null });
+    const [vibeOpen, setVibeOpen] = useState(false);
+    const [vibePrompt, setVibePrompt] = useState('');
+    const [vibeBusy, setVibeBusy] = useState(false);
+    const [vibeError, setVibeError] = useState(null);
+    useEffect(() => {
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
+      window.RoboLearn.aiStatus().then(s => { if (s) setAiInfo(s); }).catch(() => {});
+    }, []);
+    async function vibeGenerate() {
+      if (vibeBusy || !vibePrompt.trim()) return;
+      setVibeBusy(true); setVibeError(null);
+      try {
+        const r = await window.RoboLearn.aiGenerate(vibePrompt, currentLessonIdRef.current);
+        if (r && r.ok) {
+          setVibeOpen(false);
+          addConsole('AI (' + r.model + ') wrote a program. Read it, then press Run.', 'sys');
+          typewriteCode(r.code);
+        } else {
+          setVibeError((r && r.reason) || 'Generation failed.');
+        }
+      } catch (e) { setVibeError(String(e)); }
+      setVibeBusy(false);
+    }
+
+    // Typewriter: animate code into the active editor buffer like live typing.
+    const typeRef = useRef(null);
+    function typewriteCode(codeText) {
+      if (typeRef.current) { clearInterval(typeRef.current); typeRef.current = null; }
+      const lessonId = currentLessonIdRef.current;
+      const setCode = (v) => {
+        if (lessonId) setLessonBuffers(b => ({ ...b, [lessonId]: v }));
+        else setPrograms(p => ({ ...p, [activeTab]: v }));
+      };
+      if (PREFERS_REDUCED_MOTION() || codeText.length > 4000) { setCode(codeText); return; }
+      let i = 0;
+      setCode('');
+      typeRef.current = setInterval(() => {
+        i = Math.min(codeText.length, i + 3);
+        setCode(codeText.slice(0, i));
+        if (i >= codeText.length) { clearInterval(typeRef.current); typeRef.current = null; }
+      }, 12);
+    }
+
+    // --- Scratch-style blocks mode -----------------------------------------
+    const BLOCK_DEFS = [
+      { k: 'forward', label: 'move forward', unit: 'm', val: 2, code: v => 'move_forward(' + v + ')', color: 'var(--cyan)' },
+      { k: 'back', label: 'move backward', unit: 'm', val: 1, code: v => 'move_backward(' + v + ')', color: 'var(--cyan)' },
+      { k: 'left', label: 'turn left', unit: '°', val: 90, code: v => 'turn_left(' + v + ')', color: 'var(--warning)' },
+      { k: 'right', label: 'turn right', unit: '°', val: 90, code: v => 'turn_right(' + v + ')', color: 'var(--warning)' },
+      { k: 'beep', label: 'beep', code: () => 'beep(1)', color: 'var(--brass)' },
+      { k: 'say', label: 'say hello', code: () => 'say("hello")', color: 'var(--brass)' },
+      { k: 'led', label: 'LED cyan', code: () => 'led("cyan")', color: 'var(--brass)' },
+      { k: 'scan', label: 'scan', code: () => 'scan()', color: 'var(--success)' },
+      { k: 'collect', label: 'collect sample', code: () => 'collect_sample()', color: 'var(--success)' },
+      { k: 'repeat', label: 'repeat', unit: '×', val: 4, container: true, code: v => 'for i in range(' + v + '):', color: 'var(--mars)' },
+      { k: 'ifobs', label: 'if obstacle ahead', container: true, code: () => 'if obstacle_ahead():', color: 'var(--mars)' },
+    ];
+    const [blocksOpen, setBlocksOpen] = useState(false);
+    const [blocks, setBlocks] = useState([]);       // {k,label,val,indent,container,color,unit}
+    const [blockIndent, setBlockIndent] = useState(0);
+    function addBlock(def) {
+      setBlocks(bs => [...bs, { k: def.k, label: def.label, val: def.val, indent: blockIndent, container: !!def.container, color: def.color, unit: def.unit }]);
+      if (def.container) setBlockIndent(d => Math.min(3, d + 1));
+      sfx('led');
+    }
+    function endBlock() { setBlockIndent(d => Math.max(0, d - 1)); }
+    function removeBlock(i) {
+      setBlocks(bs => bs.filter((_, j) => j !== i));
+    }
+    function blocksToPython() {
+      const defs = {}; BLOCK_DEFS.forEach(d => { defs[d.k] = d; });
+      const lines = [];
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        lines.push('    '.repeat(b.indent) + defs[b.k].code(b.val));
+        if (b.container) {
+          const next = blocks[i + 1];
+          // An empty container needs a body to be valid Python.
+          if (!next || next.indent <= b.indent) lines.push('    '.repeat(b.indent + 1) + 'pass');
+        }
+      }
+      return lines.join('\n') + '\n';
+    }
+    function insertBlocksCode() {
+      if (!blocks.length) return;
+      setBlocksOpen(false);
+      addConsole('Blocks turned into Python. Read it, then press Run.', 'sys');
+      typewriteCode(blocksToPython());
+    }
     function toggleSound() {
       setMuted(m => { const next = !m; if (window.RLSound) window.RLSound.setMuted(next); return next; });
     }
@@ -537,7 +629,15 @@ rover.say("Survey done")`
             break;
           case 'halt': live.current.moving = false; sync(); break;
           case 'led': sfx('led'); live.current.led = (ev.color in LED_COLORS) ? LED_COLORS[ev.color] : terrain.accent; sync(); break;
-          case 'say': sfx('say'); showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
+          case 'say':
+            sfx('say');
+            // Rover speaks aloud with the OS's offline TTS voice (Windows
+            // SAPI via the bridge); silent in browser preview or when muted.
+            if (window.RoboLearn && window.RoboLearn.isAvailable()
+                && (!window.RLSound || !window.RLSound.isMuted())) {
+              window.RoboLearn.speak(ev.text);
+            }
+            showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
           case 'scan':
             sfx('scan');
             live.current.scanning = true; sync();
@@ -850,6 +950,8 @@ rover.say("Survey done")`
                     </select>
                   </div>
                 )}
+                <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>✨ Vibe</button>
+                <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>🧩 Blocks</button>
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
               <div className="api-hint">
@@ -965,6 +1067,89 @@ rover.say("Survey done")`
           <window.TweakSection label="Path trace" />
           <window.TweakRadio label="Trail color" value={t.trail} options={['terrain', 'cyan', 'amber']} onChange={v => setTweak('trail', v)} />
         </window.TweaksPanel>
+
+        {vibeOpen && (
+          <div className="modal-backdrop" onClick={() => !vibeBusy && setVibeOpen(false)}>
+            <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <span className="eyebrow">✨ Vibe coding — describe it, the AI writes it</span>
+                <button className="btn-mini" aria-label="Close" onClick={() => setVibeOpen(false)}>✕</button>
+              </div>
+              {aiInfo.available ? (
+                <div className="vibe-body">
+                  <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
+                  <textarea
+                    className="vibe-input"
+                    rows={3}
+                    placeholder='e.g. "drive in a triangle, beeping at each corner" or "explore and dodge every boulder"'
+                    value={vibePrompt}
+                    onChange={e => setVibePrompt(e.target.value)}
+                    onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') vibeGenerate(); }}
+                    aria-label="Describe what the rover should do"
+                    autoFocus
+                  />
+                  {vibeError && <p className="vibe-error" role="alert">{vibeError}</p>}
+                  <div className="vibe-actions">
+                    <span className="vibe-hint">The code is typed into the editor for you to read — nothing runs until you press Run.</span>
+                    <button className="ctrl ctrl-run" disabled={vibeBusy || !vibePrompt.trim()} onClick={vibeGenerate}>
+                      {vibeBusy ? 'Thinking…' : 'Generate'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="vibe-body">
+                  <p className="vibe-status">AI is offline. Vibe coding uses a <b>local</b> model (no cloud, no account):</p>
+                  <ol className="vibe-steps">
+                    <li>Install Ollama from ollama.com (free, offline after install)</li>
+                    <li>Run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
+                    <li>Reopen RoboLearn — this panel lights up automatically</li>
+                  </ol>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {blocksOpen && (
+          <div className="modal-backdrop" onClick={() => setBlocksOpen(false)}>
+            <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Block coding" onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <span className="eyebrow">🧩 Blocks — click blocks to build, then turn them into Python</span>
+                <button className="btn-mini" aria-label="Close" onClick={() => setBlocksOpen(false)}>✕</button>
+              </div>
+              <div className="blocks-palette">
+                {BLOCK_DEFS.map(d => (
+                  <button key={d.k} className="block-chip" style={{ borderColor: d.color }} onClick={() => addBlock(d)}>
+                    {d.label}{d.unit ? ' ' + d.val + d.unit : ''}
+                  </button>
+                ))}
+                <button className="block-chip block-end" onClick={endBlock} disabled={blockIndent === 0}>↤ end block</button>
+              </div>
+              <div className="blocks-program" aria-label="Your program">
+                {blocks.length === 0 && <p className="vibe-hint">Click blocks above — they stack here like Scratch.</p>}
+                {blocks.map((b, i) => (
+                  <div key={i} className="block-row" style={{ marginLeft: (b.indent * 22) + 'px', borderLeftColor: b.color }}>
+                    <span>{b.label}</span>
+                    {b.val !== undefined && (
+                      <input
+                        type="number" className="block-num" value={b.val} min={1} max={b.unit === '°' ? 360 : 20}
+                        aria-label={b.label + ' amount'}
+                        onChange={e => { const v = Number(e.target.value) || 1; setBlocks(bs => bs.map((x, j) => j === i ? { ...x, val: v } : x)); }}
+                      />
+                    )}
+                    {b.unit && <span className="vibe-hint">{b.unit}</span>}
+                    <button className="btn-mini" aria-label={'remove ' + b.label} onClick={() => removeBlock(i)}>✕</button>
+                  </div>
+                ))}
+              </div>
+              <div className="vibe-actions">
+                <button className="btn-mini" disabled={!blocks.length} onClick={() => { setBlocks([]); setBlockIndent(0); }}>Clear</button>
+                <span className="vibe-hint" style={{ flex: 1 }}>Turns into real Python — watch it type itself into the editor.</span>
+                <button className="ctrl ctrl-run" disabled={!blocks.length} onClick={insertBlocksCode}>Insert code →</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showHelp && (
           <div className="modal-backdrop" onClick={() => setShowHelp(false)}>

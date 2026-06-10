@@ -652,3 +652,45 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .modal-backdrop, .modal { animation:none; }
 }
+
+/* Vibe coding (local AI) + Blocks mode (Scratch-style). */
+.modal-wide { width:min(560px,94vw); }
+.btn-vibe { color:var(--cyan); border-color:rgba(92,224,216,0.35); }
+.vibe-body { display:flex; flex-direction:column; gap:10px; }
+.vibe-status { font-size:12px; color:var(--fg-2); margin:0; }
+.vibe-input {
+  width:100%; resize:vertical; min-height:64px;
+  font-family:var(--font-body); font-size:14px; line-height:1.5; color:var(--fg-1);
+  background:var(--void); border:1px solid var(--border); border-radius:6px; padding:10px 12px;
+}
+.vibe-input:focus-visible { outline:2px solid var(--cyan); outline-offset:1px; }
+.vibe-error { color:var(--danger); font-size:12px; margin:0; }
+.vibe-actions { display:flex; align-items:center; gap:12px; justify-content:flex-end; margin-top:6px; }
+.vibe-hint { font-size:11px; color:var(--fg-3); }
+.vibe-steps { margin:0; padding-left:20px; color:var(--fg-2); font-size:13px; line-height:1.9; }
+.vibe-steps code { font-family:var(--font-mono); color:var(--cyan); font-size:12px; }
+
+.blocks-palette { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+.block-chip {
+  font-family:var(--font-body); font-size:12px; font-weight:500; color:var(--fg-1);
+  background:var(--navy-3); border:1px solid var(--border); border-left:3px solid var(--cyan);
+  border-radius:6px; padding:6px 10px; cursor:pointer; transition:all 120ms var(--ease);
+}
+.block-chip:hover { transform:translateY(-1px); background:var(--ink-2); }
+.block-chip:disabled { opacity:0.35; cursor:not-allowed; transform:none; }
+.block-end { border-left-color:var(--fg-3); }
+.blocks-program {
+  min-height:90px; max-height:260px; overflow:auto;
+  background:var(--void); border:1px solid var(--border-2); border-radius:8px; padding:10px;
+  display:flex; flex-direction:column; gap:4px; margin-bottom:10px;
+}
+.block-row {
+  display:flex; align-items:center; gap:8px;
+  font-size:13px; color:var(--fg-1);
+  background:var(--navy-2); border:1px solid var(--border-2); border-left:3px solid var(--cyan);
+  border-radius:5px; padding:5px 8px; width:fit-content;
+}
+.block-num {
+  width:54px; font-family:var(--font-mono); font-size:12px; color:var(--fg-1);
+  background:var(--void); border:1px solid var(--border); border-radius:4px; padding:2px 6px;
+}
