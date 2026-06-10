@@ -729,3 +729,33 @@ kbd {
 .api-hint b { font-weight:500; color:var(--fg-2); }
 .api-hint .sep { color:var(--fg-4); }
 @media (prefers-reduced-motion: reduce) { .settings-pop { animation:none; } }
+
+/* Vibe chat thread (Claude/ChatGPT-style assistant inside the modal). */
+.vibe-thread {
+  max-height: 320px; min-height: 140px; overflow-y: auto;
+  display:flex; flex-direction:column; gap:8px; padding:4px 2px; margin:10px 0;
+}
+.vibe-empty { color:var(--fg-3); font-size:12.5px; line-height:1.6; margin:8px 4px; }
+.vibe-msg { max-width:86%; font-size:13px; line-height:1.55; }
+.vibe-msg.user {
+  align-self:flex-end; background:rgba(92,224,216,0.12); color:var(--fg-1);
+  border:1px solid rgba(92,224,216,0.25); border-radius:10px 10px 2px 10px; padding:7px 11px;
+}
+.vibe-msg.ai {
+  align-self:flex-start; background:rgba(245,240,228,0.05); color:var(--fg-1);
+  border:1px solid var(--border); border-radius:10px 10px 10px 2px; padding:7px 11px;
+}
+.vibe-msg.ai.code { max-width:100%; width:100%; padding:0; background:transparent; border:none; }
+.vibe-msg.ai.thinking span { color:var(--fg-3); font-style:italic; }
+.vibe-code {
+  font-family:var(--font-mono); font-size:12px; line-height:1.55; color:var(--fg-1);
+  background:var(--void); border:1px solid var(--border); border-radius:8px 8px 0 0;
+  padding:10px 12px; margin:0; max-height:180px; overflow:auto; white-space:pre;
+}
+.vibe-code-actions {
+  display:flex; gap:8px; align-items:center; padding:8px 10px;
+  background:var(--navy-3); border:1px solid var(--border); border-top:none; border-radius:0 0 8px 8px;
+}
+.vibe-inputrow { display:flex; gap:8px; align-items:flex-end; }
+.vibe-inputrow .vibe-input { flex:1; }
+.vibe-inputrow .icon-btn { height:38px; width:38px; font-size:16px; }

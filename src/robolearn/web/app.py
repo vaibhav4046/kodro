@@ -358,16 +358,140 @@ class BridgeAPI:
             return None
         return f"{result.error_kind}: {result.error_message} (line {result.error_line})"
 
-    def speak(self, text: str) -> dict[str, Any]:
+    #: Chat-mode system prompt: the model may ask ONE clarifying question
+    #: (like a good pair-programmer) before committing to code.
+    _AI_CHAT_SYSTEM = (
+        "You are a friendly coding partner inside RoboLearn, an educational "
+        "rover simulator for children. The pupil chats with you about what "
+        "the rover should do.\n"
+        "If the request is AMBIGUOUS (missing distance, direction, count, or "
+        "goal), reply with exactly one short clarifying question on one line, "
+        "prefixed 'QUESTION: '. Ask at most one question per request -- if the "
+        "pupil has already answered one, write the code.\n"
+        "Otherwise reply 'CODE:' on the first line, then the program. "
+        "Use ONLY these functions: move_forward(metres), move_backward(metres), "
+        "turn_left(degrees), turn_right(degrees), set_speed(percent), beep(times), "
+        "log(text), say(text), led(colour), scan(), wait(seconds), read_distance(), "
+        "obstacle_ahead(), collect_sample(), sample_detected(), at_base(), "
+        "pen_down(), pen_up(). Plain procedural Python: for/while/if, simple "
+        "variables, def with no classes or imports. Define every variable before "
+        "use. No f-strings, lists, dicts or input(). Write top-level statements; "
+        "do NOT wrap the program in main(). One short # comment per step. "
+        "No markdown fences, no prose around the code."
+    )
+
+    def ai_chat(
+        self, messages: list[dict[str, str]], lesson_id: str | None = None
+    ) -> dict[str, Any]:
+        """Chat-style vibe coding: the model may ask a clarifying question first.
+
+        ``messages`` is the conversation so far: ``[{"role": "user"|"assistant",
+        "text": ...}, ...]``. Returns ``{"type": "question", "text": ...}`` or
+        ``{"type": "code", "code": ..., "model": ...}`` (validated + repaired
+        like :meth:`ai_generate`); code is never run without the pupil's Apply.
+        """
+        from robolearn.ai.ollama_client import OllamaClient, OllamaError
+
+        if not isinstance(messages, list) or not messages:
+            return {"ok": False, "reason": "Say what the rover should do first."}
+        client = OllamaClient()
+        if not client.available():
+            return {
+                "ok": False,
+                "reason": "AI is offline. Start Ollama and pull a model such as "
+                "qwen2.5-coder:3b or gemma3.",
+            }
+        model = self._pick_ai_model(client.models())
+        if model is None:
+            return {"ok": False, "reason": "Ollama has no models. Try: ollama pull gemma3"}
+
+        lines: list[str] = []
+        lesson = self._find_lesson(lesson_id) if lesson_id else None
+        if lesson is not None:
+            lines.append(f"(Current lesson: {lesson.title}. Goal: {lesson.intro.strip()[:300]})")
+        for m in messages[-12:]:  # bound the transcript
+            role = "Pupil" if str(m.get("role", "user")) == "user" else "You"
+            text = str(m.get("text", ""))[:1000]
+            lines.append(f"{role}: {text}")
+        lines.append("You:")
+        try:
+            raw = client.generate(
+                "\n".join(lines), system=self._AI_CHAT_SYSTEM, model=model, temperature=0.4
+            ).strip()
+        except OllamaError as exc:
+            return {"ok": False, "reason": f"AI failed: {exc}"}
+
+        if raw.upper().startswith("QUESTION:"):
+            return {"ok": True, "type": "question", "text": raw[9:].strip(), "model": model}
+        if raw.upper().startswith("CODE:"):
+            raw = raw[5:]
+        code = _strip_code_fences(raw)
+        if not code.strip():
+            return {"ok": False, "reason": "The model returned nothing. Try rephrasing."}
+        error = self._validate_generated(code)
+        if error is not None:
+            with contextlib.suppress(OllamaError):
+                repaired = _strip_code_fences(
+                    client.generate(
+                        f"Your previous program failed with: {error}\nProgram:\n{code}\n"
+                        "Fix it. Reply with ONLY the corrected Python code.",
+                        system=self._AI_CHAT_SYSTEM,
+                        model=model,
+                        temperature=0.2,
+                    )
+                )
+                if repaired.strip() and self._validate_generated(repaired) is None:
+                    code = repaired
+        return {"ok": True, "type": "code", "code": code, "model": model}
+
+    def speak(self, text: str, voice: str = "female") -> dict[str, Any]:
         """Speak ``text`` aloud with the OS's offline TTS voice (fire-and-forget)."""
         snippet = (text or "").strip()[:200]
         if not snippet:
             return {"ok": False, "reason": "nothing to say"}
         try:
-            _speak_async(snippet)
+            _speak_async(snippet, voice=voice)
             return {"ok": True}
         except Exception as exc:  # pragma: no cover - depends on host TTS
             return {"ok": False, "reason": str(exc)}
+
+    def listen(self, timeout_s: float = 6.0) -> dict[str, Any]:
+        """Dictate one phrase with Windows' built-in offline speech recogniser.
+
+        Uses System.Speech (SAPI) through PowerShell -- no extra dependency,
+        no cloud. Returns ``{"ok": True, "text": ...}`` or a friendly reason.
+        Blocking (pywebview runs API calls off the UI thread), capped at
+        ``timeout_s`` seconds of listening.
+        """
+        platform: str = sys.platform
+        if not platform.startswith("win"):
+            return {"ok": False, "reason": "Voice input is available on Windows only."}
+        import subprocess
+
+        seconds = max(2, min(int(timeout_s), 15))
+        script = (
+            "Add-Type -AssemblyName System.Speech; "
+            "$r = New-Object System.Speech.Recognition.SpeechRecognitionEngine; "
+            "$r.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar)); "
+            "$r.SetInputToDefaultAudioDevice(); "
+            f"$res = $r.Recognize([TimeSpan]::FromSeconds({seconds})); "
+            "if ($res) { [Console]::Out.Write($res.Text) }"
+        )
+        try:
+            proc = subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                capture_output=True,
+                text=True,
+                timeout=seconds + 10,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                check=False,
+            )
+        except Exception as exc:  # pragma: no cover - depends on host audio
+            return {"ok": False, "reason": f"Voice input failed: {exc}"}
+        heard = (proc.stdout or "").strip()
+        if not heard:
+            return {"ok": False, "reason": "Didn't catch that - try speaking again."}
+        return {"ok": True, "text": heard}
 
     # --- private helpers --------------------------------------------------
 
@@ -508,12 +632,13 @@ def _ensure_entrypoint(code: str) -> str:
     return code
 
 
-def _speak_async(text: str) -> None:
+def _speak_async(text: str, voice: str = "female") -> None:
     """Speak ``text`` with the OS's built-in offline TTS, without blocking.
 
     On Windows this uses SAPI through PowerShell (no extra dependency, fully
     offline). Elsewhere it is a silent no-op -- voice is a Windows-app perk;
-    the simulator itself never depends on it.
+    the simulator itself never depends on it. ``voice`` selects the gender
+    hint ("female" default -- e.g. Microsoft Zira -- or "male").
     """
     # Read through a variable so mypy (which narrows sys.platform per-OS and
     # runs on Linux/macOS in CI) doesn't mark the Windows body unreachable.
@@ -527,9 +652,12 @@ def _speak_async(text: str) -> None:
     # PowerShell -EncodedCommand-free form with quoting hardened by replacing
     # quotes (the snippet is <=200 chars of pupil say() text).
     safe = text.replace("'", " ").replace('"', " ")
+    gender = "Male" if str(voice).lower().startswith("m") else "Female"
     script = (
         "Add-Type -AssemblyName System.Speech; "
         "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+        "try { $s.SelectVoiceByHints([System.Speech.Synthesis.VoiceGender]::"
+        f"{gender}) }} catch {{}}; "
         f"$s.Speak('{safe}')"
     )
 
