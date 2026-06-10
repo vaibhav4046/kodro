@@ -228,6 +228,16 @@ rover.say("Survey done")`
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
     const [showHelp, setShowHelp] = useState(false);
+    const [settingsOpen, setSettingsOpen] = useState(false);
+    // Click-away + Escape close the settings popover.
+    useEffect(() => {
+      if (!settingsOpen) return undefined;
+      const close = (e) => { if (!e.target.closest || !e.target.closest('.settings-wrap')) setSettingsOpen(false); };
+      const key = (e) => { if (e.key === 'Escape') setSettingsOpen(false); };
+      document.addEventListener('pointerdown', close);
+      document.addEventListener('keydown', key);
+      return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', key); };
+    }, [settingsOpen]);
 
     // --- AI vibe coding (local Ollama: Qwen/Gemma; graceful when absent) ---
     const [aiInfo, setAiInfo] = useState({ available: false, model: null });
@@ -921,6 +931,33 @@ rover.say("Survey done")`
             <span className={'status-dot ' + runState} aria-hidden="true"></span>
             <span>{statusLabel}</span>
           </div>
+          <div className="bar-divider"></div>
+          <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setShowHelp(true)}>?</button>
+          <div className="settings-wrap">
+            <button className="icon-btn" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>⚙</button>
+            {settingsOpen && (
+              <div className="settings-pop" role="menu" aria-label="Settings">
+                {pupils.length > 0 && (
+                  <label className="set-row">
+                    <span>Pupil</span>
+                    <select className="lesson-select" value={activePupilId || ''} onChange={onPupilChange} aria-label="Active pupil">
+                      {pupils.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
+                      <option value="__new__">+ New pupil…</option>
+                    </select>
+                  </label>
+                )}
+                <button className="set-row set-btn" role="menuitem" aria-pressed={!muted} onClick={toggleSound}>
+                  <span>Sound</span><span className="set-val">{muted ? 'Off' : 'On'}</span>
+                </button>
+                <button className="set-row set-btn" role="menuitem" aria-pressed={readable} onClick={() => setReadable(v => !v)}>
+                  <span>Readable text</span><span className="set-val">{readable ? 'On' : 'Off'}</span>
+                </button>
+                <button className="set-row set-btn" role="menuitem" onClick={() => { setSettingsOpen(false); exportReportClick(); }}>
+                  <span>Export progress report</span><span className="set-val">→</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ---- workspace ---- */}
@@ -1002,19 +1039,6 @@ rover.say("Survey done")`
               <div className="console-head">
                 <span className="eyebrow">Console</span>
                 <div className="ph-spacer" style={{ flex: 1 }}></div>
-                {pupils.length > 0 && (
-                  <label className="pupil-pick" title="Who is using this machine">
-                    <span className="eyebrow" style={{ marginRight: 4 }}>Pupil</span>
-                    <select className="lesson-select" value={activePupilId || ''} onChange={onPupilChange} aria-label="Active pupil">
-                      {pupils.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}
-                      <option value="__new__">+ New pupil…</option>
-                    </select>
-                  </label>
-                )}
-                <button className="btn-mini" title="Keyboard shortcuts (?)" onClick={() => setShowHelp(true)}>? Help</button>
-                <button className="btn-mini" aria-pressed={!muted} title={muted ? 'Sound off' : 'Sound on'} onClick={toggleSound}>{muted ? '🔇 Sound' : '🔊 Sound'}</button>
-                <button className="btn-mini" aria-pressed={readable} title="Dyslexia-friendly / larger text" onClick={() => setReadable(v => !v)}>Aa Readable</button>
-                <button className="btn-mini" onClick={exportReportClick}>Export report</button>
                 <button className="btn-mini" onClick={() => setConsoleLines([{ type: 'sys', text: 'Console cleared.' }])}>Clear</button>
               </div>
               <div className="console-out" ref={consoleEndRef} role="log" aria-live="polite" aria-label="Program output and lesson feedback">
