@@ -37,13 +37,34 @@
     return out;
   }
 
+  // Decorative micro-features (pebbles, tufts, ripples, shells, micro-craters).
+  // Purely visual -- they are NOT in the obstacles array, so they never
+  // collide; they just make the ground read like a real place.
+  function genDecor(seed, count) {
+    const r = rng(seed);
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const ang = r() * Math.PI * 2;
+      const dist = 120 + r() * (WALL - 160);
+      out.push({
+        x: Math.cos(ang) * dist,
+        y: Math.sin(ang) * dist,
+        r: 5 + r() * 14,
+        rot: r() * 360,
+        v: r(),
+      });
+    }
+    return out;
+  }
+
   const TERRAINS = {
     earth: {
       id: 'earth', name: 'Earth', label: 'EARTH', coord: '48.8566° N, 2.3522° E',
       accent: '#7cc49b', dot: '#7cc49b',
       env: { gravity: 9.81, temp: 18, tempLabel: 'AIR TEMP', pressure: 1.0, pressureLabel: 'PRESSURE', pressureUnit: 'atm', light: 92 },
       traction: 1.0, obstacleLabel: 'BOULDER',
-      obstacles: genObstacles(7, 11, 46, 96),
+      obstacles: genObstacles(7, 14, 46, 96),
+      decor: genDecor(101, 44),
       backdrop: 'earth'
     },
     mars: {
@@ -51,7 +72,8 @@
       accent: '#d98b6a', dot: '#c8685a',
       env: { gravity: 3.71, temp: -63, tempLabel: 'SURFACE TEMP', pressure: 0.006, pressureLabel: 'PRESSURE', pressureUnit: 'atm', light: 43 },
       traction: 0.82, obstacleLabel: 'RILLE ROCK',
-      obstacles: genObstacles(21, 13, 40, 104),
+      obstacles: genObstacles(21, 17, 40, 104),
+      decor: genDecor(102, 52),
       backdrop: 'mars'
     },
     underwater: {
@@ -59,7 +81,8 @@
       accent: '#5ce0d8', dot: '#5ce0d8',
       env: { gravity: 9.81, temp: 3, tempLabel: 'WATER TEMP', pressure: 38, pressureLabel: 'DEPTH', pressureUnit: 'm', light: 12 },
       traction: 0.66, obstacleLabel: 'CORAL HEAD',
-      obstacles: genObstacles(48, 12, 50, 110),
+      obstacles: genObstacles(48, 15, 50, 110),
+      decor: genDecor(103, 46),
       backdrop: 'underwater'
     },
     space: {
@@ -67,7 +90,8 @@
       accent: '#aeb8e8', dot: '#aeb8e8',
       env: { gravity: 1.62, temp: -173, tempLabel: 'SURFACE TEMP', pressure: 0, pressureLabel: 'VACUUM', pressureUnit: 'Pa', light: 100 },
       traction: 1.18, obstacleLabel: 'EJECTA BLOCK',
-      obstacles: genObstacles(77, 12, 44, 100),
+      obstacles: genObstacles(77, 15, 44, 100),
+      decor: genDecor(104, 50),
       backdrop: 'space'
     }
   };
@@ -263,6 +287,41 @@
     );
   }
 
+  // Per-terrain decorative micro-feature (visual only; never collides).
+  function Decor({ d, id }) {
+    const cx = GROUND / 2 + d.x, cy = GROUND / 2 + d.y;
+    const base = { position: 'absolute', pointerEvents: 'none', transform: `rotate(${d.rot}deg)` };
+    if (id === 'earth') {
+      // grass tuft (v<0.55) or pebble
+      if (d.v < 0.55) {
+        return <div style={{ ...base, left: cx, top: cy, width: 2, height: d.r * 1.4, borderRadius: 2, background: 'linear-gradient(180deg, #86a861, #4c6436)', boxShadow: '3px 1px 0 -0.5px #6d8c4e, -3px 2px 0 -0.5px #5a7440' }}></div>;
+      }
+      return <div style={{ ...base, left: cx - d.r / 2, top: cy - d.r / 3, width: d.r, height: d.r * 0.66, borderRadius: '50%', background: 'radial-gradient(circle at 38% 30%, #74875c, #44522f)' }}></div>;
+    }
+    if (id === 'mars') {
+      // wind ripple (v<0.5) or pebble
+      if (d.v < 0.5) {
+        return <div style={{ ...base, left: cx - d.r, top: cy, width: d.r * 2.6, height: 2, borderRadius: 2, background: 'linear-gradient(90deg, transparent, rgba(220,140,95,0.5), transparent)' }}></div>;
+      }
+      return <div style={{ ...base, left: cx - d.r / 2, top: cy - d.r / 3, width: d.r, height: d.r * 0.6, borderRadius: '50%', background: 'radial-gradient(circle at 36% 28%, #b06245, #69311e)' }}></div>;
+    }
+    if (id === 'underwater') {
+      // sand ripple (v<0.45), shell (v<0.75) or coral speck
+      if (d.v < 0.45) {
+        return <div style={{ ...base, left: cx - d.r, top: cy, width: d.r * 2.4, height: 2, borderRadius: 2, background: 'linear-gradient(90deg, transparent, rgba(180,215,215,0.28), transparent)' }}></div>;
+      }
+      if (d.v < 0.75) {
+        return <div style={{ ...base, left: cx - d.r / 2, top: cy - d.r / 2, width: d.r * 0.9, height: d.r * 0.7, borderRadius: '60% 60% 45% 45%', background: 'radial-gradient(circle at 40% 25%, #d8d4c2, #8d8a78)' }}></div>;
+      }
+      return <div style={{ ...base, left: cx - d.r / 2, top: cy - d.r / 2, width: d.r * 0.7, height: d.r * 0.7, borderRadius: '50%', background: 'radial-gradient(circle at 40% 30%, #5ca6ac, #2c5a62)' }}></div>;
+    }
+    // space: micro-crater (v<0.6) or regolith speck
+    if (d.v < 0.6) {
+      return <div style={{ ...base, left: cx - d.r / 2, top: cy - d.r / 2, width: d.r, height: d.r, borderRadius: '50%', background: CRATER_FILL.space, boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5), inset 0 -1px 3px rgba(255,255,255,0.08)' }}></div>;
+    }
+    return <div style={{ ...base, left: cx - d.r / 3, top: cy - d.r / 3, width: d.r * 0.6, height: d.r * 0.5, borderRadius: '50%', background: 'radial-gradient(circle at 38% 30%, #84868f, #4a4c54)' }}></div>;
+  }
+
   function TerrainGround({ terrain, children, showGrid }) {
     const g = groundBg(terrain.id);
     return (
@@ -277,6 +336,7 @@
           position: 'absolute', left: GROUND / 2 - WALL, top: GROUND / 2 - WALL, width: WALL * 2, height: WALL * 2,
           border: '2px dashed ' + terrain.accent, opacity: 0.2, borderRadius: 12, pointerEvents: 'none'
         }}></div>
+        {(terrain.decor || []).map((d, i) => <Decor key={'d' + i} d={d} id={terrain.id} />)}
         {/* trail canvas slot */}
         {children}
         {terrain.obstacles.map((o, i) => <Obstacle key={i} o={o} terrain={terrain} />)}
