@@ -261,7 +261,9 @@ class BridgeAPI:
         "simple variables, def with no classes or imports. Define every "
         "variable before you use it. No f-strings, lists, dicts or input(). "
         "The pupil is a child: keep it short, add a one-line # comment per "
-        "step. Reply with ONLY the Python code. No markdown fences, no prose."
+        "step. Write top-level statements that run immediately; do NOT wrap "
+        "the program in a main() function. "
+        "Reply with ONLY the Python code. No markdown fences, no prose."
     )
 
     def _pick_ai_model(self, installed: list[str]) -> str | None:
@@ -472,7 +474,38 @@ def _strip_code_fences(raw: str) -> str:
             text = text[first_newline + 1 :]
         if text.rstrip().endswith("```"):
             text = text.rstrip()[:-3]
-    return text.strip() + "\n"
+    return _ensure_entrypoint(text.strip()) + "\n"
+
+
+def _ensure_entrypoint(code: str) -> str:
+    """Append a call when a model wraps everything in an uncalled function.
+
+    Observed live: gemma wrapped the whole program in ``def main():`` and never
+    called it, so Run "completed" instantly with the rover never moving. If the
+    program's top level consists ONLY of function definitions (plus comments /
+    blank lines) the first defined function is called at the end.
+    """
+    lines = code.splitlines()
+    first_def: str | None = None
+    only_defs = True
+    in_def = False
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if line[:1] not in (" ", "\t"):  # top-level statement
+            if stripped.startswith("def ") and "(" in stripped:
+                if first_def is None:
+                    first_def = stripped[4 : stripped.index("(")].strip()
+                in_def = True
+            else:
+                only_defs = False
+                in_def = False
+        elif not in_def:
+            only_defs = False
+    if first_def and only_defs:
+        return f"{code}\n\n{first_def}()"
+    return code
 
 
 def _speak_async(text: str) -> None:
