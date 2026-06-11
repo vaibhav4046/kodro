@@ -83,7 +83,62 @@
     );
   }
 
-  function Viewport({ terrain, rover, trail, sensorDist, say, crashKey, zoom, showGrid, showFx, trailColor, tilt, yaw, onTilt }) {
+  // World props placed by pupil code (place("flag") etc). Billboarded like
+  // obstacles so they stand up out of the tilted ground. Visual only.
+  function Prop({ p }) {
+    const cx = GROUND / 2 + p.x, cy = GROUND / 2 + p.y;
+    const bill = { transform: 'rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))', transformOrigin: '50% 100%' };
+    let body = null;
+    switch (p.kind) {
+      case 'beacon':
+        body = (
+          <div style={{ ...bill, position: 'absolute', left: -5, bottom: 0, width: 10, height: 52 }}>
+            <div style={{ position: 'absolute', left: 3, bottom: 0, width: 4, height: 44, background: 'linear-gradient(180deg,#9aa0b4,#5a5f70)', borderRadius: 2 }}></div>
+            <div className="prop-pulse" style={{ position: 'absolute', left: 0, top: 0, width: 10, height: 10, borderRadius: '50%', background: '#5ce0d8', boxShadow: '0 0 12px #5ce0d8' }}></div>
+          </div>
+        );
+        break;
+      case 'rock':
+        body = <div style={{ ...bill, position: 'absolute', left: -14, bottom: 0, width: 28, height: 22, borderRadius: '48% 52% 45% 55% / 70% 64% 36% 30%', background: 'radial-gradient(circle at 38% 26%, #8d8f99, #4c4e58 70%, #33353d)' }}></div>;
+        break;
+      case 'tree':
+        body = (
+          <div style={{ ...bill, position: 'absolute', left: -16, bottom: 0, width: 32, height: 58 }}>
+            <div style={{ position: 'absolute', left: 13, bottom: 0, width: 6, height: 20, background: 'linear-gradient(180deg,#7a5a3a,#4c3722)', borderRadius: 2 }}></div>
+            <div style={{ position: 'absolute', left: 0, top: 0, width: 32, height: 40, borderRadius: '50% 50% 46% 46%', background: 'radial-gradient(circle at 38% 28%, #7fae62, #3f6030 72%, #2c4422)' }}></div>
+          </div>
+        );
+        break;
+      case 'person':
+        body = (
+          <div style={{ ...bill, position: 'absolute', left: -9, bottom: 0, width: 18, height: 46 }}>
+            <div style={{ position: 'absolute', left: 4, top: 0, width: 10, height: 10, borderRadius: '50%', background: '#e8c9a8' }}></div>
+            <div style={{ position: 'absolute', left: 2, top: 11, width: 14, height: 22, borderRadius: '5px 5px 3px 3px', background: 'linear-gradient(180deg,#e0b45c,#a87f38)' }}></div>
+            <div style={{ position: 'absolute', left: 4, top: 33, width: 4, height: 13, background: '#3a4356', borderRadius: 2 }}></div>
+            <div style={{ position: 'absolute', left: 10, top: 33, width: 4, height: 13, background: '#3a4356', borderRadius: 2 }}></div>
+          </div>
+        );
+        break;
+      case 'crate':
+        body = <div style={{ ...bill, position: 'absolute', left: -12, bottom: 0, width: 24, height: 22, background: 'linear-gradient(180deg,#a8845c,#6e5538)', border: '2px solid #4c3a24', borderRadius: 3, boxShadow: 'inset 0 0 0 2px rgba(255,235,200,0.12)' }}></div>;
+        break;
+      default: // flag
+        body = (
+          <div style={{ ...bill, position: 'absolute', left: -2, bottom: 0, width: 26, height: 54 }}>
+            <div style={{ position: 'absolute', left: 0, bottom: 0, width: 3, height: 54, background: 'linear-gradient(180deg,#d8d3c4,#8b8678)', borderRadius: 2 }}></div>
+            <div style={{ position: 'absolute', left: 3, top: 2, width: 0, height: 0, borderTop: '9px solid transparent', borderBottom: '9px solid transparent', borderLeft: '22px solid #5ce0d8' }}></div>
+          </div>
+        );
+    }
+    return (
+      <div style={{ position: 'absolute', left: cx, top: cy, zIndex: 4 }}>
+        <div style={{ position: 'absolute', left: -10, top: -4, width: 20, height: 8, borderRadius: '50%', background: 'rgba(0,0,0,0.3)', filter: 'blur(2px)' }}></div>
+        {body}
+      </div>
+    );
+  }
+
+  function Viewport({ terrain, rover, trail, props, sensorDist, say, crashKey, zoom, showGrid, showFx, trailColor, tilt, yaw, onTilt }) {
     const Rover = window.Rover;
     const Backdrop = window.TerrainBackdrop;
     const Sky = window.TerrainSky;
@@ -104,6 +159,7 @@
         <div className="world" style={{ transform: `rotateX(${tl}deg) scale(${z}) rotateZ(${yw}deg) translate(${-rover.x}px, ${-rover.y}px)`, ['--tilt']: tl + 'deg', ['--yaw']: yw + 'deg' }}>
           <Ground terrain={terrain} showGrid={showGrid}>
             <Trail segments={trail} accent={trailColor || terrain.accent} />
+            {(props || []).map(p => <Prop key={p.id} p={p} />)}
           </Ground>
 
           {/* rover */}

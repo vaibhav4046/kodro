@@ -13,6 +13,48 @@
 
   // ---------------- example programs ----------------
   const EXAMPLES = {
+    basecamp: {
+      label: 'basecamp.py',
+      code: `# BASE CAMP - your code BUILDS the world.
+# place(kind) plants a prop right where the rover stands:
+# "flag", "beacon", "person", "tree", "rock", "crate".
+set_speed(80)
+pen_down()
+say("Building base camp")
+
+# Mark the centre of camp with a beacon.
+place("beacon")
+
+# Drive a square and drop a crate at every corner.
+for corner in range(4):
+    move_forward(2)
+    place("crate")
+    turn_right(90)
+
+# Plant a flag line out front.
+turn_right(45)
+for i in range(3):
+    move_forward(1.2)
+    place("flag")
+
+# The crew arrives.
+move_forward(1.5)
+place("person")
+turn_left(90)
+move_forward(1)
+place("person")
+
+# A bit of landscaping.
+turn_left(135)
+move_forward(2.5)
+place("tree")
+move_forward(1)
+place("rock")
+
+led("green")
+say("Camp ready!")
+print("Base camp built: 1 beacon, 4 crates, 3 flags, 2 crew, 1 tree, 1 rock")`
+    },
     autopilot: {
       label: 'autopilot.py',
       code: `# AUTOPILOT - the rover drives itself, like a self-driving car.
@@ -184,6 +226,12 @@ rover.say("Survey done")`
     // RoboLearn bridge: lessons (from Python), currently-loaded lesson id,
     // pupil + verdict + hint after a graded Run. The React app stays
     // unchanged when there's no bridge (browser preview).
+    // World props placed by pupil code via place(): flags, beacons, people...
+    const [props, setProps] = useState([]);
+    // Live terminal line + one-deep history (ArrowUp recalls the last line).
+    const [replLine, setReplLine] = useState('');
+    const replHistRef = useRef('');
+    const setReplHist = (v) => { if (v && v.trim()) replHistRef.current = v; };
     const [lessons, setLessons] = useState([]);
     // Multi-pupil: list + active id, so shared classroom machines keep each
     // pupil's progress separate (re-score / "do-all").
@@ -691,6 +739,15 @@ rover.say("Survey done")`
               window.RoboLearn.speak(ev.text, voiceGender);
             }
             showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
+          case 'place': {
+            const px = ev.x !== undefined ? ev.x : live.current.x;
+            const py = ev.y !== undefined ? ev.y : live.current.y;
+            sfx('led');
+            setProps(p => p.length >= 80 ? p : [...p, { kind: ev.kind, x: px, y: py, id: p.length }]);
+            await delay(stepMode ? 0 : 160 / speedMulRef.current);
+            break;
+          }
+          case 'clear_props': setProps([]); break;
           case 'scan':
             sfx('scan');
             live.current.scanning = true; sync();
@@ -717,9 +774,34 @@ rover.say("Survey done")`
       genRef.current = null;
       live.current.moving = false; sync();
       setRunState('done');
+      if (replRef.current) { replRef.current = false; return; }  // terminal line: stay quiet
       addConsole('Program finished.', 'ok');
       // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
       gradeWithBridge(code);
+    }
+
+    // Live terminal: run ONE line immediately against the current world --
+    // like a real Python REPL, without resetting the rover or grading.
+    const replRef = useRef(false);
+    function runReplLine(line) {
+      const src = (line || '').trim();
+      if (!src) return;
+      if (window.RLSound) window.RLSound.resume();
+      addConsole('>>> ' + src, 'sys');
+      if (ctrl.current.running || ctrl.current.advancing) {
+        addConsole('The program is still running - press Pause or Reset first.', 'err');
+        return;
+      }
+      let gen;
+      try { gen = window.RoverLang.compile(src).run(host); }
+      catch (e) { addConsole(String((e && e.message) || e), 'err'); return; }
+      replRef.current = true;
+      genRef.current = gen;
+      ctrl.current.token++;
+      const myToken = ctrl.current.token;
+      ctrl.current.abort = false; ctrl.current.running = true;
+      setRunState('running');
+      pumpLoop(myToken);
     }
     function haltProgram(state) {
       ctrl.current.running = false; ctrl.current.abort = false;
@@ -754,6 +836,7 @@ rover.say("Survey done")`
       ctrl.current.token++;  // invalidate any in-flight pump / pending start
       live.current = startState();
       trailRef.current = []; setTrail([]);
+      setProps([]);
       odoRef.current = 0; setOdo(0);
       sensorRef.current = 600; setSensorDist(600);
       setActiveLine(0);
@@ -1095,6 +1178,23 @@ rover.say("Survey done")`
                   </div>
                 ))}
               </div>
+              <div className="repl-row">
+                <span className="repl-prompt" aria-hidden="true">&gt;&gt;&gt;</span>
+                <input
+                  className="repl-input"
+                  type="text"
+                  spellCheck="false"
+                  placeholder='live terminal — try move_forward(1) or place("flag")'
+                  aria-label="Live terminal: type one Python line and press Enter"
+                  value={replLine}
+                  onChange={e => setReplLine(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { runReplLine(replLine); setReplHist(replLine); setReplLine(''); }
+                    else if (e.key === 'ArrowUp') { e.preventDefault(); if (replHistRef.current) setReplLine(replHistRef.current); }
+                    else if (e.key === 'Escape') { e.target.blur(); }
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -1110,7 +1210,7 @@ rover.say("Survey done")`
                 </button>
               ))}
             </div>
-            <window.Viewport terrain={terrain} rover={rover} trail={trail} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />
+            <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />
           </div>
 
           <div className="resizer" onPointerDown={e => startDrag('tele', e)} style={{ gridColumn: 4 }}></div>

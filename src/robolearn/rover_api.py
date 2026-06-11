@@ -29,6 +29,7 @@ from .runtime.tracer import emit as _emit_event
 __all__ = (
     "at_base",
     "beep",
+    "clear_props",
     "collect_sample",
     "drop_sample",
     "led",
@@ -38,6 +39,7 @@ __all__ = (
     "obstacle_ahead",
     "pen_down",
     "pen_up",
+    "place",
     "read_battery",
     "read_colour",
     "read_distance",
@@ -291,6 +293,24 @@ def say(message: object) -> None:
 def led(colour: str = "cyan") -> None:
     """Light the rover's status LED a colour (visual cue only)."""
     _emit_event("led", (str(colour),), None, kind="call")
+
+
+def place(kind: str = "flag", x: float | None = None, y: float | None = None) -> None:
+    """Place a prop in the world: a flag, beacon, rock, tree, person or crate.
+
+    With no coordinates the prop is placed where the rover is standing
+    ("drive somewhere, plant a flag"); with ``x``/``y`` (metres) it is placed
+    at that spot. Props are visual world-building -- they never collide.
+    """
+    if x is None or y is None:
+        _emit_event("place", (str(kind),), None, kind="call")
+    else:
+        _emit_event("place", (str(kind), float(x), float(y)), None, kind="call")
+
+
+def clear_props() -> None:
+    """Remove every prop placed with :func:`place`."""
+    _emit_event("clear_props", (), None, kind="call")
 
 
 def scan() -> None:
