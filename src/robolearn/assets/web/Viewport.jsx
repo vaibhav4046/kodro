@@ -85,11 +85,33 @@
 
   // World props placed by pupil code (place("flag") etc). Billboarded like
   // obstacles so they stand up out of the tilted ground. Visual only.
-  function Prop({ p }) {
+  function Prop({ p, photoUrl }) {
     const cx = GROUND / 2 + p.x, cy = GROUND / 2 + p.y;
     const bill = { transform: 'rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))', transformOrigin: '50% 100%' };
     let body = null;
     switch (p.kind) {
+      case 'photo':
+        body = (
+          <div style={{ ...bill, position: 'absolute', left: -26, bottom: 0, width: 52, height: 66 }}>
+            <div style={{ position: 'absolute', left: 24, bottom: 0, width: 4, height: 14, background: 'linear-gradient(180deg,#9aa0b4,#5a5f70)', borderRadius: 2 }}></div>
+            <div style={{ position: 'absolute', left: 0, top: 0, width: 52, height: 52, background: '#f5f0e4', borderRadius: 4, padding: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
+              {photoUrl
+                ? <img src={photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 2 }} />
+                : <div style={{ width: '100%', height: '100%', borderRadius: 2, background: 'linear-gradient(135deg,#5ce0d8,#1a6f6a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📷</div>}
+            </div>
+          </div>
+        );
+        break;
+      case 'drone':
+        body = (
+          <div className="prop-drone" style={{ ...bill, position: 'absolute', left: -16, bottom: 26, width: 32, height: 18 }}>
+            <div style={{ position: 'absolute', left: 8, top: 7, width: 16, height: 8, borderRadius: 3, background: 'linear-gradient(180deg,#aeb8e8,#5a6390)' }}></div>
+            <div style={{ position: 'absolute', left: 0, top: 4, width: 12, height: 2, borderRadius: 2, background: '#cfd6f5', opacity: 0.85 }}></div>
+            <div style={{ position: 'absolute', right: 0, top: 4, width: 12, height: 2, borderRadius: 2, background: '#cfd6f5', opacity: 0.85 }}></div>
+            <div className="prop-pulse" style={{ position: 'absolute', left: 14, bottom: 0, width: 4, height: 4, borderRadius: '50%', background: '#5ce0d8' }}></div>
+          </div>
+        );
+        break;
       case 'beacon':
         body = (
           <div style={{ ...bill, position: 'absolute', left: -5, bottom: 0, width: 10, height: 52 }}>
@@ -138,7 +160,7 @@
     );
   }
 
-  function Viewport({ terrain, rover, trail, props, sensorDist, say, crashKey, zoom, showGrid, showFx, trailColor, tilt, yaw, onTilt }) {
+  function Viewport({ terrain, rover, trail, props, photoUrl, sensorDist, say, crashKey, zoom, showGrid, showFx, trailColor, tilt, yaw, onTilt }) {
     const Rover = window.Rover;
     const Backdrop = window.TerrainBackdrop;
     const Sky = window.TerrainSky;
@@ -159,7 +181,7 @@
         <div className="world" style={{ transform: `rotateX(${tl}deg) scale(${z}) rotateZ(${yw}deg) translate(${-rover.x}px, ${-rover.y}px)`, ['--tilt']: tl + 'deg', ['--yaw']: yw + 'deg' }}>
           <Ground terrain={terrain} showGrid={showGrid}>
             <Trail segments={trail} accent={trailColor || terrain.accent} />
-            {(props || []).map(p => <Prop key={p.id} p={p} />)}
+            {(props || []).map(p => <Prop key={p.id} p={p} photoUrl={photoUrl} />)}
           </Ground>
 
           {/* rover */}

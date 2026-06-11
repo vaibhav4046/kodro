@@ -210,7 +210,8 @@ rover.say("Survey done")`
     const zoom = cam.zoom;
     const trailColor = t.trail === 'cyan' ? '#5ce0d8' : t.trail === 'amber' ? '#e0b45c' : t.trail === 'white' ? '#f5f0e4' : null;
 
-    const terrain = TERRAINS[terrainId];
+    // terrainId may be a base terrain OR a real-world mission site id.
+    const terrain = window.resolveSite ? window.resolveSite(terrainId) : TERRAINS[terrainId];
 
     // live rover state (authoritative for sensors/animation)
     const startState = () => ({ x: 0, y: 0, heading: 0, speed: 50, battery: 100, moving: false, led: null, scanning: false, penDown: false });
@@ -228,6 +229,23 @@ rover.say("Survey done")`
     // unchanged when there's no bridge (browser preview).
     // World props placed by pupil code via place(): flags, beacons, people...
     const [props, setProps] = useState([]);
+    // A pupil-chosen local image, shown in the world by place("photo").
+    const [photoUrl, setPhotoUrl] = useState(null);
+    async function pickPhotoClick() {
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
+        addConsole('Photo props need the desktop app.', 'err');
+        return;
+      }
+      try {
+        const r = await window.RoboLearn.pickPhoto();
+        if (r && r.ok) {
+          setPhotoUrl(r.dataUrl);
+          addConsole('Photo "' + r.name + '" loaded - use place("photo") to put it in the world.', 'ok');
+        } else if (r && r.reason !== 'cancelled') {
+          addConsole('Photo: ' + ((r && r.reason) || 'failed'), 'err');
+        }
+      } catch (e) { addConsole('Photo: ' + e, 'err'); }
+    }
     // Live terminal line + one-deep history (ArrowUp recalls the last line).
     const [replLine, setReplLine] = useState('');
     const replHistRef = useRef('');
@@ -645,12 +663,15 @@ rover.say("Survey done")`
       const sp = Math.max(8, s.speed);
       // 0.32s per (cm/speed); lower-traction terrain drives a little slower.
       const dur = (total / sp) * 1000 * 0.32 / (terrain.traction * speedMulRef.current);
+      // Real physics: heavier worlds drain the battery faster, lighter worlds
+      // less (Moon ~0.58x Earth) -- pupils can measure the difference.
+      const gFac = 0.5 + 0.5 * ((terrain.env.gravity || 9.81) / 9.81);
       s.moving = true;
       // new trail segment if pen down
       if (s.penDown) { trailRef.current.push([{ x: x0, y: y0 }]); setTrail([...trailRef.current]); }
       // Battery drains smoothly across the move (was a no-op: subtracted 0).
       const b0 = s.battery;
-      const drainFull = total * 0.011 / terrain.traction;
+      const drainFull = total * 0.011 * gFac / terrain.traction;
       let crashed = false;
       await frames(dur, (p) => {
         const nx = x0 + dirx * total * p;
@@ -675,7 +696,7 @@ rover.say("Survey done")`
       // Settle battery on the distance actually travelled (handles a crash
       // that stopped the move early), relative to the pre-move level b0.
       const travelled = Math.hypot(s.x - x0, s.y - y0);
-      s.battery = Math.max(0, b0 - travelled * 0.011 / terrain.traction);
+      s.battery = Math.max(0, b0 - travelled * 0.011 * gFac / terrain.traction);
       odoRef.current += travelled; setOdo(odoRef.current);
       s.moving = false; sync();
       if (crashed) {
@@ -1095,6 +1116,9 @@ rover.say("Survey done")`
                 <button className="set-row set-btn" role="menuitem" onClick={() => setVoiceGender(v => v === 'female' ? 'male' : 'female')}>
                   <span>Voice</span><span className="set-val">{voiceGender === 'female' ? 'Female' : 'Male'}</span>
                 </button>
+                <button className="set-row set-btn" role="menuitem" onClick={() => { setSettingsOpen(false); pickPhotoClick(); }}>
+                  <span>Photo prop — place("photo")</span><span className="set-val">{photoUrl ? 'Loaded' : 'Pick…'}</span>
+                </button>
                 <button className="set-row set-btn" role="menuitem" onClick={() => { setSettingsOpen(false); exportReportClick(); }}>
                   <span>Export progress report</span><span className="set-val">→</span>
                 </button>
@@ -1223,8 +1247,22 @@ rover.say("Survey done")`
                   {TERRAINS[id].label}
                 </button>
               ))}
+              {window.SITES && (
+                <select
+                  className="lesson-select site-select"
+                  value={window.SITES[terrainId] ? terrainId : ''}
+                  onChange={e => { if (e.target.value) onTerrain(e.target.value); }}
+                  aria-label="Real-world mission site"
+                  title="Drop the rover at a real place — real gravity, traction and light"
+                >
+                  <option value="" disabled>🌍 Mission site…</option>
+                  {Object.keys(window.SITES).map(id => (
+                    <option key={id} value={id}>{window.SITES[id].name}</option>
+                  ))}
+                </select>
+              )}
             </div>
-            <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />
+            <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />
           </div>
 
           <div className="resizer" onPointerDown={e => startDrag('tele', e)} style={{ gridColumn: 4 }}></div>
