@@ -93,6 +93,8 @@ class OllamaClient:
         model: str | None = None,
         json_mode: bool = False,
         temperature: float = 0.7,
+        num_predict: int | None = None,
+        keep_alive: str | None = None,
     ) -> str:
         """Generate a completion for ``prompt`` and return the full text.
 
@@ -102,16 +104,24 @@ class OllamaClient:
             model: Model override; defaults to :attr:`model`.
             json_mode: Ask the model to emit strict JSON (``format=json``).
             temperature: Sampling temperature.
+            num_predict: Optional max tokens to generate (bounds latency).
+            keep_alive: How long Ollama keeps the model loaded (e.g. "30m") --
+                avoids the multi-second model reload on the next call.
 
         Raises:
             OllamaError: On any transport or server error.
         """
+        options: dict[str, object] = {"temperature": temperature}
+        if num_predict is not None:
+            options["num_predict"] = num_predict
         body: dict[str, object] = {
             "model": model or self.model,
             "prompt": prompt,
             "stream": False,
-            "options": {"temperature": temperature},
+            "options": options,
         }
+        if keep_alive is not None:
+            body["keep_alive"] = keep_alive
         if system is not None:
             body["system"] = system
         if json_mode:
@@ -129,14 +139,21 @@ class OllamaClient:
         system: str | None = None,
         model: str | None = None,
         temperature: float = 0.7,
+        num_predict: int | None = None,
+        keep_alive: str | None = None,
     ) -> Iterator[str]:
         """Yield response chunks as they arrive (for live UI streaming)."""
+        options: dict[str, object] = {"temperature": temperature}
+        if num_predict is not None:
+            options["num_predict"] = num_predict
         body: dict[str, object] = {
             "model": model or self.model,
             "prompt": prompt,
             "stream": True,
-            "options": {"temperature": temperature},
+            "options": options,
         }
+        if keep_alive is not None:
+            body["keep_alive"] = keep_alive
         if system is not None:
             body["system"] = system
         data = json.dumps(body).encode("utf-8")

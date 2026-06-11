@@ -3015,6 +3015,11 @@ rover.say("Survey done")`
         block: 'end'
       });
     }, [vibeMsgs, vibeBusy]);
+
+    // Streamed reply: start a job, poll ~4x/s, and show the model's text live
+    // in the thread while it thinks (the response feels instant instead of a
+    // long opaque spinner).
+    const [vibeLive, setVibeLive] = useState('');
     async function vibeSend() {
       const text = vibePrompt.trim();
       if (vibeBusy || !text) return;
@@ -3027,12 +3032,33 @@ rover.say("Survey done")`
       setVibePrompt('');
       setVibeBusy(true);
       setVibeError(null);
+      setVibeLive('');
       try {
         const history = next.map(m => ({
           role: m.role === 'user' ? 'user' : 'assistant',
           text: m.text
         }));
-        const r = await window.RoboLearn.aiChat(history, currentLessonIdRef.current);
+        const start = await window.RoboLearn.aiChatStart(history, currentLessonIdRef.current);
+        if (!start || !start.ok) {
+          setVibeError(start && start.reason || 'AI unavailable.');
+          setVibeBusy(false);
+          return;
+        }
+        let r = null;
+        for (;;) {
+          await new Promise(res => setTimeout(res, 250));
+          const p = await window.RoboLearn.aiChatPoll(start.jobId);
+          if (!p || !p.ok) {
+            r = p;
+            break;
+          }
+          if (p.done) {
+            r = p;
+            break;
+          }
+          setVibeLive(p.text || '');
+        }
+        setVibeLive('');
         if (r && r.ok && r.type === 'question') {
           setVibeMsgs(m => [...m, {
             role: 'ai',
@@ -4557,7 +4583,9 @@ rover.say("Survey done")`
       className: 'vibe-msg ' + m.role
     }, /*#__PURE__*/React.createElement("span", null, m.text))), vibeBusy && /*#__PURE__*/React.createElement("div", {
       className: "vibe-msg ai thinking"
-    }, /*#__PURE__*/React.createElement("span", null, "Thinking\u2026")), /*#__PURE__*/React.createElement("div", {
+    }, vibeLive ? /*#__PURE__*/React.createElement("pre", {
+      className: "vibe-live"
+    }, vibeLive) : /*#__PURE__*/React.createElement("span", null, "Thinking\u2026")), /*#__PURE__*/React.createElement("div", {
       ref: vibeEndRef
     })), vibeError && /*#__PURE__*/React.createElement("p", {
       className: "vibe-error",
