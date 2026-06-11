@@ -65,6 +65,7 @@
     aiChatStart: (messages, lessonId) => call("ai_chat_start", messages, lessonId),
     aiChatPoll: (jobId) => call("ai_chat_poll", jobId),
     listen: (timeoutS) => call("listen", timeoutS),
+    pickPhoto: () => call("pick_photo"),
     speak: (text, voice) => call("speak", text, voice || "female"),
     log: (level, msg) => call("log", level, msg),
   };

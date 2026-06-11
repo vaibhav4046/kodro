@@ -98,6 +98,136 @@
   TERRAINS.WALL = WALL;
 
   // ----------------------------------------------------------------------
+  // Mission sites: REAL places with real physics. Each derives from a base
+  // terrain renderer but overrides the environment (gravity, temperature,
+  // pressure, light), traction and the obstacle field -- so the same program
+  // behaves differently in the Sahara, under the Mariana Trench, or on
+  // Europa, and the pupil can SEE and MEASURE why.
+  // ----------------------------------------------------------------------
+  const SITES = {
+    sahara: {
+      base: 'earth', label: 'SAHARA', name: 'Sahara Desert',
+      coord: '23.4162° N, 25.6628° E',
+      env: { temp: 38, tempLabel: 'AIR TEMP', light: 100 },
+      traction: 0.74,  // loose sand slips
+      seed: 201, count: 10, minR: 40, maxR: 80, decorSeed: 211, decorCount: 64,
+      groundBg: {
+        background: 'radial-gradient(circle at 42% 38%, #d9b36c, #b08a4a 58%, #8a6a36 100%)',
+        texture: 'radial-gradient(circle at 30% 30%, rgba(245,215,150,0.5) 0 2px, transparent 2px), radial-gradient(circle at 68% 64%, rgba(140,105,60,0.45) 0 2.5px, transparent 3px)',
+        texSize: '24px 24px',
+      },
+      obFill: 'radial-gradient(circle at 38% 24%, #d6ab64, #94703c 66%, #5e472a)',
+    },
+    amazon: {
+      base: 'earth', label: 'AMAZON', name: 'Amazon Rainforest',
+      coord: '3.4653° S, 62.2159° W',
+      env: { temp: 27, light: 38 },  // canopy shade
+      traction: 0.68,  // mud + roots
+      seed: 202, count: 22, minR: 44, maxR: 100, decorSeed: 212, decorCount: 70,
+      groundBg: {
+        background: 'radial-gradient(circle at 40% 35%, #38522c, #243a1e 58%, #182a16 100%)',
+        texture: 'radial-gradient(circle at 30% 30%, rgba(90,130,70,0.5) 0 2.5px, transparent 3px), radial-gradient(circle at 70% 60%, rgba(20,40,18,0.55) 0 3px, transparent 4px)',
+        texSize: '26px 26px',
+      },
+      obFill: 'radial-gradient(circle at 38% 24%, #5d8a44, #2e4a22 66%, #1c2f16)',
+    },
+    antarctica: {
+      base: 'earth', label: 'ANTARCTICA', name: 'Antarctica - Ross Ice Shelf',
+      coord: '81.5000° S, 175.0000° W',
+      env: { temp: -55, light: 88 },
+      traction: 0.45,  // ICE: drives slow, drains hard
+      seed: 203, count: 8, minR: 50, maxR: 110, decorSeed: 213, decorCount: 40,
+      groundBg: {
+        background: 'radial-gradient(circle at 44% 38%, #eef3f8, #c6d6e4 56%, #93acc2 100%)',
+        texture: 'radial-gradient(circle at 32% 32%, rgba(255,255,255,0.7) 0 2px, transparent 2.5px), radial-gradient(circle at 68% 62%, rgba(130,160,190,0.4) 0 3px, transparent 4px)',
+        texSize: '30px 30px',
+      },
+      obFill: 'radial-gradient(circle at 38% 24%, #e8f2fa, #a9c2d6 64%, #6e8ba2)',
+    },
+    reef: {
+      base: 'underwater', label: 'CORAL REEF', name: 'Great Barrier Reef',
+      coord: '18.2871° S, 147.6992° E',
+      env: { temp: 24, pressure: 12, pressureLabel: 'DEPTH', pressureUnit: 'm', light: 62 },
+      traction: 0.72,
+      seed: 204, count: 20, minR: 44, maxR: 96, decorSeed: 214, decorCount: 64,
+      groundBg: {
+        background: 'radial-gradient(circle at 48% 42%, #3f96a4, #2a7080 58%, #1c5260 100%)',
+        texture: 'radial-gradient(circle at 35% 35%, rgba(230,245,245,0.35) 0 2px, transparent 3px), radial-gradient(circle at 70% 65%, rgba(20,70,80,0.4) 0 3px, transparent 4px)',
+        texSize: '26px 26px',
+      },
+      obFill: 'radial-gradient(circle at 40% 26%, #e08a96, #a04a62 66%, #5e2a3c)',
+    },
+    mariana: {
+      base: 'underwater', label: 'MARIANA', name: 'Mariana Trench - Challenger Deep',
+      coord: '11.3733° N, 142.5917° E',
+      env: { temp: 2, pressure: 10994, pressureLabel: 'DEPTH', pressureUnit: 'm', light: 0 },
+      traction: 0.6,
+      seed: 205, count: 9, minR: 52, maxR: 116, decorSeed: 215, decorCount: 34,
+      groundBg: {
+        background: 'radial-gradient(circle at 50% 45%, #14303e, #0c2030 60%, #061420 100%)',
+        texture: 'radial-gradient(circle at 35% 35%, rgba(120,160,170,0.16) 0 2px, transparent 3px)',
+        texSize: '32px 32px',
+      },
+      obFill: 'radial-gradient(circle at 40% 26%, #3c5a66, #1e3540 66%, #101e26)',
+    },
+    olympus: {
+      base: 'mars', label: 'OLYMPUS MONS', name: 'Mars - Olympus Mons',
+      coord: '18.6500° N, 226.2000° E',
+      env: { temp: -73, light: 40 },
+      traction: 0.8,
+      seed: 206, count: 17, minR: 42, maxR: 104, decorSeed: 216, decorCount: 56,
+      groundBg: {
+        background: 'radial-gradient(circle at 45% 40%, #8a4630, #66301e 58%, #481f12 100%)',
+        texture: 'radial-gradient(circle at 30% 30%, rgba(190,110,80,0.45) 0 2px, transparent 2px), radial-gradient(circle at 65% 70%, rgba(80,35,20,0.5) 0 2.5px, transparent 3px)',
+        texSize: '22px 22px',
+      },
+    },
+    tycho: {
+      base: 'space', label: 'TYCHO', name: 'Moon - Tycho Crater',
+      coord: '43.3100° S, 11.3600° W',
+      env: { gravity: 1.62, temp: -173, light: 100 },
+      traction: 1.18,
+      seed: 207, count: 14, minR: 44, maxR: 100, decorSeed: 217, decorCount: 52,
+    },
+    europa: {
+      base: 'space', label: 'EUROPA', name: 'Jupiter - Europa Ice Crust',
+      coord: '9.1000° S, 152.8000° W',
+      env: { gravity: 1.315, temp: -160, light: 4 },
+      traction: 0.5,  // moon-ice
+      seed: 208, count: 12, minR: 46, maxR: 102, decorSeed: 218, decorCount: 44,
+      groundBg: {
+        background: 'radial-gradient(circle at 46% 40%, #cfdcea, #9fb4ca 56%, #6c8098 100%)',
+        texture: 'linear-gradient(115deg, transparent 48%, rgba(120,90,80,0.25) 49%, transparent 51%), radial-gradient(circle at 34% 34%, rgba(255,255,255,0.5) 0 2px, transparent 2.5px)',
+        texSize: '64px 64px, 28px 28px',
+      },
+      obFill: 'radial-gradient(circle at 38% 24%, #e2ecf6, #a2b8cc 64%, #66809a)',
+    },
+  };
+
+  // Resolve a terrain OR site id into a renderable terrain object.
+  function resolveSite(id) {
+    if (TERRAINS[id]) return TERRAINS[id];
+    const s = SITES[id];
+    if (!s) return TERRAINS.earth;
+    const base = TERRAINS[s.base];
+    return {
+      ...base,
+      siteId: id,
+      label: s.label,
+      name: s.name,
+      coord: s.coord,
+      env: { ...base.env, ...s.env },
+      traction: s.traction != null ? s.traction : base.traction,
+      obstacles: genObstacles(s.seed, s.count, s.minR, s.maxR),
+      decor: genDecor(s.decorSeed, s.decorCount),
+      groundBg: s.groundBg || null,
+      obFill: s.obFill || null,
+    };
+  }
+  window.SITES = SITES;
+  window.resolveSite = resolveSite;
+
+  // ----------------------------------------------------------------------
   // Base fill (sits behind everything; mostly covered by the tilted ground)
   // ----------------------------------------------------------------------
   const BASE_FILL = {
@@ -278,7 +408,7 @@
         <div className="ob-shadow" style={{ left: '50%', top: '100%', width: size * 1.25, height: o.r * 1.1 }}></div>
         <div className="ob-body" style={{
           transform: `rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))`,
-          background: OB_FILL[id],
+          background: terrain.obFill || OB_FILL[id],
           borderRadius: id === 'underwater' ? '46% 54% 44% 56% / 64% 60% 40% 36%' : '48% 52% 50% 50% / 60% 58% 42% 40%'
         }}>
           <div className="ob-spec"></div>
@@ -323,7 +453,7 @@
   }
 
   function TerrainGround({ terrain, children, showGrid }) {
-    const g = groundBg(terrain.id);
+    const g = terrain.groundBg || groundBg(terrain.id);
     return (
       <div className="ground" style={{
         position: 'absolute', left: -GROUND / 2, top: -GROUND / 2, width: GROUND, height: GROUND,

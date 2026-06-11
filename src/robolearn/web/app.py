@@ -290,7 +290,7 @@ class BridgeAPI:
         "obstacle_ahead(), collect_sample(), sample_detected(), at_base(), "
         "pen_down(), pen_up(), place(kind), clear_props(). place plants a prop "
         'where the rover stands: "flag", "beacon", "person", "tree", '
-        '"rock" or "crate" - use it to BUILD scenes. '
+        '"rock", "crate", "photo" (the pupil pictures) or "drone" - use it to BUILD scenes. '
         "Plain procedural Python only: for/while/if, "
         "simple variables, def with no classes or imports. Define every "
         "variable before you use it. No f-strings, lists, dicts or input(). "
@@ -429,7 +429,7 @@ class BridgeAPI:
         "obstacle_ahead(), collect_sample(), sample_detected(), at_base(), "
         "pen_down(), pen_up(), place(kind), clear_props(). place plants a prop "
         'where the rover stands: "flag", "beacon", "person", "tree", '
-        '"rock" or "crate" - use it to BUILD scenes. '
+        '"rock", "crate", "photo" (the pupil pictures) or "drone" - use it to BUILD scenes. '
         "Plain procedural Python: for/while/if, simple "
         "variables, def with no classes or imports. Define every variable before "
         "use. No f-strings, lists, dicts or input(). Write top-level statements; "
@@ -681,6 +681,42 @@ class BridgeAPI:
         except Exception as exc:  # pragma: no cover - depends on host TTS
             return {"ok": False, "reason": str(exc)}
 
+    def pick_photo(self) -> dict[str, Any]:
+        """Let the pupil choose a LOCAL image; returns it as a data URL.
+
+        The image never leaves the machine -- it is read from disk and handed
+        to the UI inline, so a pupil can put a photo of themselves (or their
+        dog) into the simulated world with ``place("photo")``.
+        """
+        try:
+            window = webview.windows[0] if webview.windows else None
+            if window is None:
+                return {"ok": False, "reason": "no window"}
+            picked = window.create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=("Images (*.png;*.jpg;*.jpeg;*.gif;*.webp)",),
+            )
+            if not picked:
+                return {"ok": False, "reason": "cancelled"}
+            first = picked[0] if isinstance(picked, (list, tuple)) else picked
+            path = Path(str(first))
+            if path.stat().st_size > 4_000_000:
+                return {"ok": False, "reason": "Image too large - pick one under 4 MB."}
+            import base64
+
+            mime = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+            }.get(path.suffix.lower(), "image/png")
+            data = base64.b64encode(path.read_bytes()).decode("ascii")
+            return {"ok": True, "dataUrl": f"data:{mime};base64,{data}", "name": path.name}
+        except Exception as exc:  # pragma: no cover - host dialog dependent
+            return {"ok": False, "reason": str(exc)}
+
     def listen(self, timeout_s: float = 6.0) -> dict[str, Any]:
         """Dictate one phrase with Windows' built-in offline speech recogniser.
 
@@ -837,12 +873,12 @@ def _quote_place_kinds(code: str) -> str:
     import re
 
     code = re.sub(
-        r"\bplace\(\s*(flag|beacon|person|tree|rock|crate)\s*([,)])",
+        r"\bplace\(\s*(flag|beacon|person|tree|rock|crate|photo|drone)\s*([,)])",
         r'place("\1"\2',
         code,
     )
     return re.sub(
-        r"\bplace_(flag|beacon|person|tree|rock|crate)\s*\([^)]*\)",
+        r"\bplace_(flag|beacon|person|tree|rock|crate|photo|drone)\s*\([^)]*\)",
         r'place("\1")',
         code,
     )
