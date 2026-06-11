@@ -1066,10 +1066,227 @@
       }
     })));
   }
+
+  // World props placed by pupil code (place("flag") etc). Billboarded like
+  // obstacles so they stand up out of the tilted ground. Visual only.
+  function Prop({
+    p
+  }) {
+    const cx = GROUND / 2 + p.x,
+      cy = GROUND / 2 + p.y;
+    const bill = {
+      transform: 'rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))',
+      transformOrigin: '50% 100%'
+    };
+    let body = null;
+    switch (p.kind) {
+      case 'beacon':
+        body = /*#__PURE__*/React.createElement("div", {
+          style: {
+            ...bill,
+            position: 'absolute',
+            left: -5,
+            bottom: 0,
+            width: 10,
+            height: 52
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 3,
+            bottom: 0,
+            width: 4,
+            height: 44,
+            background: 'linear-gradient(180deg,#9aa0b4,#5a5f70)',
+            borderRadius: 2
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          className: "prop-pulse",
+          style: {
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: '#5ce0d8',
+            boxShadow: '0 0 12px #5ce0d8'
+          }
+        }));
+        break;
+      case 'rock':
+        body = /*#__PURE__*/React.createElement("div", {
+          style: {
+            ...bill,
+            position: 'absolute',
+            left: -14,
+            bottom: 0,
+            width: 28,
+            height: 22,
+            borderRadius: '48% 52% 45% 55% / 70% 64% 36% 30%',
+            background: 'radial-gradient(circle at 38% 26%, #8d8f99, #4c4e58 70%, #33353d)'
+          }
+        });
+        break;
+      case 'tree':
+        body = /*#__PURE__*/React.createElement("div", {
+          style: {
+            ...bill,
+            position: 'absolute',
+            left: -16,
+            bottom: 0,
+            width: 32,
+            height: 58
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 13,
+            bottom: 0,
+            width: 6,
+            height: 20,
+            background: 'linear-gradient(180deg,#7a5a3a,#4c3722)',
+            borderRadius: 2
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: 32,
+            height: 40,
+            borderRadius: '50% 50% 46% 46%',
+            background: 'radial-gradient(circle at 38% 28%, #7fae62, #3f6030 72%, #2c4422)'
+          }
+        }));
+        break;
+      case 'person':
+        body = /*#__PURE__*/React.createElement("div", {
+          style: {
+            ...bill,
+            position: 'absolute',
+            left: -9,
+            bottom: 0,
+            width: 18,
+            height: 46
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 4,
+            top: 0,
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            background: '#e8c9a8'
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 2,
+            top: 11,
+            width: 14,
+            height: 22,
+            borderRadius: '5px 5px 3px 3px',
+            background: 'linear-gradient(180deg,#e0b45c,#a87f38)'
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 4,
+            top: 33,
+            width: 4,
+            height: 13,
+            background: '#3a4356',
+            borderRadius: 2
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 10,
+            top: 33,
+            width: 4,
+            height: 13,
+            background: '#3a4356',
+            borderRadius: 2
+          }
+        }));
+        break;
+      case 'crate':
+        body = /*#__PURE__*/React.createElement("div", {
+          style: {
+            ...bill,
+            position: 'absolute',
+            left: -12,
+            bottom: 0,
+            width: 24,
+            height: 22,
+            background: 'linear-gradient(180deg,#a8845c,#6e5538)',
+            border: '2px solid #4c3a24',
+            borderRadius: 3,
+            boxShadow: 'inset 0 0 0 2px rgba(255,235,200,0.12)'
+          }
+        });
+        break;
+      default:
+        // flag
+        body = /*#__PURE__*/React.createElement("div", {
+          style: {
+            ...bill,
+            position: 'absolute',
+            left: -2,
+            bottom: 0,
+            width: 26,
+            height: 54
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 0,
+            bottom: 0,
+            width: 3,
+            height: 54,
+            background: 'linear-gradient(180deg,#d8d3c4,#8b8678)',
+            borderRadius: 2
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 3,
+            top: 2,
+            width: 0,
+            height: 0,
+            borderTop: '9px solid transparent',
+            borderBottom: '9px solid transparent',
+            borderLeft: '22px solid #5ce0d8'
+          }
+        }));
+    }
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        left: cx,
+        top: cy,
+        zIndex: 4
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        left: -10,
+        top: -4,
+        width: 20,
+        height: 8,
+        borderRadius: '50%',
+        background: 'rgba(0,0,0,0.3)',
+        filter: 'blur(2px)'
+      }
+    }), body);
+  }
   function Viewport({
     terrain,
     rover,
     trail,
+    props,
     sensorDist,
     say,
     crashKey,
@@ -1113,7 +1330,10 @@
     }, /*#__PURE__*/React.createElement(Trail, {
       segments: trail,
       accent: trailColor || terrain.accent
-    })), /*#__PURE__*/React.createElement("div", {
+    }), (props || []).map(p => /*#__PURE__*/React.createElement(Prop, {
+      key: p.id,
+      p: p
+    }))), /*#__PURE__*/React.createElement("div", {
       className: "rover-wrap",
       style: {
         position: 'absolute',
@@ -2403,6 +2623,48 @@ Object.assign(window, {
 
   // ---------------- example programs ----------------
   const EXAMPLES = {
+    basecamp: {
+      label: 'basecamp.py',
+      code: `# BASE CAMP - your code BUILDS the world.
+# place(kind) plants a prop right where the rover stands:
+# "flag", "beacon", "person", "tree", "rock", "crate".
+set_speed(80)
+pen_down()
+say("Building base camp")
+
+# Mark the centre of camp with a beacon.
+place("beacon")
+
+# Drive a square and drop a crate at every corner.
+for corner in range(4):
+    move_forward(2)
+    place("crate")
+    turn_right(90)
+
+# Plant a flag line out front.
+turn_right(45)
+for i in range(3):
+    move_forward(1.2)
+    place("flag")
+
+# The crew arrives.
+move_forward(1.5)
+place("person")
+turn_left(90)
+move_forward(1)
+place("person")
+
+# A bit of landscaping.
+turn_left(135)
+move_forward(2.5)
+place("tree")
+move_forward(1)
+place("rock")
+
+led("green")
+say("Camp ready!")
+print("Base camp built: 1 beacon, 4 crates, 3 flags, 2 crew, 1 tree, 1 rock")`
+    },
     autopilot: {
       label: 'autopilot.py',
       code: `# AUTOPILOT - the rover drives itself, like a self-driving car.
@@ -2629,6 +2891,14 @@ rover.say("Survey done")`
     // RoboLearn bridge: lessons (from Python), currently-loaded lesson id,
     // pupil + verdict + hint after a graded Run. The React app stays
     // unchanged when there's no bridge (browser preview).
+    // World props placed by pupil code via place(): flags, beacons, people...
+    const [props, setProps] = useState([]);
+    // Live terminal line + one-deep history (ArrowUp recalls the last line).
+    const [replLine, setReplLine] = useState('');
+    const replHistRef = useRef('');
+    const setReplHist = v => {
+      if (v && v.trim()) replHistRef.current = v;
+    };
     const [lessons, setLessons] = useState([]);
     // Multi-pupil: list + active id, so shared classroom machines keep each
     // pupil's progress separate (re-score / "do-all").
@@ -3441,6 +3711,23 @@ rover.say("Survey done")`
             showSay(ev.text);
             await delay(stepMode ? 0 : 200 / speedMulRef.current);
             break;
+          case 'place':
+            {
+              const px = ev.x !== undefined ? ev.x : live.current.x;
+              const py = ev.y !== undefined ? ev.y : live.current.y;
+              sfx('led');
+              setProps(p => p.length >= 80 ? p : [...p, {
+                kind: ev.kind,
+                x: px,
+                y: py,
+                id: p.length
+              }]);
+              await delay(stepMode ? 0 : 160 / speedMulRef.current);
+              break;
+            }
+          case 'clear_props':
+            setProps([]);
+            break;
           case 'scan':
             sfx('scan');
             live.current.scanning = true;
@@ -3469,9 +3756,42 @@ rover.say("Survey done")`
       live.current.moving = false;
       sync();
       setRunState('done');
+      if (replRef.current) {
+        replRef.current = false;
+        return;
+      } // terminal line: stay quiet
       addConsole('Program finished.', 'ok');
       // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
       gradeWithBridge(code);
+    }
+
+    // Live terminal: run ONE line immediately against the current world --
+    // like a real Python REPL, without resetting the rover or grading.
+    const replRef = useRef(false);
+    function runReplLine(line) {
+      const src = (line || '').trim();
+      if (!src) return;
+      if (window.RLSound) window.RLSound.resume();
+      addConsole('>>> ' + src, 'sys');
+      if (ctrl.current.running || ctrl.current.advancing) {
+        addConsole('The program is still running - press Pause or Reset first.', 'err');
+        return;
+      }
+      let gen;
+      try {
+        gen = window.RoverLang.compile(src).run(host);
+      } catch (e) {
+        addConsole(String(e && e.message || e), 'err');
+        return;
+      }
+      replRef.current = true;
+      genRef.current = gen;
+      ctrl.current.token++;
+      const myToken = ctrl.current.token;
+      ctrl.current.abort = false;
+      ctrl.current.running = true;
+      setRunState('running');
+      pumpLoop(myToken);
     }
     function haltProgram(state) {
       ctrl.current.running = false;
@@ -3515,6 +3835,7 @@ rover.say("Survey done")`
       live.current = startState();
       trailRef.current = [];
       setTrail([]);
+      setProps([]);
       odoRef.current = 0;
       setOdo(0);
       sensorRef.current = 600;
@@ -4028,7 +4349,32 @@ rover.say("Survey done")`
       className: 'cline ' + (l.type === 'err' ? 'err' : l.type === 'ok' ? 'ok' : l.type === 'sys' ? 'sys' : '')
     }, l.ts ? /*#__PURE__*/React.createElement("span", {
       className: "ts"
-    }, l.ts) : null, l.text))))), /*#__PURE__*/React.createElement("div", {
+    }, l.ts) : null, l.text))), /*#__PURE__*/React.createElement("div", {
+      className: "repl-row"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "repl-prompt",
+      "aria-hidden": "true"
+    }, ">>>"), /*#__PURE__*/React.createElement("input", {
+      className: "repl-input",
+      type: "text",
+      spellCheck: "false",
+      placeholder: "live terminal \u2014 try move_forward(1) or place(\"flag\")",
+      "aria-label": "Live terminal: type one Python line and press Enter",
+      value: replLine,
+      onChange: e => setReplLine(e.target.value),
+      onKeyDown: e => {
+        if (e.key === 'Enter') {
+          runReplLine(replLine);
+          setReplHist(replLine);
+          setReplLine('');
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (replHistRef.current) setReplLine(replHistRef.current);
+        } else if (e.key === 'Escape') {
+          e.target.blur();
+        }
+      }
+    })))), /*#__PURE__*/React.createElement("div", {
       className: "resizer",
       onPointerDown: e => startDrag('editor', e),
       style: {
@@ -4059,6 +4405,7 @@ rover.say("Survey done")`
       terrain: terrain,
       rover: rover,
       trail: trail,
+      props: props,
       sensorDist: sensorDist,
       say: say,
       crashKey: crashKey,

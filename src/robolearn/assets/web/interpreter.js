@@ -483,7 +483,8 @@
                 ? Math.hypot(bx, by) < AT_BASE_CM : true;
             }
             if (v in LESSON_MOTION || v === 'beep' || v === 'log'
-                || v === 'collect_sample' || v === 'drop_sample') {
+                || v === 'collect_sample' || v === 'drop_sample'
+                || v === 'place' || v === 'clear_props') {
               return null;  // an action used as a value -> None
             }
           }
@@ -608,6 +609,16 @@
               if (v === 'log') { const a = expr.args.map(evalExpr); yield { type: 'print', line: line, text: a.map(pyStr).join(' ') }; return; }
               if (v === 'collect_sample') { yield { type: 'print', line: line, text: 'Sample collected.' }; return; }
               if (v === 'drop_sample') { yield { type: 'print', line: line, text: 'Sample dropped.' }; return; }
+              // World-building: place(kind) at the rover, or place(kind, x_m, y_m).
+              if (v === 'place') {
+                const a = expr.args.map(evalExpr);
+                const kind = a.length ? String(a[0]) : 'flag';
+                const ev = { type: 'place', kind: kind, line: line };
+                if (a.length >= 3) { ev.x = clampNum(a[1], -15, 15, 0) * 100; ev.y = clampNum(a[2], -15, 15, 0) * 100; }
+                yield ev;
+                return;
+              }
+              if (v === 'clear_props') { yield { type: 'clear_props', line: line }; return; }
               if (v === 'obstacle_ahead' || v === 'sample_detected' || v === 'at_base') { yield { type: 'step', line: line }; return; }
             }
             // print(...)
