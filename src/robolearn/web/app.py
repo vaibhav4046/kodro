@@ -84,7 +84,8 @@ class BridgeAPI:
             client = OllamaClient()
             if not client.available():
                 return
-            model = self._pick_ai_model(client.models())
+            installed = client.models()
+            model = self._pick_fast_model(installed) or self._pick_ai_model(installed)
             if model is None:
                 return
             client.generate(
@@ -300,10 +301,22 @@ class BridgeAPI:
     )
 
     def _pick_ai_model(self, installed: list[str]) -> str | None:
+        """Pick the QUALITY model: best family first, biggest variant within it.
+
+        Within a family prefer the largest parameter count (gemma3:4b over
+        gemma3:1b) -- this is the escalation/repair model, so capability wins.
+        """
+
+        def size_of(name: str) -> float:
+            import re
+
+            m = re.search(r":(\d+(?:\.\d+)?)b\b", name.lower())
+            return float(m.group(1)) if m else 0.0
+
         for pref in self._AI_MODEL_PREFERENCE:
-            for name in installed:
-                if name.lower().startswith(pref):
-                    return name
+            candidates = [n for n in installed if n.lower().startswith(pref)]
+            if candidates:
+                return max(candidates, key=size_of)
         return installed[0] if installed else None
 
     def ai_status(self) -> dict[str, Any]:
@@ -358,7 +371,7 @@ class BridgeAPI:
                 user_prompt,
                 system=self._AI_SYSTEM_PROMPT,
                 model=model,
-                temperature=0.4,
+                temperature=0.25,
                 num_predict=self._AI_NUM_PREDICT,
                 keep_alive=self._AI_KEEP_ALIVE,
             )
@@ -404,10 +417,11 @@ class BridgeAPI:
         "You are a friendly coding partner inside RoboLearn, an educational "
         "rover simulator for children. The pupil chats with you about what "
         "the rover should do.\n"
-        "If the request is AMBIGUOUS (missing distance, direction, count, or "
-        "goal), reply with exactly one short clarifying question on one line, "
-        "prefixed 'QUESTION: '. Ask at most one question per request -- if the "
-        "pupil has already answered one, write the code.\n"
+        "If the request gives NO distance, count or goal at all (like just "
+        "'go forward'), you MUST reply with exactly one short clarifying "
+        "question on one line, prefixed 'QUESTION: ' -- never guess. Ask at "
+        "most one question per request; if the pupil has already answered "
+        "one, write the code.\n"
         "Otherwise reply 'CODE:' on the first line, then the program. "
         "Use ONLY these functions: move_forward(metres), move_backward(metres), "
         "turn_left(degrees), turn_right(degrees), set_speed(percent), beep(times), "
@@ -471,13 +485,13 @@ class BridgeAPI:
                 prompt,
                 system=self._AI_CHAT_SYSTEM,
                 model=model,
-                temperature=0.4,
+                temperature=0.25,
                 num_predict=self._AI_NUM_PREDICT,
                 keep_alive=self._AI_KEEP_ALIVE,
             ).strip()
         except OllamaError as exc:
             return {"ok": False, "reason": f"AI failed: {exc}"}
-        return self._finalize_chat_reply(client, model, raw)
+        return self._finalize_chat_reply(client, model, raw, prompt=prompt)
 
     def _build_chat_prompt(self, messages: list[dict[str, str]], lesson_id: str | None) -> str:
         """Render the bounded conversation transcript the model completes."""
@@ -492,12 +506,46 @@ class BridgeAPI:
         lines.append("You:")
         return "\n".join(lines)
 
-    def _finalize_chat_reply(self, client: Any, model: str, raw: str) -> dict[str, Any]:
-        """Turn a raw model reply into a question or validated+repaired code."""
+    def _pick_fast_model(self, installed: list[str]) -> str | None:
+        """Pick the fastest capable model for the streaming draft.
+
+        Prefers the baked ``robolearn-fast`` custom model, then any ~1B-class
+        model. The draft is validated + repaired and escalates to the quality
+        model on failure, so a small drafter is safe -- and several times
+        faster to first token.
+        """
+        for name in installed:
+            if name.lower().startswith("robolearn-fast"):
+                return name
+        for name in installed:
+            if ":1b" in name.lower():
+                return name
+        return None
+
+    def _finalize_chat_reply(
+        self,
+        client: Any,
+        model: str,
+        raw: str,
+        escalate_model: str | None = None,
+        prompt: str = "",
+    ) -> dict[str, Any]:
+        """Turn a raw model reply into a question or validated+repaired code.
+
+        On a failed validation the same model gets ONE repair round; if that
+        still fails and ``escalate_model`` is set (the draft came from the
+        fast model), the request is regenerated once with the quality model.
+        """
         from robolearn.ai.ollama_client import OllamaError
 
-        if raw.upper().startswith("QUESTION:"):
-            return {"ok": True, "type": "question", "text": raw[9:].strip(), "model": model}
+        first_line = next((ln.strip() for ln in raw.splitlines() if ln.strip()), "")
+        if first_line.upper().startswith("QUESTION:"):
+            return {
+                "ok": True,
+                "type": "question",
+                "text": first_line[9:].strip(),
+                "model": model,
+            }
         if raw.upper().startswith("CODE:"):
             raw = raw[5:]
         code = _strip_code_fences(raw)
@@ -518,7 +566,22 @@ class BridgeAPI:
                     )
                 )
                 if repaired.strip() and self._validate_generated(repaired) is None:
-                    code = repaired
+                    return {"ok": True, "type": "code", "code": repaired, "model": model}
+            if escalate_model and escalate_model != model and prompt:
+                with contextlib.suppress(OllamaError):
+                    raw2 = client.generate(
+                        prompt,
+                        system=self._AI_CHAT_SYSTEM,
+                        model=escalate_model,
+                        temperature=0.25,
+                        num_predict=self._AI_NUM_PREDICT,
+                        keep_alive=self._AI_KEEP_ALIVE,
+                    ).strip()
+                    if raw2.upper().startswith("CODE:"):
+                        raw2 = raw2[5:]
+                    code2 = _strip_code_fences(raw2)
+                    if code2.strip() and self._validate_generated(code2) is None:
+                        return {"ok": True, "type": "code", "code": code2, "model": escalate_model}
         return {"ok": True, "type": "code", "code": code, "model": model}
 
     # --- streaming chat (start / poll over the pywebview bridge) -----------
@@ -540,9 +603,13 @@ class BridgeAPI:
         client = OllamaClient()
         if not client.available():
             return {"ok": False, "reason": "AI is offline. Start Ollama and pull a model."}
-        model = self._pick_ai_model(client.models())
-        if model is None:
+        installed = client.models()
+        quality = self._pick_ai_model(installed)
+        if quality is None:
             return {"ok": False, "reason": "Ollama has no models. Try: ollama pull gemma3"}
+        # Draft with the fastest capable model; the validate/repair pipeline
+        # escalates to the quality model only when the draft can't be fixed.
+        model = self._pick_fast_model(installed) or quality
         job_id = uuid.uuid4().hex
         with self._ai_jobs_lock:
             # Drop any finished-but-unclaimed jobs so the dict can't grow.
@@ -551,19 +618,23 @@ class BridgeAPI:
             self._ai_jobs[job_id] = {"text": "", "done": False, "result": None}
         prompt = self._build_chat_prompt(messages, lesson_id)
         threading.Thread(
-            target=self._run_chat_job, args=(job_id, client, model, prompt), daemon=True
+            target=self._run_chat_job, args=(job_id, client, model, prompt, quality), daemon=True
         ).start()
         return {"ok": True, "jobId": job_id, "model": model}
 
-    def _run_chat_job(self, job_id: str, client: Any, model: str, prompt: str) -> None:
+    def _run_chat_job(
+        self, job_id: str, client: Any, model: str, prompt: str, quality: str | None = None
+    ) -> None:
         from robolearn.ai.ollama_client import OllamaError
 
+        # The baked custom model carries the system prompt in its template.
+        system = None if model.startswith("robolearn-fast") else self._AI_CHAT_SYSTEM
         try:
             for chunk in client.generate_stream(
                 prompt,
-                system=self._AI_CHAT_SYSTEM,
+                system=system,
                 model=model,
-                temperature=0.4,
+                temperature=0.25,
                 num_predict=self._AI_NUM_PREDICT,
                 keep_alive=self._AI_KEEP_ALIVE,
             ):
@@ -575,7 +646,9 @@ class BridgeAPI:
             with self._ai_jobs_lock:
                 job = self._ai_jobs.get(job_id)
                 raw = job["text"].strip() if job else ""
-            result = self._finalize_chat_reply(client, model, raw)
+            result = self._finalize_chat_reply(
+                client, model, raw, escalate_model=quality, prompt=prompt
+            )
         except OllamaError as exc:
             result = {"ok": False, "reason": f"AI failed: {exc}"}
         with self._ai_jobs_lock:
@@ -751,21 +824,37 @@ def _strip_code_fences(raw: str) -> str:
             text = text[first_newline + 1 :]
         if text.rstrip().endswith("```"):
             text = text.rstrip()[:-3]
-    return _ensure_entrypoint(_quote_place_kinds(text.strip())) + "\n"
+    return _ensure_entrypoint(_quote_place_kinds(_normalize_quotes(text.strip()))) + "\n"
 
 
 def _quote_place_kinds(code: str) -> str:
-    """Quote bare prop kinds: ``place(person)`` -> ``place("person")``.
+    """Repair prop-call slips small models make, deterministically.
 
-    Observed live: small models sometimes emit the kind as a bare name, which
-    is a NameError. Deterministic fix beats a model repair round-trip.
+    Observed live: ``place(person)`` (bare name -> NameError) and invented
+    helpers like ``place_person(1)``. Both have one obvious meaning; fixing
+    them here beats a model repair round-trip.
     """
     import re
 
-    return re.sub(
+    code = re.sub(
         r"\bplace\(\s*(flag|beacon|person|tree|rock|crate)\s*([,)])",
         r'place("\1"\2',
         code,
+    )
+    return re.sub(
+        r"\bplace_(flag|beacon|person|tree|rock|crate)\s*\([^)]*\)",
+        r'place("\1")',
+        code,
+    )
+
+
+def _normalize_quotes(code: str) -> str:
+    """Replace typographic quotes (a small-model artifact) with ASCII ones."""
+    return (
+        code.replace("‘", "'")  # noqa: RUF001 - intentional typographic quote
+        .replace("’", "'")  # noqa: RUF001 - intentional typographic quote
+        .replace("“", '"')
+        .replace("”", '"')
     )
 
 
