@@ -18,6 +18,8 @@ import contextlib
 import json
 import logging
 import sys
+import threading
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -67,6 +69,28 @@ class BridgeAPI:
         existing = store.list_pupils()
         pupil = existing[0] if existing else store.create_pupil("Pupil")
         self._pupil_id = pupil.id
+        # Streaming AI jobs (ai_chat_start / ai_chat_poll).
+        self._ai_jobs: dict[str, dict[str, Any]] = {}
+        self._ai_jobs_lock = threading.Lock()
+        # Pre-load the local model so the FIRST vibe request doesn't pay the
+        # multi-second model-load cost; keep_alive holds it warm after.
+        threading.Thread(target=self._warm_ai, daemon=True).start()
+
+    def _warm_ai(self) -> None:
+        """Load the preferred local model into Ollama's memory (best-effort)."""
+        with contextlib.suppress(Exception):
+            from robolearn.ai.ollama_client import OllamaClient
+
+            client = OllamaClient()
+            if not client.available():
+                return
+            model = self._pick_ai_model(client.models())
+            if model is None:
+                return
+            client.generate(
+                "hi", model=model, temperature=0.0, num_predict=1, keep_alive=self._AI_KEEP_ALIVE
+            )
+            LOG.info("AI model %s pre-loaded and kept warm", model)
 
     # --- design-facing API ------------------------------------------------
 
@@ -251,6 +275,12 @@ class BridgeAPI:
     #: are best-in-class locally; Gemma is the common school-laptop fallback.
     _AI_MODEL_PREFERENCE = ("qwen2.5-coder", "qwen", "codegemma", "gemma", "llama")
 
+    #: Keep the model loaded between requests (the model-load is the painful
+    #: multi-second cold-start) and bound how much it may generate (programs
+    #: are short; an unbounded ramble is pure latency).
+    _AI_KEEP_ALIVE = "30m"
+    _AI_NUM_PREDICT = 420
+
     _AI_SYSTEM_PROMPT = (
         "You write Python programs for RoboLearn, an educational rover simulator. "
         "Use ONLY these functions: move_forward(metres), move_backward(metres), "
@@ -325,7 +355,12 @@ class BridgeAPI:
             )
         try:
             raw = client.generate(
-                user_prompt, system=self._AI_SYSTEM_PROMPT, model=model, temperature=0.4
+                user_prompt,
+                system=self._AI_SYSTEM_PROMPT,
+                model=model,
+                temperature=0.4,
+                num_predict=self._AI_NUM_PREDICT,
+                keep_alive=self._AI_KEEP_ALIVE,
             )
         except OllamaError as exc:
             return {"ok": False, "reason": f"AI generation failed: {exc}"}
@@ -347,6 +382,8 @@ class BridgeAPI:
                         system=self._AI_SYSTEM_PROMPT,
                         model=model,
                         temperature=0.2,
+                        num_predict=self._AI_NUM_PREDICT,
+                        keep_alive=self._AI_KEEP_ALIVE,
                     )
                 )
                 if repaired.strip() and self._validate_generated(repaired) is None:
@@ -383,7 +420,24 @@ class BridgeAPI:
         "variables, def with no classes or imports. Define every variable before "
         "use. No f-strings, lists, dicts or input(). Write top-level statements; "
         "do NOT wrap the program in main(). One short # comment per step. "
-        "No markdown fences, no prose around the code."
+        "No markdown fences, no prose around the code.\n"
+        "Examples:\n"
+        "Pupil: drive in a triangle\n"
+        "You: CODE:\n"
+        "for side in range(3):\n"
+        "    move_forward(2)  # one side\n"
+        "    turn_right(120)  # triangle corner\n"
+        "Pupil: go forward\n"
+        "You: QUESTION: How far should the rover drive, in metres?\n"
+        "Pupil: patrol and avoid rocks by itself\n"
+        "You: CODE:\n"
+        "steps = 0\n"
+        "while steps < 40:  # autonomous sense-think-act\n"
+        "    if read_distance() < 1:\n"
+        "        turn_right(90)  # dodge\n"
+        "    else:\n"
+        "        move_forward(0.5)\n"
+        "    steps = steps + 1"
     )
 
     def ai_chat(
@@ -411,6 +465,22 @@ class BridgeAPI:
         if model is None:
             return {"ok": False, "reason": "Ollama has no models. Try: ollama pull gemma3"}
 
+        prompt = self._build_chat_prompt(messages, lesson_id)
+        try:
+            raw = client.generate(
+                prompt,
+                system=self._AI_CHAT_SYSTEM,
+                model=model,
+                temperature=0.4,
+                num_predict=self._AI_NUM_PREDICT,
+                keep_alive=self._AI_KEEP_ALIVE,
+            ).strip()
+        except OllamaError as exc:
+            return {"ok": False, "reason": f"AI failed: {exc}"}
+        return self._finalize_chat_reply(client, model, raw)
+
+    def _build_chat_prompt(self, messages: list[dict[str, str]], lesson_id: str | None) -> str:
+        """Render the bounded conversation transcript the model completes."""
         lines: list[str] = []
         lesson = self._find_lesson(lesson_id) if lesson_id else None
         if lesson is not None:
@@ -420,12 +490,11 @@ class BridgeAPI:
             text = str(m.get("text", ""))[:1000]
             lines.append(f"{role}: {text}")
         lines.append("You:")
-        try:
-            raw = client.generate(
-                "\n".join(lines), system=self._AI_CHAT_SYSTEM, model=model, temperature=0.4
-            ).strip()
-        except OllamaError as exc:
-            return {"ok": False, "reason": f"AI failed: {exc}"}
+        return "\n".join(lines)
+
+    def _finalize_chat_reply(self, client: Any, model: str, raw: str) -> dict[str, Any]:
+        """Turn a raw model reply into a question or validated+repaired code."""
+        from robolearn.ai.ollama_client import OllamaError
 
         if raw.upper().startswith("QUESTION:"):
             return {"ok": True, "type": "question", "text": raw[9:].strip(), "model": model}
@@ -444,11 +513,89 @@ class BridgeAPI:
                         system=self._AI_CHAT_SYSTEM,
                         model=model,
                         temperature=0.2,
+                        num_predict=self._AI_NUM_PREDICT,
+                        keep_alive=self._AI_KEEP_ALIVE,
                     )
                 )
                 if repaired.strip() and self._validate_generated(repaired) is None:
                     code = repaired
         return {"ok": True, "type": "code", "code": code, "model": model}
+
+    # --- streaming chat (start / poll over the pywebview bridge) -----------
+
+    def ai_chat_start(
+        self, messages: list[dict[str, str]], lesson_id: str | None = None
+    ) -> dict[str, Any]:
+        """Begin a streamed chat reply; returns a job id to poll.
+
+        pywebview calls can't stream a return value, so the reply is generated
+        on a worker thread into a buffer and the UI polls :meth:`ai_chat_poll`
+        -- the pupil watches the model think in real time instead of staring
+        at a spinner for the whole generation.
+        """
+        from robolearn.ai.ollama_client import OllamaClient
+
+        if not isinstance(messages, list) or not messages:
+            return {"ok": False, "reason": "Say what the rover should do first."}
+        client = OllamaClient()
+        if not client.available():
+            return {"ok": False, "reason": "AI is offline. Start Ollama and pull a model."}
+        model = self._pick_ai_model(client.models())
+        if model is None:
+            return {"ok": False, "reason": "Ollama has no models. Try: ollama pull gemma3"}
+        job_id = uuid.uuid4().hex
+        with self._ai_jobs_lock:
+            # Drop any finished-but-unclaimed jobs so the dict can't grow.
+            for stale in [k for k, j in self._ai_jobs.items() if j["done"]]:
+                self._ai_jobs.pop(stale, None)
+            self._ai_jobs[job_id] = {"text": "", "done": False, "result": None}
+        prompt = self._build_chat_prompt(messages, lesson_id)
+        threading.Thread(
+            target=self._run_chat_job, args=(job_id, client, model, prompt), daemon=True
+        ).start()
+        return {"ok": True, "jobId": job_id, "model": model}
+
+    def _run_chat_job(self, job_id: str, client: Any, model: str, prompt: str) -> None:
+        from robolearn.ai.ollama_client import OllamaError
+
+        try:
+            for chunk in client.generate_stream(
+                prompt,
+                system=self._AI_CHAT_SYSTEM,
+                model=model,
+                temperature=0.4,
+                num_predict=self._AI_NUM_PREDICT,
+                keep_alive=self._AI_KEEP_ALIVE,
+            ):
+                with self._ai_jobs_lock:
+                    job = self._ai_jobs.get(job_id)
+                    if job is None:  # UI gave up; stop wasting cycles
+                        return
+                    job["text"] += chunk
+            with self._ai_jobs_lock:
+                job = self._ai_jobs.get(job_id)
+                raw = job["text"].strip() if job else ""
+            result = self._finalize_chat_reply(client, model, raw)
+        except OllamaError as exc:
+            result = {"ok": False, "reason": f"AI failed: {exc}"}
+        with self._ai_jobs_lock:
+            job = self._ai_jobs.get(job_id)
+            if job is not None:
+                job["result"] = result
+                job["done"] = True
+
+    def ai_chat_poll(self, job_id: str) -> dict[str, Any]:
+        """Poll a streamed reply: live text while running, the result when done."""
+        with self._ai_jobs_lock:
+            job = self._ai_jobs.get(job_id)
+            if job is None:
+                return {"ok": False, "reason": "unknown job"}
+            if not job["done"]:
+                return {"ok": True, "done": False, "text": job["text"]}
+            self._ai_jobs.pop(job_id, None)
+            result = dict(job["result"] or {"ok": False, "reason": "no result"})
+        result["done"] = True
+        return result
 
     def speak(self, text: str, voice: str = "female") -> dict[str, Any]:
         """Speak ``text`` aloud with the OS's offline TTS voice (fire-and-forget)."""
@@ -604,7 +751,22 @@ def _strip_code_fences(raw: str) -> str:
             text = text[first_newline + 1 :]
         if text.rstrip().endswith("```"):
             text = text.rstrip()[:-3]
-    return _ensure_entrypoint(text.strip()) + "\n"
+    return _ensure_entrypoint(_quote_place_kinds(text.strip())) + "\n"
+
+
+def _quote_place_kinds(code: str) -> str:
+    """Quote bare prop kinds: ``place(person)`` -> ``place("person")``.
+
+    Observed live: small models sometimes emit the kind as a bare name, which
+    is a NameError. Deterministic fix beats a model repair round-trip.
+    """
+    import re
+
+    return re.sub(
+        r"\bplace\(\s*(flag|beacon|person|tree|rock|crate)\s*([,)])",
+        r'place("\1"\2',
+        code,
+    )
 
 
 def _ensure_entrypoint(code: str) -> str:
