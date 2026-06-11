@@ -257,7 +257,10 @@ class BridgeAPI:
         "turn_left(degrees), turn_right(degrees), set_speed(percent), beep(times), "
         "log(text), say(text), led(colour), scan(), wait(seconds), read_distance(), "
         "obstacle_ahead(), collect_sample(), sample_detected(), at_base(), "
-        "pen_down(), pen_up(). Plain procedural Python only: for/while/if, "
+        "pen_down(), pen_up(), place(kind), clear_props(). place plants a prop "
+        'where the rover stands: "flag", "beacon", "person", "tree", '
+        '"rock" or "crate" - use it to BUILD scenes. '
+        "Plain procedural Python only: for/while/if, "
         "simple variables, def with no classes or imports. Define every "
         "variable before you use it. No f-strings, lists, dicts or input(). "
         "The pupil is a child: keep it short, add a one-line # comment per "
@@ -373,7 +376,10 @@ class BridgeAPI:
         "turn_left(degrees), turn_right(degrees), set_speed(percent), beep(times), "
         "log(text), say(text), led(colour), scan(), wait(seconds), read_distance(), "
         "obstacle_ahead(), collect_sample(), sample_detected(), at_base(), "
-        "pen_down(), pen_up(). Plain procedural Python: for/while/if, simple "
+        "pen_down(), pen_up(), place(kind), clear_props(). place plants a prop "
+        'where the rover stands: "flag", "beacon", "person", "tree", '
+        '"rock" or "crate" - use it to BUILD scenes. '
+        "Plain procedural Python: for/while/if, simple "
         "variables, def with no classes or imports. Define every variable before "
         "use. No f-strings, lists, dicts or input(). Write top-level statements; "
         "do NOT wrap the program in main(). One short # comment per step. "
