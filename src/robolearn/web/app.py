@@ -72,6 +72,12 @@ class BridgeAPI:
         # Streaming AI jobs (ai_chat_start / ai_chat_poll).
         self._ai_jobs: dict[str, dict[str, Any]] = {}
         self._ai_jobs_lock = threading.Lock()
+        # Model-pick cache: /api/tags can block ~seconds behind an in-flight
+        # generation, so don't pay it on every request.
+        self._ai_models_cache: tuple[float, list[str]] | None = None
+        # Exact-transcript response cache: a repeated request (same lesson,
+        # same wording -- common in a classroom) answers instantly.
+        self._ai_answer_cache: dict[str, dict[str, Any]] = {}
         # Pre-load the local model so the FIRST vibe request doesn't pay the
         # multi-second model-load cost; keep_alive holds it warm after.
         threading.Thread(target=self._warm_ai, daemon=True).start()
@@ -567,15 +573,37 @@ class BridgeAPI:
                 )
                 if repaired.strip() and self._validate_generated(repaired) is None:
                     return {"ok": True, "type": "code", "code": repaired, "model": model}
+            # One fresh draft at a different temperature before escalating --
+            # the fast model is cheap and a re-roll often lands valid.
+            if prompt:
+                with contextlib.suppress(OllamaError):
+                    raw3 = client.generate(
+                        prompt,
+                        system=None
+                        if str(model).startswith("robolearn-fast")
+                        else self._AI_CHAT_SYSTEM,
+                        model=model,
+                        temperature=0.55,
+                        num_predict=self._AI_NUM_PREDICT,
+                        keep_alive=self._AI_KEEP_ALIVE,
+                    ).strip()
+                    if raw3.upper().startswith("CODE:"):
+                        raw3 = raw3[5:]
+                    code3 = _strip_code_fences(raw3)
+                    if code3.strip() and self._validate_generated(code3) is None:
+                        return {"ok": True, "type": "code", "code": code3, "model": model}
             if escalate_model and escalate_model != model and prompt:
                 with contextlib.suppress(OllamaError):
+                    # keep_alive=0: unload the big model immediately after --
+                    # keeping BOTH models resident starves RAM and measurably
+                    # degrades every later fast-model draft on laptop hardware.
                     raw2 = client.generate(
                         prompt,
                         system=self._AI_CHAT_SYSTEM,
                         model=escalate_model,
                         temperature=0.25,
                         num_predict=self._AI_NUM_PREDICT,
-                        keep_alive=self._AI_KEEP_ALIVE,
+                        keep_alive="0",
                     ).strip()
                     if raw2.upper().startswith("CODE:"):
                         raw2 = raw2[5:]
@@ -596,14 +624,23 @@ class BridgeAPI:
         -- the pupil watches the model think in real time instead of staring
         at a spinner for the whole generation.
         """
+        import time as _time
+
         from robolearn.ai.ollama_client import OllamaClient
 
         if not isinstance(messages, list) or not messages:
             return {"ok": False, "reason": "Say what the rover should do first."}
         client = OllamaClient()
-        if not client.available():
-            return {"ok": False, "reason": "AI is offline. Start Ollama and pull a model."}
-        installed = client.models()
+        # Use the cached model list when fresh: /api/tags can block for seconds
+        # behind an in-flight generation, which doubled per-request latency.
+        now = _time.monotonic()
+        if self._ai_models_cache is not None and now - self._ai_models_cache[0] < 120:
+            installed = self._ai_models_cache[1]
+        else:
+            if not client.available():
+                return {"ok": False, "reason": "AI is offline. Start Ollama and pull a model."}
+            installed = client.models()
+            self._ai_models_cache = (now, installed)
         quality = self._pick_ai_model(installed)
         if quality is None:
             return {"ok": False, "reason": "Ollama has no models. Try: ollama pull gemma3"}
@@ -611,12 +648,18 @@ class BridgeAPI:
         # escalates to the quality model only when the draft can't be fixed.
         model = self._pick_fast_model(installed) or quality
         job_id = uuid.uuid4().hex
+        prompt = self._build_chat_prompt(messages, lesson_id)
+        # Instant replay for an identical request (classroom-repeated asks).
+        cached = self._ai_answer_cache.get(prompt)
+        if cached is not None:
+            with self._ai_jobs_lock:
+                self._ai_jobs[job_id] = {"text": "", "done": True, "result": dict(cached)}
+            return {"ok": True, "jobId": job_id, "model": cached.get("model"), "cached": True}
         with self._ai_jobs_lock:
             # Drop any finished-but-unclaimed jobs so the dict can't grow.
             for stale in [k for k, j in self._ai_jobs.items() if j["done"]]:
                 self._ai_jobs.pop(stale, None)
             self._ai_jobs[job_id] = {"text": "", "done": False, "result": None}
-        prompt = self._build_chat_prompt(messages, lesson_id)
         threading.Thread(
             target=self._run_chat_job, args=(job_id, client, model, prompt, quality), daemon=True
         ).start()
@@ -649,6 +692,10 @@ class BridgeAPI:
             result = self._finalize_chat_reply(
                 client, model, raw, escalate_model=quality, prompt=prompt
             )
+            if result.get("ok") and result.get("type") == "code":
+                if len(self._ai_answer_cache) > 40:
+                    self._ai_answer_cache.clear()
+                self._ai_answer_cache[prompt] = dict(result)
         except OllamaError as exc:
             result = {"ok": False, "reason": f"AI failed: {exc}"}
         with self._ai_jobs_lock:
