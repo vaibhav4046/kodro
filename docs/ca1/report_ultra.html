@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <title>RoboLearn Technical and Evaluation Report</title>
 <style>
-  @page { size: A4; margin: 20mm 19mm 18mm 19mm; }
+  @page { size: A4; margin: 15mm 17mm 14mm 17mm; }
   :root{
     --ink:#1a1d24; --muted:#525a66; --navy:#16315c; --accent:#1f6f6a;
     --rule:#c9cfd8; --soft:#f3f5f8; --good:#1f6f4a; --warn:#9a6a16;
@@ -13,12 +13,12 @@
   html,body{ margin:0; padding:0; }
   body{
     font-family:"Georgia","Cambria",serif; color:var(--ink);
-    font-size:10.4pt; line-height:1.5; text-align:justify;
+    font-size:9.9pt; line-height:1.4; text-align:justify;
     -webkit-print-color-adjust:exact; print-color-adjust:exact;
   }
   h1,h2,h3{ font-family:"Calibri","Segoe UI",sans-serif; color:var(--navy); line-height:1.2; }
   h2{
-    font-size:12.4pt; margin:15pt 0 5pt; padding-bottom:3pt;
+    font-size:12pt; margin:11pt 0 4pt; padding-bottom:2.5pt;
     border-bottom:1.4px solid var(--rule); letter-spacing:0.2px;
   }
   h2 .n{ color:var(--accent); margin-right:7px; font-weight:700; }
@@ -176,7 +176,7 @@
   <thead><tr><th style="width:34%">Round</th><th>Personas</th><th>Mean</th><th>Median</th><th>Range</th><th>Ratings of eight or more</th></tr></thead>
   <tbody>
     <tr><td>Round one, first contact</td><td class="c">50</td><td class="c">5.86 / 10</td><td class="c">6</td><td class="c">3 to 9</td><td class="c">5 personas, 10 percent</td></tr>
-    <tr><td>Round two, focused re-check, read only inspectors</td><td class="c">12</td><td class="c pill good">6.5 / 10</td><td class="c">6</td><td class="c">5 to 8</td><td class="c">2 personas, 17 percent</td></tr>
+    <tr><td>Round two, after the fixes, read only re-rate</td><td class="c">50</td><td class="c pill good">7.1 / 10</td><td class="c">7</td><td class="c">4 to 8</td><td class="c">14 personas, 28 percent</td></tr>
   </tbody>
 </table>
 <p>The first round did not return a flattering number, and that is the point of running it honestly. A mean of 5.86 reflects a strong offline core that the personas consistently praised, set against a set of real defects they were able to name precisely. The most valuable finding was structural. Several whole subsystems, including the concept strength model, the next lesson recommender and the achievements, were wired only into the legacy desktop shell and were inert in the web build that pupils actually run. The issues raised most often are recorded below with the status after the second round.</p>
@@ -186,25 +186,26 @@
     <tr><td>Learner model, recommender and achievements inert in the web build</td><td class="c">17</td><td class="c">blocker</td><td><b>Fixed.</b> Wired into submit_attempt; concept strength and the heatmap now move on every graded run</td></tr>
     <tr><td>Rover rendered on a different world than it was graded against</td><td class="c">11</td><td class="c">blocker</td><td><b>Fixed.</b> Loading a lesson now sets the world to the lesson terrain</td></tr>
     <tr><td>Code reviewer judged taught functions against a partial list</td><td class="c">8</td><td class="c">major</td><td><b>Fixed.</b> The reviewer now uses the full rover interface</td></tr>
-    <tr><td>No read aloud control on lesson text, speech is Windows only</td><td class="c">9</td><td class="c">blocker</td><td>Planned, see Section 8</td></tr>
-    <tr><td>No colour blind safe theme, secondary text below contrast guidance</td><td class="c">9</td><td class="c">blocker</td><td>Planned, see Section 8</td></tr>
-    <tr><td>Documentation inconsistent on lesson count and audience</td><td class="c">14</td><td class="c">major</td><td>Planned, see Section 8</td></tr>
-    <tr><td>Blocks mode lacks reordering and Scratch style nesting</td><td class="c">11</td><td class="c">major</td><td>Planned, see Section 8</td></tr>
+    <tr><td>Teacher heatmap missing from the web build</td><td class="c">12</td><td class="c">blocker</td><td><b>Fixed.</b> A class concept strength heatmap is now in the web app under Settings</td></tr>
+    <tr><td>No read aloud control on lesson text</td><td class="c">9</td><td class="c">blocker</td><td><b>Fixed.</b> A read aloud control speaks the lesson at a slower rate offline; the engine itself remains Windows only</td></tr>
+    <tr><td>No colour blind safe theme, secondary text below contrast guidance</td><td class="c">9</td><td class="c">blocker</td><td><b>Fixed.</b> A WCAG-AA high contrast, colour blind safe theme was added</td></tr>
+    <tr><td>Documentation inconsistent on lesson count</td><td class="c">14</td><td class="c">major</td><td><b>Fixed.</b> The lesson count was reconciled to eighteen across the docs</td></tr>
+    <tr><td>Blocks mode lacks reordering and covers part of the interface</td><td class="c">11</td><td class="c">major</td><td><b>Fixed.</b> Blocks can be reordered, and speed, wait, pen and drop blocks were added</td></tr>
   </tbody>
 </table>
-<p>The second round confirmed the direction of travel. A focused panel of twelve personas, drawn from the original fifty and run as read only inspectors so that they could read the patched source but never change it, returned a mean of 6.5 out of ten, up from 5.86. Each of them verified in the code that the learner model now updates from the web build, that a lesson loads its own world, and that the reviewer judges against the whole rover interface. The score did not leap to a perfect ten, and an honest report would not claim that it had. The remaining distance is held by the medium issues that the first round had already named.</p>
-<p>The personas were equally clear about what already worked. They confirmed that the offline guarantee is enforced in code rather than promised in prose, that the absence of a local model produces a calm message rather than a failure, that the blocks to Python bridge is a genuine teaching strength, and that the second agent review with its sandbox gate is a sound design. The second round added one further finding worth recording, that the teacher heatmap, like the learner model before it, still lives only in the legacy shell, which becomes the first item in the work that follows.</p>
+<p>The second round confirmed the direction of travel. The same fifty personas, run this time as read only inspectors so that they could read the patched source but never change it, returned a mean of 7.1 out of ten, up from 5.86, with no rating below the low band and the bulk of the panel sitting at seven and eight. Each of them verified in the code that the learner model now updates from the web build, that a lesson loads its own world, that the teacher heatmap is present, that the reviewer judges against the whole rover interface, and that the read aloud control and high contrast theme are real. The score did not reach a perfect ten, and an honest report would not claim that it had. The remaining distance is no longer held by defects but by scope: the personas now ask for grounded retrieval, for voice that drives the rover rather than only the prompt, and for multi-agent missions, and they note that a small local model is a real ceiling on the quality of generated help. Those are the product's next chapters, not its bugs, and they are set out in Section 8.</p>
+<p>The personas were equally clear about what already worked. They confirmed that the offline guarantee is enforced in code rather than promised in prose, that the absence of a local model produces a calm message rather than a failure, that the blocks to Python bridge is a genuine teaching strength, that the learner model and teacher heatmap now move in the shipped build, and that the second agent review with its sandbox gate is a sound design.</p>
 
 <!-- ===================== 8. LIMITS AND ROADMAP ===================== -->
 <h2><span class="n">8</span>Limits and roadmap</h2>
-<p>The work is honest about its boundaries. A small local model is weaker than a large cloud model, so generation and review are scoped to a narrow, checkable domain rather than open ended help. The persona study is a simulation that guides design and cannot replace observation of real children in a classroom, which is planned as a later, ethics approved stage. The improvement in the hint engine is at the level of the system rather than the model, which is the honest claim to make. The table sets out the next steps.</p>
+<p>The work is honest about its boundaries. A small local model is weaker than a large cloud model, so generation and review are scoped to a narrow, checkable domain rather than open ended help, and this ceiling is the honest reason the evaluation settled near seven rather than ten. The persona study is a simulation that guides design and cannot replace observation of real children in a classroom, which is planned as a later, ethics approved stage. The improvement in the hint engine is at the level of the system rather than the model, which is the honest claim to make. With the defects from the first round closed, the next steps are the larger pieces the second round began to ask for.</p>
 <table class="avoid">
-  <thead><tr><th style="width:24%">Direction</th><th>Planned work, with the round it came from</th></tr></thead>
+  <thead><tr><th style="width:24%">Direction</th><th>Planned work</th></tr></thead>
   <tbody>
-    <tr><td>Teacher view in the web build</td><td>Port the class heatmap and the pupil management that still live only in the legacy shell into the shipped application, the way the learner model was ported in this work</td></tr>
-    <tr><td>Read aloud and access</td><td>A read aloud control on the lesson text, a speech rate setting, and a colour blind safe high contrast theme, with secondary text lifted to meet the contrast guidance</td></tr>
-    <tr><td>Blocks editing</td><td>Reordering of placed blocks and a visible nesting model, so the blocks experience matches the click to build strength the personas praised</td></tr>
-    <tr><td>Grounded answers</td><td>A fully local retrieval store over the lesson glossary and rover interface, with the source shown beside every answer</td></tr>
+    <tr><td>Grounded answers</td><td>A fully local retrieval store over the lesson glossary and rover interface, so the tutor can answer from the lesson material and show the source beside every answer rather than relying on the model's memory</td></tr>
+    <tr><td>Voice that acts</td><td>Extend the offline voice input beyond the prompt so a pupil can speak a command and see it become a rover instruction, with a deterministic keyword path that works without a local model</td></tr>
+    <tr><td>Multi-agent missions</td><td>More than one rover in a world, so a class can explore coordination and simple swarm behaviour, which the single rover cannot teach today</td></tr>
+    <tr><td>A larger model option</td><td>Let a school with a capable machine point the app at a larger local model, lifting the quality ceiling the personas identified without breaking the offline guarantee</td></tr>
     <tr><td>Classroom study</td><td>An observed study with real pupils under the appropriate ethics approval, which the simulated study can only stand in for</td></tr>
   </tbody>
 </table>

@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Teacher dashboard in the web app** — a `get_class_heatmap` bridge method
+  and a React panel (Settings) render the class concept-strength heatmap,
+  colour-coded per pupil and concept. Previously legacy-Tk only.
+- **Read-aloud** — a control on the lesson card speaks the intro and glossary
+  through the offline TTS at a slower rate; `speak()` gains a rate argument.
+- **High-contrast, colour-blind-safe theme** — a WCAG-AA `data-theme` with
+  solid text and a blue/amber/orange status triad (pass/fail also carry glyphs
+  and words, never colour alone).
+- **Block reordering + fuller palette** — move blocks up/down, plus speed,
+  wait, pen and drop blocks.
 - **Self-improving hints (offline)** — the rule engine now learns, from local
   outcomes, which hint actually unblocks a pupil. A `hint_stats` table records
   shown vs helped per rule; `memory.hint_learning` ranks matching hints by a
