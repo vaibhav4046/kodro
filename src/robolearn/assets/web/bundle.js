@@ -810,6 +810,123 @@
     const cx = GROUND / 2 + o.x,
       cy = GROUND / 2 + o.y;
 
+    // Earth reads like a game map: most stand-up features are trees and
+    // bushes rather than bare rocks. Collision still uses o.r, so the world
+    // the grader sees is unchanged -- only the picture differs.
+    if (id === 'earth' && o.v >= 0.32) {
+      const h = size * 1.35;
+      if (o.v < 0.66) {
+        // tree: a trunk under a layered canopy
+        const cw = size * 1.15;
+        return /*#__PURE__*/React.createElement("div", {
+          className: "obstacle",
+          style: {
+            position: 'absolute',
+            left: cx - cw / 2,
+            top: cy - h,
+            width: cw,
+            height: h
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          className: "ob-shadow",
+          style: {
+            left: '50%',
+            top: '100%',
+            width: cw * 1.1,
+            height: o.r * 0.9
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: '50%',
+            bottom: 0,
+            width: Math.max(4, o.r * 0.34),
+            height: h * 0.42,
+            transform: 'translateX(-50%)',
+            background: 'linear-gradient(90deg, #5a4326, #7a5c36 55%, #46341d)',
+            borderRadius: 2
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: '50%',
+            bottom: h * 0.3,
+            width: cw,
+            height: cw,
+            transform: 'translateX(-50%)',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 38% 30%, #5f9148, #2c5023 70%, #1f3a18)',
+            boxShadow: '2px 4px 5px rgba(0,0,0,0.35)'
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: '34%',
+            bottom: h * 0.46,
+            width: cw * 0.62,
+            height: cw * 0.62,
+            transform: 'translateX(-50%)',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 40% 32%, #6fa455, #305726)'
+          }
+        }));
+      }
+      if (o.v < 0.82) {
+        // bush: a low cluster of leafy lobes
+        const bw = size * 1.1;
+        return /*#__PURE__*/React.createElement("div", {
+          className: "obstacle",
+          style: {
+            position: 'absolute',
+            left: cx - bw / 2,
+            top: cy - bw * 0.7,
+            width: bw,
+            height: bw * 0.7
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          className: "ob-shadow",
+          style: {
+            left: '50%',
+            top: '100%',
+            width: bw,
+            height: o.r * 0.7
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 0,
+            bottom: 0,
+            width: bw * 0.62,
+            height: bw * 0.62,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 40% 32%, #6c9a4c, #355a26)'
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            width: bw * 0.58,
+            height: bw * 0.58,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 40% 32%, #5f8e44, #2e4f22)'
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: '50%',
+            bottom: bw * 0.14,
+            width: bw * 0.6,
+            height: bw * 0.6,
+            transform: 'translateX(-50%)',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle at 40% 30%, #74a356, #335828)'
+          }
+        }));
+      }
+      // else fall through to the rock billboard below
+    }
+
     // ~32% of features are flat craters (lie on the ground); rest stand up as rocks
     if (o.v < 0.32) {
       return /*#__PURE__*/React.createElement("div", {
