@@ -779,3 +779,29 @@ kbd {
   font-family:var(--font-mono); font-size:11.5px; line-height:1.5; color:var(--fg-2);
   margin:0; white-space:pre-wrap; word-break:break-word; max-height:140px; overflow:hidden;
 }
+
+/* Budget robot builder. */
+.build-body{ display:flex; flex-direction:column; gap:10px; }
+.build-input{ display:flex; gap:10px; align-items:flex-end; }
+.build-input label{ display:flex; flex-direction:column; gap:3px; font-size:11px; color:var(--fg-3); font-family:var(--font-mono); }
+.build-input label.grow{ flex:1; }
+.build-input input{ background:var(--void); border:1px solid var(--border); border-radius:5px; color:var(--fg-1); padding:7px 9px; font-family:var(--font-mono); font-size:12.5px; outline:none; }
+.build-input input:focus{ border-color:var(--cyan); }
+.build-plan{ border-top:1px solid var(--border); padding-top:10px; display:flex; flex-direction:column; gap:9px; max-height:46vh; overflow:auto; }
+.build-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.build-cost{ font-family:var(--font-mono); font-size:17px; font-weight:600; color:var(--success); white-space:nowrap; }
+.build-cost.over{ color:var(--warning); }
+.build-cost span{ font-size:11px; color:var(--fg-3); font-weight:400; }
+.schematic{ width:100%; max-width:340px; align-self:center; height:auto; }
+.build-cols{ display:flex; gap:16px; align-items:flex-start; }
+.build-cols > div{ flex:1; min-width:0; }
+.build-table{ width:100%; border-collapse:collapse; font-size:11.5px; }
+.build-table td{ padding:4px 6px; border-bottom:1px solid var(--border-2); vertical-align:top; }
+.build-table td.role{ color:var(--fg-3); font-size:10.5px; }
+.build-table td.cost{ text-align:right; font-family:var(--font-mono); color:var(--cyan); white-space:nowrap; }
+.build-steps{ margin:4px 0 0; padding-left:18px; font-size:12px; line-height:1.55; color:var(--fg-2); }
+.build-steps li{ margin-bottom:4px; }
+.build-maps{ margin:4px 0 0; display:flex; flex-direction:column; gap:5px; }
+.build-maps dt{ font-family:var(--font-mono); font-size:11px; color:var(--cyan); }
+.build-maps dd{ margin:0 0 2px; font-size:11px; color:var(--fg-2); line-height:1.45; }
+.build-note{ font-size:10.5px; color:var(--fg-3); font-style:italic; margin:0; }

@@ -339,6 +339,179 @@ class BridgeAPI:
             "model": self._pick_ai_model(installed),
         }
 
+    _BUILD_SYSTEM = (
+        "You are a friendly hardware mentor helping a student build a REAL "
+        "physical robot rover on a budget, using common hobby parts (a "
+        "micro:bit, an ESP32, an Arduino, small DC motors and wheels, an "
+        "ultrasonic distance sensor, a battery holder, jumper wires, "
+        "cardboard or a chassis). The student programmes it in MicroPython or "
+        "Arduino C, which maps onto the same ideas they learned in RoboLearn "
+        "(move_forward, turn, read_distance). Given a budget in US dollars, "
+        "recommend the best buildable rover for that money. Reply with ONLY a "
+        "JSON object, no prose, of this exact shape:\n"
+        '{"tier":"short name","summary":"one sentence","parts":'
+        '[{"name":"part","role":"what it does","cost":number}],'
+        '"steps":["short build step", "..."],'
+        '"maps":[{"robolearn":"move_forward(1)","hardware":"how to do it on this board"}],'
+        '"total":number}\n'
+        "Keep within the budget, use 4 to 7 parts, 4 to 6 steps and 3 maps. "
+        "For a very small budget suggest a paper or cardboard rover with the "
+        "cheapest microcontroller. Costs are approximate US dollars."
+    )
+
+    def budget_build(self, budget_usd: float = 30.0, goal: str = "") -> dict[str, Any]:
+        """Generate a real-robot build guide for a budget, using the local model.
+
+        Returns a structured plan (tier, parts, steps and a mapping from the
+        RoboLearn API onto real hardware) that the UI renders with a schematic.
+        Strictly offline; nothing is ordered or sent anywhere.
+        """
+        from robolearn.ai.ollama_client import OllamaClient, OllamaError
+
+        try:
+            budget = max(1.0, min(float(budget_usd), 100000.0))
+        except (TypeError, ValueError):
+            budget = 30.0
+        client = OllamaClient()
+        if not client.available():
+            return {"ok": False, "reason": "AI is offline. Start Ollama to use the robot builder."}
+        model = self._pick_ai_model(client.models())  # quality model: this is a one-off
+        if model is None:
+            return {"ok": False, "reason": "Ollama has no models. Try: ollama pull gemma3"}
+        ask = f"My budget is {budget:.0f} US dollars."
+        if goal.strip():
+            ask += f" I want it to: {goal.strip()[:200]}."
+        for attempt in range(2):
+            try:
+                raw = client.generate(
+                    ask,
+                    system=self._BUILD_SYSTEM,
+                    model=model,
+                    json_mode=True,
+                    temperature=0.4 if attempt == 0 else 0.2,
+                    num_predict=700,
+                    keep_alive="10m",
+                )
+            except OllamaError as exc:
+                return {"ok": False, "reason": f"AI failed: {exc}"}
+            plan = self._parse_build_plan(raw, budget)
+            if plan is not None:
+                return {"ok": True, "budget": round(budget), "model": model, **plan}
+        # The model could not produce a clean plan (common at tiny budgets);
+        # return a sensible deterministic floor so the builder never dead-ends.
+        floor = self._fallback_build(budget)
+        return {"ok": True, "budget": round(budget), "model": model, "fallback": True, **floor}
+
+    @staticmethod
+    def _fallback_build(budget: float) -> dict[str, Any]:
+        """A guaranteed, hand-written minimal rover scaled to the budget."""
+        if budget < 20:
+            return {
+                "tier": "Cardboard micro-rover",
+                "summary": "A cardboard rover on a cheap microcontroller with a vibration motor.",
+                "parts": [
+                    {
+                        "name": "Cheap microcontroller (Pro Micro/ESP8266 clone)",
+                        "role": "Runs the program",
+                        "cost": 3.0,
+                    },
+                    {
+                        "name": "Coin vibration motor",
+                        "role": "Shuffles the rover forward",
+                        "cost": 1.0,
+                    },
+                    {"name": "Coin cell + holder", "role": "Power", "cost": 1.0},
+                    {
+                        "name": "Cardboard, tape and a paperclip",
+                        "role": "Chassis and skid",
+                        "cost": 0.0,
+                    },
+                ],
+                "steps": [
+                    "Cut a small cardboard base and fold up two sides.",
+                    "Tape the vibration motor underneath so the rover shuffles when it spins.",
+                    "Wire the motor to a microcontroller pin through a transistor.",
+                    "Flash a program that pulses the pin to move, and stops to turn.",
+                ],
+                "maps": [
+                    {"robolearn": "move_forward(1)", "hardware": "Pulse the motor pin briefly."},
+                    {
+                        "robolearn": "turn_right(90)",
+                        "hardware": "Stop one side so the rover veers.",
+                    },
+                    {"robolearn": "wait(1)", "hardware": "sleep one second in the program."},
+                ],
+                "total": 5.0,
+            }
+        return {
+            "tier": "ESP32 starter rover",
+            "summary": "A two-wheeled rover on an ESP32 with a motor driver and distance sensor.",
+            "parts": [
+                {"name": "ESP32 dev board", "role": "Microcontroller with WiFi", "cost": 8.0},
+                {"name": "L298N or TB6612 motor driver", "role": "Drives the motors", "cost": 4.0},
+                {"name": "Two TT gear motors with wheels", "role": "Movement", "cost": 10.0},
+                {"name": "HC-SR04 ultrasonic sensor", "role": "Measures distance", "cost": 3.0},
+                {"name": "AA battery holder and chassis", "role": "Power and body", "cost": 6.0},
+            ],
+            "steps": [
+                "Mount the two motors and wheels on the chassis with a caster at the back.",
+                "Wire the motor driver between the ESP32 and the motors.",
+                "Connect the ultrasonic sensor to two ESP32 pins.",
+                "Flash MicroPython and write functions for forward, turn and read_distance.",
+            ],
+            "maps": [
+                {"robolearn": "move_forward(1)", "hardware": "Set both motor pins high briefly."},
+                {"robolearn": "read_distance()", "hardware": "Trigger the HC-SR04, time the echo."},
+                {"robolearn": "obstacle_ahead()", "hardware": "True when echo distance is small."},
+            ],
+            "total": 31.0,
+        }
+
+    @staticmethod
+    def _parse_build_plan(raw: str, budget: float) -> dict[str, Any] | None:
+        """Validate + normalise the model's JSON build plan; None if unusable."""
+        text = raw.strip()
+        start, end = text.find("{"), text.rfind("}")
+        if start == -1 or end == -1:
+            return None
+        try:
+            data = json.loads(text[start : end + 1])
+        except (json.JSONDecodeError, ValueError):
+            return None
+        if not isinstance(data, dict):
+            return None
+        parts: list[dict[str, Any]] = []
+        total = 0.0
+        for p in data.get("parts", [])[:8]:
+            if isinstance(p, dict) and p.get("name"):
+                try:
+                    cost = round(float(p.get("cost", 0)), 2)
+                except (TypeError, ValueError):
+                    cost = 0.0
+                total += cost
+                parts.append(
+                    {"name": str(p["name"])[:60], "role": str(p.get("role", ""))[:90], "cost": cost}
+                )
+        if not parts:
+            return None
+        steps = [str(s)[:160] for s in data.get("steps", []) if str(s).strip()][:8]
+        maps = [
+            {
+                "robolearn": str(m.get("robolearn", ""))[:60],
+                "hardware": str(m.get("hardware", ""))[:120],
+            }
+            for m in data.get("maps", [])
+            if isinstance(m, dict)
+        ][:4]
+        return {
+            "tier": str(data.get("tier", "Starter rover"))[:50],
+            "summary": str(data.get("summary", ""))[:200],
+            "parts": parts,
+            "steps": steps or ["Assemble the parts and upload the program."],
+            "maps": maps,
+            "total": round(float(data.get("total", total)) or total, 2),
+        }
+
     def ai_generate(self, prompt: str, lesson_id: str | None = None) -> dict[str, Any]:
         """Generate rover Python from a natural-language prompt via local Ollama.
 
