@@ -19,6 +19,8 @@
   .cover{ height:252mm; display:flex; flex-direction:column; page-break-after:always; }
   .cover .top{ flex:1; }
   .uol{ display:flex; align-items:center; gap:12pt; padding-bottom:9pt; border-bottom:1.6px solid var(--navy); }
+  .uol-official{ max-height:64pt; width:auto; }
+  .uol-fb{ display:flex; align-items:center; gap:12pt; }
   .uol svg{ width:50pt; height:50pt; flex:none; }
   .uol .lt{ font-family:"Calibri","Segoe UI",sans-serif; font-size:10pt; font-weight:700; letter-spacing:3.4px; color:var(--gold); text-transform:uppercase; }
   .uol .lb{ font-family:"Calibri","Segoe UI",sans-serif; font-size:21pt; font-weight:700; letter-spacing:1.2px; color:var(--navy); text-transform:uppercase; border-top:1.2px solid var(--gold); padding-top:2pt; margin-top:2pt; }
@@ -56,16 +58,24 @@
   <div class="top"></div>
   <div>
     <div class="uol">
-      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="University crest">
-        <path d="M50 6 L88 18 V46 C88 70 72 86 50 95 C28 86 12 70 12 46 V18 Z" fill="none" stroke="#16315c" stroke-width="3.5"/>
-        <path d="M50 30 C44 26 34 26 28 30 V62 C34 58 44 58 50 62 C56 58 66 58 72 62 V30 C66 26 56 26 50 30 Z" fill="none" stroke="#b8860b" stroke-width="2.6"/>
-        <line x1="50" y1="30" x2="50" y2="62" stroke="#b8860b" stroke-width="2.6"/>
-        <text x="50" y="80" text-anchor="middle" font-family="Georgia, serif" font-size="13" fill="#16315c" font-weight="700">UoL</text>
-      </svg>
-      <div>
-        <div class="lt">University of</div>
-        <div class="lb">Liverpool</div>
-        <div class="l2">Department of Computer Science &nbsp;·&nbsp; COMP702 MSc Project</div>
+      <!-- The official University of Liverpool logo is used when the file is
+           present at img/uol_logo.png; otherwise the emblem below is shown so
+           the cover is never broken. -->
+      <img class="uol-official" src="img/uol_logo.png" alt="University of Liverpool"
+           style="display:none;"
+           onload="this.style.display='block'; var f=document.getElementById('uol-fb'); if(f) f.style.display='none';">
+      <div id="uol-fb" class="uol-fb">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="University crest">
+          <path d="M50 6 L88 18 V46 C88 70 72 86 50 95 C28 86 12 70 12 46 V18 Z" fill="none" stroke="#16315c" stroke-width="3.5"/>
+          <path d="M50 30 C44 26 34 26 28 30 V62 C34 58 44 58 50 62 C56 58 66 58 72 62 V30 C66 26 56 26 50 30 Z" fill="none" stroke="#b8860b" stroke-width="2.6"/>
+          <line x1="50" y1="30" x2="50" y2="62" stroke="#b8860b" stroke-width="2.6"/>
+          <text x="50" y="80" text-anchor="middle" font-family="Georgia, serif" font-size="13" fill="#16315c" font-weight="700">UoL</text>
+        </svg>
+        <div>
+          <div class="lt">University of</div>
+          <div class="lb">Liverpool</div>
+          <div class="l2">Department of Computer Science &nbsp;·&nbsp; COMP702 MSc Project</div>
+        </div>
       </div>
     </div>
     <h1>Kodro: An Offline, Self-Improving Tutor for Learning to Program a Simulated Rover</h1>
