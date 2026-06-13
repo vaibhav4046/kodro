@@ -246,6 +246,149 @@
       },
       obFill: 'radial-gradient(circle at 38% 24%, #e8f2fa, #a9c2d6 64%, #6e8ba2)'
     },
+    india: {
+      base: 'earth',
+      label: 'INDIA',
+      name: 'India - Thar Desert, Rajasthan',
+      coord: '27.0238° N, 70.0000° E',
+      env: {
+        temp: 42,
+        light: 100
+      },
+      traction: 0.7,
+      // dry scrub + sand
+      seed: 301,
+      count: 14,
+      minR: 40,
+      maxR: 86,
+      decorSeed: 311,
+      decorCount: 60,
+      groundBg: {
+        background: 'radial-gradient(circle at 42% 38%, #e3b878, #c08a4c 56%, #95673a 100%)',
+        texture: 'radial-gradient(circle at 30% 30%, rgba(245,210,150,0.45) 0 2px, transparent 2px), radial-gradient(circle at 68% 64%, rgba(150,105,60,0.4) 0 2.5px, transparent 3px)',
+        texSize: '24px 24px'
+      },
+      obFill: 'radial-gradient(circle at 38% 24%, #d9a85e, #9a6e38 66%, #5f4424)'
+    },
+    kenya: {
+      base: 'earth',
+      label: 'KENYA',
+      name: 'Kenya - Maasai Mara Savanna',
+      coord: '1.4910° S, 35.1430° E',
+      env: {
+        temp: 29,
+        light: 96
+      },
+      traction: 0.82,
+      // firm dry grass
+      seed: 302,
+      count: 16,
+      minR: 42,
+      maxR: 92,
+      decorSeed: 312,
+      decorCount: 66,
+      groundBg: {
+        background: 'radial-gradient(circle at 40% 36%, #c7b15e, #9c8a3e 58%, #6f6228 100%)',
+        texture: 'radial-gradient(circle at 32% 32%, rgba(210,200,120,0.5) 0 2px, transparent 2.5px), radial-gradient(circle at 70% 62%, rgba(110,98,40,0.45) 0 3px, transparent 4px)',
+        texSize: '26px 26px'
+      },
+      obFill: 'radial-gradient(circle at 38% 24%, #b8a24e, #756328 66%, #46401a)'
+    },
+    japan: {
+      base: 'earth',
+      label: 'JAPAN',
+      name: 'Japan - Mount Fuji Slopes',
+      coord: '35.3606° N, 138.7274° E',
+      env: {
+        temp: 8,
+        light: 80
+      },
+      traction: 0.6,
+      // volcanic ash + scree
+      seed: 303,
+      count: 13,
+      minR: 46,
+      maxR: 100,
+      decorSeed: 313,
+      decorCount: 50,
+      groundBg: {
+        background: 'radial-gradient(circle at 44% 40%, #5a5560, #3c3842 58%, #26232c 100%)',
+        texture: 'radial-gradient(circle at 32% 32%, rgba(200,196,206,0.3) 0 2px, transparent 2.5px), radial-gradient(circle at 68% 62%, rgba(30,28,34,0.5) 0 3px, transparent 4px)',
+        texSize: '24px 24px'
+      },
+      obFill: 'radial-gradient(circle at 38% 24%, #6a6470, #403c48 66%, #232029)'
+    },
+    egypt: {
+      base: 'earth',
+      label: 'EGYPT',
+      name: 'Egypt - Giza Plateau',
+      coord: '29.9792° N, 31.1342° E',
+      env: {
+        temp: 36,
+        light: 100
+      },
+      traction: 0.72,
+      seed: 304,
+      count: 11,
+      minR: 44,
+      maxR: 96,
+      decorSeed: 314,
+      decorCount: 52,
+      groundBg: {
+        background: 'radial-gradient(circle at 42% 38%, #e6cf9a, #cbab6e 58%, #a3814a 100%)',
+        texture: 'radial-gradient(circle at 30% 30%, rgba(250,235,190,0.45) 0 2px, transparent 2px), radial-gradient(circle at 68% 64%, rgba(160,125,75,0.4) 0 2.5px, transparent 3px)',
+        texSize: '24px 24px'
+      },
+      obFill: 'radial-gradient(circle at 38% 24%, #ddc184, #a8824c 66%, #6a512c)'
+    },
+    iceland: {
+      base: 'earth',
+      label: 'ICELAND',
+      name: 'Iceland - Lava Field',
+      coord: '64.8000° N, 17.6700° W',
+      env: {
+        temp: 4,
+        light: 74
+      },
+      traction: 0.55,
+      // jagged basalt
+      seed: 305,
+      count: 18,
+      minR: 48,
+      maxR: 108,
+      decorSeed: 315,
+      decorCount: 44,
+      groundBg: {
+        background: 'radial-gradient(circle at 44% 40%, #3a3a40, #26262b 58%, #161619 100%)',
+        texture: 'radial-gradient(circle at 32% 32%, rgba(120,150,120,0.22) 0 2px, transparent 2.5px), radial-gradient(circle at 68% 62%, rgba(10,10,12,0.55) 0 3px, transparent 4px)',
+        texSize: '22px 22px'
+      },
+      obFill: 'radial-gradient(circle at 38% 24%, #4a4a52, #28282e 66%, #131316)'
+    },
+    nepal: {
+      base: 'earth',
+      label: 'NEPAL',
+      name: 'Nepal - Himalayan Foothills',
+      coord: '28.0000° N, 84.0000° E',
+      env: {
+        temp: -6,
+        light: 90
+      },
+      traction: 0.5,
+      // snow-dusted rock
+      seed: 306,
+      count: 12,
+      minR: 50,
+      maxR: 112,
+      decorSeed: 316,
+      decorCount: 38,
+      groundBg: {
+        background: 'radial-gradient(circle at 44% 40%, #cdd6dd, #9fb0bd 56%, #748794 100%)',
+        texture: 'radial-gradient(circle at 32% 32%, rgba(255,255,255,0.6) 0 2px, transparent 2.5px), radial-gradient(circle at 68% 62%, rgba(110,135,155,0.4) 0 3px, transparent 4px)',
+        texSize: '28px 28px'
+      },
+      obFill: 'radial-gradient(circle at 38% 24%, #d7e0e8, #9fb2bf 64%, #6b8090)'
+    },
     reef: {
       base: 'underwater',
       label: 'CORAL REEF',
@@ -5403,10 +5546,16 @@ rover.say("Survey done")`
     }, /*#__PURE__*/React.createElement("option", {
       value: "",
       disabled: true
-    }, "\uD83C\uDF0D Mission site\u2026"), Object.keys(window.SITES).map(id => /*#__PURE__*/React.createElement("option", {
-      key: id,
-      value: id
-    }, window.SITES[id].name)))), /*#__PURE__*/React.createElement(window.Viewport, {
+    }, "\uD83C\uDF0D Mission site\u2026"), [['earth', '🌍 Earth'], ['underwater', '🌊 Underwater'], ['mars', '🔴 Mars'], ['space', '🌑 Space']].map(([base, label]) => {
+      const ids = Object.keys(window.SITES).filter(id => window.SITES[id].base === base);
+      return ids.length === 0 ? null : /*#__PURE__*/React.createElement("optgroup", {
+        key: base,
+        label: label
+      }, ids.map(id => /*#__PURE__*/React.createElement("option", {
+        key: id,
+        value: id
+      }, window.SITES[id].name)));
+    }))), /*#__PURE__*/React.createElement(window.Viewport, {
       terrain: terrain,
       rover: rover,
       trail: trail,
