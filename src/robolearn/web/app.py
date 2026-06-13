@@ -588,6 +588,47 @@ class BridgeAPI:
                     return {"ok": True, "code": repaired, "model": model, "repaired": True}
         return {"ok": True, "code": code, "model": model, "validated": error is None}
 
+    def ai_review_code(self, source: str, lesson_id: str | None = None) -> dict[str, Any]:
+        """Second-agent review: critique the pupil's code, suggest a safe rewrite.
+
+        Runs the propose-then-critique reviewer on the local model. Any
+        rewrite the critic proposes is accepted only after it passes the
+        same sandbox validation the Run button uses, so the pupil is never
+        handed code that crashes. Fully offline; degrades cleanly when the
+        model is absent.
+        """
+        from robolearn.ai.critique import review_program
+        from robolearn.ai.ollama_client import OllamaClient, OllamaError
+
+        code = (source or "").strip()
+        if not code:
+            return {"ok": False, "reason": "Write some code first, then ask for a review."}
+        client = OllamaClient()
+        if not client.available():
+            return {"ok": False, "reason": "AI is offline. Start Ollama to get a review."}
+        model = self._pick_ai_model(client.models())
+        if model is None:
+            return {"ok": False, "reason": "Ollama has no models. Pull qwen2.5-coder:3b first."}
+        lesson = self._find_lesson(lesson_id) if lesson_id else None
+        goal = f"{lesson.title}. {lesson.intro.strip()[:400]}" if lesson is not None else ""
+        try:
+            review = review_program(
+                code,
+                goal=goal,
+                client=client,
+                model=model,
+                validate=self._validate_generated,
+            )
+        except OllamaError as exc:
+            return {"ok": False, "reason": f"Review failed: {exc}"}
+        return {
+            "ok": True,
+            "model": model,
+            "issues": review.issues,
+            "code": review.final_code,
+            "revised": review.revised,
+        }
+
     @staticmethod
     def _validate_generated(code: str) -> str | None:
         """Run AI code through the sandboxed executor; return the error or None."""

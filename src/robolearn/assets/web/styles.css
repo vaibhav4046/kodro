@@ -923,3 +923,10 @@ kbd {
   --font-display:var(--font-mono); --font-body:var(--font-mono);
   --terrain:#3ad0d8;
 }
+
+/* AI code review modal. */
+.review-body{ display:flex; flex-direction:column; gap:10px; padding:2px 0; }
+.review-issues{ margin:4px 0; padding-left:20px; display:flex; flex-direction:column; gap:6px; }
+.review-issues li{ font-size:13px; line-height:1.5; color:var(--fg-1); }
+.review-clean{ font-size:13px; color:var(--success); margin:4px 0; }
+.review-rewrite{ display:flex; flex-direction:column; gap:6px; border-top:1px solid var(--border); padding-top:10px; }
