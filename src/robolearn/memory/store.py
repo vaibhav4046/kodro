@@ -59,6 +59,20 @@ CREATE TABLE IF NOT EXISTS concept_strength (
     last_seen INTEGER,
     PRIMARY KEY (pupil_id, concept)
 );
+
+CREATE TABLE IF NOT EXISTS hint_stats (
+    rule_name TEXT PRIMARY KEY,
+    shown INTEGER NOT NULL DEFAULT 0,
+    helped INTEGER NOT NULL DEFAULT 0,
+    updated_at INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS pending_hint (
+    pupil_id TEXT NOT NULL,
+    lesson_id TEXT NOT NULL,
+    rule_name TEXT NOT NULL,
+    PRIMARY KEY (pupil_id, lesson_id)
+);
 """
 
 
@@ -98,6 +112,16 @@ class ConceptStrength:
     successes: int
     failures: int
     last_seen: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class HintStat:
+    """One row of the ``hint_stats`` table: a hint rule's learned record."""
+
+    rule_name: str
+    shown: int
+    helped: int
+    updated_at: int | None
 
 
 class Store:
@@ -379,6 +403,74 @@ class Store:
             )
             for r in rows
         ]
+
+    # --- self-improving hints ----------------------------------------------
+    #
+    # The app shows a rule-based hint when a submission fails, then watches
+    # the pupil's NEXT attempt on that lesson. If they pass, the hint
+    # "helped"; if they fail again, it did not. Those outcomes accumulate
+    # per rule in ``hint_stats`` so the ranker (memory.hint_learning) can
+    # prefer hints that have actually unblocked pupils. ``pending_hint``
+    # remembers, per pupil+lesson, which hint is currently awaiting its
+    # verdict. Entirely local; no model, no network.
+
+    def set_pending_hint(self, pupil_id: str, lesson_id: str, rule_name: str) -> None:
+        """Record that ``rule_name`` was just shown for this pupil+lesson."""
+        self._conn.execute(
+            """
+            INSERT INTO pending_hint (pupil_id, lesson_id, rule_name)
+            VALUES (?, ?, ?)
+            ON CONFLICT(pupil_id, lesson_id) DO UPDATE SET rule_name = excluded.rule_name
+            """,
+            (pupil_id, lesson_id, rule_name),
+        )
+
+    def resolve_pending_hint(self, pupil_id: str, lesson_id: str, *, passed: bool) -> str | None:
+        """Score the hint awaiting a verdict for this pupil+lesson, if any.
+
+        Increments the rule's ``shown`` counter and, when ``passed`` is
+        True, its ``helped`` counter, then clears the pending row. Returns
+        the resolved rule name, or ``None`` when nothing was pending.
+        """
+        row = self._conn.execute(
+            "SELECT rule_name FROM pending_hint WHERE pupil_id = ? AND lesson_id = ?",
+            (pupil_id, lesson_id),
+        ).fetchone()
+        if row is None:
+            return None
+        rule_name = str(row["rule_name"])
+        now = _now_ms()
+        self._conn.execute(
+            """
+            INSERT INTO hint_stats (rule_name, shown, helped, updated_at)
+            VALUES (?, 1, ?, ?)
+            ON CONFLICT(rule_name) DO UPDATE SET
+                shown = shown + 1,
+                helped = helped + ?,
+                updated_at = ?
+            """,
+            (rule_name, 1 if passed else 0, now, 1 if passed else 0, now),
+        )
+        self._conn.execute(
+            "DELETE FROM pending_hint WHERE pupil_id = ? AND lesson_id = ?",
+            (pupil_id, lesson_id),
+        )
+        return rule_name
+
+    def get_hint_stats(self) -> dict[str, HintStat]:
+        """Return every learned hint stat keyed by rule name."""
+        rows = self._conn.execute(
+            "SELECT rule_name, shown, helped, updated_at FROM hint_stats"
+        ).fetchall()
+        return {
+            r["rule_name"]: HintStat(
+                rule_name=r["rule_name"],
+                shown=int(r["shown"]),
+                helped=int(r["helped"]),
+                updated_at=r["updated_at"],
+            )
+            for r in rows
+        }
 
 
 # --- module-level helpers --------------------------------------------------

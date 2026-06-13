@@ -31,7 +31,8 @@ from robolearn.engine.terrain import Terrain
 from robolearn.engine.world import ArenaBounds, World
 from robolearn.lessons.grader import grade
 from robolearn.lessons.schema import Lesson, load_library
-from robolearn.memory.hint_engine import HintContext, find_first_hint
+from robolearn.memory.hint_engine import HintContext
+from robolearn.memory.hint_learning import best_hint
 from robolearn.memory.store import Store
 from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
@@ -193,13 +194,11 @@ class BridgeAPI:
             events=tuple(events),
             grade_result=verdict,
         )
-        hint = find_first_hint(ctx)
         if not result.success:
+            # On a syntax/runtime error we don't touch the learner model (no
+            # 0-score row, no hint outcome): a typo isn't a verdict on the
+            # previously shown hint. Still surface the best learned hint.
             error_reason = f"{result.error_kind}: {result.error_message} (line {result.error_line})"
-            # Do NOT persist a 0-score row for a syntax/runtime error: a pupil
-            # iterating on a typo would otherwise flood their history with 0s
-            # and skew the pupil model. Matches the Tk app, which returns before
-            # grading on an execution error.
             return {
                 "ok": True,
                 "lessonId": lesson_id,
@@ -207,9 +206,17 @@ class BridgeAPI:
                 "passed": False,
                 "score": 0,
                 "reasons": [error_reason],
-                "hint": _hint_to_dict(hint),
+                "hint": _hint_to_dict(best_hint(ctx, self._store)),
                 "events": _events_to_dicts(events),
             }
+
+        # Self-improving hints: this graded attempt is the verdict on whatever
+        # hint we showed last time for this pupil+lesson. Score it first, so
+        # the ranking below already reflects the freshest evidence.
+        self._store.resolve_pending_hint(self._pupil_id, lesson.id, passed=verdict.passed)
+        hint = best_hint(ctx, self._store)
+        if not verdict.passed and hint is not None:
+            self._store.set_pending_hint(self._pupil_id, lesson.id, hint.rule_name)
 
         self._store.record_submission(
             pupil_id=self._pupil_id,
@@ -251,10 +258,9 @@ class BridgeAPI:
         run_pupil_code(source or "", timeout_s=5.0)
         events = tuple(tracer.events())
         verdict = grade(lesson, tracer, source or "")
-        hint = find_first_hint(
-            HintContext(lesson=lesson, source=source or "", events=events, grade_result=verdict)
-        )
-        return _hint_to_dict(hint)
+        ctx = HintContext(lesson=lesson, source=source or "", events=events, grade_result=verdict)
+        # Read-only preview: rank by learned effectiveness, no outcome recorded.
+        return _hint_to_dict(best_hint(ctx, self._store))
 
     def export_report(self) -> dict[str, Any]:
         """Write the pupil's HTML progress report next to the database."""
