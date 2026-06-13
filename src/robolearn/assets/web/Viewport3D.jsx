@@ -39,11 +39,30 @@
       let w = mount.clientWidth || 800;
       let h = mount.clientHeight || 500;
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      // Honour the pupil's motion preference: no smoothing-induced drift.
+      const reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+      const posLerp = reduce ? 1 : 0.16;
+      const camLerp = reduce ? 1 : 0.12;
+
+      // Guard WebGL: a failed context (old GPU, lost context) shows a calm
+      // message and the pupil can fall back to the flat view, never a blank box.
+      let renderer;
+      try {
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      } catch (err) {
+        mount.innerHTML = '<div class="vp3d-fail">3D needs a graphics card this machine cannot give. Switch to the 2.5D view in the bar.</div>';
+        return undefined;
+      }
+      let disposed = false;
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(w, h);
       renderer.shadowMap.enabled = true;
-      mount.appendChild(renderer.domElement);
+      const canvas = renderer.domElement;
+      canvas.setAttribute('tabindex', '0');
+      canvas.setAttribute('aria-label', 'Three dimensional world. Drag or use the arrow keys to orbit, plus and minus to zoom.');
+      const onContextLost = (e) => { e.preventDefault(); mount.classList.add('vp3d-lost'); };
+      canvas.addEventListener('webglcontextlost', onContextLost, false);
+      mount.appendChild(canvas);
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(SKY[id] != null ? SKY[id] : SKY.earth);
@@ -56,11 +75,26 @@
       const sun = new THREE.DirectionalLight(0xfff4e2, id === 'space' ? 0.7 : 1.0);
       sun.position.set(40, 80, 30);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(1024, 1024);
+      sun.shadow.mapSize.set(512, 512); // gentle on integrated GPUs
       sun.shadow.camera.near = 1; sun.shadow.camera.far = 300;
       sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
       sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120;
       scene.add(sun);
+
+      // A gradient sky dome so the world has a horizon, not a flat wall of fog.
+      const skyTop = new THREE.Color(SKY[id] != null ? SKY[id] : SKY.earth);
+      const skyBot = new THREE.Color(FOG[id] != null ? FOG[id] : FOG.earth);
+      const skyGeo = new THREE.SphereGeometry(900, 24, 12);
+      const skyCol = [];
+      const pos = skyGeo.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const t = Math.max(0, Math.min(1, (pos.getY(i) / 900) * 0.5 + 0.5));
+        const c = skyBot.clone().lerp(skyTop, t);
+        skyCol.push(c.r, c.g, c.b);
+      }
+      skyGeo.setAttribute('color', new THREE.Float32BufferAttribute(skyCol, 3));
+      const sky = new THREE.Mesh(skyGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false }));
+      scene.add(sky);
 
       // Ground.
       const groundMat = new THREE.MeshStandardMaterial({ color: GROUND[id] != null ? GROUND[id] : GROUND.earth, roughness: 1 });
@@ -129,9 +163,15 @@
       const accent = new THREE.Color((terrain && terrain.accent) || '#5ce0d8');
       const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.0, 1.6), new THREE.MeshStandardMaterial({ color: 0x2b2f3a, roughness: 0.6, metalness: 0.2 }));
       body.position.y = 0.85; body.castShadow = true;
-      const nose = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 1.2), new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5 }));
+      const noseMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5 });
+      const nose = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 1.2), noseMat);
       nose.position.set(1.35, 0.9, 0);
-      rov.add(body); rov.add(nose);
+      // A raised arrow on top, pointing forward, so the facing reads from any
+      // orbit angle and in low-contrast worlds (the QA flagged the bare nose).
+      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.1, 4), noseMat);
+      arrow.rotation.z = -Math.PI / 2; // point along +x (forward)
+      arrow.position.set(0.2, 2.0, 0);
+      rov.add(body); rov.add(nose); rov.add(arrow);
       const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.3, 12);
       const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111317, roughness: 0.9 });
       [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
@@ -169,10 +209,24 @@
         lx = e.clientX; ly = e.clientY;
       };
       const onWheel = (e) => { dist = Math.max(8, Math.min(80, dist + e.deltaY * 0.03)); e.preventDefault(); };
+      // Keyboard control so the orbit camera works without a pointer drag
+      // (the QA flagged this as a WCAG keyboard-access gap).
+      const onKey = (e) => {
+        const k = e.key;
+        if (k === 'ArrowLeft') azim -= 0.12;
+        else if (k === 'ArrowRight') azim += 0.12;
+        else if (k === 'ArrowUp') elev = Math.min(1.45, elev + 0.08);
+        else if (k === 'ArrowDown') elev = Math.max(0.12, elev - 0.08);
+        else if (k === '+' || k === '=') dist = Math.max(8, dist - 2);
+        else if (k === '-' || k === '_') dist = Math.min(80, dist + 2);
+        else return;
+        e.preventDefault();
+      };
       dom.addEventListener('pointerdown', onDown);
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointermove', onMove);
       dom.addEventListener('wheel', onWheel, { passive: false });
+      dom.addEventListener('keydown', onKey);
 
       const onResize = () => {
         w = mount.clientWidth || w; h = mount.clientHeight || h;
@@ -184,18 +238,20 @@
       const tmp = new THREE.Vector3();
       const camTarget = new THREE.Vector3();
       const angLerp = (a, b, t) => {
-        let d = ((b - a + Math.PI) % (Math.PI * 2)) - Math.PI;
+        let d = (b - a) % (Math.PI * 2);
+        if (d > Math.PI) d -= Math.PI * 2;
         if (d < -Math.PI) d += Math.PI * 2;
         return a + d * t;
       };
       const tick = () => {
+        if (disposed) return;
         const s = stateRef.current;
         const tx = s.x * SCALE, tz = -s.y * SCALE;
         const tr = (s.heading || 0) * Math.PI / 180;
         // Glide the rover toward the live state instead of snapping to it.
-        cur.x += (tx - cur.x) * 0.16;
-        cur.z += (tz - cur.z) * 0.16;
-        curHeading = angLerp(curHeading, tr, 0.16);
+        cur.x += (tx - cur.x) * posLerp;
+        cur.z += (tz - cur.z) * posLerp;
+        curHeading = angLerp(curHeading, tr, posLerp);
         rov.position.set(cur.x, 0, cur.z);
         rov.rotation.y = curHeading;
         const fwd = tmp.set(Math.cos(curHeading), 0, -Math.sin(curHeading));
@@ -224,7 +280,7 @@
           const ox = Math.cos(azim) * Math.cos(elev) * dist;
           const oy = Math.sin(elev) * dist + 4;
           const oz = Math.sin(azim) * Math.cos(elev) * dist;
-          camPos.lerp(camTarget.set(cur.x + ox, oy, cur.z + oz), 0.12);
+          camPos.lerp(camTarget.set(cur.x + ox, oy, cur.z + oz), camLerp);
           camera.position.copy(camPos);
           camera.lookAt(cur.x, 2, cur.z);
         }
@@ -234,18 +290,22 @@
       tick();
 
       return () => {
+        disposed = true;
         window.cancelAnimationFrame(raf);
         window.removeEventListener('resize', onResize);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointermove', onMove);
         dom.removeEventListener('pointerdown', onDown);
         dom.removeEventListener('wheel', onWheel);
+        dom.removeEventListener('keydown', onKey);
+        canvas.removeEventListener('webglcontextlost', onContextLost);
+        trailGeo.dispose();
         renderer.dispose();
         scene.traverse((obj) => {
           if (obj.geometry) obj.geometry.dispose();
           if (obj.material) (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => m.dispose());
         });
-        if (dom.parentNode) dom.parentNode.removeChild(dom);
+        if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       };
     }, [terrain && terrain.id]);
 
