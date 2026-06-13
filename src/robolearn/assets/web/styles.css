@@ -1032,3 +1032,42 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .viewport3d.vp3d-lost::after{ content:'3D paused — switch to 2.5D in the bar'; position:absolute; inset:auto 0 12px 0; text-align:center; color:var(--fg-2); font-family:var(--font-mono); font-size:11px; }
 .viewport3d canvas:focus-visible{ outline:2px solid var(--cyan); outline-offset:-2px; }
 .view-toggle button:focus-visible, .terrain-btn:focus-visible{ outline:2px solid var(--cyan); outline-offset:1px; }
+
+/* ===================== Robot Lab ===================== */
+.rl-modal { width:min(680px,95vw); }
+.rl-body { display:flex; flex-direction:column; gap:14px; max-height:70vh; overflow:auto; }
+.rl-section { display:flex; flex-direction:column; gap:7px; }
+.rl-label { font-family:var(--font-mono); font-size:10px; letter-spacing:0.14em;
+  text-transform:uppercase; color:var(--fg-3); }
+.rl-types { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+.rl-type { display:flex; flex-direction:column; align-items:center; gap:5px; padding:11px 6px;
+  border:1px solid var(--border); border-radius:9px; background:rgba(245,240,228,0.02);
+  color:var(--fg-2); cursor:pointer; transition:all 140ms var(--ease); }
+.rl-type:hover { border-color:var(--fg-3); color:var(--fg-1); }
+.rl-type-on { border-color:var(--cyan); color:var(--fg-1);
+  box-shadow:0 0 0 1px rgba(92,224,216,0.35) inset; background:rgba(92,224,216,0.06); }
+.rl-type-emoji { font-size:24px; line-height:1; }
+.rl-type-name { font-size:11px; text-align:center; }
+.rl-blurb { margin:2px 0 0; font-size:12px; color:var(--fg-2); }
+.rl-row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.rl-field { display:flex; flex-direction:column; gap:5px; }
+.rl-input { font-family:var(--font-body); font-size:13px; padding:7px 9px; border-radius:6px;
+  border:1px solid var(--border); background:var(--void); color:var(--fg-1); }
+.rl-note { margin:0; font-size:11px; color:var(--fg-3); }
+.rl-chips { display:flex; flex-wrap:wrap; gap:7px; }
+.rl-chip { display:flex; flex-direction:column; align-items:flex-start; gap:1px; padding:7px 11px;
+  border:1px solid var(--border); border-radius:7px; background:transparent; cursor:pointer;
+  color:var(--fg-2); transition:all 140ms var(--ease); text-align:left; }
+.rl-chip:hover { border-color:var(--fg-3); color:var(--fg-1); }
+.rl-chip-on { border-color:var(--cyan); color:var(--fg-1); background:rgba(92,224,216,0.07); }
+.rl-chip-name { font-size:12px; font-weight:600; }
+.rl-chip-sub { font-family:var(--font-mono); font-size:9.5px; color:var(--fg-3); }
+.rl-chip-on .rl-chip-sub { color:var(--cyan); }
+.rl-spec { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; padding:12px;
+  border:1px solid var(--border); border-radius:9px; background:rgba(245,240,228,0.02); }
+.rl-stat { display:flex; flex-direction:column; gap:2px; }
+.rl-stat b { font-family:var(--font-mono); font-size:15px; color:var(--cyan); font-variant-numeric:tabular-nums; }
+.rl-stat span { font-size:10px; color:var(--fg-3); text-transform:uppercase; letter-spacing:0.08em; }
+.rl-stat-wide { grid-column:1 / -1; }
+.rl-stat-wide b { font-size:12px; color:var(--fg-1); }
+.rl-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:14px; }

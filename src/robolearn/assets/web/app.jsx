@@ -5,6 +5,7 @@
   const { useState, useRef, useEffect, useCallback } = React;
   const TERRAINS = window.TERRAINS;
   const WALL = TERRAINS.WALL;
+  const RobotLab = window.RobotLab;
   const R = 30; // rover collision radius (cm)
   // Live check (re-evaluated per move) so toggling the OS setting takes effect.
   const PREFERS_REDUCED_MOTION = () =>
@@ -344,6 +345,14 @@ rover.say("Survey done")`
     // --- AI vibe coding (local Ollama: Qwen/Gemma; graceful when absent) ---
     const [aiInfo, setAiInfo] = useState({ available: false, model: null });
     const [vibeOpen, setVibeOpen] = useState(false);
+    // Robot Lab: design a custom robot whose spec drives the simulation.
+    const [robotLabOpen, setRobotLabOpen] = useState(false);
+    const [robotSpec, setRobotSpec] = useState(() => (window.getKodroRobot ? window.getKodroRobot() : null));
+    useEffect(() => {
+      const onRobot = (e) => setRobotSpec(e.detail);
+      window.addEventListener('kodro-robot', onRobot);
+      return () => window.removeEventListener('kodro-robot', onRobot);
+    }, []);
     // Second-agent code review (propose-then-critique on the local model).
     const [reviewOpen, setReviewOpen] = useState(false);
     const [reviewBusy, setReviewBusy] = useState(false);
@@ -830,7 +839,12 @@ rover.say("Survey done")`
       const dirx = Math.sin(a) * ev.dir, diry = -Math.cos(a) * ev.dir;
       const total = ev.distance;
       const x0 = s.x, y0 = s.y;
-      const sp = Math.max(8, s.speed);
+      // The robot designed in Robot Lab drives the sim: a heavier build drains
+      // the battery faster, and a stronger motor set raises the top speed.
+      const robot = window.getKodroRobot ? window.getKodroRobot() : null;
+      const massFac = robot && robot.massFactor ? robot.massFactor : 1;
+      const speedFac = robot && robot.speedFactor ? robot.speedFactor : 1;
+      const sp = Math.max(8, s.speed) * speedFac;
       // 0.32s per (cm/speed); lower-traction terrain drives a little slower.
       const dur = (total / sp) * 1000 * 0.32 / (terrain.traction * speedMulRef.current);
       // Real physics: heavier worlds drain the battery faster, lighter worlds
@@ -841,7 +855,7 @@ rover.say("Survey done")`
       if (s.penDown) { trailRef.current.push([{ x: x0, y: y0 }]); setTrail([...trailRef.current]); }
       // Battery drains smoothly across the move (was a no-op: subtracted 0).
       const b0 = s.battery;
-      const drainFull = total * 0.011 * gFac / terrain.traction;
+      const drainFull = total * 0.011 * gFac * massFac / terrain.traction;
       let crashed = false;
       await frames(dur, (p) => {
         const nx = x0 + dirx * total * p;
@@ -866,7 +880,7 @@ rover.say("Survey done")`
       // Settle battery on the distance actually travelled (handles a crash
       // that stopped the move early), relative to the pre-move level b0.
       const travelled = Math.hypot(s.x - x0, s.y - y0);
-      s.battery = Math.max(0, b0 - travelled * 0.011 * gFac / terrain.traction);
+      s.battery = Math.max(0, b0 - travelled * 0.011 * gFac * massFac / terrain.traction);
       odoRef.current += travelled; setOdo(odoRef.current);
       s.moving = false; sync();
       if (crashed) {
@@ -1264,6 +1278,7 @@ rover.say("Survey done")`
           </div>
           <div className="bar-divider"></div>
           <button className="icon-btn voice-agent-btn" title="Talk to Kodro — speak a command or ask a question" aria-label="Voice agent" onClick={() => { setVaOpen(true); setVaData(null); runVoiceAgent(); }}>🎙</button>
+          <button className="icon-btn" title="Robot Lab — design a custom robot" aria-label="Robot Lab" onClick={() => setRobotLabOpen(true)}>🛠</button>
           <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot" onClick={() => setBuildOpen(true)}>🤖</button>
           <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setShowHelp(true)}>?</button>
           <div className="settings-wrap">
@@ -1672,6 +1687,10 @@ rover.say("Survey done")`
               </div>
             </div>
           </div>
+        )}
+
+        {robotLabOpen && RobotLab && (
+          <RobotLab onClose={() => setRobotLabOpen(false)} />
         )}
 
         {reviewOpen && (
