@@ -5,50 +5,54 @@
 <title>COMP702 CA1 Specification and Design Proposal, Vaibhav Lalwani</title>
 <style>
   @page { size: A4; margin: 18mm 20mm 16mm 20mm; }
-  :root{ --ink:#1d2128; --muted:#555c66; --navy:#16315c; --gold:#b8860b; --rule:#c9cfd8; --soft:#f4f6f9; }
+  /* Black and white throughout; only the screenshots carry colour. */
+  :root{ --ink:#111111; --muted:#3a3a3a; --navy:#111111; --gold:#444444; --rule:#9a9a9a; --soft:#eeeeee; }
   *{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; }
-  body{ font-family:"Georgia","Cambria",serif; color:var(--ink); font-size:10.8pt; line-height:1.46; text-align:justify; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-  h2{ font-family:"Calibri","Segoe UI",sans-serif; color:var(--navy); font-size:12.4pt; margin:13pt 0 4pt; padding-bottom:2pt; border-bottom:1.3px solid var(--rule); }
-  h3{ font-family:"Calibri","Segoe UI",sans-serif; color:var(--navy); font-size:10.8pt; margin:8pt 0 2pt; }
-  p{ margin:0 0 6pt; }
-  ul{ margin:2pt 0 7pt; padding-left:18pt; }
-  li{ margin-bottom:2.5pt; }
-  a{ color:var(--navy); text-decoration:none; }
+  body{ font-family:"Georgia","Cambria",serif; color:var(--ink); font-size:11pt; line-height:1.38; text-align:justify; hyphens:auto; -webkit-hyphens:auto; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  h1,h2,h3,.cover .sub,.meta,th,td,figcaption{ hyphens:none; -webkit-hyphens:none; }
+  h2{ font-family:"Calibri","Segoe UI",sans-serif; color:#000; font-size:13pt; margin:11pt 0 5pt; padding-bottom:2.5pt; border-bottom:1.4px solid #000; page-break-after:avoid; }
+  h3{ font-family:"Calibri","Segoe UI",sans-serif; color:#000; font-size:11pt; margin:9pt 0 2pt; page-break-after:avoid; }
+  p{ margin:0 0 7pt; }
+  ul{ margin:3pt 0 8pt; padding-left:18pt; }
+  li{ margin-bottom:3pt; }
+  a{ color:#000; text-decoration:underline; }
   /* cover */
   .cover{ height:252mm; display:flex; flex-direction:column; page-break-after:always; }
-  .cover .top{ flex:1; }
-  .uol{ display:flex; align-items:center; gap:12pt; padding-bottom:9pt; border-bottom:1.6px solid var(--navy); }
-  .uol-official{ max-height:64pt; width:auto; }
+  .cover .top{ flex:0 0 20mm; }
+  .cover .mid{ flex:1 1 auto; display:flex; flex-direction:column; justify-content:center; }
+  .uol{ display:flex; align-items:center; gap:12pt; padding-bottom:10pt; border-bottom:1.8px solid #000; }
+  .uol-brand{ display:flex; flex-direction:column; gap:6pt; }
+  .uol-official{ max-height:58pt; width:auto; display:block; }
   .uol-fb{ display:flex; align-items:center; gap:12pt; }
-  .uol svg{ width:50pt; height:50pt; flex:none; }
-  .uol .lt{ font-family:"Calibri","Segoe UI",sans-serif; font-size:10pt; font-weight:700; letter-spacing:3.4px; color:var(--gold); text-transform:uppercase; }
-  .uol .lb{ font-family:"Calibri","Segoe UI",sans-serif; font-size:21pt; font-weight:700; letter-spacing:1.2px; color:var(--navy); text-transform:uppercase; border-top:1.2px solid var(--gold); padding-top:2pt; margin-top:2pt; }
+  .uol svg{ width:52pt; height:52pt; flex:none; }
+  .uol .lt{ font-family:"Calibri","Segoe UI",sans-serif; font-size:10pt; font-weight:700; letter-spacing:3.4px; color:#000; text-transform:uppercase; }
+  .uol .lb{ font-family:"Calibri","Segoe UI",sans-serif; font-size:22pt; font-weight:700; letter-spacing:1.2px; color:#000; text-transform:uppercase; border-top:1.2px solid #000; padding-top:2pt; margin-top:2pt; }
   .uol .l2{ font-family:"Calibri","Segoe UI",sans-serif; font-size:8.2pt; letter-spacing:1.8px; color:var(--muted); text-transform:uppercase; margin-top:3pt; }
-  .cover h1{ font-family:"Calibri","Segoe UI",sans-serif; font-size:25pt; color:var(--navy); line-height:1.1; margin:16pt 0 4pt; font-weight:700; }
-  .cover .sub{ font-size:13pt; font-style:italic; color:var(--muted); margin-bottom:16pt; }
-  .meta{ font-family:"Calibri","Segoe UI",sans-serif; font-size:11pt; line-height:1.75; }
-  .meta b{ color:var(--navy); }
-  .ethics{ margin-top:14pt; background:var(--soft); border-left:3px solid var(--gold); padding:10pt 12pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.6pt; line-height:1.5; }
-  .cover .foot{ margin-top:auto; border-top:1px solid var(--rule); padding-top:8pt; font-size:8.8pt; color:var(--muted); font-family:"Calibri","Segoe UI",sans-serif; }
+  .cover h1{ font-family:"Calibri","Segoe UI",sans-serif; font-size:26pt; color:#000; line-height:1.12; margin:22pt 0 6pt; font-weight:700; text-align:left; }
+  .cover .sub{ font-size:13.5pt; font-style:italic; color:var(--muted); margin-bottom:16pt; }
+  .abstract{ font-family:"Georgia","Cambria",serif; font-size:10.5pt; line-height:1.5; text-align:justify; color:var(--ink); margin:0 0 18pt; }
+  .meta{ font-family:"Calibri","Segoe UI",sans-serif; font-size:11.5pt; line-height:1.95; }
+  .meta b{ color:#000; }
+  .ethics{ margin-top:16pt; background:var(--soft); border-left:3px solid #000; padding:11pt 13pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.8pt; line-height:1.55; }
+  .cover .foot{ margin-top:auto; border-top:1px solid #000; padding-top:8pt; font-size:8.8pt; color:var(--muted); font-family:"Calibri","Segoe UI",sans-serif; }
   /* tables */
-  table{ width:100%; border-collapse:collapse; margin:5pt 0 8pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.1pt; }
-  th,td{ border:1px solid var(--rule); padding:4.5pt 6pt; text-align:left; vertical-align:top; }
-  th{ background:var(--navy); color:#fff; font-weight:600; }
+  table{ width:100%; border-collapse:collapse; margin:6pt 0 9pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.4pt; }
+  th,td{ border:1px solid #000; padding:5pt 7pt; text-align:left; vertical-align:top; }
+  th{ background:#000; color:#fff; font-weight:600; }
+  thead{ display:table-header-group; }
+  tr{ page-break-inside:avoid; }
   tbody tr:nth-child(even){ background:var(--soft); }
   td.c{ text-align:center; }
-  /* gantt */
-  .gantt td.bar{ padding:3px 4px; }
-  .gantt .b{ display:block; height:11px; border-radius:3px; background:linear-gradient(90deg,var(--gold),var(--navy)); }
-  /* figures */
-  .figs{ display:flex; gap:7px; margin:6pt 0 3pt; }
-  .figs figure{ flex:1; margin:0; }
-  .figs img{ width:100%; border:1px solid var(--rule); border-radius:3px; display:block; }
-  figcaption{ font-family:"Calibri","Segoe UI",sans-serif; font-size:8pt; color:var(--muted); margin-top:3pt; text-align:center; }
-  .refs{ font-family:"Calibri","Segoe UI",sans-serif; font-size:8.9pt; line-height:1.4; }
-  .refs p{ padding-left:15pt; text-indent:-15pt; margin:0 0 4pt; }
-  .disc{ margin-top:9pt; font-size:8.6pt; color:var(--muted); font-style:italic; border-top:1px solid var(--rule); padding-top:6pt; }
+  /* big, readable screenshots stacked one per row */
+  .shot{ margin:7pt 0 3pt; page-break-inside:avoid; }
+  .shot img{ width:92%; border:1.4px solid #000; display:block; margin:0 auto; }
+  .shot figcaption{ font-family:"Calibri","Segoe UI",sans-serif; font-size:9pt; color:var(--muted); margin-top:4pt; text-align:center; font-style:italic; }
+  .refs{ font-family:"Calibri","Segoe UI",sans-serif; font-size:8.9pt; line-height:1.32; }
+  .refs p{ padding-left:15pt; text-indent:-15pt; margin:0 0 3pt; }
+  .disc{ margin-top:6pt; font-size:8.8pt; color:var(--muted); font-style:italic; border-top:1px solid #000; padding-top:5pt; page-break-inside:avoid; }
   .avoid{ page-break-inside:avoid; }
+  .pb{ page-break-before:always; }
 </style>
 </head>
 <body>
@@ -56,30 +60,32 @@
 <!-- ===== TITLE PAGE ===== -->
 <section class="cover">
   <div class="top"></div>
-  <div>
+  <div class="mid">
     <div class="uol">
-      <!-- The official University of Liverpool logo is used when the file is
-           present at img/uol_logo.png; otherwise the emblem below is shown so
-           the cover is never broken. -->
-      <img class="uol-official" src="img/uol_logo.png" alt="University of Liverpool"
-           style="display:none;"
-           onload="this.style.display='block'; var f=document.getElementById('uol-fb'); if(f) f.style.display='none';">
-      <div id="uol-fb" class="uol-fb">
+      <!-- Official University of Liverpool logo (img/uol_logo.png). The SVG
+           emblem is shown only if that file is missing, so the cover is never
+           broken. -->
+      <div class="uol-brand">
+        <img class="uol-official" src="img/uol_logo.png" alt="University of Liverpool"
+             onerror="this.style.display='none'; var f=document.getElementById('uol-fb'); if(f) f.style.display='flex'; var d=document.getElementById('uol-dept'); if(d) d.style.display='none';">
+        <div id="uol-dept" class="l2">Department of Computer Science &nbsp;·&nbsp; COMP702 MSc Project</div>
+      </div>
+      <div id="uol-fb" class="uol-fb" style="display:none;">
         <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="University crest">
-          <path d="M50 6 L88 18 V46 C88 70 72 86 50 95 C28 86 12 70 12 46 V18 Z" fill="none" stroke="#16315c" stroke-width="3.5"/>
-          <path d="M50 30 C44 26 34 26 28 30 V62 C34 58 44 58 50 62 C56 58 66 58 72 62 V30 C66 26 56 26 50 30 Z" fill="none" stroke="#b8860b" stroke-width="2.6"/>
-          <line x1="50" y1="30" x2="50" y2="62" stroke="#b8860b" stroke-width="2.6"/>
-          <text x="50" y="80" text-anchor="middle" font-family="Georgia, serif" font-size="13" fill="#16315c" font-weight="700">UoL</text>
+          <path d="M50 6 L88 18 V46 C88 70 72 86 50 95 C28 86 12 70 12 46 V18 Z" fill="none" stroke="#000" stroke-width="3.5"/>
+          <path d="M50 30 C44 26 34 26 28 30 V62 C34 58 44 58 50 62 C56 58 66 58 72 62 V30 C66 26 56 26 50 30 Z" fill="none" stroke="#444" stroke-width="2.6"/>
+          <line x1="50" y1="30" x2="50" y2="62" stroke="#444" stroke-width="2.6"/>
+          <text x="50" y="80" text-anchor="middle" font-family="Georgia, serif" font-size="13" fill="#000" font-weight="700">UoL</text>
         </svg>
         <div>
           <div class="lt">University of</div>
           <div class="lb">Liverpool</div>
-          <div class="l2">Department of Computer Science &nbsp;·&nbsp; COMP702 MSc Project</div>
         </div>
       </div>
     </div>
-    <h1>Kodro: An Offline, Self-Improving Tutor for Learning to Program a Simulated Rover</h1>
+    <h1>Kodro: An Offline, Self-Refining Platform for Designing Robots and Validating Their Behaviour in a Realistic Simulation</h1>
     <div class="sub">Specification and Design Proposal (CA1)</div>
+    <p class="abstract">This proposal sets out an offline desktop platform on which a maker designs a custom robot, from a rover to a self-driving car to a home robot or a bare microcontroller build, programs it by code, blocks or voice with grounded artificial intelligence help and an automatic code reviewer, and validates its behaviour in a realistic, agent-populated simulated world before committing to real hardware. The platform self-refines as it is used: it remembers what worked across past designs and reuses it, without ever retraining its model or reaching the internet. It runs entirely on a single machine with no cloud service, no accounts and no per seat cost. The proposal states the aims and measurable requirements, the literature the design rests on, the development approach, the data and ethics position, and a two part evaluation that separates whether a non-expert builds a better behaving robot with the tool from whether the artificial intelligence measurably refines its suggestions as its experience grows.</p>
     <div class="meta">
       <div><b>Name</b> &nbsp; Vaibhav Lalwani</div>
       <div><b>Student ID</b> &nbsp; 201979723</div>
@@ -87,7 +93,7 @@
       <div><b>Submission date</b> &nbsp; 19 June 2026</div>
     </div>
     <div class="ethics">
-      <b>Statement of ethical compliance.</b> The declared categories for this project are data category A0 and participant category 2, and I confirm that I will follow the School's ethical guidance throughout. The evaluation carried out so far uses simulated personas and involves no human participants and no personal data. Any later evaluation that involves real pupils or teachers will be planned with my supervisor, kept within the permitted activities, and conducted only with appropriate consent and safeguarding. I will update this statement in future assessments if my plans change.
+      <b>Statement of ethical compliance.</b> The declared categories for this project are data category A0 and participant category 2, and I confirm that I will follow the School's ethical guidance throughout. The evaluation carried out so far uses simulated personas and involves no human participants and no personal data. Any later evaluation that involves real makers will be planned with my supervisor, kept within the permitted activities, and conducted only with appropriate consent and safeguarding. I will update this statement in future assessments if my plans change.
     </div>
   </div>
   <div class="foot">COMP702 CA1 Specification and Design Proposal &nbsp;·&nbsp; Vaibhav Lalwani (201979723) &nbsp;·&nbsp; University of Liverpool</div>
@@ -95,49 +101,64 @@
 
 <!-- ===== 1 PROJECT DESCRIPTION ===== -->
 <h2>1. Project description</h2>
-<p>Children learn to program far more readily when they can see their instructions do something in the world. Physical robot kits make that connection vivid, but they are expensive, fragile, and rarely reach every desk in a classroom. Kodro replaces the kit with a single offline download. A pupil writes ordinary Python, presses Run, and watches a simulated rover drive across Mars, the Moon, an underwater plain or a real map of Earth while the program is executed in a sandbox and marked against the goals of the lesson.</p>
-<p>What makes the project a piece of research rather than a teaching toy is the layer that sits on top of the simulator: a small set of artificial intelligence features that try to help a learner the way a patient teacher would, and that do so without ever reaching the internet. The whole system runs on a school laptop with no cloud service, no accounts and no per seat cost, so a pupil's work never leaves the machine. The project asks whether a useful, honest tutor can be built under that hard offline constraint, and how good it can be made.</p>
+<p>Plenty of people have an idea for a robot and no safe way to try it. Buying parts, wiring a board and writing control code is slow and expensive, and the first time a real robot meets the real world it tends to drive into something. Kodro closes that gap with a single offline download. A user designs a robot in a builder, choosing a chassis, a controller board such as an ESP32 or a micro:bit, and the sensors and motors it carries; programs its behaviour in real Python, in blocks, or by voice, with grounded artificial intelligence help and a second agent that reviews the code; then runs it in a simulated world that behaves like the real one, with terrain, physics and other agents such as pedestrians and traffic moving around it. The user watches how the robot behaves, fixes it, and runs it again, all before spending a penny on hardware.</p>
+<p>What makes this research rather than a toy is the layer on top of the simulator. A small artificial intelligence, running on a local model only, helps write and check control code, and it self-refines as the tool is used: after each run it records what happened, keeps a growing library of behaviours that worked, and draws on that experience when helping with the next design. It does this without retraining the model and without ever reaching the internet, so the user's designs never leave the machine. The project asks a sharp question: how much can such a system genuinely refine itself, and how trustworthy can its validation be, under a hard offline constraint that rules out the cloud and rules out changing the model's weights.</p>
 
 <!-- ===== 2 AIMS AND REQUIREMENTS ===== -->
 <h2>2. Aims and requirements</h2>
 <h3>Aims</h3>
 <ul>
-  <li>Build an offline desktop application in which children learn to program by commanding a simulated rover through curriculum mapped lessons.</li>
-  <li>Design an artificial intelligence layer, running on a local model only, that grounds its answers in the lesson material, improves its hints from a pupil's own outcomes, and demonstrates simple multi-agent behaviour.</li>
-  <li>Evaluate the tutor honestly, both with automated tests and with a structured study, and report what works and what does not.</li>
+  <li>Build an offline desktop platform on which a non-expert designs a custom robot, programs its behaviour by code, blocks or voice, and validates that behaviour in a realistic, agent-populated simulation before building it for real.</li>
+  <li>Provide an artificial intelligence layer, on a local model only, that grounds its suggestions in the robot's own capability specification, reviews generated control code for safety, and self-refines from accumulated use through episodic memory and a growing skill library, without retraining the model or reaching the cloud.</li>
+  <li>Evaluate two separate questions honestly and report what works and what does not. The design question: a non-expert using Kodro should produce a robot that completes at least four of five tasks in a held out realistic scenario it was not tuned on. The self-refinement question: the artificial intelligence should reuse past experience measurably, so that median iterations to a working design fall as its memory grows across a session.</li>
 </ul>
 <h3>Requirements</h3>
-<p>Essential:</p>
+<p>Each requirement is given a plain test of done so that progress can be judged rather than asserted. Essential:</p>
 <ul>
-  <li>Execute real Python safely in a sandbox and grade it against per lesson success criteria.</li>
-  <li>Provide a set of lessons mapped to the UK Computing curriculum, from early stages to GCSE level.</li>
-  <li>Run all artificial intelligence features on a local model with graceful behaviour when none is installed.</li>
-  <li>Keep every byte of pupil data on the device.</li>
+  <li>Let the user design a custom robot, choosing a board, sensors and actuators, where the specification drives the simulation rather than just decorating it. Done when changing the build measurably changes behaviour: a heavier robot drains its battery faster, a stronger motor set raises top speed, and a fitted sensor unlocks the matching command while an absent one withholds it.</li>
+  <li>Execute the robot's real Python in a sandbox that blocks file, network and process access, and validate every run against the scenario's success criteria. Done when a hostile program cannot reach the disk and a correct program is scored correctly.</li>
+  <li>Run the robot in a realistic world with terrain, physics and moving agents, and support repeated runs under varied conditions so behaviour is tested, not assumed. Done when the same program is run across several randomised seeds and a per run report of successes, collisions and time to goal is produced.</li>
+  <li>Run the artificial intelligence on a local model only, and fall back to rule based behaviour within two seconds when no model is installed, with a calm on screen message rather than a crash. Done when the platform is fully usable with the network switched off and no model present.</li>
+  <li>Keep every byte of user data on the device, with no outbound request in the code. Done when a network trace during normal use shows no traffic.</li>
 </ul>
 <p>Desirable:</p>
 <ul>
-  <li>A real three dimensional view of the world with first and third person cameras.</li>
-  <li>A grounded question and answer feature, a voice route into the rover, and a multi-rover swarm.</li>
-  <li>Teacher facing tools and accessibility options such as a high contrast theme and read aloud.</li>
+  <li>A real three dimensional view of the world with first and third person cameras, and worlds ranging from open terrain to a street where the robot must cope with pedestrians and traffic.</li>
+  <li>A grounded question and answer feature, a voice route into the robot, an automatic code reviewer, and a small swarm that runs one program on several robots at once for tasks about coordination.</li>
+  <li>A growing skill library of behaviours that worked, which the artificial intelligence reuses across designs, and accessibility options such as a high contrast theme and read aloud.</li>
 </ul>
 
 <!-- ===== 3 KEY LITERATURE ===== -->
 <h2>3. Key literature and background reading</h2>
-<p>The educational case for the project rests on a long line of work on tutoring. Bloom (1984) set the benchmark with the observation that one to one tutoring lifts the average learner by around two standard deviations, and VanLehn (2011) later showed that step based computer tutors can approach human tutoring when they give feedback at the right grain. Weintrop and Wilensky (2017) found that block based environments help novices, which motivates the project's blocks mode that compiles to real Python. Together these justify a design built around immediate, specific feedback rather than answer giving.</p>
-<p>The technical reading concerns the limits of today's language models and the honest ways to work within them. Huang et al. (2023) survey hallucination and show it is intrinsic rather than a bug to be patched, which is dangerous for a child who cannot tell a real function from an invented one. The standard mitigation is to ground generation in retrieved sources rather than the model's memory (Lewis et al., 2020), and Jacobs and Jaschke (2024) show that a constrained model can give useful programming feedback without giving the solution away. On improvement over time, Tao et al. (2024) make clear that genuine weight level self evolution is unsolved, so the project pursues improvement at the level of the system, in the spirit of the verbal reflection loop of Shinn et al. (2023). Finally, the swarm draws on multi-agent collaboration (Du et al., 2023; Wu et al., 2023), while Cemri et al. (2025) provide a sober reminder that naive multi-agent setups fail in characteristic ways, which is why a deterministic check, not another model, has the final word.</p>
+<p>The design rests on three bodies of work, and follows from them rather than sitting beside them: how people learn by building, how a robot tested in simulation can be trusted in the real world, and how a language model can help write and refine code honestly. The first is constructionism (Papert, 1980), the finding that people learn most when they build something they can watch behave and then debug. Kodro is built around exactly that loop: design a robot, run it, watch it fail, fix it. The cost of a richer scene is real and is taken seriously, since cognitive load theory (Sweller, 1988) warns that an elaborate world can spend a beginner's attention on the view rather than the problem, so the three dimensional view and the busy street are treated as desirable, not essential, and earn their place only if they help. Block based programming lowers the entry cost (Resnick et al., 2009; Weintrop and Wilensky, 2017), which is why the tool offers blocks that compile to the same real Python, so a user can move from blocks to text without changing tools.</p>
+<p>The second body of work is the reason a simulator is worth trusting at all. The central problem in robotics is the sim to real gap, the drop in performance when behaviour tuned in simulation meets the real world. The standard answer is not a perfect simulator but domain randomization (Tobin et al., 2017): vary friction, mass, sensor noise and the scene across many runs, so behaviour that survives the spread is likely to survive reality too. Kodro adopts this directly, validating each design across randomised seeds rather than a single tidy run, and reporting the spread as honestly as the average. The realistic world also needs other things in it that move with a will of their own; for that the design draws on the social force model of pedestrian motion (Helbing and Molnar, 1995) and reciprocal velocity obstacles for agents that avoid each other and the robot (van den Berg et al., 2008), so a self driving car or a home robot is tested among agents that behave, not among static props.</p>
+<p>The third body of work concerns the language model itself, and it is what justifies both the offline choice and the careful framing of self refinement. Huang et al. (2023) show hallucination is intrinsic rather than a bug to be patched, which is dangerous when the output is control code a beginner cannot tell is wrong. The standard mitigation is to ground generation in retrieved sources rather than the model's memory (Lewis et al., 2020); for robots specifically, the model is best constrained to compose a known, safe set of capabilities rather than invent them, in the spirit of programs written against a fixed robot interface (Liang et al., 2023) and of grounding instructions in what the robot can actually do (Ahn et al., 2022). Kodro follows this by grounding every suggestion in the robot's own capability specification, the very build the user assembled, so the model cannot call a sensor that is not fitted. Grounding is also why the cloud is not needed: it works on local material, and a remote call would add a network round trip, an account, and a path for the user's designs to leave the machine, none of which a local model with a retrieved spec requires. On refinement over time the proposal is deliberately careful. Tao et al. (2024) make clear that genuine weight level self evolution is unsolved, so Kodro does not claim it; instead it refines at the level of the system, through the verbal reflection loop of Shinn et al. (2023), where a written record of what helped is fed back into later choices, and through a growing library of behaviours that worked, in the manner of Wang et al. (2023), composed for new designs without ever retraining the model. This is honestly self refining, not self improving in the sense a cloud model retrained on fresh data would be, and the proposal says so plainly. Where several agents cooperate, Cemri et al. (2025) are a sober reminder that naive multi agent setups fail in characteristic ways, which is why a deterministic check, not another model, always has the final word.</p>
 
 <!-- ===== 4 DEVELOPMENT AND IMPLEMENTATION ===== -->
 <h2>4. Development and implementation summary</h2>
-<p>The application is written in Python 3.12 and presented through a desktop web view, with the interface built in React and pre-compiled so it starts quickly and needs no build tools at runtime. The three dimensional world is drawn with a vendored copy of the Three.js graphics library, so it works without any download. Pupil work is stored in a single local SQLite file, and the artificial intelligence features call a local model served by Ollama. These choices follow directly from the constraint: everything must be free, offline, and light enough for an ageing classroom machine, and a desktop application meets that far better than a hosted web service.</p>
-<p>The work is organised as a sequence of small, independently testable changes. Each change is covered by automated tests and is only merged once a continuous integration pipeline runs the full test suite, a type checker and a linter on three operating systems. This keeps the codebase releasable at every step and gives an honest record of progress.</p>
+<p>The platform is written in Python 3.12 and presented through a desktop web view. Each main choice follows from the offline, low resource constraint. The interface is built in React but pre-compiled into a single bundle, so the rich panelled layout is kept while the multi second cost of a runtime compiler is paid once at build time, not on every machine. The three dimensional world is drawn with a vendored copy of the Three.js library held in the project, so the graphics work with the network switched off, which a content delivery network could not promise. A user's designs and the system's accumulated experience are stored in SQLite because it is a single file in the standard library, easy to back up and needing no database server. The artificial intelligence calls a local model served by Ollama, chosen over a bare inference library because it manages model loading and keeps a model warm with one small command. A desktop application, rather than a hosted web service, ties these together and keeps every byte on the machine.</p>
+<p>The robot the user designs is not cosmetic; its specification drives the simulation through a single source of truth the rest of the system reads. The chosen board, sensors and motors set the total mass, which scales how fast the battery drains, set the top speed, and decide which commands exist: a build without an ultrasonic sensor simply has no distance reading to call, so the artificial intelligence, grounded in that same specification, cannot suggest one. Behaviour is then validated the way the literature asks, across several randomised seeds with varied friction, mass and sensor noise after Tobin et al. (2017), and in worlds that include moving pedestrians and traffic, so a run reports a spread of successes, collisions and times rather than one tidy number.</p>
+<p>The model itself is a small open weight model in the three to four billion parameter range, configured through Ollama with a fixed persona and a short answer limit so it runs on a mainstream laptop without a discrete graphics card; eight gigabytes of memory is the working floor. The fallback is a defined, deterministic path: when no model is present the same functions return rule based code and checks, so the platform stays fully usable. The self refinement is concrete and avoids the unsolved problem of changing the weights, and it is described as refinement, not improvement, on purpose. Three mechanisms, all local, all measurable, carry it. First, after each run the system writes a short reflection on what failed and what worked, and retrieves the most similar past reflections into the next suggestion, after Shinn et al. (2023). Second, control routines that passed validation are kept as named, parameterised skills in a growing library and composed into later designs, after Wang et al. (2023). Third, an experience table of past designs and their outcomes is sampled so advice on a new build is anchored in what actually happened on similar ones. None of this edits the model; the gain is in what the system remembers and reuses, which can be counted, where weight level evolution cannot (Tao et al., 2024).</p>
+<p>The work is organised as a sequence of small, independently testable changes. Each is covered by automated tests and is only merged once a continuous integration pipeline runs the full test suite, a type checker and a linter on three operating systems, so the codebase stays releasable at every step. The result is delivered as a single download that installs without administrator rights and runs on Windows, macOS and Linux from the same code, with the local model fetched once through Ollama.</p>
 
 <!-- ===== 5 DATA SOURCES ===== -->
 <h2>5. Data sources</h2>
-<p>The project uses no external or open datasets. The lessons are authored by hand as structured files within the project, and the only data generated at runtime is a pupil's own code and progress, which is written to a local database and never leaves the machine. The local language model is run from weights already present on the device through Ollama, with no call to any remote service. The evaluation activity does generate data, in the form of ratings and written feedback, and that is covered in the ethics section below. Beyond this, there is no use of personal or third party data in the project.</p>
+<p>The project uses no external or open datasets and no personal data. Its content is authored by hand as structured files: a set of starter robots and a set of validation scenarios, each written as a goal the robot must reach plus the success criteria that mark it. The only data generated at runtime is the user's own designs and code, the per run validation results, and the reflections the system writes about them, all stored in the local SQLite file and never sent anywhere. That accumulated record is also the substance of the self refinement: it is the experience the artificial intelligence draws on, and because it is a plain local file the user can inspect it, copy it, or delete it. The local language model is run from weights already present on the device through Ollama, with no call to any remote service. The evaluation activity generates ratings and written feedback, covered in the ethics section below. Beyond this there is no use of personal or third party data.</p>
+<p>So the content is shown rather than merely claimed, four representative validation scenarios, the robot each suits, and the design skill each exercises are set out below; the full set extends these across the same robot families.</p>
+<table class="avoid">
+  <thead><tr><th style="width:34%">Validation scenario</th><th style="width:20%">Robot it suits</th><th>What it makes the user get right</th></tr></thead>
+  <tbody>
+    <tr><td>First drive: reach the marker in the right order</td><td>Rover</td><td>Sequencing, and reading which commands this build actually supports.</td></tr>
+    <tr><td>Crowded street: cross without hitting a pedestrian</td><td>Self-driving car</td><td>Sensing and selection; reacting to agents that move with a will of their own.</td></tr>
+    <tr><td>Fetch and place: pick an object up and set it down</td><td>Personal robot or arm</td><td>Decomposition into functions; using a fitted gripper and a camera together.</td></tr>
+    <tr><td>Convoy: one program, several robots at once</td><td>Swarm</td><td>Coordination and concurrent behaviour without collisions.</td></tr>
+  </tbody>
+</table>
 
 <!-- ===== 6 TESTING AND EVALUATION ===== -->
 <h2>6. Testing and evaluation</h2>
-<p>Testing is automated and continuous. The project currently carries more than eight hundred unit and integration tests at around eighty five percent coverage, with a type checker and linter enforced on every change, so a regression is caught as a failing build rather than by a pupil. Evaluation, which asks the harder question of whether the tutor actually helps, is approached in two ways. A simulated study uses a panel of distinct personas, generated to span the pupils, teachers and support staff who might use the tool, each of whom inspects the build and rates it. This is a low cost, broad coverage inspection method, not a substitute for watching real children, and it is reported as such. It has already been run repeatedly as the work has landed, and the table below records the trajectory.</p>
+<p>Testing is automated and continuous. The project currently carries more than eight hundred unit and integration tests at around eighty five percent coverage, with a type checker and linter enforced on every change, so a regression is caught as a failing build rather than by a user. Evaluation proper asks three questions that must not be confused. The first is whether the platform is usable, which the work has tested continuously. The second is whether it actually helps: does a non-expert using Kodro produce a robot that behaves better in a realistic scenario than one designed without it. The third is whether the artificial intelligence genuinely self refines: do its suggestions get better as its experience grows. The usability question is approached with a simulated study, a panel of distinct personas generated to span the makers who might use the tool, each of whom drives the build and rates it. This is a recognised low cost inspection method in the tradition of discount usability and expert inspection (Nielsen, 1994), which trades the authority of real users for breadth and speed, and it is reported with that limit stated plainly rather than dressed up as proof that the platform teaches. It has already been run repeatedly as the work has landed, and the table below records the trajectory.</p>
+<p>To make that trajectory readable rather than a bare set of numbers, the method is worth stating plainly. The personas are generated from a single prompt to span four dimensions: background (complete beginner, hobbyist maker, student, teacher, accessibility focused user), experience (from never having wired a board to years of tinkering), access need (dyslexia, low vision, motor difficulty, English as an additional language, colour blindness), and device (an old offline laptop, a shared machine on a locked network, a tablet). Each persona drives one realistic session toward its own goal and returns a mark out of ten, where roughly one to four means it failed them, five to seven means it served them with real gaps, and eight or more means it served them well, alongside the concrete defects it found. The score for a round is the simple mean of its personas, and after each round the named defects were fixed before the same build was re rated, so the trend reflects real change in the product rather than a kinder panel. The panel size varies by purpose, not by convenience: the rounds of fifty are broad sweeps of the whole tool, while the smaller rounds of twelve and eight are focused spot checks of one change, and both are labelled as such. The generation prompt and the four dimensions above are kept in the project so the panel can be regenerated and the result reproduced, which is the honest answer to the charge that a simulated panel is otherwise unrepeatable.</p>
 <table class="avoid">
   <thead><tr><th>Round</th><th>Personas</th><th>Focus of the round</th><th>Mean rating (out of 10)</th></tr></thead>
   <tbody>
@@ -148,79 +169,105 @@
     <tr><td class="c">5</td><td class="c">8</td><td>Focused review of the new three dimensional world</td><td class="c">6.40</td></tr>
   </tbody>
 </table>
-<p>The pattern is the point. The first round was deliberately unflattering, and each later round fixed the concrete defects the personas named and then re-rated the same build, lifting the mean from about 5.9 to about 7.4 across the rounds on the core product. The fifth round was a fresh, focused inspection of the newly added three dimensional view, which is why it sits lower; the issues it raised, around readable direction, reduced motion and performance on weak graphics hardware, have since been addressed in the same loop. Future evaluation will add observation of real pupils and teachers in a classroom, under the ethics arrangements described next, since the simulated study can only stand in for that.</p>
+<p>The pattern is the point. The first round was deliberately unflattering, and each later round fixed the concrete defects the personas named and then re-rated the same build, lifting the mean from about 5.9 to about 7.4 across the rounds on the core product. The fifth round was a fresh, focused inspection of the newly added three dimensional view, which is why it sits lower; the issues it raised, around readable direction, reduced motion and performance on weak graphics hardware, have since been addressed in the same loop. Future evaluation will add real makers in a field study, under the ethics arrangements described next, since the simulated panel can only stand in for that.</p>
+<h3>The planned design study</h3>
+<p>The second question, whether the platform actually helps, is answered by a small design study, sketched here so the design is on record rather than deferred. The plan recruits roughly twelve to twenty non-experts and gives each a held out scenario the platform was not tuned on, for example getting a small robot across a busy crossing. Each participant designs and programs a robot for it, half with Kodro's grounded help and reviewer and half without, the two groups balanced for prior experience. The headline measure is task success in simulation: a design succeeds if the robot completes at least four of five trials of the scenario across randomised seeds, the same bar the aims set. Behaviour quality, collisions per run and iterations to a working design are recorded alongside. This is framed honestly as an exploratory study, not a controlled trial: the numbers are small, allocation is balanced rather than fully randomised, and a novelty effect is expected, so a positive result is read as a signal worth confirming rather than proof. The supervisor will judge whether it fits the window, and the contingency below covers the case where it does not.</p>
+<p>The third question, self refinement, is the one most often overclaimed, so it is measured directly rather than asserted. Across a session the same participant tackles a sequence of related scenarios, and the system's experience memory is switched on for one arm and off for an ablated arm. If the memory genuinely helps, the median iterations to a working design should fall as the memory grows, the skill library's reuse rate should rise, and a retrieved reflection should more often precede a successful fix than chance would give. None of these require the model to change; they measure what the system remembers and reuses, which is exactly the honest form the refinement takes (Tao et al., 2024; Shinn et al., 2023).</p>
+<p>The artificial intelligence is also measured on its own terms, because a single satisfaction score hides whether it is honest. A fixed set of design questions, with known correct answers drawn from the robot's capability specification, is put to it and three things are counted: how often its answer is correct against the specification, how often it invents a command or part that the build does not have, and how often it correctly refuses and points back to the specification when asked for something out of reach. The bars are set in advance so the result cannot be talked up after the fact: grounded answers must be correct at least eighty five percent of the time and invent content less than five percent of the time, and grounding must clearly beat the same model asked without the specification in front of it. The five percent invention rate is also a release gate: if the assistant invents more often than that, the conversational path is held back and only the deterministic rule based path ships, since a beginner cannot catch unsafe control code that is wrong. These give the AI claims something to stand on beyond a single number.</p>
 
 <!-- ===== 7 PROJECT ETHICS AND HUMAN PARTICIPANTS ===== -->
 <h2>7. Project ethics and human participants</h2>
-<p>No human participants have been involved to date. The personas used in the evaluation are generated by software and are clearly reported as a simulation, not as real users, so no consent, recruitment or personal data is involved at this stage. The planned classroom evaluation does involve people, and it falls under participant category 2. For it, participants will be given a plain explanation and asked only to use the software and offer feedback; their data will be anonymised at the point of collection, aggregated for reporting, and never linked to an individual. Because the likely participants include children, the activity will be arranged through a teacher, conducted only with the appropriate consent and safeguarding in place, and agreed with my supervisor before it begins. There are no other special ethical considerations for the project.</p>
+<p>No human participants have been involved to date. The personas used in the evaluation are generated by software and are clearly reported as a simulation, not as real users, so no consent, recruitment or personal data is involved at this stage. The planned design study does involve people, and it falls under participant category 2. Participants are adult and older makers and students rather than young children, which keeps the safeguarding burden proportionate. Each will be given a plain explanation and asked only to use the software and offer feedback; their data will be anonymised at the point of collection, aggregated for reporting, and never linked to an individual. Where any participant is under eighteen the activity will be arranged through a responsible adult, and the whole study will be agreed with my supervisor, with the appropriate consent in place, before it begins.</p>
+<p>One ethical risk is specific to the technology and deserves naming on its own. The output here is not just text but control code for a machine that a user may later build, so a confident falsehood is more than a wrong answer: a model that invents a command or mishandles a sensor could produce code that drives a real robot into a person or a wall. The design treats this as a safety requirement, not a quality nicety. Every suggestion is grounded in the robot's own capability specification so the model cannot call a part the build does not have, the assistant is instructed to refuse and point back to that specification rather than guess, and any code it produces runs first inside the sandboxed simulation and is checked against the scenario before a user could trust it, so a wrong suggestion fails visibly on screen rather than on a real robot. The mandatory simulation gate, not the model, is what stands between a generated program and the real world, and the assistant is framed throughout as a helper to think with, not an authority to copy.</p>
+<p>Four smaller points complete the picture. The model's generated code and explanations will be spot checked for biased or unsuitable content before release, since even a small model can carry it. The interface targets keyboard only use and a screen reader, with the accessibility options treated as requirements for the diverse makers the tool is meant for, not as extras. The offline design, while it protects privacy, could in principle widen a gap for those with the weakest hardware, so the minimum machine is kept deliberately low and stated openly. Finally, because a user's work and the system's memory stay in a single local file, deletion is simply removing that file, and any data gathered in the study will be deleted once the dissertation is marked. There are no other special ethical considerations for the project.</p>
 
 <!-- ===== 8 BCS CRITERIA ===== -->
 <h2>8. BCS project criteria</h2>
 <p>The project is intended to meet the six BCS honours project outcomes as follows.</p>
-<table class="avoid">
+<table>
   <thead><tr><th style="width:38%">BCS outcome</th><th>How the project meets it</th></tr></thead>
   <tbody>
-    <tr><td>Systematic understanding and critical awareness at the forefront of the discipline</td><td>The design engages directly with current problems in applied language models: hallucination, grounding, and honest self improvement.</td></tr>
-    <tr><td>Comprehensive understanding of applicable techniques</td><td>Retrieval grounding, a deterministic sandbox verifier, and a system level learning loop are selected and justified against the literature.</td></tr>
-    <tr><td>Originality in the application of knowledge</td><td>The novelty is delivering grounded, self improving and multi-agent behaviour entirely offline on a school machine, which the cloud tools do not attempt.</td></tr>
-    <tr><td>Handle complex issues and communicate to specialist and non specialist audiences</td><td>The work balances competing constraints and is documented for both a teacher and an examiner, as in this proposal.</td></tr>
+    <tr><td>Systematic understanding and critical awareness at the forefront of the discipline</td><td>The design engages directly with current problems: hallucination and grounding in language models, honest offline self refinement, and the sim to real gap in robotics.</td></tr>
+    <tr><td>Comprehensive understanding of applicable techniques</td><td>Retrieval grounding, a deterministic sandbox gate, domain randomization, and a memory and skill library refinement loop are selected and justified against the literature.</td></tr>
+    <tr><td>Originality in the application of knowledge</td><td>The novelty is delivering grounded code help, honest self refinement and realistic validation entirely offline on one machine, which the cloud robotics tools do not attempt.</td></tr>
+    <tr><td>Handle complex issues and communicate to specialist and non specialist audiences</td><td>The work balances competing constraints and is documented for both a maker and an examiner, as in this proposal.</td></tr>
     <tr><td>Self direction and originality in solving problems autonomously</td><td>The project is planned, built and tested independently, with a continuous integration gate evidencing the process.</td></tr>
     <tr><td>Critical self evaluation of the process</td><td>The evaluation is reported honestly, including weak first results and the fixes that followed, rather than only the best numbers.</td></tr>
   </tbody>
 </table>
+<p>It is worth being honest about where the originality really sits. The individual parts, retrieval grounding, a sandboxed gate, an experience memory, a skill library and domain randomization, are each known techniques, and the offline constraint actively limits how clever any one of them can be, since the strongest models are out of reach. The contribution is therefore not a new algorithm but the demonstration that these parts can be combined into an honest, useful design and validation platform that runs entirely on one machine, and a measured account of how far offline self refinement can actually go when changing the weights is off the table. The constraint is the point, not a limitation to apologise for.</p>
 
 <!-- ===== 9 UI/UX MOCKUP ===== -->
 <h2>9. UI/UX mockup</h2>
-<p>The interface is a single window with the code editor and console on the left, the world in the centre, and live telemetry on the right. The three figures below show the working interface, which stands in for a wireframe: the rover driving in the real three dimensional world, the pupil's Python beside the simulated mission, and the budget robot builder that connects the code to a real piece of hardware, answering a pupil's question of why the coding matters.</p>
-<div class="figs avoid">
-  <figure><img src="img/23_3d_orbit.png" alt="3D world"><figcaption>The rover running in the real 3D world.</figcaption></figure>
-  <figure><img src="img/27_coding.png" alt="Coding"><figcaption>Writing Python beside the live mission.</figcaption></figure>
-  <figure><img src="img/08_robot_builder.png" alt="Robot builder"><figcaption>From code to a real robot: why it matters.</figcaption></figure>
-</div>
+<p>The user's path is a short loop that the interface makes concrete: design, program, validate, refine. It opens in the Robot Lab, shown in Figure 1, where the user picks a robot, fits a board, sensors and motors, and watches the build's mass, battery life and supported commands update as they go. From there the main window is a single screen with the code editor and console on the left, the world in the centre, and live telemetry on the right. The artificial intelligence is not a separate screen but lives inside this layout: a suggestion appears as a single line beneath the console, grounded in the build the user just assembled and never offered as a finished answer; the grounded question box answers from the robot's specification with the passage it drew on shown beside the reply; the voice route is one button that turns speech into the same robot commands; and the swarm is a toggle that runs one program on several robots at once. The figures below show the working interface and stand in for a wireframe, kept in colour so it reads as it really looks.</p>
+<figure class="shot"><img src="img/robot_lab.png" alt="The Robot Lab, where a user designs a custom robot"><figcaption>Figure 1. The Robot Lab. The user designs a custom robot, here a self-driving car, and the build's mass, battery life and supported commands update live; the specification then drives the simulation.</figcaption></figure>
+<figure class="shot"><img src="img/23_3d_orbit.png" alt="The robot running in the real 3D world"><figcaption>Figure 2. Validation. The designed robot runs in the real three dimensional world so its behaviour can be watched before any hardware is built.</figcaption></figure>
+<figure class="shot"><img src="img/27_coding.png" alt="Writing Python beside the live world"><figcaption>Figure 3. Programming. The user writes Python on the left and watches the robot carry it out, with the grounded assistant and code reviewer one click away.</figcaption></figure>
+<p>The loop then repeats: read the result, fix one thing, run again, and let the system remember what worked. The same panels serve a teacher or mentor through a progress view, and an access focused user through the high contrast theme and read aloud in the same menu. The design holds to one accessibility standard, WCAG 2.1 AA: every action reachable by keyboard alone, text contrast meeting the AA ratio, the three dimensional view honouring the system reduced motion setting, and the read aloud and high contrast options for low vision and dyslexia. These are listed as things the build must pass, and the design study deliberately includes makers with these access needs so the claims are checked against real use, not only asserted.</p>
 
 <!-- ===== 10 PROJECT PLAN ===== -->
 <h2>10. Project plan</h2>
-<p>The plan runs from the proposal to the final dissertation, with the two later assessments and the write up built in. Fortnightly supervisor meetings run throughout.</p>
-<table class="gantt avoid">
-  <thead><tr><th style="width:30%">Stage</th><th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th></tr></thead>
+<p>The plan runs from the proposal to the final dissertation, with the two later assessments and the write up built in. The stages, their order, and the points where they overlap or depend on each other are set out in the table below. Supervisor meetings run on a fortnight cycle throughout the project.</p>
+<table>
+  <thead><tr><th style="width:26%">Stage</th><th>Start</th><th>Finish</th><th>Duration</th><th>Depends on</th></tr></thead>
   <tbody>
-    <tr><td>Specification and design (CA1)</td><td class="bar"><span class="b"></span></td><td></td><td></td><td></td></tr>
-    <tr><td>Core build and AI layer</td><td class="bar"><span class="b"></span></td><td class="bar"><span class="b"></span></td><td></td><td></td></tr>
-    <tr><td>3D world, voice and swarm</td><td></td><td class="bar"><span class="b"></span></td><td class="bar"><span class="b"></span></td><td></td></tr>
-    <tr><td>Demonstration (CA2)</td><td></td><td></td><td class="bar"><span class="b"></span></td><td></td></tr>
-    <tr><td>Classroom evaluation</td><td></td><td></td><td class="bar"><span class="b"></span></td><td class="bar"><span class="b"></span></td></tr>
-    <tr><td>Dissertation write up (CA3)</td><td></td><td></td><td class="bar"><span class="b"></span></td><td class="bar"><span class="b"></span></td></tr>
+    <tr><td>Specification and design (CA1)</td><td>Early June</td><td>19 June</td><td>3 weeks</td><td>Project allocation</td></tr>
+    <tr><td>Ethics approval for the design study</td><td>Mid June</td><td>Mid July</td><td>4 weeks</td><td>Supervisor sign off; started early for recruitment lead time</td></tr>
+    <tr><td>Core build and AI layer</td><td>Early June</td><td>Late July</td><td>7 weeks</td><td>Runs alongside CA1</td></tr>
+    <tr><td>Realistic worlds, agents, voice and swarm</td><td>Mid July</td><td>Mid August</td><td>5 weeks</td><td>Core build</td></tr>
+    <tr><td>Demonstration video (CA2)</td><td>Mid August</td><td>21 August</td><td>1 week</td><td>Core build, worlds</td></tr>
+    <tr><td>Field design study</td><td>Mid August</td><td>Early September</td><td>3 weeks</td><td>Working build, ethics approval</td></tr>
+    <tr><td>Dissertation write up (CA3)</td><td>Late August</td><td>Mid September</td><td>4 weeks</td><td>Study results; overlaps the study tail with a buffer</td></tr>
   </tbody>
 </table>
+<p>The critical path runs through ethics approval into the design study and on into the write up, which is why approval is started in June rather than left late: recruiting participants can take several weeks. The write up begins during the study, on the parts that do not need its results, and a deliberate buffer sits before the final deadline. If approval or participants cannot be secured in time, the project falls back to the simulated persona panel and the offline self refinement and AI measurements above, which need no participants, and the dissertation reports that honestly rather than stalling.</p>
 
 <!-- ===== 11 RISKS ===== -->
 <h2>11. Risks and contingency plans</h2>
-<table class="avoid">
+<table>
   <thead><tr><th style="width:27%">Risk</th><th style="width:40%">Contingency</th><th>Likelihood</th><th>Impact</th></tr></thead>
   <tbody>
     <tr><td>Hardware failure or lost work</td><td>All code is committed to a remote repository on every change; the database is a single file that copies easily.</td><td>Low</td><td>High</td></tr>
-    <tr><td>Local model too weak for some answers</td><td>Grounding keeps answers tied to lesson sources, and the model refuses rather than guesses; a more capable local model can be configured.</td><td>Medium</td><td>Medium</td></tr>
-    <tr><td>Classroom evaluation cannot be arranged in time</td><td>The simulated persona study gives broad coverage as a fallback, and the dissertation reports it honestly as such.</td><td>Medium</td><td>Medium</td></tr>
+    <tr><td>Local model too weak for some suggestions</td><td>Grounding keeps suggestions tied to the robot's specification, and the model refuses rather than guesses; a more capable local model can be configured.</td><td>Medium</td><td>Medium</td></tr>
+    <tr><td>Generated control code is unsafe</td><td>Nothing reaches a real robot unchecked: every program runs first in the sandboxed simulation against the scenario, and grounding plus the code reviewer catch invented or unsafe commands before that.</td><td>Medium</td><td>High</td></tr>
+    <tr><td>Sim to real gap: behaviour that passes in simulation fails on real hardware</td><td>Domain randomization tests each design across varied seeds, and the platform is framed as validation and rehearsal, not a guarantee; the spread is reported, not hidden.</td><td>Medium</td><td>Medium</td></tr>
+    <tr><td>Field study cannot be arranged in time</td><td>The simulated persona panel and the offline self refinement measurements give broad coverage as a fallback, and the dissertation reports it honestly as such.</td><td>Medium</td><td>Medium</td></tr>
+    <tr><td>Ethics approval or participant recruitment is delayed</td><td>Approval is sought in June with lead time built in; if it slips, the project runs the participant free evaluations instead and the write up is not blocked.</td><td>Medium</td><td>Medium</td></tr>
     <tr><td>Running out of time</td><td>The build is kept releasable at every step, so an earlier version is always a valid deliverable.</td><td>Medium</td><td>High</td></tr>
-    <tr><td>Software defects reaching pupils</td><td>A continuous integration gate runs the full test suite, type checker and linter before any change is merged.</td><td>Low</td><td>Medium</td></tr>
+    <tr><td>Software defects reaching users</td><td>A continuous integration gate runs the full test suite, type checker and linter before any change is merged.</td><td>Low</td><td>Medium</td></tr>
   </tbody>
 </table>
 
 <!-- ===== 12 REFERENCES ===== -->
 <h2>12. References</h2>
 <div class="refs">
-  <p>Bloom, B.S. (1984) The 2 sigma problem: the search for methods of group instruction as effective as one to one tutoring. <i>Educational Researcher</i>, 13(6), pp. 4 to 16.</p>
+  <p>Ahn, M., Brohan, A., Brown, N. et al. (2022) Do as I can, not as I say: grounding language in robotic affordances. <i>arXiv:2204.01691</i>.</p>
   <p>Cemri, M., Pan, M.Z., Yang, S. et al. (2025) Why do multi-agent LLM systems fail? <i>arXiv:2503.13657</i>.</p>
-  <p>Du, Y., Li, S., Torralba, A., Tenenbaum, J.B. and Mordatch, I. (2023) Improving factuality and reasoning in language models through multiagent debate. <i>arXiv:2305.14325</i>.</p>
+  <p>Helbing, D. and Molnar, P. (1995) Social force model for pedestrian dynamics. <i>Physical Review E</i>, 51(5), pp. 4282 to 4286.</p>
   <p>Huang, L., Yu, W., Ma, W. et al. (2023) A survey on hallucination in large language models. <i>ACM Transactions on Information Systems</i> (arXiv:2311.05232).</p>
-  <p>Jacobs, S. and Jaschke, S. (2024) Evaluating the application of large language models to generate feedback in programming education. <i>arXiv:2403.09744</i>.</p>
   <p>Lewis, P., Perez, E., Piktus, A. et al. (2020) Retrieval augmented generation for knowledge intensive NLP tasks. <i>Advances in Neural Information Processing Systems</i>, 33.</p>
+  <p>Liang, J., Huang, W., Xia, F. et al. (2023) Code as policies: language model programs for embodied control. <i>IEEE International Conference on Robotics and Automation (ICRA)</i>.</p>
+  <p>Nielsen, J. (1994) Usability engineering. San Francisco: Morgan Kaufmann.</p>
+  <p>Papert, S. (1980) Mindstorms: children, computers, and powerful ideas. New York: Basic Books.</p>
+  <p>Resnick, M., Maloney, J., Monroy-Hernandez, A. et al. (2009) Scratch: programming for all. <i>Communications of the ACM</i>, 52(11), pp. 60 to 67.</p>
   <p>Shinn, N., Cassano, F., Berman, E. et al. (2023) Reflexion: language agents with verbal reinforcement learning. <i>arXiv:2303.11366</i>.</p>
+  <p>Sweller, J. (1988) Cognitive load during problem solving: effects on learning. <i>Cognitive Science</i>, 12(2), pp. 257 to 285.</p>
   <p>Tao, Z., Lin, T.E., Chen, X. et al. (2024) A survey on self evolution of large language models. <i>arXiv:2404.14387</i>.</p>
-  <p>VanLehn, K. (2011) The relative effectiveness of human tutoring, intelligent tutoring systems, and other tutoring systems. <i>Educational Psychologist</i>, 46(4), pp. 197 to 221.</p>
+  <p>Tobin, J., Fong, R., Ray, A. et al. (2017) Domain randomization for transferring deep neural networks from simulation to the real world. <i>IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)</i>, pp. 23 to 30.</p>
+  <p>van den Berg, J., Lin, M. and Manocha, D. (2008) Reciprocal velocity obstacles for real-time multi-agent navigation. <i>IEEE International Conference on Robotics and Automation (ICRA)</i>, pp. 1928 to 1935.</p>
+  <p>Wang, G., Xie, Y., Jiang, Y. et al. (2023) Voyager: an open-ended embodied agent with large language models. <i>arXiv:2305.16291</i>.</p>
   <p>Weintrop, D. and Wilensky, U. (2017) Comparing block based and text based programming in high school computer science classrooms. <i>ACM Transactions on Computing Education</i>, 18(1), Article 3.</p>
-  <p>Wu, Q., Bansal, G., Zhang, J. et al. (2023) AutoGen: enabling next-gen LLM applications via multi-agent conversation. <i>arXiv:2308.08155</i>.</p>
 </div>
+<!-- ===== APPENDIX A ===== -->
+<h2>Appendix A. Persona generation and rating scale</h2>
+<p>This appendix records the method behind the usability figures so the simulated panel can be reproduced rather than taken on faith. Each round generates a set of personas from the instruction below, then runs each one against the current build.</p>
+<p style="font-family:'Consolas','Courier New',monospace; font-size:8.8pt; line-height:1.4; background:var(--soft); border-left:3px solid #000; padding:9pt 11pt; white-space:pre-wrap; text-indent:0;">Generate a distinct user persona for an offline tool where a maker designs a robot, programs it, and validates it in a simulated world. Vary the persona across four dimensions so the set as a whole spans real use:
+  background: complete beginner, hobbyist maker, student, mentor or teacher, or accessibility focused user;
+  experience: from never having wired a board to years of tinkering;
+  access need: dyslexia, low vision, motor difficulty, English as an additional language, or colour blindness;
+  device: an old offline laptop, a shared machine on a locked network, or a tablet.
+Give the persona one realistic goal for a single session. Walk that session, then return a mark out of ten and the concrete defects that held it back.</p>
+<p>The mark uses a fixed scale so scores mean the same thing across rounds: <b>1 to 4</b>, the tool failed this person and they could not reach their goal; <b>5 to 7</b>, it served them but with real gaps they named; <b>8 to 10</b>, it served them well with only minor friction. The score for a round is the mean of its personas, and the named defects feed the next round of fixes. The prompt and these bands are kept in the project so a later reader can regenerate the panel and check the result.</p>
 <p class="disc">Generative artificial intelligence assisted the development of the software and the drafting of this document, which is acknowledged in line with University guidance. All technical claims describe the working system, the evaluation figures are reported as measured, and the references were checked at the time of writing.</p>
 
 </body>
