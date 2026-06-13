@@ -332,6 +332,11 @@ rover.say("Survey done")`
     // --- AI vibe coding (local Ollama: Qwen/Gemma; graceful when absent) ---
     const [aiInfo, setAiInfo] = useState({ available: false, model: null });
     const [vibeOpen, setVibeOpen] = useState(false);
+    // Second-agent code review (propose-then-critique on the local model).
+    const [reviewOpen, setReviewOpen] = useState(false);
+    const [reviewBusy, setReviewBusy] = useState(false);
+    const [reviewData, setReviewData] = useState(null);
+    const [reviewErr, setReviewErr] = useState(null);
     const [vibePrompt, setVibePrompt] = useState('');
     const [vibeBusy, setVibeBusy] = useState(false);
     const [vibeError, setVibeError] = useState(null);
@@ -399,6 +404,27 @@ rover.say("Survey done")`
       setVibeOpen(false);
       addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
       typewriteCode(code);
+    }
+
+    async function runReview() {
+      if (reviewBusy) return;
+      const src = (code || '').trim();
+      if (!src) { setReviewErr('Write some code first, then ask for a review.'); setReviewOpen(true); return; }
+      setReviewOpen(true); setReviewBusy(true); setReviewErr(null); setReviewData(null);
+      try {
+        const r = await window.RoboLearn.aiReviewCode(src, currentLessonId || null);
+        if (r && r.ok) setReviewData(r);
+        else setReviewErr((r && r.reason) || 'Review unavailable.');
+      } catch (e) { setReviewErr(String(e)); }
+      setReviewBusy(false);
+    }
+
+    function applyReview() {
+      if (reviewData && reviewData.revised && reviewData.code) {
+        setReviewOpen(false);
+        addConsole('Reviewer (' + (reviewData.model || aiInfo.model) + ') tidied your code. Read it, then press Run.', 'sys');
+        typewriteCode(reviewData.code);
+      }
     }
 
     async function vibeMic() {
@@ -1201,6 +1227,7 @@ rover.say("Survey done")`
                 )}
                 <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>✨ Vibe</button>
                 <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>🧩 Blocks</button>
+                <button className="btn-mini" title="A second AI agent reviews your code" onClick={runReview}>🔎 Review</button>
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
               <div className="api-hint">
@@ -1334,6 +1361,43 @@ rover.say("Survey done")`
           <window.TweakSection label="Path trace" />
           <window.TweakRadio label="Trail color" value={t.trail} options={['terrain', 'cyan', 'amber']} onChange={v => setTweak('trail', v)} />
         </window.TweaksPanel>
+
+        {reviewOpen && (
+          <div className="modal-backdrop" onClick={() => !reviewBusy && setReviewOpen(false)}>
+            <div className="modal" role="dialog" aria-modal="true" aria-label="AI code review" onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <span className="eyebrow">🔎 Code review — a second AI agent checks your work</span>
+                <button className="btn-mini" aria-label="Close" onClick={() => setReviewOpen(false)}>✕</button>
+              </div>
+              <div className="review-body">
+                {reviewBusy && <p className="vibe-status">A reviewer agent is reading your code on this machine…</p>}
+                {reviewErr && <p className="vibe-error" role="alert">{reviewErr}</p>}
+                {reviewData && !reviewBusy && (
+                  <div>
+                    <p className="vibe-status">Reviewer: <b>{reviewData.model}</b> · runs entirely offline.</p>
+                    {reviewData.issues && reviewData.issues.length > 0 ? (
+                      <ul className="review-issues">
+                        {reviewData.issues.map((it, i) => <li key={i}>{it}</li>)}
+                      </ul>
+                    ) : (
+                      <p className="review-clean">No problems spotted. Nice work.</p>
+                    )}
+                    {reviewData.revised && reviewData.code && (
+                      <div className="review-rewrite">
+                        <span className="eyebrow">Suggested rewrite (checked to run safely)</span>
+                        <pre className="vibe-code">{reviewData.code}</pre>
+                        <div className="vibe-code-actions">
+                          <button className="ctrl ctrl-run" onClick={applyReview}>✓ Apply to editor</button>
+                          <button className="btn-mini" onClick={() => setReviewOpen(false)}>Keep mine</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {vibeOpen && (
           <div className="modal-backdrop" onClick={() => !vibeBusy && setVibeOpen(false)}>

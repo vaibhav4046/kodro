@@ -3636,6 +3636,11 @@ rover.say("Survey done")`
       model: null
     });
     const [vibeOpen, setVibeOpen] = useState(false);
+    // Second-agent code review (propose-then-critique on the local model).
+    const [reviewOpen, setReviewOpen] = useState(false);
+    const [reviewBusy, setReviewBusy] = useState(false);
+    const [reviewData, setReviewData] = useState(null);
+    const [reviewErr, setReviewErr] = useState(null);
     const [vibePrompt, setVibePrompt] = useState('');
     const [vibeBusy, setVibeBusy] = useState(false);
     const [vibeError, setVibeError] = useState(null);
@@ -3750,6 +3755,33 @@ rover.say("Survey done")`
       setVibeOpen(false);
       addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
       typewriteCode(code);
+    }
+    async function runReview() {
+      if (reviewBusy) return;
+      const src = (code || '').trim();
+      if (!src) {
+        setReviewErr('Write some code first, then ask for a review.');
+        setReviewOpen(true);
+        return;
+      }
+      setReviewOpen(true);
+      setReviewBusy(true);
+      setReviewErr(null);
+      setReviewData(null);
+      try {
+        const r = await window.RoboLearn.aiReviewCode(src, currentLessonId || null);
+        if (r && r.ok) setReviewData(r);else setReviewErr(r && r.reason || 'Review unavailable.');
+      } catch (e) {
+        setReviewErr(String(e));
+      }
+      setReviewBusy(false);
+    }
+    function applyReview() {
+      if (reviewData && reviewData.revised && reviewData.code) {
+        setReviewOpen(false);
+        addConsole('Reviewer (' + (reviewData.model || aiInfo.model) + ') tidied your code. Read it, then press Run.', 'sys');
+        typewriteCode(reviewData.code);
+      }
     }
     async function vibeMic() {
       if (micBusy) return;
@@ -5003,7 +5035,11 @@ rover.say("Survey done")`
       className: "btn-mini",
       title: "Build the program from blocks",
       onClick: () => setBlocksOpen(true)
-    }, "\uD83E\uDDE9 Blocks")), /*#__PURE__*/React.createElement(window.Editor, {
+    }, "\uD83E\uDDE9 Blocks"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      title: "A second AI agent reviews your code",
+      onClick: runReview
+    }, "\uD83D\uDD0E Review")), /*#__PURE__*/React.createElement(window.Editor, {
       code: code,
       onChange: onCodeChange,
       activeLine: activeLine,
@@ -5262,7 +5298,53 @@ rover.say("Survey done")`
       value: t.trail,
       options: ['terrain', 'cyan', 'amber'],
       onChange: v => setTweak('trail', v)
-    })), vibeOpen && /*#__PURE__*/React.createElement("div", {
+    })), reviewOpen && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => !reviewBusy && setReviewOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "AI code review",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83D\uDD0E Code review \u2014 a second AI agent checks your work"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setReviewOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "review-body"
+    }, reviewBusy && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "A reviewer agent is reading your code on this machine\u2026"), reviewErr && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, reviewErr), reviewData && !reviewBusy && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Reviewer: ", /*#__PURE__*/React.createElement("b", null, reviewData.model), " \xB7 runs entirely offline."), reviewData.issues && reviewData.issues.length > 0 ? /*#__PURE__*/React.createElement("ul", {
+      className: "review-issues"
+    }, reviewData.issues.map((it, i) => /*#__PURE__*/React.createElement("li", {
+      key: i
+    }, it))) : /*#__PURE__*/React.createElement("p", {
+      className: "review-clean"
+    }, "No problems spotted. Nice work."), reviewData.revised && reviewData.code && /*#__PURE__*/React.createElement("div", {
+      className: "review-rewrite"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "Suggested rewrite (checked to run safely)"), /*#__PURE__*/React.createElement("pre", {
+      className: "vibe-code"
+    }, reviewData.code), /*#__PURE__*/React.createElement("div", {
+      className: "vibe-code-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      onClick: applyReview
+    }, "\u2713 Apply to editor"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => setReviewOpen(false)
+    }, "Keep mine"))))))), vibeOpen && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => !vibeBusy && setVibeOpen(false)
     }, /*#__PURE__*/React.createElement("div", {
