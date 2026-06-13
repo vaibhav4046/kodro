@@ -8,7 +8,7 @@ curriculum_refs:
 prereqs: []
 terrain: earth
 intro: |
-  Welcome to RoboLearn. Your first job is to give the rover three
+  Welcome to Kodro. Your first job is to give the rover three
   instructions in order: drive forward, beep, and write a short message to
   the console. Read each line of code from top to bottom -- the rover
   performs them one after another. This is called a "sequence".
