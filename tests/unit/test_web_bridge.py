@@ -120,6 +120,23 @@ def test_submit_attempt_grades_and_persists(api: BridgeAPI) -> None:
     assert json.loads(json.dumps(result))["lessonId"] == target_id
 
 
+def test_get_class_heatmap_reflects_graded_submissions(api: BridgeAPI) -> None:
+    """The teacher heatmap is now reachable from the web app and updates as
+    pupils submit (previously Tk-only)."""
+    empty = api.get_class_heatmap()
+    assert empty["ok"] is True
+    assert isinstance(empty["concepts"], list)
+    assert isinstance(empty["pupils"], list)
+    # Grade one lesson, then the active pupil should have at least one concept.
+    lessons = api.list_lessons()
+    api.submit_attempt(lessons[0]["id"], lessons[0]["starterCode"], None)
+    heat = api.get_class_heatmap()
+    me = next((p for p in heat["pupils"] if p["id"] == api._pupil_id), None)  # type: ignore[attr-defined]
+    assert me is not None
+    assert me["scores"], "a graded submission must populate the class heatmap"
+    assert heat["concepts"], "the heatmap must list the concepts touched"
+
+
 def test_submit_attempt_drives_the_learner_model(api: BridgeAPI) -> None:
     """The web path (not only the Tk app) updates concept strength, unlocks
     achievements, and returns the adaptive next-lesson pick."""

@@ -34,7 +34,11 @@ from robolearn.lessons.schema import Lesson, load_library
 from robolearn.memory.achievements import PupilContext, check_and_unlock
 from robolearn.memory.hint_engine import HintContext
 from robolearn.memory.hint_learning import best_hint
-from robolearn.memory.pupil_model import suggest_next_lesson, update_on_submission
+from robolearn.memory.pupil_model import (
+    class_heatmap,
+    suggest_next_lesson,
+    update_on_submission,
+)
 from robolearn.memory.store import Store
 from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
@@ -127,6 +131,27 @@ class BridgeAPI:
             "id": self._pupil_id,
             "displayName": pupil.display_name if pupil else "Pupil",
         }
+
+    def get_class_heatmap(self) -> dict[str, Any]:
+        """Return the class concept-strength heatmap for the teacher view.
+
+        Brings the teacher dashboard, previously only in the legacy shell,
+        into the shipped web app: every pupil on this machine, every concept
+        they have touched, and the rolling strength score (0 to 1) for each.
+        Fully local; the data never leaves the machine.
+        """
+        heat = class_heatmap(self._store)
+        concepts = sorted({c for row in heat.values() for c in row})
+        rows = [
+            {
+                "id": p.id,
+                "name": p.display_name,
+                "active": p.id == self._pupil_id,
+                "scores": heat.get(p.id, {}),
+            }
+            for p in self._store.list_pupils()
+        ]
+        return {"ok": True, "concepts": concepts, "pupils": rows}
 
     # --- multi-pupil (shared-machine identity) ----------------------------
 
@@ -962,13 +987,18 @@ class BridgeAPI:
         result["done"] = True
         return result
 
-    def speak(self, text: str, voice: str = "female") -> dict[str, Any]:
-        """Speak ``text`` aloud with the OS's offline TTS voice (fire-and-forget)."""
-        snippet = (text or "").strip()[:200]
+    def speak(self, text: str, voice: str = "female", rate: int = 0) -> dict[str, Any]:
+        """Speak ``text`` aloud with the OS's offline TTS voice (fire-and-forget).
+
+        ``rate`` is the SAPI speaking rate (-10 slowest to 10 fastest); the
+        read-aloud control passes a slightly slower rate so a lesson intro is
+        easier to follow. The cap is generous enough for a lesson paragraph.
+        """
+        snippet = (text or "").strip()[:600]
         if not snippet:
             return {"ok": False, "reason": "nothing to say"}
         try:
-            _speak_async(snippet, voice=voice)
+            _speak_async(snippet, voice=voice, rate=int(rate))
             return {"ok": True}
         except Exception as exc:  # pragma: no cover - depends on host TTS
             return {"ok": False, "reason": str(exc)}
@@ -1217,13 +1247,15 @@ def _ensure_entrypoint(code: str) -> str:
     return code
 
 
-def _speak_async(text: str, voice: str = "female") -> None:
+def _speak_async(text: str, voice: str = "female", rate: int = 0) -> None:
     """Speak ``text`` with the OS's built-in offline TTS, without blocking.
 
     On Windows this uses SAPI through PowerShell (no extra dependency, fully
     offline). Elsewhere it is a silent no-op -- voice is a Windows-app perk;
     the simulator itself never depends on it. ``voice`` selects the gender
-    hint ("female" default -- e.g. Microsoft Zira -- or "male").
+    hint ("female" default -- e.g. Microsoft Zira -- or "male"); ``rate`` is
+    the SAPI speaking rate from -10 (slowest) to 10 (fastest), which matters
+    for younger and English-as-an-additional-language readers.
     """
     # Read through a variable so mypy (which narrows sys.platform per-OS and
     # runs on Linux/macOS in CI) doesn't mark the Windows body unreachable.
@@ -1235,14 +1267,16 @@ def _speak_async(text: str, voice: str = "female") -> None:
 
     # SAPI rejects no markup here; text is passed as a single argument to
     # PowerShell -EncodedCommand-free form with quoting hardened by replacing
-    # quotes (the snippet is <=200 chars of pupil say() text).
+    # quotes (the snippet is a short slice of lesson or say() text).
     safe = text.replace("'", " ").replace('"', " ")
     gender = "Male" if str(voice).lower().startswith("m") else "Female"
+    safe_rate = max(-10, min(10, int(rate)))
     script = (
         "Add-Type -AssemblyName System.Speech; "
         "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
         "try { $s.SelectVoiceByHints([System.Speech.Synthesis.VoiceGender]::"
         f"{gender}) }} catch {{}}; "
+        f"$s.Rate = {safe_rate}; "
         f"$s.Speak('{safe}')"
     )
 
