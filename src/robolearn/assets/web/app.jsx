@@ -340,6 +340,11 @@ rover.say("Survey done")`
     // Teacher dashboard: class concept-strength heatmap (now in the web app).
     const [teacherOpen, setTeacherOpen] = useState(false);
     const [teacherData, setTeacherData] = useState(null);
+    // Grounded Ask: answers from the lesson material, offline retrieval.
+    const [askOpen, setAskOpen] = useState(false);
+    const [askQuery, setAskQuery] = useState('');
+    const [askBusy, setAskBusy] = useState(false);
+    const [askData, setAskData] = useState(null);
     const [vibePrompt, setVibePrompt] = useState('');
     const [vibeBusy, setVibeBusy] = useState(false);
     const [vibeError, setVibeError] = useState(null);
@@ -428,6 +433,34 @@ rover.say("Survey done")`
         addConsole('Reviewer (' + (reviewData.model || aiInfo.model) + ') tidied your code. Read it, then press Run.', 'sys');
         typewriteCode(reviewData.code);
       }
+    }
+
+    const [voiceBusy, setVoiceBusy] = useState(false);
+    async function runVoiceCommand() {
+      if (voiceBusy) return;
+      setVoiceBusy(true);
+      addConsole('Listening… say a command like "go forward three" or "turn left ninety".', 'sys');
+      try {
+        const r = await window.RoboLearn.voiceCommand(6);
+        if (r && r.ok && r.code) {
+          setCode(c => (c && !c.endsWith('\n') ? c + '\n' : c) + r.code + '\n');
+          addConsole('Heard "' + r.text + '" → added ' + r.code, 'ok');
+        } else {
+          addConsole((r && r.reason) || 'Voice command not understood.', 'err');
+        }
+      } catch (e) { addConsole('Voice: ' + e, 'err'); }
+      setVoiceBusy(false);
+    }
+
+    async function runAsk() {
+      const q = (askQuery || '').trim();
+      if (!q || askBusy) return;
+      setAskBusy(true); setAskData(null);
+      try {
+        const r = await window.RoboLearn.aiAsk(q);
+        setAskData(r || { ok: false, reason: 'No response.' });
+      } catch (e) { setAskData({ ok: false, reason: String(e) }); }
+      setAskBusy(false);
     }
 
     async function openTeacher() {
@@ -1267,6 +1300,8 @@ rover.say("Survey done")`
                 <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>✨ Vibe</button>
                 <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>🧩 Blocks</button>
                 <button className="btn-mini" title="A second AI agent reviews your code" onClick={runReview}>🔎 Review</button>
+                <button className="btn-mini" title="Ask a question, answered from the lesson material" onClick={() => { setAskOpen(true); setAskData(null); }}>❓ Ask</button>
+                <button className="btn-mini" title="Speak a command — works offline, no AI model needed" disabled={voiceBusy} onClick={runVoiceCommand}>{voiceBusy ? '🎙…' : '🎙 Voice'}</button>
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
               <div className="api-hint">
@@ -1411,6 +1446,42 @@ rover.say("Survey done")`
           <window.TweakSection label="Path trace" />
           <window.TweakRadio label="Trail color" value={t.trail} options={['terrain', 'cyan', 'amber']} onChange={v => setTweak('trail', v)} />
         </window.TweaksPanel>
+
+        {askOpen && (
+          <div className="modal-backdrop" onClick={() => !askBusy && setAskOpen(false)}>
+            <div className="modal" role="dialog" aria-modal="true" aria-label="Ask a question" onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <span className="eyebrow">❓ Ask — answered from the lesson material, not made up</span>
+                <button className="btn-mini" aria-label="Close" onClick={() => setAskOpen(false)}>✕</button>
+              </div>
+              <div className="ask-body">
+                <div className="build-input">
+                  <label className="grow"><span>Your question</span>
+                    <input type="text" value={askQuery} placeholder='e.g. how do I check for a wall?'
+                      onChange={e => setAskQuery(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') runAsk(); }} autoFocus />
+                  </label>
+                  <button className="ctrl ctrl-run" disabled={askBusy || !askQuery.trim()} onClick={runAsk}>{askBusy ? 'Looking…' : 'Ask'}</button>
+                </div>
+                {askData && askData.ok === false && <p className="vibe-error" role="alert">{askData.reason}</p>}
+                {askData && askData.ok && (
+                  <div className="ask-answer">
+                    <p className="ask-text">{askData.answer}</p>
+                    {askData.sources && askData.sources.length > 0 && (
+                      <div className="ask-sources">
+                        <span className="eyebrow">From the lessons</span>
+                        {askData.sources.map((s, i) => (
+                          <div key={i} className="ask-src"><b>[{i + 1}] {s.source}</b><span>{s.text}</span></div>
+                        ))}
+                      </div>
+                    )}
+                    {askData.noModel && <p className="build-note">Start a local model (Ollama) for a written answer; the lesson material above is shown offline.</p>}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {teacherOpen && (
           <div className="modal-backdrop" onClick={() => setTeacherOpen(false)}>
