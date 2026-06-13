@@ -50,3 +50,7 @@ desktop.ini
 
 # PyInstaller artefacts
 *.spec.bak
+
+# Scratch eval scripts / persona dumps (not part of the project)
+docs/ca1/_*.js
+docs/ca1/_*.json
