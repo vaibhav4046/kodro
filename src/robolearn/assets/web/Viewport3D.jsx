@@ -174,11 +174,12 @@
       rov.add(body); rov.add(nose); rov.add(arrow);
       const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.3, 12);
       const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111317, roughness: 0.9 });
+      const wheels = [];
       [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
         const wheel = new THREE.Mesh(wheelGeo, wheelMat);
         wheel.rotation.x = Math.PI / 2;
         wheel.position.set(sx * 0.9, 0.45, sz * 0.85);
-        wheel.castShadow = true; rov.add(wheel);
+        wheel.castShadow = true; rov.add(wheel); wheels.push(wheel);
       });
       scene.add(rov);
 
@@ -197,12 +198,34 @@
       let curHeading = 0;
       const camPos = new THREE.Vector3(0, 20, 30);
 
-      // Third-person orbit controlled by drag + wheel.
+      // Third-person orbit: drag to rotate, wheel or two-finger pinch to zoom,
+      // so it works on a tablet or Chromebook as well as a mouse.
       let azim = 2.4, elev = 0.62, dist = 26, dragging = false, lx = 0, ly = 0;
       const dom = renderer.domElement;
-      const onDown = (e) => { dragging = true; lx = e.clientX; ly = e.clientY; };
-      const onUp = () => { dragging = false; };
+      const ptrs = new Map();
+      let pinch = 0;
+      const pinchGap = () => {
+        const v = [...ptrs.values()];
+        return v.length < 2 ? 0 : Math.hypot(v[0].x - v[1].x, v[0].y - v[1].y);
+      };
+      const onDown = (e) => {
+        ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (ptrs.size === 1) { dragging = true; lx = e.clientX; ly = e.clientY; }
+        else { dragging = false; pinch = pinchGap(); }
+      };
+      const onUp = (e) => {
+        ptrs.delete(e.pointerId);
+        if (ptrs.size < 2) pinch = 0;
+        if (ptrs.size === 0) dragging = false;
+      };
       const onMove = (e) => {
+        if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (ptrs.size >= 2) {
+          const g = pinchGap();
+          if (pinch) dist = Math.max(8, Math.min(80, dist + (pinch - g) * 0.05));
+          pinch = g;
+          return;
+        }
         if (!dragging) return;
         azim -= (e.clientX - lx) * 0.008;
         elev = Math.max(0.12, Math.min(1.45, elev - (e.clientY - ly) * 0.006));
@@ -243,17 +266,32 @@
         if (d < -Math.PI) d += Math.PI * 2;
         return a + d * t;
       };
+      // Auto-quality: if the first couple of seconds run slow on a weak GPU,
+      // drop shadows and the pixel ratio once so the view stays usable.
+      let frames = 0, slow = 0, downgraded = false, last = (window.performance && window.performance.now) ? window.performance.now() : 0;
       const tick = () => {
         if (disposed) return;
+        const now = (window.performance && window.performance.now) ? window.performance.now() : last + 16;
+        const dt = now - last; last = now;
+        if (!downgraded && ++frames > 12) {
+          if (dt > 40) slow++; else slow = Math.max(0, slow - 1);
+          if (slow > 30) {
+            renderer.shadowMap.enabled = false; sun.castShadow = false;
+            renderer.setPixelRatio(1); downgraded = true;
+          }
+        }
         const s = stateRef.current;
         const tx = s.x * SCALE, tz = -s.y * SCALE;
         const tr = (s.heading || 0) * Math.PI / 180;
+        const px0 = cur.x, pz0 = cur.z;
         // Glide the rover toward the live state instead of snapping to it.
         cur.x += (tx - cur.x) * posLerp;
         cur.z += (tz - cur.z) * posLerp;
         curHeading = angLerp(curHeading, tr, posLerp);
         rov.position.set(cur.x, 0, cur.z);
         rov.rotation.y = curHeading;
+        const moved = Math.hypot(cur.x - px0, cur.z - pz0);
+        if (moved > 0.001) wheels.forEach((wh) => wh.rotateY(moved * 1.6));
         const fwd = tmp.set(Math.cos(curHeading), 0, -Math.sin(curHeading));
 
         // Grow the trail when the rover has actually moved.
