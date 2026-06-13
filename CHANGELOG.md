@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Self-improving hints (offline)** — the rule engine now learns, from local
+  outcomes, which hint actually unblocks a pupil. A `hint_stats` table records
+  shown vs helped per rule; `memory.hint_learning` ranks matching hints by a
+  Laplace-smoothed success rate (author order as the stable tie-break, so a
+  fresh install behaves like the old first-match engine). Weight-frozen,
+  honest self-improvement: no model, no cloud.
+- **Second-agent code review (local AI)** — a "🔎 Review" button runs a
+  propose-then-critique reviewer on the local model: it critiques the pupil's
+  code against the lesson goal and the full rover interface, returns up to
+  three concrete issues, and offers a rewrite that is accepted only after it
+  passes the same sandbox the Run button uses.
+- **Technical and evaluation report** — `docs/ca1/` gains a seven-page report
+  (HTML + PDF) covering the AI layer and a fifty-persona simulated evaluation
+  with browser-verified references.
 - **Budget Robot Builder (local AI)** — a "🤖" nav-bar tool: type a budget
   (and an optional goal) and a **local** Ollama model returns a real-hardware
   rover guide — a tiered parts list with costs, numbered build steps, and a
@@ -63,6 +77,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dodge ~25 obstacles in the interpreter.
 
 ### Fixed
+- **Learner model was inert in the shipped web app** — a 50-persona evaluation
+  found concept-strength updates, achievements and the next-lesson recommender
+  were wired only into the legacy Tk shell, so the heatmap never moved for
+  pupils on the packaged app. `submit_attempt` now calls `update_on_submission`,
+  `check_and_unlock` and `suggest_next_lesson` and returns achievements + the
+  recommendation, which the React console surfaces.
+- **Rover rendered on the wrong world** — `loadLesson` now sets the viewport to
+  `lesson.terrain`, so the rover is shown on the same world it is graded on.
 - **Nested `if/else` was broken in the interpreter** (real correctness bug):
   an `if` node carries `.branches`, not `.body`, so the conditional-linking
   pass skipped recursion into `if` bodies — a nested `else` survived to
