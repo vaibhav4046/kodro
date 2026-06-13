@@ -452,14 +452,92 @@
     return <div style={{ ...base, left: cx - d.r / 3, top: cy - d.r / 3, width: d.r * 0.6, height: d.r * 0.5, borderRadius: '50%', background: 'radial-gradient(circle at 38% 30%, #84868f, #4a4c54)' }}></div>;
   }
 
+  // ----------------------------------------------------------------------
+  // Real-world Earth landscape: farmland patchwork, forests, roads and a
+  // meandering river painted across the ground square. Purely decorative --
+  // none of it collides; it just makes the base Earth read like a map you
+  // could fly over. Only the temperate base Earth gets it (not the Sahara,
+  // Amazon or Antarctica sites, where farmland and rivers would be wrong).
+  // ----------------------------------------------------------------------
+  const FIELD_FILL = [
+    '#6f8f4e', '#7ba055', '#c9b067', '#8a6b46', '#9bbf6a', '#93925a', '#5f8048', '#b6a85e',
+  ];
+  function EarthFeatures() {
+    const { fields, forests } = useMemo(() => {
+      const r = rng(404);
+      const fl = [];
+      let guard = 0;
+      while (fl.length < 30 && guard++ < 600) {
+        const w = 220 + r() * 320, h = 200 + r() * 300;
+        const x = r() * (GROUND - w), y = r() * (GROUND - h);
+        // leave the rover's start clearing (centre) free of hard patches
+        if (Math.abs(x + w / 2 - GROUND / 2) < 260 && Math.abs(y + h / 2 - GROUND / 2) < 260) continue;
+        fl.push({ x, y, w, h, c: FIELD_FILL[(r() * FIELD_FILL.length) | 0], rot: (r() - 0.5) * 8, row: 20 + r() * 120 });
+      }
+      const fo = [];
+      for (let i = 0; i < 8; i++) {
+        const cx = 200 + r() * (GROUND - 400), cy = 200 + r() * (GROUND - 400);
+        const trees = [];
+        const n = 12 + ((r() * 10) | 0);
+        for (let t = 0; t < n; t++) {
+          const a = r() * Math.PI * 2, d = r() * (90 + r() * 80);
+          trees.push({ x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, s: 13 + r() * 18, v: r() });
+        }
+        fo.push(trees);
+      }
+      return { fields: fl, forests: fo };
+    }, []);
+
+    return (
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: 8, overflow: 'hidden' }}>
+        {/* farmland patchwork */}
+        {fields.map((f, i) => (
+          <div key={'f' + i} style={{
+            position: 'absolute', left: f.x, top: f.y, width: f.w, height: f.h,
+            background: f.c, opacity: 0.74, transform: `rotate(${f.rot}deg)`,
+            backgroundImage: `repeating-linear-gradient(90deg, rgba(0,0,0,0.14) 0 2px, transparent 2px ${f.row}px)`,
+            outline: '2.5px solid rgba(40,56,30,0.55)', outlineOffset: -1, borderRadius: 3,
+          }}></div>
+        ))}
+        {/* river + roads */}
+        <svg viewBox={`0 0 ${GROUND} ${GROUND}`} width={GROUND} height={GROUND} style={{ position: 'absolute', inset: 0 }}>
+          <path d="M 300 -60 C 760 560, 240 1120, 880 1640 S 1500 2680, 1180 3460" fill="none"
+            stroke="#2f6ea6" strokeWidth="48" strokeLinecap="round" opacity="0.92" />
+          <path d="M 300 -60 C 760 560, 240 1120, 880 1640 S 1500 2680, 1180 3460" fill="none"
+            stroke="#8fc3e6" strokeWidth="16" strokeLinecap="round" opacity="0.7" />
+          <path d="M -60 1180 Q 1700 940 3460 1340" fill="none" stroke="#cabd96" strokeWidth="22" opacity="0.9" />
+          <path d="M 2240 -60 Q 1960 1700 2480 3460" fill="none" stroke="#cabd96" strokeWidth="20" opacity="0.85" />
+          <path d="M -60 1180 Q 1700 940 3460 1340" fill="none" stroke="#f0dc8e" strokeWidth="3" strokeDasharray="18 22" opacity="0.85" />
+          <path d="M 2240 -60 Q 1960 1700 2480 3460" fill="none" stroke="#f0dc8e" strokeWidth="3" strokeDasharray="18 22" opacity="0.8" />
+        </svg>
+        {/* forests (drawn last so canopies sit above fields and roads) */}
+        {forests.map((trees, i) => (
+          <div key={'fo' + i}>
+            {trees.map((t, j) => (
+              <div key={j} style={{
+                position: 'absolute', left: t.x - t.s / 2, top: t.y - t.s / 2, width: t.s, height: t.s,
+                borderRadius: '50%', boxShadow: '1px 2px 3px rgba(0,0,0,0.4)',
+                background: t.v < 0.5
+                  ? 'radial-gradient(circle at 38% 30%, #4e7a3e, #1f3a18)'
+                  : 'radial-gradient(circle at 38% 30%, #5f9148, #244a1c)',
+              }}></div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   function TerrainGround({ terrain, children, showGrid }) {
     const g = terrain.groundBg || groundBg(terrain.id);
+    const isEarth = terrain.id === 'earth';
     return (
       <div className="ground" style={{
         position: 'absolute', left: -GROUND / 2, top: -GROUND / 2, width: GROUND, height: GROUND,
         background: g.background, borderRadius: 8
       }}>
         <div style={{ position: 'absolute', inset: 0, backgroundImage: g.texture, backgroundSize: g.texSize, opacity: 0.6, borderRadius: 8 }}></div>
+        {isEarth ? <EarthFeatures /> : null}
         {showGrid !== false ? <div className="ground-grid"></div> : null}
         {/* arena boundary */}
         <div style={{
