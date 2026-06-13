@@ -482,6 +482,11 @@ rover.say("Survey done")`
       { k: 'led', label: 'LED cyan', code: () => 'led("cyan")', color: 'var(--brass)' },
       { k: 'scan', label: 'scan', code: () => 'scan()', color: 'var(--success)' },
       { k: 'collect', label: 'collect sample', code: () => 'collect_sample()', color: 'var(--success)' },
+      { k: 'drop', label: 'drop sample', code: () => 'drop_sample()', color: 'var(--success)' },
+      { k: 'speed', label: 'set speed', unit: '%', val: 60, code: v => 'set_speed(' + v + ')', color: 'var(--cyan)' },
+      { k: 'wait', label: 'wait', unit: 's', val: 1, code: v => 'wait(' + v + ')', color: 'var(--cyan)' },
+      { k: 'pendown', label: 'pen down', code: () => 'pen_down()', color: 'var(--brass)' },
+      { k: 'penup', label: 'pen up', code: () => 'pen_up()', color: 'var(--brass)' },
       { k: 'repeat', label: 'repeat', unit: '×', val: 4, container: true, code: v => 'for i in range(' + v + '):', color: 'var(--mars)' },
       { k: 'ifobs', label: 'if obstacle ahead', container: true, code: () => 'if obstacle_ahead():', color: 'var(--mars)' },
     ];
@@ -1578,7 +1583,7 @@ rover.say("Survey done")`
                     <span>{b.label}</span>
                     {b.val !== undefined && (
                       <input
-                        type="number" className="block-num" value={b.val} min={1} max={b.unit === '°' ? 360 : 20}
+                        type="number" className="block-num" value={b.val} min={b.unit === '%' ? 0 : 1} max={b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20}
                         aria-label={b.label + ' amount'}
                         onChange={e => { const v = Number(e.target.value) || 1; setBlocks(bs => bs.map((x, j) => j === i ? { ...x, val: v } : x)); }}
                       />

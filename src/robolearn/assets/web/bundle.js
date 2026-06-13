@@ -3906,6 +3906,35 @@ rover.say("Survey done")`
       code: () => 'collect_sample()',
       color: 'var(--success)'
     }, {
+      k: 'drop',
+      label: 'drop sample',
+      code: () => 'drop_sample()',
+      color: 'var(--success)'
+    }, {
+      k: 'speed',
+      label: 'set speed',
+      unit: '%',
+      val: 60,
+      code: v => 'set_speed(' + v + ')',
+      color: 'var(--cyan)'
+    }, {
+      k: 'wait',
+      label: 'wait',
+      unit: 's',
+      val: 1,
+      code: v => 'wait(' + v + ')',
+      color: 'var(--cyan)'
+    }, {
+      k: 'pendown',
+      label: 'pen down',
+      code: () => 'pen_down()',
+      color: 'var(--brass)'
+    }, {
+      k: 'penup',
+      label: 'pen up',
+      code: () => 'pen_up()',
+      color: 'var(--brass)'
+    }, {
       k: 'repeat',
       label: 'repeat',
       unit: '×',
@@ -5600,8 +5629,8 @@ rover.say("Survey done")`
       type: "number",
       className: "block-num",
       value: b.val,
-      min: 1,
-      max: b.unit === '°' ? 360 : 20,
+      min: b.unit === '%' ? 0 : 1,
+      max: b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20,
       "aria-label": b.label + ' amount',
       onChange: e => {
         const v = Number(e.target.value) || 1;
