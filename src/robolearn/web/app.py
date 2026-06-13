@@ -679,6 +679,34 @@ class BridgeAPI:
             "revised": review.revised,
         }
 
+    def swarm_run(self, source: str, lesson_id: str | None = None, n: int = 5) -> dict[str, Any]:
+        """Run the pupil's program on a fleet of rovers, an offline swarm.
+
+        The same code is executed on several rovers, each starting from a
+        different pose around the base, in the same sandbox the single rover
+        uses. The returned paths are drawn as overlaid trails so a class can
+        see how one decentralised program produces a coordinated pattern.
+        Fully local; no model, no network.
+        """
+        from robolearn.runtime.swarm import run_swarm
+
+        code = (source or "").strip()
+        if not code:
+            return {"ok": False, "reason": "Write a program first, then launch the swarm."}
+        lesson = self._find_lesson(lesson_id) if lesson_id else None
+
+        def factory() -> World:
+            if lesson is not None:
+                return _world_from_lesson(lesson)
+            return World(terrain=Terrain("earth"), base=(0.0, 0.0))
+
+        try:
+            raw_paths = run_swarm(code, world_factory=factory, n=int(n))
+        except Exception as exc:  # pragma: no cover - sandbox already guards
+            return {"ok": False, "reason": f"Swarm failed: {exc}"}
+        paths = [[[round(x, 2), round(y, 2)] for (x, y) in p] for p in raw_paths]
+        return {"ok": True, "n": len(paths), "paths": paths}
+
     def ai_ask(self, query: str) -> dict[str, Any]:
         """Answer a how-do-I question grounded in the lesson material.
 

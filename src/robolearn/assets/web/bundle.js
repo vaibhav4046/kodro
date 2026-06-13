@@ -3836,6 +3836,32 @@ rover.say("Survey done")`
       }
       setVoiceBusy(false);
     }
+
+    // Agent swarm: run the program on a fleet of rovers, draw their trails.
+    const [swarmOpen, setSwarmOpen] = useState(false);
+    const [swarmBusy, setSwarmBusy] = useState(false);
+    const [swarmData, setSwarmData] = useState(null);
+    async function runSwarm() {
+      const src = (code || '').trim();
+      if (!src) {
+        addConsole('Write a program first, then launch the swarm.', 'err');
+        return;
+      }
+      setSwarmOpen(true);
+      setSwarmBusy(true);
+      setSwarmData(null);
+      try {
+        const r = await window.RoboLearn.swarmRun(src, currentLessonId || null, 6);
+        if (r && r.ok) setSwarmData(r);else {
+          setSwarmOpen(false);
+          addConsole(r && r.reason || 'Swarm failed.', 'err');
+        }
+      } catch (e) {
+        setSwarmOpen(false);
+        addConsole('Swarm: ' + e, 'err');
+      }
+      setSwarmBusy(false);
+    }
     async function runAsk() {
       const q = (askQuery || '').trim();
       if (!q || askBusy) return;
@@ -5212,7 +5238,11 @@ rover.say("Survey done")`
       title: "Speak a command \u2014 works offline, no AI model needed",
       disabled: voiceBusy,
       onClick: runVoiceCommand
-    }, voiceBusy ? '🎙…' : '🎙 Voice')), /*#__PURE__*/React.createElement(window.Editor, {
+    }, voiceBusy ? '🎙…' : '🎙 Voice'), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      title: "Run your program on a swarm of rovers at once",
+      onClick: runSwarm
+    }, "\uD83D\uDC1D Swarm")), /*#__PURE__*/React.createElement(window.Editor, {
       code: code,
       onChange: onCodeChange,
       activeLine: activeLine,
@@ -5481,7 +5511,89 @@ rover.say("Survey done")`
       value: t.trail,
       options: ['terrain', 'cyan', 'amber'],
       onChange: v => setTweak('trail', v)
-    })), vaOpen && /*#__PURE__*/React.createElement("div", {
+    })), swarmOpen && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => !swarmBusy && setSwarmOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Agent swarm",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83D\uDC1D Agent swarm \u2014 your one program, run by a fleet at once"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setSwarmOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "swarm-body"
+    }, swarmBusy && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Launching the swarm\u2026"), swarmData && swarmData.paths && (() => {
+      const COLORS = ['#5ce0d8', '#e0b45c', '#7cc49b', '#c8685a', '#a78bfa', '#f0808a', '#62b6ff', '#b6e36a'];
+      const pts = swarmData.paths.flat();
+      let minX = Infinity,
+        maxX = -Infinity,
+        minY = Infinity,
+        maxY = -Infinity;
+      pts.forEach(([x, y]) => {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      });
+      if (!isFinite(minX)) {
+        minX = -1;
+        maxX = 1;
+        minY = -1;
+        maxY = 1;
+      }
+      const W = 380,
+        H = 260,
+        pad = 18;
+      const spanX = Math.max(0.5, maxX - minX),
+        spanY = Math.max(0.5, maxY - minY);
+      const sc = Math.min((W - 2 * pad) / spanX, (H - 2 * pad) / spanY);
+      const px = x => pad + (x - minX) * sc;
+      const py = y => H - pad - (y - minY) * sc; // flip: world y up
+      return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("svg", {
+        className: "swarm-plot",
+        viewBox: '0 0 ' + W + ' ' + H,
+        role: "img",
+        "aria-label": "Swarm trails"
+      }, /*#__PURE__*/React.createElement("rect", {
+        x: "0",
+        y: "0",
+        width: W,
+        height: H,
+        rx: "6",
+        fill: "var(--void)",
+        stroke: "var(--border)"
+      }), swarmData.paths.map((path, i) => {
+        const d = path.map(([x, y], j) => (j === 0 ? 'M' : 'L') + px(x) + ' ' + py(y)).join(' ');
+        const last = path[path.length - 1];
+        return /*#__PURE__*/React.createElement("g", {
+          key: i
+        }, /*#__PURE__*/React.createElement("path", {
+          d: d,
+          fill: "none",
+          stroke: COLORS[i % COLORS.length],
+          strokeWidth: "2",
+          strokeLinejoin: "round",
+          opacity: "0.9"
+        }), /*#__PURE__*/React.createElement("circle", {
+          cx: px(last[0]),
+          cy: py(last[1]),
+          r: "4",
+          fill: COLORS[i % COLORS.length]
+        }));
+      })), /*#__PURE__*/React.createElement("p", {
+        className: "build-note"
+      }, swarmData.n, " rovers ran the same program from different starting points. Identical code, no central controller, a coordinated pattern. All offline."));
+    })()))), vaOpen && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => !vaBusy && setVaOpen(false)
     }, /*#__PURE__*/React.createElement("div", {
