@@ -148,6 +148,8 @@
   </tbody>
 </table>
 
+<p>The local model itself can be customised without leaving the offline setting. A short model file bakes the tutoring persona and the exact rover interface into the local Gemma, which a single command builds on the machine in seconds. This is not a weight level fine tune, which would need a graphics card, a training set and model weights pulled from a cloud account, all of which would break the offline and no account guarantee. It is the lighter form that fits the constraint: because the long instructions now live inside the model rather than being sent on every request, the first reply comes back faster, and the model stops naming functions that do not exist. The grounding described above still does the factual work; this simply shapes the voice and the latency of the model that reads those sources.</p>
+
 <h3>3.4 The wave voice agent and its pipeline</h3>
 <p>The wave voice agent lets a pupil speak instead of type. A microphone in the bar opens a panel with an animated waveform while it listens, and the spoken turn is then routed: a recognised rover command such as drive forward three is dropped into the editor as a real line, and anything else is passed to grounded Ask and answered from the lesson material. The whole path runs on the device, and the command branch needs no model at all. The stages of the pipeline are set out below, with the important point that every stage in the shipped product is local.</p>
 <table class="avoid">
@@ -190,7 +192,7 @@
     <tr><td>Bridge</td><td>Synchronous calls into Python</td><td>Lessons, grading, hints, the artificial intelligence methods</td></tr>
     <tr><td>Engine</td><td>Python rover, terrain and trace engine</td><td>Executes and grades pupil code in a sandbox</td></tr>
     <tr><td>Memory</td><td>SQLite store and learner model</td><td>Profiles, submissions, concept strength, hint outcomes</td></tr>
-    <tr><td>Local AI</td><td>Ollama with a small local model</td><td>Generation, review and the hardware guide, all optional</td></tr>
+    <tr><td>Local AI</td><td>Ollama with a small local model, optionally a customised one</td><td>Generation, review, the hardware guide and Ask, all optional</td></tr>
   </tbody>
 </table>
 <p>Quality is held by an automated gate that the project runs on every change. The test suite reports 853 passing tests at 86 percent coverage, the type checker is clean across the source, and the linter and formatter pass. The figure below shows three of the offline capabilities captured live from the running application.</p>
