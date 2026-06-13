@@ -4,13 +4,23 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
-A free, open-source Python desktop simulator that lets UK secondary school
-pupils learn the Computing National Curriculum by programming a virtual rover
-across Earth, Mars, underwater and space terrains.
+A free, open source, fully offline desktop platform where students learn to
+program by commanding a simulated rover. Students describe a mission in plain
+language, a local AI model writes short Python for it, and the rover runs that
+code across real world mission sites with authentic physics. Built for students
+beginning to learn programming, in particular first year undergraduates in
+computing.
 
-> **Status:** under active development. See [`CHANGELOG.md`](CHANGELOG.md) for
-> what landed and the [recommended task order](#recommended-task-order) for what
-> is next.
+> **Status: public beta (v1.6.0).** The platform is feature complete and CI
+> green on Windows, macOS and Linux. Active work is now on evaluation and
+> documentation, with a clear roadmap below. Download the app from the
+> [latest release](https://github.com/vaibhav4046/robolearn/releases/latest)
+> and see [`CHANGELOG.md`](CHANGELOG.md) for the full history (v1.0.0 to
+> v1.6.0).
+
+This repository accompanies an MSc research project (COMP702, University of
+Liverpool). The specification and design proposal is in
+[`docs/ca1/`](docs/ca1/).
 
 ## Why
 
@@ -87,6 +97,23 @@ collect_sample()
 | Windows | Download **`RoboLearn-windows.exe`** from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) (~33 MB, the modern web UI; bundles Python + WebView2 bridge) and double-click it. The classic Tk build ships alongside as `robolearn-windows-tk.exe` |
 | macOS | Download `robolearn-macos.zip` from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest), unzip and open `robolearn.app` — or `pip install -e . && python -m robolearn` |
 | Linux | Download the `robolearn-linux` binary from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) and `chmod +x` it — or `pip install -e . && python -m robolearn` |
+
+## Roadmap
+
+The beta is complete and works offline today. Planned directions, in priority
+order, are:
+
+1. **Voice agents.** A spoken agent that plans and runs a whole mission from a
+   single voice instruction, beyond the current voice input and output.
+2. **Context awareness.** Memory across a session and across lessons, so the
+   assistant recalls earlier missions and adapts to each learner's progress.
+3. **Self improving generation.** A loop in which every sandbox validated
+   solution feeds back into the examples that guide the local model, so the
+   system gets stronger from its own verified work.
+4. **Multi agent missions.** Several programmable rovers and drones cooperating
+   in one world.
+5. **Higher fidelity rendering.** A WebGL renderer behind the same event stream
+   for richer three dimensional worlds.
 
 ## Documentation
 
