@@ -37,6 +37,12 @@
   .meta b{ color:var(--navy); }
   .cover .foot{ margin-top:auto; border-top:1px solid var(--rule); padding-top:9pt; font-size:9pt; color:var(--muted); font-family:"Calibri","Segoe UI",sans-serif; }
   .ethicsbox{ margin-top:13pt; background:var(--soft); border-left:3px solid var(--accent); padding:10pt 12pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.4pt; line-height:1.5; color:var(--ink); }
+  .uol{ display:flex; align-items:center; gap:12pt; padding-bottom:10pt; border-bottom:1.6px solid var(--navy); margin-bottom:4pt; }
+  .uol svg{ width:46pt; height:46pt; flex:none; }
+  .uol .word{ font-family:"Calibri","Segoe UI",sans-serif; line-height:1.18; }
+  .uol .word .l1{ font-size:15pt; font-weight:700; letter-spacing:2.4px; color:var(--navy); text-transform:uppercase; }
+  .uol .word .l2{ font-size:8.4pt; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-top:2pt; }
+  .meta a{ color:var(--accent); text-decoration:none; font-weight:600; }
 
   table{ width:100%; border-collapse:collapse; margin:6pt 0 9pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.1pt; }
   th,td{ border:1px solid var(--rule); padding:5pt 7pt; text-align:left; vertical-align:top; }
@@ -67,16 +73,28 @@
 <section class="cover">
   <div class="top"></div>
   <div class="mid">
-    <div class="kicker">University of Liverpool &nbsp;·&nbsp; COMP702 MSc Project</div>
+    <div class="uol">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="University crest">
+        <path d="M50 6 L88 18 V46 C88 70 72 86 50 95 C28 86 12 70 12 46 V18 Z" fill="none" stroke="#16315c" stroke-width="3.5"/>
+        <path d="M50 30 C44 26 34 26 28 30 V62 C34 58 44 58 50 62 C56 58 66 58 72 62 V30 C66 26 56 26 50 30 Z" fill="none" stroke="#1f6f6a" stroke-width="2.6"/>
+        <line x1="50" y1="30" x2="50" y2="62" stroke="#1f6f6a" stroke-width="2.6"/>
+        <text x="50" y="80" text-anchor="middle" font-family="Georgia, serif" font-size="13" fill="#16315c" font-weight="700">UoL</text>
+      </svg>
+      <div class="word">
+        <div class="l1">University of Liverpool</div>
+        <div class="l2">Department of Computer Science &nbsp;·&nbsp; Founded 1881</div>
+      </div>
+    </div>
+    <div class="kicker">COMP702 MSc Project &nbsp;·&nbsp; Technical and Evaluation Report</div>
     <h1>Kodro: An Offline, Self-Improving, Multi-Agent Tutor for Computing Education</h1>
-    <div class="sub">Technical and evaluation report on the artificial intelligence layer and a fifty persona simulated study</div>
+    <div class="sub">A report on the artificial intelligence layer, and a fifty persona simulated study of it</div>
     <div class="accentbar"></div>
     <div class="meta">
       <div><b>Author</b> &nbsp; Vaibhav Lalwani &nbsp;·&nbsp; Student ID 201979723</div>
       <div><b>Supervisor</b> &nbsp; Keith Dures</div>
-      <div><b>Programme</b> &nbsp; MSc Computer Science</div>
+      <div><b>Programme</b> &nbsp; MSc Computer Science, University of Liverpool</div>
       <div><b>Report date</b> &nbsp; 13 June 2026</div>
-      <div><b>Repository</b> &nbsp; github.com/vaibhav4046/robolearn &nbsp;(public beta, v1.11; hosted under the project's original name)</div>
+      <div><b>Code and releases</b> &nbsp; <a href="https://github.com/vaibhav4046/robolearn">github.com/vaibhav4046/robolearn</a> &nbsp;(public beta v1.11, hosted under the project's original name)</div>
     </div>
     <div class="ethicsbox">
       <b>Scope and integrity.</b> Kodro runs entirely on a local machine with no cloud service, no external language model interface, no accounts and no paid services. The evaluation reported in Section 7 is a simulated study driven by artificial intelligence personas, not a study of real human participants, and the figures are reported as measured. This keeps the work consistent with the project ethics record, data category A0 and participant category 2. Generative assistance was used during development and the drafting of this report, and every reference was checked in a browser at the time of writing.
@@ -87,8 +105,8 @@
 
 <!-- ===================== 1. OVERVIEW ===================== -->
 <h2><span class="n">1</span>Overview</h2>
-<p>Kodro is a desktop application that teaches children to program a simulated planetary rover in real Python. A pupil writes ordinary code, presses Run, and watches the rover drive across Mars, the Moon, an underwater plain or a temperate Earth landscape while a sandbox executes the program and grades it against the goals of the lesson. The project began as a curriculum aligned simulator and has grown an artificial intelligence layer that helps a learner the way a patient teacher would. This report describes that layer, explains how each part works without any connection to the internet, sets the design against the documented limits of today's cloud assistants, and reports a structured evaluation that used fifty distinct user personas.</p>
-<p>The guiding constraint shapes everything below. A school laptop may have flaky or filtered internet, a tight budget, and a duty of care toward the data of minors. Kodro therefore keeps every byte of pupil work on the machine and treats the network as something it must never need. The artificial intelligence features run on a local model through Ollama when one is present, and the application degrades cleanly to its rule based behaviour when one is not. The result is a tutor whose privacy and offline operation are properties of the architecture rather than promises in a policy.</p>
+<p>Kodro teaches children to code by giving them a rover to command. A pupil writes ordinary Python, presses Run, and watches the rover set off across Mars, the Moon, an underwater plain or a stretch of temperate Earth while a sandbox runs the program and marks it against the goals of the lesson. None of that, on its own, is new. What this report is really about is the layer that grew on top of it: a handful of small artificial intelligence features that try to help a learner the way a patient teacher would, and that do so without ever reaching the internet. The sections that follow explain how each one works offline, hold the design up against the documented weaknesses of today's cloud assistants, and set out what happened when fifty very different personas were turned loose on the build.</p>
+<p>One constraint shapes all of it. The machine this runs on might be an ageing school laptop on filtered wifi with no budget to spare, and the people using it are children, whose work nobody wants leaving the building. So Kodro keeps every byte of a pupil's code on the device and is built never to need a network at all. When a local model is installed through Ollama the artificial intelligence features use it; when one is not, the application falls back to its rule based behaviour without complaint. Privacy and offline operation here are not lines in a policy. They are properties of the architecture, because there is nothing in the code that could send anything anywhere.</p>
 
 <!-- ===================== 2. THE GAP ===================== -->
 <h2><span class="n">2</span>What current assistants leave unsolved</h2>
