@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>RoboLearn Technical and Evaluation Report</title>
+<title>Kodro Technical and Evaluation Report</title>
 <style>
   @page { size: A4; margin: 15mm 17mm 14mm 17mm; }
   :root{
@@ -68,7 +68,7 @@
   <div class="top"></div>
   <div class="mid">
     <div class="kicker">University of Liverpool &nbsp;·&nbsp; COMP702 MSc Project</div>
-    <h1>RoboLearn: An Offline, Self-Improving, Multi-Agent Tutor for Computing Education</h1>
+    <h1>Kodro: An Offline, Self-Improving, Multi-Agent Tutor for Computing Education</h1>
     <div class="sub">Technical and evaluation report on the artificial intelligence layer and a fifty persona simulated study</div>
     <div class="accentbar"></div>
     <div class="meta">
@@ -76,26 +76,26 @@
       <div><b>Supervisor</b> &nbsp; Keith Dures</div>
       <div><b>Programme</b> &nbsp; MSc Computer Science</div>
       <div><b>Report date</b> &nbsp; 13 June 2026</div>
-      <div><b>Repository</b> &nbsp; github.com/vaibhav4046/robolearn &nbsp;(public beta, v1.7)</div>
+      <div><b>Repository</b> &nbsp; github.com/vaibhav4046/robolearn &nbsp;(public beta, v1.11; hosted under the project's original name)</div>
     </div>
     <div class="ethicsbox">
-      <b>Scope and integrity.</b> RoboLearn runs entirely on a local machine with no cloud service, no external language model interface, no accounts and no paid services. The evaluation reported in Section 7 is a simulated study driven by artificial intelligence personas, not a study of real human participants, and the figures are reported as measured. This keeps the work consistent with the project ethics record, data category A0 and participant category 2. Generative assistance was used during development and the drafting of this report, and every reference was checked in a browser at the time of writing.
+      <b>Scope and integrity.</b> Kodro runs entirely on a local machine with no cloud service, no external language model interface, no accounts and no paid services. The evaluation reported in Section 7 is a simulated study driven by artificial intelligence personas, not a study of real human participants, and the figures are reported as measured. This keeps the work consistent with the project ethics record, data category A0 and participant category 2. Generative assistance was used during development and the drafting of this report, and every reference was checked in a browser at the time of writing.
     </div>
   </div>
-  <div class="foot">RoboLearn technical and evaluation report &nbsp;·&nbsp; Vaibhav Lalwani 201979723 &nbsp;·&nbsp; June 2026</div>
+  <div class="foot">Kodro technical and evaluation report &nbsp;·&nbsp; Vaibhav Lalwani 201979723 &nbsp;·&nbsp; June 2026</div>
 </section>
 
 <!-- ===================== 1. OVERVIEW ===================== -->
 <h2><span class="n">1</span>Overview</h2>
-<p>RoboLearn is a desktop application that teaches children to program a simulated planetary rover in real Python. A pupil writes ordinary code, presses Run, and watches the rover drive across Mars, the Moon, an underwater plain or a temperate Earth landscape while a sandbox executes the program and grades it against the goals of the lesson. The project began as a curriculum aligned simulator and has grown an artificial intelligence layer that helps a learner the way a patient teacher would. This report describes that layer, explains how each part works without any connection to the internet, sets the design against the documented limits of today's cloud assistants, and reports a structured evaluation that used fifty distinct user personas.</p>
-<p>The guiding constraint shapes everything below. A school laptop may have flaky or filtered internet, a tight budget, and a duty of care toward the data of minors. RoboLearn therefore keeps every byte of pupil work on the machine and treats the network as something it must never need. The artificial intelligence features run on a local model through Ollama when one is present, and the application degrades cleanly to its rule based behaviour when one is not. The result is a tutor whose privacy and offline operation are properties of the architecture rather than promises in a policy.</p>
+<p>Kodro is a desktop application that teaches children to program a simulated planetary rover in real Python. A pupil writes ordinary code, presses Run, and watches the rover drive across Mars, the Moon, an underwater plain or a temperate Earth landscape while a sandbox executes the program and grades it against the goals of the lesson. The project began as a curriculum aligned simulator and has grown an artificial intelligence layer that helps a learner the way a patient teacher would. This report describes that layer, explains how each part works without any connection to the internet, sets the design against the documented limits of today's cloud assistants, and reports a structured evaluation that used fifty distinct user personas.</p>
+<p>The guiding constraint shapes everything below. A school laptop may have flaky or filtered internet, a tight budget, and a duty of care toward the data of minors. Kodro therefore keeps every byte of pupil work on the machine and treats the network as something it must never need. The artificial intelligence features run on a local model through Ollama when one is present, and the application degrades cleanly to its rule based behaviour when one is not. The result is a tutor whose privacy and offline operation are properties of the architecture rather than promises in a policy.</p>
 
 <!-- ===================== 2. THE GAP ===================== -->
 <h2><span class="n">2</span>What current assistants leave unsolved</h2>
 <p>General assistants such as Claude, ChatGPT, Perplexity and Gemini are capable, yet they share a set of limits that matter a great deal in a classroom. Hallucination is intrinsic rather than a fault waiting to be patched, so a confident but wrong function name or wiring step can mislead a child who cannot yet tell the difference (Huang et al., 2023). These systems start each session effectively blank, because durable memory of a learner remains an open research problem rather than a shipped feature (Zhang et al., 2024; Packer et al., 2023). They depend on a remote service, which means a network round trip, an account for a minor, a per seat cost, and pupil keystrokes leaving the building. They generate from frozen parameters with no built in check against an authoritative source, so retrieval has to be added on top (Lewis et al., 2020). Finally, the deployed weights do not learn from a pupil's mistakes, since genuine self evolution is an early research direction and not a delivered capability (Tao et al., 2024).</p>
-<p>RoboLearn does not try to out scale these systems. It answers a narrower question well. The table below sets each documented gap beside the offline response the product makes.</p>
+<p>Kodro does not try to out scale these systems. It answers a narrower question well. The table below sets each documented gap beside the offline response the product makes.</p>
 <table class="avoid">
-  <thead><tr><th style="width:23%">Limitation in cloud assistants</th><th style="width:39%">Why it matters for a child in school</th><th>RoboLearn response, fully offline</th></tr></thead>
+  <thead><tr><th style="width:23%">Limitation in cloud assistants</th><th style="width:39%">Why it matters for a child in school</th><th>Kodro response, fully offline</th></tr></thead>
   <tbody>
     <tr><td>Hallucinated facts and code (Huang et al., 2023)</td><td>A plausible but wrong instruction is silently misleading to a novice</td><td>A second agent reviews generated code and a deterministic sandbox validates it before a pupil sees it</td></tr>
     <tr><td>No persistent learner memory (Zhang et al., 2024)</td><td>A tutor that forgets last lesson cannot scaffold across a term</td><td>A local concept strength model and a per pupil profile held in a single sqlite file</td></tr>
@@ -139,7 +139,7 @@
     <tr><td>Vibe coding</td><td>A description becomes Python written by the local model, streamed into the editor, never run on its own</td></tr>
     <tr><td>Blocks mode</td><td>A reorderable click to stack palette that compiles to the same real Python</td></tr>
     <tr><td>Grounded Ask</td><td>A how-do-I question answered from the lesson material with its source shown, working even with no local model present</td></tr>
-    <tr><td>Voice that acts</td><td>A spoken phrase such as drive forward three becomes a real rover line in the editor, with no model and no network</td></tr>
+    <tr><td>Wave voice agent</td><td>A spoken turn shown on an animated waveform either becomes a rover line, such as drive forward three, or is answered from the lesson material, all offline</td></tr>
     <tr><td>Budget Robot Builder</td><td>A budget becomes a real hardware guide with parts, costs, build steps, a command to hardware map and a drawn schematic</td></tr>
     <tr><td>Themes and access</td><td>Nine themes plus a colour blind safe high contrast theme, a readable text mode, and a read aloud control for the lesson text</td></tr>
     <tr><td>Teacher tools</td><td>Multiple local pupil profiles, a class concept heatmap in the app, achievements and a progress report export</td></tr>
@@ -162,7 +162,7 @@
 <p>Quality is held by an automated gate that the project runs on every change. The test suite reports 840 passing tests at 86 percent coverage, the type checker is clean across the source, and the linter and formatter pass. The figure below shows three of the offline capabilities captured live from the running application.</p>
 
 <figure>
-  <img src="img/collage_showcase.png" alt="Three RoboLearn capabilities captured live" />
+  <img src="img/collage_showcase.png" alt="Three Kodro capabilities captured live" />
   <figcaption>Figure 1. Three of the offline capabilities, captured live. Left, grounded Ask answering a question only from the lesson material and naming its sources. Top right, the teacher dashboard showing the class concept strength heatmap. Bottom right, the colour blind safe high contrast theme. None of this touched the network.</figcaption>
 </figure>
 
@@ -172,7 +172,7 @@
 
 <!-- ===================== 7. PERSONA STUDY ===================== -->
 <h2><span class="n">7</span>The fifty persona evaluation</h2>
-<p>The evaluation was a simulated study, and it is reported as one. Fifty personas were generated to span the people who might meet RoboLearn in a school, a club or a home. Each was asked to adopt a goal, inspect the running build together with its source, and return a rating out of ten alongside structured strengths and issues. Because the personas could ground their judgements in concrete files and behaviours, the findings carry a code level specificity, yet they remain the output of a model rather than the response of a child. They should be read as a low cost and broad coverage inspection that surfaces and ranks candidate defects ahead of a real classroom study, not as a measure of human satisfaction. The same fifty personas then re rated the build after the most serious findings were addressed, which gives an honest before and after on one method.</p>
+<p>The evaluation was a simulated study, and it is reported as one. Fifty personas were generated to span the people who might meet Kodro in a school, a club or a home. Each was asked to adopt a goal, inspect the running build together with its source, and return a rating out of ten alongside structured strengths and issues. Because the personas could ground their judgements in concrete files and behaviours, the findings carry a code level specificity, yet they remain the output of a model rather than the response of a child. They should be read as a low cost and broad coverage inspection that surfaces and ranks candidate defects ahead of a real classroom study, not as a measure of human satisfaction. The same fifty personas then re rated the build after the most serious findings were addressed, which gives an honest before and after on one method.</p>
 <p>The personas spanned pupils from seven to sixteen, classroom teachers, a special educational needs coordinator, home education parents, a code club leader, a teaching assistant and a sceptical information technology lead. They varied in coding ability from absolute beginner to keen tinkerer, in access needs including dyslexia, low vision, motor difficulty, English as an additional language and colour blindness, and in device from an old offline laptop with no local model installed to a shared classroom machine on a locked network. The two rounds are summarised below.</p>
 <table class="avoid">
   <thead><tr><th style="width:34%">Round</th><th>Personas</th><th>Mean</th><th>Median</th><th>Range</th><th>Ratings of eight or more</th></tr></thead>

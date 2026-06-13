@@ -979,3 +979,40 @@ kbd {
 .ask-src{ display:flex; flex-direction:column; gap:2px; font-size:11.5px; background:var(--navy-2); border:1px solid var(--border-2); border-radius:5px; padding:6px 8px; }
 .ask-src b{ color:var(--cyan); font-family:var(--font-mono); font-size:10.5px; }
 .ask-src span{ color:var(--fg-2); line-height:1.45; }
+
+/* ============================================================================
+   Kodro premium: wave voice agent, sharper type, smoother world.
+   ========================================================================== */
+
+/* Crisper, more premium text rendering across the app. */
+body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1,"calt" 1; }
+.brand-name{ letter-spacing:-0.01em; }
+
+/* Smoother, GPU-accelerated world: promote the animated layers to their own
+   compositor layer so panning the ground and moving the rover never repaints
+   the whole tree. */
+.ground, .rover, .rover-wrap, .trail-canvas, .stage{ will-change:transform; transform:translateZ(0); backface-visibility:hidden; }
+.viewport, .stage{ contain:layout paint; }
+
+/* Voice-agent button: a soft premium glow. */
+.voice-agent-btn{ color:var(--cyan); }
+.voice-agent-btn:hover{ box-shadow:0 0 0 1px var(--cyan-deep), 0 0 14px -4px var(--cyan); }
+
+/* Wave voice agent modal. */
+.va-modal{ max-width:440px; }
+.va-body{ display:flex; flex-direction:column; gap:12px; align-items:center; text-align:center; padding:6px 0 2px; }
+.va-wave{ display:flex; align-items:center; justify-content:center; gap:3px; height:64px; width:100%; }
+.va-wave span{
+  display:block; width:4px; height:8px; border-radius:99px;
+  background:linear-gradient(180deg, var(--cyan), var(--cyan-deep));
+  transform:scaleY(0.3); transform-origin:center;
+}
+.va-wave.live span{ animation:vawave 1s ease-in-out infinite; animation-delay:calc(var(--i) * -0.045s); }
+@keyframes vawave{ 0%,100%{ transform:scaleY(0.28); opacity:0.5; } 50%{ transform:scaleY(1); opacity:1; } }
+.va-status{ font-size:13px; color:var(--fg-2); margin:0; min-height:1em; }
+.va-heard{ font-size:15px; color:var(--fg-1); font-style:italic; margin:0; }
+.va-result{ display:flex; flex-direction:column; gap:6px; align-items:center; margin:0; }
+.va-result code{ font-family:var(--font-mono); font-size:14px; color:var(--cyan); background:var(--navy-2); border:1px solid var(--border); border-radius:5px; padding:5px 10px; }
+.va-tag{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--success); }
+.va-body .ask-answer{ text-align:left; width:100%; }
+@media (prefers-reduced-motion: reduce){ .va-wave.live span{ animation:none; transform:scaleY(0.6); } }

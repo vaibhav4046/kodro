@@ -3334,7 +3334,7 @@ print("Lidar scans:", scans)`
     },
     drive: {
       label: 'starter.py',
-      code: `# Welcome to Orbital Rover.
+      code: `# Welcome to Kodro.
 # Edit freely, then press Run. The API is listed below.
 rover.set_speed(60)
 rover.pen_down()
@@ -3467,7 +3467,7 @@ rover.say("Survey done")`
     const [activeLine, setActiveLine] = useState(0);
     const [consoleLines, setConsoleLines] = useState([{
       type: 'sys',
-      text: 'Orbital Rover ready. Press Run to deploy.'
+      text: 'Kodro ready. Press Run to deploy.'
     }]);
     const [speedMul, setSpeedMul] = useState(1);
     const [say, setSay] = useState('');
@@ -3790,6 +3790,33 @@ rover.say("Survey done")`
         addConsole('Reviewer (' + (reviewData.model || aiInfo.model) + ') tidied your code. Read it, then press Run.', 'sys');
         typewriteCode(reviewData.code);
       }
+    }
+
+    // Wave voice agent: speak to drive the rover or ask a grounded question.
+    const [vaOpen, setVaOpen] = useState(false);
+    const [vaBusy, setVaBusy] = useState(false);
+    const [vaData, setVaData] = useState(null);
+    async function runVoiceAgent() {
+      if (vaBusy) return;
+      setVaBusy(true);
+      setVaData(null);
+      try {
+        const r = await window.RoboLearn.voiceAgent(6);
+        setVaData(r || {
+          ok: false,
+          reason: 'No response.'
+        });
+        if (r && r.ok && r.mode === 'command' && r.code) {
+          setCode(c => (c && !c.endsWith('\n') ? c + '\n' : c) + r.code + '\n');
+          addConsole('Heard "' + r.text + '" → added ' + r.code, 'ok');
+        }
+      } catch (e) {
+        setVaData({
+          ok: false,
+          reason: String(e)
+        });
+      }
+      setVaBusy(false);
     }
     const [voiceBusy, setVoiceBusy] = useState(false);
     async function runVoiceCommand() {
@@ -4937,7 +4964,7 @@ rover.say("Survey done")`
       href: "#editor-main"
     }, "Skip to code editor"), /*#__PURE__*/React.createElement("h1", {
       className: "sr-only"
-    }, "RoboLearn \u2014 Orbital Rover Python coding simulator"), /*#__PURE__*/React.createElement("div", {
+    }, "Kodro \u2014 learn to code a rover, offline"), /*#__PURE__*/React.createElement("div", {
       className: "missionbar",
       role: "banner"
     }, /*#__PURE__*/React.createElement("div", {
@@ -4951,9 +4978,9 @@ rover.say("Survey done")`
       className: "brand-text"
     }, /*#__PURE__*/React.createElement("div", {
       className: "brand-name"
-    }, "Orbital Rover"), /*#__PURE__*/React.createElement("div", {
+    }, "Kodro"), /*#__PURE__*/React.createElement("div", {
       className: "brand-sub"
-    }, "Rover Simulator \xB7 v1.0"))), /*#__PURE__*/React.createElement("div", {
+    }, "Code a rover \xB7 Offline"))), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "run-controls"
@@ -4999,6 +5026,15 @@ rover.say("Survey done")`
     }), /*#__PURE__*/React.createElement("span", null, statusLabel)), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("button", {
+      className: "icon-btn voice-agent-btn",
+      title: "Talk to Kodro \u2014 speak a command or ask a question",
+      "aria-label": "Voice agent",
+      onClick: () => {
+        setVaOpen(true);
+        setVaData(null);
+        runVoiceAgent();
+      }
+    }, "\uD83C\uDF99"), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
       title: "Build a real robot on a budget",
       "aria-label": "Build a real robot",
@@ -5445,7 +5481,62 @@ rover.say("Survey done")`
       value: t.trail,
       options: ['terrain', 'cyan', 'amber'],
       onChange: v => setTweak('trail', v)
-    })), askOpen && /*#__PURE__*/React.createElement("div", {
+    })), vaOpen && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => !vaBusy && setVaOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal va-modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Talk to Kodro",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83C\uDF99 Talk to Kodro \u2014 say a command, or ask a question"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setVaOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "va-body"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: 'va-wave' + (vaBusy ? ' live' : ''),
+      "aria-hidden": "true"
+    }, Array.from({
+      length: 28
+    }).map((_, i) => /*#__PURE__*/React.createElement("span", {
+      key: i,
+      style: {
+        ['--i']: i
+      }
+    }))), /*#__PURE__*/React.createElement("p", {
+      className: "va-status"
+    }, vaBusy ? 'Listening…' : vaData ? null : 'Tap the microphone in the bar to talk.'), vaData && vaData.text && /*#__PURE__*/React.createElement("p", {
+      className: "va-heard"
+    }, "\u201C", vaData.text, "\u201D"), vaData && vaData.ok === false && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, vaData.reason), vaData && vaData.ok && vaData.mode === 'command' && /*#__PURE__*/React.createElement("p", {
+      className: "va-result"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "va-tag"
+    }, "added to your code"), /*#__PURE__*/React.createElement("code", null, vaData.code)), vaData && vaData.ok && vaData.mode === 'answer' && /*#__PURE__*/React.createElement("div", {
+      className: "ask-answer"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "ask-text"
+    }, vaData.answer), vaData.sources && vaData.sources.length > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "ask-sources"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "From the lessons"), vaData.sources.map((s, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "ask-src"
+    }, /*#__PURE__*/React.createElement("b", null, "[", i + 1, "] ", s.source), /*#__PURE__*/React.createElement("span", null, s.text))))), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      disabled: vaBusy,
+      onClick: runVoiceAgent
+    }, vaBusy ? 'Listening…' : '🎙 Talk again')))), askOpen && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => !askBusy && setAskOpen(false)
     }, /*#__PURE__*/React.createElement("div", {
@@ -5689,7 +5780,7 @@ rover.say("Survey done")`
       className: "vibe-status"
     }, "AI is offline. Vibe coding uses a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account):"), /*#__PURE__*/React.createElement("ol", {
       className: "vibe-steps"
-    }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen RoboLearn \u2014 this panel lights up automatically"))))), blocksOpen && /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro \u2014 this panel lights up automatically"))))), blocksOpen && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => setBlocksOpen(false)
     }, /*#__PURE__*/React.createElement("div", {
@@ -5892,7 +5983,7 @@ rover.say("Survey done")`
       style: {
         marginTop: 8
       }
-    }, "From RoboLearn to hardware"), /*#__PURE__*/React.createElement("dl", {
+    }, "From Kodro to hardware"), /*#__PURE__*/React.createElement("dl", {
       className: "build-maps"
     }, buildPlan.maps.map((m, i) => /*#__PURE__*/React.createElement("div", {
       key: i

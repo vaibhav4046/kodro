@@ -92,7 +92,7 @@ class MainWindow:
         self._owns_root = owns_root
         self.settings: ThemeSettings = settings or ThemeSettings()
         if owns_root:
-            self._root.title("RoboLearn · Orbital Rover")
+            self._root.title("Kodro")
             self._root.geometry(geometry)
             self._root.minsize(960, 600)
         self._style = ttk.Style(self._root)

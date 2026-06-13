@@ -49,7 +49,7 @@ LOG = logging.getLogger("robolearn.web")
 ASSETS_DIR: Path = Path(__file__).resolve().parent.parent / "assets" / "web"
 INDEX_HTML: Path = ASSETS_DIR / "index.html"
 DEFAULT_DB_PATH: Path = Path.home() / ".robolearn" / "pupil.db"
-DEFAULT_TITLE: str = "RoboLearn · Orbital Rover"
+DEFAULT_TITLE: str = "Kodro"
 DEFAULT_GEOMETRY: tuple[int, int] = (1400, 900)
 
 
@@ -1073,6 +1073,43 @@ class BridgeAPI:
             return {"ok": True, "dataUrl": f"data:{mime};base64,{data}", "name": path.name}
         except Exception as exc:  # pragma: no cover - host dialog dependent
             return {"ok": False, "reason": str(exc)}
+
+    def voice_agent(self, timeout_s: float = 6.0) -> dict[str, Any]:
+        """One spoken turn for the wave voice agent: act, or answer.
+
+        Listens once, then routes the phrase. If it is a known rover command
+        ("go forward three") it returns the code line to drop into the
+        editor; otherwise it is treated as a question and answered by the
+        grounded Ask path, which stays inside the lesson material. Both
+        branches are offline; the command branch needs no model at all.
+        """
+        from robolearn.ai.voice_commands import parse_voice_command
+
+        heard = self.listen(timeout_s)
+        if not heard.get("ok"):
+            return heard
+        text = str(heard.get("text", ""))
+        line = parse_voice_command(text)
+        if line is not None:
+            return {"ok": True, "mode": "command", "text": text, "code": line}
+        ask = self.ai_ask(text)
+        if ask.get("ok"):
+            return {
+                "ok": True,
+                "mode": "answer",
+                "text": text,
+                "answer": ask.get("answer", ""),
+                "sources": ask.get("sources", []),
+                "grounded": ask.get("grounded", False),
+                "noModel": ask.get("noModel", False),
+            }
+        return {
+            "ok": True,
+            "mode": "answer",
+            "text": text,
+            "answer": ask.get("reason", ""),
+            "sources": [],
+        }
 
     def voice_command(self, timeout_s: float = 6.0) -> dict[str, Any]:
         """Dictate one phrase and turn it into a rover instruction, offline.
