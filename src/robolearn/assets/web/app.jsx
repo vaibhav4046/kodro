@@ -295,6 +295,27 @@ rover.say("Survey done")`
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    // Budget robot builder (local AI hardware guide for a real-world rover).
+    const [buildOpen, setBuildOpen] = useState(false);
+    const [buildBudget, setBuildBudget] = useState('30');
+    const [buildGoal, setBuildGoal] = useState('');
+    const [buildBusy, setBuildBusy] = useState(false);
+    const [buildPlan, setBuildPlan] = useState(null);
+    const [buildErr, setBuildErr] = useState(null);
+    async function runBuild() {
+      if (buildBusy) return;
+      const usd = Math.max(1, Math.min(100000, parseFloat(buildBudget) || 30));
+      setBuildBusy(true); setBuildErr(null);
+      try {
+        if (!window.RoboLearn || !window.RoboLearn.isAvailable()) { setBuildErr('The robot builder needs the desktop app with local AI.'); }
+        else {
+          const r = await window.RoboLearn.budgetBuild(usd, buildGoal);
+          if (r && r.ok) setBuildPlan(r);
+          else setBuildErr((r && r.reason) || 'Could not build a plan.');
+        }
+      } catch (e) { setBuildErr(String(e)); }
+      setBuildBusy(false);
+    }
     // Click-away + Escape close the settings popover.
     useEffect(() => {
       if (!settingsOpen) return undefined;
@@ -1093,6 +1114,7 @@ rover.say("Survey done")`
             <span>{statusLabel}</span>
           </div>
           <div className="bar-divider"></div>
+          <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot" onClick={() => setBuildOpen(true)}>🤖</button>
           <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setShowHelp(true)}>?</button>
           <div className="settings-wrap">
             <button className="icon-btn" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>⚙</button>
@@ -1410,6 +1432,69 @@ rover.say("Survey done")`
                 <div><dt><kbd>Esc</kbd></dt><dd>Leave the editor / close this</dd></div>
                 <div><dt><kbd>?</kbd></dt><dd>Show this help</dd></div>
               </dl>
+            </div>
+          </div>
+        )}
+
+        {buildOpen && (
+          <div className="modal-backdrop" onClick={() => setBuildOpen(false)}>
+            <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Build a real robot" onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <span className="eyebrow">🤖 Build a real robot — what your budget can buy</span>
+                <button className="btn-mini" aria-label="Close" onClick={() => setBuildOpen(false)}>✕</button>
+              </div>
+              <div className="build-body">
+                <p className="vibe-status">Type a budget and the local AI plans a real rover you can build and program, mapping what you learned here onto real hardware. Nothing is ordered; this runs offline.</p>
+                <div className="build-input">
+                  <label>Budget (US$)
+                    <input type="number" min="1" max="100000" value={buildBudget} onChange={e => setBuildBudget(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') runBuild(); }} />
+                  </label>
+                  <label className="grow">Goal (optional)
+                    <input type="text" placeholder='e.g. "avoid walls and follow a line"' value={buildGoal} onChange={e => setBuildGoal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') runBuild(); }} />
+                  </label>
+                  <button className="ctrl ctrl-run" disabled={buildBusy} onClick={runBuild}>{buildBusy ? 'Planning…' : 'Generate'}</button>
+                </div>
+                {buildErr && <p className="vibe-error" role="alert">{buildErr}</p>}
+                {buildPlan && (
+                  <div className="build-plan">
+                    <div className="build-head">
+                      <div>
+                        <h3 style={{ margin: '0 0 2px' }}>{buildPlan.tier}</h3>
+                        <p style={{ margin: 0, color: 'var(--fg-2)', fontSize: 12 }}>{buildPlan.summary}</p>
+                      </div>
+                      <div className={'build-cost' + (buildPlan.total <= buildPlan.budget ? ' ok' : ' over')}>
+                        ${Math.round(buildPlan.total)} <span>of ${buildPlan.budget}</span>
+                      </div>
+                    </div>
+                    <window.RoverSchematic parts={buildPlan.parts} />
+                    <div className="build-cols">
+                      <div>
+                        <div className="eyebrow">Parts</div>
+                        <table className="build-table">
+                          <tbody>
+                            {buildPlan.parts.map((p, i) => (
+                              <tr key={i}><td>{p.name}</td><td className="role">{p.role}</td><td className="cost">${p.cost}</td></tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div>
+                        <div className="eyebrow">Build steps</div>
+                        <ol className="build-steps">{buildPlan.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
+                        {buildPlan.maps && buildPlan.maps.length > 0 && (
+                          <>
+                            <div className="eyebrow" style={{ marginTop: 8 }}>From RoboLearn to hardware</div>
+                            <dl className="build-maps">
+                              {buildPlan.maps.map((m, i) => <div key={i}><dt>{m.robolearn}</dt><dd>{m.hardware}</dd></div>)}
+                            </dl>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {buildPlan.fallback && <p className="build-note">A standard plan is shown because the model could not tailor one within this budget.</p>}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -534,8 +534,45 @@ function TweakButton({ label, onClick, secondary = false }) {
   );
 }
 
+// Schematic of the planned real robot, drawn from the parts list. Visual aid
+// for the budget builder; highlights the major components that are present.
+function RoverSchematic({ parts }) {
+  const text = (parts || []).map(p => (p.name + ' ' + (p.role || '')).toLowerCase()).join(' ');
+  const has = (...keys) => keys.some(k => text.includes(k));
+  const board = has('esp32') ? 'ESP32' : has('micro:bit', 'microbit') ? 'micro:bit'
+    : has('arduino') ? 'Arduino' : has('raspberry', 'pico') ? 'Pico' : 'MCU';
+  const sensor = has('ultrasonic', 'hc-sr04', 'distance', 'lidar', 'sensor');
+  const driver = has('driver', 'l298', 'tb6612');
+  const battery = has('batter', 'coin', 'power', 'cell');
+  return (
+    <svg className="schematic" viewBox="0 0 320 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Robot schematic">
+      <rect x="80" y="30" width="160" height="90" rx="10" fill="#161a2d" stroke="#5ce0d8" strokeWidth="1.5" />
+      <rect x="58" y="40" width="22" height="32" rx="5" fill="#3a4356" stroke="#aeb8e8" />
+      <rect x="58" y="84" width="22" height="32" rx="5" fill="#3a4356" stroke="#aeb8e8" />
+      <rect x="240" y="40" width="22" height="32" rx="5" fill="#3a4356" stroke="#aeb8e8" />
+      <rect x="240" y="84" width="22" height="32" rx="5" fill="#3a4356" stroke="#aeb8e8" />
+      <rect x="120" y="48" width="80" height="40" rx="5" fill="#1f6f6a" stroke="#5ce0d8" />
+      <text x="160" y="72" textAnchor="middle" fill="#eafffd" fontSize="13" fontFamily="monospace">{board}</text>
+      {sensor && <g>
+        <rect x="150" y="14" width="20" height="12" rx="2" fill="#e0b45c" />
+        <text x="160" y="9" textAnchor="middle" fill="#cfd6f5" fontSize="8">sensor</text>
+      </g>}
+      {driver && <g>
+        <rect x="92" y="96" width="40" height="16" rx="3" fill="#3a4356" stroke="#7cc49b" />
+        <text x="112" y="107" textAnchor="middle" fill="#cfe7d6" fontSize="8">driver</text>
+      </g>}
+      {battery && <g>
+        <rect x="186" y="96" width="44" height="16" rx="3" fill="#3a4356" stroke="#e0b45c" />
+        <text x="208" y="107" textAnchor="middle" fill="#f0dcb0" fontSize="8">battery</text>
+      </g>}
+      <line x1="160" y1="120" x2="160" y2="134" stroke="#5ce0d8" strokeDasharray="3 3" />
+      <text x="160" y="146" textAnchor="middle" fill="#8b93a7" fontSize="8">front of rover</text>
+    </svg>
+  );
+}
+
 Object.assign(window, {
   useTweaks, TweaksPanel, TweakSection, TweakRow,
   TweakSlider, TweakToggle, TweakRadio, TweakSelect,
-  TweakText, TweakNumber, TweakColor, TweakButton,
+  TweakText, TweakNumber, TweakColor, TweakButton, RoverSchematic,
 });

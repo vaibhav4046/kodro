@@ -2928,6 +2928,136 @@ function TweakButton({
     onClick: onClick
   }, label);
 }
+
+// Schematic of the planned real robot, drawn from the parts list. Visual aid
+// for the budget builder; highlights the major components that are present.
+function RoverSchematic({
+  parts
+}) {
+  const text = (parts || []).map(p => (p.name + ' ' + (p.role || '')).toLowerCase()).join(' ');
+  const has = (...keys) => keys.some(k => text.includes(k));
+  const board = has('esp32') ? 'ESP32' : has('micro:bit', 'microbit') ? 'micro:bit' : has('arduino') ? 'Arduino' : has('raspberry', 'pico') ? 'Pico' : 'MCU';
+  const sensor = has('ultrasonic', 'hc-sr04', 'distance', 'lidar', 'sensor');
+  const driver = has('driver', 'l298', 'tb6612');
+  const battery = has('batter', 'coin', 'power', 'cell');
+  return /*#__PURE__*/React.createElement("svg", {
+    className: "schematic",
+    viewBox: "0 0 320 150",
+    xmlns: "http://www.w3.org/2000/svg",
+    role: "img",
+    "aria-label": "Robot schematic"
+  }, /*#__PURE__*/React.createElement("rect", {
+    x: "80",
+    y: "30",
+    width: "160",
+    height: "90",
+    rx: "10",
+    fill: "#161a2d",
+    stroke: "#5ce0d8",
+    strokeWidth: "1.5"
+  }), /*#__PURE__*/React.createElement("rect", {
+    x: "58",
+    y: "40",
+    width: "22",
+    height: "32",
+    rx: "5",
+    fill: "#3a4356",
+    stroke: "#aeb8e8"
+  }), /*#__PURE__*/React.createElement("rect", {
+    x: "58",
+    y: "84",
+    width: "22",
+    height: "32",
+    rx: "5",
+    fill: "#3a4356",
+    stroke: "#aeb8e8"
+  }), /*#__PURE__*/React.createElement("rect", {
+    x: "240",
+    y: "40",
+    width: "22",
+    height: "32",
+    rx: "5",
+    fill: "#3a4356",
+    stroke: "#aeb8e8"
+  }), /*#__PURE__*/React.createElement("rect", {
+    x: "240",
+    y: "84",
+    width: "22",
+    height: "32",
+    rx: "5",
+    fill: "#3a4356",
+    stroke: "#aeb8e8"
+  }), /*#__PURE__*/React.createElement("rect", {
+    x: "120",
+    y: "48",
+    width: "80",
+    height: "40",
+    rx: "5",
+    fill: "#1f6f6a",
+    stroke: "#5ce0d8"
+  }), /*#__PURE__*/React.createElement("text", {
+    x: "160",
+    y: "72",
+    textAnchor: "middle",
+    fill: "#eafffd",
+    fontSize: "13",
+    fontFamily: "monospace"
+  }, board), sensor && /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
+    x: "150",
+    y: "14",
+    width: "20",
+    height: "12",
+    rx: "2",
+    fill: "#e0b45c"
+  }), /*#__PURE__*/React.createElement("text", {
+    x: "160",
+    y: "9",
+    textAnchor: "middle",
+    fill: "#cfd6f5",
+    fontSize: "8"
+  }, "sensor")), driver && /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
+    x: "92",
+    y: "96",
+    width: "40",
+    height: "16",
+    rx: "3",
+    fill: "#3a4356",
+    stroke: "#7cc49b"
+  }), /*#__PURE__*/React.createElement("text", {
+    x: "112",
+    y: "107",
+    textAnchor: "middle",
+    fill: "#cfe7d6",
+    fontSize: "8"
+  }, "driver")), battery && /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
+    x: "186",
+    y: "96",
+    width: "44",
+    height: "16",
+    rx: "3",
+    fill: "#3a4356",
+    stroke: "#e0b45c"
+  }), /*#__PURE__*/React.createElement("text", {
+    x: "208",
+    y: "107",
+    textAnchor: "middle",
+    fill: "#f0dcb0",
+    fontSize: "8"
+  }, "battery")), /*#__PURE__*/React.createElement("line", {
+    x1: "160",
+    y1: "120",
+    x2: "160",
+    y2: "134",
+    stroke: "#5ce0d8",
+    strokeDasharray: "3 3"
+  }), /*#__PURE__*/React.createElement("text", {
+    x: "160",
+    y: "146",
+    textAnchor: "middle",
+    fill: "#8b93a7",
+    fontSize: "8"
+  }, "front of rover"));
+}
 Object.assign(window, {
   useTweaks,
   TweaksPanel,
@@ -2940,7 +3070,8 @@ Object.assign(window, {
   TweakText,
   TweakNumber,
   TweakColor,
-  TweakButton
+  TweakButton,
+  RoverSchematic
 });
 })();
 
@@ -3309,6 +3440,30 @@ rover.say("Survey done")`
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    // Budget robot builder (local AI hardware guide for a real-world rover).
+    const [buildOpen, setBuildOpen] = useState(false);
+    const [buildBudget, setBuildBudget] = useState('30');
+    const [buildGoal, setBuildGoal] = useState('');
+    const [buildBusy, setBuildBusy] = useState(false);
+    const [buildPlan, setBuildPlan] = useState(null);
+    const [buildErr, setBuildErr] = useState(null);
+    async function runBuild() {
+      if (buildBusy) return;
+      const usd = Math.max(1, Math.min(100000, parseFloat(buildBudget) || 30));
+      setBuildBusy(true);
+      setBuildErr(null);
+      try {
+        if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
+          setBuildErr('The robot builder needs the desktop app with local AI.');
+        } else {
+          const r = await window.RoboLearn.budgetBuild(usd, buildGoal);
+          if (r && r.ok) setBuildPlan(r);else setBuildErr(r && r.reason || 'Could not build a plan.');
+        }
+      } catch (e) {
+        setBuildErr(String(e));
+      }
+      setBuildBusy(false);
+    }
     // Click-away + Escape close the settings popover.
     useEffect(() => {
       if (!settingsOpen) return undefined;
@@ -4538,6 +4693,11 @@ rover.say("Survey done")`
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
+      title: "Build a real robot on a budget",
+      "aria-label": "Build a real robot",
+      onClick: () => setBuildOpen(true)
+    }, "\uD83E\uDD16"), /*#__PURE__*/React.createElement("button", {
+      className: "icon-btn",
       title: "Keyboard shortcuts (?)",
       "aria-label": "Keyboard shortcuts",
       onClick: () => setShowHelp(true)
@@ -5111,7 +5271,103 @@ rover.say("Survey done")`
       onClick: () => setShowHelp(false)
     }, "\u2715")), /*#__PURE__*/React.createElement("dl", {
       className: "shortcut-list"
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Run / Pause the program")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "F10")), /*#__PURE__*/React.createElement("dd", null, "Step one instruction")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Tab")), /*#__PURE__*/React.createElement("dd", null, "Indent (in the editor)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Shift"), "+", /*#__PURE__*/React.createElement("kbd", null, "Tab")), /*#__PURE__*/React.createElement("dd", null, "Dedent (in the editor)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Auto-indent the next line")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Esc")), /*#__PURE__*/React.createElement("dd", null, "Leave the editor / close this")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "?")), /*#__PURE__*/React.createElement("dd", null, "Show this help"))))));
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Run / Pause the program")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "F10")), /*#__PURE__*/React.createElement("dd", null, "Step one instruction")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Tab")), /*#__PURE__*/React.createElement("dd", null, "Indent (in the editor)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Shift"), "+", /*#__PURE__*/React.createElement("kbd", null, "Tab")), /*#__PURE__*/React.createElement("dd", null, "Dedent (in the editor)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Auto-indent the next line")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Esc")), /*#__PURE__*/React.createElement("dd", null, "Leave the editor / close this")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "?")), /*#__PURE__*/React.createElement("dd", null, "Show this help"))))), buildOpen && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => setBuildOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal modal-wide",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Build a real robot",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83E\uDD16 Build a real robot \u2014 what your budget can buy"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setBuildOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "build-body"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Type a budget and the local AI plans a real rover you can build and program, mapping what you learned here onto real hardware. Nothing is ordered; this runs offline."), /*#__PURE__*/React.createElement("div", {
+      className: "build-input"
+    }, /*#__PURE__*/React.createElement("label", null, "Budget (US$)", /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      min: "1",
+      max: "100000",
+      value: buildBudget,
+      onChange: e => setBuildBudget(e.target.value),
+      onKeyDown: e => {
+        if (e.key === 'Enter') runBuild();
+      }
+    })), /*#__PURE__*/React.createElement("label", {
+      className: "grow"
+    }, "Goal (optional)", /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      placeholder: "e.g. \"avoid walls and follow a line\"",
+      value: buildGoal,
+      onChange: e => setBuildGoal(e.target.value),
+      onKeyDown: e => {
+        if (e.key === 'Enter') runBuild();
+      }
+    })), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      disabled: buildBusy,
+      onClick: runBuild
+    }, buildBusy ? 'Planning…' : 'Generate')), buildErr && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, buildErr), buildPlan && /*#__PURE__*/React.createElement("div", {
+      className: "build-plan"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "build-head"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
+      style: {
+        margin: '0 0 2px'
+      }
+    }, buildPlan.tier), /*#__PURE__*/React.createElement("p", {
+      style: {
+        margin: 0,
+        color: 'var(--fg-2)',
+        fontSize: 12
+      }
+    }, buildPlan.summary)), /*#__PURE__*/React.createElement("div", {
+      className: 'build-cost' + (buildPlan.total <= buildPlan.budget ? ' ok' : ' over')
+    }, "$", Math.round(buildPlan.total), " ", /*#__PURE__*/React.createElement("span", null, "of $", buildPlan.budget))), /*#__PURE__*/React.createElement(window.RoverSchematic, {
+      parts: buildPlan.parts
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "build-cols"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow"
+    }, "Parts"), /*#__PURE__*/React.createElement("table", {
+      className: "build-table"
+    }, /*#__PURE__*/React.createElement("tbody", null, buildPlan.parts.map((p, i) => /*#__PURE__*/React.createElement("tr", {
+      key: i
+    }, /*#__PURE__*/React.createElement("td", null, p.name), /*#__PURE__*/React.createElement("td", {
+      className: "role"
+    }, p.role), /*#__PURE__*/React.createElement("td", {
+      className: "cost"
+    }, "$", p.cost)))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow"
+    }, "Build steps"), /*#__PURE__*/React.createElement("ol", {
+      className: "build-steps"
+    }, buildPlan.steps.map((s, i) => /*#__PURE__*/React.createElement("li", {
+      key: i
+    }, s))), buildPlan.maps && buildPlan.maps.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow",
+      style: {
+        marginTop: 8
+      }
+    }, "From RoboLearn to hardware"), /*#__PURE__*/React.createElement("dl", {
+      className: "build-maps"
+    }, buildPlan.maps.map((m, i) => /*#__PURE__*/React.createElement("div", {
+      key: i
+    }, /*#__PURE__*/React.createElement("dt", null, m.robolearn), /*#__PURE__*/React.createElement("dd", null, m.hardware))))))), buildPlan.fallback && /*#__PURE__*/React.createElement("p", {
+      className: "build-note"
+    }, "A standard plan is shown because the model could not tailor one within this budget."))))));
   }
   const TWEAK_DEFAULTS = {
     zoom: 1,
