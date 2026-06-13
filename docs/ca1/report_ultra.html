@@ -13,7 +13,7 @@
   html,body{ margin:0; padding:0; }
   body{
     font-family:"Georgia","Cambria",serif; color:var(--ink);
-    font-size:9.9pt; line-height:1.4; text-align:justify;
+    font-size:9.5pt; line-height:1.36; text-align:justify;
     -webkit-print-color-adjust:exact; print-color-adjust:exact;
   }
   h1,h2,h3{ font-family:"Calibri","Segoe UI",sans-serif; color:var(--navy); line-height:1.2; }
@@ -128,6 +128,19 @@
   </tbody>
 </table>
 
+<h3>3.4 The wave voice agent and its pipeline</h3>
+<p>The wave voice agent lets a pupil speak instead of type. A microphone in the bar opens a panel with an animated waveform while it listens, and the spoken turn is then routed: a recognised rover command such as drive forward three is dropped into the editor as a real line, and anything else is passed to grounded Ask and answered from the lesson material. The whole path runs on the device, and the command branch needs no model at all. The stages of the pipeline are set out below, with the important point that every stage in the shipped product is local.</p>
+<table class="avoid">
+  <thead><tr><th style="width:22%">Stage</th><th style="width:48%">What it does in the shipped product</th><th>Where it runs</th></tr></thead>
+  <tbody>
+    <tr><td>Voice activity, endpointing</td><td>The recogniser detects when the pupil starts and stops speaking and captures one phrase, so the agent acts on a complete utterance rather than a stream</td><td>On device</td></tr>
+    <tr><td>Speech to text</td><td>The phrase is transcribed by the operating system's built in offline recogniser, with no audio leaving the machine</td><td>On device</td></tr>
+    <tr><td>Routing</td><td>A deterministic parser maps a known command to a rover line; everything else becomes a grounded Ask answered only from lesson material</td><td>On device</td></tr>
+    <tr><td>Text to speech</td><td>The rover's spoken lines and the read aloud control use the operating system's offline voice at a rate suited to younger and additional language readers</td><td>On device</td></tr>
+  </tbody>
+</table>
+<p>A higher quality cloud voice service, for example ElevenLabs, could be offered as an optional setting for a school that chooses it, but it would require that school's own account and key and would send audio to a third party. Because that trades away the offline and privacy guarantee that is the whole point of the product, and because the data protection position for the audio of children is far simpler when nothing leaves the room, the cloud voice is deliberately not the default and is not wired into the shipped build. The honest claim the report makes is the offline one above.</p>
+
 <!-- ===================== 4. BREADTH ===================== -->
 <h2><span class="n">4</span>The wider product</h2>
 <p>The artificial intelligence layer sits inside a complete teaching tool. The table records the breadth a teacher actually meets, so the reader can judge the product rather than a single feature.</p>
@@ -159,11 +172,11 @@
     <tr><td>Local AI</td><td>Ollama with a small local model</td><td>Generation, review and the hardware guide, all optional</td></tr>
   </tbody>
 </table>
-<p>Quality is held by an automated gate that the project runs on every change. The test suite reports 840 passing tests at 86 percent coverage, the type checker is clean across the source, and the linter and formatter pass. The figure below shows three of the offline capabilities captured live from the running application.</p>
+<p>Quality is held by an automated gate that the project runs on every change. The test suite reports 842 passing tests at 86 percent coverage, the type checker is clean across the source, and the linter and formatter pass. The figure below shows three of the offline capabilities captured live from the running application.</p>
 
 <figure>
   <img src="img/collage_showcase.png" alt="Three Kodro capabilities captured live" />
-  <figcaption>Figure 1. Three of the offline capabilities, captured live. Left, grounded Ask answering a question only from the lesson material and naming its sources. Top right, the teacher dashboard showing the class concept strength heatmap. Bottom right, the colour blind safe high contrast theme. None of this touched the network.</figcaption>
+  <figcaption>Figure 1. Three of the offline capabilities, captured live. Left, the wave voice agent listening for a spoken command or question. Top right, grounded Ask answering only from the lesson material and naming its sources. Bottom right, the teacher dashboard showing the class concept strength heatmap. None of this touched the network.</figcaption>
 </figure>
 
 <!-- ===================== 6. METHOD OF EVALUATION ===================== -->
@@ -195,7 +208,7 @@
     <tr><td>Blocks mode lacks reordering and covers part of the interface</td><td class="c">11</td><td class="c">major</td><td><b>Fixed.</b> Blocks can be reordered, and speed, wait, pen and drop blocks were added</td></tr>
   </tbody>
 </table>
-<p>The second round confirmed the direction of travel. The same fifty personas, run as read only inspectors so that they could read the patched source but never change it, were re-rated repeatedly as the work landed. After the defects were closed they returned a mean of 7.1, and after two of the features they had asked for were built, grounded Ask and voice that drives the rover, the final read only re-rate of all fifty reached a mean of 7.36 out of ten, up from 5.86 at first contact, with no rating below six and the bulk of the panel at seven and eight. They verified in the code that the learner model updates from the web build, that a lesson loads its own world, that the teacher heatmap is present, that the reviewer judges against the whole rover interface, that the read aloud control and high contrast theme are real, that Ask answers only from retrieved lesson material and refuses when nothing matches, and that a spoken command becomes a real rover line with no model at all. The score did not reach a perfect ten, and an honest report would not claim that it had. The remaining distance is no longer held by defects but by scope and by the project's own thesis: the personas ask for multi-agent missions and for free spoken dictation rather than a fixed command set, and they note, correctly, that a small local model is a real ceiling on free-form generation, which is the price of the offline guarantee that is the point of the product. Those are the next chapters, not bugs, and they are set out in Section 8.</p>
+<p>The second round confirmed the direction of travel. The same fifty personas, run as read only inspectors so that they could read the patched source but never change it, were re-rated repeatedly as the work landed. After the defects were closed they returned a mean of 7.1, and after two of the features they had asked for were built, grounded Ask and voice that drives the rover, the final read only re-rate of all fifty reached a mean of 7.36 out of ten, up from 5.86 at first contact, with no rating below six and the bulk of the panel at seven and eight. They verified in the code that the learner model updates from the web build, that a lesson loads its own world, that the teacher heatmap is present, that the reviewer judges against the whole rover interface, that the read aloud control and high contrast theme are real, that Ask answers only from retrieved lesson material and refuses when nothing matches, and that a spoken command becomes a real rover line with no model at all. The score did not reach a perfect ten, and an honest report would not claim that it had. The remaining distance is no longer held by defects but by scope and by the project's own thesis: the personas ask for multi-agent missions and for free spoken dictation rather than a fixed command set, and they note, correctly, that a small local model is a real ceiling on free-form generation, which is the price of the offline guarantee that is the point of the product. Those are the next chapters, not bugs, and they are set out in Section 8. A further follow up round, run after the rebrand and the wave voice agent, was interrupted by a usage limit once eight of the fifty personas had reported; those eight averaged 7.5, which is consistent with the full round above and is noted here only as a partial check rather than a result in its own right.</p>
 <p>The personas were equally clear about what already worked. They confirmed that the offline guarantee is enforced in code rather than promised in prose, that the absence of a local model produces a calm message rather than a failure, that the blocks to Python bridge is a genuine teaching strength, that the learner model and teacher heatmap now move in the shipped build, and that the second agent review with its sandbox gate is a sound design.</p>
 
 <!-- ===================== 8. LIMITS AND ROADMAP ===================== -->
