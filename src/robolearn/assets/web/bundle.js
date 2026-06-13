@@ -2336,12 +2336,31 @@
         roughness: 1,
         flatShading: true
       });
+      const coralMat = new THREE.MeshStandardMaterial({
+        color: 0xc9607a,
+        roughness: 0.85,
+        flatShading: true
+      });
+      const rimMat = new THREE.MeshStandardMaterial({
+        color: 0x4a4c54,
+        roughness: 1,
+        flatShading: true
+      });
+      const mkRock = (r, px, pz, v, rot) => {
+        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), rockMat);
+        rock.position.set(px, r * 0.55, pz);
+        rock.rotation.set(v * 3, rot || 0, v * 2);
+        rock.castShadow = true;
+        rock.receiveShadow = true;
+        scene.add(rock);
+      };
       const obstacles = terrain && terrain.obstacles || [];
       obstacles.forEach(o => {
         const r = Math.max(0.6, o.r * SCALE);
         const px = o.x * SCALE,
           pz = -o.y * SCALE;
         if (id === 'earth' && o.v >= 0.5) {
+          // tree: trunk + canopy
           const tree = new THREE.Group();
           const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.18, r * 0.24, r * 1.4, 6), trunkMat);
           trunk.position.y = r * 0.7;
@@ -2353,13 +2372,31 @@
           tree.add(canopy);
           tree.position.set(px, 0, pz);
           scene.add(tree);
+        } else if (id === 'underwater' && o.v >= 0.45) {
+          // coral: a small clump of upright branches
+          const coral = new THREE.Group();
+          const n = 3 + (o.v * 4 | 0);
+          for (let k = 0; k < n; k++) {
+            const a = k / n * Math.PI * 2;
+            const br = new THREE.Mesh(new THREE.ConeGeometry(r * 0.22, r * (1.0 + k % 2 * 0.6), 5), coralMat);
+            br.position.set(Math.cos(a) * r * 0.4, r * 0.6, Math.sin(a) * r * 0.4);
+            br.rotation.z = Math.cos(a) * 0.3;
+            br.rotation.x = Math.sin(a) * 0.3;
+            br.castShadow = true;
+            coral.add(br);
+          }
+          coral.position.set(px, 0, pz);
+          scene.add(coral);
+        } else if (id === 'space' && o.v >= 0.5) {
+          // crater: a low rim ring lying on the ground
+          const crater = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.34, 6, 16), rimMat);
+          crater.rotation.x = Math.PI / 2;
+          crater.position.set(px, r * 0.18, pz);
+          crater.receiveShadow = true;
+          crater.castShadow = true;
+          scene.add(crater);
         } else {
-          const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), rockMat);
-          rock.position.set(px, r * 0.55, pz);
-          rock.rotation.set(o.v * 3, o.rot || 0, o.v * 2);
-          rock.castShadow = true;
-          rock.receiveShadow = true;
-          scene.add(rock);
+          mkRock(r, px, pz, o.v, o.rot);
         }
       });
 
@@ -2394,6 +2431,25 @@
         rov.add(wheel);
       });
       scene.add(rov);
+
+      // A trail ribbon that grows as the rover drives.
+      const MAXPTS = 600;
+      const trailPos = new Float32Array(MAXPTS * 3);
+      const trailGeo = new THREE.BufferGeometry();
+      trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+      trailGeo.setDrawRange(0, 0);
+      const trail = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({
+        color: accent,
+        transparent: true,
+        opacity: 0.85
+      }));
+      scene.add(trail);
+      let trailN = 0;
+
+      // Smoothed render state (lerped toward the live rover each frame).
+      const cur = new THREE.Vector3(0, 0, 0);
+      let curHeading = 0;
+      const camPos = new THREE.Vector3(0, 20, 30);
 
       // Third-person orbit controlled by drag + wheel.
       let azim = 2.4,
@@ -2438,26 +2494,51 @@
       window.addEventListener('resize', onResize);
       let raf = 0;
       const tmp = new THREE.Vector3();
+      const camTarget = new THREE.Vector3();
+      const angLerp = (a, b, t) => {
+        let d = (b - a + Math.PI) % (Math.PI * 2) - Math.PI;
+        if (d < -Math.PI) d += Math.PI * 2;
+        return a + d * t;
+      };
       const tick = () => {
         const s = stateRef.current;
-        const hx = s.x * SCALE,
-          hz = -s.y * SCALE;
-        const hr = (s.heading || 0) * Math.PI / 180;
-        rov.position.set(hx, 0, hz);
-        rov.rotation.y = hr;
-        const fwd = new THREE.Vector3(Math.cos(hr), 0, -Math.sin(hr));
+        const tx = s.x * SCALE,
+          tz = -s.y * SCALE;
+        const tr = (s.heading || 0) * Math.PI / 180;
+        // Glide the rover toward the live state instead of snapping to it.
+        cur.x += (tx - cur.x) * 0.16;
+        cur.z += (tz - cur.z) * 0.16;
+        curHeading = angLerp(curHeading, tr, 0.16);
+        rov.position.set(cur.x, 0, cur.z);
+        rov.rotation.y = curHeading;
+        const fwd = tmp.set(Math.cos(curHeading), 0, -Math.sin(curHeading));
+
+        // Grow the trail when the rover has actually moved.
+        if (trailN === 0 || Math.hypot(cur.x - trailPos[(trailN - 1) * 3], cur.z - trailPos[(trailN - 1) * 3 + 2]) > 0.25) {
+          if (trailN >= MAXPTS) {
+            trailPos.copyWithin(0, 3);
+            trailN = MAXPTS - 1;
+          }
+          trailPos[trailN * 3] = cur.x;
+          trailPos[trailN * 3 + 1] = 0.3;
+          trailPos[trailN * 3 + 2] = cur.z;
+          trailN += 1;
+          trailGeo.setDrawRange(0, trailN);
+          trailGeo.attributes.position.needsUpdate = true;
+        }
         if (fpvRef.current) {
           // First person: sit in the rover, look the way it drives.
-          camera.position.set(hx + fwd.x * 1.2, 2.4, hz + fwd.z * 1.2);
-          tmp.set(hx + fwd.x * 20, 1.8, hz + fwd.z * 20);
-          camera.lookAt(tmp);
+          camPos.set(cur.x + fwd.x * 1.2, 2.4, cur.z + fwd.z * 1.2);
+          camera.position.copy(camPos);
+          camera.lookAt(cur.x + fwd.x * 20, 1.8, cur.z + fwd.z * 20);
         } else {
-          // Third person orbit around the rover.
+          // Third person orbit, damped so it eases rather than jumps.
           const ox = Math.cos(azim) * Math.cos(elev) * dist;
-          const oy = Math.sin(elev) * dist;
+          const oy = Math.sin(elev) * dist + 4;
           const oz = Math.sin(azim) * Math.cos(elev) * dist;
-          camera.position.set(hx + ox, oy + 4, hz + oz);
-          camera.lookAt(hx, 2, hz);
+          camPos.lerp(camTarget.set(cur.x + ox, oy, cur.z + oz), 0.12);
+          camera.position.copy(camPos);
+          camera.lookAt(cur.x, 2, cur.z);
         }
         renderer.render(scene, camera);
         raf = window.requestAnimationFrame(tick);
