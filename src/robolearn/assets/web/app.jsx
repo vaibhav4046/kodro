@@ -1449,9 +1449,14 @@ rover.say("Survey done")`
                   title="Drop the rover at a real place — real gravity, traction and light"
                 >
                   <option value="" disabled>🌍 Mission site…</option>
-                  {Object.keys(window.SITES).map(id => (
-                    <option key={id} value={id}>{window.SITES[id].name}</option>
-                  ))}
+                  {[['earth', '🌍 Earth'], ['underwater', '🌊 Underwater'], ['mars', '🔴 Mars'], ['space', '🌑 Space']].map(([base, label]) => {
+                    const ids = Object.keys(window.SITES).filter(id => window.SITES[id].base === base);
+                    return ids.length === 0 ? null : (
+                      <optgroup key={base} label={label}>
+                        {ids.map(id => <option key={id} value={id}>{window.SITES[id].name}</option>)}
+                      </optgroup>
+                    );
+                  })}
                 </select>
               )}
             </div>
