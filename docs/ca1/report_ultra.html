@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>RoboLearn Technical and Evaluation Report</title>
+<style>
+  @page { size: A4; margin: 20mm 19mm 18mm 19mm; }
+  :root{
+    --ink:#1a1d24; --muted:#525a66; --navy:#16315c; --accent:#1f6f6a;
+    --rule:#c9cfd8; --soft:#f3f5f8; --good:#1f6f4a; --warn:#9a6a16;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:"Georgia","Cambria",serif; color:var(--ink);
+    font-size:10.4pt; line-height:1.5; text-align:justify;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  h1,h2,h3{ font-family:"Calibri","Segoe UI",sans-serif; color:var(--navy); line-height:1.2; }
+  h2{
+    font-size:12.4pt; margin:15pt 0 5pt; padding-bottom:3pt;
+    border-bottom:1.4px solid var(--rule); letter-spacing:0.2px;
+  }
+  h2 .n{ color:var(--accent); margin-right:7px; font-weight:700; }
+  h3{ font-size:10.6pt; margin:9pt 0 3pt; color:var(--accent); }
+  p{ margin:0 0 7pt; }
+  a{ color:var(--navy); text-decoration:none; }
+  .lead{ color:var(--muted); }
+
+  .cover{ height:250mm; display:flex; flex-direction:column; page-break-after:always; }
+  .cover .top{ flex:1; }
+  .kicker{ font-family:"Calibri","Segoe UI",sans-serif; letter-spacing:3px; text-transform:uppercase; font-size:9.2pt; color:var(--accent); font-weight:700; }
+  .cover h1{ font-family:"Calibri","Segoe UI",sans-serif; font-size:29pt; margin:10pt 0 4pt; color:var(--navy); line-height:1.07; font-weight:700; }
+  .cover .sub{ font-size:13pt; color:var(--muted); font-style:italic; margin-bottom:16pt; }
+  .accentbar{ height:4px; width:120px; background:linear-gradient(90deg,var(--accent),var(--navy)); margin:13pt 0 16pt; border-radius:2px; }
+  .meta{ font-family:"Calibri","Segoe UI",sans-serif; font-size:10.6pt; line-height:1.7; }
+  .meta b{ color:var(--navy); }
+  .cover .foot{ margin-top:auto; border-top:1px solid var(--rule); padding-top:9pt; font-size:9pt; color:var(--muted); font-family:"Calibri","Segoe UI",sans-serif; }
+  .ethicsbox{ margin-top:13pt; background:var(--soft); border-left:3px solid var(--accent); padding:10pt 12pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.4pt; line-height:1.5; color:var(--ink); }
+
+  table{ width:100%; border-collapse:collapse; margin:6pt 0 9pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.1pt; }
+  th,td{ border:1px solid var(--rule); padding:5pt 7pt; text-align:left; vertical-align:top; }
+  th{ background:var(--navy); color:#fff; font-weight:600; }
+  tbody tr:nth-child(even){ background:var(--soft); }
+  td.c{ text-align:center; }
+  .pill{ font-weight:700; }
+  .pill.good{ color:var(--good); }
+  .pill.warn{ color:var(--warn); }
+
+  .barcell{ padding:0 6pt; }
+  .distbar{ display:inline-block; height:10px; border-radius:2px; background:linear-gradient(90deg,var(--accent),var(--navy)); vertical-align:middle; }
+
+  figure{ margin:8pt 0 10pt; page-break-inside:avoid; }
+  figure img{ width:100%; border:1px solid var(--rule); border-radius:4px; display:block; }
+  figcaption{ font-family:"Calibri","Segoe UI",sans-serif; font-size:8.6pt; color:var(--muted); margin-top:4pt; text-align:left; }
+
+  .refs{ font-family:"Calibri","Segoe UI",sans-serif; font-size:8.9pt; line-height:1.4; }
+  .refs p{ padding-left:16pt; text-indent:-16pt; margin:0 0 5pt; }
+  .disclosure{ margin-top:10pt; font-size:8.8pt; color:var(--muted); font-style:italic; border-top:1px solid var(--rule); padding-top:7pt; }
+  .avoid{ page-break-inside:avoid; }
+  .spacer{ height:6pt; }
+</style>
+</head>
+<body>
+
+<!-- ===================== TITLE PAGE ===================== -->
+<section class="cover">
+  <div class="top"></div>
+  <div class="mid">
+    <div class="kicker">University of Liverpool &nbsp;·&nbsp; COMP702 MSc Project</div>
+    <h1>RoboLearn: An Offline, Self-Improving, Multi-Agent Tutor for Computing Education</h1>
+    <div class="sub">Technical and evaluation report on the artificial intelligence layer and a fifty persona simulated study</div>
+    <div class="accentbar"></div>
+    <div class="meta">
+      <div><b>Author</b> &nbsp; Vaibhav Lalwani &nbsp;·&nbsp; Student ID 201979723</div>
+      <div><b>Supervisor</b> &nbsp; Keith Dures</div>
+      <div><b>Programme</b> &nbsp; MSc Computer Science</div>
+      <div><b>Report date</b> &nbsp; 13 June 2026</div>
+      <div><b>Repository</b> &nbsp; github.com/vaibhav4046/robolearn &nbsp;(public beta, v1.7)</div>
+    </div>
+    <div class="ethicsbox">
+      <b>Scope and integrity.</b> RoboLearn runs entirely on a local machine with no cloud service, no external language model interface, no accounts and no paid services. The evaluation reported in Section 7 is a simulated study driven by artificial intelligence personas, not a study of real human participants, and the figures are reported as measured. This keeps the work consistent with the project ethics record, data category A0 and participant category 2. Generative assistance was used during development and the drafting of this report, and every reference was checked in a browser at the time of writing.
+    </div>
+  </div>
+  <div class="foot">RoboLearn technical and evaluation report &nbsp;·&nbsp; Vaibhav Lalwani 201979723 &nbsp;·&nbsp; June 2026</div>
+</section>
+
+<!-- ===================== 1. OVERVIEW ===================== -->
+<h2><span class="n">1</span>Overview</h2>
+<p>RoboLearn is a desktop application that teaches children to program a simulated planetary rover in real Python. A pupil writes ordinary code, presses Run, and watches the rover drive across Mars, the Moon, an underwater plain or a temperate Earth landscape while a sandbox executes the program and grades it against the goals of the lesson. The project began as a curriculum aligned simulator and has grown an artificial intelligence layer that helps a learner the way a patient teacher would. This report describes that layer, explains how each part works without any connection to the internet, sets the design against the documented limits of today's cloud assistants, and reports a structured evaluation that used fifty distinct user personas.</p>
+<p>The guiding constraint shapes everything below. A school laptop may have flaky or filtered internet, a tight budget, and a duty of care toward the data of minors. RoboLearn therefore keeps every byte of pupil work on the machine and treats the network as something it must never need. The artificial intelligence features run on a local model through Ollama when one is present, and the application degrades cleanly to its rule based behaviour when one is not. The result is a tutor whose privacy and offline operation are properties of the architecture rather than promises in a policy.</p>
+
+<!-- ===================== 2. THE GAP ===================== -->
+<h2><span class="n">2</span>What current assistants leave unsolved</h2>
+<p>General assistants such as Claude, ChatGPT, Perplexity and Gemini are capable, yet they share a set of limits that matter a great deal in a classroom. Hallucination is intrinsic rather than a fault waiting to be patched, so a confident but wrong function name or wiring step can mislead a child who cannot yet tell the difference (Huang et al., 2023). These systems start each session effectively blank, because durable memory of a learner remains an open research problem rather than a shipped feature (Zhang et al., 2024; Packer et al., 2023). They depend on a remote service, which means a network round trip, an account for a minor, a per seat cost, and pupil keystrokes leaving the building. They generate from frozen parameters with no built in check against an authoritative source, so retrieval has to be added on top (Lewis et al., 2020). Finally, the deployed weights do not learn from a pupil's mistakes, since genuine self evolution is an early research direction and not a delivered capability (Tao et al., 2024).</p>
+<p>RoboLearn does not try to out scale these systems. It answers a narrower question well. The table below sets each documented gap beside the offline response the product makes.</p>
+<table class="avoid">
+  <thead><tr><th style="width:23%">Limitation in cloud assistants</th><th style="width:39%">Why it matters for a child in school</th><th>RoboLearn response, fully offline</th></tr></thead>
+  <tbody>
+    <tr><td>Hallucinated facts and code (Huang et al., 2023)</td><td>A plausible but wrong instruction is silently misleading to a novice</td><td>A second agent reviews generated code and a deterministic sandbox validates it before a pupil sees it</td></tr>
+    <tr><td>No persistent learner memory (Zhang et al., 2024)</td><td>A tutor that forgets last lesson cannot scaffold across a term</td><td>A local concept strength model and a per pupil profile held in a single sqlite file</td></tr>
+    <tr><td>Hard cloud dependence</td><td>Flaky school networks, accounts for minors, recurring cost, data leaving the site</td><td>Local model through Ollama with graceful fallback, and no account or network ever required</td></tr>
+    <tr><td>Weak grounding (Lewis et al., 2020)</td><td>Answers drift from the specific curriculum and robot interface</td><td>Generation is constrained to the taught rover interface and checked against the simulator</td></tr>
+    <tr><td>No real self improvement (Tao et al., 2024)</td><td>The system never gets better at helping this class</td><td>Honest system level improvement: the hint engine learns from local outcomes which advice unblocks pupils</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================== 3. THE AI LAYER ===================== -->
+<h2><span class="n">3</span>The artificial intelligence layer</h2>
+<p>Three capabilities form the core of the new work. Each maps to a theme that the wider field is exploring, and each is built so that it is honest about what a small local model can really do.</p>
+
+<h3>3.1 Self improving hints that learn what helps</h3>
+<p>The application ships twenty four rule based hints. The older engine always returned the first rule that matched, which is sensible but cannot learn that a later rule unblocks a particular class more reliably. The new layer closes that loop without any model or network. When a failing attempt is shown a hint, the store remembers it for that pupil and lesson. The pupil's next graded attempt resolves it, counting a pass as helped and a further failure as not helped, and those outcomes accumulate per rule. The selector then ranks the matching hints by a Laplace smoothed success rate, keeping author order as the tie break so a fresh install behaves exactly like the old engine and only diverges once real evidence has built up. This is the honest shape of self evolution that Tao et al. (2024) distinguish from marketing, and it echoes the verbal reflection loop of Shinn et al. (2023). The model never changes; the surrounding system gets better from local outcomes alone.</p>
+
+<h3>3.2 A second agent that reviews the pupil's code</h3>
+<p>Generation already runs one automatic repair pass that fixes code which would crash. The reviewer adds the harder, semantic pass. It reads a finished program against the goal of the lesson as a teacher would and asks whether the program meets that goal, whether it reads clearly, and whether it uses only the functions the lesson teaches. It returns up to three concrete issues and, when it can, a better version. That rewrite is accepted only after it passes the same sandbox the Run button uses, so a hallucinated fix can never reach a pupil. This is the honest offline form of a multi agent system, an author role and a reviewer role realised as two prompts to one local model with a deterministic gate between them, and it draws on the evidence that iterative self feedback and multi agent review improve correctness (Madaan et al., 2023; Du et al., 2023). The wider literature is candid that naive multi agent setups also fail in characteristic ways (Cemri et al., 2025), which is why the gate, rather than another model, has the final word.</p>
+
+<h3>3.3 A context aware learner model</h3>
+<p>Underneath both features sits a per pupil model. Each lesson updates an exponential moving average of strength for the concepts it exercises, the recommender steers a learner toward the weakest concept that an unattempted lesson would practise, a passing streak introduces a stretch lesson with a new concept, and a class heatmap gives a teacher a readable picture of the room. This is the persistent learner memory that cloud assistants lack (Zhang et al., 2024), kept entirely on the device. The table below ties each capability to the theme it serves and the work that grounds it.</p>
+<table class="avoid">
+  <thead><tr><th style="width:26%">Capability</th><th style="width:22%">Theme</th><th style="width:30%">How it works offline</th><th>Grounding</th></tr></thead>
+  <tbody>
+    <tr><td>Self improving hints</td><td>Self evolution, system level</td><td>Per rule shown and helped counts in sqlite, Laplace smoothed ranking</td><td>Tao et al. (2024); Shinn et al. (2023)</td></tr>
+    <tr><td>Second agent code review</td><td>Agent collaboration</td><td>Author and reviewer prompts on one local model, sandbox gate</td><td>Madaan et al. (2023); Du et al. (2023); Cemri et al. (2025)</td></tr>
+    <tr><td>Context aware learner model</td><td>Memory and personalisation</td><td>Concept strength EMA and recommender over a local profile</td><td>Zhang et al. (2024); Packer et al. (2023)</td></tr>
+    <tr><td>Grounded generation</td><td>Grounding</td><td>Generation constrained to the taught interface, checked by the simulator</td><td>Lewis et al. (2020); Huang et al. (2023)</td></tr>
+    <tr><td>Local feedback for novices</td><td>Education</td><td>Misconception aware hints, no answer giving</td><td>Jacobs and Jaschke (2024); VanLehn (2011)</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================== 4. BREADTH ===================== -->
+<h2><span class="n">4</span>The wider product</h2>
+<p>The artificial intelligence layer sits inside a complete teaching tool. The table records the breadth a teacher actually meets, so the reader can judge the product rather than a single feature.</p>
+<table class="avoid">
+  <thead><tr><th style="width:22%">Area</th><th>What it provides</th></tr></thead>
+  <tbody>
+    <tr><td>Core coding</td><td>Real Python with a sandboxed executor, trace driven grading, and more than twenty lessons across sequence, selection, iteration, functions and sensors</td></tr>
+    <tr><td>Worlds</td><td>Mars, the Moon and an underwater plain, a temperate Earth rendered as a real map with farmland, forests, roads and a river, and real mission sites with real gravity, traction, temperature and light</td></tr>
+    <tr><td>Vibe coding</td><td>A description becomes Python written by the local model, streamed into the editor, never run on its own</td></tr>
+    <tr><td>Blocks mode</td><td>A click to stack palette that compiles to the same real Python</td></tr>
+    <tr><td>Budget Robot Builder</td><td>A budget becomes a real hardware guide with parts, costs, build steps, a command to hardware map and a drawn schematic</td></tr>
+    <tr><td>Themes and access</td><td>Nine visual themes, a readable text mode, offline speech for the rover and offline voice input for the prompt</td></tr>
+    <tr><td>Teacher tools</td><td>Multiple local pupil profiles, a concept heatmap, achievements and a progress report export</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================== 5. ARCHITECTURE ===================== -->
+<h2><span class="n">5</span>Architecture</h2>
+<p>The application is a desktop shell that renders a vendored React interface and talks to a Python backend over a thin bridge. Nothing in the stack reaches the network, and the only durable state is a single local database file that a teacher can copy as a backup.</p>
+<table class="avoid">
+  <thead><tr><th style="width:24%">Layer</th><th style="width:34%">Technology</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td>Interface</td><td>React rendered in a desktop web view</td><td>Editor, viewport, panels and modals</td></tr>
+    <tr><td>Bridge</td><td>Synchronous calls into Python</td><td>Lessons, grading, hints, the artificial intelligence methods</td></tr>
+    <tr><td>Engine</td><td>Python rover, terrain and trace engine</td><td>Executes and grades pupil code in a sandbox</td></tr>
+    <tr><td>Memory</td><td>SQLite store and learner model</td><td>Profiles, submissions, concept strength, hint outcomes</td></tr>
+    <tr><td>Local AI</td><td>Ollama with a small local model</td><td>Generation, review and the hardware guide, all optional</td></tr>
+  </tbody>
+</table>
+<p>Quality is held by an automated gate that the project runs on every change. The test suite reports {{TESTS}} passing tests, the type checker is clean across the source, and the linter and formatter pass. The figure below shows three of the offline capabilities captured live from the running application.</p>
+
+<figure>
+  <img src="img/collage_showcase.png" alt="Three RoboLearn capabilities captured live" />
+  <figcaption>Figure 1. Three of the offline capabilities, captured live. Left, the temperate Earth rendered as a real map with farmland, forests, roads and a river. Top right, the Budget Robot Builder turning a budget into a real hardware guide. Bottom right, the second agent code review, running with no network connection.</figcaption>
+</figure>
+
+<!-- ===================== 6. METHOD OF EVALUATION ===================== -->
+<h2><span class="n">6</span>How the product was evaluated</h2>
+<p>The product was checked in two ways. The automated gate guards correctness on every change, and a structured persona study probed the experience from many points of view. The persona study is described honestly in the next section, because the distinction between a simulated study and a study of real people matters for both ethics and interpretation.</p>
+
+<!-- ===================== 7. PERSONA STUDY ===================== -->
+<h2><span class="n">7</span>The fifty persona evaluation</h2>
+<p class="lead avoid">{{METHODOLOGY}}</p>
+<p>The personas spanned pupils from seven to sixteen, classroom teachers, a special educational needs coordinator, home education parents, a code club leader, a teaching assistant and a sceptical information technology lead. They varied in coding ability from absolute beginner to keen tinkerer, in access needs including dyslexia, low vision, motor difficulty, English as an additional language and colour blindness, and in device from an old offline laptop with no local model installed to a shared classroom machine on a locked network. Each persona walked a realistic first session toward its own goal and rated the product out of ten. The headline figures are summarised below.</p>
+<table class="avoid">
+  <thead><tr><th>Personas</th><th>Mean rating</th><th>Median</th><th>Lowest</th><th>Highest</th><th>Ratings of eight or more</th></tr></thead>
+  <tbody>
+    <tr><td class="c">{{COUNT}}</td><td class="c pill good">{{MEAN}} / 10</td><td class="c">{{MEDIAN}}</td><td class="c">{{MIN}}</td><td class="c">{{MAX}}</td><td class="c">{{HIGH_PCT}}</td></tr>
+  </tbody>
+</table>
+<p>The distribution of ratings across the fifty personas is shown next.</p>
+<table class="avoid">
+  <thead><tr><th style="width:14%">Rating</th><th style="width:14%">Personas</th><th>Share</th></tr></thead>
+  <tbody>
+    {{DIST_ROWS}}
+  </tbody>
+</table>
+<p>The personas agreed on a set of strengths and surfaced a clear, actionable set of issues. The strengths and the issues raised most often are recorded below, with the action taken in response.</p>
+<table class="avoid">
+  <thead><tr><th style="width:30%">Issue raised</th><th style="width:11%">Personas</th><th style="width:11%">Severity</th><th>Action taken</th></tr></thead>
+  <tbody>
+    {{ISSUE_ROWS}}
+  </tbody>
+</table>
+<p>{{RESULTS_PROSE}}</p>
+
+<!-- ===================== 8. LIMITS AND ROADMAP ===================== -->
+<h2><span class="n">8</span>Limits and roadmap</h2>
+<p>The work is honest about its boundaries. A small local model is weaker than a large cloud model, so generation and review are scoped to a narrow, checkable domain rather than open ended help. The persona study is a simulation that guides design and cannot replace observation of real children in a classroom, which is planned as a later, ethics approved stage. The improvement in the hint engine is at the level of the system rather than the model, which is the honest claim to make. The table sets out the next steps.</p>
+<table class="avoid">
+  <thead><tr><th style="width:24%">Direction</th><th>Planned work</th></tr></thead>
+  <tbody>
+    <tr><td>Grounded answers</td><td>A fully local retrieval store over the lesson glossary and rover interface, with the source shown beside every answer</td></tr>
+    <tr><td>Voice tutor</td><td>A spoken question and answer loop over the existing offline speech and listening</td></tr>
+    <tr><td>Classroom study</td><td>An observed study with real pupils under the appropriate ethics approval</td></tr>
+    <tr><td>Skill library</td><td>A bounded, teacher visible store of programs a class has mastered, reused as worked examples</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================== 9. REFERENCES ===================== -->
+<h2><span class="n">9</span>References</h2>
+<div class="refs">
+  <p>Bloom, B.S. (1984) The 2 Sigma Problem: The Search for Methods of Group Instruction as Effective as One to One Tutoring. <i>Educational Researcher</i>, 13(6), pp. 4 to 16. Available at: https://journals.sagepub.com/doi/10.3102/0013189X013006004</p>
+  <p>Cemri, M., Pan, M.Z., Yang, S. et al. (2025) Why Do Multi Agent LLM Systems Fail? <i>arXiv preprint</i> arXiv:2503.13657. Available at: https://arxiv.org/abs/2503.13657</p>
+  <p>Du, Y., Li, S., Torralba, A., Tenenbaum, J.B. and Mordatch, I. (2023) Improving Factuality and Reasoning in Language Models through Multiagent Debate. <i>arXiv preprint</i> arXiv:2305.14325. Available at: https://arxiv.org/abs/2305.14325</p>
+  <p>Huang, L., Yu, W., Ma, W. et al. (2023) A Survey on Hallucination in Large Language Models: Principles, Taxonomy, Challenges, and Open Questions. <i>ACM Transactions on Information Systems</i> (arXiv:2311.05232). Available at: https://arxiv.org/abs/2311.05232</p>
+  <p>Jacobs, S. and Jaschke, S. (2024) Evaluating the Application of Large Language Models to Generate Feedback in Programming Education. <i>arXiv preprint</i> arXiv:2403.09744. Available at: https://arxiv.org/abs/2403.09744</p>
+  <p>Lewis, P., Perez, E., Piktus, A. et al. (2020) Retrieval Augmented Generation for Knowledge Intensive NLP Tasks. <i>Advances in Neural Information Processing Systems</i> 33 (arXiv:2005.11401). Available at: https://arxiv.org/abs/2005.11401</p>
+  <p>Madaan, A., Tandon, N., Gupta, P. et al. (2023) Self Refine: Iterative Refinement with Self Feedback. <i>arXiv preprint</i> arXiv:2303.17651. Available at: https://arxiv.org/abs/2303.17651</p>
+  <p>Packer, C., Wooders, S., Lin, K. et al. (2023) MemGPT: Towards LLMs as Operating Systems. <i>arXiv preprint</i> arXiv:2310.08560. Available at: https://arxiv.org/abs/2310.08560</p>
+  <p>Shinn, N., Cassano, F., Berman, E., Gopinath, A., Narasimhan, K. and Yao, S. (2023) Reflexion: Language Agents with Verbal Reinforcement Learning. <i>arXiv preprint</i> arXiv:2303.11366. Available at: https://arxiv.org/abs/2303.11366</p>
+  <p>Tao, Z., Lin, T.E., Chen, X. et al. (2024) A Survey on Self Evolution of Large Language Models. <i>arXiv preprint</i> arXiv:2404.14387. Available at: https://arxiv.org/abs/2404.14387</p>
+  <p>VanLehn, K. (2011) The Relative Effectiveness of Human Tutoring, Intelligent Tutoring Systems, and Other Tutoring Systems. <i>Educational Psychologist</i>, 46(4), pp. 197 to 221. Available at: https://doi.org/10.1080/00461520.2011.611369</p>
+  <p>Weintrop, D. and Wilensky, U. (2017) Comparing Block Based and Text Based Programming in High School Computer Science Classrooms. <i>ACM Transactions on Computing Education</i>, 18(1), Article 3. Available at: https://dl.acm.org/doi/10.1145/3089799</p>
+  <p>Zhang, Z., Bo, X., Ma, C. et al. (2024) A Survey on the Memory Mechanism of Large Language Model based Agents. <i>arXiv preprint</i> arXiv:2404.13501. Available at: https://arxiv.org/abs/2404.13501</p>
+</div>
+<p class="disclosure">Generative artificial intelligence assisted the development of the software and the drafting of this report. All technical claims reflect the running system, the evaluation figures are reported as measured from the simulated persona study, and every reference above was checked in a browser at the time of writing.</p>
+
+</body>
+</html>

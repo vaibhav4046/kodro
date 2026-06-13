@@ -16,7 +16,7 @@ publicly-available documentation as of the project's submission date.
 | Multi-terrain physics | **Earth / Mars / Underwater / Space** | Mars only | None | Configurable (advanced) | None |
 | Open source (MIT) | **Yes** | No | No | Apache 2.0 | Public-domain code samples |
 | Install size | **26 MB single .exe** | Browser-based | Browser-based | 1.2 GB+ | Java JDK + textbook |
-| Supported languages | Python only | Python / blocks | Python / blocks / C# | C / C++ / Python / Java | Java |
+| Supported languages | **Python + blocks** | Python / blocks | Python / blocks / C# | C / C++ / Python / Java | Java |
 | Customisable lessons (pupil-authored) | **Yes (YAML editor)** | No | No | Yes (advanced) | No |
 | Self-improving memory layer | **Yes (EMA per concept)** | Limited progress tracking | Limited progress tracking | None | None |
 | Pupil progression / achievements | **15 unlockables + streaks** | Badges | Levels + badges | None | None |
@@ -34,17 +34,23 @@ publicly-available documentation as of the project's submission date.
    the recommendation order without ever needing an account.
 5. **Pupil-authored lessons.** The in-app YAML editor lets every
    pupil/teacher add a custom mission without leaving the simulator.
+6. **Blocks-to-Python on-ramp.** A Scratch-style click-to-stack
+   palette compiles to real Python in the editor, so KS3 starters get
+   a low floor without leaving the text-first model. Like everything
+   else it runs fully offline, no account.
 
 ## Where RoboLearn loses (and why that's OK for the dissertation)
 
-1. **Python only.** Competitors that ship block-based editors lower
-   the floor for KS3 starters. Mitigation: RoboLearn intentionally
-   pushes text-based programming because the Computing programme of
-   study mandates it from KS3.
-2. **No mobile app.** Web-based competitors trivially run on tablets.
+1. **No mobile app.** Web-based competitors trivially run on tablets.
    RoboLearn explicitly scopes to laptop/desktop because the same
    spec also forbids cloud sync of pupil work.
-3. **No graphical block editor.** Same reason: text-first.
+2. **Lean block palette.** RoboLearn ships a Scratch-style blocks
+   mode (movement, turns, `repeat`, `if obstacle ahead`), but it is
+   deliberately narrower than the full Blockly/Scratch environments in
+   VEX VR or CoderZ — no events, variables, or sprites. The blocks are
+   an on-ramp that compile straight to Python in the editor, not a
+   parallel visual language to live in, because the Computing
+   programme of study pushes text-based programming from KS3.
 
 ## Sources
 

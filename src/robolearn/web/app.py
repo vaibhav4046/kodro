@@ -31,8 +31,10 @@ from robolearn.engine.terrain import Terrain
 from robolearn.engine.world import ArenaBounds, World
 from robolearn.lessons.grader import grade
 from robolearn.lessons.schema import Lesson, load_library
+from robolearn.memory.achievements import PupilContext, check_and_unlock
 from robolearn.memory.hint_engine import HintContext
 from robolearn.memory.hint_learning import best_hint
+from robolearn.memory.pupil_model import suggest_next_lesson, update_on_submission
 from robolearn.memory.store import Store
 from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
@@ -218,7 +220,7 @@ class BridgeAPI:
         if not verdict.passed and hint is not None:
             self._store.set_pending_hint(self._pupil_id, lesson.id, hint.rule_name)
 
-        self._store.record_submission(
+        submission = self._store.record_submission(
             pupil_id=self._pupil_id,
             lesson_id=lesson.id,
             code=source or "",
@@ -229,6 +231,27 @@ class BridgeAPI:
             battery_used=ctx.battery_used,
             collisions=ctx.collisions,
         )
+
+        # Keep the learner model live in the shipped web app, not only in the
+        # legacy Tk shell: update concept strength so the recommender and the
+        # teacher heatmap actually move, unlock achievements, and surface the
+        # adaptive next-lesson pick. All local, all from this one submission.
+        update_on_submission(
+            self._store, pupil_id=self._pupil_id, lesson=lesson, passed=verdict.passed
+        )
+        history = tuple(self._store.list_submissions(pupil_id=self._pupil_id))
+        pctx = PupilContext(
+            pupil_id=self._pupil_id, lesson=lesson, submission=submission, history=history
+        )
+        achievements = [
+            {"id": a.id, "title": a.title, "description": a.description, "icon": a.icon}
+            for a in check_and_unlock(self._store, pctx)
+        ]
+        recommended = suggest_next_lesson(self._store, self._pupil_id, self._lessons)
+        rec = None
+        if recommended is not None and recommended.id != lesson.id:
+            rec = {"id": recommended.id, "title": recommended.title}
+
         return {
             "ok": True,
             "lessonId": lesson_id,
@@ -238,6 +261,8 @@ class BridgeAPI:
             "reasons": list(verdict.reasons),
             "hint": _hint_to_dict(hint),
             "events": _events_to_dicts(events),
+            "achievements": achievements,
+            "recommended": rec,
         }
 
     def get_hint(
