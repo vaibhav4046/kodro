@@ -29,18 +29,27 @@ from dataclasses import dataclass, field
 
 from .ollama_client import DEFAULT_MODEL, OllamaClient
 
+#: The full public rover interface, so the reviewer judges "taught functions
+#: only" against what actually exists rather than a partial list (an earlier
+#: hardcoded subset wrongly flagged place, beep, read_heading and others).
+ROVER_API: str = (
+    "move_forward, move_backward, turn_left, turn_right, set_speed, wait, "
+    "read_distance, read_colour, read_heading, read_battery, obstacle_ahead, "
+    "sample_detected, at_base, scan, collect_sample, drop_sample, say, led, "
+    "beep, log, place, clear_props, pen_down, pen_up"
+)
+
 _REVIEW_SYSTEM: str = """\
 You are a senior Computing teacher reviewing a child's rover program.
 Reply with ONLY a JSON object of the form
-{"issues": ["...", "..."], "code": "<improved program or empty string>"}.
+{{"issues": ["...", "..."], "code": "<improved program or empty string>"}}.
 List at most three short, concrete issues a 11-16 year old can act on:
 whether the program meets the goal, whether it is clear, and whether it
-uses only the rover functions taught (move_forward, move_backward,
-turn_left, turn_right, set_speed, read_distance, obstacle_ahead, scan,
-collect_sample, say, led, and standard loops or ifs). If the program is
-already good, return an empty issues list. Only fill "code" when you can
-give a genuinely better, complete program; otherwise leave it "".
-Never include prose outside the JSON.
+uses only the rover functions that exist ({api}) plus standard Python
+loops, ifs and functions. If the program is already good, return an empty
+issues list. Only fill "code" when you can give a genuinely better,
+complete program; otherwise leave it "". Never include prose outside the
+JSON.
 """
 
 #: Hard cap on the review prompt so a pasted essay cannot blow up the model.
@@ -91,7 +100,11 @@ def review_program(
     context = f"Goal: {goal.strip()[:400]}\n\n" if goal.strip() else ""
     prompt = f"{context}Program:\n```python\n{code}\n```\n\nReview it now."
     raw = ollama.generate(
-        prompt, system=_REVIEW_SYSTEM, model=model, json_mode=True, temperature=0.3
+        prompt,
+        system=_REVIEW_SYSTEM.format(api=ROVER_API),
+        model=model,
+        json_mode=True,
+        temperature=0.3,
     )
     issues, proposed = _parse_review(raw)
     result = CritiqueResult(final_code=source or "", issues=issues, model=model)

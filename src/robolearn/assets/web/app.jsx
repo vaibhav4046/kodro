@@ -520,6 +520,10 @@ rover.say("Survey done")`
       if (!lesson) return;
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
+      // Render the rover on the SAME world it is graded against. Without this
+      // the viewport could show a persisted Mars while the grader ran the
+      // lesson's real terrain, so a pass looked like it happened elsewhere.
+      if (lesson.terrain && TERRAINS[lesson.terrain]) setTerrainId(lesson.terrain);
       // Seed this lesson's buffer from its starter ONLY if it has no edits yet,
       // so switching A -> B -> A preserves the pupil's work in A (rank 6).
       setLessonBuffers(b => b[lesson.id] !== undefined ? b : { ...b, [lesson.id]: lesson.starterCode || '' });
@@ -545,6 +549,8 @@ rover.say("Survey done")`
           const lines = [...l, { type: tag, text: (r.passed ? '✓ PASS' : '✗ NOT YET') + '  Score: ' + r.score + '/100' }];
           if (!r.passed && Array.isArray(r.reasons)) r.reasons.forEach(reason => lines.push({ type: 'err', text: '  · ' + reason }));
           if (r.hint && r.hint.message) lines.push({ type: 'sys', text: '💡 Hint: ' + r.hint.message });
+          if (Array.isArray(r.achievements)) r.achievements.forEach(a => lines.push({ type: 'ok', text: (a.icon || '🏅') + ' Achievement unlocked: ' + a.title }));
+          if (r.recommended && r.recommended.id) lines.push({ type: 'sys', text: '👉 Recommended next: ' + r.recommended.id + ' — ' + r.recommended.title });
           return lines;
         });
       } catch (err) {

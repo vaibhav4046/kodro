@@ -120,6 +120,24 @@ def test_submit_attempt_grades_and_persists(api: BridgeAPI) -> None:
     assert json.loads(json.dumps(result))["lessonId"] == target_id
 
 
+def test_submit_attempt_drives_the_learner_model(api: BridgeAPI) -> None:
+    """The web path (not only the Tk app) updates concept strength, unlocks
+    achievements, and returns the adaptive next-lesson pick."""
+    from robolearn.memory.pupil_model import get_strengths
+
+    lessons = api.list_lessons()
+    target_id = lessons[0]["id"]
+    starter = lessons[0]["starterCode"]
+    result = api.submit_attempt(target_id, starter, None)
+    # New payload keys cross the wire.
+    assert "achievements" in result and isinstance(result["achievements"], list)
+    assert "recommended" in result  # may be None, but the key is present
+    assert json.loads(json.dumps(result)) is not None
+    # The concept model actually moved for this pupil (it was inert before).
+    strengths = get_strengths(api._store, api._pupil_id)  # type: ignore[attr-defined]
+    assert strengths, "submitting a lesson must update concept strength in the web app"
+
+
 def test_submit_attempt_with_runtime_error_returns_reason_without_recording(
     api: BridgeAPI,
 ) -> None:
