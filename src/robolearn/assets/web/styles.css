@@ -930,3 +930,43 @@ kbd {
 .review-issues li{ font-size:13px; line-height:1.5; color:var(--fg-1); }
 .review-clean{ font-size:13px; color:var(--success); margin:4px 0; }
 .review-rewrite{ display:flex; flex-direction:column; gap:6px; border-top:1px solid var(--border); padding-top:10px; }
+
+/* Read-aloud button on the lesson card (offline TTS). */
+.read-aloud{
+  margin-left:auto; flex:none; cursor:pointer; white-space:nowrap;
+  font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.04em;
+  color:var(--fg-1); background:var(--navy-3); border:1px solid var(--border);
+  border-radius:5px; padding:4px 9px; transition:all 140ms var(--ease);
+}
+.read-aloud:hover{ border-color:var(--cyan); color:var(--cyan); }
+.read-aloud:active{ transform:scale(0.96); }
+
+/* --- High contrast: WCAG-AA solid text, colour-blind-safe blue/amber. --- */
+:root[data-theme="contrast"]{
+  --void:#000000; --navy:#0a0a0a; --navy-2:#141414; --navy-3:#1f1f1f;
+  --ink:#0a0a0a; --ink-2:#2a2a2a; --ink-3:#9a9a9a;
+  --cyan:#4da3ff; --cyan-2:#6fb5ff; --cyan-deep:#1f6fd0;
+  --mars:#ff7a1a; --brass:#ffd400;
+  /* status uses a blue/amber/orange triad, safe for deuteranopia and
+     protanopia; pass and fail also carry tick/cross glyphs and words, so
+     colour is never the only channel. */
+  --success:#4da3ff; --warning:#ffd400; --danger:#ff7a1a;
+  --fg-1:#ffffff; --fg-2:#e8e8e8; --fg-3:#cfcfcf; --fg-4:#a8a8a8;
+  --border:rgba(255,255,255,0.52); --border-2:rgba(255,255,255,0.26);
+  --terrain:#4da3ff;
+  --shadow-menu:0 0 0 1px rgba(255,255,255,0.4),0 12px 32px -8px rgba(0,0,0,0.9);
+}
+:root[data-theme="contrast"] ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,0.5); border-color:#000; }
+
+/* Teacher dashboard heatmap. */
+.teacher-body{ display:flex; flex-direction:column; gap:8px; }
+.heatmap-table{ width:100%; border-collapse:collapse; font-family:var(--font-mono); font-size:11px; }
+.heatmap-table th, .heatmap-table td{ border:1px solid var(--border); padding:5px 7px; text-align:center; }
+.heatmap-table th{ background:var(--navy-3); color:var(--fg-2); position:sticky; top:0; }
+.heatmap-table th.hm-concept{ writing-mode:vertical-rl; transform:rotate(180deg); max-height:90px; font-size:10px; letter-spacing:0.04em; }
+.heatmap-table td.hm-name{ text-align:left; color:var(--fg-1); white-space:nowrap; font-family:var(--font-body); }
+.heatmap-table td.hm-cell{ font-variant-numeric:tabular-nums; min-width:30px; }
+
+/* Block reorder controls. */
+.block-actions{ margin-left:auto; display:inline-flex; gap:3px; }
+.block-actions .btn-mini{ padding:2px 6px; }

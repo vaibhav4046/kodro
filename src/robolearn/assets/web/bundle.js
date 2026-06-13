@@ -3641,6 +3641,9 @@ rover.say("Survey done")`
     const [reviewBusy, setReviewBusy] = useState(false);
     const [reviewData, setReviewData] = useState(null);
     const [reviewErr, setReviewErr] = useState(null);
+    // Teacher dashboard: class concept-strength heatmap (now in the web app).
+    const [teacherOpen, setTeacherOpen] = useState(false);
+    const [teacherData, setTeacherData] = useState(null);
     const [vibePrompt, setVibePrompt] = useState('');
     const [vibeBusy, setVibeBusy] = useState(false);
     const [vibeError, setVibeError] = useState(null);
@@ -3783,6 +3786,25 @@ rover.say("Survey done")`
         typewriteCode(reviewData.code);
       }
     }
+    async function openTeacher() {
+      setSettingsOpen(false);
+      setTeacherOpen(true);
+      setTeacherData(null);
+      try {
+        const r = await window.RoboLearn.getClassHeatmap();
+        if (r && r.ok) setTeacherData(r);else setTeacherData({
+          ok: false,
+          concepts: [],
+          pupils: []
+        });
+      } catch (e) {
+        setTeacherData({
+          ok: false,
+          concepts: [],
+          pupils: []
+        });
+      }
+    }
     async function vibeMic() {
       if (micBusy) return;
       setMicBusy(true);
@@ -3919,6 +3941,18 @@ rover.say("Survey done")`
     }
     function removeBlock(i) {
       setBlocks(bs => bs.filter((_, j) => j !== i));
+    }
+    function moveBlock(i, dir) {
+      setBlocks(bs => {
+        const j = i + dir;
+        if (j < 0 || j >= bs.length) return bs;
+        const next = bs.slice();
+        const tmp = next[i];
+        next[i] = next[j];
+        next[j] = tmp;
+        return next;
+      });
+      sfx('led');
     }
     function blocksToPython() {
       const defs = {};
@@ -4939,6 +4973,8 @@ rover.say("Survey done")`
     }, "Mission (dark)"), /*#__PURE__*/React.createElement("option", {
       value: "light"
     }, "Daylight (light)"), /*#__PURE__*/React.createElement("option", {
+      value: "contrast"
+    }, "High contrast (colour-blind safe)"), /*#__PURE__*/React.createElement("option", {
       value: "matrix"
     }, "Matrix"), /*#__PURE__*/React.createElement("option", {
       value: "pixel"
@@ -4982,6 +5018,12 @@ rover.say("Survey done")`
     }, /*#__PURE__*/React.createElement("span", null, "Photo prop \u2014 place(\"photo\")"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
     }, photoUrl ? 'Loaded' : 'Pick…')), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      onClick: openTeacher
+    }, /*#__PURE__*/React.createElement("span", null, "Teacher dashboard"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
       role: "menuitem",
       onClick: () => {
@@ -5077,7 +5119,17 @@ rover.say("Survey done")`
         title: "Reading age"
       }, "Age ", lesson.readingAge, "+") : null, lessonVerdict && /*#__PURE__*/React.createElement("span", {
         className: 'lesson-verdict ' + (lessonVerdict.passed ? 'pass' : 'fail')
-      }, lessonVerdict.passed ? '✓ Complete' : '✗ Not yet', " \xB7 ", lessonVerdict.score, "/100")), lesson.intro ? /*#__PURE__*/React.createElement("p", {
+      }, lessonVerdict.passed ? '✓ Complete' : '✗ Not yet', " \xB7 ", lessonVerdict.score, "/100"), /*#__PURE__*/React.createElement("button", {
+        className: "read-aloud",
+        type: "button",
+        title: "Read this lesson aloud",
+        "aria-label": "Read this lesson aloud",
+        onClick: () => {
+          const gloss = lesson.glossary ? Object.keys(lesson.glossary).map(t => t + ': ' + lesson.glossary[t]).join('. ') : '';
+          const text = (lesson.intro || '').trim() + (gloss ? '. ' + gloss : '');
+          if (text && window.RoboLearn) window.RoboLearn.speak(text, voiceGender, -2);
+        }
+      }, "\uD83D\uDD0A Read aloud")), lesson.intro ? /*#__PURE__*/React.createElement("p", {
         className: "lesson-intro"
       }, lesson.intro.trim()) : null, lesson.glossary && Object.keys(lesson.glossary).length > 0 && /*#__PURE__*/React.createElement("dl", {
         className: "lesson-glossary"
@@ -5310,7 +5362,60 @@ rover.say("Survey done")`
       value: t.trail,
       options: ['terrain', 'cyan', 'amber'],
       onChange: v => setTweak('trail', v)
-    })), reviewOpen && /*#__PURE__*/React.createElement("div", {
+    })), teacherOpen && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => setTeacherOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal modal-wide",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Teacher dashboard",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83D\uDCCA Teacher dashboard \u2014 class concept strength"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setTeacherOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "teacher-body"
+    }, !teacherData && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Reading the class memory on this machine\u2026"), teacherData && teacherData.pupils.length === 0 && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "No pupil data yet. Pass a lesson to start the heatmap."), teacherData && teacherData.pupils.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        overflow: 'auto',
+        maxHeight: '60vh'
+      }
+    }, /*#__PURE__*/React.createElement("table", {
+      className: "heatmap-table"
+    }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Pupil"), teacherData.concepts.map(c => /*#__PURE__*/React.createElement("th", {
+      key: c,
+      className: "hm-concept"
+    }, c)))), /*#__PURE__*/React.createElement("tbody", null, teacherData.pupils.map(p => /*#__PURE__*/React.createElement("tr", {
+      key: p.id
+    }, /*#__PURE__*/React.createElement("td", {
+      className: "hm-name"
+    }, p.name, p.active ? ' ·' : ''), teacherData.concepts.map(c => {
+      const v = p.scores[c];
+      const has = typeof v === 'number';
+      const pct = has ? Math.round(v * 100) : null;
+      const hue = has ? Math.round(v * 130) : 0; // 0 red → 130 green
+      return /*#__PURE__*/React.createElement("td", {
+        key: c,
+        className: "hm-cell",
+        title: has ? c + ': ' + pct + '%' : 'not attempted',
+        style: {
+          background: has ? 'hsl(' + hue + ' 55% 42%)' : 'transparent',
+          color: has ? '#fff' : 'var(--fg-4)'
+        }
+      }, has ? pct : '·');
+    }))))), /*#__PURE__*/React.createElement("p", {
+      className: "build-note"
+    }, "Each cell is a rolling strength score from 0 to 100 for that concept. Higher and greener is stronger. All data is local to this machine."))))), reviewOpen && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => !reviewBusy && setReviewOpen(false)
     }, /*#__PURE__*/React.createElement("div", {
@@ -5507,11 +5612,25 @@ rover.say("Survey done")`
       }
     }), b.unit && /*#__PURE__*/React.createElement("span", {
       className: "vibe-hint"
-    }, b.unit), /*#__PURE__*/React.createElement("button", {
+    }, b.unit), /*#__PURE__*/React.createElement("span", {
+      className: "block-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: i === 0,
+      "aria-label": 'move ' + b.label + ' up',
+      title: "Move up",
+      onClick: () => moveBlock(i, -1)
+    }, "\u2191"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: i === blocks.length - 1,
+      "aria-label": 'move ' + b.label + ' down',
+      title: "Move down",
+      onClick: () => moveBlock(i, 1)
+    }, "\u2193"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": 'remove ' + b.label,
       onClick: () => removeBlock(i)
-    }, "\u2715")))), /*#__PURE__*/React.createElement("div", {
+    }, "\u2715"))))), /*#__PURE__*/React.createElement("div", {
       className: "vibe-actions"
     }, /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",

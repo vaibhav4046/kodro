@@ -52,6 +52,7 @@
     submitAttempt: (lessonId, source, traceJson) =>
       call("submit_attempt", lessonId, source, traceJson),
     getPupilSummary: () => call("get_pupil_summary"),
+    getClassHeatmap: () => call("get_class_heatmap"),
     listPupils: () => call("list_pupils"),
     createPupil: (name) => call("create_pupil", name),
     selectPupil: (id) => call("select_pupil", id),
@@ -68,7 +69,7 @@
     listen: (timeoutS) => call("listen", timeoutS),
     pickPhoto: () => call("pick_photo"),
     budgetBuild: (usd, goal) => call("budget_build", usd, goal || ""),
-    speak: (text, voice) => call("speak", text, voice || "female"),
+    speak: (text, voice, rate) => call("speak", text, voice || "female", rate || 0),
     log: (level, msg) => call("log", level, msg),
   };
 

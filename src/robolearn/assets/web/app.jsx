@@ -337,6 +337,9 @@ rover.say("Survey done")`
     const [reviewBusy, setReviewBusy] = useState(false);
     const [reviewData, setReviewData] = useState(null);
     const [reviewErr, setReviewErr] = useState(null);
+    // Teacher dashboard: class concept-strength heatmap (now in the web app).
+    const [teacherOpen, setTeacherOpen] = useState(false);
+    const [teacherData, setTeacherData] = useState(null);
     const [vibePrompt, setVibePrompt] = useState('');
     const [vibeBusy, setVibeBusy] = useState(false);
     const [vibeError, setVibeError] = useState(null);
@@ -427,6 +430,17 @@ rover.say("Survey done")`
       }
     }
 
+    async function openTeacher() {
+      setSettingsOpen(false);
+      setTeacherOpen(true);
+      setTeacherData(null);
+      try {
+        const r = await window.RoboLearn.getClassHeatmap();
+        if (r && r.ok) setTeacherData(r);
+        else setTeacherData({ ok: false, concepts: [], pupils: [] });
+      } catch (e) { setTeacherData({ ok: false, concepts: [], pupils: [] }); }
+    }
+
     async function vibeMic() {
       if (micBusy) return;
       setMicBusy(true); setVibeError(null);
@@ -482,6 +496,16 @@ rover.say("Survey done")`
     function endBlock() { setBlockIndent(d => Math.max(0, d - 1)); }
     function removeBlock(i) {
       setBlocks(bs => bs.filter((_, j) => j !== i));
+    }
+    function moveBlock(i, dir) {
+      setBlocks(bs => {
+        const j = i + dir;
+        if (j < 0 || j >= bs.length) return bs;
+        const next = bs.slice();
+        const tmp = next[i]; next[i] = next[j]; next[j] = tmp;
+        return next;
+      });
+      sfx('led');
     }
     function blocksToPython() {
       const defs = {}; BLOCK_DEFS.forEach(d => { defs[d.k] = d; });
@@ -1175,6 +1199,7 @@ rover.say("Survey done")`
                   <select className="lesson-select" value={theme} onChange={e => setTheme(e.target.value)} aria-label="Visual theme">
                     <option value="dark">Mission (dark)</option>
                     <option value="light">Daylight (light)</option>
+                    <option value="contrast">High contrast (colour-blind safe)</option>
                     <option value="matrix">Matrix</option>
                     <option value="pixel">Pixel</option>
                     <option value="game">Arcade</option>
@@ -1195,6 +1220,9 @@ rover.say("Survey done")`
                 </button>
                 <button className="set-row set-btn" role="menuitem" onClick={() => { setSettingsOpen(false); pickPhotoClick(); }}>
                   <span>Photo prop — place("photo")</span><span className="set-val">{photoUrl ? 'Loaded' : 'Pick…'}</span>
+                </button>
+                <button className="set-row set-btn" role="menuitem" onClick={openTeacher}>
+                  <span>Teacher dashboard</span><span className="set-val">→</span>
                 </button>
                 <button className="set-row set-btn" role="menuitem" onClick={() => { setSettingsOpen(false); exportReportClick(); }}>
                   <span>Export progress report</span><span className="set-val">→</span>
@@ -1254,6 +1282,17 @@ rover.say("Survey done")`
                           {lessonVerdict.passed ? '✓ Complete' : '✗ Not yet'} · {lessonVerdict.score}/100
                         </span>
                       )}
+                      <button
+                        className="read-aloud"
+                        type="button"
+                        title="Read this lesson aloud"
+                        aria-label="Read this lesson aloud"
+                        onClick={() => {
+                          const gloss = lesson.glossary ? Object.keys(lesson.glossary).map(t => t + ': ' + lesson.glossary[t]).join('. ') : '';
+                          const text = (lesson.intro || '').trim() + (gloss ? '. ' + gloss : '');
+                          if (text && window.RoboLearn) window.RoboLearn.speak(text, voiceGender, -2);
+                        }}
+                      >🔊 Read aloud</button>
                     </div>
                     {lesson.intro ? <p className="lesson-intro">{lesson.intro.trim()}</p> : null}
                     {lesson.glossary && Object.keys(lesson.glossary).length > 0 && (
@@ -1367,6 +1406,55 @@ rover.say("Survey done")`
           <window.TweakSection label="Path trace" />
           <window.TweakRadio label="Trail color" value={t.trail} options={['terrain', 'cyan', 'amber']} onChange={v => setTweak('trail', v)} />
         </window.TweaksPanel>
+
+        {teacherOpen && (
+          <div className="modal-backdrop" onClick={() => setTeacherOpen(false)}>
+            <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Teacher dashboard" onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <span className="eyebrow">📊 Teacher dashboard — class concept strength</span>
+                <button className="btn-mini" aria-label="Close" onClick={() => setTeacherOpen(false)}>✕</button>
+              </div>
+              <div className="teacher-body">
+                {!teacherData && <p className="vibe-status">Reading the class memory on this machine…</p>}
+                {teacherData && teacherData.pupils.length === 0 && (
+                  <p className="vibe-status">No pupil data yet. Pass a lesson to start the heatmap.</p>
+                )}
+                {teacherData && teacherData.pupils.length > 0 && (
+                  <div style={{ overflow: 'auto', maxHeight: '60vh' }}>
+                    <table className="heatmap-table">
+                      <thead>
+                        <tr>
+                          <th>Pupil</th>
+                          {teacherData.concepts.map(c => <th key={c} className="hm-concept">{c}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teacherData.pupils.map(p => (
+                          <tr key={p.id}>
+                            <td className="hm-name">{p.name}{p.active ? ' ·' : ''}</td>
+                            {teacherData.concepts.map(c => {
+                              const v = p.scores[c];
+                              const has = typeof v === 'number';
+                              const pct = has ? Math.round(v * 100) : null;
+                              const hue = has ? Math.round(v * 130) : 0; // 0 red → 130 green
+                              return (
+                                <td key={c} className="hm-cell" title={has ? c + ': ' + pct + '%' : 'not attempted'}
+                                  style={{ background: has ? 'hsl(' + hue + ' 55% 42%)' : 'transparent', color: has ? '#fff' : 'var(--fg-4)' }}>
+                                  {has ? pct : '·'}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="build-note">Each cell is a rolling strength score from 0 to 100 for that concept. Higher and greener is stronger. All data is local to this machine.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {reviewOpen && (
           <div className="modal-backdrop" onClick={() => !reviewBusy && setReviewOpen(false)}>
@@ -1496,7 +1584,11 @@ rover.say("Survey done")`
                       />
                     )}
                     {b.unit && <span className="vibe-hint">{b.unit}</span>}
-                    <button className="btn-mini" aria-label={'remove ' + b.label} onClick={() => removeBlock(i)}>✕</button>
+                    <span className="block-actions">
+                      <button className="btn-mini" disabled={i === 0} aria-label={'move ' + b.label + ' up'} title="Move up" onClick={() => moveBlock(i, -1)}>↑</button>
+                      <button className="btn-mini" disabled={i === blocks.length - 1} aria-label={'move ' + b.label + ' down'} title="Move down" onClick={() => moveBlock(i, 1)}>↓</button>
+                      <button className="btn-mini" aria-label={'remove ' + b.label} onClick={() => removeBlock(i)}>✕</button>
+                    </span>
                   </div>
                 ))}
               </div>
