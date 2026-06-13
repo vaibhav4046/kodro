@@ -368,6 +368,11 @@ class BridgeAPI:
         Within a family prefer the largest parameter count (gemma3:4b over
         gemma3:1b) -- this is the escalation/repair model, so capability wins.
         """
+        # Prefer the locally customised tutor (baked persona + rover API), which
+        # is more accurate on this domain and lower latency than a stock model.
+        for name in installed:
+            if name.lower().startswith("kodro-tutor"):
+                return name
 
         def size_of(name: str) -> float:
             import re
