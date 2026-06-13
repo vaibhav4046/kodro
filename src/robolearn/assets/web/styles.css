@@ -1026,3 +1026,9 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .viewport3d:active{ cursor:grabbing; }
 .viewport3d canvas{ display:block; width:100%; height:100%; }
 .view-toggle{ display:inline-flex; gap:2px; margin-left:auto; }
+
+/* 3D viewport: failure fallback + keyboard focus + canvas focus ring. */
+.vp3d-fail{ display:flex; align-items:center; justify-content:center; height:100%; padding:24px; text-align:center; color:var(--fg-2); font-size:13px; }
+.viewport3d.vp3d-lost::after{ content:'3D paused — switch to 2.5D in the bar'; position:absolute; inset:auto 0 12px 0; text-align:center; color:var(--fg-2); font-family:var(--font-mono); font-size:11px; }
+.viewport3d canvas:focus-visible{ outline:2px solid var(--cyan); outline-offset:-2px; }
+.view-toggle button:focus-visible, .terrain-btn:focus-visible{ outline:2px solid var(--cyan); outline-offset:1px; }

@@ -212,6 +212,13 @@ rover.say("Survey done")`
     const [fpv, setFpv] = useState(() => localStorage.getItem('or_fpv') === '1');
     useEffect(() => { try { localStorage.setItem('or_view3d', view3d ? '1' : '0'); } catch (e) { void e; } }, [view3d]);
     useEffect(() => { try { localStorage.setItem('or_fpv', fpv ? '1' : '0'); } catch (e) { void e; } }, [fpv]);
+    // Escape leaves first person fast (a quick exit for motion sensitivity).
+    useEffect(() => {
+      if (!fpv) return undefined;
+      const onEsc = (e) => { if (e.key === 'Escape') setFpv(false); };
+      window.addEventListener('keydown', onEsc);
+      return () => window.removeEventListener('keydown', onEsc);
+    }, [fpv]);
     const zoom = cam.zoom;
     const trailColor = t.trail === 'cyan' ? '#5ce0d8' : t.trail === 'amber' ? '#e0b45c' : t.trail === 'white' ? '#f5f0e4' : null;
 
