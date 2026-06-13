@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Budget Robot Builder (local AI)** — a "🤖" nav-bar tool: type a budget
+  (and an optional goal) and a **local** Ollama model returns a real-hardware
+  rover guide — a tiered parts list with costs, numbered build steps, and a
+  mapping from each RoboLearn command to the hardware action it drives. Every
+  plan ships with a procedural SVG schematic (board, wheels, sensor, driver,
+  battery). A deterministic floor guarantees a usable plan even at tiny
+  budgets ($5 → cardboard micro-rover; $30+ → ESP32 rover). Offline, no cloud.
+- **Nine visual themes** — a Theme picker in Settings, driven by `[data-theme]`
+  CSS variable swaps so the whole shell repaints from one attribute: Mission
+  (dark default), Daylight (light), Matrix, Pixel, Arcade, Brick, Clean,
+  Abstract and Wiki / Network. The choice persists across sessions.
+- **Real-world Earth landscape** — the base Earth terrain now reads like a map
+  you could fly over: a farmland patchwork of crop fields (with crop-row
+  striping and hedgerows), forest clusters, country roads with dashed
+  centrelines, and a meandering river. Decorative only; it never collides.
 - **Vibe coding (local AI)** — a "✨ Vibe" panel: describe what the rover
   should do and a **local** Ollama model (Qwen 2.5 Coder / Gemma preference)
   writes the Python, which is typed live into the editor (typewriter
