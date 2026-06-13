@@ -1,4 +1,4 @@
-# RoboLearn
+# Kodro
 
 [![CI](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -25,7 +25,7 @@ Liverpool). The specification and design proposal is in
 ## Why
 
 Physical robotics kits are expensive, fragile, and rarely reach every UK
-classroom. RoboLearn replaces them with a single download. Pupils write
+classroom. Kodro replaces them with a single download. Pupils write
 procedural Python against a tiny, readable API (`move_forward`, `read_distance`,
 `collect_sample`) and watch their code drive a rover through curriculum-mapped
 lessons. A pupil-progress memory layer adapts the difficulty and surfaces
@@ -53,7 +53,7 @@ weaknesses.
 
 ## Quick start
 
-**Just want the app?** Download **`RoboLearn-windows.exe`** from the
+**Just want the app?** Download **`Kodro-windows.exe`** from the
 [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) and
 double-click it — the full mission-control desktop app (the modern web UI in a
 native window), no Python install required.
@@ -94,7 +94,7 @@ collect_sample()
 
 | Platform | One-liner |
 | --- | --- |
-| Windows | Download **`RoboLearn-windows.exe`** from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) (~33 MB, the modern web UI; bundles Python + WebView2 bridge) and double-click it. The classic Tk build ships alongside as `robolearn-windows-tk.exe` |
+| Windows | Download **`Kodro-windows.exe`** from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) (~33 MB, the modern web UI; bundles Python + WebView2 bridge) and double-click it. The classic Tk build ships alongside as `robolearn-windows-tk.exe` |
 | macOS | Download `robolearn-macos.zip` from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest), unzip and open `robolearn.app` — or `pip install -e . && python -m robolearn` |
 | Linux | Download the `robolearn-linux` binary from the [latest release](https://github.com/vaibhav4046/robolearn/releases/latest) and `chmod +x` it — or `pip install -e . && python -m robolearn` |
 

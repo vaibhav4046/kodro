@@ -107,7 +107,7 @@ print("Lidar scans:", scans)`
     },
     drive: {
       label: 'starter.py',
-      code: `# Welcome to Orbital Rover.
+      code: `# Welcome to Kodro.
 # Edit freely, then press Run. The API is listed below.
 rover.set_speed(60)
 rover.pen_down()
@@ -201,7 +201,7 @@ rover.say("Survey done")`
     });
     const [runState, setRunState] = useState('idle');
     const [activeLine, setActiveLine] = useState(0);
-    const [consoleLines, setConsoleLines] = useState([{ type: 'sys', text: 'Orbital Rover ready. Press Run to deploy.' }]);
+    const [consoleLines, setConsoleLines] = useState([{ type: 'sys', text: 'Kodro ready. Press Run to deploy.' }]);
     const [speedMul, setSpeedMul] = useState(1);
     const [say, setSay] = useState('');
     const [crashKey, setCrashKey] = useState(0);
@@ -433,6 +433,24 @@ rover.say("Survey done")`
         addConsole('Reviewer (' + (reviewData.model || aiInfo.model) + ') tidied your code. Read it, then press Run.', 'sys');
         typewriteCode(reviewData.code);
       }
+    }
+
+    // Wave voice agent: speak to drive the rover or ask a grounded question.
+    const [vaOpen, setVaOpen] = useState(false);
+    const [vaBusy, setVaBusy] = useState(false);
+    const [vaData, setVaData] = useState(null);
+    async function runVoiceAgent() {
+      if (vaBusy) return;
+      setVaBusy(true); setVaData(null);
+      try {
+        const r = await window.RoboLearn.voiceAgent(6);
+        setVaData(r || { ok: false, reason: 'No response.' });
+        if (r && r.ok && r.mode === 'command' && r.code) {
+          setCode(c => (c && !c.endsWith('\n') ? c + '\n' : c) + r.code + '\n');
+          addConsole('Heard "' + r.text + '" → added ' + r.code, 'ok');
+        }
+      } catch (e) { setVaData({ ok: false, reason: String(e) }); }
+      setVaBusy(false);
     }
 
     const [voiceBusy, setVoiceBusy] = useState(false);
@@ -1186,14 +1204,14 @@ rover.say("Survey done")`
     return (
       <div className="app">
         <a className="skip-link" href="#editor-main">Skip to code editor</a>
-        <h1 className="sr-only">RoboLearn — Orbital Rover Python coding simulator</h1>
+        <h1 className="sr-only">Kodro — learn to code a rover, offline</h1>
         {/* ---- mission bar ---- */}
         <div className="missionbar" role="banner">
           <div className="brand">
             <div className="brand-mark" dangerouslySetInnerHTML={{ __html: ORBIT_SVG }}></div>
             <div className="brand-text">
-              <div className="brand-name">Orbital Rover</div>
-              <div className="brand-sub">Rover Simulator · v1.0</div>
+              <div className="brand-name">Kodro</div>
+              <div className="brand-sub">Code a rover · Offline</div>
             </div>
           </div>
           <div className="bar-divider"></div>
@@ -1217,6 +1235,7 @@ rover.say("Survey done")`
             <span>{statusLabel}</span>
           </div>
           <div className="bar-divider"></div>
+          <button className="icon-btn voice-agent-btn" title="Talk to Kodro — speak a command or ask a question" aria-label="Voice agent" onClick={() => { setVaOpen(true); setVaData(null); runVoiceAgent(); }}>🎙</button>
           <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot" onClick={() => setBuildOpen(true)}>🤖</button>
           <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setShowHelp(true)}>?</button>
           <div className="settings-wrap">
@@ -1447,6 +1466,42 @@ rover.say("Survey done")`
           <window.TweakRadio label="Trail color" value={t.trail} options={['terrain', 'cyan', 'amber']} onChange={v => setTweak('trail', v)} />
         </window.TweaksPanel>
 
+        {vaOpen && (
+          <div className="modal-backdrop" onClick={() => !vaBusy && setVaOpen(false)}>
+            <div className="modal va-modal" role="dialog" aria-modal="true" aria-label="Talk to Kodro" onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <span className="eyebrow">🎙 Talk to Kodro — say a command, or ask a question</span>
+                <button className="btn-mini" aria-label="Close" onClick={() => setVaOpen(false)}>✕</button>
+              </div>
+              <div className="va-body">
+                <div className={'va-wave' + (vaBusy ? ' live' : '')} aria-hidden="true">
+                  {Array.from({ length: 28 }).map((_, i) => <span key={i} style={{ ['--i']: i }}></span>)}
+                </div>
+                <p className="va-status">{vaBusy ? 'Listening…' : (vaData ? null : 'Tap the microphone in the bar to talk.')}</p>
+                {vaData && vaData.text && <p className="va-heard">“{vaData.text}”</p>}
+                {vaData && vaData.ok === false && <p className="vibe-error" role="alert">{vaData.reason}</p>}
+                {vaData && vaData.ok && vaData.mode === 'command' && (
+                  <p className="va-result"><span className="va-tag">added to your code</span><code>{vaData.code}</code></p>
+                )}
+                {vaData && vaData.ok && vaData.mode === 'answer' && (
+                  <div className="ask-answer">
+                    <p className="ask-text">{vaData.answer}</p>
+                    {vaData.sources && vaData.sources.length > 0 && (
+                      <div className="ask-sources">
+                        <span className="eyebrow">From the lessons</span>
+                        {vaData.sources.map((s, i) => (
+                          <div key={i} className="ask-src"><b>[{i + 1}] {s.source}</b><span>{s.text}</span></div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <button className="ctrl ctrl-run" disabled={vaBusy} onClick={runVoiceAgent}>{vaBusy ? 'Listening…' : '🎙 Talk again'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {askOpen && (
           <div className="modal-backdrop" onClick={() => !askBusy && setAskOpen(false)}>
             <div className="modal" role="dialog" aria-modal="true" aria-label="Ask a question" onClick={e => e.stopPropagation()}>
@@ -1624,7 +1679,7 @@ rover.say("Survey done")`
                   <ol className="vibe-steps">
                     <li>Install Ollama from ollama.com (free, offline after install)</li>
                     <li>Run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
-                    <li>Reopen RoboLearn — this panel lights up automatically</li>
+                    <li>Reopen Kodro — this panel lights up automatically</li>
                   </ol>
                 </div>
               )}
@@ -1744,7 +1799,7 @@ rover.say("Survey done")`
                         <ol className="build-steps">{buildPlan.steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
                         {buildPlan.maps && buildPlan.maps.length > 0 && (
                           <>
-                            <div className="eyebrow" style={{ marginTop: 8 }}>From RoboLearn to hardware</div>
+                            <div className="eyebrow" style={{ marginTop: 8 }}>From Kodro to hardware</div>
                             <dl className="build-maps">
                               {buildPlan.maps.map((m, i) => <div key={i}><dt>{m.robolearn}</dt><dd>{m.hardware}</dd></div>)}
                             </dl>

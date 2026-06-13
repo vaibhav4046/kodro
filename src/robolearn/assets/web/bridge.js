@@ -69,6 +69,7 @@
     aiChatPoll: (jobId) => call("ai_chat_poll", jobId),
     listen: (timeoutS) => call("listen", timeoutS),
     voiceCommand: (timeoutS) => call("voice_command", timeoutS),
+    voiceAgent: (timeoutS) => call("voice_agent", timeoutS),
     pickPhoto: () => call("pick_photo"),
     budgetBuild: (usd, goal) => call("budget_build", usd, goal || ""),
     speak: (text, voice, rate) => call("speak", text, voice || "female", rate || 0),

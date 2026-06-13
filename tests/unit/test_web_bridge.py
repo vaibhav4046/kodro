@@ -120,6 +120,35 @@ def test_submit_attempt_grades_and_persists(api: BridgeAPI) -> None:
     assert json.loads(json.dumps(result))["lessonId"] == target_id
 
 
+def test_voice_agent_routes_a_command_to_code(
+    api: BridgeAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A spoken rover command becomes a code line, not a question."""
+    monkeypatch.setattr(
+        api, "listen", lambda timeout_s=6.0: {"ok": True, "text": "go forward three"}
+    )
+    out = api.voice_agent()
+    assert out["ok"] is True
+    assert out["mode"] == "command"
+    assert out["code"] == "move_forward(3)"
+
+
+def test_voice_agent_routes_a_question_to_grounded_ask(
+    api: BridgeAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A spoken question is answered from lesson material, even with no model."""
+    import robolearn.ai.ollama_client as oc
+
+    monkeypatch.setattr(oc.OllamaClient, "available", lambda self: False)
+    monkeypatch.setattr(
+        api, "listen", lambda timeout_s=6.0: {"ok": True, "text": "how do I check for a wall"}
+    )
+    out = api.voice_agent()
+    assert out["ok"] is True
+    assert out["mode"] == "answer"
+    assert out["sources"], "a grounded voice answer must expose its sources"
+
+
 def test_ai_ask_rejects_an_empty_question(api: BridgeAPI) -> None:
     out = api.ai_ask("   ")
     assert out["ok"] is False
