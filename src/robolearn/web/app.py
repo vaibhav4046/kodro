@@ -679,6 +679,41 @@ class BridgeAPI:
             "revised": review.revised,
         }
 
+    def ai_ask(self, query: str) -> dict[str, Any]:
+        """Answer a how-do-I question grounded in the lesson material.
+
+        Retrieval is fully offline, so even with no local model the pupil
+        still gets the most relevant lesson passages instead of nothing.
+        When a model is present it writes a short answer constrained to
+        those passages, and refuses plainly when retrieval finds nothing.
+        """
+        from robolearn.ai.ollama_client import OllamaClient, OllamaError
+        from robolearn.ai.retrieval import build_corpus, grounded_answer, search
+
+        q = (query or "").strip()
+        if not q:
+            return {"ok": False, "reason": "Ask a question about the lessons first."}
+        client = OllamaClient()
+        if not client.available():
+            hits = search(q, build_corpus(self._lessons), k=2)
+            if hits:
+                return {
+                    "ok": True,
+                    "grounded": True,
+                    "noModel": True,
+                    "answer": "The AI model is offline. Here is the lesson material that matches:",
+                    "sources": [{"source": h.source, "text": h.text} for h in hits],
+                }
+            return {"ok": False, "reason": "Nothing in the lessons matched, and the AI is offline."}
+        model = self._pick_ai_model(client.models())
+        if model is None:
+            return {"ok": False, "reason": "Ollama has no models. Pull qwen2.5-coder:3b first."}
+        try:
+            out = grounded_answer(q, self._lessons, client=client, model=model)
+        except OllamaError as exc:
+            return {"ok": False, "reason": f"Ask failed: {exc}"}
+        return {"ok": True, "model": model, **out}
+
     @staticmethod
     def _validate_generated(code: str) -> str | None:
         """Run AI code through the sandboxed executor; return the error or None."""
@@ -1038,6 +1073,30 @@ class BridgeAPI:
             return {"ok": True, "dataUrl": f"data:{mime};base64,{data}", "name": path.name}
         except Exception as exc:  # pragma: no cover - host dialog dependent
             return {"ok": False, "reason": str(exc)}
+
+    def voice_command(self, timeout_s: float = 6.0) -> dict[str, Any]:
+        """Dictate one phrase and turn it into a rover instruction, offline.
+
+        Combines the offline speech recogniser with the deterministic
+        voice-to-rover parser, so a pupil can speak "go forward three" and
+        get ``move_forward(3)`` to drop into the editor, with no local model
+        and no network. Returns the heard text alongside the code line, or a
+        friendly reason when the phrase was not understood.
+        """
+        from robolearn.ai.voice_commands import parse_voice_command
+
+        heard = self.listen(timeout_s)
+        if not heard.get("ok"):
+            return heard
+        text = str(heard.get("text", ""))
+        line = parse_voice_command(text)
+        if line is None:
+            return {
+                "ok": False,
+                "text": text,
+                "reason": f'Heard "{text}", but that is not a command I know yet.',
+            }
+        return {"ok": True, "text": text, "code": line}
 
     def listen(self, timeout_s: float = 6.0) -> dict[str, Any]:
         """Dictate one phrase with Windows' built-in offline speech recogniser.

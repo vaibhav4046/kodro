@@ -120,6 +120,27 @@ def test_submit_attempt_grades_and_persists(api: BridgeAPI) -> None:
     assert json.loads(json.dumps(result))["lessonId"] == target_id
 
 
+def test_ai_ask_rejects_an_empty_question(api: BridgeAPI) -> None:
+    out = api.ai_ask("   ")
+    assert out["ok"] is False
+    assert "question" in out["reason"].lower()
+
+
+def test_ai_ask_returns_grounded_lesson_sources_without_a_model(
+    api: BridgeAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With no local model reachable, Ask still returns grounded lesson
+    passages from offline retrieval rather than nothing."""
+    import robolearn.ai.ollama_client as oc
+
+    monkeypatch.setattr(oc.OllamaClient, "available", lambda self: False)
+    out = api.ai_ask("how do I check for a wall ahead")
+    assert out["ok"] is True
+    assert out["grounded"] is True
+    assert out.get("noModel") is True
+    assert out["sources"], "retrieval must return lesson material offline"
+
+
 def test_get_class_heatmap_reflects_graded_submissions(api: BridgeAPI) -> None:
     """The teacher heatmap is now reachable from the web app and updates as
     pupils submit (previously Tk-only)."""

@@ -3644,6 +3644,11 @@ rover.say("Survey done")`
     // Teacher dashboard: class concept-strength heatmap (now in the web app).
     const [teacherOpen, setTeacherOpen] = useState(false);
     const [teacherData, setTeacherData] = useState(null);
+    // Grounded Ask: answers from the lesson material, offline retrieval.
+    const [askOpen, setAskOpen] = useState(false);
+    const [askQuery, setAskQuery] = useState('');
+    const [askBusy, setAskBusy] = useState(false);
+    const [askData, setAskData] = useState(null);
     const [vibePrompt, setVibePrompt] = useState('');
     const [vibeBusy, setVibeBusy] = useState(false);
     const [vibeError, setVibeError] = useState(null);
@@ -3785,6 +3790,43 @@ rover.say("Survey done")`
         addConsole('Reviewer (' + (reviewData.model || aiInfo.model) + ') tidied your code. Read it, then press Run.', 'sys');
         typewriteCode(reviewData.code);
       }
+    }
+    const [voiceBusy, setVoiceBusy] = useState(false);
+    async function runVoiceCommand() {
+      if (voiceBusy) return;
+      setVoiceBusy(true);
+      addConsole('Listening… say a command like "go forward three" or "turn left ninety".', 'sys');
+      try {
+        const r = await window.RoboLearn.voiceCommand(6);
+        if (r && r.ok && r.code) {
+          setCode(c => (c && !c.endsWith('\n') ? c + '\n' : c) + r.code + '\n');
+          addConsole('Heard "' + r.text + '" → added ' + r.code, 'ok');
+        } else {
+          addConsole(r && r.reason || 'Voice command not understood.', 'err');
+        }
+      } catch (e) {
+        addConsole('Voice: ' + e, 'err');
+      }
+      setVoiceBusy(false);
+    }
+    async function runAsk() {
+      const q = (askQuery || '').trim();
+      if (!q || askBusy) return;
+      setAskBusy(true);
+      setAskData(null);
+      try {
+        const r = await window.RoboLearn.aiAsk(q);
+        setAskData(r || {
+          ok: false,
+          reason: 'No response.'
+        });
+      } catch (e) {
+        setAskData({
+          ok: false,
+          reason: String(e)
+        });
+      }
+      setAskBusy(false);
     }
     async function openTeacher() {
       setSettingsOpen(false);
@@ -5122,7 +5164,19 @@ rover.say("Survey done")`
       className: "btn-mini",
       title: "A second AI agent reviews your code",
       onClick: runReview
-    }, "\uD83D\uDD0E Review")), /*#__PURE__*/React.createElement(window.Editor, {
+    }, "\uD83D\uDD0E Review"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      title: "Ask a question, answered from the lesson material",
+      onClick: () => {
+        setAskOpen(true);
+        setAskData(null);
+      }
+    }, "\u2753 Ask"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      title: "Speak a command \u2014 works offline, no AI model needed",
+      disabled: voiceBusy,
+      onClick: runVoiceCommand
+    }, voiceBusy ? '🎙…' : '🎙 Voice')), /*#__PURE__*/React.createElement(window.Editor, {
       code: code,
       onChange: onCodeChange,
       activeLine: activeLine,
@@ -5391,7 +5445,59 @@ rover.say("Survey done")`
       value: t.trail,
       options: ['terrain', 'cyan', 'amber'],
       onChange: v => setTweak('trail', v)
-    })), teacherOpen && /*#__PURE__*/React.createElement("div", {
+    })), askOpen && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => !askBusy && setAskOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Ask a question",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\u2753 Ask \u2014 answered from the lesson material, not made up"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setAskOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "ask-body"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "build-input"
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "grow"
+    }, /*#__PURE__*/React.createElement("span", null, "Your question"), /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      value: askQuery,
+      placeholder: "e.g. how do I check for a wall?",
+      onChange: e => setAskQuery(e.target.value),
+      onKeyDown: e => {
+        if (e.key === 'Enter') runAsk();
+      },
+      autoFocus: true
+    })), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      disabled: askBusy || !askQuery.trim(),
+      onClick: runAsk
+    }, askBusy ? 'Looking…' : 'Ask')), askData && askData.ok === false && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, askData.reason), askData && askData.ok && /*#__PURE__*/React.createElement("div", {
+      className: "ask-answer"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "ask-text"
+    }, askData.answer), askData.sources && askData.sources.length > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "ask-sources"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "From the lessons"), askData.sources.map((s, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "ask-src"
+    }, /*#__PURE__*/React.createElement("b", null, "[", i + 1, "] ", s.source), /*#__PURE__*/React.createElement("span", null, s.text)))), askData.noModel && /*#__PURE__*/React.createElement("p", {
+      className: "build-note"
+    }, "Start a local model (Ollama) for a written answer; the lesson material above is shown offline."))))), teacherOpen && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => setTeacherOpen(false)
     }, /*#__PURE__*/React.createElement("div", {
