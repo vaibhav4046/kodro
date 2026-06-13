@@ -293,6 +293,9 @@ rover.say("Survey done")`
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
+    // Visual theme. 'dark' is the default mission-control look; the rest are
+    // full repaints driven by [data-theme] CSS variable swaps in styles.css.
+    const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     // Budget robot builder (local AI hardware guide for a real-world rover).
@@ -539,6 +542,12 @@ rover.say("Survey done")`
 
     // persist
     useEffect(() => { localStorage.setItem('or_terrain', terrainId); }, [terrainId]);
+    useEffect(() => {
+      try { localStorage.setItem('or_theme', theme); } catch (e) { void e; }
+      const root = document.documentElement;
+      if (theme && theme !== 'dark') root.setAttribute('data-theme', theme);
+      else root.removeAttribute('data-theme');
+    }, [theme]);
     useEffect(() => { localStorage.setItem('or_tab', activeTab); }, [activeTab]);
     useEffect(() => { try { localStorage.setItem('or_programs', JSON.stringify(programs)); } catch (e) {} }, [programs]);
 
@@ -1129,6 +1138,20 @@ rover.say("Survey done")`
                     </select>
                   </label>
                 )}
+                <label className="set-row">
+                  <span>Theme</span>
+                  <select className="lesson-select" value={theme} onChange={e => setTheme(e.target.value)} aria-label="Visual theme">
+                    <option value="dark">Mission (dark)</option>
+                    <option value="light">Daylight (light)</option>
+                    <option value="matrix">Matrix</option>
+                    <option value="pixel">Pixel</option>
+                    <option value="game">Arcade</option>
+                    <option value="lego">Brick</option>
+                    <option value="chatgpt">Clean</option>
+                    <option value="abstract">Abstract</option>
+                    <option value="wiki">Wiki / Network</option>
+                  </select>
+                </label>
                 <button className="set-row set-btn" role="menuitem" aria-pressed={!muted} onClick={toggleSound}>
                   <span>Sound</span><span className="set-val">{muted ? 'Off' : 'On'}</span>
                 </button>

@@ -3438,6 +3438,9 @@ rover.say("Survey done")`
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
+    // Visual theme. 'dark' is the default mission-control look; the rest are
+    // full repaints driven by [data-theme] CSS variable swaps in styles.css.
+    const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     // Budget robot builder (local AI hardware guide for a real-world rover).
@@ -3882,6 +3885,15 @@ rover.say("Survey done")`
     useEffect(() => {
       localStorage.setItem('or_terrain', terrainId);
     }, [terrainId]);
+    useEffect(() => {
+      try {
+        localStorage.setItem('or_theme', theme);
+      } catch (e) {
+        void e;
+      }
+      const root = document.documentElement;
+      if (theme && theme !== 'dark') root.setAttribute('data-theme', theme);else root.removeAttribute('data-theme');
+    }, [theme]);
     useEffect(() => {
       localStorage.setItem('or_tab', activeTab);
     }, [activeTab]);
@@ -4725,7 +4737,32 @@ rover.say("Survey done")`
       value: p.id
     }, p.displayName)), /*#__PURE__*/React.createElement("option", {
       value: "__new__"
-    }, "+ New pupil\u2026"))), /*#__PURE__*/React.createElement("button", {
+    }, "+ New pupil\u2026"))), /*#__PURE__*/React.createElement("label", {
+      className: "set-row"
+    }, /*#__PURE__*/React.createElement("span", null, "Theme"), /*#__PURE__*/React.createElement("select", {
+      className: "lesson-select",
+      value: theme,
+      onChange: e => setTheme(e.target.value),
+      "aria-label": "Visual theme"
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "dark"
+    }, "Mission (dark)"), /*#__PURE__*/React.createElement("option", {
+      value: "light"
+    }, "Daylight (light)"), /*#__PURE__*/React.createElement("option", {
+      value: "matrix"
+    }, "Matrix"), /*#__PURE__*/React.createElement("option", {
+      value: "pixel"
+    }, "Pixel"), /*#__PURE__*/React.createElement("option", {
+      value: "game"
+    }, "Arcade"), /*#__PURE__*/React.createElement("option", {
+      value: "lego"
+    }, "Brick"), /*#__PURE__*/React.createElement("option", {
+      value: "chatgpt"
+    }, "Clean"), /*#__PURE__*/React.createElement("option", {
+      value: "abstract"
+    }, "Abstract"), /*#__PURE__*/React.createElement("option", {
+      value: "wiki"
+    }, "Wiki / Network"))), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
       role: "menuitem",
       "aria-pressed": !muted,

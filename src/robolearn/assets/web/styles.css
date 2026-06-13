@@ -805,3 +805,121 @@ kbd {
 .build-maps dt{ font-family:var(--font-mono); font-size:11px; color:var(--cyan); }
 .build-maps dd{ margin:0 0 2px; font-size:11px; color:var(--fg-2); line-height:1.45; }
 .build-note{ font-size:10.5px; color:var(--fg-3); font-style:italic; margin:0; }
+
+/* ============================================================================
+   THEMES — full repaints via [data-theme] token swaps.
+   Default (no attribute) is the dark mission-control look above. Every theme
+   below only re-declares the core tokens; the whole UI inherits the change.
+   ========================================================================== */
+
+/* --- Daylight: light paper, ink text, teal accent. --- */
+:root[data-theme="light"]{
+  --void:#eef1f6; --navy:#ffffff; --navy-2:#f4f6fb; --navy-3:#e6eaf2;
+  --ink:#dfe4ee; --ink-2:#c9d0de; --ink-3:#8c93a6;
+  --cyan:#0e8f86; --cyan-2:#0c7b73; --cyan-deep:#0a5f59;
+  --mars:#c8685a; --brass:#a9842f;
+  --success:#2f9e6e; --warning:#b8842a; --danger:#c2504f;
+  --fg-1:#181c28; --fg-2:rgba(24,28,40,0.70); --fg-3:rgba(24,28,40,0.46); --fg-4:rgba(24,28,40,0.20);
+  --border:rgba(24,28,40,0.14); --border-2:rgba(24,28,40,0.07);
+  --terrain:#0e8f86;
+  --shadow-menu:0 12px 32px -10px rgba(40,50,80,0.28),0 2px 6px rgba(40,50,80,0.14);
+}
+:root[data-theme="light"] ::-webkit-scrollbar-thumb{ background:rgba(24,28,40,0.18); border-color:var(--void); }
+
+/* --- Matrix: green phosphor on black, mono everywhere. --- */
+:root[data-theme="matrix"]{
+  --void:#000400; --navy:#02110a; --navy-2:#04180d; --navy-3:#062012;
+  --ink:#03130b; --ink-2:#0a3a22; --ink-3:#1f7a4d;
+  --cyan:#21f37a; --cyan-2:#19c563; --cyan-deep:#0c7a3c;
+  --mars:#21f37a; --brass:#7dffae;
+  --success:#21f37a; --warning:#b6ff5c; --danger:#ff5d5d;
+  --fg-1:#9dffbf; --fg-2:rgba(120,255,165,0.66); --fg-3:rgba(120,255,165,0.40); --fg-4:rgba(120,255,165,0.18);
+  --border:rgba(33,243,122,0.20); --border-2:rgba(33,243,122,0.09);
+  --font-display:var(--font-mono); --font-body:var(--font-mono);
+  --terrain:#21f37a;
+}
+:root[data-theme="matrix"] body{ text-shadow:0 0 3px rgba(33,243,122,0.35); }
+:root[data-theme="matrix"] ::-webkit-scrollbar-thumb{ background:rgba(33,243,122,0.22); border-color:var(--void); }
+
+/* --- Pixel: PICO-8 palette, hard edges. --- */
+:root[data-theme="pixel"]{
+  --void:#1a1c2c; --navy:#29366f; --navy-2:#3b5dc9; --navy-3:#41a6f6;
+  --ink:#222b50; --ink-2:#3b5dc9; --ink-3:#5d6aa8;
+  --cyan:#41a6f6; --cyan-2:#29adff; --cyan-deep:#1d5fb0;
+  --mars:#ef7d57; --brass:#ffcd75;
+  --success:#38b764; --warning:#ffcd75; --danger:#b13e53;
+  --fg-1:#f4f4f4; --fg-2:rgba(244,244,244,0.74); --fg-3:rgba(244,244,244,0.46); --fg-4:rgba(244,244,244,0.22);
+  --border:rgba(244,244,244,0.18); --border-2:rgba(244,244,244,0.08);
+  --font-display:var(--font-mono); --font-body:var(--font-mono);
+  --terrain:#41a6f6;
+}
+:root[data-theme="pixel"] *{ border-radius:0 !important; }
+:root[data-theme="pixel"] button, :root[data-theme="pixel"] .panel, :root[data-theme="pixel"] .card{ image-rendering:pixelated; }
+
+/* --- Arcade: neon glow on deep violet. --- */
+:root[data-theme="game"]{
+  --void:#0d0221; --navy:#190b38; --navy-2:#23114f; --navy-3:#2e1668;
+  --ink:#140530; --ink-2:#2e1668; --ink-3:#6a3bd0;
+  --cyan:#00e5ff; --cyan-2:#22d3ee; --cyan-deep:#0b8fa6;
+  --mars:#ff2e97; --brass:#ffd400;
+  --success:#39ff14; --warning:#ffd400; --danger:#ff2e97;
+  --fg-1:#f1ecff; --fg-2:rgba(241,236,255,0.70); --fg-3:rgba(241,236,255,0.44); --fg-4:rgba(241,236,255,0.20);
+  --border:rgba(0,229,255,0.22); --border-2:rgba(255,46,151,0.10);
+  --terrain:#00e5ff;
+  --shadow-menu:0 0 24px -2px rgba(0,229,255,0.35),0 12px 32px -8px rgba(0,0,0,0.6);
+}
+:root[data-theme="game"] .btn-run, :root[data-theme="game"] .btn-vibe{ box-shadow:0 0 14px -2px var(--cyan); }
+
+/* --- Brick: bright primary LEGO colours. --- */
+:root[data-theme="lego"]{
+  --void:#f0f0f0; --navy:#ffffff; --navy-2:#ffe14d; --navy-3:#ffd60a;
+  --ink:#e6e6e6; --ink-2:#cfcfcf; --ink-3:#8a8a8a;
+  --cyan:#0055bf; --cyan-2:#0a6bd6; --cyan-deep:#013f8f;
+  --mars:#d01012; --brass:#f5cd2f;
+  --success:#237841; --warning:#f5cd2f; --danger:#d01012;
+  --fg-1:#16161a; --fg-2:rgba(22,22,26,0.72); --fg-3:rgba(22,22,26,0.48); --fg-4:rgba(22,22,26,0.22);
+  --border:rgba(22,22,26,0.16); --border-2:rgba(22,22,26,0.08);
+  --terrain:#0055bf;
+  --shadow-menu:0 10px 0 -4px rgba(0,0,0,0.18),0 14px 30px -12px rgba(0,0,0,0.3);
+}
+:root[data-theme="lego"] ::-webkit-scrollbar-thumb{ background:rgba(0,85,191,0.4); border-color:var(--void); }
+
+/* --- Clean: minimal light, single green accent. --- */
+:root[data-theme="chatgpt"]{
+  --void:#ffffff; --navy:#f7f7f8; --navy-2:#ececf1; --navy-3:#e3e3e8;
+  --ink:#ececf1; --ink-2:#d9d9e3; --ink-3:#9a9aa6;
+  --cyan:#10a37f; --cyan-2:#0e9070; --cyan-deep:#0a6f56;
+  --mars:#c2504f; --brass:#9a7a2f;
+  --success:#10a37f; --warning:#b8842a; --danger:#c2504f;
+  --fg-1:#0d0d0d; --fg-2:rgba(13,13,13,0.68); --fg-3:rgba(13,13,13,0.44); --fg-4:rgba(13,13,13,0.18);
+  --border:rgba(13,13,13,0.12); --border-2:rgba(13,13,13,0.06);
+  --font-display:var(--font-body);
+  --terrain:#10a37f;
+  --shadow-menu:0 12px 28px -12px rgba(0,0,0,0.22),0 2px 6px rgba(0,0,0,0.08);
+}
+:root[data-theme="chatgpt"] ::-webkit-scrollbar-thumb{ background:rgba(13,13,13,0.16); border-color:var(--void); }
+
+/* --- Abstract: warm gallery palette, pink + saffron. --- */
+:root[data-theme="abstract"]{
+  --void:#16121f; --navy:#241a33; --navy-2:#2f2142; --navy-3:#3b2a52;
+  --ink:#1d1529; --ink-2:#3b2a52; --ink-3:#7a5fa0;
+  --cyan:#ff8fb1; --cyan-2:#ff6f9c; --cyan-deep:#c25478;
+  --mars:#ffd36e; --brass:#a0e7e5;
+  --success:#b5e48c; --warning:#ffd36e; --danger:#ff6f6f;
+  --fg-1:#fdf3ff; --fg-2:rgba(253,243,255,0.70); --fg-3:rgba(253,243,255,0.44); --fg-4:rgba(253,243,255,0.20);
+  --border:rgba(255,143,177,0.20); --border-2:rgba(160,231,229,0.10);
+  --terrain:#ff8fb1;
+}
+
+/* --- Wiki / Network: console teal-amber, mono, network-concept vibe. --- */
+:root[data-theme="wiki"]{
+  --void:#080b11; --navy:#0c121d; --navy-2:#101926; --navy-3:#15202f;
+  --ink:#0b1019; --ink-2:#1a2636; --ink-3:#46566b;
+  --cyan:#3ad0d8; --cyan-2:#2bb4bc; --cyan-deep:#177a80;
+  --mars:#e0b45c; --brass:#e0b45c;
+  --success:#7cc49b; --warning:#e0b45c; --danger:#d06a6a;
+  --fg-1:#c7d3e0; --fg-2:rgba(199,211,224,0.66); --fg-3:rgba(199,211,224,0.42); --fg-4:rgba(199,211,224,0.18);
+  --border:rgba(58,208,216,0.16); --border-2:rgba(58,208,216,0.07);
+  --font-display:var(--font-mono); --font-body:var(--font-mono);
+  --terrain:#3ad0d8;
+}
