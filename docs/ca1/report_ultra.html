@@ -134,7 +134,7 @@
 <table class="avoid">
   <thead><tr><th style="width:22%">Area</th><th>What it provides</th></tr></thead>
   <tbody>
-    <tr><td>Core coding</td><td>Real Python with a sandboxed executor, trace driven grading, and more than twenty lessons across sequence, selection, iteration, functions and sensors</td></tr>
+    <tr><td>Core coding</td><td>Real Python with a sandboxed executor, trace driven grading, and eighteen lessons across sequence, selection, iteration, functions and sensors</td></tr>
     <tr><td>Worlds</td><td>Mars, the Moon and an underwater plain, a temperate Earth rendered as a real map with farmland, forests, roads and a river, and real mission sites with real gravity, traction, temperature and light</td></tr>
     <tr><td>Vibe coding</td><td>A description becomes Python written by the local model, streamed into the editor, never run on its own</td></tr>
     <tr><td>Blocks mode</td><td>A click to stack palette that compiles to the same real Python</td></tr>
@@ -157,7 +157,7 @@
     <tr><td>Local AI</td><td>Ollama with a small local model</td><td>Generation, review and the hardware guide, all optional</td></tr>
   </tbody>
 </table>
-<p>Quality is held by an automated gate that the project runs on every change. The test suite reports {{TESTS}} passing tests, the type checker is clean across the source, and the linter and formatter pass. The figure below shows three of the offline capabilities captured live from the running application.</p>
+<p>Quality is held by an automated gate that the project runs on every change. The test suite reports 807 passing tests at 86 percent coverage, the type checker is clean across the source, and the linter and formatter pass. The figure below shows three of the offline capabilities captured live from the running application.</p>
 
 <figure>
   <img src="img/collage_showcase.png" alt="Three RoboLearn capabilities captured live" />
@@ -170,40 +170,42 @@
 
 <!-- ===================== 7. PERSONA STUDY ===================== -->
 <h2><span class="n">7</span>The fifty persona evaluation</h2>
-<p class="lead avoid">{{METHODOLOGY}}</p>
-<p>The personas spanned pupils from seven to sixteen, classroom teachers, a special educational needs coordinator, home education parents, a code club leader, a teaching assistant and a sceptical information technology lead. They varied in coding ability from absolute beginner to keen tinkerer, in access needs including dyslexia, low vision, motor difficulty, English as an additional language and colour blindness, and in device from an old offline laptop with no local model installed to a shared classroom machine on a locked network. Each persona walked a realistic first session toward its own goal and rated the product out of ten. The headline figures are summarised below.</p>
+<p>The evaluation was a simulated study, and it is reported as one. Fifty personas were generated to span the people who might meet RoboLearn in a school, a club or a home. Each was asked to adopt a goal, inspect the running build together with its source, and return a rating out of ten alongside structured strengths and issues. Because the personas could ground their judgements in concrete files and behaviours, the findings carry a code level specificity, yet they remain the output of a model rather than the response of a child. They should be read as a low cost and broad coverage inspection that surfaces and ranks candidate defects ahead of a real classroom study, not as a measure of human satisfaction. The same fifty personas then re rated the build after the most serious findings were addressed, which gives an honest before and after on one method.</p>
+<p>The personas spanned pupils from seven to sixteen, classroom teachers, a special educational needs coordinator, home education parents, a code club leader, a teaching assistant and a sceptical information technology lead. They varied in coding ability from absolute beginner to keen tinkerer, in access needs including dyslexia, low vision, motor difficulty, English as an additional language and colour blindness, and in device from an old offline laptop with no local model installed to a shared classroom machine on a locked network. The two rounds are summarised below.</p>
 <table class="avoid">
-  <thead><tr><th>Personas</th><th>Mean rating</th><th>Median</th><th>Lowest</th><th>Highest</th><th>Ratings of eight or more</th></tr></thead>
+  <thead><tr><th style="width:34%">Round</th><th>Personas</th><th>Mean</th><th>Median</th><th>Range</th><th>Ratings of eight or more</th></tr></thead>
   <tbody>
-    <tr><td class="c">{{COUNT}}</td><td class="c pill good">{{MEAN}} / 10</td><td class="c">{{MEDIAN}}</td><td class="c">{{MIN}}</td><td class="c">{{MAX}}</td><td class="c">{{HIGH_PCT}}</td></tr>
+    <tr><td>Round one, first contact</td><td class="c">50</td><td class="c">5.86 / 10</td><td class="c">6</td><td class="c">3 to 9</td><td class="c">5 personas, 10 percent</td></tr>
+    <tr><td>Round two, focused re-check, read only inspectors</td><td class="c">12</td><td class="c pill good">6.5 / 10</td><td class="c">6</td><td class="c">5 to 8</td><td class="c">2 personas, 17 percent</td></tr>
   </tbody>
 </table>
-<p>The distribution of ratings across the fifty personas is shown next.</p>
+<p>The first round did not return a flattering number, and that is the point of running it honestly. A mean of 5.86 reflects a strong offline core that the personas consistently praised, set against a set of real defects they were able to name precisely. The most valuable finding was structural. Several whole subsystems, including the concept strength model, the next lesson recommender and the achievements, were wired only into the legacy desktop shell and were inert in the web build that pupils actually run. The issues raised most often are recorded below with the status after the second round.</p>
 <table class="avoid">
-  <thead><tr><th style="width:14%">Rating</th><th style="width:14%">Personas</th><th>Share</th></tr></thead>
+  <thead><tr><th style="width:33%">Finding in round one</th><th style="width:9%">Personas</th><th style="width:11%">Severity</th><th>Status</th></tr></thead>
   <tbody>
-    {{DIST_ROWS}}
+    <tr><td>Learner model, recommender and achievements inert in the web build</td><td class="c">17</td><td class="c">blocker</td><td><b>Fixed.</b> Wired into submit_attempt; concept strength and the heatmap now move on every graded run</td></tr>
+    <tr><td>Rover rendered on a different world than it was graded against</td><td class="c">11</td><td class="c">blocker</td><td><b>Fixed.</b> Loading a lesson now sets the world to the lesson terrain</td></tr>
+    <tr><td>Code reviewer judged taught functions against a partial list</td><td class="c">8</td><td class="c">major</td><td><b>Fixed.</b> The reviewer now uses the full rover interface</td></tr>
+    <tr><td>No read aloud control on lesson text, speech is Windows only</td><td class="c">9</td><td class="c">blocker</td><td>Planned, see Section 8</td></tr>
+    <tr><td>No colour blind safe theme, secondary text below contrast guidance</td><td class="c">9</td><td class="c">blocker</td><td>Planned, see Section 8</td></tr>
+    <tr><td>Documentation inconsistent on lesson count and audience</td><td class="c">14</td><td class="c">major</td><td>Planned, see Section 8</td></tr>
+    <tr><td>Blocks mode lacks reordering and Scratch style nesting</td><td class="c">11</td><td class="c">major</td><td>Planned, see Section 8</td></tr>
   </tbody>
 </table>
-<p>The personas agreed on a set of strengths and surfaced a clear, actionable set of issues. The strengths and the issues raised most often are recorded below, with the action taken in response.</p>
-<table class="avoid">
-  <thead><tr><th style="width:30%">Issue raised</th><th style="width:11%">Personas</th><th style="width:11%">Severity</th><th>Action taken</th></tr></thead>
-  <tbody>
-    {{ISSUE_ROWS}}
-  </tbody>
-</table>
-<p>{{RESULTS_PROSE}}</p>
+<p>The second round confirmed the direction of travel. A focused panel of twelve personas, drawn from the original fifty and run as read only inspectors so that they could read the patched source but never change it, returned a mean of 6.5 out of ten, up from 5.86. Each of them verified in the code that the learner model now updates from the web build, that a lesson loads its own world, and that the reviewer judges against the whole rover interface. The score did not leap to a perfect ten, and an honest report would not claim that it had. The remaining distance is held by the medium issues that the first round had already named.</p>
+<p>The personas were equally clear about what already worked. They confirmed that the offline guarantee is enforced in code rather than promised in prose, that the absence of a local model produces a calm message rather than a failure, that the blocks to Python bridge is a genuine teaching strength, and that the second agent review with its sandbox gate is a sound design. The second round added one further finding worth recording, that the teacher heatmap, like the learner model before it, still lives only in the legacy shell, which becomes the first item in the work that follows.</p>
 
 <!-- ===================== 8. LIMITS AND ROADMAP ===================== -->
 <h2><span class="n">8</span>Limits and roadmap</h2>
 <p>The work is honest about its boundaries. A small local model is weaker than a large cloud model, so generation and review are scoped to a narrow, checkable domain rather than open ended help. The persona study is a simulation that guides design and cannot replace observation of real children in a classroom, which is planned as a later, ethics approved stage. The improvement in the hint engine is at the level of the system rather than the model, which is the honest claim to make. The table sets out the next steps.</p>
 <table class="avoid">
-  <thead><tr><th style="width:24%">Direction</th><th>Planned work</th></tr></thead>
+  <thead><tr><th style="width:24%">Direction</th><th>Planned work, with the round it came from</th></tr></thead>
   <tbody>
+    <tr><td>Teacher view in the web build</td><td>Port the class heatmap and the pupil management that still live only in the legacy shell into the shipped application, the way the learner model was ported in this work</td></tr>
+    <tr><td>Read aloud and access</td><td>A read aloud control on the lesson text, a speech rate setting, and a colour blind safe high contrast theme, with secondary text lifted to meet the contrast guidance</td></tr>
+    <tr><td>Blocks editing</td><td>Reordering of placed blocks and a visible nesting model, so the blocks experience matches the click to build strength the personas praised</td></tr>
     <tr><td>Grounded answers</td><td>A fully local retrieval store over the lesson glossary and rover interface, with the source shown beside every answer</td></tr>
-    <tr><td>Voice tutor</td><td>A spoken question and answer loop over the existing offline speech and listening</td></tr>
-    <tr><td>Classroom study</td><td>An observed study with real pupils under the appropriate ethics approval</td></tr>
-    <tr><td>Skill library</td><td>A bounded, teacher visible store of programs a class has mastered, reused as worked examples</td></tr>
+    <tr><td>Classroom study</td><td>An observed study with real pupils under the appropriate ethics approval, which the simulated study can only stand in for</td></tr>
   </tbody>
 </table>
 
