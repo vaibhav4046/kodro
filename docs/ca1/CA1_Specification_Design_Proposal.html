@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>COMP702 CA1 Specification and Design Proposal, Vaibhav Lalwani</title>
+<style>
+  @page { size: A4; margin: 18mm 20mm 16mm 20mm; }
+  :root{ --ink:#1d2128; --muted:#555c66; --navy:#16315c; --gold:#b8860b; --rule:#c9cfd8; --soft:#f4f6f9; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ font-family:"Georgia","Cambria",serif; color:var(--ink); font-size:10.8pt; line-height:1.46; text-align:justify; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  h2{ font-family:"Calibri","Segoe UI",sans-serif; color:var(--navy); font-size:12.4pt; margin:13pt 0 4pt; padding-bottom:2pt; border-bottom:1.3px solid var(--rule); }
+  h3{ font-family:"Calibri","Segoe UI",sans-serif; color:var(--navy); font-size:10.8pt; margin:8pt 0 2pt; }
+  p{ margin:0 0 6pt; }
+  ul{ margin:2pt 0 7pt; padding-left:18pt; }
+  li{ margin-bottom:2.5pt; }
+  a{ color:var(--navy); text-decoration:none; }
+  /* cover */
+  .cover{ height:252mm; display:flex; flex-direction:column; page-break-after:always; }
+  .cover .top{ flex:1; }
+  .uol{ display:flex; align-items:center; gap:12pt; padding-bottom:9pt; border-bottom:1.6px solid var(--navy); }
+  .uol svg{ width:50pt; height:50pt; flex:none; }
+  .uol .lt{ font-family:"Calibri","Segoe UI",sans-serif; font-size:10pt; font-weight:700; letter-spacing:3.4px; color:var(--gold); text-transform:uppercase; }
+  .uol .lb{ font-family:"Calibri","Segoe UI",sans-serif; font-size:21pt; font-weight:700; letter-spacing:1.2px; color:var(--navy); text-transform:uppercase; border-top:1.2px solid var(--gold); padding-top:2pt; margin-top:2pt; }
+  .uol .l2{ font-family:"Calibri","Segoe UI",sans-serif; font-size:8.2pt; letter-spacing:1.8px; color:var(--muted); text-transform:uppercase; margin-top:3pt; }
+  .cover h1{ font-family:"Calibri","Segoe UI",sans-serif; font-size:25pt; color:var(--navy); line-height:1.1; margin:16pt 0 4pt; font-weight:700; }
+  .cover .sub{ font-size:13pt; font-style:italic; color:var(--muted); margin-bottom:16pt; }
+  .meta{ font-family:"Calibri","Segoe UI",sans-serif; font-size:11pt; line-height:1.75; }
+  .meta b{ color:var(--navy); }
+  .ethics{ margin-top:14pt; background:var(--soft); border-left:3px solid var(--gold); padding:10pt 12pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.6pt; line-height:1.5; }
+  .cover .foot{ margin-top:auto; border-top:1px solid var(--rule); padding-top:8pt; font-size:8.8pt; color:var(--muted); font-family:"Calibri","Segoe UI",sans-serif; }
+  /* tables */
+  table{ width:100%; border-collapse:collapse; margin:5pt 0 8pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.1pt; }
+  th,td{ border:1px solid var(--rule); padding:4.5pt 6pt; text-align:left; vertical-align:top; }
+  th{ background:var(--navy); color:#fff; font-weight:600; }
+  tbody tr:nth-child(even){ background:var(--soft); }
+  td.c{ text-align:center; }
+  /* gantt */
+  .gantt td.bar{ padding:3px 4px; }
+  .gantt .b{ display:block; height:11px; border-radius:3px; background:linear-gradient(90deg,var(--gold),var(--navy)); }
+  /* figures */
+  .figs{ display:flex; gap:7px; margin:6pt 0 3pt; }
+  .figs figure{ flex:1; margin:0; }
+  .figs img{ width:100%; border:1px solid var(--rule); border-radius:3px; display:block; }
+  figcaption{ font-family:"Calibri","Segoe UI",sans-serif; font-size:8pt; color:var(--muted); margin-top:3pt; text-align:center; }
+  .refs{ font-family:"Calibri","Segoe UI",sans-serif; font-size:8.9pt; line-height:1.4; }
+  .refs p{ padding-left:15pt; text-indent:-15pt; margin:0 0 4pt; }
+  .disc{ margin-top:9pt; font-size:8.6pt; color:var(--muted); font-style:italic; border-top:1px solid var(--rule); padding-top:6pt; }
+  .avoid{ page-break-inside:avoid; }
+</style>
+</head>
+<body>
+
+<!-- ===== TITLE PAGE ===== -->
+<section class="cover">
+  <div class="top"></div>
+  <div>
+    <div class="uol">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="University crest">
+        <path d="M50 6 L88 18 V46 C88 70 72 86 50 95 C28 86 12 70 12 46 V18 Z" fill="none" stroke="#16315c" stroke-width="3.5"/>
+        <path d="M50 30 C44 26 34 26 28 30 V62 C34 58 44 58 50 62 C56 58 66 58 72 62 V30 C66 26 56 26 50 30 Z" fill="none" stroke="#b8860b" stroke-width="2.6"/>
+        <line x1="50" y1="30" x2="50" y2="62" stroke="#b8860b" stroke-width="2.6"/>
+        <text x="50" y="80" text-anchor="middle" font-family="Georgia, serif" font-size="13" fill="#16315c" font-weight="700">UoL</text>
+      </svg>
+      <div>
+        <div class="lt">University of</div>
+        <div class="lb">Liverpool</div>
+        <div class="l2">Department of Computer Science &nbsp;·&nbsp; COMP702 MSc Project</div>
+      </div>
+    </div>
+    <h1>Kodro: An Offline, Self-Improving Tutor for Learning to Program a Simulated Rover</h1>
+    <div class="sub">Specification and Design Proposal (CA1)</div>
+    <div class="meta">
+      <div><b>Name</b> &nbsp; Vaibhav Lalwani</div>
+      <div><b>Student ID</b> &nbsp; 201979723</div>
+      <div><b>Supervisor</b> &nbsp; Keith Dures</div>
+      <div><b>Submission date</b> &nbsp; 19 June 2026</div>
+    </div>
+    <div class="ethics">
+      <b>Statement of ethical compliance.</b> The declared categories for this project are data category A0 and participant category 2, and I confirm that I will follow the School's ethical guidance throughout. The evaluation carried out so far uses simulated personas and involves no human participants and no personal data. Any later evaluation that involves real pupils or teachers will be planned with my supervisor, kept within the permitted activities, and conducted only with appropriate consent and safeguarding. I will update this statement in future assessments if my plans change.
+    </div>
+  </div>
+  <div class="foot">COMP702 CA1 Specification and Design Proposal &nbsp;·&nbsp; Vaibhav Lalwani (201979723) &nbsp;·&nbsp; University of Liverpool</div>
+</section>
+
+<!-- ===== 1 PROJECT DESCRIPTION ===== -->
+<h2>1. Project description</h2>
+<p>Children learn to program far more readily when they can see their instructions do something in the world. Physical robot kits make that connection vivid, but they are expensive, fragile, and rarely reach every desk in a classroom. Kodro replaces the kit with a single offline download. A pupil writes ordinary Python, presses Run, and watches a simulated rover drive across Mars, the Moon, an underwater plain or a real map of Earth while the program is executed in a sandbox and marked against the goals of the lesson.</p>
+<p>What makes the project a piece of research rather than a teaching toy is the layer that sits on top of the simulator: a small set of artificial intelligence features that try to help a learner the way a patient teacher would, and that do so without ever reaching the internet. The whole system runs on a school laptop with no cloud service, no accounts and no per seat cost, so a pupil's work never leaves the machine. The project asks whether a useful, honest tutor can be built under that hard offline constraint, and how good it can be made.</p>
+
+<!-- ===== 2 AIMS AND REQUIREMENTS ===== -->
+<h2>2. Aims and requirements</h2>
+<h3>Aims</h3>
+<ul>
+  <li>Build an offline desktop application in which children learn to program by commanding a simulated rover through curriculum mapped lessons.</li>
+  <li>Design an artificial intelligence layer, running on a local model only, that grounds its answers in the lesson material, improves its hints from a pupil's own outcomes, and demonstrates simple multi-agent behaviour.</li>
+  <li>Evaluate the tutor honestly, both with automated tests and with a structured study, and report what works and what does not.</li>
+</ul>
+<h3>Requirements</h3>
+<p>Essential:</p>
+<ul>
+  <li>Execute real Python safely in a sandbox and grade it against per lesson success criteria.</li>
+  <li>Provide a set of lessons mapped to the UK Computing curriculum, from early stages to GCSE level.</li>
+  <li>Run all artificial intelligence features on a local model with graceful behaviour when none is installed.</li>
+  <li>Keep every byte of pupil data on the device.</li>
+</ul>
+<p>Desirable:</p>
+<ul>
+  <li>A real three dimensional view of the world with first and third person cameras.</li>
+  <li>A grounded question and answer feature, a voice route into the rover, and a multi-rover swarm.</li>
+  <li>Teacher facing tools and accessibility options such as a high contrast theme and read aloud.</li>
+</ul>
+
+<!-- ===== 3 KEY LITERATURE ===== -->
+<h2>3. Key literature and background reading</h2>
+<p>The educational case for the project rests on a long line of work on tutoring. Bloom (1984) set the benchmark with the observation that one to one tutoring lifts the average learner by around two standard deviations, and VanLehn (2011) later showed that step based computer tutors can approach human tutoring when they give feedback at the right grain. Weintrop and Wilensky (2017) found that block based environments help novices, which motivates the project's blocks mode that compiles to real Python. Together these justify a design built around immediate, specific feedback rather than answer giving.</p>
+<p>The technical reading concerns the limits of today's language models and the honest ways to work within them. Huang et al. (2023) survey hallucination and show it is intrinsic rather than a bug to be patched, which is dangerous for a child who cannot tell a real function from an invented one. The standard mitigation is to ground generation in retrieved sources rather than the model's memory (Lewis et al., 2020), and Jacobs and Jaschke (2024) show that a constrained model can give useful programming feedback without giving the solution away. On improvement over time, Tao et al. (2024) make clear that genuine weight level self evolution is unsolved, so the project pursues improvement at the level of the system, in the spirit of the verbal reflection loop of Shinn et al. (2023). Finally, the swarm draws on multi-agent collaboration (Du et al., 2023; Wu et al., 2023), while Cemri et al. (2025) provide a sober reminder that naive multi-agent setups fail in characteristic ways, which is why a deterministic check, not another model, has the final word.</p>
+
+<!-- ===== 4 DEVELOPMENT AND IMPLEMENTATION ===== -->
+<h2>4. Development and implementation summary</h2>
+<p>The application is written in Python 3.12 and presented through a desktop web view, with the interface built in React and pre-compiled so it starts quickly and needs no build tools at runtime. The three dimensional world is drawn with a vendored copy of the Three.js graphics library, so it works without any download. Pupil work is stored in a single local SQLite file, and the artificial intelligence features call a local model served by Ollama. These choices follow directly from the constraint: everything must be free, offline, and light enough for an ageing classroom machine, and a desktop application meets that far better than a hosted web service.</p>
+<p>The work is organised as a sequence of small, independently testable changes. Each change is covered by automated tests and is only merged once a continuous integration pipeline runs the full test suite, a type checker and a linter on three operating systems. This keeps the codebase releasable at every step and gives an honest record of progress.</p>
+
+<!-- ===== 5 DATA SOURCES ===== -->
+<h2>5. Data sources</h2>
+<p>The project uses no external or open datasets. The lessons are authored by hand as structured files within the project, and the only data generated at runtime is a pupil's own code and progress, which is written to a local database and never leaves the machine. The local language model is run from weights already present on the device through Ollama, with no call to any remote service. The evaluation activity does generate data, in the form of ratings and written feedback, and that is covered in the ethics section below. Beyond this, there is no use of personal or third party data in the project.</p>
+
+<!-- ===== 6 TESTING AND EVALUATION ===== -->
+<h2>6. Testing and evaluation</h2>
+<p>Testing is automated and continuous. The project currently carries more than eight hundred unit and integration tests at around eighty five percent coverage, with a type checker and linter enforced on every change, so a regression is caught as a failing build rather than by a pupil. Evaluation, which asks the harder question of whether the tutor actually helps, is approached in two ways. A simulated study uses a panel of distinct personas, generated to span the pupils, teachers and support staff who might use the tool, each of whom inspects the build and rates it. This is a low cost, broad coverage inspection method, not a substitute for watching real children, and it is reported as such. It has already been run repeatedly as the work has landed, and the table below records the trajectory.</p>
+<table class="avoid">
+  <thead><tr><th>Round</th><th>Personas</th><th>Focus of the round</th><th>Mean rating (out of 10)</th></tr></thead>
+  <tbody>
+    <tr><td class="c">1</td><td class="c">50</td><td>First contact with the build</td><td class="c">5.86</td></tr>
+    <tr><td class="c">2</td><td class="c">12</td><td>After the first round of fixes</td><td class="c">6.50</td></tr>
+    <tr><td class="c">3</td><td class="c">50</td><td>After wiring the learner model and teacher tools into the app</td><td class="c">7.10</td></tr>
+    <tr><td class="c">4</td><td class="c">50</td><td>After grounded answers and the voice route were added</td><td class="c">7.36</td></tr>
+    <tr><td class="c">5</td><td class="c">8</td><td>Focused review of the new three dimensional world</td><td class="c">6.40</td></tr>
+  </tbody>
+</table>
+<p>The pattern is the point. The first round was deliberately unflattering, and each later round fixed the concrete defects the personas named and then re-rated the same build, lifting the mean from about 5.9 to about 7.4 across the rounds on the core product. The fifth round was a fresh, focused inspection of the newly added three dimensional view, which is why it sits lower; the issues it raised, around readable direction, reduced motion and performance on weak graphics hardware, have since been addressed in the same loop. Future evaluation will add observation of real pupils and teachers in a classroom, under the ethics arrangements described next, since the simulated study can only stand in for that.</p>
+
+<!-- ===== 7 PROJECT ETHICS AND HUMAN PARTICIPANTS ===== -->
+<h2>7. Project ethics and human participants</h2>
+<p>No human participants have been involved to date. The personas used in the evaluation are generated by software and are clearly reported as a simulation, not as real users, so no consent, recruitment or personal data is involved at this stage. The planned classroom evaluation does involve people, and it falls under participant category 2. For it, participants will be given a plain explanation and asked only to use the software and offer feedback; their data will be anonymised at the point of collection, aggregated for reporting, and never linked to an individual. Because the likely participants include children, the activity will be arranged through a teacher, conducted only with the appropriate consent and safeguarding in place, and agreed with my supervisor before it begins. There are no other special ethical considerations for the project.</p>
+
+<!-- ===== 8 BCS CRITERIA ===== -->
+<h2>8. BCS project criteria</h2>
+<p>The project is intended to meet the six BCS honours project outcomes as follows.</p>
+<table class="avoid">
+  <thead><tr><th style="width:38%">BCS outcome</th><th>How the project meets it</th></tr></thead>
+  <tbody>
+    <tr><td>Systematic understanding and critical awareness at the forefront of the discipline</td><td>The design engages directly with current problems in applied language models: hallucination, grounding, and honest self improvement.</td></tr>
+    <tr><td>Comprehensive understanding of applicable techniques</td><td>Retrieval grounding, a deterministic sandbox verifier, and a system level learning loop are selected and justified against the literature.</td></tr>
+    <tr><td>Originality in the application of knowledge</td><td>The novelty is delivering grounded, self improving and multi-agent behaviour entirely offline on a school machine, which the cloud tools do not attempt.</td></tr>
+    <tr><td>Handle complex issues and communicate to specialist and non specialist audiences</td><td>The work balances competing constraints and is documented for both a teacher and an examiner, as in this proposal.</td></tr>
+    <tr><td>Self direction and originality in solving problems autonomously</td><td>The project is planned, built and tested independently, with a continuous integration gate evidencing the process.</td></tr>
+    <tr><td>Critical self evaluation of the process</td><td>The evaluation is reported honestly, including weak first results and the fixes that followed, rather than only the best numbers.</td></tr>
+  </tbody>
+</table>
+
+<!-- ===== 9 UI/UX MOCKUP ===== -->
+<h2>9. UI/UX mockup</h2>
+<p>The interface is a single window with the code editor and console on the left, the world in the centre, and live telemetry on the right. The three figures below show the working interface, which stands in for a wireframe: the rover driving in the real three dimensional world, the pupil's Python beside the simulated mission, and the budget robot builder that connects the code to a real piece of hardware, answering a pupil's question of why the coding matters.</p>
+<div class="figs avoid">
+  <figure><img src="img/23_3d_orbit.png" alt="3D world"><figcaption>The rover running in the real 3D world.</figcaption></figure>
+  <figure><img src="img/27_coding.png" alt="Coding"><figcaption>Writing Python beside the live mission.</figcaption></figure>
+  <figure><img src="img/08_robot_builder.png" alt="Robot builder"><figcaption>From code to a real robot: why it matters.</figcaption></figure>
+</div>
+
+<!-- ===== 10 PROJECT PLAN ===== -->
+<h2>10. Project plan</h2>
+<p>The plan runs from the proposal to the final dissertation, with the two later assessments and the write up built in. Fortnightly supervisor meetings run throughout.</p>
+<table class="gantt avoid">
+  <thead><tr><th style="width:30%">Stage</th><th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th></tr></thead>
+  <tbody>
+    <tr><td>Specification and design (CA1)</td><td class="bar"><span class="b"></span></td><td></td><td></td><td></td></tr>
+    <tr><td>Core build and AI layer</td><td class="bar"><span class="b"></span></td><td class="bar"><span class="b"></span></td><td></td><td></td></tr>
+    <tr><td>3D world, voice and swarm</td><td></td><td class="bar"><span class="b"></span></td><td class="bar"><span class="b"></span></td><td></td></tr>
+    <tr><td>Demonstration (CA2)</td><td></td><td></td><td class="bar"><span class="b"></span></td><td></td></tr>
+    <tr><td>Classroom evaluation</td><td></td><td></td><td class="bar"><span class="b"></span></td><td class="bar"><span class="b"></span></td></tr>
+    <tr><td>Dissertation write up (CA3)</td><td></td><td></td><td class="bar"><span class="b"></span></td><td class="bar"><span class="b"></span></td></tr>
+  </tbody>
+</table>
+
+<!-- ===== 11 RISKS ===== -->
+<h2>11. Risks and contingency plans</h2>
+<table class="avoid">
+  <thead><tr><th style="width:27%">Risk</th><th style="width:40%">Contingency</th><th>Likelihood</th><th>Impact</th></tr></thead>
+  <tbody>
+    <tr><td>Hardware failure or lost work</td><td>All code is committed to a remote repository on every change; the database is a single file that copies easily.</td><td>Low</td><td>High</td></tr>
+    <tr><td>Local model too weak for some answers</td><td>Grounding keeps answers tied to lesson sources, and the model refuses rather than guesses; a more capable local model can be configured.</td><td>Medium</td><td>Medium</td></tr>
+    <tr><td>Classroom evaluation cannot be arranged in time</td><td>The simulated persona study gives broad coverage as a fallback, and the dissertation reports it honestly as such.</td><td>Medium</td><td>Medium</td></tr>
+    <tr><td>Running out of time</td><td>The build is kept releasable at every step, so an earlier version is always a valid deliverable.</td><td>Medium</td><td>High</td></tr>
+    <tr><td>Software defects reaching pupils</td><td>A continuous integration gate runs the full test suite, type checker and linter before any change is merged.</td><td>Low</td><td>Medium</td></tr>
+  </tbody>
+</table>
+
+<!-- ===== 12 REFERENCES ===== -->
+<h2>12. References</h2>
+<div class="refs">
+  <p>Bloom, B.S. (1984) The 2 sigma problem: the search for methods of group instruction as effective as one to one tutoring. <i>Educational Researcher</i>, 13(6), pp. 4 to 16.</p>
+  <p>Cemri, M., Pan, M.Z., Yang, S. et al. (2025) Why do multi-agent LLM systems fail? <i>arXiv:2503.13657</i>.</p>
+  <p>Du, Y., Li, S., Torralba, A., Tenenbaum, J.B. and Mordatch, I. (2023) Improving factuality and reasoning in language models through multiagent debate. <i>arXiv:2305.14325</i>.</p>
+  <p>Huang, L., Yu, W., Ma, W. et al. (2023) A survey on hallucination in large language models. <i>ACM Transactions on Information Systems</i> (arXiv:2311.05232).</p>
+  <p>Jacobs, S. and Jaschke, S. (2024) Evaluating the application of large language models to generate feedback in programming education. <i>arXiv:2403.09744</i>.</p>
+  <p>Lewis, P., Perez, E., Piktus, A. et al. (2020) Retrieval augmented generation for knowledge intensive NLP tasks. <i>Advances in Neural Information Processing Systems</i>, 33.</p>
+  <p>Shinn, N., Cassano, F., Berman, E. et al. (2023) Reflexion: language agents with verbal reinforcement learning. <i>arXiv:2303.11366</i>.</p>
+  <p>Tao, Z., Lin, T.E., Chen, X. et al. (2024) A survey on self evolution of large language models. <i>arXiv:2404.14387</i>.</p>
+  <p>VanLehn, K. (2011) The relative effectiveness of human tutoring, intelligent tutoring systems, and other tutoring systems. <i>Educational Psychologist</i>, 46(4), pp. 197 to 221.</p>
+  <p>Weintrop, D. and Wilensky, U. (2017) Comparing block based and text based programming in high school computer science classrooms. <i>ACM Transactions on Computing Education</i>, 18(1), Article 3.</p>
+  <p>Wu, Q., Bansal, G., Zhang, J. et al. (2023) AutoGen: enabling next-gen LLM applications via multi-agent conversation. <i>arXiv:2308.08155</i>.</p>
+</div>
+<p class="disc">Generative artificial intelligence assisted the development of the software and the drafting of this document, which is acknowledged in line with University guidance. All technical claims describe the working system, the evaluation figures are reported as measured, and the references were checked at the time of writing.</p>
+
+</body>
+</html>
