@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Grounded Ask (offline)** — an "❓ Ask" button answers a how-do-I question
+  strictly from retrieved lesson material (pure offline IDF retrieval over the
+  lesson intros, glossaries and a rover-interface reference in
+  `ai/retrieval.py`), shows the source passages, and refuses when nothing
+  matches. It works with no local model at all (returns the matching passages)
+  and, with a model, writes a short answer constrained to those sources and is
+  never even called when retrieval is empty.
+- **Voice-to-rover (offline)** — a "🎙 Voice" button turns a spoken phrase
+  ("go forward three", "turn left ninety") into a real rover line in the editor
+  via a deterministic parser (`ai/voice_commands.py`); no model, no network, so
+  voice now drives the rover rather than only the AI prompt.
 - **Teacher dashboard in the web app** — a `get_class_heatmap` bridge method
   and a React panel (Settings) render the class concept-strength heatmap,
   colour-coded per pupil and concept. Previously legacy-Tk only.

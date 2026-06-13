@@ -123,7 +123,7 @@
     <tr><td>Self improving hints</td><td>Self evolution, system level</td><td>Per rule shown and helped counts in sqlite, Laplace smoothed ranking</td><td>Tao et al. (2024); Shinn et al. (2023)</td></tr>
     <tr><td>Second agent code review</td><td>Agent collaboration</td><td>Author and reviewer prompts on one local model, sandbox gate</td><td>Madaan et al. (2023); Du et al. (2023); Cemri et al. (2025)</td></tr>
     <tr><td>Context aware learner model</td><td>Memory and personalisation</td><td>Concept strength EMA and recommender over a local profile</td><td>Zhang et al. (2024); Packer et al. (2023)</td></tr>
-    <tr><td>Grounded generation</td><td>Grounding</td><td>Generation constrained to the taught interface, checked by the simulator</td><td>Lewis et al. (2020); Huang et al. (2023)</td></tr>
+    <tr><td>Grounded Ask</td><td>Grounding</td><td>A question is answered only from lesson passages retrieved offline, with the source shown, and refused when nothing matches</td><td>Lewis et al. (2020); Huang et al. (2023)</td></tr>
     <tr><td>Local feedback for novices</td><td>Education</td><td>Misconception aware hints, no answer giving</td><td>Jacobs and Jaschke (2024); VanLehn (2011)</td></tr>
   </tbody>
 </table>
@@ -137,10 +137,12 @@
     <tr><td>Core coding</td><td>Real Python with a sandboxed executor, trace driven grading, and eighteen lessons across sequence, selection, iteration, functions and sensors</td></tr>
     <tr><td>Worlds</td><td>Mars, the Moon and an underwater plain, a temperate Earth rendered as a real map with farmland, forests, roads and a river, and real mission sites with real gravity, traction, temperature and light</td></tr>
     <tr><td>Vibe coding</td><td>A description becomes Python written by the local model, streamed into the editor, never run on its own</td></tr>
-    <tr><td>Blocks mode</td><td>A click to stack palette that compiles to the same real Python</td></tr>
+    <tr><td>Blocks mode</td><td>A reorderable click to stack palette that compiles to the same real Python</td></tr>
+    <tr><td>Grounded Ask</td><td>A how-do-I question answered from the lesson material with its source shown, working even with no local model present</td></tr>
+    <tr><td>Voice that acts</td><td>A spoken phrase such as drive forward three becomes a real rover line in the editor, with no model and no network</td></tr>
     <tr><td>Budget Robot Builder</td><td>A budget becomes a real hardware guide with parts, costs, build steps, a command to hardware map and a drawn schematic</td></tr>
-    <tr><td>Themes and access</td><td>Nine visual themes, a readable text mode, offline speech for the rover and offline voice input for the prompt</td></tr>
-    <tr><td>Teacher tools</td><td>Multiple local pupil profiles, a concept heatmap, achievements and a progress report export</td></tr>
+    <tr><td>Themes and access</td><td>Nine themes plus a colour blind safe high contrast theme, a readable text mode, and a read aloud control for the lesson text</td></tr>
+    <tr><td>Teacher tools</td><td>Multiple local pupil profiles, a class concept heatmap in the app, achievements and a progress report export</td></tr>
   </tbody>
 </table>
 
@@ -157,11 +159,11 @@
     <tr><td>Local AI</td><td>Ollama with a small local model</td><td>Generation, review and the hardware guide, all optional</td></tr>
   </tbody>
 </table>
-<p>Quality is held by an automated gate that the project runs on every change. The test suite reports 807 passing tests at 86 percent coverage, the type checker is clean across the source, and the linter and formatter pass. The figure below shows three of the offline capabilities captured live from the running application.</p>
+<p>Quality is held by an automated gate that the project runs on every change. The test suite reports 840 passing tests at 86 percent coverage, the type checker is clean across the source, and the linter and formatter pass. The figure below shows three of the offline capabilities captured live from the running application.</p>
 
 <figure>
   <img src="img/collage_showcase.png" alt="Three RoboLearn capabilities captured live" />
-  <figcaption>Figure 1. Three of the offline capabilities, captured live. Left, the temperate Earth rendered as a real map with farmland, forests, roads and a river. Top right, the Budget Robot Builder turning a budget into a real hardware guide. Bottom right, the second agent code review, running with no network connection.</figcaption>
+  <figcaption>Figure 1. Three of the offline capabilities, captured live. Left, grounded Ask answering a question only from the lesson material and naming its sources. Top right, the teacher dashboard showing the class concept strength heatmap. Bottom right, the colour blind safe high contrast theme. None of this touched the network.</figcaption>
 </figure>
 
 <!-- ===================== 6. METHOD OF EVALUATION ===================== -->
@@ -176,7 +178,7 @@
   <thead><tr><th style="width:34%">Round</th><th>Personas</th><th>Mean</th><th>Median</th><th>Range</th><th>Ratings of eight or more</th></tr></thead>
   <tbody>
     <tr><td>Round one, first contact</td><td class="c">50</td><td class="c">5.86 / 10</td><td class="c">6</td><td class="c">3 to 9</td><td class="c">5 personas, 10 percent</td></tr>
-    <tr><td>Round two, after the fixes, read only re-rate</td><td class="c">50</td><td class="c pill good">7.1 / 10</td><td class="c">7</td><td class="c">4 to 8</td><td class="c">14 personas, 28 percent</td></tr>
+    <tr><td>Round two, after the fixes and the new features, read only re-rate</td><td class="c">50</td><td class="c pill good">7.36 / 10</td><td class="c">7</td><td class="c">6 to 9</td><td class="c">19 personas, 38 percent</td></tr>
   </tbody>
 </table>
 <p>The first round did not return a flattering number, and that is the point of running it honestly. A mean of 5.86 reflects a strong offline core that the personas consistently praised, set against a set of real defects they were able to name precisely. The most valuable finding was structural. Several whole subsystems, including the concept strength model, the next lesson recommender and the achievements, were wired only into the legacy desktop shell and were inert in the web build that pupils actually run. The issues raised most often are recorded below with the status after the second round.</p>
@@ -193,7 +195,7 @@
     <tr><td>Blocks mode lacks reordering and covers part of the interface</td><td class="c">11</td><td class="c">major</td><td><b>Fixed.</b> Blocks can be reordered, and speed, wait, pen and drop blocks were added</td></tr>
   </tbody>
 </table>
-<p>The second round confirmed the direction of travel. The same fifty personas, run this time as read only inspectors so that they could read the patched source but never change it, returned a mean of 7.1 out of ten, up from 5.86, with no rating below the low band and the bulk of the panel sitting at seven and eight. Each of them verified in the code that the learner model now updates from the web build, that a lesson loads its own world, that the teacher heatmap is present, that the reviewer judges against the whole rover interface, and that the read aloud control and high contrast theme are real. The score did not reach a perfect ten, and an honest report would not claim that it had. The remaining distance is no longer held by defects but by scope: the personas now ask for grounded retrieval, for voice that drives the rover rather than only the prompt, and for multi-agent missions, and they note that a small local model is a real ceiling on the quality of generated help. Those are the product's next chapters, not its bugs, and they are set out in Section 8.</p>
+<p>The second round confirmed the direction of travel. The same fifty personas, run as read only inspectors so that they could read the patched source but never change it, were re-rated repeatedly as the work landed. After the defects were closed they returned a mean of 7.1, and after two of the features they had asked for were built, grounded Ask and voice that drives the rover, the final read only re-rate of all fifty reached a mean of 7.36 out of ten, up from 5.86 at first contact, with no rating below six and the bulk of the panel at seven and eight. They verified in the code that the learner model updates from the web build, that a lesson loads its own world, that the teacher heatmap is present, that the reviewer judges against the whole rover interface, that the read aloud control and high contrast theme are real, that Ask answers only from retrieved lesson material and refuses when nothing matches, and that a spoken command becomes a real rover line with no model at all. The score did not reach a perfect ten, and an honest report would not claim that it had. The remaining distance is no longer held by defects but by scope and by the project's own thesis: the personas ask for multi-agent missions and for free spoken dictation rather than a fixed command set, and they note, correctly, that a small local model is a real ceiling on free-form generation, which is the price of the offline guarantee that is the point of the product. Those are the next chapters, not bugs, and they are set out in Section 8.</p>
 <p>The personas were equally clear about what already worked. They confirmed that the offline guarantee is enforced in code rather than promised in prose, that the absence of a local model produces a calm message rather than a failure, that the blocks to Python bridge is a genuine teaching strength, that the learner model and teacher heatmap now move in the shipped build, and that the second agent review with its sandbox gate is a sound design.</p>
 
 <!-- ===================== 8. LIMITS AND ROADMAP ===================== -->
@@ -202,9 +204,8 @@
 <table class="avoid">
   <thead><tr><th style="width:24%">Direction</th><th>Planned work</th></tr></thead>
   <tbody>
-    <tr><td>Grounded answers</td><td>A fully local retrieval store over the lesson glossary and rover interface, so the tutor can answer from the lesson material and show the source beside every answer rather than relying on the model's memory</td></tr>
-    <tr><td>Voice that acts</td><td>Extend the offline voice input beyond the prompt so a pupil can speak a command and see it become a rover instruction, with a deterministic keyword path that works without a local model</td></tr>
-    <tr><td>Multi-agent missions</td><td>More than one rover in a world, so a class can explore coordination and simple swarm behaviour, which the single rover cannot teach today</td></tr>
+    <tr><td>Multi-agent missions</td><td>More than one rover in a world, so a class can explore coordination and simple swarm behaviour, which the single rover cannot teach today and which the personas now ask for most</td></tr>
+    <tr><td>Free spoken dictation</td><td>Grow the deterministic voice command set toward free dictation, so a pupil can describe a plan and not only speak the fixed phrases the parser knows</td></tr>
     <tr><td>A larger model option</td><td>Let a school with a capable machine point the app at a larger local model, lifting the quality ceiling the personas identified without breaking the offline guarantee</td></tr>
     <tr><td>Classroom study</td><td>An observed study with real pupils under the appropriate ethics approval, which the simulated study can only stand in for</td></tr>
   </tbody>
