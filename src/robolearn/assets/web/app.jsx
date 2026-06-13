@@ -470,6 +470,22 @@ rover.say("Survey done")`
       setVoiceBusy(false);
     }
 
+    // Agent swarm: run the program on a fleet of rovers, draw their trails.
+    const [swarmOpen, setSwarmOpen] = useState(false);
+    const [swarmBusy, setSwarmBusy] = useState(false);
+    const [swarmData, setSwarmData] = useState(null);
+    async function runSwarm() {
+      const src = (code || '').trim();
+      if (!src) { addConsole('Write a program first, then launch the swarm.', 'err'); return; }
+      setSwarmOpen(true); setSwarmBusy(true); setSwarmData(null);
+      try {
+        const r = await window.RoboLearn.swarmRun(src, currentLessonId || null, 6);
+        if (r && r.ok) setSwarmData(r);
+        else { setSwarmOpen(false); addConsole((r && r.reason) || 'Swarm failed.', 'err'); }
+      } catch (e) { setSwarmOpen(false); addConsole('Swarm: ' + e, 'err'); }
+      setSwarmBusy(false);
+    }
+
     async function runAsk() {
       const q = (askQuery || '').trim();
       if (!q || askBusy) return;
@@ -1321,6 +1337,7 @@ rover.say("Survey done")`
                 <button className="btn-mini" title="A second AI agent reviews your code" onClick={runReview}>🔎 Review</button>
                 <button className="btn-mini" title="Ask a question, answered from the lesson material" onClick={() => { setAskOpen(true); setAskData(null); }}>❓ Ask</button>
                 <button className="btn-mini" title="Speak a command — works offline, no AI model needed" disabled={voiceBusy} onClick={runVoiceCommand}>{voiceBusy ? '🎙…' : '🎙 Voice'}</button>
+                <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>🐝 Swarm</button>
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
               <div className="api-hint">
@@ -1465,6 +1482,50 @@ rover.say("Survey done")`
           <window.TweakSection label="Path trace" />
           <window.TweakRadio label="Trail color" value={t.trail} options={['terrain', 'cyan', 'amber']} onChange={v => setTweak('trail', v)} />
         </window.TweaksPanel>
+
+        {swarmOpen && (
+          <div className="modal-backdrop" onClick={() => !swarmBusy && setSwarmOpen(false)}>
+            <div className="modal" role="dialog" aria-modal="true" aria-label="Agent swarm" onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <span className="eyebrow">🐝 Agent swarm — your one program, run by a fleet at once</span>
+                <button className="btn-mini" aria-label="Close" onClick={() => setSwarmOpen(false)}>✕</button>
+              </div>
+              <div className="swarm-body">
+                {swarmBusy && <p className="vibe-status">Launching the swarm…</p>}
+                {swarmData && swarmData.paths && (() => {
+                  const COLORS = ['#5ce0d8', '#e0b45c', '#7cc49b', '#c8685a', '#a78bfa', '#f0808a', '#62b6ff', '#b6e36a'];
+                  const pts = swarmData.paths.flat();
+                  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+                  pts.forEach(([x, y]) => { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; });
+                  if (!isFinite(minX)) { minX = -1; maxX = 1; minY = -1; maxY = 1; }
+                  const W = 380, H = 260, pad = 18;
+                  const spanX = Math.max(0.5, maxX - minX), spanY = Math.max(0.5, maxY - minY);
+                  const sc = Math.min((W - 2 * pad) / spanX, (H - 2 * pad) / spanY);
+                  const px = x => pad + (x - minX) * sc;
+                  const py = y => H - pad - (y - minY) * sc; // flip: world y up
+                  return (
+                    <div>
+                      <svg className="swarm-plot" viewBox={'0 0 ' + W + ' ' + H} role="img" aria-label="Swarm trails">
+                        <rect x="0" y="0" width={W} height={H} rx="6" fill="var(--void)" stroke="var(--border)" />
+                        {swarmData.paths.map((path, i) => {
+                          const d = path.map(([x, y], j) => (j === 0 ? 'M' : 'L') + px(x) + ' ' + py(y)).join(' ');
+                          const last = path[path.length - 1];
+                          return (
+                            <g key={i}>
+                              <path d={d} fill="none" stroke={COLORS[i % COLORS.length]} strokeWidth="2" strokeLinejoin="round" opacity="0.9" />
+                              <circle cx={px(last[0])} cy={py(last[1])} r="4" fill={COLORS[i % COLORS.length]} />
+                            </g>
+                          );
+                        })}
+                      </svg>
+                      <p className="build-note">{swarmData.n} rovers ran the same program from different starting points. Identical code, no central controller, a coordinated pattern. All offline.</p>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
 
         {vaOpen && (
           <div className="modal-backdrop" onClick={() => !vaBusy && setVaOpen(false)}>

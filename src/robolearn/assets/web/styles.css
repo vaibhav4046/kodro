@@ -1016,3 +1016,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .va-tag{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.16em; text-transform:uppercase; color:var(--success); }
 .va-body .ask-answer{ text-align:left; width:100%; }
 @media (prefers-reduced-motion: reduce){ .va-wave.live span{ animation:none; transform:scaleY(0.6); } }
+
+/* Agent swarm plot. */
+.swarm-body{ display:flex; flex-direction:column; gap:8px; align-items:center; }
+.swarm-plot{ width:100%; max-width:420px; height:auto; display:block; }

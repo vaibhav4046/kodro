@@ -120,6 +120,22 @@ def test_submit_attempt_grades_and_persists(api: BridgeAPI) -> None:
     assert json.loads(json.dumps(result))["lessonId"] == target_id
 
 
+def test_swarm_run_returns_a_path_per_rover(api: BridgeAPI) -> None:
+    """The swarm runs one program on a fleet and returns each rover's trail."""
+    out = api.swarm_run("move_forward(2)", None, 4)
+    assert out["ok"] is True
+    assert out["n"] == 4
+    assert len(out["paths"]) == 4
+    # Each path is a list of [x, y] points, JSON-serialisable for the wire.
+    assert all(len(p) >= 2 for p in out["paths"])
+    json.dumps(out)
+
+
+def test_swarm_run_rejects_empty_code(api: BridgeAPI) -> None:
+    out = api.swarm_run("   ", None, 4)
+    assert out["ok"] is False
+
+
 def test_voice_agent_routes_a_command_to_code(
     api: BridgeAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:

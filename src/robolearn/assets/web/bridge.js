@@ -64,6 +64,7 @@
     aiGenerate: (prompt, lessonId) => call("ai_generate", prompt, lessonId),
     aiReviewCode: (source, lessonId) => call("ai_review_code", source, lessonId),
     aiAsk: (query) => call("ai_ask", query),
+    swarmRun: (source, lessonId, n) => call("swarm_run", source, lessonId || null, n || 5),
     aiChat: (messages, lessonId) => call("ai_chat", messages, lessonId),
     aiChatStart: (messages, lessonId) => call("ai_chat_start", messages, lessonId),
     aiChatPoll: (jobId) => call("ai_chat_poll", jobId),
