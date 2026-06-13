@@ -39,9 +39,10 @@
   .ethicsbox{ margin-top:13pt; background:var(--soft); border-left:3px solid var(--accent); padding:10pt 12pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.4pt; line-height:1.5; color:var(--ink); }
   .uol{ display:flex; align-items:center; gap:12pt; padding-bottom:10pt; border-bottom:1.6px solid var(--navy); margin-bottom:4pt; }
   .uol svg{ width:46pt; height:46pt; flex:none; }
-  .uol .word{ font-family:"Calibri","Segoe UI",sans-serif; line-height:1.18; }
-  .uol .word .l1{ font-size:15pt; font-weight:700; letter-spacing:2.4px; color:var(--navy); text-transform:uppercase; }
-  .uol .word .l2{ font-size:8.4pt; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-top:2pt; }
+  .uol .word{ font-family:"Calibri","Segoe UI",sans-serif; line-height:1.0; }
+  .uol .word .lt{ font-size:9.6pt; font-weight:700; letter-spacing:3.2px; color:#b8860b; text-transform:uppercase; }
+  .uol .word .lb{ font-size:20pt; font-weight:700; letter-spacing:1.2px; color:var(--navy); text-transform:uppercase; margin-top:2.5pt; border-top:1.2px solid #b8860b; padding-top:2.5pt; }
+  .uol .word .l2{ font-size:8pt; letter-spacing:1.8px; color:var(--muted); text-transform:uppercase; margin-top:4pt; }
   .meta a{ color:var(--accent); text-decoration:none; font-weight:600; }
 
   table{ width:100%; border-collapse:collapse; margin:6pt 0 9pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.1pt; }
@@ -81,7 +82,8 @@
         <text x="50" y="80" text-anchor="middle" font-family="Georgia, serif" font-size="13" fill="#16315c" font-weight="700">UoL</text>
       </svg>
       <div class="word">
-        <div class="l1">University of Liverpool</div>
+        <div class="lt">University of</div>
+        <div class="lb">Liverpool</div>
         <div class="l2">Department of Computer Science &nbsp;·&nbsp; Founded 1881</div>
       </div>
     </div>
@@ -166,7 +168,7 @@
   <thead><tr><th style="width:22%">Area</th><th>What it provides</th></tr></thead>
   <tbody>
     <tr><td>Core coding</td><td>Real Python with a sandboxed executor, trace driven grading, and eighteen lessons across sequence, selection, iteration, functions and sensors</td></tr>
-    <tr><td>Worlds</td><td>Mars, the Moon and an underwater plain, a temperate Earth rendered as a real map with farmland, forests, roads and a river, and real mission sites with real gravity, traction, temperature and light</td></tr>
+    <tr><td>Worlds</td><td>Mars, the Moon and an underwater plain, a temperate Earth drawn as a real map with farmland, forests, roads and a river, and named real-world sites grouped by world, including India, Kenya, Japan, Egypt, Iceland and Nepal, each with its own ground, temperature, light and traction so the same program behaves differently in each place</td></tr>
     <tr><td>Vibe coding</td><td>A description becomes Python written by the local model, streamed into the editor, never run on its own</td></tr>
     <tr><td>Blocks mode</td><td>A reorderable click to stack palette that compiles to the same real Python</td></tr>
     <tr><td>Grounded Ask</td><td>A how-do-I question answered from the lesson material with its source shown, working even with no local model present</td></tr>
