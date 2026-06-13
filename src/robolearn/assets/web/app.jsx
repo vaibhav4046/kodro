@@ -207,6 +207,11 @@ rover.say("Survey done")`
     const [crashKey, setCrashKey] = useState(0);
     const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
     const [cam, setCam] = useState({ tilt: 46, yaw: -8, zoom: 1 });
+    // Real WebGL 3D viewport (Three.js) with third-person orbit / first-person.
+    const [view3d, setView3d] = useState(() => localStorage.getItem('or_view3d') !== '0');
+    const [fpv, setFpv] = useState(() => localStorage.getItem('or_fpv') === '1');
+    useEffect(() => { try { localStorage.setItem('or_view3d', view3d ? '1' : '0'); } catch (e) { void e; } }, [view3d]);
+    useEffect(() => { try { localStorage.setItem('or_fpv', fpv ? '1' : '0'); } catch (e) { void e; } }, [fpv]);
     const zoom = cam.zoom;
     const trailColor = t.trail === 'cyan' ? '#5ce0d8' : t.trail === 'amber' ? '#e0b45c' : t.trail === 'white' ? '#f5f0e4' : null;
 
@@ -1459,8 +1464,17 @@ rover.say("Survey done")`
                   })}
                 </select>
               )}
+              <span className="view-toggle">
+                <button type="button" className={'terrain-btn' + (view3d ? ' active' : '')} title="Real 3D view" onClick={() => setView3d(true)}>3D</button>
+                <button type="button" className={'terrain-btn' + (!view3d ? ' active' : '')} title="Flat 2.5D view" onClick={() => setView3d(false)}>2.5D</button>
+                {view3d && (
+                  <button type="button" className="terrain-btn" title="Switch between orbit and first person" onClick={() => setFpv(f => !f)}>{fpv ? '👁 First person' : '🛰 Orbit'}</button>
+                )}
+              </span>
             </div>
-            <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />
+            {view3d
+              ? <window.Viewport3D terrain={terrain} rover={rover} fpv={fpv} />
+              : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
           </div>
 
           <div className="resizer" onPointerDown={e => startDrag('tele', e)} style={{ gridColumn: 4 }}></div>
