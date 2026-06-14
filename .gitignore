@@ -54,3 +54,8 @@ desktop.ini
 # Scratch eval scripts / persona dumps (not part of the project)
 docs/ca1/_*.js
 docs/ca1/_*.json
+
+# Generated screenshot-harness artifacts (rebuild with scripts/build_screenshot_harness.cjs)
+src/robolearn/assets/web/harness.html
+src/robolearn/assets/web/studio_harness.html
+src/robolearn/assets/web/harness_bundle.js
