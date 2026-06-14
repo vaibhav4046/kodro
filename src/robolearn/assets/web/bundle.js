@@ -2855,7 +2855,8 @@
       try {
         renderer = new THREE.WebGLRenderer({
           antialias: true,
-          powerPreference: 'high-performance'
+          powerPreference: 'high-performance',
+          preserveDrawingBuffer: true
         });
       } catch (err) {
         mount.innerHTML = '<div class="vp3d-fail">3D needs a graphics card this machine cannot give. Switch to the 2.5D view in the bar.</div>';
