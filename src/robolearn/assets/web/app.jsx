@@ -212,6 +212,9 @@ rover.say("Survey done")`
     const [view3d, setView3d] = useState(() => localStorage.getItem('or_view3d') !== '0');
     const [fpv, setFpv] = useState(() => localStorage.getItem('or_fpv') === '1');
     useEffect(() => { try { localStorage.setItem('or_view3d', view3d ? '1' : '0'); } catch (e) { void e; } }, [view3d]);
+    // Spin up the moving-agent simulation for the current world (city traffic
+    // and pedestrians); both viewports and the collision test read from it.
+    useEffect(() => { if (window.KodroAgents) window.KodroAgents.build(terrainId); return () => { if (window.KodroAgents) window.KodroAgents.stop(); }; }, [terrainId]);
     useEffect(() => { try { localStorage.setItem('or_fpv', fpv ? '1' : '0'); } catch (e) { void e; } }, [fpv]);
     // Escape leaves first person fast (a quick exit for motion sensitivity).
     useEffect(() => {
@@ -360,6 +363,14 @@ rover.say("Survey done")`
       };
       window.addEventListener('kodro-robot', onRobot);
       return () => window.removeEventListener('kodro-robot', onRobot);
+    }, []);
+    // Self-refinement memory: reflections from past runs and a skill library.
+    const [memoryOpen, setMemoryOpen] = useState(false);
+    const [memTick, setMemTick] = useState(0);
+    useEffect(() => {
+      const on = () => setMemTick(n => (n + 1) & 1023);
+      window.addEventListener('kodro-memory', on);
+      return () => window.removeEventListener('kodro-memory', on);
     }, []);
     // Second-agent code review (propose-then-critique on the local model).
     const [reviewOpen, setReviewOpen] = useState(false);
@@ -760,6 +771,13 @@ rover.say("Survey done")`
       for (const o of terrain.obstacles) {
         if (Math.hypot(o.x - x, o.y - y) < o.r + R) return { type: 'obstacle', o };
       }
+      // Moving agents (pedestrians and traffic) are real obstacles too: the
+      // robot must avoid them, not just the parked cars and buildings.
+      if (window.KodroAgents && window.KodroAgents.world() === terrain.id) {
+        for (const a of window.KodroAgents.list()) {
+          if (Math.hypot(a.x - x, a.y - y) < a.r + R) return { type: a.kind === 'person' ? 'pedestrian' : 'vehicle', o: a };
+        }
+      }
       return null;
     }
     function rayDistance(x, y, headingDeg) {
@@ -782,6 +800,19 @@ rover.say("Survey done")`
         if (d2 > rr) continue;
         const t = tca - Math.sqrt(rr - d2);
         if (t > 0) best = Math.min(best, t);
+      }
+      // the sensor also picks up moving agents in the robot's path
+      if (window.KodroAgents && window.KodroAgents.world() === terrain.id) {
+        for (const o of window.KodroAgents.list()) {
+          const ox = o.x - x, oy = o.y - y;
+          const tca = ox * dx + oy * dy;
+          if (tca < 0) continue;
+          const d2 = ox * ox + oy * oy - tca * tca;
+          const rr = (o.r + R) * (o.r + R);
+          if (d2 > rr) continue;
+          const t = tca - Math.sqrt(rr - d2);
+          if (t > 0) best = Math.min(best, t);
+        }
       }
       return Math.max(0, best);
     }
@@ -893,9 +924,17 @@ rover.say("Survey done")`
       s.moving = false; sync();
       if (crashed) {
         setCrashKey(k => k + 1);
-        const what = crashed.type === 'wall' ? 'arena boundary' : terrain.obstacleLabel.toLowerCase();
+        const what = crashed.type === 'wall' ? 'arena boundary'
+          : crashed.type === 'pedestrian' ? 'a pedestrian'
+            : crashed.type === 'vehicle' ? 'a vehicle'
+              : terrain.obstacleLabel.toLowerCase();
         sfx('crash');
-        addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Rover halted.', 'err');
+        addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
+        // Self-refinement: record the run and surface what the system learned.
+        if (window.KodroMemory) {
+          const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'crash', detail: what, ts: Date.now() });
+          if (refl) addConsole('Reflection saved: ' + refl, 'sys');
+        }
         haltProgram('error');
         return false;
       }
@@ -1003,6 +1042,10 @@ rover.say("Survey done")`
       setRunState('done');
       if (replRef.current) { replRef.current = false; return; }  // terminal line: stay quiet
       addConsole('Program finished.', 'ok');
+      // Self-refinement: a clean finish is a result worth remembering.
+      if (window.KodroMemory) {
+        window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'done', detail: 'finished without a collision', ts: Date.now() });
+      }
       // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
       gradeWithBridge(code);
     }
@@ -1287,6 +1330,7 @@ rover.say("Survey done")`
           <div className="bar-divider"></div>
           <button className="icon-btn voice-agent-btn" title="Talk to Kodro — speak a command or ask a question" aria-label="Voice agent" onClick={() => { setVaOpen(true); setVaData(null); runVoiceAgent(); }}>🎙</button>
           <button className="icon-btn" title="Robot Lab — design a custom robot" aria-label="Robot Lab" onClick={() => setRobotLabOpen(true)}>🛠</button>
+          <button className="icon-btn" title="Memory — what the system learned, and your skill library" aria-label="Memory and skills" onClick={() => setMemoryOpen(true)}>🧠</button>
           <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot" onClick={() => setBuildOpen(true)}>🤖</button>
           <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setShowHelp(true)}>?</button>
           <div className="settings-wrap">
@@ -1503,7 +1547,7 @@ rover.say("Survey done")`
               </span>
             </div>
             {view3d
-              ? <window.Viewport3D terrain={terrain} rover={rover} fpv={fpv} />
+              ? <window.Viewport3D terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} />
               : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
           </div>
 
@@ -1699,6 +1743,50 @@ rover.say("Survey done")`
 
         {robotLabOpen && RobotLab && (
           <RobotLab onClose={() => setRobotLabOpen(false)} />
+        )}
+
+        {memoryOpen && (
+          <div className="modal-backdrop" onClick={() => setMemoryOpen(false)}>
+            <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Memory and skills" data-tick={memTick} onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <span className="eyebrow">🧠 Memory — the system refines from what it has seen, offline</span>
+                <button className="btn-mini" aria-label="Close" onClick={() => setMemoryOpen(false)}>✕</button>
+              </div>
+              <div className="mem-body">
+                <div className="mem-col">
+                  <div className="rl-label">Reflections from past runs</div>
+                  {(window.KodroMemory ? window.KodroMemory.reflections() : []).length
+                    ? <ul className="mem-list">
+                        {window.KodroMemory.reflections().slice(0, 10).map((r, i) => (
+                          <li key={i} className={'mem-refl mem-' + r.outcome}>
+                            <span className="mem-ctx">{(r.world || '?') + ' · ' + (r.robotType || 'robot') + ' · ' + r.outcome}</span>
+                            {r.reflection}
+                          </li>
+                        ))}
+                      </ul>
+                    : <p className="vibe-status">No runs yet. Run a program and the system notes what happened, then draws on it.</p>}
+                </div>
+                <div className="mem-col">
+                  <div className="rl-label">Skill library — programs that worked, reused</div>
+                  <button className="btn-mini btn-vibe" onClick={() => { const n = window.prompt && window.prompt('Name this skill'); if (n && window.KodroMemory) window.KodroMemory.saveSkill(n, code, { world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', ts: Date.now() }); }}>＋ Save current code as a skill</button>
+                  {(window.KodroMemory ? window.KodroMemory.skills() : []).length
+                    ? <ul className="mem-list">
+                        {window.KodroMemory.skills().map((s, i) => (
+                          <li key={i} className="mem-skill">
+                            <span className="mem-skill-name">{s.name}</span>
+                            <span className="mem-skill-ctx">{(s.world || '') + ' · used ' + (s.uses || 0) + '×'}</span>
+                            <span className="mem-skill-act">
+                              <button className="btn-mini" onClick={() => { const cd = window.KodroMemory.useSkill(s.name); if (cd != null) { if (currentLessonId) setLessonBuffers(b => ({ ...b, [currentLessonId]: cd })); else setPrograms(p => ({ ...p, [activeTab]: cd })); setMemoryOpen(false); } }}>Insert</button>
+                              <button className="btn-mini" onClick={() => window.KodroMemory.removeSkill(s.name)}>✕</button>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    : <p className="vibe-status">Save a program that worked, then reuse it on the next robot.</p>}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {reviewOpen && (

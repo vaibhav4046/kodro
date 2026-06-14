@@ -1,6 +1,248 @@
 /* AUTO-GENERATED from the .jsx sources by scripts/build_web.cjs. Do not edit. */
 
 ;(function () {
+/* Shared moving-agent simulation.
+ *
+ * One source of truth for the city's pedestrians and traffic, in the same
+ * centimetre world coordinates the rover and the obstacle field use. Both
+ * viewports render from it and the collision test reads it, so an agent the
+ * robot can see is an agent the robot can hit. Self driving via its own
+ * requestAnimationFrame; falls back to a single step where rAF is absent
+ * (the offline bundle-render test), so it never throws there.
+ *
+ *   window.KodroAgents.build(worldId)  -- set up agents for a world
+ *   window.KodroAgents.list()          -- [{x,y,r,kind,color,dx,dy,leg}] in cm
+ */
+(function () {
+  let agents = [];
+  let worldId = null;
+  let raf = 0;
+  let t0 = null;
+  function build(id) {
+    stop();
+    agents = [];
+    worldId = id;
+    if (id === 'city') {
+      const PAVE = 280;
+      const shirts = [0xd98c4a, 0x5aa0d8, 0x8a6fc0, 0x5bbf86, 0xd35d7a];
+      for (let i = 0; i < 7; i++) {
+        const horiz = i % 2 === 0;
+        const lane = (i % 4 < 2 ? 1 : -1) * PAVE;
+        agents.push({
+          kind: 'person',
+          horiz,
+          lane,
+          span: 2600,
+          speed: 70 + i % 3 * 22,
+          off: i * 0.9,
+          r: 44,
+          color: shirts[i % shirts.length],
+          x: 0,
+          y: 0,
+          dx: 1,
+          dy: 0,
+          leg: 0
+        });
+      }
+      [[true, -70, 210, 0x2c6fb0], [false, 70, 175, 0x4aa564], [true, 70, 150, 0xc0392b]].forEach((c, i) => {
+        agents.push({
+          kind: 'car',
+          horiz: c[0],
+          lane: c[1],
+          span: 3000,
+          speed: c[2],
+          off: i * 0.6,
+          r: 96,
+          color: c[3],
+          x: 0,
+          y: 0,
+          dx: 1,
+          dy: 0,
+          leg: 0
+        });
+      });
+    }
+    start();
+  }
+  function tri(t, span, speed, off) {
+    const ph = (t * speed / span + off) % 2;
+    return ph < 1 ? ph : 2 - ph;
+  }
+  function step(t) {
+    for (let i = 0; i < agents.length; i++) {
+      const a = agents[i];
+      const p0 = (tri(t, a.span, a.speed, a.off) - 0.5) * a.span;
+      const p1 = (tri(t + 0.06, a.span, a.speed, a.off) - 0.5) * a.span;
+      const dir = p1 - p0 >= 0 ? 1 : -1;
+      if (a.horiz) {
+        a.x = p0;
+        a.y = a.lane;
+        a.dx = dir;
+        a.dy = 0;
+      } else {
+        a.x = a.lane;
+        a.y = p0;
+        a.dx = 0;
+        a.dy = dir;
+      }
+      a.leg = Math.sin(t * 6 + a.off * 3);
+    }
+  }
+  function loop(now) {
+    if (t0 == null) t0 = now;
+    step((now - t0) / 1000);
+    raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(loop) : 0;
+  }
+  function start() {
+    if (typeof requestAnimationFrame === 'function') {
+      t0 = null;
+      raf = requestAnimationFrame(loop);
+    } else step(0);
+  }
+  function stop() {
+    if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf);
+    raf = 0;
+  }
+  window.KodroAgents = {
+    build,
+    step,
+    stop,
+    list: () => agents,
+    world: () => worldId
+  };
+})();
+})();
+
+;(function () {
+/* Self-refinement store (offline, local).
+ *
+ * The honest, system-level self-refinement the proposal describes: after each
+ * run the system records what happened and writes a short reflection, keeps a
+ * growing library of programs that worked as reusable skills, and surfaces the
+ * most relevant past lesson for the world the user is in. Nothing here changes
+ * the model's weights; the gain is in what the system remembers and reuses,
+ * which is exactly what can be counted. Backed by localStorage so it persists
+ * across sessions and never leaves the machine.
+ *
+ *   window.KodroMemory.record({world, robotType, outcome, detail})
+ *   window.KodroMemory.reflections()      -- recent reflections, newest first
+ *   window.KodroMemory.saveSkill(name, code, ctx) / skills() / removeSkill(name)
+ *   window.KodroMemory.lessonFor(world)   -- the latest reflection for a world
+ */
+(function () {
+  const RKEY = 'kodro_reflections_v1';
+  const SKEY = 'kodro_skills_v1';
+  const MAX = 40;
+  function load(key) {
+    try {
+      const r = localStorage.getItem(key);
+      return r ? JSON.parse(r) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function save(key, v) {
+    try {
+      localStorage.setItem(key, JSON.stringify(v));
+    } catch (e) {
+      void e;
+    }
+  }
+
+  // Turn a run outcome into a short, useful reflection. Rule based and
+  // deterministic; the local model can elaborate it when one is installed.
+  function reflect(run) {
+    const what = (run.detail || '').toLowerCase();
+    if (run.outcome === 'done') return 'Reached the goal. This program worked here; consider saving it as a skill to reuse.';
+    if (run.outcome === 'crash') {
+      if (what.indexOf('pedestrian') >= 0) return 'A pedestrian crossed the path. Read sensor() and slow or stop before moving on.';
+      if (what.indexOf('vehicle') >= 0 || what.indexOf('car') >= 0) return 'Traffic was in the way. Wait for the lane to clear, then cross.';
+      if (what.indexOf('boundary') >= 0 || what.indexOf('wall') >= 0) return 'Hit the edge of the area. Turn back before the boundary.';
+      return 'Collided with ' + (run.detail || 'an obstacle') + '. Add a turn or a shorter move to go around it.';
+    }
+    return 'Run stopped early. Check the last command and try again.';
+  }
+  function record(run) {
+    const refl = reflect(run);
+    const list = load(RKEY);
+    list.unshift({
+      ts: run.ts || 0,
+      world: run.world || '',
+      robotType: run.robotType || '',
+      outcome: run.outcome || '',
+      detail: run.detail || '',
+      reflection: refl
+    });
+    if (list.length > MAX) list.length = MAX;
+    save(RKEY, list);
+    try {
+      window.dispatchEvent(new CustomEvent('kodro-memory'));
+    } catch (e) {
+      void e;
+    }
+    return refl;
+  }
+  function reflections() {
+    return load(RKEY);
+  }
+  function lessonFor(world) {
+    const l = load(RKEY);
+    for (const r of l) if (!world || r.world === world) return r;
+    return null;
+  }
+  function saveSkill(name, code, ctx) {
+    if (!name || !code) return false;
+    const list = load(SKEY).filter(s => s.name !== name);
+    list.unshift({
+      name: String(name).slice(0, 40),
+      code: String(code),
+      world: ctx && ctx.world || '',
+      robotType: ctx && ctx.robotType || '',
+      ts: ctx && ctx.ts || 0,
+      uses: 0
+    });
+    if (list.length > MAX) list.length = MAX;
+    save(SKEY, list);
+    try {
+      window.dispatchEvent(new CustomEvent('kodro-memory'));
+    } catch (e) {
+      void e;
+    }
+    return true;
+  }
+  function skills() {
+    return load(SKEY);
+  }
+  function useSkill(name) {
+    const l = load(SKEY);
+    const s = l.find(x => x.name === name);
+    if (s) {
+      s.uses = (s.uses || 0) + 1;
+      save(SKEY, l);
+    }
+    return s ? s.code : null;
+  }
+  function removeSkill(name) {
+    save(SKEY, load(SKEY).filter(s => s.name !== name));
+    try {
+      window.dispatchEvent(new CustomEvent('kodro-memory'));
+    } catch (e) {
+      void e;
+    }
+  }
+  window.KodroMemory = {
+    record,
+    reflections,
+    lessonFor,
+    saveSkill,
+    skills,
+    useSkill,
+    removeSkill
+  };
+})();
+})();
+
+;(function () {
 /* ============================================================================
    ORBITAL ROVER — terrains
    Each terrain defines: accent color, telemetry environment (gravity, temp,
@@ -1616,14 +1858,17 @@
 
   // Live agents: pedestrians stroll the pavements and a car drives the road.
   // Self contained animation; positions are visual only.
+  const hex = n => '#' + (n == null ? 0 : n).toString(16).padStart(6, '0');
   function CityAgents() {
-    const [t, setT] = React.useState(0);
+    // Re-render every frame; positions come from the shared agent simulation
+    // (window.KodroAgents) so the 2D view, the 3D view and the robot's
+    // collision all see the same pedestrians and traffic.
+    const [, setTick] = React.useState(0);
     React.useEffect(() => {
-      let raf, start;
+      let raf;
       if (typeof requestAnimationFrame !== 'function') return undefined;
-      const loop = ts => {
-        if (start == null) start = ts;
-        setT((ts - start) / 1000);
+      const loop = () => {
+        setTick(n => n + 1 & 1023);
         raf = requestAnimationFrame(loop);
       };
       raf = requestAnimationFrame(loop);
@@ -1631,61 +1876,24 @@
         if (raf) cancelAnimationFrame(raf);
       };
     }, []);
-    const agents = React.useMemo(() => {
-      const r = rng(77);
-      const a = [];
-      // pedestrians: walk back and forth along the two pavements
-      for (let i = 0; i < 7; i++) {
-        const horiz = r() < 0.6;
-        a.push({
-          kind: 'person',
-          horiz,
-          lane: C - ROAD - 36 + (r() < 0.5 ? 0 : (ROAD + 70) * 2 - 8),
-          span: 900 + r() * 1100,
-          off: r() * 6,
-          sp: 26 + r() * 22,
-          shirt: ['#d98c4a', '#5aa0d8', '#8a6fc0', '#5bbf86'][r() * 4 | 0]
-        });
-      }
-      // a car cruising the horizontal carriageway
-      a.push({
-        kind: 'car',
-        horiz: true,
-        lane: C - 64,
-        span: GROUND,
-        off: 0,
-        sp: 150,
-        body: '#e3c33f'
-      });
-      a.push({
-        kind: 'car',
-        horiz: false,
-        lane: C + 60,
-        span: GROUND,
-        off: 3,
-        sp: 130,
-        body: '#46b07a'
-      });
-      return a;
-    }, []);
+    const KA = window.KodroAgents;
+    const list = KA && KA.world() === 'city' ? KA.list() : [];
+    const bill = {
+      transform: 'rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))',
+      transformOrigin: '50% 100%'
+    };
     return /*#__PURE__*/React.createElement("div", {
       style: {
         position: 'absolute',
         inset: 0,
         pointerEvents: 'none'
       }
-    }, agents.map((ag, i) => {
-      const phase = (t * ag.sp / ag.span + ag.off) % 2;
-      const tri = phase < 1 ? phase : 2 - phase; // 0..1..0 ping-pong
-      const along = tri * ag.span + (GROUND - ag.span) / 2;
-      const x = ag.horiz ? along : ag.lane;
-      const y = ag.horiz ? ag.lane : along;
-      const bill = {
-        transform: 'rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))',
-        transformOrigin: '50% 100%'
-      };
+    }, list.map((ag, i) => {
+      const x = C + ag.x,
+        y = C + ag.y; // world cm -> ground px
+      const horiz = Math.abs(ag.dx) >= Math.abs(ag.dy);
       if (ag.kind === 'person') {
-        const bob = Math.sin(t * 6 + ag.off * 3) * 2;
+        const bob = Math.abs(ag.leg || 0) * 2;
         return /*#__PURE__*/React.createElement("div", {
           key: i,
           style: {
@@ -1732,7 +1940,7 @@
             width: 12,
             height: 18,
             borderRadius: '4px 4px 3px 3px',
-            background: ag.shirt
+            background: hex(ag.color)
           }
         }), /*#__PURE__*/React.createElement("div", {
           style: {
@@ -1783,14 +1991,14 @@
           bottom: 0,
           width: 68,
           height: 30,
-          transform: bill.transform + (ag.horiz ? '' : ' rotateZ(90deg)')
+          transform: bill.transform + (horiz ? '' : ' rotateZ(90deg)')
         }
       }, /*#__PURE__*/React.createElement("div", {
         style: {
           position: 'absolute',
           inset: 0,
           borderRadius: 13,
-          background: `linear-gradient(180deg, ${ag.body}, rgba(0,0,0,0.4))`,
+          background: `linear-gradient(180deg, ${hex(ag.color)}, rgba(0,0,0,0.4))`,
           boxShadow: 'inset 0 2px 5px rgba(255,255,255,0.3), 1px 3px 6px rgba(0,0,0,0.45)'
         }
       }), /*#__PURE__*/React.createElement("div", {
@@ -2825,7 +3033,8 @@
   function Viewport3D({
     terrain,
     rover,
-    fpv
+    fpv,
+    robotType
   }) {
     const mountRef = useRef(null);
     const stateRef = useRef({
@@ -3202,50 +3411,29 @@
             scene.add(car);
           }
         });
-        const PAVE = ROADW / 2 + 2.6;
-        const shirts = [0xd98c4a, 0x5aa0d8, 0x8a6fc0, 0x5bbf86, 0xd35d7a];
-        for (let i = 0; i < 7; i++) {
-          const horiz = i % 2 === 0;
-          const lane = (i % 4 < 2 ? 1 : -1) * PAVE;
-          const sp = 2.2 + i % 3 * 0.7,
-            off = i * 0.9,
-            span = 56;
-          const pr = mkPerson(shirts[i % shirts.length]);
-          scene.add(pr);
-          agents.push({
-            mesh: pr,
-            update: t => {
-              const ph = (t * sp / span + off) % 2;
-              const tri = ph < 1 ? ph : 2 - ph;
-              const along = (tri - 0.5) * span;
-              pr.position.set(horiz ? along : lane, 0, horiz ? lane : along);
-              pr.rotation.y = horiz ? ph < 1 ? Math.PI / 2 : -Math.PI / 2 : ph < 1 ? 0 : Math.PI;
-              const sw = Math.sin(t * 6 + off * 3) * 0.5;
-              if (pr._legs) {
-                pr._legs[0].rotation.x = sw;
-                pr._legs[1].rotation.x = -sw;
+        // Render the shared moving agents as 3D meshes, driven by the same
+        // simulation the collision test reads, so a pedestrian the robot can
+        // see in the world is one it can actually hit.
+        const KA = window.KodroAgents;
+        if (KA) {
+          KA.list().forEach((ag, i) => {
+            const mesh = ag.kind === 'car' ? mkCar(ag.color != null ? ag.color : 0x2c6fb0) : mkPerson(ag.color != null ? ag.color : 0x5aa0d8);
+            scene.add(mesh);
+            agents.push({
+              mesh,
+              update: () => {
+                const a = KA.list()[i];
+                if (!a) return;
+                mesh.position.set(a.x * SCALE, 0, -a.y * SCALE);
+                mesh.rotation.y = Math.atan2(a.dy, a.dx);
+                if (ag.kind === 'person' && mesh._legs) {
+                  mesh._legs[0].rotation.x = a.leg * 0.5;
+                  mesh._legs[1].rotation.x = -a.leg * 0.5;
+                }
               }
-            }
+            });
           });
         }
-        [[true, -2.2, 6.0, 0x2c6fb0], [false, 2.2, 5.2, 0x4aa564]].forEach((cfg, i) => {
-          const h = cfg[0],
-            lane = cfg[1],
-            sp = cfg[2],
-            col = cfg[3];
-          const car = mkCar(col);
-          scene.add(car);
-          agents.push({
-            mesh: car,
-            update: t => {
-              const ph = (t * sp / (HALF * 2) + i * 0.4) % 2;
-              const tri = ph < 1 ? ph : 2 - ph;
-              const along = (tri - 0.5) * (HALF * 2);
-              car.position.set(h ? along : lane, 0, h ? lane : along);
-              car.rotation.y = h ? ph < 1 ? -Math.PI / 2 : Math.PI / 2 : ph < 1 ? Math.PI : 0;
-            }
-          });
-        });
       }
       function buildRoom() {
         const R = 30;
@@ -3339,45 +3527,187 @@
       }
       if (id === 'city') buildCity();else if (id === 'room') buildRoom();
 
-      // Rover: a body + a bright nose so its facing is obvious, on four wheels.
-      const rov = new THREE.Group();
+      // The robot: built to match the kind the user designed in Robot Lab, so
+      // a rover, a car, a home companion or an arm each look like themselves.
       const accent = new THREE.Color(terrain && terrain.accent || '#5ce0d8');
-      const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.0, 1.6), new THREE.MeshStandardMaterial({
-        color: 0x2b2f3a,
-        roughness: 0.6,
-        metalness: 0.2
-      }));
-      body.position.y = 0.85;
-      body.castShadow = true;
-      const noseMat = new THREE.MeshStandardMaterial({
+      const rType = robotType || window.getKodroRobot && window.getKodroRobot().type || 'rover';
+      const rov = new THREE.Group();
+      const wheels = [];
+      const Cap = THREE.CapsuleGeometry || null;
+      const accMat = () => new THREE.MeshStandardMaterial({
         color: accent,
         emissive: accent,
         emissiveIntensity: 0.5
       });
-      const nose = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 1.2), noseMat);
-      nose.position.set(1.35, 0.9, 0);
-      // A raised arrow on top, pointing forward, so the facing reads from any
-      // orbit angle and in low-contrast worlds (the QA flagged the bare nose).
-      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.1, 4), noseMat);
-      arrow.rotation.z = -Math.PI / 2; // point along +x (forward)
-      arrow.position.set(0.2, 2.0, 0);
-      rov.add(body);
-      rov.add(nose);
-      rov.add(arrow);
-      const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.3, 12);
-      const wheelMat = new THREE.MeshStandardMaterial({
-        color: 0x111317,
-        roughness: 0.9
-      });
-      const wheels = [];
-      [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
-        const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-        wheel.rotation.x = Math.PI / 2;
-        wheel.position.set(sx * 0.9, 0.45, sz * 0.85);
-        wheel.castShadow = true;
-        rov.add(wheel);
-        wheels.push(wheel);
-      });
+      const addWheels = (positions, r) => {
+        const wm = new THREE.MeshStandardMaterial({
+          color: 0x14161b,
+          roughness: 0.85
+        });
+        const hubM = new THREE.MeshStandardMaterial({
+          color: 0x9aa0ad,
+          roughness: 0.4,
+          metalness: 0.6
+        });
+        positions.forEach(p => {
+          const wheel = new THREE.Group();
+          const tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.32, 16), wm);
+          tyre.rotation.x = Math.PI / 2;
+          tyre.castShadow = true;
+          const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.42, r * 0.42, 0.34, 8), hubM);
+          hub.rotation.x = Math.PI / 2;
+          wheel.add(tyre);
+          wheel.add(hub);
+          wheel.position.set(p[0], r, p[1]);
+          rov.add(wheel);
+          wheels.push(tyre);
+        });
+      };
+      const arrow = y => {
+        const a = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 4), accMat());
+        a.rotation.z = -Math.PI / 2;
+        a.position.set(0.2, y, 0);
+        rov.add(a);
+      };
+      if (rType === 'car') {
+        const carM = new THREE.MeshStandardMaterial({
+          color: 0x2c6fb0,
+          roughness: 0.3,
+          metalness: 0.55
+        });
+        const lower = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.8, 1.6), carM);
+        lower.position.y = 0.72;
+        lower.castShadow = true;
+        rov.add(lower);
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.7, 1.42), carM);
+        cabin.position.set(-0.15, 1.38, 0);
+        cabin.castShadow = true;
+        rov.add(cabin);
+        const glass = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.56, 1.28), new THREE.MeshStandardMaterial({
+          color: 0xaad4ee,
+          roughness: 0.1,
+          metalness: 0.3,
+          transparent: true,
+          opacity: 0.7
+        }));
+        glass.position.set(-0.15, 1.4, 0);
+        rov.add(glass);
+        [[1.5, 0.5], [1.5, -0.5]].forEach(p => {
+          const l = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), accMat());
+          l.position.set(p[0], 0.8, p[1]);
+          rov.add(l);
+        });
+        addWheels([[1.0, 0.86], [1.0, -0.86], [-1.0, 0.86], [-1.0, -0.86]], 0.46);
+        arrow(1.95);
+      } else if (rType === 'home') {
+        const botM = new THREE.MeshStandardMaterial({
+          color: 0xe9edf2,
+          roughness: 0.4,
+          metalness: 0.1
+        });
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 1.05, 0.5, 20), new THREE.MeshStandardMaterial({
+          color: 0x3a4150,
+          roughness: 0.6
+        }));
+        base.position.y = 0.25;
+        base.castShadow = true;
+        rov.add(base);
+        const torso = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.78, 1.1, 6, 16) : new THREE.CylinderGeometry(0.78, 0.78, 1.9, 16), botM);
+        torso.position.y = 1.55;
+        torso.castShadow = true;
+        rov.add(torso);
+        const chest = new THREE.Mesh(new THREE.CircleGeometry(0.26, 16), accMat());
+        chest.position.set(0.74, 1.6, 0);
+        chest.rotation.y = Math.PI / 2;
+        rov.add(chest);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.66, 20, 16), botM);
+        head.position.y = 2.75;
+        head.castShadow = true;
+        rov.add(head);
+        const visor = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 12), new THREE.MeshStandardMaterial({
+          color: 0x10141c,
+          roughness: 0.2,
+          metalness: 0.4
+        }));
+        visor.scale.set(1, 0.7, 0.6);
+        visor.position.set(0.42, 2.78, 0);
+        rov.add(visor);
+        [[0.78, 0.18], [0.78, -0.18]].forEach(p => {
+          const e = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), accMat());
+          e.position.set(p[0], 2.82, p[1]);
+          rov.add(e);
+        });
+        addWheels([[0, 0.55], [0, -0.55]], 0.34);
+        arrow(3.5);
+      } else if (rType === 'arm') {
+        const armM = new THREE.MeshStandardMaterial({
+          color: 0xc7ccd4,
+          roughness: 0.35,
+          metalness: 0.6
+        });
+        const jointM = accMat();
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.2, 0.7, 20), new THREE.MeshStandardMaterial({
+          color: 0x39414c,
+          roughness: 0.6
+        }));
+        base.position.y = 0.35;
+        base.castShadow = true;
+        rov.add(base);
+        const j1 = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 12), jointM);
+        j1.position.y = 0.9;
+        rov.add(j1);
+        const seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.2, 0.5), armM);
+        seg1.position.set(0.2, 2.0, 0);
+        seg1.rotation.z = -0.5;
+        seg1.castShadow = true;
+        rov.add(seg1);
+        const j2 = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), jointM);
+        j2.position.set(1.1, 2.9, 0);
+        rov.add(j2);
+        const seg2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.8, 0.4), armM);
+        seg2.position.set(1.9, 3.4, 0);
+        seg2.rotation.z = -1.2;
+        seg2.castShadow = true;
+        rov.add(seg2);
+        const g1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM);
+        g1.position.set(2.7, 3.7, 0.22);
+        rov.add(g1);
+        const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM);
+        g2.position.set(2.7, 3.7, -0.22);
+        rov.add(g2);
+        arrow(1.3);
+      } else {
+        // rover (and custom): chassis, solar deck, sensor mast with a camera eye.
+        const bodyMat = new THREE.MeshStandardMaterial({
+          color: 0x2b2f3a,
+          roughness: 0.55,
+          metalness: 0.28
+        });
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.7, 1.7), bodyMat);
+        chassis.position.y = 0.92;
+        chassis.castShadow = true;
+        rov.add(chassis);
+        const deck = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, 1.4), new THREE.MeshStandardMaterial({
+          color: 0x1b2740,
+          roughness: 0.3,
+          metalness: 0.5
+        }));
+        deck.position.set(-0.2, 1.34, 0);
+        rov.add(deck);
+        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.0, 8), bodyMat);
+        mast.position.set(0.85, 1.75, 0);
+        rov.add(mast);
+        const camHead = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.72), bodyMat);
+        camHead.position.set(0.85, 2.3, 0);
+        camHead.castShadow = true;
+        rov.add(camHead);
+        const eye = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), accMat());
+        eye.position.set(1.12, 2.3, 0);
+        eye.rotation.y = Math.PI / 2;
+        rov.add(eye);
+        addWheels([[0.95, 0.95], [0.95, -0.95], [-0.95, 0.95], [-0.95, -0.95]], 0.5);
+        arrow(2.05);
+      }
       scene.add(rov);
 
       // A trail ribbon that grows as the rover drives.
@@ -3576,7 +3906,7 @@
         });
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       };
-    }, [terrain && terrain.id]);
+    }, [terrain && terrain.id, robotType]);
     return React.createElement('div', {
       className: 'viewport3d',
       ref: mountRef
@@ -5585,6 +5915,14 @@ rover.say("Survey done")`
         void e;
       }
     }, [view3d]);
+    // Spin up the moving-agent simulation for the current world (city traffic
+    // and pedestrians); both viewports and the collision test read from it.
+    useEffect(() => {
+      if (window.KodroAgents) window.KodroAgents.build(terrainId);
+      return () => {
+        if (window.KodroAgents) window.KodroAgents.stop();
+      };
+    }, [terrainId]);
     useEffect(() => {
       try {
         localStorage.setItem('or_fpv', fpv ? '1' : '0');
@@ -5778,6 +6116,14 @@ rover.say("Survey done")`
       };
       window.addEventListener('kodro-robot', onRobot);
       return () => window.removeEventListener('kodro-robot', onRobot);
+    }, []);
+    // Self-refinement memory: reflections from past runs and a skill library.
+    const [memoryOpen, setMemoryOpen] = useState(false);
+    const [memTick, setMemTick] = useState(0);
+    useEffect(() => {
+      const on = () => setMemTick(n => n + 1 & 1023);
+      window.addEventListener('kodro-memory', on);
+      return () => window.removeEventListener('kodro-memory', on);
     }, []);
     // Second-agent code review (propose-then-critique on the local model).
     const [reviewOpen, setReviewOpen] = useState(false);
@@ -6471,6 +6817,16 @@ rover.say("Survey done")`
           o
         };
       }
+      // Moving agents (pedestrians and traffic) are real obstacles too: the
+      // robot must avoid them, not just the parked cars and buildings.
+      if (window.KodroAgents && window.KodroAgents.world() === terrain.id) {
+        for (const a of window.KodroAgents.list()) {
+          if (Math.hypot(a.x - x, a.y - y) < a.r + R) return {
+            type: a.kind === 'person' ? 'pedestrian' : 'vehicle',
+            o: a
+          };
+        }
+      }
       return null;
     }
     function rayDistance(x, y, headingDeg) {
@@ -6495,6 +6851,20 @@ rover.say("Survey done")`
         if (d2 > rr) continue;
         const t = tca - Math.sqrt(rr - d2);
         if (t > 0) best = Math.min(best, t);
+      }
+      // the sensor also picks up moving agents in the robot's path
+      if (window.KodroAgents && window.KodroAgents.world() === terrain.id) {
+        for (const o of window.KodroAgents.list()) {
+          const ox = o.x - x,
+            oy = o.y - y;
+          const tca = ox * dx + oy * dy;
+          if (tca < 0) continue;
+          const d2 = ox * ox + oy * oy - tca * tca;
+          const rr = (o.r + R) * (o.r + R);
+          if (d2 > rr) continue;
+          const t = tca - Math.sqrt(rr - d2);
+          if (t > 0) best = Math.min(best, t);
+        }
       }
       return Math.max(0, best);
     }
@@ -6647,9 +7017,20 @@ rover.say("Survey done")`
       sync();
       if (crashed) {
         setCrashKey(k => k + 1);
-        const what = crashed.type === 'wall' ? 'arena boundary' : terrain.obstacleLabel.toLowerCase();
+        const what = crashed.type === 'wall' ? 'arena boundary' : crashed.type === 'pedestrian' ? 'a pedestrian' : crashed.type === 'vehicle' ? 'a vehicle' : terrain.obstacleLabel.toLowerCase();
         sfx('crash');
-        addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Rover halted.', 'err');
+        addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
+        // Self-refinement: record the run and surface what the system learned.
+        if (window.KodroMemory) {
+          const refl = window.KodroMemory.record({
+            world: terrain.id,
+            robotType: robotSpec && robotSpec.type || '',
+            outcome: 'crash',
+            detail: what,
+            ts: Date.now()
+          });
+          if (refl) addConsole('Reflection saved: ' + refl, 'sys');
+        }
         haltProgram('error');
         return false;
       }
@@ -6814,6 +7195,16 @@ rover.say("Survey done")`
         return;
       } // terminal line: stay quiet
       addConsole('Program finished.', 'ok');
+      // Self-refinement: a clean finish is a result worth remembering.
+      if (window.KodroMemory) {
+        window.KodroMemory.record({
+          world: terrain.id,
+          robotType: robotSpec && robotSpec.type || '',
+          outcome: 'done',
+          detail: 'finished without a collision',
+          ts: Date.now()
+        });
+      }
       // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
       gradeWithBridge(code);
     }
@@ -7215,6 +7606,11 @@ rover.say("Survey done")`
       onClick: () => setRobotLabOpen(true)
     }, "\uD83D\uDEE0"), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
+      title: "Memory \u2014 what the system learned, and your skill library",
+      "aria-label": "Memory and skills",
+      onClick: () => setMemoryOpen(true)
+    }, "\uD83E\uDDE0"), /*#__PURE__*/React.createElement("button", {
+      className: "icon-btn",
       title: "Build a real robot on a budget",
       "aria-label": "Build a real robot",
       onClick: () => setBuildOpen(true)
@@ -7585,7 +7981,8 @@ rover.say("Survey done")`
     }, fpv ? '👁 First person' : '🛰 Orbit'))), view3d ? /*#__PURE__*/React.createElement(window.Viewport3D, {
       terrain: terrain,
       rover: rover,
-      fpv: fpv
+      fpv: fpv,
+      robotType: robotSpec && robotSpec.type
     }) : /*#__PURE__*/React.createElement(window.Viewport, {
       terrain: terrain,
       rover: rover,
@@ -7935,7 +8332,85 @@ rover.say("Survey done")`
       className: "build-note"
     }, "Each cell is a rolling strength score from 0 to 100 for that concept. Higher and greener is stronger. All data is local to this machine."))))), robotLabOpen && RobotLab && /*#__PURE__*/React.createElement(RobotLab, {
       onClose: () => setRobotLabOpen(false)
-    }), reviewOpen && /*#__PURE__*/React.createElement("div", {
+    }), memoryOpen && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => setMemoryOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal modal-wide",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Memory and skills",
+      "data-tick": memTick,
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83E\uDDE0 Memory \u2014 the system refines from what it has seen, offline"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setMemoryOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "mem-body"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "mem-col"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "rl-label"
+    }, "Reflections from past runs"), (window.KodroMemory ? window.KodroMemory.reflections() : []).length ? /*#__PURE__*/React.createElement("ul", {
+      className: "mem-list"
+    }, window.KodroMemory.reflections().slice(0, 10).map((r, i) => /*#__PURE__*/React.createElement("li", {
+      key: i,
+      className: 'mem-refl mem-' + r.outcome
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "mem-ctx"
+    }, (r.world || '?') + ' · ' + (r.robotType || 'robot') + ' · ' + r.outcome), r.reflection))) : /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "No runs yet. Run a program and the system notes what happened, then draws on it.")), /*#__PURE__*/React.createElement("div", {
+      className: "mem-col"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "rl-label"
+    }, "Skill library \u2014 programs that worked, reused"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini btn-vibe",
+      onClick: () => {
+        const n = window.prompt && window.prompt('Name this skill');
+        if (n && window.KodroMemory) window.KodroMemory.saveSkill(n, code, {
+          world: terrain.id,
+          robotType: robotSpec && robotSpec.type || '',
+          ts: Date.now()
+        });
+      }
+    }, "\uFF0B Save current code as a skill"), (window.KodroMemory ? window.KodroMemory.skills() : []).length ? /*#__PURE__*/React.createElement("ul", {
+      className: "mem-list"
+    }, window.KodroMemory.skills().map((s, i) => /*#__PURE__*/React.createElement("li", {
+      key: i,
+      className: "mem-skill"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "mem-skill-name"
+    }, s.name), /*#__PURE__*/React.createElement("span", {
+      className: "mem-skill-ctx"
+    }, (s.world || '') + ' · used ' + (s.uses || 0) + '×'), /*#__PURE__*/React.createElement("span", {
+      className: "mem-skill-act"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => {
+        const cd = window.KodroMemory.useSkill(s.name);
+        if (cd != null) {
+          if (currentLessonId) setLessonBuffers(b => ({
+            ...b,
+            [currentLessonId]: cd
+          }));else setPrograms(p => ({
+            ...p,
+            [activeTab]: cd
+          }));
+          setMemoryOpen(false);
+        }
+      }
+    }, "Insert"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => window.KodroMemory.removeSkill(s.name)
+    }, "\u2715"))))) : /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Save a program that worked, then reuse it on the next robot."))))), reviewOpen && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => !reviewBusy && setReviewOpen(false)
     }, /*#__PURE__*/React.createElement("div", {
