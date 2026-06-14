@@ -41,7 +41,8 @@
 
   function tri(t, span, speed, off) {
     const ph = ((t * speed / span) + off) % 2;
-    return (ph < 1 ? ph : 2 - ph);
+    const x = ph < 1 ? ph : 2 - ph;      // 0..1..0 linear ramp
+    return x * x * (3 - 2 * x);           // smoothstep: ease in and out of each turn
   }
 
   function step(t) {
