@@ -3,9 +3,14 @@
  * One source of truth for the city's pedestrians and traffic, in the same
  * centimetre world coordinates the rover and the obstacle field use. Both
  * viewports render from it and the collision test reads it, so an agent the
- * robot can see is an agent the robot can hit. Self driving via its own
- * requestAnimationFrame; falls back to a single step where rAF is absent
- * (the offline bundle-render test), so it never throws there.
+ * robot can see is one it can hit.
+ *
+ * Motion is meant to read as real, not as sliding props: traffic flows one way
+ * along its lane and loops, pedestrians walk their pavement and a few cross at
+ * the crossing, and everything BRAKES for the robot instead of driving through
+ * it. Integrated per frame (position advances by speed * dt scaled by braking),
+ * self driven by requestAnimationFrame, with a single step where rAF is absent
+ * (the offline bundle-render test) so it never throws there.
  *
  *   window.KodroAgents.build(worldId)  -- set up agents for a world
  *   window.KodroAgents.list()          -- [{x,y,r,kind,color,dx,dy,leg}] in cm
@@ -14,56 +19,82 @@
   let agents = [];
   let worldId = null;
   let raf = 0;
-  let t0 = null;
+  let last = null;
+  const R = 30; // rover collision radius (cm), matched to the engine
+
+  // lane(dir, axis, offset): a one-way lane. dir +1/-1 is travel direction along
+  // the moving axis; offset is the fixed cross-axis position.
+  function car(horiz, dir, lane, speed, s0, color) {
+    return { kind: 'car', horiz, dir, lane, speed, s: s0, span: 3400, r: 96, color, x: 0, y: 0, dx: dir, dy: 0, leg: 0, base: speed };
+  }
+  function ped(horiz, dir, lane, speed, s0, color, span) {
+    return { kind: 'person', horiz, dir, lane, speed, s: s0, span: span || 2800, r: 44, color, x: 0, y: 0, dx: dir, dy: 0, leg: 0, base: speed };
+  }
 
   function build(id) {
     stop();
     agents = [];
     worldId = id;
     if (id === 'city') {
-      const PAVE = 280;
-      const shirts = [0xd98c4a, 0x5aa0d8, 0x8a6fc0, 0x5bbf86, 0xd35d7a];
-      for (let i = 0; i < 7; i++) {
-        const horiz = (i % 2 === 0);
-        const lane = (i % 4 < 2 ? 1 : -1) * PAVE;
-        agents.push({ kind: 'person', horiz, lane, span: 2600, speed: 70 + (i % 3) * 22, off: i * 0.9, r: 44, color: shirts[i % shirts.length], x: 0, y: 0, dx: 1, dy: 0, leg: 0 });
-      }
-      [[true, -70, 210, 0x2c6fb0], [false, 70, 175, 0x4aa564], [true, 70, 150, 0xc0392b]].forEach((c, i) => {
-        agents.push({ kind: 'car', horiz: c[0], lane: c[1], span: 3000, speed: c[2], off: i * 0.6, r: 96, color: c[3], x: 0, y: 0, dx: 1, dy: 0, leg: 0 });
-      });
+      const shirts = [0xd98c4a, 0x5aa0d8, 0x8a6fc0, 0x5bbf86, 0xd35d7a, 0xe0b45c];
+      // Traffic: two lanes each way on both roads, flowing one direction, looping.
+      agents.push(car(true, 1, -78, 240, 200, 0x2c6fb0));
+      agents.push(car(true, 1, -78, 240, 1900, 0xc0392b));
+      agents.push(car(true, -1, 78, 220, 1100, 0x4aa564));
+      agents.push(car(false, 1, 78, 230, 600, 0xd8a838));
+      agents.push(car(false, -1, -78, 210, 2400, 0x7a5fc0));
+      // Pedestrians walking the pavements, one direction each, looping.
+      const pave = 300;
+      agents.push(ped(true, 1, -pave, 60, 0, shirts[0]));
+      agents.push(ped(true, -1, pave, 52, 900, shirts[1]));
+      agents.push(ped(false, 1, pave, 58, 400, shirts[2]));
+      agents.push(ped(false, -1, -pave, 50, 1500, shirts[3]));
+      // Two crossing the zebra crossing (east of the junction), back and forth-ish
+      // but on the crossing lane so it reads as using the crossing.
+      agents.push(ped(false, 1, 320, 46, 0, shirts[4], 700));
+      agents.push(ped(false, -1, 360, 44, 350, shirts[5], 700));
     } else if (id === 'room') {
-      // People sharing the room: a companion robot must move around them.
-      agents.push({ kind: 'person', horiz: true, lane: -360, span: 1100, speed: 40, off: 0.2, r: 46, color: 0x6aa0d8, x: 0, y: 0, dx: 1, dy: 0, leg: 0 });
-      agents.push({ kind: 'person', horiz: false, lane: 360, span: 900, speed: 32, off: 1.3, r: 46, color: 0xc97f6a, x: 0, y: 0, dx: 0, dy: 1, leg: 0 });
+      agents.push(ped(true, 1, -360, 40, 0, 0x6aa0d8, 1300));
+      agents.push(ped(false, 1, 360, 32, 200, 0xc97f6a, 1100));
     }
     start();
   }
 
-  function tri(t, span, speed, off) {
-    const ph = ((t * speed / span) + off) % 2;
-    const x = ph < 1 ? ph : 2 - ph;      // 0..1..0 linear ramp
-    return x * x * (3 - 2 * x);           // smoothstep: ease in and out of each turn
-  }
-
-  function step(t) {
+  function step(dt) {
+    if (dt > 0.1) dt = 0.1; // a long pause (tab hidden) must not teleport agents
+    const rov = window.KODRO_ROVER;
     for (let i = 0; i < agents.length; i++) {
       const a = agents[i];
-      const p0 = (tri(t, a.span, a.speed, a.off) - 0.5) * a.span;
-      const p1 = (tri(t + 0.06, a.span, a.speed, a.off) - 0.5) * a.span;
-      const dir = (p1 - p0) >= 0 ? 1 : -1;
-      if (a.horiz) { a.x = p0; a.y = a.lane; a.dx = dir; a.dy = 0; }
-      else { a.x = a.lane; a.y = p0; a.dx = 0; a.dy = dir; }
-      a.leg = Math.sin(t * 6 + a.off * 3);
+      // provisional position from current s, along the lane in the travel dir
+      const halfShift = (((a.s % a.span) + a.span) % a.span) - a.span / 2;
+      const along = a.dir * halfShift;
+      const ax = a.horiz ? along : a.lane;
+      const ay = a.horiz ? a.lane : along;
+      // brake for the robot if it is close ahead in this agent's path
+      let brake = 1;
+      if (rov) {
+        const relx = rov.x - ax, rely = rov.y - ay;
+        const fwd = a.horiz ? relx * a.dir : rely * a.dir;     // distance ahead
+        const lat = a.horiz ? Math.abs(rely - 0) : Math.abs(relx - 0); // cross-track
+        if (fwd > 0 && fwd < 240 && lat < a.r + R + 24) brake = Math.max(0, (fwd - 60) / 180);
+      }
+      a.s += a.base * brake * dt;
+      const hs = (((a.s % a.span) + a.span) % a.span) - a.span / 2;
+      const al = a.dir * hs;
+      if (a.horiz) { a.x = al; a.y = a.lane; a.dx = a.dir; a.dy = 0; }
+      else { a.x = a.lane; a.y = al; a.dx = 0; a.dy = a.dir; }
+      a.speed = a.base * brake;
+      a.leg = Math.sin(a.s * 0.06) * brake; // legs slow and stop when braking
     }
   }
 
   function loop(now) {
-    if (t0 == null) t0 = now;
-    step((now - t0) / 1000);
+    if (last == null) last = now;
+    step((now - last) / 1000); last = now;
     raf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame(loop) : 0;
   }
   function start() {
-    if (typeof requestAnimationFrame === 'function') { t0 = null; raf = requestAnimationFrame(loop); }
+    if (typeof requestAnimationFrame === 'function') { last = null; raf = requestAnimationFrame(loop); }
     else step(0);
   }
   function stop() {
