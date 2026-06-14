@@ -97,11 +97,13 @@
       env: { gravity: 9.81, temp: 21, tempLabel: 'ROOM TEMP', pressure: 1.0, pressureLabel: 'PRESSURE', pressureUnit: 'atm', light: 70 },
       traction: 1.05, obstacleLabel: 'FURNITURE',
       // A few collidable pieces so a companion robot must navigate the room.
+      // Furniture is kept clear of the robot's start at the origin so it never
+      // spawns inside a piece; the centre of the room is open floor.
       obstacles: [
-        { x: 0, y: 720, r: 150, rot: 0, v: 0.2, kind: 'sofa' },
-        { x: 0, y: 60, r: 110, rot: 0, v: 0.5, kind: 'table' },
-        { x: 840, y: -260, r: 130, rot: 0, v: 0.8, kind: 'shelf' },
-        { x: -880, y: -880, r: 70, rot: 0, v: 0.9, kind: 'plant' },
+        { x: 0, y: 760, r: 150, rot: 0, v: 0.2, kind: 'sofa' },
+        { x: -470, y: 380, r: 100, rot: 0, v: 0.5, kind: 'table' },
+        { x: 840, y: -300, r: 130, rot: 0, v: 0.8, kind: 'shelf' },
+        { x: -860, y: -820, r: 70, rot: 0, v: 0.9, kind: 'plant' },
       ],
       decor: [],
       backdrop: 'room'
@@ -793,7 +795,8 @@
       return () => { if (raf) cancelAnimationFrame(raf); };
     }, []);
     const KA = window.KodroAgents;
-    const list = (KA && KA.world() === 'city') ? KA.list() : [];
+    const w = KA && KA.world();
+    const list = (w === 'city' || w === 'room') ? KA.list() : [];
     const bill = { transform: 'rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))', transformOrigin: '50% 100%' };
     return (
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
@@ -849,7 +852,7 @@
         {/* trail canvas slot */}
         {children}
         {terrain.obstacles.map((o, i) => <Obstacle key={i} o={o} terrain={terrain} />)}
-        {terrain.id === 'city' ? <CityAgents /> : null}
+        {(terrain.id === 'city' || terrain.id === 'room') ? <CityAgents /> : null}
       </div>
     );
   }
