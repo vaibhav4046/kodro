@@ -98,7 +98,8 @@
   }
   function tri(t, span, speed, off) {
     const ph = (t * speed / span + off) % 2;
-    return ph < 1 ? ph : 2 - ph;
+    const x = ph < 1 ? ph : 2 - ph; // 0..1..0 linear ramp
+    return x * x * (3 - 2 * x); // smoothstep: ease in and out of each turn
   }
   function step(t) {
     for (let i = 0; i < agents.length; i++) {
@@ -3603,7 +3604,10 @@
       const accent = new THREE.Color(terrain && terrain.accent || '#5ce0d8');
       const rType = robotType || window.getKodroRobot && window.getKodroRobot().type || 'rover';
       const rov = new THREE.Group();
+      const body = new THREE.Group();
+      rov.add(body); // non-wheel parts: leans with weight transfer
       const wheels = [];
+      const steer = []; // front wheel groups, turned toward the heading change
       const Cap = THREE.CapsuleGeometry || null;
       const accMat = () => new THREE.MeshStandardMaterial({
         color: accent,
@@ -3632,13 +3636,14 @@
           wheel.position.set(p[0], r, p[1]);
           rov.add(wheel);
           wheels.push(tyre);
+          if (p[0] > 0) steer.push(wheel); // front axle steers
         });
       };
       const arrow = y => {
         const a = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 4), accMat());
         a.rotation.z = -Math.PI / 2;
         a.position.set(0.2, y, 0);
-        rov.add(a);
+        body.add(a);
       };
       if (rType === 'car') {
         const carM = new THREE.MeshStandardMaterial({
@@ -3649,11 +3654,11 @@
         const lower = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.8, 1.6), carM);
         lower.position.y = 0.72;
         lower.castShadow = true;
-        rov.add(lower);
+        body.add(lower);
         const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.7, 1.42), carM);
         cabin.position.set(-0.15, 1.38, 0);
         cabin.castShadow = true;
-        rov.add(cabin);
+        body.add(cabin);
         const glass = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.56, 1.28), new THREE.MeshStandardMaterial({
           color: 0xaad4ee,
           roughness: 0.1,
@@ -3662,11 +3667,11 @@
           opacity: 0.7
         }));
         glass.position.set(-0.15, 1.4, 0);
-        rov.add(glass);
+        body.add(glass);
         [[1.5, 0.5], [1.5, -0.5]].forEach(p => {
           const l = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), accMat());
           l.position.set(p[0], 0.8, p[1]);
-          rov.add(l);
+          body.add(l);
         });
         addWheels([[1.0, 0.86], [1.0, -0.86], [-1.0, 0.86], [-1.0, -0.86]], 0.46);
         arrow(1.95);
@@ -3682,19 +3687,19 @@
         }));
         base.position.y = 0.25;
         base.castShadow = true;
-        rov.add(base);
+        body.add(base);
         const torso = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.78, 1.1, 6, 16) : new THREE.CylinderGeometry(0.78, 0.78, 1.9, 16), botM);
         torso.position.y = 1.55;
         torso.castShadow = true;
-        rov.add(torso);
+        body.add(torso);
         const chest = new THREE.Mesh(new THREE.CircleGeometry(0.26, 16), accMat());
         chest.position.set(0.74, 1.6, 0);
         chest.rotation.y = Math.PI / 2;
-        rov.add(chest);
+        body.add(chest);
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.66, 20, 16), botM);
         head.position.y = 2.75;
         head.castShadow = true;
-        rov.add(head);
+        body.add(head);
         const visor = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 12), new THREE.MeshStandardMaterial({
           color: 0x10141c,
           roughness: 0.2,
@@ -3702,11 +3707,11 @@
         }));
         visor.scale.set(1, 0.7, 0.6);
         visor.position.set(0.42, 2.78, 0);
-        rov.add(visor);
+        body.add(visor);
         [[0.78, 0.18], [0.78, -0.18]].forEach(p => {
           const e = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), accMat());
           e.position.set(p[0], 2.82, p[1]);
-          rov.add(e);
+          body.add(e);
         });
         addWheels([[0, 0.55], [0, -0.55]], 0.34);
         arrow(3.5);
@@ -3723,29 +3728,29 @@
         }));
         base.position.y = 0.35;
         base.castShadow = true;
-        rov.add(base);
+        body.add(base);
         const j1 = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 12), jointM);
         j1.position.y = 0.9;
-        rov.add(j1);
+        body.add(j1);
         const seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.2, 0.5), armM);
         seg1.position.set(0.2, 2.0, 0);
         seg1.rotation.z = -0.5;
         seg1.castShadow = true;
-        rov.add(seg1);
+        body.add(seg1);
         const j2 = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), jointM);
         j2.position.set(1.1, 2.9, 0);
-        rov.add(j2);
+        body.add(j2);
         const seg2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.8, 0.4), armM);
         seg2.position.set(1.9, 3.4, 0);
         seg2.rotation.z = -1.2;
         seg2.castShadow = true;
-        rov.add(seg2);
+        body.add(seg2);
         const g1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM);
         g1.position.set(2.7, 3.7, 0.22);
-        rov.add(g1);
+        body.add(g1);
         const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM);
         g2.position.set(2.7, 3.7, -0.22);
-        rov.add(g2);
+        body.add(g2);
         arrow(1.3);
       } else {
         // rover (and custom): chassis, solar deck, sensor mast with a camera eye.
@@ -3757,25 +3762,25 @@
         const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.7, 1.7), bodyMat);
         chassis.position.y = 0.92;
         chassis.castShadow = true;
-        rov.add(chassis);
+        body.add(chassis);
         const deck = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, 1.4), new THREE.MeshStandardMaterial({
           color: 0x1b2740,
           roughness: 0.3,
           metalness: 0.5
         }));
         deck.position.set(-0.2, 1.34, 0);
-        rov.add(deck);
+        body.add(deck);
         const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.0, 8), bodyMat);
         mast.position.set(0.85, 1.75, 0);
-        rov.add(mast);
+        body.add(mast);
         const camHead = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.72), bodyMat);
         camHead.position.set(0.85, 2.3, 0);
         camHead.castShadow = true;
-        rov.add(camHead);
+        body.add(camHead);
         const eye = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), accMat());
         eye.position.set(1.12, 2.3, 0);
         eye.rotation.y = Math.PI / 2;
-        rov.add(eye);
+        body.add(eye);
         addWheels([[0.95, 0.95], [0.95, -0.95], [-0.95, 0.95], [-0.95, -0.95]], 0.5);
         arrow(2.05);
       }
@@ -3801,6 +3806,15 @@
       // Smoothed render state (lerped toward the live rover each frame).
       const cur = new THREE.Vector3(0, 0, 0);
       let curHeading = 0;
+      // Motion feel: a real vehicle transfers weight, so the body pitches when
+      // it accelerates or brakes, banks into turns, and the suspension settles.
+      let prevSpeed = 0,
+        prevHead = 0,
+        bodyPitch = 0,
+        bodyRoll = 0,
+        susp = 0,
+        vsmooth = 0;
+      const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
       const camPos = new THREE.Vector3(0, 20, 30);
 
       // Third-person orbit: drag to rotate, wheel or two-finger pinch to zoom,
@@ -3923,6 +3937,29 @@
         rov.rotation.y = curHeading;
         const moved = Math.hypot(cur.x - px0, cur.z - pz0);
         if (moved > 0.001) wheels.forEach(wh => wh.rotateY(moved * 1.6));
+        // ---- weight transfer, banking, suspension and steering ----
+        const accel = moved - prevSpeed;
+        prevSpeed = moved;
+        vsmooth += (moved - vsmooth) * 0.2;
+        let turn = curHeading - prevHead;
+        prevHead = curHeading;
+        if (turn > Math.PI) turn -= Math.PI * 2;else if (turn < -Math.PI) turn += Math.PI * 2;
+        // pitch: nose lifts under acceleration, dips under braking (about the lateral axis = local z)
+        bodyPitch += (clamp(-accel * 7, -0.16, 0.16) - bodyPitch) * 0.18;
+        // roll: lean into the turn (about the forward axis = local x), more at speed
+        bodyRoll += (clamp(turn * 9 + turn * vsmooth * 22, -0.24, 0.24) - bodyRoll) * 0.16;
+        // suspension: a small settle driven by acceleration, eased back to rest
+        susp += (clamp(-accel * 1.6, -0.18, 0.18) - susp) * 0.22;
+        body.rotation.z = bodyPitch;
+        body.rotation.x = bodyRoll;
+        body.position.y = -Math.abs(susp) * 0.35;
+        // front wheels steer toward the heading change
+        if (steer.length) {
+          const sa = clamp(turn * 26, -0.5, 0.5);
+          steer.forEach(wg => {
+            wg.rotation.y += (sa - wg.rotation.y) * 0.3;
+          });
+        }
         const fwd = tmp.set(Math.cos(curHeading), 0, -Math.sin(curHeading));
 
         // Grow the trail when the rover has actually moved.
