@@ -369,6 +369,16 @@
       // a rover, a car, a home companion or an arm each look like themselves.
       const accent = new THREE.Color((terrain && terrain.accent) || '#5ce0d8');
       const rType = robotType || (window.getKodroRobot && window.getKodroRobot().type) || 'rover';
+      // Per-type motion feel: a car throws its weight around; a heavy rover is
+      // measured and stable; a humanoid stays upright and barely banks; a fixed
+      // manipulator arm does not pitch or roll as it works.
+      const MOTION = {
+        car: { pitch: 1.0, roll: 1.0, susp: 1.0 },
+        rover: { pitch: 0.5, roll: 0.45, susp: 0.6 },
+        home: { pitch: 0.28, roll: 0.22, susp: 0.4 },
+        arm: { pitch: 0, roll: 0, susp: 0 },
+      };
+      const feel = MOTION[rType] || { pitch: 0.6, roll: 0.55, susp: 0.7 };
       const rov = new THREE.Group();
       const body = new THREE.Group(); rov.add(body); // non-wheel parts: leans with weight transfer
       const wheels = [];
@@ -399,6 +409,15 @@
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.66, 20, 16), botM); head.position.y = 2.75; head.castShadow = true; body.add(head);
         const visor = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 12), new THREE.MeshStandardMaterial({ color: 0x10141c, roughness: 0.2, metalness: 0.4 })); visor.scale.set(1, 0.7, 0.6); visor.position.set(0.42, 2.78, 0); body.add(visor);
         [[0.78, 0.18], [0.78, -0.18]].forEach((p) => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), accMat()); e.position.set(p[0], 2.82, p[1]); body.add(e); });
+        // arms: a companion robot needs hands. Shoulder + upper arm + elbow +
+        // forearm per side, hanging at rest, accent-coloured joints.
+        const armMatH = new THREE.MeshStandardMaterial({ color: 0xd7dbe2, roughness: 0.45, metalness: 0.15 });
+        [0.86, -0.86].forEach((z) => {
+          const sh = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), accMat()); sh.position.set(0, 2.0, z); body.add(sh);
+          const up = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.17, 0.66, 4, 8) : new THREE.CylinderGeometry(0.17, 0.17, 1.0, 8), armMatH); up.position.set(0.06, 1.52, z); up.castShadow = true; body.add(up);
+          const el = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), accMat()); el.position.set(0.12, 1.08, z); body.add(el);
+          const fo = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.14, 0.52, 4, 8) : new THREE.CylinderGeometry(0.14, 0.14, 0.8, 8), armMatH); fo.position.set(0.18, 0.66, z); fo.castShadow = true; body.add(fo);
+        });
         addWheels([[0, 0.55], [0, -0.55]], 0.34);
         arrow(3.5);
       } else if (rType === 'arm') {
@@ -420,6 +439,9 @@
         const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.0, 8), bodyMat); mast.position.set(0.85, 1.75, 0); body.add(mast);
         const camHead = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.72), bodyMat); camHead.position.set(0.85, 2.3, 0); camHead.castShadow = true; body.add(camHead);
         const eye = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), accMat()); eye.position.set(1.12, 2.3, 0); eye.rotation.y = Math.PI / 2; body.add(eye);
+        // running lights on the leading edge of the chassis
+        const litM = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff0c0, emissiveIntensity: 0.9 });
+        [[1.3, 0.55], [1.3, -0.55]].forEach((p) => { const l = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.28), litM); l.position.set(p[0], 0.85, p[1]); body.add(l); });
         addWheels([[0.95, 0.95], [0.95, -0.95], [-0.95, 0.95], [-0.95, -0.95]], 0.5);
         arrow(2.05);
       }
@@ -547,11 +569,11 @@
         let turn = curHeading - prevHead; prevHead = curHeading;
         if (turn > Math.PI) turn -= Math.PI * 2; else if (turn < -Math.PI) turn += Math.PI * 2;
         // pitch: nose lifts under acceleration, dips under braking (about the lateral axis = local z)
-        bodyPitch += (clamp(-accel * 7, -0.16, 0.16) - bodyPitch) * 0.18;
+        bodyPitch += (clamp(-accel * 7, -0.16, 0.16) * feel.pitch - bodyPitch) * 0.18;
         // roll: lean into the turn (about the forward axis = local x), more at speed
-        bodyRoll += (clamp(turn * 9 + turn * vsmooth * 22, -0.24, 0.24) - bodyRoll) * 0.16;
+        bodyRoll += (clamp(turn * 9 + turn * vsmooth * 22, -0.24, 0.24) * feel.roll - bodyRoll) * 0.16;
         // suspension: a small settle driven by acceleration, eased back to rest
-        susp += (clamp(-accel * 1.6, -0.18, 0.18) - susp) * 0.22;
+        susp += (clamp(-accel * 1.6, -0.18, 0.18) * feel.susp - susp) * 0.22;
         body.rotation.z = bodyPitch;
         body.rotation.x = bodyRoll;
         body.position.y = -Math.abs(susp) * 0.35;
