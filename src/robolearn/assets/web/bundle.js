@@ -5846,7 +5846,237 @@ Object.assign(window, {
       onClick: onSave
     }, '✓ Build & test in ' + rec.label))));
   }
+
+  // Statics so other modules (e.g. onboarding) can reuse the canonical robot
+  // catalogue and world-recommendation logic instead of duplicating it.
+  RobotLab.TYPES = TYPES;
+  RobotLab.WORLD_FOR = WORLD_FOR;
+  RobotLab.selectType = function (typeId) {
+    const spec = specFromType(typeId);
+    save(spec);
+    return spec;
+  };
   window.RobotLab = RobotLab;
+})();
+})();
+
+;(function () {
+/*
+ * Kodro onboarding / landing flow.
+ *
+ * A self-contained, skippable first-run experience that sits in front of the
+ * studio: a landing hero, a "what do you want to build" robot picker, and the
+ * assistant's world recommendation for that robot. Decoupled from app.jsx -
+ * it reuses RobotLab's canonical catalogue (TYPES / WORLD_FOR / selectType) so
+ * choosing a robot here drives exactly the same world selection the Robot Lab
+ * would. Mounting and persistence ("seen it already") are owned by App; this
+ * module only renders the flow and calls onClose() when the user is done.
+ *
+ * Exposes: window.KodroOnboarding({ onClose })
+ */
+(function () {
+  const {
+    useState,
+    useEffect
+  } = React;
+
+  // Brand mark: the same orbit + trajectory + robot-node mark used in the navbar
+  // (ORBIT_SVG), inlined so onboarding has no dependency on app.jsx.
+  const MARK = /*#__PURE__*/React.createElement("svg", {
+    viewBox: "0 0 64 64",
+    fill: "none",
+    xmlns: "http://www.w3.org/2000/svg",
+    "aria-hidden": "true"
+  }, /*#__PURE__*/React.createElement("circle", {
+    cx: "32",
+    cy: "32",
+    r: "21",
+    stroke: "currentColor",
+    strokeWidth: "2.4",
+    opacity: "0.2"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M15 44 A21 21 0 1 1 44 15",
+    stroke: "currentColor",
+    strokeWidth: "3.6",
+    strokeLinecap: "round",
+    opacity: "0.9"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "15",
+    cy: "44",
+    r: "2.6",
+    fill: "currentColor",
+    opacity: "0.45"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "44",
+    cy: "15",
+    r: "6.4",
+    fill: "currentColor"
+  }));
+  const CSS = `
+  .konb-root{position:fixed;inset:0;z-index:4000;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(120% 120% at 50% 0%,#101726 0%,#070a12 70%);
+    color:#e8edf7;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    animation:konb-fade .35s ease both;overflow:auto;padding:32px}
+  @keyframes konb-fade{from{opacity:0}to{opacity:1}}
+  @keyframes konb-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .konb-card{width:min(720px,100%);animation:konb-rise .4s ease both}
+  .konb-mark{width:72px;height:72px;color:#5ed6ff;margin:0 auto 22px;display:block}
+  .konb-mark svg{width:100%;height:100%}
+  .konb-title{font-size:clamp(34px,6vw,52px);font-weight:750;letter-spacing:-.03em;text-align:center;margin:0}
+  .konb-tag{font-size:clamp(17px,3vw,22px);font-weight:600;text-align:center;margin:14px 0 6px;color:#cfe0f5}
+  .konb-sub{text-align:center;color:#8da3c0;max-width:460px;margin:0 auto;line-height:1.5}
+  .konb-steps{display:flex;gap:7px;justify-content:center;margin:26px 0 4px}
+  .konb-dot{width:7px;height:7px;border-radius:50%;background:#2b3a55;transition:background .25s,width .25s}
+  .konb-dot.on{background:#5ed6ff;width:20px;border-radius:4px}
+  .konb-actions{display:flex;gap:12px;justify-content:center;margin-top:32px;flex-wrap:wrap}
+  .konb-btn{appearance:none;border:0;cursor:pointer;font:inherit;font-weight:650;border-radius:11px;
+    padding:13px 26px;transition:transform .12s ease,background .2s,box-shadow .2s}
+  .konb-btn:active{transform:translateY(1px)}
+  .konb-btn.primary{background:#5ed6ff;color:#06121b;box-shadow:0 8px 26px -10px #5ed6ff}
+  .konb-btn.primary:hover{background:#7ee0ff}
+  .konb-btn.ghost{background:transparent;color:#9fb4d2;border:1px solid #283a55}
+  .konb-btn.ghost:hover{color:#dce8f8;border-color:#3b567a}
+  .konb-btn[disabled]{opacity:.4;cursor:not-allowed}
+  .konb-h2{font-size:clamp(24px,4vw,32px);font-weight:720;letter-spacing:-.02em;text-align:center;margin:0 0 8px}
+  .konb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px;margin-top:26px}
+  .konb-tile{text-align:left;background:#0f1726;border:1.5px solid #233248;border-radius:14px;padding:17px 17px 15px;
+    cursor:pointer;transition:border-color .18s,transform .12s,background .18s;color:inherit;font:inherit}
+  .konb-tile:hover{border-color:#3d5a80;transform:translateY(-2px)}
+  .konb-tile.sel{border-color:#5ed6ff;background:#11202e;box-shadow:0 0 0 1px #5ed6ff inset}
+  .konb-emoji{font-size:30px;line-height:1}
+  .konb-tname{font-weight:680;margin:9px 0 4px;font-size:16px}
+  .konb-blurb{color:#8da3c0;font-size:13px;line-height:1.45}
+  .konb-rec{background:#0f1726;border:1.5px solid #233248;border-radius:16px;padding:24px;margin-top:24px;text-align:center}
+  .konb-rec .world{font-size:26px;font-weight:720;color:#5ed6ff;margin:6px 0}
+  .konb-rec .why{color:#9fb4d2;line-height:1.5;max-width:440px;margin:6px auto 0}
+  .konb-skip{position:absolute;top:20px;right:24px}
+  .konb-skip button{background:none;border:0;color:#6f86a6;cursor:pointer;font:inherit;font-size:14px}
+  .konb-skip button:hover{color:#cfe0f5}
+  `;
+  function Step({
+    n,
+    current
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "konb-steps"
+    }, [0, 1, 2].map(i => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "konb-dot" + (i <= current ? " on" : "")
+    })));
+  }
+  function KodroOnboarding({
+    onClose
+  }) {
+    const [step, setStep] = useState(0); // 0 land, 1 pick, 2 recommend
+    const [type, setType] = useState(null);
+    useEffect(() => {
+      const tag = "kodro-onb-style";
+      if (!document.getElementById(tag)) {
+        const el = document.createElement("style");
+        el.id = tag;
+        el.textContent = CSS;
+        document.head.appendChild(el);
+      }
+      const onKey = e => {
+        if (e.key === "Escape") onClose();
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [onClose]);
+    const TYPES = window.RobotLab && window.RobotLab.TYPES || {};
+    const WORLD_FOR = window.RobotLab && window.RobotLab.WORLD_FOR || {};
+    const order = ["rover", "car", "home", "arm", "custom"].filter(id => TYPES[id]);
+    const rec = type && WORLD_FOR[type] || {};
+    const worldName = window.TERRAINS && rec.id && window.TERRAINS[rec.id] && window.TERRAINS[rec.id].name || rec.label || "the city";
+    function enterStudio() {
+      try {
+        if (window.RobotLab && type) window.RobotLab.selectType(type);
+      } catch (e) {
+        void e;
+      }
+      onClose();
+    }
+    return /*#__PURE__*/React.createElement("div", {
+      className: "konb-root"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "konb-skip"
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: onClose
+    }, "Skip")), /*#__PURE__*/React.createElement("div", {
+      className: "konb-card"
+    }, step === 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "konb-mark"
+    }, MARK), /*#__PURE__*/React.createElement("h1", {
+      className: "konb-title"
+    }, "Kodro"), /*#__PURE__*/React.createElement("p", {
+      className: "konb-tag"
+    }, "Design a robot. Program it. Watch it work."), /*#__PURE__*/React.createElement("p", {
+      className: "konb-sub"
+    }, "An offline robot design and simulation studio. Build a machine, write its behaviour, and validate it in a world that fits it - all on your own computer, no account, no cloud."), /*#__PURE__*/React.createElement(Step, {
+      current: 0
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "konb-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "konb-btn primary",
+      onClick: () => setStep(1)
+    }, "Get started"), /*#__PURE__*/React.createElement("button", {
+      className: "konb-btn ghost",
+      onClick: onClose
+    }, "Skip to studio"))), step === 1 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
+      className: "konb-h2"
+    }, "What do you want to build?"), /*#__PURE__*/React.createElement("p", {
+      className: "konb-sub"
+    }, "Pick a starting point. You can redesign every part later in the Robot Lab."), /*#__PURE__*/React.createElement("div", {
+      className: "konb-grid"
+    }, order.map(id => {
+      const t = TYPES[id];
+      return /*#__PURE__*/React.createElement("button", {
+        key: id,
+        className: "konb-tile" + (type === id ? " sel" : ""),
+        onClick: () => setType(id)
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "konb-emoji"
+      }, t.emoji), /*#__PURE__*/React.createElement("div", {
+        className: "konb-tname"
+      }, t.name), /*#__PURE__*/React.createElement("div", {
+        className: "konb-blurb"
+      }, t.blurb));
+    })), /*#__PURE__*/React.createElement(Step, {
+      current: 1
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "konb-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "konb-btn ghost",
+      onClick: () => setStep(0)
+    }, "Back"), /*#__PURE__*/React.createElement("button", {
+      className: "konb-btn primary",
+      disabled: !type,
+      onClick: () => setStep(2)
+    }, "Continue"))), step === 2 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
+      className: "konb-h2"
+    }, "Where it gets tested first"), /*#__PURE__*/React.createElement("p", {
+      className: "konb-sub"
+    }, "The assistant picks a world that suits your robot. Test it there, then try the others."), /*#__PURE__*/React.createElement("div", {
+      className: "konb-rec"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "konb-emoji"
+    }, TYPES[type] && TYPES[type].emoji || "🤖"), /*#__PURE__*/React.createElement("div", {
+      className: "world"
+    }, worldName), /*#__PURE__*/React.createElement("div", {
+      className: "why"
+    }, rec.why || "start in the busy city, then try the others.")), /*#__PURE__*/React.createElement(Step, {
+      current: 2
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "konb-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "konb-btn ghost",
+      onClick: () => setStep(1)
+    }, "Back"), /*#__PURE__*/React.createElement("button", {
+      className: "konb-btn primary",
+      onClick: enterStudio
+    }, "Enter studio")))));
+  }
+  window.KodroOnboarding = KodroOnboarding;
 })();
 })();
 
@@ -6253,6 +6483,8 @@ rover.say("Survey done")`
     const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    // First-run onboarding / landing flow (shown once, remembered, skippable).
+    const [onboarded, setOnboarded] = useState(() => localStorage.getItem('or_onboarded') === '1');
     // Budget robot builder (local AI hardware guide for a real-world rover).
     const [buildOpen, setBuildOpen] = useState(false);
     const [buildBudget, setBuildBudget] = useState('30');
@@ -7750,7 +7982,7 @@ rover.say("Survey done")`
       href: "#editor-main"
     }, "Skip to code editor"), /*#__PURE__*/React.createElement("h1", {
       className: "sr-only"
-    }, "Kodro \u2014 learn to code a rover, offline"), /*#__PURE__*/React.createElement("div", {
+    }, "Kodro, an offline robot design and simulation studio"), /*#__PURE__*/React.createElement("div", {
       className: "missionbar",
       role: "banner"
     }, /*#__PURE__*/React.createElement("div", {
@@ -7766,7 +7998,7 @@ rover.say("Survey done")`
       className: "brand-name"
     }, "Kodro"), /*#__PURE__*/React.createElement("div", {
       className: "brand-sub"
-    }, "Code a rover \xB7 Offline"))), /*#__PURE__*/React.createElement("div", {
+    }, "Robot design studio \xB7 Offline"))), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "run-controls"
@@ -8979,7 +9211,16 @@ rover.say("Survey done")`
       key: i
     }, /*#__PURE__*/React.createElement("dt", null, m.robolearn), /*#__PURE__*/React.createElement("dd", null, m.hardware))))))), buildPlan.fallback && /*#__PURE__*/React.createElement("p", {
       className: "build-note"
-    }, "A standard plan is shown because the model could not tailor one within this budget."))))));
+    }, "A standard plan is shown because the model could not tailor one within this budget."))))), !onboarded && window.KodroOnboarding && /*#__PURE__*/React.createElement(window.KodroOnboarding, {
+      onClose: () => {
+        setOnboarded(true);
+        try {
+          localStorage.setItem('or_onboarded', '1');
+        } catch (err) {
+          void err;
+        }
+      }
+    }));
   }
   const TWEAK_DEFAULTS = {
     zoom: 1,
@@ -8988,10 +9229,15 @@ rover.say("Survey done")`
     ambientFx: true,
     trail: 'terrain'
   };
+
+  // Kodro brand mark: a circular orbit (the simulated world), a trajectory swept
+  // along it, and the robot as the solid node at the head of its path. Monochrome
+  // via currentColor so it inherits whatever colour .brand-mark sets (theme-safe).
   const ORBIT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-    <ellipse cx="32" cy="32" rx="28" ry="11" stroke="currentColor" stroke-width="2" transform="rotate(-22 32 32)" opacity="0.7"></ellipse>
-    <ellipse cx="32" cy="32" rx="28" ry="11" stroke="currentColor" stroke-width="2" transform="rotate(22 32 32)" opacity="0.4"></ellipse>
-    <circle cx="32" cy="32" r="4" fill="currentColor"></circle>
+    <circle cx="32" cy="32" r="21" stroke="currentColor" stroke-width="2.4" opacity="0.2"></circle>
+    <path d="M15 44 A21 21 0 1 1 44 15" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" opacity="0.9"></path>
+    <circle cx="15" cy="44" r="2.6" fill="currentColor" opacity="0.45"></circle>
+    <circle cx="44" cy="15" r="6.4" fill="currentColor"></circle>
   </svg>`;
 
   // adjust grid columns to include resizer tracks
