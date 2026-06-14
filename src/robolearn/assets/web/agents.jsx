@@ -57,6 +57,7 @@
       agents.push(ped(true, 1, -360, 40, 0, 0x6aa0d8, 1300));
       agents.push(ped(false, 1, 360, 32, 200, 0xc97f6a, 1100));
     }
+    step(0); // place every agent on its lane immediately, before the first frame
     start();
   }
 
