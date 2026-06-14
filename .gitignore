@@ -59,3 +59,4 @@ docs/ca1/_*.json
 src/robolearn/assets/web/harness.html
 src/robolearn/assets/web/studio_harness.html
 src/robolearn/assets/web/harness_bundle.js
+src/robolearn/assets/web/cap.html

@@ -90,7 +90,7 @@
           <span className="eyebrow">Systems</span>
           <div className="bar-meter">
             <Bar k="Battery" v={battery.toFixed(0) + '%'} pct={battery} color={batColor} />
-            <Bar k="Traction" v={(terrain.traction * 100).toFixed(0) + '%'} pct={terrain.traction * 85} color={accent} />
+            <Bar k="Traction" v={Math.min(100, Math.round(terrain.traction * 100)) + '%'} pct={Math.min(100, Math.round(terrain.traction * 100))} color={accent} />
           </div>
           <div className="gauges" style={{ marginTop: 12 }}>
             <div className="gauge">

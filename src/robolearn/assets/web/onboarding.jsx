@@ -60,8 +60,8 @@
   .konb-tname{font-weight:680;margin:9px 0 4px;font-size:16px}
   .konb-blurb{color:#8da3c0;font-size:13px;line-height:1.45}
   .konb-rec{background:#0f1726;border:1.5px solid #233248;border-radius:16px;padding:24px;margin-top:24px;text-align:center}
-  .konb-rec .world{font-size:26px;font-weight:720;color:#5ed6ff;margin:6px 0}
-  .konb-rec .why{color:#9fb4d2;line-height:1.5;max-width:440px;margin:6px auto 0}
+  .konb-rec .konb-world{font-size:26px;font-weight:720;color:#5ed6ff;margin:6px 0}
+  .konb-rec .konb-why{color:#9fb4d2;line-height:1.5;max-width:440px;margin:6px auto 0}
   .konb-skip{position:absolute;top:20px;right:24px}
   .konb-skip button{background:none;border:0;color:#6f86a6;cursor:pointer;font:inherit;font-size:14px}
   .konb-skip button:hover{color:#cfe0f5}
@@ -157,8 +157,8 @@
               <p className="konb-sub">The assistant picks a world that suits your robot. Test it there, then try the others.</p>
               <div className="konb-rec">
                 <div className="konb-emoji">{(TYPES[type] && TYPES[type].emoji) || "🤖"}</div>
-                <div className="world">{worldName}</div>
-                <div className="why">{rec.why || "start in the busy city, then try the others."}</div>
+                <div className="konb-world">{worldName}</div>
+                <div className="konb-why">{rec.why || "start in the busy city, then try the others."}</div>
               </div>
               <Step current={2} />
               <div className="konb-actions">

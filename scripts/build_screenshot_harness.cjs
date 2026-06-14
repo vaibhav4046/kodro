@@ -94,4 +94,71 @@ const STUDIO = `<!DOCTYPE html>
   <script src="bundle.js"></script>
 </body></html>`;
 fs.writeFileSync(path.join(WEB, 'studio_harness.html'), STUDIO);
-console.log('wrote harness_bundle.js + harness.html + studio_harness.html');
+
+// Parametric capture harness. Loads the real app stack and drives it via URL
+// query params so any surface can be screenshot with headless Chrome:
+//   cap.html?onb=1            onboarding landing
+//   cap.html?onb=1&step=1     onboarding robot picker
+//   cap.html?onb=1&step=2     onboarding world recommendation
+//   cap.html?world=room&robot=home   studio, home robot in the Room
+//   cap.html?world=mars&robot=rover  studio, rover on Mars
+//   cap.html?panel=lab        studio with the Robot Lab open
+//   cap.html?panel=memory     studio with the Memory panel open
+// Combine with Chrome --virtual-time-budget so timed clicks and WebGL settle.
+const CAP = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kodro capture</title><link rel="stylesheet" href="styles.css" />
+<style>.konb-root,.konb-card,.konb-mark{animation:none !important;opacity:1 !important;transform:none !important}</style></head>
+<body>
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var onb = q.get('onb');
+      try {
+        if (onb) localStorage.removeItem('or_onboarded');
+        else localStorage.setItem('or_onboarded', '1');
+        var w = q.get('world'); if (w) localStorage.setItem('or_terrain', w);
+      } catch (e) { void e; }
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel') };
+    })();
+  </script>
+  <div id="root"></div>
+  <script src="vendor/react.production.min.js"></script>
+  <script src="vendor/react-dom.production.min.js"></script>
+  <script src="vendor/three.min.js"></script>
+  <script src="interpreter.js"></script>
+  <script src="sound.js"></script>
+  <script src="bridge.js"></script>
+  <script src="bundle.js"></script>
+  <script>
+    (function () {
+      var C = window.__CAP || {};
+      function clickText(txt) {
+        var els = [].slice.call(document.querySelectorAll('button,.konb-btn,.konb-tile'));
+        for (var i = 0; i < els.length; i++) { if ((els[i].textContent || '').trim().indexOf(txt) >= 0) { els[i].click(); return true; } }
+        return false;
+      }
+      function clickAria(label) { var el = document.querySelector('[aria-label="' + label + '"]'); if (el) { el.click(); return true; } return false; }
+      if (!C.onb && C.robot) {
+        setTimeout(function () { try { window.dispatchEvent(new CustomEvent('kodro-robot', { detail: { type: C.robot, world: C.world || undefined } })); } catch (e) { void e; } }, 500);
+      }
+      if (!C.onb && C.panel) {
+        setTimeout(function () {
+          if (C.panel === 'lab') clickAria('Robot Lab');
+          else if (C.panel === 'memory') clickAria('Memory and skills');
+          else if (C.panel === 'blocks') clickText('BLOCKS');
+        }, 1000);
+      }
+      if (C.onb) {
+        if (C.step >= 1) setTimeout(function () { clickText('Get started'); }, 300);
+        if (C.step >= 2) {
+          setTimeout(function () { var t = document.querySelector('.konb-tile'); if (t) t.click(); }, 700);
+          setTimeout(function () { clickText('Continue'); }, 1000);
+        }
+      }
+    })();
+  </script>
+</body></html>`;
+fs.writeFileSync(path.join(WEB, 'cap.html'), CAP);
+console.log('wrote harness_bundle.js + harness.html + studio_harness.html + cap.html');
