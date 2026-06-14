@@ -772,44 +772,35 @@
 
   // Live agents: pedestrians stroll the pavements and a car drives the road.
   // Self contained animation; positions are visual only.
+  const hex = (n) => '#' + (n == null ? 0 : n).toString(16).padStart(6, '0');
   function CityAgents() {
-    const [t, setT] = React.useState(0);
+    // Re-render every frame; positions come from the shared agent simulation
+    // (window.KodroAgents) so the 2D view, the 3D view and the robot's
+    // collision all see the same pedestrians and traffic.
+    const [, setTick] = React.useState(0);
     React.useEffect(() => {
-      let raf, start;
+      let raf;
       if (typeof requestAnimationFrame !== 'function') return undefined;
-      const loop = (ts) => { if (start == null) start = ts; setT((ts - start) / 1000); raf = requestAnimationFrame(loop); };
+      const loop = () => { setTick((n) => (n + 1) & 1023); raf = requestAnimationFrame(loop); };
       raf = requestAnimationFrame(loop);
       return () => { if (raf) cancelAnimationFrame(raf); };
     }, []);
-    const agents = React.useMemo(() => {
-      const r = rng(77); const a = [];
-      // pedestrians: walk back and forth along the two pavements
-      for (let i = 0; i < 7; i++) {
-        const horiz = r() < 0.6;
-        a.push({ kind: 'person', horiz, lane: (C - ROAD - 36) + (r() < 0.5 ? 0 : (ROAD + 70) * 2 - 8), span: 900 + r() * 1100, off: r() * 6, sp: 26 + r() * 22, shirt: ['#d98c4a', '#5aa0d8', '#8a6fc0', '#5bbf86'][(r() * 4) | 0] });
-      }
-      // a car cruising the horizontal carriageway
-      a.push({ kind: 'car', horiz: true, lane: C - 64, span: GROUND, off: 0, sp: 150, body: '#e3c33f' });
-      a.push({ kind: 'car', horiz: false, lane: C + 60, span: GROUND, off: 3, sp: 130, body: '#46b07a' });
-      return a;
-    }, []);
+    const KA = window.KodroAgents;
+    const list = (KA && KA.world() === 'city') ? KA.list() : [];
+    const bill = { transform: 'rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))', transformOrigin: '50% 100%' };
     return (
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-        {agents.map((ag, i) => {
-          const phase = ((t * ag.sp / ag.span) + ag.off) % 2;
-          const tri = phase < 1 ? phase : 2 - phase;       // 0..1..0 ping-pong
-          const along = tri * ag.span + (GROUND - ag.span) / 2;
-          const x = ag.horiz ? along : ag.lane;
-          const y = ag.horiz ? ag.lane : along;
-          const bill = { transform: 'rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))', transformOrigin: '50% 100%' };
+        {list.map((ag, i) => {
+          const x = C + ag.x, y = C + ag.y;          // world cm -> ground px
+          const horiz = Math.abs(ag.dx) >= Math.abs(ag.dy);
           if (ag.kind === 'person') {
-            const bob = Math.sin(t * 6 + ag.off * 3) * 2;
+            const bob = Math.abs(ag.leg || 0) * 2;
             return (
               <div key={i} style={{ position: 'absolute', left: x, top: y, zIndex: 4 }}>
                 <div style={{ position: 'absolute', left: -9, top: -3, width: 18, height: 7, borderRadius: '50%', background: 'rgba(0,0,0,0.32)', filter: 'blur(2px)' }}></div>
                 <div style={{ ...bill, position: 'absolute', left: -7, bottom: 0 - bob, width: 14, height: 40 }}>
                   <div style={{ position: 'absolute', left: 3, top: 0, width: 8, height: 8, borderRadius: '50%', background: '#e8c9a8' }}></div>
-                  <div style={{ position: 'absolute', left: 1, top: 9, width: 12, height: 18, borderRadius: '4px 4px 3px 3px', background: ag.shirt }}></div>
+                  <div style={{ position: 'absolute', left: 1, top: 9, width: 12, height: 18, borderRadius: '4px 4px 3px 3px', background: hex(ag.color) }}></div>
                   <div style={{ position: 'absolute', left: 3, top: 27, width: 3, height: 12, background: '#2f3646', borderRadius: 2 }}></div>
                   <div style={{ position: 'absolute', left: 8, top: 27, width: 3, height: 12, background: '#2f3646', borderRadius: 2 }}></div>
                 </div>
@@ -819,8 +810,8 @@
           return (
             <div key={i} style={{ position: 'absolute', left: x, top: y, zIndex: 4 }}>
               <div style={{ position: 'absolute', left: -34, top: -2, width: 68, height: 14, borderRadius: '50%', background: 'rgba(0,0,0,0.34)', filter: 'blur(3px)' }}></div>
-              <div style={{ ...bill, position: 'absolute', left: -34, bottom: 0, width: 68, height: 30, transform: bill.transform + (ag.horiz ? '' : ' rotateZ(90deg)') }}>
-                <div style={{ position: 'absolute', inset: 0, borderRadius: 13, background: `linear-gradient(180deg, ${ag.body}, rgba(0,0,0,0.4))`, boxShadow: 'inset 0 2px 5px rgba(255,255,255,0.3), 1px 3px 6px rgba(0,0,0,0.45)' }}></div>
+              <div style={{ ...bill, position: 'absolute', left: -34, bottom: 0, width: 68, height: 30, transform: bill.transform + (horiz ? '' : ' rotateZ(90deg)') }}>
+                <div style={{ position: 'absolute', inset: 0, borderRadius: 13, background: `linear-gradient(180deg, ${hex(ag.color)}, rgba(0,0,0,0.4))`, boxShadow: 'inset 0 2px 5px rgba(255,255,255,0.3), 1px 3px 6px rgba(0,0,0,0.45)' }}></div>
                 <div style={{ position: 'absolute', left: '24%', right: '24%', top: '24%', height: '52%', borderRadius: 4, background: 'linear-gradient(180deg, rgba(190,225,245,0.92), rgba(120,160,190,0.85))' }}></div>
               </div>
             </div>

@@ -1078,3 +1078,19 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .rl-rec-tag { font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--cyan); }
 .rl-rec b { font-size:13px; color:var(--fg-1); }
 .rl-rec-why { font-size:11.5px; color:var(--fg-2); }
+
+/* Memory / self-refinement panel */
+.mem-body { display:grid; grid-template-columns:1fr 1fr; gap:16px; max-height:64vh; overflow:auto; }
+.mem-col { display:flex; flex-direction:column; gap:8px; }
+.mem-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; }
+.mem-refl { font-size:12px; color:var(--fg-1); padding:8px 10px; border-radius:7px;
+  border:1px solid var(--border); border-left:3px solid var(--fg-3); background:rgba(245,240,228,0.02); }
+.mem-refl.mem-done { border-left-color:var(--success); }
+.mem-refl.mem-crash { border-left-color:var(--danger); }
+.mem-ctx { display:block; font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.06em;
+  text-transform:uppercase; color:var(--fg-3); margin-bottom:3px; }
+.mem-skill { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:7px;
+  border:1px solid var(--border); background:rgba(245,240,228,0.02); }
+.mem-skill-name { font-size:12.5px; font-weight:600; color:var(--fg-1); flex:1; }
+.mem-skill-ctx { font-family:var(--font-mono); font-size:9.5px; color:var(--fg-3); }
+.mem-skill-act { display:flex; gap:5px; }

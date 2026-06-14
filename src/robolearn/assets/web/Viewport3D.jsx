@@ -23,7 +23,7 @@
     room: 0xe9ddc8, city: 0xb3c2cc, earth: 0xb6cdba, mars: 0xc08050, underwater: 0x0a2a38, space: 0x05060d,
   };
 
-  function Viewport3D({ terrain, rover, fpv }) {
+  function Viewport3D({ terrain, rover, fpv, robotType }) {
     const mountRef = useRef(null);
     const stateRef = useRef({ x: 0, y: 0, heading: 0 });
     const fpvRef = useRef(!!fpv);
@@ -260,31 +260,22 @@
             car.position.set(px, 0, pz); car.rotation.y = (o.rot || 0) * Math.PI / 180; scene.add(car);
           }
         });
-        const PAVE = ROADW / 2 + 2.6;
-        const shirts = [0xd98c4a, 0x5aa0d8, 0x8a6fc0, 0x5bbf86, 0xd35d7a];
-        for (let i = 0; i < 7; i++) {
-          const horiz = (i % 2 === 0);
-          const lane = (i % 4 < 2 ? 1 : -1) * PAVE;
-          const sp = 2.2 + (i % 3) * 0.7, off = i * 0.9, span = 56;
-          const pr = mkPerson(shirts[i % shirts.length]); scene.add(pr);
-          agents.push({ mesh: pr, update: (t) => {
-            const ph = ((t * sp / span) + off) % 2; const tri = ph < 1 ? ph : 2 - ph;
-            const along = (tri - 0.5) * span;
-            pr.position.set(horiz ? along : lane, 0, horiz ? lane : along);
-            pr.rotation.y = horiz ? (ph < 1 ? Math.PI / 2 : -Math.PI / 2) : (ph < 1 ? 0 : Math.PI);
-            const sw = Math.sin(t * 6 + off * 3) * 0.5; if (pr._legs) { pr._legs[0].rotation.x = sw; pr._legs[1].rotation.x = -sw; }
-          } });
+        // Render the shared moving agents as 3D meshes, driven by the same
+        // simulation the collision test reads, so a pedestrian the robot can
+        // see in the world is one it can actually hit.
+        const KA = window.KodroAgents;
+        if (KA) {
+          KA.list().forEach((ag, i) => {
+            const mesh = ag.kind === 'car' ? mkCar(ag.color != null ? ag.color : 0x2c6fb0) : mkPerson(ag.color != null ? ag.color : 0x5aa0d8);
+            scene.add(mesh);
+            agents.push({ mesh, update: () => {
+              const a = KA.list()[i]; if (!a) return;
+              mesh.position.set(a.x * SCALE, 0, -a.y * SCALE);
+              mesh.rotation.y = Math.atan2(a.dy, a.dx);
+              if (ag.kind === 'person' && mesh._legs) { mesh._legs[0].rotation.x = a.leg * 0.5; mesh._legs[1].rotation.x = -a.leg * 0.5; }
+            } });
+          });
         }
-        [[true, -2.2, 6.0, 0x2c6fb0], [false, 2.2, 5.2, 0x4aa564]].forEach((cfg, i) => {
-          const h = cfg[0], lane = cfg[1], sp = cfg[2], col = cfg[3];
-          const car = mkCar(col); scene.add(car);
-          agents.push({ mesh: car, update: (t) => {
-            const ph = ((t * sp / (HALF * 2)) + i * 0.4) % 2; const tri = ph < 1 ? ph : 2 - ph;
-            const along = (tri - 0.5) * (HALF * 2);
-            car.position.set(h ? along : lane, 0, h ? lane : along);
-            car.rotation.y = h ? (ph < 1 ? -Math.PI / 2 : Math.PI / 2) : (ph < 1 ? Math.PI : 0);
-          } });
-        });
       }
       function buildRoom() {
         const R = 30;
@@ -314,29 +305,65 @@
       if (id === 'city') buildCity();
       else if (id === 'room') buildRoom();
 
-      // Rover: a body + a bright nose so its facing is obvious, on four wheels.
-      const rov = new THREE.Group();
+      // The robot: built to match the kind the user designed in Robot Lab, so
+      // a rover, a car, a home companion or an arm each look like themselves.
       const accent = new THREE.Color((terrain && terrain.accent) || '#5ce0d8');
-      const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.0, 1.6), new THREE.MeshStandardMaterial({ color: 0x2b2f3a, roughness: 0.6, metalness: 0.2 }));
-      body.position.y = 0.85; body.castShadow = true;
-      const noseMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5 });
-      const nose = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 1.2), noseMat);
-      nose.position.set(1.35, 0.9, 0);
-      // A raised arrow on top, pointing forward, so the facing reads from any
-      // orbit angle and in low-contrast worlds (the QA flagged the bare nose).
-      const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.1, 4), noseMat);
-      arrow.rotation.z = -Math.PI / 2; // point along +x (forward)
-      arrow.position.set(0.2, 2.0, 0);
-      rov.add(body); rov.add(nose); rov.add(arrow);
-      const wheelGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.3, 12);
-      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111317, roughness: 0.9 });
+      const rType = robotType || (window.getKodroRobot && window.getKodroRobot().type) || 'rover';
+      const rov = new THREE.Group();
       const wheels = [];
-      [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz]) => {
-        const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-        wheel.rotation.x = Math.PI / 2;
-        wheel.position.set(sx * 0.9, 0.45, sz * 0.85);
-        wheel.castShadow = true; rov.add(wheel); wheels.push(wheel);
-      });
+      const Cap = THREE.CapsuleGeometry || null;
+      const accMat = () => new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5 });
+      const addWheels = (positions, r) => {
+        const wm = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.85 });
+        const hubM = new THREE.MeshStandardMaterial({ color: 0x9aa0ad, roughness: 0.4, metalness: 0.6 });
+        positions.forEach((p) => {
+          const wheel = new THREE.Group();
+          const tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.32, 16), wm); tyre.rotation.x = Math.PI / 2; tyre.castShadow = true;
+          const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.42, r * 0.42, 0.34, 8), hubM); hub.rotation.x = Math.PI / 2;
+          wheel.add(tyre); wheel.add(hub); wheel.position.set(p[0], r, p[1]); rov.add(wheel); wheels.push(tyre);
+        });
+      };
+      const arrow = (y) => { const a = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 4), accMat()); a.rotation.z = -Math.PI / 2; a.position.set(0.2, y, 0); rov.add(a); };
+      if (rType === 'car') {
+        const carM = new THREE.MeshStandardMaterial({ color: 0x2c6fb0, roughness: 0.3, metalness: 0.55 });
+        const lower = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.8, 1.6), carM); lower.position.y = 0.72; lower.castShadow = true; rov.add(lower);
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.7, 1.42), carM); cabin.position.set(-0.15, 1.38, 0); cabin.castShadow = true; rov.add(cabin);
+        const glass = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.56, 1.28), new THREE.MeshStandardMaterial({ color: 0xaad4ee, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.7 })); glass.position.set(-0.15, 1.4, 0); rov.add(glass);
+        [[1.5, 0.5], [1.5, -0.5]].forEach((p) => { const l = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), accMat()); l.position.set(p[0], 0.8, p[1]); rov.add(l); });
+        addWheels([[1.0, 0.86], [1.0, -0.86], [-1.0, 0.86], [-1.0, -0.86]], 0.46);
+        arrow(1.95);
+      } else if (rType === 'home') {
+        const botM = new THREE.MeshStandardMaterial({ color: 0xe9edf2, roughness: 0.4, metalness: 0.1 });
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 1.05, 0.5, 20), new THREE.MeshStandardMaterial({ color: 0x3a4150, roughness: 0.6 })); base.position.y = 0.25; base.castShadow = true; rov.add(base);
+        const torso = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.78, 1.1, 6, 16) : new THREE.CylinderGeometry(0.78, 0.78, 1.9, 16), botM); torso.position.y = 1.55; torso.castShadow = true; rov.add(torso);
+        const chest = new THREE.Mesh(new THREE.CircleGeometry(0.26, 16), accMat()); chest.position.set(0.74, 1.6, 0); chest.rotation.y = Math.PI / 2; rov.add(chest);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.66, 20, 16), botM); head.position.y = 2.75; head.castShadow = true; rov.add(head);
+        const visor = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 12), new THREE.MeshStandardMaterial({ color: 0x10141c, roughness: 0.2, metalness: 0.4 })); visor.scale.set(1, 0.7, 0.6); visor.position.set(0.42, 2.78, 0); rov.add(visor);
+        [[0.78, 0.18], [0.78, -0.18]].forEach((p) => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), accMat()); e.position.set(p[0], 2.82, p[1]); rov.add(e); });
+        addWheels([[0, 0.55], [0, -0.55]], 0.34);
+        arrow(3.5);
+      } else if (rType === 'arm') {
+        const armM = new THREE.MeshStandardMaterial({ color: 0xc7ccd4, roughness: 0.35, metalness: 0.6 });
+        const jointM = accMat();
+        const base = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.2, 0.7, 20), new THREE.MeshStandardMaterial({ color: 0x39414c, roughness: 0.6 })); base.position.y = 0.35; base.castShadow = true; rov.add(base);
+        const j1 = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 12), jointM); j1.position.y = 0.9; rov.add(j1);
+        const seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.2, 0.5), armM); seg1.position.set(0.2, 2.0, 0); seg1.rotation.z = -0.5; seg1.castShadow = true; rov.add(seg1);
+        const j2 = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), jointM); j2.position.set(1.1, 2.9, 0); rov.add(j2);
+        const seg2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.8, 0.4), armM); seg2.position.set(1.9, 3.4, 0); seg2.rotation.z = -1.2; seg2.castShadow = true; rov.add(seg2);
+        const g1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM); g1.position.set(2.7, 3.7, 0.22); rov.add(g1);
+        const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM); g2.position.set(2.7, 3.7, -0.22); rov.add(g2);
+        arrow(1.3);
+      } else {
+        // rover (and custom): chassis, solar deck, sensor mast with a camera eye.
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2b2f3a, roughness: 0.55, metalness: 0.28 });
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.7, 1.7), bodyMat); chassis.position.y = 0.92; chassis.castShadow = true; rov.add(chassis);
+        const deck = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, 1.4), new THREE.MeshStandardMaterial({ color: 0x1b2740, roughness: 0.3, metalness: 0.5 })); deck.position.set(-0.2, 1.34, 0); rov.add(deck);
+        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.0, 8), bodyMat); mast.position.set(0.85, 1.75, 0); rov.add(mast);
+        const camHead = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.72), bodyMat); camHead.position.set(0.85, 2.3, 0); camHead.castShadow = true; rov.add(camHead);
+        const eye = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), accMat()); eye.position.set(1.12, 2.3, 0); eye.rotation.y = Math.PI / 2; rov.add(eye);
+        addWheels([[0.95, 0.95], [0.95, -0.95], [-0.95, 0.95], [-0.95, -0.95]], 0.5);
+        arrow(2.05);
+      }
       scene.add(rov);
 
       // A trail ribbon that grows as the rover drives.
@@ -504,7 +531,7 @@
         });
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       };
-    }, [terrain && terrain.id]);
+    }, [terrain && terrain.id, robotType]);
 
     return React.createElement('div', { className: 'viewport3d', ref: mountRef });
   }
