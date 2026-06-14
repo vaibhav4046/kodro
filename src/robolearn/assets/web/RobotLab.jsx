@@ -78,6 +78,10 @@
 
   const CHASSIS_MASS = 380; // grams, frame + battery + wiring, before parts
 
+  // Colour + word for a design-check status, shared by the verdict UI.
+  function diagColor(s) { return s === 'fail' ? '#ff6b5e' : s === 'warn' ? '#f5c451' : '#5ce0d8'; }
+  function diagWord(s) { return s === 'fail' ? "WON'T COPE" : s === 'warn' ? 'WATCH' : 'READY'; }
+
   function defaultSpec() {
     const t = TYPES.rover;
     return { type: 'rover', name: 'My Rover', board: t.base.board, sensors: t.base.sensors.slice(), actuators: t.base.actuators.slice() };
@@ -147,6 +151,10 @@
     const d = derive(spec);
     const t = TYPES[spec.type] || TYPES.rover;
     const rec = WORLD_FOR[spec.type] || WORLD_FOR.rover;
+    // Predictive design check: how this exact build will behave in the world it
+    // is recommended for, before a single line of code is run.
+    const dTerrain = (window.TERRAINS && window.TERRAINS[rec.id]) || null;
+    const report = (window.KodroDiagnostics && dTerrain) ? window.KodroDiagnostics.assess(spec, d, dTerrain) : null;
 
     function pickType(id) { setSpec(specFromType(id, null)); }
     function toggle(kind, id) {
@@ -235,6 +243,23 @@
               React.createElement('div', { className: 'rl-stat rl-stat-wide' },
                 React.createElement('b', null, d.commands.length ? d.commands.map(c => c + '()').join('  ') : 'move()  turn()  only'),
                 React.createElement('span', null, 'commands this build supports')
+              )
+            ),
+            // ---- predictive design check: will this build cope, and why
+            report && React.createElement('div', { className: 'rl-section', style: { background: '#0e1622', border: '1.5px solid ' + diagColor(report.overall) + '55', borderRadius: 14, padding: 16 } },
+              React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 } },
+                React.createElement('span', { className: 'rl-label', style: { margin: 0 } }, 'Design check'),
+                React.createElement('span', { style: { fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#06121b', background: diagColor(report.overall), borderRadius: 6, padding: '3px 9px' } }, diagWord(report.overall))
+              ),
+              React.createElement('p', { className: 'rl-blurb', style: { margin: '2px 0 10px' } }, report.summary),
+              React.createElement('div', { style: { display: 'grid', gap: 7 } },
+                report.dimensions.map(function (dim) {
+                  return React.createElement('div', { key: dim.key, style: { display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, lineHeight: 1.45 } },
+                    React.createElement('span', { 'aria-hidden': 'true', style: { width: 8, height: 8, borderRadius: '50%', background: diagColor(dim.status), marginTop: 4, flex: '0 0 auto' } }),
+                    React.createElement('span', { style: { fontWeight: 650, color: '#dce8f8', flex: '0 0 96px' } }, dim.label),
+                    React.createElement('span', { style: { color: '#9fb4d2' } }, dim.reason + (dim.fix ? '  Fix: ' + dim.fix : ''))
+                  );
+                })
               )
             ),
             // ---- the assistant recommends where to validate this robot first
