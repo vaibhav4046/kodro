@@ -40,6 +40,7 @@
   .konb-sub{text-align:center;color:#8da3c0;max-width:460px;margin:0 auto;line-height:1.5}
   .konb-steps{display:flex;gap:7px;justify-content:center;margin:26px 0 4px}
   .konb-dot{width:7px;height:7px;border-radius:50%;background:#2b3a55;transition:background .25s,width .25s}
+  .konb-dot.done{background:#5ed6ff;width:7px;border-radius:50%}
   .konb-dot.on{background:#5ed6ff;width:20px;border-radius:4px}
   .konb-actions{display:flex;gap:12px;justify-content:center;margin-top:32px;flex-wrap:wrap}
   .konb-btn{appearance:none;border:0;cursor:pointer;font:inherit;font-weight:650;border-radius:11px;
@@ -50,8 +51,10 @@
   .konb-btn.ghost{background:transparent;color:#9fb4d2;border:1px solid #283a55}
   .konb-btn.ghost:hover{color:#dce8f8;border-color:#3b567a}
   .konb-btn[disabled]{opacity:.4;cursor:not-allowed}
+  .konb-btn.primary[disabled]{background:#1b2738;color:#5d728f;box-shadow:none;opacity:1;cursor:not-allowed}
   .konb-h2{font-size:clamp(24px,4vw,32px);font-weight:720;letter-spacing:-.02em;text-align:center;margin:0 0 8px}
-  .konb-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px;margin-top:26px}
+  .konb-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:26px}
+  @media (max-width:560px){.konb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .konb-tile{text-align:left;background:#0f1726;border:1.5px solid #233248;border-radius:14px;padding:17px 17px 15px;
     cursor:pointer;transition:border-color .18s,transform .12s,background .18s;color:inherit;font:inherit}
   .konb-tile:hover{border-color:#3d5a80;transform:translateY(-2px)}
@@ -69,9 +72,9 @@
 
   function Step({ n, current }) {
     return (
-      <div className="konb-steps">
+      <div className="konb-steps" role="group" aria-label={"Step " + (current + 1) + " of 3"}>
         {[0, 1, 2].map((i) => (
-          <div key={i} className={"konb-dot" + (i <= current ? " on" : "")} />
+          <div key={i} className={"konb-dot" + (i === current ? " on" : i < current ? " done" : "")} />
         ))}
       </div>
     );
@@ -98,7 +101,10 @@
     const WORLD_FOR = (window.RobotLab && window.RobotLab.WORLD_FOR) || {};
     const order = ["rover", "car", "home", "arm", "custom"].filter((id) => TYPES[id]);
     const rec = (type && WORLD_FOR[type]) || {};
-    const worldName = (window.TERRAINS && rec.id && window.TERRAINS[rec.id] && window.TERRAINS[rec.id].name) || rec.label || "the city";
+    // Prefer the curated, place-like label ("Open terrain", "Riverside City")
+    // over the raw terrain name ("Earth"), which reads oddly under the why-copy.
+    const worldName = rec.label || (window.TERRAINS && rec.id && window.TERRAINS[rec.id] && window.TERRAINS[rec.id].name) || "the city";
+    const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
     function enterStudio() {
       try { if (window.RobotLab && type) window.RobotLab.selectType(type); } catch (e) { void e; }
@@ -106,7 +112,7 @@
     }
 
     return (
-      <div className="konb-root">
+      <div className="konb-root" role="dialog" aria-modal="true" aria-label="Welcome to Kodro">
         <div className="konb-skip"><button onClick={onClose}>Skip</button></div>
         <div className="konb-card">
           {step === 0 && (
@@ -117,7 +123,7 @@
               <p className="konb-sub">An offline robot design and simulation studio. Build a machine, write its behaviour, and validate it in a world that fits it - all on your own computer, no account, no cloud.</p>
               <Step current={0} />
               <div className="konb-actions">
-                <button className="konb-btn primary" onClick={() => setStep(1)}>Get started</button>
+                <button className="konb-btn primary" autoFocus onClick={() => setStep(1)}>Get started</button>
                 <button className="konb-btn ghost" onClick={onClose}>Skip to studio</button>
               </div>
             </div>
@@ -127,12 +133,14 @@
             <div>
               <h2 className="konb-h2">What do you want to build?</h2>
               <p className="konb-sub">Pick a starting point. You can redesign every part later in the Robot Lab.</p>
-              <div className="konb-grid">
+              <div className="konb-grid" role="radiogroup" aria-label="Robot type">
                 {order.map((id) => {
                   const t = TYPES[id];
                   return (
                     <button
                       key={id}
+                      role="radio"
+                      aria-checked={type === id}
                       className={"konb-tile" + (type === id ? " sel" : "")}
                       onClick={() => setType(id)}
                     >
@@ -146,7 +154,7 @@
               <Step current={1} />
               <div className="konb-actions">
                 <button className="konb-btn ghost" onClick={() => setStep(0)}>Back</button>
-                <button className="konb-btn primary" disabled={!type} onClick={() => setStep(2)}>Continue</button>
+                <button className="konb-btn primary" disabled={!type} title={!type ? "Pick a robot to continue" : undefined} onClick={() => setStep(2)}>Continue</button>
               </div>
             </div>
           )}
@@ -158,7 +166,7 @@
               <div className="konb-rec">
                 <div className="konb-emoji">{(TYPES[type] && TYPES[type].emoji) || "🤖"}</div>
                 <div className="konb-world">{worldName}</div>
-                <div className="konb-why">{rec.why || "start in the busy city, then try the others."}</div>
+                <div className="konb-why">{cap(rec.why) || "Start in the busy city, then try the others."}</div>
               </div>
               <Step current={2} />
               <div className="konb-actions">
