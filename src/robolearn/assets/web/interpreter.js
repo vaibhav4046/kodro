@@ -89,9 +89,6 @@
       const stmts = [];
       while (pos < lines.length && lines[pos].indent >= minIndent) {
         const ln = lines[pos];
-        if (stmts.length && ln.indent !== stmts.curIndent) {
-          // indent must be consistent within a block
-        }
         if (stmts.length === 0) stmts.curIndent = ln.indent;
         if (ln.indent > stmts.curIndent) {
           throw new RoverError('Unexpected indentation.', ln.line);
@@ -124,7 +121,7 @@
       return { kind: 'while', test: parseExpr(m[1], line), body: body, line: line };
     }
     if ((m = header.match(/^if\s+(.+)$/))) {
-      return { kind: 'if', branches: [{ test: parseExpr(m[1], line), body: body }], orelse: null, line: line, _open: true };
+      return { kind: 'if', branches: [{ test: parseExpr(m[1], line), body: body }], orelse: null, line: line };
     }
     if ((m = header.match(/^elif\s+(.+)$/))) {
       return { kind: 'elif', test: parseExpr(m[1], line), body: body, line: line };
@@ -383,7 +380,7 @@
         else if (step < 0) for (let i = start; i > stop; i += step) arr.push(i);
         return arr;
       },
-      len: x => (x && x.length != null) ? x.length : 0,
+      len: x => { if (x && x.length != null) return x.length; throw new RoverError('len() needs a list or text.', curLine); },
       int: x => Math.trunc(Number(x)),
       float: x => Number(x),
       str: x => pyStr(x),
