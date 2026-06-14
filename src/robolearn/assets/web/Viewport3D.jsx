@@ -294,13 +294,29 @@
         sofa.add(seat); sofa.add(back); sofa.add(aL); sofa.add(aR);
         sofa.position.set(0, 0, -R + 6); scene.add(sofa);
         const woodM = new THREE.MeshStandardMaterial({ color: 0x7a5536, roughness: 0.7 });
-        const table = new THREE.Mesh(new THREE.BoxGeometry(7, 0.6, 4), woodM); table.position.set(0, 2.2, 2); table.castShadow = true; scene.add(table);
-        [[3, 1.8], [3, -1.8], [-3, 1.8], [-3, -1.8]].forEach((p) => { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.2, 0.4), woodM); leg.position.set(p[0], 1.1, 2 + p[1]); scene.add(leg); });
+        const TX = -14.1, TZ = -11.4; // matches the table collision obstacle, clear of the robot's start
+        const table = new THREE.Mesh(new THREE.BoxGeometry(6, 0.6, 4), woodM); table.position.set(TX, 2.2, TZ); table.castShadow = true; scene.add(table);
+        [[2.5, 1.8], [2.5, -1.8], [-2.5, 1.8], [-2.5, -1.8]].forEach((p) => { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.2, 0.4), woodM); leg.position.set(TX + p[0], 1.1, TZ + p[1]); scene.add(leg); });
         const shelf = new THREE.Mesh(new THREE.BoxGeometry(8, 9, 1.2), woodM); shelf.position.set(R - 2, 4.5, -8); shelf.castShadow = true; scene.add(shelf);
         for (let s = 0; s < 3; s++) { const bk = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.4, 1.0), new THREE.MeshStandardMaterial({ color: 0x6a4f2c, roughness: 1 })); bk.position.set(R - 2, 2 + s * 3, -8); scene.add(bk); }
         const pot = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.8, 1.8, 10), new THREE.MeshStandardMaterial({ color: 0xb56a45, roughness: 1 })); pot.position.set(-R + 4, 0.9, -R + 4); pot.castShadow = true; scene.add(pot);
         const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(2.4, 0), new THREE.MeshStandardMaterial({ color: 0x3f7d3a, roughness: 1, flatShading: true })); leaf.position.set(-R + 4, 3.4, -R + 4); leaf.castShadow = true; scene.add(leaf);
         const lamp = new THREE.PointLight(0xffd9a0, 0.7, 70); lamp.position.set(R - 8, 11, 8); scene.add(lamp);
+        // People moving in the room, from the shared agent simulation, so the
+        // companion robot has someone to avoid.
+        const KAr = window.KodroAgents;
+        if (KAr) {
+          KAr.list().forEach((ag, i) => {
+            if (ag.kind !== 'person') return;
+            const pr = mkPerson(ag.color != null ? ag.color : 0x6aa0d8); scene.add(pr);
+            agents.push({ mesh: pr, update: () => {
+              const a = KAr.list()[i]; if (!a) return;
+              pr.position.set(a.x * SCALE, 0, -a.y * SCALE);
+              pr.rotation.y = Math.atan2(a.dy, a.dx);
+              if (pr._legs) { pr._legs[0].rotation.x = a.leg * 0.5; pr._legs[1].rotation.x = -a.leg * 0.5; }
+            } });
+          });
+        }
       }
       if (id === 'city') buildCity();
       else if (id === 'room') buildRoom();

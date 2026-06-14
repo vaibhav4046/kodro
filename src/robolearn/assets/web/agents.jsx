@@ -31,6 +31,10 @@
       [[true, -70, 210, 0x2c6fb0], [false, 70, 175, 0x4aa564], [true, 70, 150, 0xc0392b]].forEach((c, i) => {
         agents.push({ kind: 'car', horiz: c[0], lane: c[1], span: 3000, speed: c[2], off: i * 0.6, r: 96, color: c[3], x: 0, y: 0, dx: 1, dy: 0, leg: 0 });
       });
+    } else if (id === 'room') {
+      // People sharing the room: a companion robot must move around them.
+      agents.push({ kind: 'person', horiz: true, lane: -360, span: 1100, speed: 40, off: 0.2, r: 46, color: 0x6aa0d8, x: 0, y: 0, dx: 1, dy: 0, leg: 0 });
+      agents.push({ kind: 'person', horiz: false, lane: 360, span: 900, speed: 32, off: 1.3, r: 46, color: 0xc97f6a, x: 0, y: 0, dx: 0, dy: 1, leg: 0 });
     }
     start();
   }

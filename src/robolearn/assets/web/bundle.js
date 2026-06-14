@@ -61,6 +61,38 @@
           leg: 0
         });
       });
+    } else if (id === 'room') {
+      // People sharing the room: a companion robot must move around them.
+      agents.push({
+        kind: 'person',
+        horiz: true,
+        lane: -360,
+        span: 1100,
+        speed: 40,
+        off: 0.2,
+        r: 46,
+        color: 0x6aa0d8,
+        x: 0,
+        y: 0,
+        dx: 1,
+        dy: 0,
+        leg: 0
+      });
+      agents.push({
+        kind: 'person',
+        horiz: false,
+        lane: 360,
+        span: 900,
+        speed: 32,
+        off: 1.3,
+        r: 46,
+        color: 0xc97f6a,
+        x: 0,
+        y: 0,
+        dx: 0,
+        dy: 1,
+        leg: 0
+      });
     }
     start();
   }
@@ -395,30 +427,32 @@
       traction: 1.05,
       obstacleLabel: 'FURNITURE',
       // A few collidable pieces so a companion robot must navigate the room.
+      // Furniture is kept clear of the robot's start at the origin so it never
+      // spawns inside a piece; the centre of the room is open floor.
       obstacles: [{
         x: 0,
-        y: 720,
+        y: 760,
         r: 150,
         rot: 0,
         v: 0.2,
         kind: 'sofa'
       }, {
-        x: 0,
-        y: 60,
-        r: 110,
+        x: -470,
+        y: 380,
+        r: 100,
         rot: 0,
         v: 0.5,
         kind: 'table'
       }, {
         x: 840,
-        y: -260,
+        y: -300,
         r: 130,
         rot: 0,
         v: 0.8,
         kind: 'shelf'
       }, {
-        x: -880,
-        y: -880,
+        x: -860,
+        y: -820,
         r: 70,
         rot: 0,
         v: 0.9,
@@ -1888,7 +1922,8 @@
       };
     }, []);
     const KA = window.KodroAgents;
-    const list = KA && KA.world() === 'city' ? KA.list() : [];
+    const w = KA && KA.world();
+    const list = w === 'city' || w === 'room' ? KA.list() : [];
     const bill = {
       transform: 'rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))',
       transformOrigin: '50% 100%'
@@ -2074,7 +2109,7 @@
       key: i,
       o: o,
       terrain: terrain
-    })), terrain.id === 'city' ? /*#__PURE__*/React.createElement(CityAgents, null) : null);
+    })), terrain.id === 'city' || terrain.id === 'room' ? /*#__PURE__*/React.createElement(CityAgents, null) : null);
   }
   window.TERRAINS = TERRAINS;
   window.TERRAIN_GROUND = GROUND;
@@ -3496,13 +3531,15 @@
           color: 0x7a5536,
           roughness: 0.7
         });
-        const table = new THREE.Mesh(new THREE.BoxGeometry(7, 0.6, 4), woodM);
-        table.position.set(0, 2.2, 2);
+        const TX = -14.1,
+          TZ = -11.4; // matches the table collision obstacle, clear of the robot's start
+        const table = new THREE.Mesh(new THREE.BoxGeometry(6, 0.6, 4), woodM);
+        table.position.set(TX, 2.2, TZ);
         table.castShadow = true;
         scene.add(table);
-        [[3, 1.8], [3, -1.8], [-3, 1.8], [-3, -1.8]].forEach(p => {
+        [[2.5, 1.8], [2.5, -1.8], [-2.5, 1.8], [-2.5, -1.8]].forEach(p => {
           const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.2, 0.4), woodM);
-          leg.position.set(p[0], 1.1, 2 + p[1]);
+          leg.position.set(TX + p[0], 1.1, TZ + p[1]);
           scene.add(leg);
         });
         const shelf = new THREE.Mesh(new THREE.BoxGeometry(8, 9, 1.2), woodM);
@@ -3535,6 +3572,29 @@
         const lamp = new THREE.PointLight(0xffd9a0, 0.7, 70);
         lamp.position.set(R - 8, 11, 8);
         scene.add(lamp);
+        // People moving in the room, from the shared agent simulation, so the
+        // companion robot has someone to avoid.
+        const KAr = window.KodroAgents;
+        if (KAr) {
+          KAr.list().forEach((ag, i) => {
+            if (ag.kind !== 'person') return;
+            const pr = mkPerson(ag.color != null ? ag.color : 0x6aa0d8);
+            scene.add(pr);
+            agents.push({
+              mesh: pr,
+              update: () => {
+                const a = KAr.list()[i];
+                if (!a) return;
+                pr.position.set(a.x * SCALE, 0, -a.y * SCALE);
+                pr.rotation.y = Math.atan2(a.dy, a.dx);
+                if (pr._legs) {
+                  pr._legs[0].rotation.x = a.leg * 0.5;
+                  pr._legs[1].rotation.x = -a.leg * 0.5;
+                }
+              }
+            });
+          });
+        }
       }
       if (id === 'city') buildCity();else if (id === 'room') buildRoom();
 
@@ -6219,6 +6279,16 @@ rover.say("Survey done")`
           role: m.role === 'user' ? 'user' : 'assistant',
           text: m.text
         }));
+        // Self-refinement in action: feed the lesson the system remembers from
+        // past runs in this world into the assistant's context, so its advice
+        // is shaped by what actually happened, not just the immediate prompt.
+        const lesson = window.KodroMemory && window.KodroMemory.lessonFor(terrain.id);
+        if (lesson && lesson.reflection) {
+          history.unshift({
+            role: 'user',
+            text: 'Keep in mind, learned from my past runs in the ' + terrain.name + ': ' + lesson.reflection
+          });
+        }
         const start = await window.RoboLearn.aiChatStart(history, currentLessonIdRef.current);
         if (!start || !start.ok) {
           setVibeError(start && start.reason || 'AI unavailable.');

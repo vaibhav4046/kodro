@@ -425,6 +425,13 @@ rover.say("Survey done")`
       setVibeMsgs(next); setVibePrompt(''); setVibeBusy(true); setVibeError(null); setVibeLive('');
       try {
         const history = next.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
+        // Self-refinement in action: feed the lesson the system remembers from
+        // past runs in this world into the assistant's context, so its advice
+        // is shaped by what actually happened, not just the immediate prompt.
+        const lesson = window.KodroMemory && window.KodroMemory.lessonFor(terrain.id);
+        if (lesson && lesson.reflection) {
+          history.unshift({ role: 'user', text: 'Keep in mind, learned from my past runs in the ' + terrain.name + ': ' + lesson.reflection });
+        }
         const start = await window.RoboLearn.aiChatStart(history, currentLessonIdRef.current);
         if (!start || !start.ok) { setVibeError((start && start.reason) || 'AI unavailable.'); setVibeBusy(false); return; }
         let r = null;
