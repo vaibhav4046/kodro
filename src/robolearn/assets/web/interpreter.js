@@ -287,7 +287,6 @@
         return { k: 'list', items: items };
       }
       if (tk.t === 'name') {
-        if (tk.v === 'not') { next(); return { k: 'not', e: parseUnary() }; }
         if (tk.v === 'True') { next(); return { k: 'bool', v: true }; }
         if (tk.v === 'False') { next(); return { k: 'bool', v: false }; }
         if (tk.v === 'None') { next(); return { k: 'none' }; }
@@ -346,9 +345,15 @@
       }
       return left;
     };
+    // `not` binds looser than comparison but tighter than `and` (Python order),
+    // so `not a == b` means `not (a == b)`.
+    function parseNot() {
+      if (peek() && peek().t === 'name' && peek().v === 'not') { next(); return { k: 'not', e: parseNot() }; }
+      return parseCmp();
+    }
     function parseAnd() {
-      let left = parseCmp();
-      while (peek() && peek().t === 'name' && peek().v === 'and') { next(); left = { k: 'and', l: left, r: parseCmp() }; }
+      let left = parseNot();
+      while (peek() && peek().t === 'name' && peek().v === 'and') { next(); left = { k: 'and', l: left, r: parseNot() }; }
       return left;
     }
     function parseOr() {
@@ -380,14 +385,15 @@
         else if (step < 0) for (let i = start; i > stop; i += step) arr.push(i);
         return arr;
       },
-      len: x => { if (x && x.length != null) return x.length; throw new RoverError('len() needs a list or text.', curLine); },
+      len: x => { if (x && x.length != null) return x.length; throw new RoverError('len() needs a list or text.'); },
       int: x => Math.trunc(Number(x)),
       float: x => Number(x),
       str: x => pyStr(x),
       abs: x => Math.abs(x),
       round: (x, d) => d ? Number(Number(x).toFixed(d)) : Math.round(x),
-      min: function () { return Math.min.apply(null, [].slice.call(arguments)); },
-      max: function () { return Math.max.apply(null, [].slice.call(arguments)); },
+      // Python min()/max() accept either several args or a single iterable.
+      min: function () { let a = [].slice.call(arguments); if (a.length === 1 && Array.isArray(a[0])) a = a[0]; return Math.min.apply(null, a); },
+      max: function () { let a = [].slice.call(arguments); if (a.length === 1 && Array.isArray(a[0])) a = a[0]; return Math.max.apply(null, a); },
       sqrt: x => Math.sqrt(x),
       random: () => Math.random()
     };
@@ -541,7 +547,8 @@
             }
             case 'for': {
               const iter = evalExpr(s.iter);
-              const list = Array.isArray(iter) ? iter : [];
+              // Strings are iterable in Python (for ch in word), so iterate their characters.
+              const list = Array.isArray(iter) ? iter : (typeof iter === 'string' ? iter.split('') : []);
               for (let i = 0; i < list.length; i++) {
                 scope[s.varName] = list[i];
                 yield { type: 'step', line: s.line };
