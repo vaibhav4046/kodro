@@ -726,7 +726,7 @@ rover.say("Survey done")`
     useEffect(() => { localStorage.setItem('or_tab', activeTab); }, [activeTab]);
     useEffect(() => { try { localStorage.setItem('or_programs', JSON.stringify(programs)); } catch (e) {} }, [programs]);
 
-    const sync = () => { setRover({ ...live.current }); };
+    const sync = () => { setRover({ ...live.current }); try { window.KODRO_ROVER = { x: live.current.x, y: live.current.y }; } catch (e) { void e; } };
     const pushTrailPoint = () => {
       if (!live.current.penDown) return;
       const segs = trailRef.current;
