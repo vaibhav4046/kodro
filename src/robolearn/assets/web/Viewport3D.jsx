@@ -124,6 +124,18 @@
         scene.add(grid);
       }
 
+      // An environment map captured from the sky and ground, so metal surfaces
+      // (car paint, hubs, the chassis) actually reflect the world and catch
+      // highlights rather than reading as flat plastic. Guarded: if the device
+      // cannot generate it, the scene simply renders without reflections.
+      try {
+        if (THREE.PMREMGenerator) {
+          const pmrem = new THREE.PMREMGenerator(renderer);
+          scene.environment = pmrem.fromScene(scene, 0.04, 1, 1200).texture;
+          pmrem.dispose();
+        }
+      } catch (e) { void e; }
+
       // Moving agents (city pedestrians and cars); each gets an update(t) called
       // every frame so the world is alive, not a still set of props.
       const agents = [];
@@ -196,7 +208,7 @@
       }
       function mkCar(col) {
         const car = new THREE.Group();
-        const bodyM = new THREE.MeshStandardMaterial({ color: col, roughness: 0.35, metalness: 0.45 });
+        const bodyM = new THREE.MeshStandardMaterial({ color: col, roughness: 0.26, metalness: 0.7, envMapIntensity: 1.05 });
         const lower = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.9, 1.7), bodyM); lower.position.y = 0.7; lower.castShadow = true;
         const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.8, 1.5), bodyM); cabin.position.set(-0.2, 1.45, 0); cabin.castShadow = true;
         const glassM = new THREE.MeshStandardMaterial({ color: 0xaad4ee, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.7 });
@@ -344,7 +356,7 @@
       };
       const arrow = (y) => { const a = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 4), accMat()); a.rotation.z = -Math.PI / 2; a.position.set(0.2, y, 0); body.add(a); };
       if (rType === 'car') {
-        const carM = new THREE.MeshStandardMaterial({ color: 0x2c6fb0, roughness: 0.3, metalness: 0.55 });
+        const carM = new THREE.MeshStandardMaterial({ color: 0x2c6fb0, roughness: 0.22, metalness: 0.75, envMapIntensity: 1.1 });
         const lower = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.8, 1.6), carM); lower.position.y = 0.72; lower.castShadow = true; body.add(lower);
         const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.7, 1.42), carM); cabin.position.set(-0.15, 1.38, 0); cabin.castShadow = true; body.add(cabin);
         const glass = new THREE.Mesh(new THREE.BoxGeometry(1.72, 0.56, 1.28), new THREE.MeshStandardMaterial({ color: 0xaad4ee, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.7 })); glass.position.set(-0.15, 1.4, 0); body.add(glass);
@@ -374,7 +386,7 @@
         arrow(1.3);
       } else {
         // rover (and custom): chassis, solar deck, sensor mast with a camera eye.
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2b2f3a, roughness: 0.55, metalness: 0.28 });
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2b2f3a, roughness: 0.42, metalness: 0.45, envMapIntensity: 1.0 });
         const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.7, 1.7), bodyMat); chassis.position.y = 0.92; chassis.castShadow = true; body.add(chassis);
         const deck = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, 1.4), new THREE.MeshStandardMaterial({ color: 0x1b2740, roughness: 0.3, metalness: 0.5 })); deck.position.set(-0.2, 1.34, 0); body.add(deck);
         const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.0, 8), bodyMat); mast.position.set(0.85, 1.75, 0); body.add(mast);

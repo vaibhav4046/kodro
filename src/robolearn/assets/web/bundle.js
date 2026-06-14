@@ -3206,6 +3206,20 @@
         scene.add(grid);
       }
 
+      // An environment map captured from the sky and ground, so metal surfaces
+      // (car paint, hubs, the chassis) actually reflect the world and catch
+      // highlights rather than reading as flat plastic. Guarded: if the device
+      // cannot generate it, the scene simply renders without reflections.
+      try {
+        if (THREE.PMREMGenerator) {
+          const pmrem = new THREE.PMREMGenerator(renderer);
+          scene.environment = pmrem.fromScene(scene, 0.04, 1, 1200).texture;
+          pmrem.dispose();
+        }
+      } catch (e) {
+        void e;
+      }
+
       // Moving agents (city pedestrians and cars); each gets an update(t) called
       // every frame so the world is alive, not a still set of props.
       const agents = [];
@@ -3315,8 +3329,9 @@
         const car = new THREE.Group();
         const bodyM = new THREE.MeshStandardMaterial({
           color: col,
-          roughness: 0.35,
-          metalness: 0.45
+          roughness: 0.26,
+          metalness: 0.7,
+          envMapIntensity: 1.05
         });
         const lower = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.9, 1.7), bodyM);
         lower.position.y = 0.7;
@@ -3648,8 +3663,9 @@
       if (rType === 'car') {
         const carM = new THREE.MeshStandardMaterial({
           color: 0x2c6fb0,
-          roughness: 0.3,
-          metalness: 0.55
+          roughness: 0.22,
+          metalness: 0.75,
+          envMapIntensity: 1.1
         });
         const lower = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.8, 1.6), carM);
         lower.position.y = 0.72;
@@ -3756,8 +3772,9 @@
         // rover (and custom): chassis, solar deck, sensor mast with a camera eye.
         const bodyMat = new THREE.MeshStandardMaterial({
           color: 0x2b2f3a,
-          roughness: 0.55,
-          metalness: 0.28
+          roughness: 0.42,
+          metalness: 0.45,
+          envMapIntensity: 1.0
         });
         const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.7, 1.7), bodyMat);
         chassis.position.y = 0.92;
