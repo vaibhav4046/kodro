@@ -72,7 +72,68 @@
     }
     return out;
   }
+
+  // City street: real, collidable furniture (buildings along the edges, parked
+  // cars beside the road) laid out around a cross roads with the rover's start
+  // clear. Pedestrians and a moving car are added on top as live agents.
+  function genCity(seed) {
+    const r = rng(seed);
+    const out = [];
+    // buildings ring the block, well away from the central crossing
+    for (let i = 0; i < 10; i++) {
+      const ang = i / 10 * Math.PI * 2 + 0.2;
+      const dist = 760 + r() * 520;
+      const x = Math.cos(ang) * dist,
+        y = Math.sin(ang) * dist;
+      if (Math.abs(x) < 230 || Math.abs(y) < 230) continue; // keep the roads clear
+      out.push({
+        x,
+        y,
+        r: 150 + r() * 90,
+        rot: 0,
+        v: r(),
+        kind: 'building'
+      });
+    }
+    // parked cars line the kerb of the horizontal road
+    for (let i = 0; i < 6; i++) {
+      const x = -1100 + i * 380 + r() * 40;
+      const y = (i % 2 ? 1 : -1) * (250 + r() * 18);
+      if (Math.abs(x) < 240) continue; // leave the junction open
+      out.push({
+        x,
+        y,
+        r: 70,
+        rot: i % 2 ? 92 : 88,
+        v: r(),
+        kind: 'car'
+      });
+    }
+    return out;
+  }
   const TERRAINS = {
+    city: {
+      id: 'city',
+      name: 'Riverside City',
+      label: 'CITY',
+      coord: '51.5072° N, 0.1276° W',
+      accent: '#6fb4e8',
+      dot: '#6fb4e8',
+      env: {
+        gravity: 9.81,
+        temp: 16,
+        tempLabel: 'AIR TEMP',
+        pressure: 1.0,
+        pressureLabel: 'PRESSURE',
+        pressureUnit: 'atm',
+        light: 80
+      },
+      traction: 0.98,
+      obstacleLabel: 'PARKED CAR',
+      obstacles: genCity(2027),
+      decor: [],
+      backdrop: 'city'
+    },
     earth: {
       id: 'earth',
       name: 'Earth',
@@ -538,6 +599,7 @@
   // Base fill (sits behind everything; mostly covered by the tilted ground)
   // ----------------------------------------------------------------------
   const BASE_FILL = {
+    city: 'linear-gradient(180deg, #2a3340 0%, #1a1f28 100%)',
     earth: 'linear-gradient(180deg, #2c4426 0%, #1c2e1f 100%)',
     mars: 'linear-gradient(180deg, #5e2a1c 0%, #2e1610 100%)',
     underwater: 'linear-gradient(180deg, #07293a 0%, #04161f 100%)',
@@ -561,6 +623,7 @@
   // over the far/receding ground and feathered into it at the bottom.
   // ----------------------------------------------------------------------
   const SKY_GRAD = {
+    city: 'linear-gradient(180deg, #6f93b8 0%, #93acc0 55%, #b3c2cc 100%)',
     earth: 'linear-gradient(180deg, #5d86b6 0%, #8fb0c2 55%, #b6cdba 100%)',
     mars: 'linear-gradient(180deg, #5a2415 0%, #8a4026 60%, #a85636 100%)',
     underwater: 'linear-gradient(180deg, #0c5066 0%, #0b3a4c 60%, #0a2a38 100%)',
@@ -762,6 +825,12 @@
 
   function groundBg(id) {
     switch (id) {
+      case 'city':
+        return {
+          background: 'radial-gradient(circle at 50% 45%, #3a4150, #2b313d 60%, #20242e 100%)',
+          texture: 'radial-gradient(circle at 30% 30%, rgba(150,160,175,0.10) 0 2px, transparent 3px)',
+          texSize: '34px 34px'
+        };
       case 'earth':
         return {
           background: 'radial-gradient(circle at 40% 35%, #5b7d49, #3c5a32 60%, #2c4426 100%)',
@@ -809,6 +878,83 @@
     const size = o.r * 2;
     const cx = GROUND / 2 + o.x,
       cy = GROUND / 2 + o.y;
+
+    // City furniture: buildings and parked cars stand up out of the street.
+    // Collision still uses o.r, so what the rover must avoid is unchanged.
+    if (id === 'city') {
+      if (o.kind === 'building') {
+        const w = size,
+          h = size * (1.4 + o.v % 0.6);
+        const hue = 196 + Math.round(o.v * 40);
+        return /*#__PURE__*/React.createElement("div", {
+          className: "obstacle",
+          style: {
+            position: 'absolute',
+            left: cx - w / 2,
+            top: cy - h,
+            width: w,
+            height: h
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          className: "ob-shadow",
+          style: {
+            left: '50%',
+            top: '100%',
+            width: w * 1.1,
+            height: o.r * 0.7
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            inset: 0,
+            borderRadius: 3,
+            background: `linear-gradient(160deg, hsl(${hue} 16% 42%), hsl(${hue} 18% 26%))`,
+            boxShadow: '2px 5px 8px rgba(0,0,0,0.4)',
+            backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,235,180,0.0) 0 14px, rgba(255,235,180,0.16) 14px 20px), repeating-linear-gradient(90deg, transparent 0 12px, rgba(0,0,0,0.18) 12px 14px)'
+          }
+        }));
+      }
+      // parked car: a rounded body with a cabin and two windows, oriented by rot
+      const cw = size * 1.7,
+        ch = size * 0.92;
+      return /*#__PURE__*/React.createElement("div", {
+        className: "obstacle",
+        style: {
+          position: 'absolute',
+          left: cx - cw / 2,
+          top: cy - ch / 2,
+          width: cw,
+          height: ch,
+          transform: `rotate(${o.rot}deg)`
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "ob-shadow",
+        style: {
+          left: '50%',
+          top: '94%',
+          width: cw * 0.96,
+          height: ch * 0.5
+        }
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          position: 'absolute',
+          inset: 0,
+          borderRadius: ch * 0.42,
+          background: o.v < 0.5 ? 'linear-gradient(180deg,#d24b4b,#8d2a2a)' : 'linear-gradient(180deg,#3f7fc4,#244e84)',
+          boxShadow: 'inset 0 2px 5px rgba(255,255,255,0.25), 1px 3px 6px rgba(0,0,0,0.45)'
+        }
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          position: 'absolute',
+          left: '26%',
+          right: '26%',
+          top: '20%',
+          height: '60%',
+          borderRadius: 4,
+          background: 'linear-gradient(180deg, rgba(190,225,245,0.92), rgba(120,160,190,0.85))'
+        }
+      }));
+    }
 
     // Earth reads like a game map: most stand-up features are trees and
     // bushes rather than bare rocks. Collision still uses o.r, so the world
@@ -1253,6 +1399,284 @@
       }
     })))));
   }
+
+  // ----------------------------------------------------------------------
+  // City street furniture painted on the ground: two roads crossing, a zebra
+  // crossing, lane lines and pavements. Decorative; collision uses the
+  // building and car obstacles, not this paint.
+  // ----------------------------------------------------------------------
+  const C = GROUND / 2;
+  const ROAD = 150; // half-width of a carriageway (px)
+  function CityFeatures() {
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none',
+        borderRadius: 8,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        left: 0,
+        top: C - ROAD - 70,
+        width: GROUND,
+        height: (ROAD + 70) * 2,
+        background: '#4a525f'
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        left: C - ROAD - 70,
+        top: 0,
+        width: (ROAD + 70) * 2,
+        height: GROUND,
+        background: '#4a525f'
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        left: 0,
+        top: C - ROAD,
+        width: GROUND,
+        height: ROAD * 2,
+        background: '#23272f'
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        left: C - ROAD,
+        top: 0,
+        width: ROAD * 2,
+        height: GROUND,
+        background: '#23272f'
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        left: 0,
+        top: C - 3,
+        width: GROUND,
+        height: 6,
+        backgroundImage: 'repeating-linear-gradient(90deg, #e6d886 0 46px, transparent 46px 92px)',
+        opacity: 0.9
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        left: C - 3,
+        top: 0,
+        width: 6,
+        height: GROUND,
+        backgroundImage: 'repeating-linear-gradient(0deg, #e6d886 0 46px, transparent 46px 92px)',
+        opacity: 0.9
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        left: C + ROAD + 30,
+        top: C - ROAD,
+        width: 150,
+        height: ROAD * 2,
+        backgroundImage: 'repeating-linear-gradient(90deg, #e8ecf2 0 20px, transparent 20px 44px)',
+        opacity: 0.92
+      }
+    }));
+  }
+
+  // Live agents: pedestrians stroll the pavements and a car drives the road.
+  // Self contained animation; positions are visual only.
+  function CityAgents() {
+    const [t, setT] = React.useState(0);
+    React.useEffect(() => {
+      let raf, start;
+      if (typeof requestAnimationFrame !== 'function') return undefined;
+      const loop = ts => {
+        if (start == null) start = ts;
+        setT((ts - start) / 1000);
+        raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+      return () => {
+        if (raf) cancelAnimationFrame(raf);
+      };
+    }, []);
+    const agents = React.useMemo(() => {
+      const r = rng(77);
+      const a = [];
+      // pedestrians: walk back and forth along the two pavements
+      for (let i = 0; i < 7; i++) {
+        const horiz = r() < 0.6;
+        a.push({
+          kind: 'person',
+          horiz,
+          lane: C - ROAD - 36 + (r() < 0.5 ? 0 : (ROAD + 70) * 2 - 8),
+          span: 900 + r() * 1100,
+          off: r() * 6,
+          sp: 26 + r() * 22,
+          shirt: ['#d98c4a', '#5aa0d8', '#8a6fc0', '#5bbf86'][r() * 4 | 0]
+        });
+      }
+      // a car cruising the horizontal carriageway
+      a.push({
+        kind: 'car',
+        horiz: true,
+        lane: C - 64,
+        span: GROUND,
+        off: 0,
+        sp: 150,
+        body: '#e3c33f'
+      });
+      a.push({
+        kind: 'car',
+        horiz: false,
+        lane: C + 60,
+        span: GROUND,
+        off: 3,
+        sp: 130,
+        body: '#46b07a'
+      });
+      return a;
+    }, []);
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        inset: 0,
+        pointerEvents: 'none'
+      }
+    }, agents.map((ag, i) => {
+      const phase = (t * ag.sp / ag.span + ag.off) % 2;
+      const tri = phase < 1 ? phase : 2 - phase; // 0..1..0 ping-pong
+      const along = tri * ag.span + (GROUND - ag.span) / 2;
+      const x = ag.horiz ? along : ag.lane;
+      const y = ag.horiz ? ag.lane : along;
+      const bill = {
+        transform: 'rotateZ(calc(-1 * var(--yaw, 0deg))) rotateX(calc(-1 * var(--tilt, 46deg)))',
+        transformOrigin: '50% 100%'
+      };
+      if (ag.kind === 'person') {
+        const bob = Math.sin(t * 6 + ag.off * 3) * 2;
+        return /*#__PURE__*/React.createElement("div", {
+          key: i,
+          style: {
+            position: 'absolute',
+            left: x,
+            top: y,
+            zIndex: 4
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: -9,
+            top: -3,
+            width: 18,
+            height: 7,
+            borderRadius: '50%',
+            background: 'rgba(0,0,0,0.32)',
+            filter: 'blur(2px)'
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            ...bill,
+            position: 'absolute',
+            left: -7,
+            bottom: 0 - bob,
+            width: 14,
+            height: 40
+          }
+        }, /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 3,
+            top: 0,
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: '#e8c9a8'
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 1,
+            top: 9,
+            width: 12,
+            height: 18,
+            borderRadius: '4px 4px 3px 3px',
+            background: ag.shirt
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 3,
+            top: 27,
+            width: 3,
+            height: 12,
+            background: '#2f3646',
+            borderRadius: 2
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: 8,
+            top: 27,
+            width: 3,
+            height: 12,
+            background: '#2f3646',
+            borderRadius: 2
+          }
+        })));
+      }
+      return /*#__PURE__*/React.createElement("div", {
+        key: i,
+        style: {
+          position: 'absolute',
+          left: x,
+          top: y,
+          zIndex: 4
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          position: 'absolute',
+          left: -34,
+          top: -2,
+          width: 68,
+          height: 14,
+          borderRadius: '50%',
+          background: 'rgba(0,0,0,0.34)',
+          filter: 'blur(3px)'
+        }
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          ...bill,
+          position: 'absolute',
+          left: -34,
+          bottom: 0,
+          width: 68,
+          height: 30,
+          transform: bill.transform + (ag.horiz ? '' : ' rotateZ(90deg)')
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          position: 'absolute',
+          inset: 0,
+          borderRadius: 13,
+          background: `linear-gradient(180deg, ${ag.body}, rgba(0,0,0,0.4))`,
+          boxShadow: 'inset 0 2px 5px rgba(255,255,255,0.3), 1px 3px 6px rgba(0,0,0,0.45)'
+        }
+      }), /*#__PURE__*/React.createElement("div", {
+        style: {
+          position: 'absolute',
+          left: '24%',
+          right: '24%',
+          top: '24%',
+          height: '52%',
+          borderRadius: 4,
+          background: 'linear-gradient(180deg, rgba(190,225,245,0.92), rgba(120,160,190,0.85))'
+        }
+      })));
+    }));
+  }
   function TerrainGround({
     terrain,
     children,
@@ -1280,7 +1704,7 @@
         opacity: 0.6,
         borderRadius: 8
       }
-    }), isEarth ? /*#__PURE__*/React.createElement(EarthFeatures, null) : null, showGrid !== false ? /*#__PURE__*/React.createElement("div", {
+    }), isEarth ? /*#__PURE__*/React.createElement(EarthFeatures, null) : null, terrain.id === 'city' ? /*#__PURE__*/React.createElement(CityFeatures, null) : null, showGrid !== false && terrain.id !== 'city' ? /*#__PURE__*/React.createElement("div", {
       className: "ground-grid"
     }) : null, /*#__PURE__*/React.createElement("div", {
       style: {
@@ -1302,7 +1726,7 @@
       key: i,
       o: o,
       terrain: terrain
-    })));
+    })), terrain.id === 'city' ? /*#__PURE__*/React.createElement(CityAgents, null) : null);
   }
   window.TERRAINS = TERRAINS;
   window.TERRAIN_GROUND = GROUND;
@@ -1571,12 +1995,14 @@
   const GROUND = window.TERRAIN_GROUND;
   const WALL = window.TERRAINS.WALL;
   const DUST = {
+    city: '#8a909c',
     earth: '#b9a878',
     mars: '#d89a6a',
     underwater: 'rgba(190,220,222,0.55)',
     space: '#9a9ca6'
   };
   const HORIZON = {
+    city: 'rgba(26,31,40,0.5)',
     earth: 'rgba(28,46,31,0.5)',
     mars: 'rgba(46,22,16,0.5)',
     underwater: 'rgba(4,22,31,0.55)',
@@ -2242,18 +2668,21 @@
   // comfortable number of 3D units.
   const SCALE = 0.03;
   const SKY = {
+    city: 0x93acc0,
     earth: 0x9ec7e8,
     mars: 0xd98a5a,
     underwater: 0x0b3a4c,
     space: 0x05060d
   };
   const GROUND = {
+    city: 0x2b313d,
     earth: 0x4a6b39,
     mars: 0x9a4a2e,
     underwater: 0x1c4a55,
     space: 0x3a3c44
   };
   const FOG = {
+    city: 0xb3c2cc,
     earth: 0xb6cdba,
     mars: 0xc08050,
     underwater: 0x0a2a38,
@@ -6575,7 +7004,7 @@ rover.say("Survey done")`
       onWheel: camWheel
     }, /*#__PURE__*/React.createElement("div", {
       className: "terrain-switch"
-    }, ['earth', 'mars', 'underwater', 'space'].map(id => /*#__PURE__*/React.createElement("button", {
+    }, ['city', 'earth', 'mars', 'underwater', 'space'].map(id => /*#__PURE__*/React.createElement("button", {
       type: "button",
       key: id,
       className: 'terrain-btn' + (terrainId === id ? ' active' : ''),

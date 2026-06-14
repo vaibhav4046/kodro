@@ -10,8 +10,8 @@
   const GROUND = window.TERRAIN_GROUND;
   const WALL = window.TERRAINS.WALL;
 
-  const DUST = { earth: '#b9a878', mars: '#d89a6a', underwater: 'rgba(190,220,222,0.55)', space: '#9a9ca6' };
-  const HORIZON = { earth: 'rgba(28,46,31,0.5)', mars: 'rgba(46,22,16,0.5)', underwater: 'rgba(4,22,31,0.55)', space: 'rgba(7,8,15,0.55)' };
+  const DUST = { city: '#8a909c', earth: '#b9a878', mars: '#d89a6a', underwater: 'rgba(190,220,222,0.55)', space: '#9a9ca6' };
+  const HORIZON = { city: 'rgba(26,31,40,0.5)', earth: 'rgba(28,46,31,0.5)', mars: 'rgba(46,22,16,0.5)', underwater: 'rgba(4,22,31,0.55)', space: 'rgba(7,8,15,0.55)' };
 
   // The rover pushes one segment array per pen-down move and appends points to
   // the LAST segment as it drives (app.jsx pushTrailPoint, in place). Earlier

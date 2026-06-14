@@ -1461,7 +1461,7 @@ rover.say("Survey done")`
           {/* center: viewport */}
           <div className="panel view-panel" style={{ gridColumn: 3 }} onPointerDown={camDrag} onWheel={camWheel}>
             <div className="terrain-switch">
-              {['earth', 'mars', 'underwater', 'space'].map(id => (
+              {['city', 'earth', 'mars', 'underwater', 'space'].map(id => (
                 <button type="button" key={id} className={'terrain-btn' + (terrainId === id ? ' active' : '')} aria-pressed={terrainId === id} onClick={() => onTerrain(id)}>
                   <span className="tdot" style={{ background: TERRAINS[id].dot, boxShadow: terrainId === id ? '0 0 8px ' + TERRAINS[id].dot : 'none' }}></span>
                   {TERRAINS[id].label}
