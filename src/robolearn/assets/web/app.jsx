@@ -314,6 +314,8 @@ rover.say("Survey done")`
     const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    // First-run onboarding / landing flow (shown once, remembered, skippable).
+    const [onboarded, setOnboarded] = useState(() => localStorage.getItem('or_onboarded') === '1');
     // Budget robot builder (local AI hardware guide for a real-world rover).
     const [buildOpen, setBuildOpen] = useState(false);
     const [buildBudget, setBuildBudget] = useState('30');
@@ -1304,14 +1306,14 @@ rover.say("Survey done")`
     return (
       <div className="app">
         <a className="skip-link" href="#editor-main">Skip to code editor</a>
-        <h1 className="sr-only">Kodro — learn to code a rover, offline</h1>
+        <h1 className="sr-only">Kodro, an offline robot design and simulation studio</h1>
         {/* ---- mission bar ---- */}
         <div className="missionbar" role="banner">
           <div className="brand">
             <div className="brand-mark" dangerouslySetInnerHTML={{ __html: ORBIT_SVG }}></div>
             <div className="brand-text">
               <div className="brand-name">Kodro</div>
-              <div className="brand-sub">Code a rover · Offline</div>
+              <div className="brand-sub">Robot design studio · Offline</div>
             </div>
           </div>
           <div className="bar-divider"></div>
@@ -2023,16 +2025,27 @@ rover.say("Survey done")`
             </div>
           </div>
         )}
+
+        {!onboarded && window.KodroOnboarding && (
+          <window.KodroOnboarding onClose={() => {
+            setOnboarded(true);
+            try { localStorage.setItem('or_onboarded', '1'); } catch (err) { void err; }
+          }} />
+        )}
       </div>
     );
   }
 
   const TWEAK_DEFAULTS = { zoom: 1, tilt: 46, grid: true, ambientFx: true, trail: 'terrain' };
 
+  // Kodro brand mark: a circular orbit (the simulated world), a trajectory swept
+  // along it, and the robot as the solid node at the head of its path. Monochrome
+  // via currentColor so it inherits whatever colour .brand-mark sets (theme-safe).
   const ORBIT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-    <ellipse cx="32" cy="32" rx="28" ry="11" stroke="currentColor" stroke-width="2" transform="rotate(-22 32 32)" opacity="0.7"></ellipse>
-    <ellipse cx="32" cy="32" rx="28" ry="11" stroke="currentColor" stroke-width="2" transform="rotate(22 32 32)" opacity="0.4"></ellipse>
-    <circle cx="32" cy="32" r="4" fill="currentColor"></circle>
+    <circle cx="32" cy="32" r="21" stroke="currentColor" stroke-width="2.4" opacity="0.2"></circle>
+    <path d="M15 44 A21 21 0 1 1 44 15" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" opacity="0.9"></path>
+    <circle cx="15" cy="44" r="2.6" fill="currentColor" opacity="0.45"></circle>
+    <circle cx="44" cy="15" r="6.4" fill="currentColor"></circle>
   </svg>`;
 
   // adjust grid columns to include resizer tracks

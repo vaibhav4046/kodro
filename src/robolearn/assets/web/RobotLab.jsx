@@ -253,5 +253,15 @@
     );
   }
 
+  // Statics so other modules (e.g. onboarding) can reuse the canonical robot
+  // catalogue and world-recommendation logic instead of duplicating it.
+  RobotLab.TYPES = TYPES;
+  RobotLab.WORLD_FOR = WORLD_FOR;
+  RobotLab.selectType = function (typeId) {
+    const spec = specFromType(typeId);
+    save(spec);
+    return spec;
+  };
+
   window.RobotLab = RobotLab;
 })();
