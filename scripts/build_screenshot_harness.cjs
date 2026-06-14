@@ -18,7 +18,7 @@ const vm = require('vm');
 
 const WEB = path.join(__dirname, '..', 'src', 'robolearn', 'assets', 'web');
 // Same load order as build_web.cjs, minus 'app' (so nothing auto-mounts).
-const ORDER = ['agents', 'memory', 'terrains', 'Rover', 'Viewport', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'RobotLab', 'onboarding'];
+const ORDER = ['agents', 'memory', 'terrains', 'Rover', 'Viewport', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'RobotLab', 'onboarding'];
 
 const ctx = { console };
 ctx.self = ctx; ctx.window = ctx; ctx.global = ctx;

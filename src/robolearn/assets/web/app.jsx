@@ -828,7 +828,15 @@ rover.say("Survey done")`
       sensor(name, args) {
         const s = live.current;
         switch (name) {
-          case 'distance': { const d = Math.round(rayDistance(s.x, s.y, s.heading)); setSensorDist(d); return d; }
+          case 'distance': {
+            // A build with no ultrasonic range sensor is blind: distance() reads
+            // "clear" no matter what is ahead, so its avoid logic never fires and
+            // it drives into obstacles. The design choice has a real consequence.
+            const rb = window.getKodroRobot ? window.getKodroRobot() : null;
+            const blind = rb && rb.sensors && rb.sensors.indexOf('ultrasonic') < 0;
+            const d = blind ? 600 : Math.round(rayDistance(s.x, s.y, s.heading));
+            setSensorDist(d); return d;
+          }
           case 'heading': return Math.round(((s.heading % 360) + 360) % 360);
           case 'battery': return Math.round(s.battery);
           case 'speed': return Math.round(s.speed);
@@ -891,7 +899,13 @@ rover.say("Survey done")`
       const robot = window.getKodroRobot ? window.getKodroRobot() : null;
       const massFac = robot && robot.massFactor ? robot.massFactor : 1;
       const speedFac = robot && robot.speedFactor ? robot.speedFactor : 1;
-      const sp = Math.max(8, s.speed) * speedFac;
+      // Mobility: too much weight for the grip its motors get on this surface
+      // makes the robot crawl or stall, so an underpowered design visibly
+      // struggles instead of gliding along regardless of what was built.
+      const hasDrive = robot && robot.actuators && robot.actuators.some(function (a) { return a === 'motors2' || a === 'motors4' || a === 'servos'; });
+      const mob = window.KodroDiagnostics ? window.KodroDiagnostics.mobilityScore(speedFac, massFac, terrain.traction) : 1;
+      const mobMul = !hasDrive ? 0.22 : mob < 0.45 ? 0.35 : mob < 0.75 ? 0.7 : 1;
+      const sp = Math.max(8, s.speed) * speedFac * mobMul;
       // 0.32s per (cm/speed); lower-traction terrain drives a little slower.
       const dur = (total / sp) * 1000 * 0.32 / (terrain.traction * speedMulRef.current);
       // Real physics: heavier worlds drain the battery faster, lighter worlds
@@ -903,7 +917,7 @@ rover.say("Survey done")`
       // Battery drains smoothly across the move (was a no-op: subtracted 0).
       const b0 = s.battery;
       const drainFull = total * 0.011 * gFac * massFac / terrain.traction;
-      let crashed = false;
+      let crashed = false, flat = false;
       await frames(dur, (p) => {
         const nx = x0 + dirx * total * p;
         const ny = y0 + diry * total * p;
@@ -917,6 +931,7 @@ rover.say("Survey done")`
         pushTrailPoint();
         setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading)));
         sync();
+        if (s.battery <= 0) { flat = true; return true; } // out of charge mid-move
         return false;
       });
       // A Reset/restart while this move was animating bumps the token: bail
@@ -942,6 +957,26 @@ rover.say("Survey done")`
         if (window.KodroMemory) {
           const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'crash', detail: what, ts: Date.now() });
           if (refl) addConsole('Reflection saved: ' + refl, 'sys');
+        }
+        // Coach: tie the outcome back to the design and recommend a fix.
+        if (window.KodroDiagnostics) {
+          const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), { outcome: 'crash', detail: what });
+          if (v) addConsole(v.text, v.tone);
+        }
+        haltProgram('error');
+        return false;
+      }
+      if (flat) {
+        s.battery = 0; sync();
+        sfx('crash');
+        addConsole('Out of charge at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
+        if (window.KodroMemory) {
+          const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'flat', detail: 'battery', ts: Date.now() });
+          if (refl) addConsole('Reflection saved: ' + refl, 'sys');
+        }
+        if (window.KodroDiagnostics) {
+          const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), { outcome: 'flat' });
+          if (v) addConsole(v.text, v.tone);
         }
         haltProgram('error');
         return false;
@@ -1053,6 +1088,12 @@ rover.say("Survey done")`
       // Self-refinement: a clean finish is a result worth remembering.
       if (window.KodroMemory) {
         window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'done', detail: 'finished without a collision', ts: Date.now() });
+      }
+      // Coach: confirm the design held up, or name what to still watch.
+      if (window.KodroDiagnostics) {
+        const robotNow = window.getKodroRobot ? window.getKodroRobot() : {};
+        const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotNow, terrain), { outcome: 'done' });
+        if (v) addConsole(v.text, v.tone);
       }
       // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
       gradeWithBridge(code);
