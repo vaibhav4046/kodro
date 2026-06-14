@@ -3572,6 +3572,9 @@
             scene.add(car);
           }
         });
+        // The base window texture is only a clone source: each building got its
+        // own independent clone, so the base can be freed now (it is never rendered).
+        if (winTex) winTex.dispose();
         // Render the shared moving agents as 3D meshes, driven by the same
         // simulation the collision test reads, so a pedestrian the robot can
         // see in the world is one it can actually hit.
@@ -4167,9 +4170,18 @@
         canvas.removeEventListener('webglcontextlost', onContextLost);
         trailGeo.dispose();
         renderer.dispose();
+        // The PMREM environment map is a render-target texture and is not a
+        // scene-graph child, so traverse never reaches it: dispose it directly.
+        if (scene.environment) scene.environment.dispose();
         scene.traverse(obj => {
           if (obj.geometry) obj.geometry.dispose();
-          if (obj.material) (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach(m => m.dispose());
+          if (obj.material) (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach(m => {
+            // Material.dispose() does not free textures it references (they may be
+            // shared), so dispose the maps too. dispose() is idempotent.
+            if (m.map) m.map.dispose();
+            if (m.emissiveMap) m.emissiveMap.dispose();
+            m.dispose();
+          });
         });
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       };
@@ -4509,7 +4521,6 @@
     const env = terrain.env;
     const battery = rover.battery;
     const batColor = battery > 50 ? 'var(--success)' : battery > 20 ? 'var(--warning)' : 'var(--danger)';
-    const speedPct = rover.speed / 100 * 100;
     const dist = sensorDist == null ? 600 : sensorDist;
     const distState = dist < 80 ? 'danger' : dist < 200 ? 'warn' : '';
     const distColor = dist < 80 ? 'var(--danger)' : dist < 200 ? 'var(--warning)' : accent;
@@ -4528,7 +4539,7 @@
       className: "compass-info"
     }, /*#__PURE__*/React.createElement("div", {
       className: "ci-deg"
-    }, norm(rover.heading) | 0, "\xB0"), /*#__PURE__*/React.createElement("div", {
+    }, Math.round(norm(rover.heading)) % 360, "\xB0"), /*#__PURE__*/React.createElement("div", {
       className: "ci-card"
     }, cardinal(rover.heading)))), /*#__PURE__*/React.createElement("div", {
       className: "bar-meter",
@@ -4536,9 +4547,9 @@
         marginTop: 14
       }
     }, /*#__PURE__*/React.createElement(Bar, {
-      k: "Velocity",
-      v: rover.speed.toFixed(0) + ' cm/s',
-      pct: speedPct,
+      k: "Throttle",
+      v: rover.speed.toFixed(0) + '%',
+      pct: rover.speed,
       color: accent
     }))), /*#__PURE__*/React.createElement("div", {
       className: "tele-section"
@@ -5793,7 +5804,7 @@ Object.assign(window, {
       className: 'modal-head'
     }, React.createElement('span', {
       className: 'eyebrow'
-    }, '🛠 Robot Lab — design a robot, then run it in the world'), React.createElement('button', {
+    }, '🛠 Robot Lab. Design a robot, then run it in the world'), React.createElement('button', {
       className: 'btn-mini',
       'aria-label': 'Close',
       onClick: () => props.onClose && props.onClose()
@@ -5858,7 +5869,7 @@ Object.assign(window, {
       className: 'rl-section'
     }, React.createElement('div', {
       className: 'rl-label'
-    }, '2 · Sensors — each unlocks a command'), React.createElement('div', {
+    }, '2 · Sensors. Each unlocks a command'), React.createElement('div', {
       className: 'rl-chips'
     }, Object.keys(SENSORS).map(id => React.createElement(Chip, {
       key: id,
@@ -7192,7 +7203,7 @@ rover.say("Survey done")`
           }));
           if (r.recommended && r.recommended.id) lines.push({
             type: 'sys',
-            text: '👉 Recommended next: ' + r.recommended.id + ' — ' + r.recommended.title
+            text: '👉 Recommended next: ' + r.recommended.id + ' · ' + r.recommended.title
           });
           return lines;
         });
@@ -8009,17 +8020,26 @@ rover.say("Survey done")`
       }));
     }
 
-    // keyboard shortcuts
+    // keyboard shortcuts. The handler is registered ONCE: App re-renders ~60
+    // times a second during a run, so a deps-free effect would thrash
+    // add/removeEventListener on the hot path. Live handlers and state are read
+    // through refs that are kept current every render.
+    const onRunRef = useRef(onRun);
+    onRunRef.current = onRun;
+    const onStepRef = useRef(onStep);
+    onStepRef.current = onStep;
+    const showHelpRef = useRef(showHelp);
+    showHelpRef.current = showHelp;
     useEffect(() => {
       const typingIn = el => el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable);
       const h = e => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
           e.preventDefault();
-          onRun();
+          onRunRef.current();
         } else if (e.key === 'F10') {
           e.preventDefault();
-          onStep();
-        } else if (e.key === 'Escape' && showHelp) {
+          onStepRef.current();
+        } else if (e.key === 'Escape' && showHelpRef.current) {
           setShowHelp(false);
         } else if (e.key === '?' && !typingIn(e.target)) {
           e.preventDefault();
@@ -8028,7 +8048,7 @@ rover.say("Survey done")`
       };
       window.addEventListener('keydown', h);
       return () => window.removeEventListener('keydown', h);
-    });
+    }, []);
     const statusLabel = {
       idle: 'Standby',
       running: 'Running',
@@ -8106,7 +8126,7 @@ rover.say("Survey done")`
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn voice-agent-btn",
-      title: "Talk to Kodro \u2014 speak a command or ask a question",
+      title: "Talk to Kodro. Speak a command or ask a question",
       "aria-label": "Voice agent",
       onClick: () => {
         setVaOpen(true);
@@ -8115,12 +8135,12 @@ rover.say("Survey done")`
       }
     }, "\uD83C\uDF99"), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
-      title: "Robot Lab \u2014 design a custom robot",
+      title: "Robot Lab. Design a custom robot",
       "aria-label": "Robot Lab",
       onClick: () => setRobotLabOpen(true)
     }, "\uD83D\uDEE0"), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
-      title: "Memory \u2014 what the system learned, and your skill library",
+      title: "Memory. What the system learned, and your skill library",
       "aria-label": "Memory and skills",
       onClick: () => setMemoryOpen(true)
     }, "\uD83E\uDDE0"), /*#__PURE__*/React.createElement("button", {
@@ -8211,7 +8231,7 @@ rover.say("Survey done")`
         setSettingsOpen(false);
         pickPhotoClick();
       }
-    }, /*#__PURE__*/React.createElement("span", null, "Photo prop \u2014 place(\"photo\")"), /*#__PURE__*/React.createElement("span", {
+    }, /*#__PURE__*/React.createElement("span", null, "Photo prop \xB7 place(\"photo\")"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
     }, photoUrl ? 'Loaded' : 'Pick…')), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
@@ -8298,7 +8318,7 @@ rover.say("Survey done")`
       }
     }, "\u2753 Ask"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      title: "Speak a command \u2014 works offline, no AI model needed",
+      title: "Speak a command. Works offline, no AI model needed",
       disabled: voiceBusy,
       onClick: runVoiceCommand
     }, voiceBusy ? '🎙…' : '🎙 Voice'), /*#__PURE__*/React.createElement("button", {
@@ -8314,7 +8334,7 @@ rover.say("Survey done")`
       className: "api-hint"
     }, /*#__PURE__*/React.createElement("b", null, "move_forward(m)"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "move_backward(m)"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "turn_left(\xB0)"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "turn_right(\xB0)"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "set_speed(0\u2013100)"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "pen_down/up()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "scan()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "led(\"cyan\")"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "say(\"\u2026\")"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "collect_sample()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "place(\"flag\")"), /*#__PURE__*/React.createElement("span", {
       className: "sep"
-    }, " \u2014 sensors return values: "), /*#__PURE__*/React.createElement("b", null, "distance()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "heading()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "battery()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "obstacle_ahead()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "gravity()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "temperature()")), (() => {
+    }, " \xB7 sensors return values: "), /*#__PURE__*/React.createElement("b", null, "distance()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "heading()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "battery()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "obstacle_ahead()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "gravity()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "temperature()")), (() => {
       const lesson = lessons.find(l => l.id === currentLessonId);
       if (!lesson) return null;
       return /*#__PURE__*/React.createElement("section", {
@@ -8412,7 +8432,7 @@ rover.say("Survey done")`
       className: "repl-input",
       type: "text",
       spellCheck: "false",
-      placeholder: "live terminal \u2014 try move_forward(1) or place(\"flag\")",
+      placeholder: "live terminal. Try move_forward(1) or place(\"flag\")",
       "aria-label": "Live terminal: type one Python line and press Enter",
       value: replLine,
       onChange: e => setReplLine(e.target.value),
@@ -8462,7 +8482,7 @@ rover.say("Survey done")`
         if (e.target.value) onTerrain(e.target.value);
       },
       "aria-label": "Real-world mission site",
-      title: "Drop the rover at a real place \u2014 real gravity, traction and light"
+      title: "Drop the rover at a real place. Real gravity, traction and light"
     }, /*#__PURE__*/React.createElement("option", {
       value: "",
       disabled: true
@@ -8615,7 +8635,7 @@ rover.say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83D\uDC1D Agent swarm \u2014 your one program, run by a fleet at once"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83D\uDC1D Agent swarm. Your one program, run by a fleet at once"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setSwarmOpen(false)
@@ -8697,7 +8717,7 @@ rover.say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83C\uDF99 Talk to Kodro \u2014 say a command, or ask a question"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83C\uDF99 Talk to Kodro. Say a command, or ask a question"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setVaOpen(false)
@@ -8752,7 +8772,7 @@ rover.say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\u2753 Ask \u2014 answered from the lesson material, not made up"), /*#__PURE__*/React.createElement("button", {
+    }, "\u2753 Ask. Answered from the lesson material, not made up"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setAskOpen(false)
@@ -8804,7 +8824,7 @@ rover.say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83D\uDCCA Teacher dashboard \u2014 class concept strength"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83D\uDCCA Teacher dashboard. Class concept strength"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setTeacherOpen(false)
@@ -8860,7 +8880,7 @@ rover.say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83E\uDDE0 Memory \u2014 the system refines from what it has seen, offline"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83E\uDDE0 Memory. The system refines from what it has seen, offline"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setMemoryOpen(false)
@@ -8883,7 +8903,7 @@ rover.say("Survey done")`
       className: "mem-col"
     }, /*#__PURE__*/React.createElement("div", {
       className: "rl-label"
-    }, "Skill library \u2014 programs that worked, reused"), /*#__PURE__*/React.createElement("button", {
+    }, "Skill library. Programs that worked, reused"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini btn-vibe",
       onClick: () => {
         const n = window.prompt && window.prompt('Name this skill');
@@ -8937,7 +8957,7 @@ rover.say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83D\uDD0E Code review \u2014 a second AI agent checks your work"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83D\uDD0E Code review. A second AI agent checks your work"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setReviewOpen(false)
@@ -8983,7 +9003,7 @@ rover.say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\u2728 Vibe coding \u2014 describe it, the AI writes it"), /*#__PURE__*/React.createElement("button", {
+    }, "\u2728 Vibe coding. Describe it, the AI writes it"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setVibeOpen(false)
@@ -8998,7 +9018,7 @@ rover.say("Survey done")`
       "aria-label": "AI conversation"
     }, vibeMsgs.length === 0 && /*#__PURE__*/React.createElement("p", {
       className: "vibe-empty"
-    }, "Chat with the AI like a coding partner. It may ask a question first \u2014 e.g. try ", /*#__PURE__*/React.createElement("i", null, "\"explore the field\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"draw a star\""), "."), vibeMsgs.map((m, i) => m.kind === 'code' ? /*#__PURE__*/React.createElement("div", {
+    }, "Chat with the AI like a coding partner. It may ask a question first, e.g. try ", /*#__PURE__*/React.createElement("i", null, "\"explore the field\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"draw a star\""), "."), vibeMsgs.map((m, i) => m.kind === 'code' ? /*#__PURE__*/React.createElement("div", {
       key: i,
       className: "vibe-msg ai code"
     }, /*#__PURE__*/React.createElement("pre", {
@@ -9014,7 +9034,7 @@ rover.say("Survey done")`
         setVibeMsgs(ms => [...ms, {
           role: 'user',
           kind: 'text',
-          text: '(discarded — try again)'
+          text: '(discarded, try again)'
         }]);
       }
     }, "Discard"))) : /*#__PURE__*/React.createElement("div", {
@@ -9040,7 +9060,7 @@ rover.say("Survey done")`
     }, micBusy ? '…' : '🎤'), /*#__PURE__*/React.createElement("textarea", {
       className: "vibe-input",
       rows: 2,
-      placeholder: "Say what the rover should do \u2014 the AI may ask you a question back",
+      placeholder: "Say what the rover should do. The AI may ask you a question back",
       value: vibePrompt,
       onChange: e => setVibePrompt(e.target.value),
       onKeyDown: e => {
@@ -9057,13 +9077,13 @@ rover.say("Survey done")`
       onClick: vibeSend
     }, "Send")), /*#__PURE__*/React.createElement("span", {
       className: "vibe-hint"
-    }, "Apply types the code into the editor \u2014 nothing runs until you press Run.")) : /*#__PURE__*/React.createElement("div", {
+    }, "Apply types the code into the editor. Nothing runs until you press Run.")) : /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
     }, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
     }, "AI is offline. Vibe coding uses a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account):"), /*#__PURE__*/React.createElement("ol", {
       className: "vibe-steps"
-    }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro \u2014 this panel lights up automatically"))))), blocksOpen && /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. This panel lights up automatically"))))), blocksOpen && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => setBlocksOpen(false)
     }, /*#__PURE__*/React.createElement("div", {
@@ -9076,7 +9096,7 @@ rover.say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83E\uDDE9 Blocks \u2014 click blocks to build, then turn them into Python"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83E\uDDE9 Blocks. Click blocks to build, then turn them into Python"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setBlocksOpen(false)
@@ -9098,7 +9118,7 @@ rover.say("Survey done")`
       "aria-label": "Your program"
     }, blocks.length === 0 && /*#__PURE__*/React.createElement("p", {
       className: "vibe-hint"
-    }, "Click blocks above \u2014 they stack here like Scratch."), blocks.map((b, i) => /*#__PURE__*/React.createElement("div", {
+    }, "Click blocks above. They stack here like Scratch."), blocks.map((b, i) => /*#__PURE__*/React.createElement("div", {
       key: i,
       className: "block-row",
       style: {
@@ -9153,7 +9173,7 @@ rover.say("Survey done")`
       style: {
         flex: 1
       }
-    }, "Turns into real Python \u2014 watch it type itself into the editor."), /*#__PURE__*/React.createElement("button", {
+    }, "Turns into real Python. Watch it type itself into the editor."), /*#__PURE__*/React.createElement("button", {
       className: "ctrl ctrl-run",
       disabled: !blocks.length,
       onClick: insertBlocksCode
@@ -9189,7 +9209,7 @@ rover.say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83E\uDD16 Build a real robot \u2014 what your budget can buy"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83E\uDD16 Build a real robot. What your budget can buy"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setBuildOpen(false)

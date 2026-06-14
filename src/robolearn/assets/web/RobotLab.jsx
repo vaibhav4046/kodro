@@ -163,7 +163,7 @@
       React.createElement('div', { className: 'modal-backdrop', onClick: () => props.onClose && props.onClose() },
         React.createElement('div', { className: 'modal modal-wide rl-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Robot Lab', onClick: e => e.stopPropagation() },
           React.createElement('div', { className: 'modal-head' },
-            React.createElement('span', { className: 'eyebrow' }, '🛠 Robot Lab — design a robot, then run it in the world'),
+            React.createElement('span', { className: 'eyebrow' }, '🛠 Robot Lab. Design a robot, then run it in the world'),
             React.createElement('button', { className: 'btn-mini', 'aria-label': 'Close', onClick: () => props.onClose && props.onClose() }, '✕')
           ),
           React.createElement('div', { className: 'rl-body' },
@@ -207,7 +207,7 @@
             React.createElement('p', { className: 'rl-note' }, BOARDS[spec.board] ? BOARDS[spec.board].note : ''),
             // ---- sensors
             React.createElement('div', { className: 'rl-section' },
-              React.createElement('div', { className: 'rl-label' }, '2 · Sensors — each unlocks a command'),
+              React.createElement('div', { className: 'rl-label' }, '2 · Sensors. Each unlocks a command'),
               React.createElement('div', { className: 'rl-chips' },
                 Object.keys(SENSORS).map(id => React.createElement(Chip, {
                   key: id, on: (spec.sensors || []).indexOf(id) >= 0,

@@ -304,6 +304,9 @@
             car.position.set(px, 0, pz); car.rotation.y = (o.rot || 0) * Math.PI / 180; scene.add(car);
           }
         });
+        // The base window texture is only a clone source: each building got its
+        // own independent clone, so the base can be freed now (it is never rendered).
+        if (winTex) winTex.dispose();
         // Render the shared moving agents as 3D meshes, driven by the same
         // simulation the collision test reads, so a pedestrian the robot can
         // see in the world is one it can actually hit.
@@ -629,9 +632,18 @@
         canvas.removeEventListener('webglcontextlost', onContextLost);
         trailGeo.dispose();
         renderer.dispose();
+        // The PMREM environment map is a render-target texture and is not a
+        // scene-graph child, so traverse never reaches it: dispose it directly.
+        if (scene.environment) scene.environment.dispose();
         scene.traverse((obj) => {
           if (obj.geometry) obj.geometry.dispose();
-          if (obj.material) (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => m.dispose());
+          if (obj.material) (Array.isArray(obj.material) ? obj.material : [obj.material]).forEach((m) => {
+            // Material.dispose() does not free textures it references (they may be
+            // shared), so dispose the maps too. dispose() is idempotent.
+            if (m.map) m.map.dispose();
+            if (m.emissiveMap) m.emissiveMap.dispose();
+            m.dispose();
+          });
         });
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       };

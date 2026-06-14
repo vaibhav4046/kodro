@@ -694,7 +694,7 @@ rover.say("Survey done")`
           if (!r.passed && Array.isArray(r.reasons)) r.reasons.forEach(reason => lines.push({ type: 'err', text: '  · ' + reason }));
           if (r.hint && r.hint.message) lines.push({ type: 'sys', text: '💡 Hint: ' + r.hint.message });
           if (Array.isArray(r.achievements)) r.achievements.forEach(a => lines.push({ type: 'ok', text: (a.icon || '🏅') + ' Achievement unlocked: ' + a.title }));
-          if (r.recommended && r.recommended.id) lines.push({ type: 'sys', text: '👉 Recommended next: ' + r.recommended.id + ' — ' + r.recommended.title });
+          if (r.recommended && r.recommended.id) lines.push({ type: 'sys', text: '👉 Recommended next: ' + r.recommended.id + ' · ' + r.recommended.title });
           return lines;
         });
       } catch (err) {
@@ -1287,18 +1287,24 @@ rover.say("Survey done")`
       setCam(c => ({ ...c, zoom: Math.max(0.7, Math.min(1.7, c.zoom - e.deltaY * 0.0012)) }));
     }
 
-    // keyboard shortcuts
+    // keyboard shortcuts. The handler is registered ONCE: App re-renders ~60
+    // times a second during a run, so a deps-free effect would thrash
+    // add/removeEventListener on the hot path. Live handlers and state are read
+    // through refs that are kept current every render.
+    const onRunRef = useRef(onRun); onRunRef.current = onRun;
+    const onStepRef = useRef(onStep); onStepRef.current = onStep;
+    const showHelpRef = useRef(showHelp); showHelpRef.current = showHelp;
     useEffect(() => {
       const typingIn = (el) => el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable);
       const h = (e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); onRun(); }
-        else if (e.key === 'F10') { e.preventDefault(); onStep(); }
-        else if (e.key === 'Escape' && showHelp) { setShowHelp(false); }
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); onRunRef.current(); }
+        else if (e.key === 'F10') { e.preventDefault(); onStepRef.current(); }
+        else if (e.key === 'Escape' && showHelpRef.current) { setShowHelp(false); }
         else if (e.key === '?' && !typingIn(e.target)) { e.preventDefault(); setShowHelp(s => !s); }
       };
       window.addEventListener('keydown', h);
       return () => window.removeEventListener('keydown', h);
-    });
+    }, []);
 
     const statusLabel = { idle: 'Standby', running: 'Running', paused: 'Stepping', done: 'Complete', error: 'Halted' }[runState];
 
@@ -1336,9 +1342,9 @@ rover.say("Survey done")`
             <span>{statusLabel}</span>
           </div>
           <div className="bar-divider"></div>
-          <button className="icon-btn voice-agent-btn" title="Talk to Kodro — speak a command or ask a question" aria-label="Voice agent" onClick={() => { setVaOpen(true); setVaData(null); runVoiceAgent(); }}>🎙</button>
-          <button className="icon-btn" title="Robot Lab — design a custom robot" aria-label="Robot Lab" onClick={() => setRobotLabOpen(true)}>🛠</button>
-          <button className="icon-btn" title="Memory — what the system learned, and your skill library" aria-label="Memory and skills" onClick={() => setMemoryOpen(true)}>🧠</button>
+          <button className="icon-btn voice-agent-btn" title="Talk to Kodro. Speak a command or ask a question" aria-label="Voice agent" onClick={() => { setVaOpen(true); setVaData(null); runVoiceAgent(); }}>🎙</button>
+          <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab" onClick={() => setRobotLabOpen(true)}>🛠</button>
+          <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills" onClick={() => setMemoryOpen(true)}>🧠</button>
           <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot" onClick={() => setBuildOpen(true)}>🤖</button>
           <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setShowHelp(true)}>?</button>
           <div className="settings-wrap">
@@ -1379,7 +1385,7 @@ rover.say("Survey done")`
                   <span>Voice</span><span className="set-val">{voiceGender === 'female' ? 'Female' : 'Male'}</span>
                 </button>
                 <button className="set-row set-btn" role="menuitem" onClick={() => { setSettingsOpen(false); pickPhotoClick(); }}>
-                  <span>Photo prop — place("photo")</span><span className="set-val">{photoUrl ? 'Loaded' : 'Pick…'}</span>
+                  <span>Photo prop · place("photo")</span><span className="set-val">{photoUrl ? 'Loaded' : 'Pick…'}</span>
                 </button>
                 <button className="set-row set-btn" role="menuitem" onClick={openTeacher}>
                   <span>Teacher dashboard</span><span className="set-val">→</span>
@@ -1423,13 +1429,13 @@ rover.say("Survey done")`
                 <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>🧩 Blocks</button>
                 <button className="btn-mini" title="A second AI agent reviews your code" onClick={runReview}>🔎 Review</button>
                 <button className="btn-mini" title="Ask a question, answered from the lesson material" onClick={() => { setAskOpen(true); setAskData(null); }}>❓ Ask</button>
-                <button className="btn-mini" title="Speak a command — works offline, no AI model needed" disabled={voiceBusy} onClick={runVoiceCommand}>{voiceBusy ? '🎙…' : '🎙 Voice'}</button>
+                <button className="btn-mini" title="Speak a command. Works offline, no AI model needed" disabled={voiceBusy} onClick={runVoiceCommand}>{voiceBusy ? '🎙…' : '🎙 Voice'}</button>
                 <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>🐝 Swarm</button>
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
               <div className="api-hint">
                 <b>move_forward(m)</b> · <b>move_backward(m)</b> · <b>turn_left(°)</b> · <b>turn_right(°)</b> · <b>set_speed(0–100)</b> · <b>pen_down/up()</b> · <b>scan()</b> · <b>led("cyan")</b> · <b>say("…")</b> · <b>collect_sample()</b> · <b>place("flag")</b>
-                <span className="sep"> — sensors return values: </span><b>distance()</b> · <b>heading()</b> · <b>battery()</b> · <b>obstacle_ahead()</b> · <b>gravity()</b> · <b>temperature()</b>
+                <span className="sep"> · sensors return values: </span><b>distance()</b> · <b>heading()</b> · <b>battery()</b> · <b>obstacle_ahead()</b> · <b>gravity()</b> · <b>temperature()</b>
               </div>
               {(() => {
                 const lesson = lessons.find(l => l.id === currentLessonId);
@@ -1502,7 +1508,7 @@ rover.say("Survey done")`
                   className="repl-input"
                   type="text"
                   spellCheck="false"
-                  placeholder='live terminal — try move_forward(1) or place("flag")'
+                  placeholder='live terminal. Try move_forward(1) or place("flag")'
                   aria-label="Live terminal: type one Python line and press Enter"
                   value={replLine}
                   onChange={e => setReplLine(e.target.value)}
@@ -1533,7 +1539,7 @@ rover.say("Survey done")`
                   value={window.SITES[terrainId] ? terrainId : ''}
                   onChange={e => { if (e.target.value) onTerrain(e.target.value); }}
                   aria-label="Real-world mission site"
-                  title="Drop the rover at a real place — real gravity, traction and light"
+                  title="Drop the rover at a real place. Real gravity, traction and light"
                 >
                   <option value="" disabled>🌍 Mission site…</option>
                   {[['earth', '🌍 Earth'], ['underwater', '🌊 Underwater'], ['mars', '🔴 Mars'], ['space', '🌑 Space']].map(([base, label]) => {
@@ -1588,7 +1594,7 @@ rover.say("Survey done")`
           <div className="modal-backdrop" onClick={() => !swarmBusy && setSwarmOpen(false)}>
             <div className="modal" role="dialog" aria-modal="true" aria-label="Agent swarm" onClick={e => e.stopPropagation()}>
               <div className="modal-head">
-                <span className="eyebrow">🐝 Agent swarm — your one program, run by a fleet at once</span>
+                <span className="eyebrow">🐝 Agent swarm. Your one program, run by a fleet at once</span>
                 <button className="btn-mini" aria-label="Close" onClick={() => setSwarmOpen(false)}>✕</button>
               </div>
               <div className="swarm-body">
@@ -1632,7 +1638,7 @@ rover.say("Survey done")`
           <div className="modal-backdrop" onClick={() => !vaBusy && setVaOpen(false)}>
             <div className="modal va-modal" role="dialog" aria-modal="true" aria-label="Talk to Kodro" onClick={e => e.stopPropagation()}>
               <div className="modal-head">
-                <span className="eyebrow">🎙 Talk to Kodro — say a command, or ask a question</span>
+                <span className="eyebrow">🎙 Talk to Kodro. Say a command, or ask a question</span>
                 <button className="btn-mini" aria-label="Close" onClick={() => setVaOpen(false)}>✕</button>
               </div>
               <div className="va-body">
@@ -1668,7 +1674,7 @@ rover.say("Survey done")`
           <div className="modal-backdrop" onClick={() => !askBusy && setAskOpen(false)}>
             <div className="modal" role="dialog" aria-modal="true" aria-label="Ask a question" onClick={e => e.stopPropagation()}>
               <div className="modal-head">
-                <span className="eyebrow">❓ Ask — answered from the lesson material, not made up</span>
+                <span className="eyebrow">❓ Ask. Answered from the lesson material, not made up</span>
                 <button className="btn-mini" aria-label="Close" onClick={() => setAskOpen(false)}>✕</button>
               </div>
               <div className="ask-body">
@@ -1704,7 +1710,7 @@ rover.say("Survey done")`
           <div className="modal-backdrop" onClick={() => setTeacherOpen(false)}>
             <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Teacher dashboard" onClick={e => e.stopPropagation()}>
               <div className="modal-head">
-                <span className="eyebrow">📊 Teacher dashboard — class concept strength</span>
+                <span className="eyebrow">📊 Teacher dashboard. Class concept strength</span>
                 <button className="btn-mini" aria-label="Close" onClick={() => setTeacherOpen(false)}>✕</button>
               </div>
               <div className="teacher-body">
@@ -1757,7 +1763,7 @@ rover.say("Survey done")`
           <div className="modal-backdrop" onClick={() => setMemoryOpen(false)}>
             <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Memory and skills" data-tick={memTick} onClick={e => e.stopPropagation()}>
               <div className="modal-head">
-                <span className="eyebrow">🧠 Memory — the system refines from what it has seen, offline</span>
+                <span className="eyebrow">🧠 Memory. The system refines from what it has seen, offline</span>
                 <button className="btn-mini" aria-label="Close" onClick={() => setMemoryOpen(false)}>✕</button>
               </div>
               <div className="mem-body">
@@ -1775,7 +1781,7 @@ rover.say("Survey done")`
                     : <p className="vibe-status">No runs yet. Run a program and the system notes what happened, then draws on it.</p>}
                 </div>
                 <div className="mem-col">
-                  <div className="rl-label">Skill library — programs that worked, reused</div>
+                  <div className="rl-label">Skill library. Programs that worked, reused</div>
                   <button className="btn-mini btn-vibe" onClick={() => { const n = window.prompt && window.prompt('Name this skill'); if (n && window.KodroMemory) window.KodroMemory.saveSkill(n, code, { world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', ts: Date.now() }); }}>＋ Save current code as a skill</button>
                   {(window.KodroMemory ? window.KodroMemory.skills() : []).length
                     ? <ul className="mem-list">
@@ -1801,7 +1807,7 @@ rover.say("Survey done")`
           <div className="modal-backdrop" onClick={() => !reviewBusy && setReviewOpen(false)}>
             <div className="modal" role="dialog" aria-modal="true" aria-label="AI code review" onClick={e => e.stopPropagation()}>
               <div className="modal-head">
-                <span className="eyebrow">🔎 Code review — a second AI agent checks your work</span>
+                <span className="eyebrow">🔎 Code review. A second AI agent checks your work</span>
                 <button className="btn-mini" aria-label="Close" onClick={() => setReviewOpen(false)}>✕</button>
               </div>
               <div className="review-body">
@@ -1838,7 +1844,7 @@ rover.say("Survey done")`
           <div className="modal-backdrop" onClick={() => !vibeBusy && setVibeOpen(false)}>
             <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
               <div className="modal-head">
-                <span className="eyebrow">✨ Vibe coding — describe it, the AI writes it</span>
+                <span className="eyebrow">✨ Vibe coding. Describe it, the AI writes it</span>
                 <button className="btn-mini" aria-label="Close" onClick={() => setVibeOpen(false)}>✕</button>
               </div>
               {aiInfo.available ? (
@@ -1846,14 +1852,14 @@ rover.say("Survey done")`
                   <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
                   <div className="vibe-thread" role="log" aria-live="polite" aria-label="AI conversation">
                     {vibeMsgs.length === 0 && (
-                      <p className="vibe-empty">Chat with the AI like a coding partner. It may ask a question first — e.g. try <i>"explore the field"</i> or <i>"draw a star"</i>.</p>
+                      <p className="vibe-empty">Chat with the AI like a coding partner. It may ask a question first, e.g. try <i>"explore the field"</i> or <i>"draw a star"</i>.</p>
                     )}
                     {vibeMsgs.map((m, i) => m.kind === 'code' ? (
                       <div key={i} className="vibe-msg ai code">
                         <pre className="vibe-code">{m.text}</pre>
                         <div className="vibe-code-actions">
                           <button className="ctrl ctrl-run" onClick={() => vibeApply(m.text, m.model)}>✓ Apply to editor</button>
-                          <button className="btn-mini" onClick={() => { setVibeMsgs(ms => [...ms, { role: 'user', kind: 'text', text: '(discarded — try again)' }]); }}>Discard</button>
+                          <button className="btn-mini" onClick={() => { setVibeMsgs(ms => [...ms, { role: 'user', kind: 'text', text: '(discarded, try again)' }]); }}>Discard</button>
                         </div>
                       </div>
                     ) : (
@@ -1872,7 +1878,7 @@ rover.say("Survey done")`
                     <textarea
                       className="vibe-input"
                       rows={2}
-                      placeholder='Say what the rover should do — the AI may ask you a question back'
+                      placeholder='Say what the rover should do. The AI may ask you a question back'
                       value={vibePrompt}
                       onChange={e => setVibePrompt(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); vibeSend(); } }}
@@ -1881,7 +1887,7 @@ rover.say("Survey done")`
                     />
                     <button className="ctrl ctrl-run" disabled={vibeBusy || !vibePrompt.trim()} onClick={vibeSend}>Send</button>
                   </div>
-                  <span className="vibe-hint">Apply types the code into the editor — nothing runs until you press Run.</span>
+                  <span className="vibe-hint">Apply types the code into the editor. Nothing runs until you press Run.</span>
                 </div>
               ) : (
                 <div className="vibe-body">
@@ -1889,7 +1895,7 @@ rover.say("Survey done")`
                   <ol className="vibe-steps">
                     <li>Install Ollama from ollama.com (free, offline after install)</li>
                     <li>Run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
-                    <li>Reopen Kodro — this panel lights up automatically</li>
+                    <li>Reopen Kodro. This panel lights up automatically</li>
                   </ol>
                 </div>
               )}
@@ -1901,7 +1907,7 @@ rover.say("Survey done")`
           <div className="modal-backdrop" onClick={() => setBlocksOpen(false)}>
             <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Block coding" onClick={e => e.stopPropagation()}>
               <div className="modal-head">
-                <span className="eyebrow">🧩 Blocks — click blocks to build, then turn them into Python</span>
+                <span className="eyebrow">🧩 Blocks. Click blocks to build, then turn them into Python</span>
                 <button className="btn-mini" aria-label="Close" onClick={() => setBlocksOpen(false)}>✕</button>
               </div>
               <div className="blocks-palette">
@@ -1913,7 +1919,7 @@ rover.say("Survey done")`
                 <button className="block-chip block-end" onClick={endBlock} disabled={blockIndent === 0}>↤ end block</button>
               </div>
               <div className="blocks-program" aria-label="Your program">
-                {blocks.length === 0 && <p className="vibe-hint">Click blocks above — they stack here like Scratch.</p>}
+                {blocks.length === 0 && <p className="vibe-hint">Click blocks above. They stack here like Scratch.</p>}
                 {blocks.map((b, i) => (
                   <div key={i} className="block-row" style={{ marginLeft: (b.indent * 22) + 'px', borderLeftColor: b.color }}>
                     <span>{b.label}</span>
@@ -1935,7 +1941,7 @@ rover.say("Survey done")`
               </div>
               <div className="vibe-actions">
                 <button className="btn-mini" disabled={!blocks.length} onClick={() => { setBlocks([]); setBlockIndent(0); }}>Clear</button>
-                <span className="vibe-hint" style={{ flex: 1 }}>Turns into real Python — watch it type itself into the editor.</span>
+                <span className="vibe-hint" style={{ flex: 1 }}>Turns into real Python. Watch it type itself into the editor.</span>
                 <button className="ctrl ctrl-run" disabled={!blocks.length} onClick={insertBlocksCode}>Insert code →</button>
               </div>
             </div>
@@ -1966,7 +1972,7 @@ rover.say("Survey done")`
           <div className="modal-backdrop" onClick={() => setBuildOpen(false)}>
             <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Build a real robot" onClick={e => e.stopPropagation()}>
               <div className="modal-head">
-                <span className="eyebrow">🤖 Build a real robot — what your budget can buy</span>
+                <span className="eyebrow">🤖 Build a real robot. What your budget can buy</span>
                 <button className="btn-mini" aria-label="Close" onClick={() => setBuildOpen(false)}>✕</button>
               </div>
               <div className="build-body">

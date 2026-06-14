@@ -54,7 +54,6 @@
     const env = terrain.env;
     const battery = rover.battery;
     const batColor = battery > 50 ? 'var(--success)' : battery > 20 ? 'var(--warning)' : 'var(--danger)';
-    const speedPct = (rover.speed / 100) * 100;
     const dist = sensorDist == null ? 600 : sensorDist;
     const distState = dist < 80 ? 'danger' : dist < 200 ? 'warn' : '';
     const distColor = dist < 80 ? 'var(--danger)' : dist < 200 ? 'var(--warning)' : accent;
@@ -66,12 +65,12 @@
           <div className="compass-wrap">
             <Compass heading={rover.heading} accent={accent} />
             <div className="compass-info">
-              <div className="ci-deg">{norm(rover.heading) | 0}°</div>
+              <div className="ci-deg">{Math.round(norm(rover.heading)) % 360}°</div>
               <div className="ci-card">{cardinal(rover.heading)}</div>
             </div>
           </div>
           <div className="bar-meter" style={{ marginTop: 14 }}>
-            <Bar k="Velocity" v={rover.speed.toFixed(0) + ' cm/s'} pct={speedPct} color={accent} />
+            <Bar k="Throttle" v={rover.speed.toFixed(0) + '%'} pct={rover.speed} color={accent} />
           </div>
         </div>
 
