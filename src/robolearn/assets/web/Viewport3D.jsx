@@ -72,7 +72,8 @@
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(SKY[id] != null ? SKY[id] : SKY.earth);
-      scene.fog = new THREE.Fog(FOG[id] != null ? FOG[id] : FOG.earth, 60, 220);
+      // Underwater murk swallows distance much sooner than open air.
+      scene.fog = new THREE.Fog(FOG[id] != null ? FOG[id] : FOG.earth, id === 'underwater' ? 16 : 60, id === 'underwater' ? 90 : 220);
 
       const camera = new THREE.PerspectiveCamera(62, w / h, 0.1, 2000);
 
@@ -80,8 +81,13 @@
       const indoor = id === 'room';
       const skyCol2 = indoor ? 0xfff1de : 0xffffff;
       const grndCol2 = indoor ? 0x3a2f28 : 0x404048;
-      scene.add(new THREE.HemisphereLight(skyCol2, grndCol2, id === 'space' ? 0.45 : indoor ? 0.7 : 0.9));
-      const sun = new THREE.DirectionalLight(indoor ? 0xffe9c4 : 0xfff4e2, id === 'space' ? 0.7 : indoor ? 0.85 : 1.05);
+      // Each world carries its own light mood: the Moon is dim and contrasty,
+      // the abyss is dark and blue, Mars is dusty and half-lit, indoors is warm.
+      const hemiInt = id === 'space' ? 0.45 : id === 'underwater' ? 0.5 : indoor ? 0.7 : id === 'mars' ? 0.68 : 0.9;
+      scene.add(new THREE.HemisphereLight(skyCol2, grndCol2, hemiInt));
+      const sunCol = indoor ? 0xffe9c4 : id === 'underwater' ? 0x6fb7c9 : id === 'mars' ? 0xffd9b0 : 0xfff4e2;
+      const sunInt = id === 'space' ? 0.7 : id === 'underwater' ? 0.45 : indoor ? 0.85 : id === 'mars' ? 0.8 : 1.05;
+      const sun = new THREE.DirectionalLight(sunCol, sunInt);
       sun.position.set(indoor ? 18 : 40, indoor ? 38 : 80, indoor ? 22 : 30);
       sun.castShadow = true;
       sun.shadow.mapSize.set(1024, 1024); // sharper than the old 512, still light on iGPUs
@@ -110,6 +116,18 @@
       skyGeo.setAttribute('color', new THREE.Float32BufferAttribute(skyCol, 3));
       const sky = new THREE.Mesh(skyGeo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false }));
       scene.add(sky);
+      // The Moon has no atmosphere, so its sky is full of stars. Cheap Points
+      // cloud on the upper hemisphere (it is a scene child, so teardown disposes it).
+      if (id === 'space') {
+        const sg = new THREE.BufferGeometry();
+        const N = 800, arr = new Float32Array(N * 3);
+        for (let i = 0; i < N; i++) {
+          const u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2, rr = Math.sqrt(1 - u * u);
+          arr[i * 3] = Math.cos(th) * rr * 850; arr[i * 3 + 1] = Math.abs(u) * 850; arr[i * 3 + 2] = Math.sin(th) * rr * 850;
+        }
+        sg.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+        scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, fog: false })));
+      }
 
       // Ground.
       const groundMat = new THREE.MeshStandardMaterial({ color: GROUND[id] != null ? GROUND[id] : GROUND.earth, roughness: 1 });
@@ -145,11 +163,19 @@
       const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4f2c, roughness: 1 });
       const leafMat = new THREE.MeshStandardMaterial({ color: 0x356b2a, roughness: 1, flatShading: true });
       const coralMat = new THREE.MeshStandardMaterial({ color: 0xc9607a, roughness: 0.85, flatShading: true });
-      const rimMat = new THREE.MeshStandardMaterial({ color: 0x4a4c54, roughness: 1, flatShading: true });
+      const rimMat = new THREE.MeshStandardMaterial({ color: 0x3a3c44, roughness: 1, flatShading: true });
+      // Vary the rock silhouette by world and by the obstacle's own value so a
+      // boulder field does not read as one shape stamped repeatedly: Mars gets
+      // eroded icosahedra, the Moon sharp ejecta, the abyss rounded rocks.
       const mkRock = (r, px, pz, v, rot) => {
-        const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), rockMat);
-        rock.position.set(px, r * 0.55, pz);
+        const geo = id === 'mars' ? new THREE.IcosahedronGeometry(r, 0)
+          : id === 'space' ? new THREE.OctahedronGeometry(r, 0)
+          : id === 'underwater' ? new THREE.DodecahedronGeometry(r, 1)
+          : new THREE.DodecahedronGeometry(r, 0);
+        const rock = new THREE.Mesh(geo, rockMat);
+        rock.position.set(px, r * 0.5, pz);
         rock.rotation.set(v * 3, rot || 0, v * 2);
+        rock.scale.set(1 + v * 0.4, 0.7 + v * 0.5, 1 + (1 - v) * 0.4);
         rock.castShadow = true; rock.receiveShadow = true;
         scene.add(rock);
       };
@@ -181,12 +207,16 @@
           coral.position.set(px, 0, pz);
           scene.add(coral);
         } else if (id === 'space' && o.v >= 0.5) {
-          // crater: a low rim ring lying on the ground
-          const crater = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.34, 6, 16), rimMat);
+          // crater: a low rim sunk into the surface with a dark basin floor, so
+          // it reads as a depression rather than a ring lying on top of the ground.
+          const crater = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.2, 6, 16), rimMat);
           crater.rotation.x = Math.PI / 2;
-          crater.position.set(px, r * 0.18, pz);
-          crater.receiveShadow = true; crater.castShadow = true;
+          crater.position.set(px, -r * 0.1, pz);
+          crater.receiveShadow = true;
           scene.add(crater);
+          const basin = new THREE.Mesh(new THREE.CircleGeometry(r * 0.92, 18), new THREE.MeshStandardMaterial({ color: 0x26282f, roughness: 1 }));
+          basin.rotation.x = -Math.PI / 2; basin.position.set(px, 0.02, pz);
+          scene.add(basin);
         } else {
           mkRock(r, px, pz, o.v, o.rot);
         }
@@ -290,7 +320,7 @@
         obstacles.forEach((o) => {
           const px = o.x * SCALE, pz = -o.y * SCALE;
           if (o.kind === 'building') {
-            const w = Math.max(3, o.r * SCALE * 1.4), hgt = w * (1.7 + (o.v % 0.7));
+            const w = Math.max(3, o.r * SCALE * 1.4), hgt = w * (1.4 + o.v * 3.2);
             const m = winTex
               ? new THREE.MeshStandardMaterial({ map: winTex.clone(), color: 0x8b94a1, roughness: 0.8 })
               : new THREE.MeshStandardMaterial({ color: 0x5a6472, roughness: 0.85 });
@@ -387,7 +417,9 @@
       const wheels = [];
       const steer = []; // front wheel groups, turned toward the heading change
       const Cap = THREE.CapsuleGeometry || null;
-      const accMat = () => new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5 });
+      // DoubleSide so flat accent discs (the rover eye, the home chest) stay
+      // visible when the orbit camera swings round behind the robot.
+      const accMat = () => new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5, side: THREE.DoubleSide });
       const addWheels = (positions, r) => {
         const wm = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.85 });
         const hubM = new THREE.MeshStandardMaterial({ color: 0x9aa0ad, roughness: 0.4, metalness: 0.6 });
@@ -421,7 +453,9 @@
           const el = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), accMat()); el.position.set(0.12, 1.08, z); body.add(el);
           const fo = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.14, 0.52, 4, 8) : new THREE.CylinderGeometry(0.14, 0.14, 0.8, 8), armMatH); fo.position.set(0.18, 0.66, z); fo.castShadow = true; body.add(fo);
         });
-        addWheels([[0, 0.55], [0, -0.55]], 0.34);
+        // wheels pushed out past the base skirt so they are actually visible
+        // (at the old 0.55 they were buried inside the ~1.0-radius base).
+        addWheels([[0, 1.05], [0, -1.05]], 0.32);
         arrow(3.5);
       } else if (rType === 'arm') {
         const armM = new THREE.MeshStandardMaterial({ color: 0xc7ccd4, roughness: 0.35, metalness: 0.6 });
@@ -431,6 +465,8 @@
         const seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.2, 0.5), armM); seg1.position.set(0.2, 2.0, 0); seg1.rotation.z = -0.5; seg1.castShadow = true; body.add(seg1);
         const j2 = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 12), jointM); j2.position.set(1.1, 2.9, 0); body.add(j2);
         const seg2 = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.8, 0.4), armM); seg2.position.set(1.9, 3.4, 0); seg2.rotation.z = -1.2; seg2.castShadow = true; body.add(seg2);
+        // wrist joint capping seg2 so the gripper reads as articulated, not floating
+        const j3 = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), jointM); j3.position.set(2.55, 3.62, 0); body.add(j3);
         const g1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM); g1.position.set(2.7, 3.7, 0.22); body.add(g1);
         const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM); g2.position.set(2.7, 3.7, -0.22); body.add(g2);
         arrow(1.3);
@@ -450,7 +486,7 @@
       }
       // Practical scale: a robot indoors shares a small room with furniture, so
       // it is sized down to fit rather than towering over the sofa.
-      if (id === 'room') rov.scale.setScalar(0.55);
+      if (id === 'room') rov.scale.setScalar(0.85);
       scene.add(rov);
 
       // A trail ribbon that grows as the rover drives.
@@ -474,7 +510,7 @@
 
       // Third-person orbit: drag to rotate, wheel or two-finger pinch to zoom,
       // so it works on a tablet or Chromebook as well as a mouse.
-      let azim = 2.4, elev = 0.62, dist = 26, dragging = false, lx = 0, ly = 0;
+      let azim = 2.4, elev = 0.62, dist = id === 'room' ? 15 : 26, dragging = false, lx = 0, ly = 0;
       const dom = renderer.domElement;
       const ptrs = new Map();
       let pinch = 0;
