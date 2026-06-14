@@ -1254,9 +1254,10 @@
     // Collision still uses o.r, so what the rover must avoid is unchanged.
     if (id === 'city') {
       if (o.kind === 'building') {
+        // A tall, lit-window tower so the 2.5D city reads as the same place as
+        // the 3D city: same footprint (collision uses o.r), much more height.
         const w = size,
-          h = size * (1.4 + o.v % 0.6);
-        const hue = 196 + Math.round(o.v * 40);
+          h = size * (2.6 + o.v % 1.0);
         return /*#__PURE__*/React.createElement("div", {
           className: "obstacle",
           style: {
@@ -1271,7 +1272,7 @@
           style: {
             left: '50%',
             top: '100%',
-            width: w * 1.1,
+            width: w * 1.05,
             height: o.r * 0.7
           }
         }), /*#__PURE__*/React.createElement("div", {
@@ -1279,9 +1280,19 @@
             position: 'absolute',
             inset: 0,
             borderRadius: 3,
-            background: `linear-gradient(160deg, hsl(${hue} 16% 42%), hsl(${hue} 18% 26%))`,
-            boxShadow: '2px 5px 8px rgba(0,0,0,0.4)',
-            backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,235,180,0.0) 0 14px, rgba(255,235,180,0.16) 14px 20px), repeating-linear-gradient(90deg, transparent 0 12px, rgba(0,0,0,0.18) 12px 14px)'
+            background: 'linear-gradient(160deg, #5c6b80, #313b4a 60%, #232b38)',
+            boxShadow: '2px 7px 12px rgba(0,0,0,0.5)',
+            backgroundImage: 'repeating-linear-gradient(0deg, transparent 0 9px, rgba(255,232,160,0.55) 9px 15px, transparent 15px 23px), repeating-linear-gradient(90deg, transparent 0 8px, rgba(10,14,22,0.55) 8px 11px)'
+          }
+        }), /*#__PURE__*/React.createElement("div", {
+          style: {
+            position: 'absolute',
+            left: -2,
+            top: -3,
+            width: w + 4,
+            height: 6,
+            borderRadius: 2,
+            background: '#3a414c'
           }
         }));
       }
@@ -3708,6 +3719,9 @@
         addWheels([[0.95, 0.95], [0.95, -0.95], [-0.95, 0.95], [-0.95, -0.95]], 0.5);
         arrow(2.05);
       }
+      // Practical scale: a robot indoors shares a small room with furniture, so
+      // it is sized down to fit rather than towering over the sofa.
+      if (id === 'room') rov.scale.setScalar(0.55);
       scene.add(rov);
 
       // A trail ribbon that grows as the rover drives.

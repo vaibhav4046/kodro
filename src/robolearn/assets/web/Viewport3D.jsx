@@ -364,6 +364,9 @@
         addWheels([[0.95, 0.95], [0.95, -0.95], [-0.95, 0.95], [-0.95, -0.95]], 0.5);
         arrow(2.05);
       }
+      // Practical scale: a robot indoors shares a small room with furniture, so
+      // it is sized down to fit rather than towering over the sofa.
+      if (id === 'room') rov.scale.setScalar(0.55);
       scene.add(rov);
 
       // A trail ribbon that grows as the rover drives.
