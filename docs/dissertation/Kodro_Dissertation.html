@@ -37,6 +37,10 @@
   th,td{ border:1px solid #000; padding:5pt 7pt; text-align:left; vertical-align:top; }
   th{ background:#000; color:#fff; }
   tr{ page-break-inside:avoid; }
+  figure{ margin:8pt 0 6pt; page-break-inside:avoid; text-align:center; }
+  figure img{ width:78%; border:1.2px solid #000; display:block; margin:0 auto; }
+  figcaption{ font-family:"Calibri","Segoe UI",sans-serif; font-size:9pt; color:var(--muted); margin-top:4pt; font-style:italic; }
+  .archfig{ width:88%; margin:8pt auto; display:block; }
   .refs{ font-family:"Calibri","Segoe UI",sans-serif; font-size:9.4pt; line-height:1.4; }
   .refs p{ padding-left:16pt; text-indent:-16pt; margin:0 0 4pt; }
 </style>
@@ -172,6 +176,40 @@
 <p>Self refinement is delivered at the level of the system and is described as refinement, not improvement, on purpose. Three mechanisms carry it, all local and all measurable. After each run the system writes a short reflection on what failed and what worked and retrieves the most similar past reflections into the next suggestion, after Shinn et al. (2023). Control routines that passed validation are kept as named, parameterised skills in a growing library and composed into later designs, after Wang et al. (2023). An experience table of past designs and their outcomes is sampled so advice on a new build is anchored in what actually happened on similar ones. None of this edits the model.</p>
 <h3>3.2 Architecture and the central loop</h3>
 <p>The system is organised around a single loop the interface makes concrete: design, program, validate, refine. The Robot Lab produces a specification; the editor produces a program; the simulator runs that program against a scenario in a chosen world and produces a result; and the memory turns that result into a reflection and, when the program worked, a reusable skill. The specification is the hub the other parts read, which is what keeps the assistant honest, since it can only speak about the build that exists. A thin Python layer hosts the simulation engine, the sandbox and the bridge to the local model, while the interface, the worlds and the agents run in the desktop web view; the two communicate over a small, typed bridge rather than sharing state, so each can be tested on its own.</p>
+<figure>
+  <svg class="archfig" viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg" font-family="Calibri, Segoe UI, sans-serif">
+    <defs>
+      <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0 0 L7 3 L0 6 Z" fill="#000"/></marker>
+    </defs>
+    <g fill="none" stroke="#000" stroke-width="1.6">
+      <rect x="40" y="40" width="200" height="70" rx="6"/>
+      <rect x="480" y="40" width="200" height="70" rx="6"/>
+      <rect x="480" y="250" width="200" height="70" rx="6"/>
+      <rect x="40" y="250" width="200" height="70" rx="6"/>
+      <rect x="285" y="120" width="150" height="56" rx="6"/>
+      <rect x="285" y="200" width="150" height="40" rx="6" stroke-dasharray="4 3"/>
+    </g>
+    <g font-size="13" fill="#000" text-anchor="middle">
+      <text x="140" y="70">Design</text><text x="140" y="90" font-size="10" fill="#3a3a3a">Robot Lab</text>
+      <text x="580" y="70">Program</text><text x="580" y="90" font-size="10" fill="#3a3a3a">code · blocks · voice</text>
+      <text x="580" y="280">Validate</text><text x="580" y="300" font-size="10" fill="#3a3a3a">realistic simulation</text>
+      <text x="140" y="280">Refine</text><text x="140" y="300" font-size="10" fill="#3a3a3a">reflection · skills</text>
+      <text x="360" y="143">Specification</text><text x="360" y="162" font-size="10" fill="#3a3a3a">the hub the parts read</text>
+      <text x="360" y="225" font-size="11">Experience memory</text>
+    </g>
+    <g fill="none" stroke="#000" stroke-width="1.6" marker-end="url(#ah)">
+      <path d="M240 75 H476"/>
+      <path d="M580 110 V246"/>
+      <path d="M480 285 H244"/>
+      <path d="M140 250 V114"/>
+      <path d="M285 150 H244" stroke-dasharray="0"/>
+      <path d="M435 150 H476"/>
+      <path d="M285 220 H160 V250" stroke-dasharray="4 3"/>
+      <path d="M360 250 V240" stroke-dasharray="4 3"/>
+    </g>
+  </svg>
+  <figcaption>Figure 3.1. The central loop. The user designs a robot, programs it, validates it in simulation, and the system refines from the result; the build specification is the hub every part reads, and the experience memory carries lessons from Refine back into the next Design.</figcaption>
+</figure>
 <h3>3.3 The world and the agents</h3>
 <p>A world is described by its environment, its terrain, a field of fixed obstacles and a set of moving agents. The environment sets gravity, temperature, light and traction, which feed the telemetry and the physics; the fixed obstacles, such as buildings and parked cars in the city or furniture in the room, are what the robot must not hit; and the agents, pedestrians and traffic, move with a will of their own. The agent design follows the social force model of pedestrian motion (Helbing and Molnar, 1995) and reciprocal velocity obstacles for mutual avoidance (van den Berg et al., 2008); the realised system uses a simplified, deterministic form of these so the same scene replays identically, with the full force based model named as the next step. A single agent simulation is the one source of truth for every consumer: the three dimensional view, the flat view and the robot's collision and distance sensor all read the same positions, so an agent the robot can see is one it can hit.</p>
 <h3>3.4 Choosing the world for a robot</h3>
@@ -182,8 +220,11 @@
 <p>This chapter describes the realised system. The headline components built to date are the Robot Lab, where a user designs a custom robot whose specification drives the simulation; the realistic worlds, including Riverside City with road markings, a crossing, buildings, pedestrians and traffic; the grounded assistant, the second agent code reviewer and the voice route; the multi robot swarm; and the offline self refinement store.</p>
 <h3>4.1 The Robot Lab and the specification</h3>
 <p>The Robot Lab is where a build becomes data. The user picks an archetype, a controller board such as an ESP32 or a micro:bit, a set of sensors and a set of actuators, and the panel computes a specification as it goes: the total mass from the chassis and the chosen parts, an estimated battery runtime, a top speed from the strongest motor set, and the list of commands the build supports, where each sensor unlocks a matching call and an absent sensor withholds it. This specification is not cosmetic. The simulation reads it on every move, so a heavier build drains its battery faster and a stronger motor set drives quicker; and the assistant reads the same specification, so it cannot suggest a command for a part the build does not carry. The robot rendered in the world is built to match the archetype as well, so a car looks like a car and a companion like a companion, which makes the design tangible rather than abstract.</p>
+<figure><img src="../ca1/img/robot_lab.png" alt="The Robot Lab"><figcaption>Figure 4.1. The Robot Lab. Choosing a board, sensors and actuators produces a live specification, here a self-driving car, with mass, battery life, top speed and the supported commands updating as the build changes.</figcaption></figure>
 <h3>4.2 The three dimensional worlds</h3>
 <p>The worlds are drawn with a vendored copy of the Three.js library held in the project, so the graphics work offline. Each world is a real scene rather than a backdrop. The city is built from crossing roads with lane markings and a pedestrian crossing, buildings with lit window textures, and parked and moving vehicles; the indoor room is a furnished space with walls, a floor, a sofa, a table on a rug and a shelf, lit warmly for an interior. The renderer uses soft shadows and filmic tone mapping so the result reads as a place with depth that the user can orbit through three hundred and sixty degrees, rather than a flat diagram. The same worlds are also offered in a lighter flat view for machines without a usable graphics card, drawn from the same underlying world description so the two views show the same place; the robot is scaled to fit indoors so it shares the room with the furniture rather than towering over it.</p>
+<figure><img src="../ca1/img/city_3d.png" alt="Riverside City in 3D"><figcaption>Figure 4.2. Riverside City, rendered in real three dimensional graphics: crossing roads with markings and a pedestrian crossing, buildings with lit windows, and vehicles and pedestrians that move around the robot.</figcaption></figure>
+<figure><img src="../ca1/img/room_3d.png" alt="The Living Room in 3D"><figcaption>Figure 4.3. The indoor Living Room for companion and humanoid robots, with the robot sized to share the space with the furniture and the people who move through it.</figcaption></figure>
 <h3>4.3 The moving agent simulation</h3>
 <p>Pedestrians and traffic are driven by one small simulation that is the single source of truth for the whole system. It holds each agent's position in the same world coordinates the robot and the obstacles use, advances them along their paths each frame, and exposes the current positions to every consumer. The three dimensional view renders a mesh per agent at those positions, the flat view renders a sprite, and crucially the robot's collision test and its distance sensor read the very same list, so a pedestrian the robot can see is a pedestrian it can hit and a sensor can detect. This unification is what makes the realistic world more than scenery: the robot genuinely has to cope with what moves around it.</p>
 <h3>4.4 The artificial intelligence layer</h3>
