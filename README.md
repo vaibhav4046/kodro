@@ -52,11 +52,18 @@ below.
 
 ## Screenshots
 
-> The marketing stills (onboarding, Robot Lab, the City world running) are
-> captured by hand from the running app and live in [`docs/img/`](docs/img/).
-> See [`HUMAN_TODO.md`](HUMAN_TODO.md) for why the automated capture path
-> cannot grab the WebGL viewport. The app itself boots clean with zero console
-> errors and every flow is verified in browser via DOM snapshots.
+The first run landing, with the brand mark and the positioning:
+
+![Kodro onboarding landing](docs/img/onboarding_landing.png)
+
+The studio: code editor on the left, the City world with looping traffic, a
+crossing and the robot in the middle, and live telemetry on the right.
+
+![Kodro studio in the City world](docs/img/studio.png)
+
+These are rendered from the real app (the WebGL viewport included) via the
+offline capture script `scripts/build_screenshot_harness.cjs` plus headless
+Chrome; see [`HUMAN_TODO.md`](HUMAN_TODO.md) for how to regenerate them.
 
 ## Features
 

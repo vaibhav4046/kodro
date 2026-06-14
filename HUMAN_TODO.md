@@ -66,38 +66,33 @@ Once those questions are answered the `web/` folder can be added
 with a JS mini-interpreter, a Canvas renderer, and a Playwright
 smoke test, exactly as the P8 spec describes.
 
-## 4. Capture real-app screenshots (visual proof for README + portfolio)
+## 4. Real-app screenshots (DONE, with a reproducible offline capture path)
 
-The automated preview tooling cannot screenshot the running web app:
-the screenshot grab hangs (30s timeout) on the WebGL viewport. This was
-isolated three ways - freezing requestAnimationFrame, removing the
-canvas, and losing the WebGL context - and it still hangs every time,
-so it is a harness limitation, not a product bug. The app itself boots
-clean (zero console errors) and the onboarding flow was fully verified
-in-browser via DOM snapshots.
+The interactive preview tool (`preview_screenshot`) hangs on this app and
+was confirmed to hang even on a WebGL-free DOM-only page, so it is an
+unusable harness limitation, not a product bug. The screenshots were
+instead captured offline with headless Chrome, which works and is
+reproducible:
 
-So the marketing/README stills must be captured by a human from the
-real window:
+```bash
+node scripts/build_screenshot_harness.cjs   # writes harness.html + studio_harness.html
+# onboarding landing + brand mark (no WebGL):
+chrome --headless=new --window-size=1280,800 --virtual-time-budget=2500 \
+  --screenshot=docs/img/onboarding_landing.png \
+  file:///.../src/robolearn/assets/web/harness.html
+# studio in the City world (WebGL via SwiftShader):
+chrome --headless=new --window-size=1280,800 --use-angle=swiftshader \
+  --enable-unsafe-swiftshader --virtual-time-budget=9000 \
+  --screenshot=docs/img/studio.png \
+  file:///.../src/robolearn/assets/web/studio_harness.html
+```
 
-1. Launch the built app (`dist/RoboLearn.exe` / `Kodro.exe`) or serve
-   `src/robolearn/assets/web/index.html` and open it in a normal browser.
-2. Capture, at 1280x800: the onboarding landing (new logo + "Design a
-   robot. Program it. Watch it work."), the robot picker, the world
-   recommendation, and the studio with the City world running (traffic
-   + a moving robot).
-3. Drop the PNGs in `docs/img/` and reference them from the README and
-   the portfolio card.
-
-Everything else (logo, onboarding flow, world recommendation) is wired
-and verified; only the pixel capture needs a human at the keyboard.
-
-Note on the logo: the brand mark (`ORBIT_SVG` in `app.jsx`, mirrored in
-`onboarding.jsx`) was refined from a rounded-square frame to a true-circle
-orbit with a comet-style robot node. It is monochrome (`currentColor`),
-geometrically validated (symmetric, centered, not clipped via `getBBox`),
-and renders without error, but its visual aesthetic could not be screenshot
-for the same WebGL reason above. Give it a quick human eye at 24px and 256px;
-revert the `ORBIT_SVG` / `MARK` edits if the old mark reads better.
+`docs/img/onboarding_landing.png` and `docs/img/studio.png` are committed and
+referenced from the README. The studio shot confirms the City world renders
+with traffic, a crossing, the robot, the code editor and live telemetry, and
+the brand mark reads cleanly. Remaining nice-to-haves for a human: a retina
+(2x) re-shoot via `--force-device-scale-factor=2`, and stills of the robot
+picker and Robot Lab if wanted for the portfolio.
 
 ## Optional: implement true PDF export for the teacher dashboard
 
