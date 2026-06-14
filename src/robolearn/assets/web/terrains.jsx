@@ -91,6 +91,21 @@
       decor: [],
       backdrop: 'city'
     },
+    room: {
+      id: 'room', name: 'Living Room', label: 'ROOM', coord: 'Indoor test space',
+      accent: '#e0a36a', dot: '#e0a36a',
+      env: { gravity: 9.81, temp: 21, tempLabel: 'ROOM TEMP', pressure: 1.0, pressureLabel: 'PRESSURE', pressureUnit: 'atm', light: 70 },
+      traction: 1.05, obstacleLabel: 'FURNITURE',
+      // A few collidable pieces so a companion robot must navigate the room.
+      obstacles: [
+        { x: 0, y: 720, r: 150, rot: 0, v: 0.2, kind: 'sofa' },
+        { x: 0, y: 60, r: 110, rot: 0, v: 0.5, kind: 'table' },
+        { x: 840, y: -260, r: 130, rot: 0, v: 0.8, kind: 'shelf' },
+        { x: -880, y: -880, r: 70, rot: 0, v: 0.9, kind: 'plant' },
+      ],
+      decor: [],
+      backdrop: 'room'
+    },
     earth: {
       id: 'earth', name: 'Earth', label: 'EARTH', coord: '48.8566° N, 2.3522° E',
       accent: '#7cc49b', dot: '#7cc49b',
@@ -342,6 +357,7 @@
   // Base fill (sits behind everything; mostly covered by the tilted ground)
   // ----------------------------------------------------------------------
   const BASE_FILL = {
+    room: 'linear-gradient(180deg, #c9b48f 0%, #8a6a44 100%)',
     city: 'linear-gradient(180deg, #2a3340 0%, #1a1f28 100%)',
     earth: 'linear-gradient(180deg, #2c4426 0%, #1c2e1f 100%)',
     mars: 'linear-gradient(180deg, #5e2a1c 0%, #2e1610 100%)',
@@ -357,6 +373,7 @@
   // over the far/receding ground and feathered into it at the bottom.
   // ----------------------------------------------------------------------
   const SKY_GRAD = {
+    room: 'linear-gradient(180deg, #d8c6a4 0%, #c2ac86 55%, #a98e64 100%)',
     city: 'linear-gradient(180deg, #6f93b8 0%, #93acc0 55%, #b3c2cc 100%)',
     earth: 'linear-gradient(180deg, #5d86b6 0%, #8fb0c2 55%, #b6cdba 100%)',
     mars: 'linear-gradient(180deg, #5a2415 0%, #8a4026 60%, #a85636 100%)',
@@ -464,6 +481,12 @@
           texture: 'radial-gradient(circle at 30% 30%, rgba(150,160,175,0.10) 0 2px, transparent 3px)',
           texSize: '34px 34px'
         };
+      case 'room':
+        return {
+          background: 'radial-gradient(circle at 45% 40%, #b08a5c, #8c6a44 62%, #6e5234 100%)',
+          texture: 'repeating-linear-gradient(90deg, rgba(60,40,20,0.18) 0 2px, transparent 2px 64px)',
+          texSize: '64px 64px'
+        };
       case 'earth':
         return {
           background: 'radial-gradient(circle at 40% 35%, #5b7d49, #3c5a32 60%, #2c4426 100%)',
@@ -508,6 +531,25 @@
     const id = terrain.id;
     const size = o.r * 2;
     const cx = GROUND / 2 + o.x, cy = GROUND / 2 + o.y;
+
+    // Room furniture for the indoor companion-robot world.
+    if (id === 'room') {
+      const palette = { sofa: '#3f6f8c', table: '#7a5536', shelf: '#6a4f2c', plant: '#3f7d3a' };
+      const col = palette[o.kind] || '#7a5536';
+      const w = size * (o.kind === 'sofa' ? 2.2 : o.kind === 'plant' ? 0.9 : 1.5);
+      const h = size * (o.kind === 'shelf' ? 1.8 : o.kind === 'plant' ? 1.2 : 0.9);
+      return (
+        <div className="obstacle" style={{ position: 'absolute', left: cx - w / 2, top: cy - h, width: w, height: h }}>
+          <div className="ob-shadow" style={{ left: '50%', top: '100%', width: w * 1.05, height: o.r * 0.6 }}></div>
+          {o.kind === 'plant'
+            ? <div style={{ position: 'absolute', left: '50%', bottom: 0, transform: 'translateX(-50%)', width: w, height: h }}>
+                <div style={{ position: 'absolute', left: '50%', bottom: 0, transform: 'translateX(-50%)', width: w * 0.5, height: h * 0.4, background: '#b56a45', borderRadius: '3px 3px 5px 5px' }}></div>
+                <div style={{ position: 'absolute', left: '50%', bottom: h * 0.3, transform: 'translateX(-50%)', width: w, height: w, borderRadius: '50%', background: 'radial-gradient(circle at 40% 30%, #5fa04a, #2c5226)' }}></div>
+              </div>
+            : <div style={{ position: 'absolute', inset: 0, borderRadius: 6, background: `linear-gradient(180deg, ${col}, rgba(0,0,0,0.45))`, boxShadow: 'inset 0 2px 5px rgba(255,255,255,0.18), 1px 3px 6px rgba(0,0,0,0.4)' }}></div>}
+        </div>
+      );
+    }
 
     // City furniture: buildings and parked cars stand up out of the street.
     // Collision still uses o.r, so what the rover must avoid is unchanged.

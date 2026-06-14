@@ -349,7 +349,15 @@ rover.say("Survey done")`
     const [robotLabOpen, setRobotLabOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => (window.getKodroRobot ? window.getKodroRobot() : null));
     useEffect(() => {
-      const onRobot = (e) => setRobotSpec(e.detail);
+      const onRobot = (e) => {
+        setRobotSpec(e.detail);
+        // Drop the new robot into the world the assistant recommends for it.
+        const w = e.detail && e.detail.world;
+        if (w && window.TERRAINS && window.TERRAINS[w]) {
+          setTerrainId(w);
+          try { localStorage.setItem('or_terrain', w); } catch (err) { void err; }
+        }
+      };
       window.addEventListener('kodro-robot', onRobot);
       return () => window.removeEventListener('kodro-robot', onRobot);
     }, []);
@@ -1461,7 +1469,7 @@ rover.say("Survey done")`
           {/* center: viewport */}
           <div className="panel view-panel" style={{ gridColumn: 3 }} onPointerDown={camDrag} onWheel={camWheel}>
             <div className="terrain-switch">
-              {['city', 'earth', 'mars', 'underwater', 'space'].map(id => (
+              {['city', 'room', 'earth', 'mars', 'underwater', 'space'].map(id => (
                 <button type="button" key={id} className={'terrain-btn' + (terrainId === id ? ' active' : '')} aria-pressed={terrainId === id} onClick={() => onTerrain(id)}>
                   <span className="tdot" style={{ background: TERRAINS[id].dot, boxShadow: terrainId === id ? '0 0 8px ' + TERRAINS[id].dot : 'none' }}></span>
                   {TERRAINS[id].label}
