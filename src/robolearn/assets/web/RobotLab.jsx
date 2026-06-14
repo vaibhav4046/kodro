@@ -65,6 +65,17 @@
     },
   };
 
+  // Which world a build should be validated in first, and why. This is the
+  // assistant reasoning about the robot: a road vehicle belongs among traffic,
+  // a home robot in a room, an explorer on open terrain.
+  const WORLD_FOR = {
+    rover: { id: 'earth', label: 'Open terrain', why: 'an explorer is tested on rough open ground first.' },
+    car: { id: 'city', label: 'Riverside City', why: 'a road vehicle must cope with traffic and pedestrians.' },
+    home: { id: 'room', label: 'Living Room', why: 'a companion robot shares an indoor space with people and furniture.' },
+    arm: { id: 'room', label: 'Living Room', why: 'a fixed manipulator works at a table indoors.' },
+    custom: { id: 'city', label: 'Riverside City', why: 'start in the busy city, then try the others.' },
+  };
+
   const CHASSIS_MASS = 380; // grams, frame + battery + wiring, before parts
 
   function defaultSpec() {
@@ -103,7 +114,8 @@
   function save(spec) {
     try { localStorage.setItem(STORE, JSON.stringify(spec)); } catch (e) { void e; }
     const d = derive(spec);
-    window.KODRO_ROBOT = Object.assign({}, spec, d);
+    const rec = WORLD_FOR[spec.type] || {};
+    window.KODRO_ROBOT = Object.assign({}, spec, d, { world: rec.id });
     try { window.dispatchEvent(new CustomEvent('kodro-robot', { detail: window.KODRO_ROBOT })); } catch (e) { void e; }
   }
 
@@ -134,6 +146,7 @@
     const [spec, setSpec] = React.useState(load);
     const d = derive(spec);
     const t = TYPES[spec.type] || TYPES.rover;
+    const rec = WORLD_FOR[spec.type] || WORLD_FOR.rover;
 
     function pickType(id) { setSpec(specFromType(id, null)); }
     function toggle(kind, id) {
@@ -223,11 +236,17 @@
                 React.createElement('b', null, d.commands.length ? d.commands.map(c => c + '()').join('  ') : 'move()  turn()  only'),
                 React.createElement('span', null, 'commands this build supports')
               )
+            ),
+            // ---- the assistant recommends where to validate this robot first
+            React.createElement('div', { className: 'rl-rec' },
+              React.createElement('span', { className: 'rl-rec-tag' }, 'Best tested in'),
+              React.createElement('b', null, rec.label),
+              React.createElement('span', { className: 'rl-rec-why' }, rec.why)
             )
           ),
           React.createElement('div', { className: 'rl-foot' },
             React.createElement('button', { className: 'btn-mini', onClick: () => setSpec(specFromType(spec.type, spec.name)) }, 'Reset parts'),
-            React.createElement('button', { className: 'ctrl ctrl-run', onClick: onSave }, '✓ Build & use this robot')
+            React.createElement('button', { className: 'ctrl ctrl-run', onClick: onSave }, '✓ Build & test in ' + rec.label)
           )
         )
       )

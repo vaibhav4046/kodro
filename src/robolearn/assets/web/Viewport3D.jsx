@@ -14,13 +14,13 @@
   const SCALE = 0.03;
 
   const SKY = {
-    city: 0x93acc0, earth: 0x9ec7e8, mars: 0xd98a5a, underwater: 0x0b3a4c, space: 0x05060d,
+    room: 0xe9ddc8, city: 0x93acc0, earth: 0x9ec7e8, mars: 0xd98a5a, underwater: 0x0b3a4c, space: 0x05060d,
   };
   const GROUND = {
-    city: 0x2b313d, earth: 0x4a6b39, mars: 0x9a4a2e, underwater: 0x1c4a55, space: 0x3a3c44,
+    room: 0x9c7b50, city: 0x2b313d, earth: 0x4a6b39, mars: 0x9a4a2e, underwater: 0x1c4a55, space: 0x3a3c44,
   };
   const FOG = {
-    city: 0xb3c2cc, earth: 0xb6cdba, mars: 0xc08050, underwater: 0x0a2a38, space: 0x05060d,
+    room: 0xe9ddc8, city: 0xb3c2cc, earth: 0xb6cdba, mars: 0xc08050, underwater: 0x0a2a38, space: 0x05060d,
   };
 
   function Viewport3D({ terrain, rover, fpv }) {
@@ -57,6 +57,12 @@
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(w, h);
       renderer.shadowMap.enabled = true;
+      // Softer shadows and filmic tone mapping lift the look out of the flat,
+      // plasticky default that read as generic.
+      if (THREE.PCFSoftShadowMap != null) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      if (THREE.ACESFilmicToneMapping != null) { renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08; }
+      if (THREE.SRGBColorSpace != null) renderer.outputColorSpace = THREE.SRGBColorSpace;
+      else if (THREE.sRGBEncoding != null) renderer.outputEncoding = THREE.sRGBEncoding;
       const canvas = renderer.domElement;
       canvas.setAttribute('tabindex', '0');
       canvas.setAttribute('aria-label', 'Three dimensional world. Drag or use the arrow keys to orbit, plus and minus to zoom.');
@@ -70,16 +76,25 @@
 
       const camera = new THREE.PerspectiveCamera(62, w / h, 0.1, 2000);
 
-      // Lights.
-      scene.add(new THREE.HemisphereLight(0xffffff, 0x404048, id === 'space' ? 0.5 : 0.95));
-      const sun = new THREE.DirectionalLight(0xfff4e2, id === 'space' ? 0.7 : 1.0);
-      sun.position.set(40, 80, 30);
+      // Lights. Indoors (room) is warm and soft; outdoors is daylight.
+      const indoor = id === 'room';
+      const skyCol2 = indoor ? 0xfff1de : 0xffffff;
+      const grndCol2 = indoor ? 0x3a2f28 : 0x404048;
+      scene.add(new THREE.HemisphereLight(skyCol2, grndCol2, id === 'space' ? 0.45 : indoor ? 0.7 : 0.9));
+      const sun = new THREE.DirectionalLight(indoor ? 0xffe9c4 : 0xfff4e2, id === 'space' ? 0.7 : indoor ? 0.85 : 1.05);
+      sun.position.set(indoor ? 18 : 40, indoor ? 38 : 80, indoor ? 22 : 30);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(512, 512); // gentle on integrated GPUs
-      sun.shadow.camera.near = 1; sun.shadow.camera.far = 300;
+      sun.shadow.mapSize.set(1024, 1024); // sharper than the old 512, still light on iGPUs
+      sun.shadow.camera.near = 1; sun.shadow.camera.far = 320;
       sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
       sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120;
+      sun.shadow.bias = -0.0006;
+      if (sun.shadow.radius != null) sun.shadow.radius = 3;
       scene.add(sun);
+      // A soft fill from the opposite side so shadowed faces are not black.
+      const fill = new THREE.DirectionalLight(0xbcd2ff, indoor ? 0.18 : 0.28);
+      fill.position.set(-30, 26, -22);
+      scene.add(fill);
 
       // A gradient sky dome so the world has a horizon, not a flat wall of fog.
       const skyTop = new THREE.Color(SKY[id] != null ? SKY[id] : SKY.earth);
@@ -101,10 +116,17 @@
       const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), groundMat);
       ground.rotation.x = -Math.PI / 2;
       ground.receiveShadow = true;
+      if (indoor) { groundMat.roughness = 0.7; groundMat.metalness = 0.05; }
       scene.add(ground);
-      const grid = new THREE.GridHelper(400, 80, 0x000000, 0x000000);
-      grid.material.opacity = 0.08; grid.material.transparent = true;
-      scene.add(grid);
+      if (id !== 'city' && id !== 'room') {
+        const grid = new THREE.GridHelper(400, 80, 0x000000, 0x000000);
+        grid.material.opacity = 0.08; grid.material.transparent = true;
+        scene.add(grid);
+      }
+
+      // Moving agents (city pedestrians and cars); each gets an update(t) called
+      // every frame so the world is alive, not a still set of props.
+      const agents = [];
 
       // Obstacles as 3D meshes (trees + rocks on Earth, rocks elsewhere).
       const rockMat = new THREE.MeshStandardMaterial({ color: id === 'mars' ? 0x7e3a26 : id === 'underwater' ? 0x2c6068 : 0x6a6a64, roughness: 1, flatShading: true });
@@ -120,7 +142,7 @@
         scene.add(rock);
       };
       const obstacles = (terrain && terrain.obstacles) || [];
-      obstacles.forEach((o) => {
+      if (id !== 'city' && id !== 'room') obstacles.forEach((o) => {
         const r = Math.max(0.6, o.r * SCALE);
         const px = o.x * SCALE, pz = -o.y * SCALE;
         if (id === 'earth' && o.v >= 0.5) {
@@ -157,6 +179,140 @@
           mkRock(r, px, pz, o.v, o.rot);
         }
       });
+
+      // ---- Proper 3D city and room scenes (meshes, not generic rocks). ----
+      function makeWindowTex() {
+        try {
+          if (!document || !document.createElement) return null;
+          const cv = document.createElement('canvas'); cv.width = 64; cv.height = 96;
+          const g = cv.getContext && cv.getContext('2d'); if (!g) return null;
+          g.fillStyle = '#39414f'; g.fillRect(0, 0, 64, 96);
+          for (let yy = 0; yy < 8; yy++) for (let xx = 0; xx < 4; xx++) {
+            g.fillStyle = (Math.random() < 0.5) ? '#ffe6a0' : '#222a38';
+            g.fillRect(6 + xx * 14, 6 + yy * 11, 9, 7);
+          }
+          const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+        } catch (e) { return null; }
+      }
+      function mkCar(col) {
+        const car = new THREE.Group();
+        const bodyM = new THREE.MeshStandardMaterial({ color: col, roughness: 0.35, metalness: 0.45 });
+        const lower = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.9, 1.7), bodyM); lower.position.y = 0.7; lower.castShadow = true;
+        const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.8, 1.5), bodyM); cabin.position.set(-0.2, 1.45, 0); cabin.castShadow = true;
+        const glassM = new THREE.MeshStandardMaterial({ color: 0xaad4ee, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.7 });
+        const glass = new THREE.Mesh(new THREE.BoxGeometry(1.92, 0.66, 1.36), glassM); glass.position.set(-0.2, 1.45, 0);
+        car.add(lower); car.add(cabin); car.add(glass);
+        const wM = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.9 });
+        [[1.1, 0.95], [1.1, -0.95], [-1.1, 0.95], [-1.1, -0.95]].forEach(([wx, wz]) => {
+          const wh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.34, 14), wM);
+          wh.rotation.x = Math.PI / 2; wh.position.set(wx, 0.5, wz); wh.castShadow = true; car.add(wh);
+        });
+        return car;
+      }
+      function mkPerson(shirt) {
+        const p = new THREE.Group();
+        const legM = new THREE.MeshStandardMaterial({ color: 0x2f3646, roughness: 0.9 });
+        const shirtM = new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.85 });
+        const skinM = new THREE.MeshStandardMaterial({ color: 0xe8c9a8, roughness: 0.7 });
+        const Cap = THREE.CapsuleGeometry ? THREE.CapsuleGeometry : null;
+        const torso = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.42, 0.8, 4, 8) : new THREE.CylinderGeometry(0.42, 0.42, 1.4, 8), shirtM); torso.position.y = 1.7; torso.castShadow = true;
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 14, 12), skinM); head.position.y = 2.5; head.castShadow = true;
+        const lLeg = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.18, 0.7, 3, 6) : new THREE.CylinderGeometry(0.18, 0.18, 1.0, 6), legM); lLeg.position.set(-0.2, 0.85, 0);
+        const rLeg = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.18, 0.7, 3, 6) : new THREE.CylinderGeometry(0.18, 0.18, 1.0, 6), legM); rLeg.position.set(0.2, 0.85, 0);
+        p.add(torso); p.add(head); p.add(lLeg); p.add(rLeg);
+        p._legs = [lLeg, rLeg];
+        return p;
+      }
+      function buildCity() {
+        const HALF = 1500 * SCALE;       // 45 units
+        const ROADW = 150 * SCALE * 2;   // 9 units carriageway
+        const asphalt = new THREE.MeshStandardMaterial({ color: 0x23272f, roughness: 0.95 });
+        const hRoad = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, ROADW), asphalt);
+        hRoad.rotation.x = -Math.PI / 2; hRoad.position.y = 0.02; hRoad.receiveShadow = true; scene.add(hRoad);
+        const vRoad = new THREE.Mesh(new THREE.PlaneGeometry(ROADW, HALF * 2), asphalt);
+        vRoad.rotation.x = -Math.PI / 2; vRoad.position.y = 0.021; vRoad.receiveShadow = true; scene.add(vRoad);
+        const dashM = new THREE.MeshBasicMaterial({ color: 0xe6d886 });
+        for (let i = -HALF; i < HALF; i += 4.2) {
+          if (Math.abs(i) < ROADW / 2) continue;
+          const d1 = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.22), dashM); d1.rotation.x = -Math.PI / 2; d1.position.set(i, 0.03, 0); scene.add(d1);
+          const d2 = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 2.2), dashM); d2.rotation.x = -Math.PI / 2; d2.position.set(0, 0.03, i); scene.add(d2);
+        }
+        const zM = new THREE.MeshBasicMaterial({ color: 0xe8ecf2 });
+        for (let k = 0; k < 6; k++) {
+          const bar = new THREE.Mesh(new THREE.PlaneGeometry(0.7, ROADW * 0.92), zM);
+          bar.rotation.x = -Math.PI / 2; bar.position.set(ROADW / 2 + 1.4 + k * 1.3, 0.03, 0); scene.add(bar);
+        }
+        const winTex = makeWindowTex();
+        obstacles.forEach((o) => {
+          const px = o.x * SCALE, pz = -o.y * SCALE;
+          if (o.kind === 'building') {
+            const w = Math.max(3, o.r * SCALE * 1.4), hgt = w * (1.7 + (o.v % 0.7));
+            const m = winTex
+              ? new THREE.MeshStandardMaterial({ map: winTex.clone(), color: 0x8b94a1, roughness: 0.8 })
+              : new THREE.MeshStandardMaterial({ color: 0x5a6472, roughness: 0.85 });
+            if (m.map) { m.map.repeat.set(2, Math.max(2, Math.round(hgt / 4))); m.map.needsUpdate = true; }
+            const b = new THREE.Mesh(new THREE.BoxGeometry(w, hgt, w), m);
+            b.position.set(px, hgt / 2, pz); b.castShadow = true; b.receiveShadow = true; scene.add(b);
+            const roof = new THREE.Mesh(new THREE.BoxGeometry(w * 1.05, 0.4, w * 1.05), new THREE.MeshStandardMaterial({ color: 0x343b45, roughness: 1 }));
+            roof.position.set(px, hgt + 0.2, pz); scene.add(roof);
+          } else if (o.kind === 'car') {
+            const car = mkCar(o.v < 0.5 ? 0xc0392b : 0x2c6fb0);
+            car.position.set(px, 0, pz); car.rotation.y = (o.rot || 0) * Math.PI / 180; scene.add(car);
+          }
+        });
+        const PAVE = ROADW / 2 + 2.6;
+        const shirts = [0xd98c4a, 0x5aa0d8, 0x8a6fc0, 0x5bbf86, 0xd35d7a];
+        for (let i = 0; i < 7; i++) {
+          const horiz = (i % 2 === 0);
+          const lane = (i % 4 < 2 ? 1 : -1) * PAVE;
+          const sp = 2.2 + (i % 3) * 0.7, off = i * 0.9, span = 56;
+          const pr = mkPerson(shirts[i % shirts.length]); scene.add(pr);
+          agents.push({ mesh: pr, update: (t) => {
+            const ph = ((t * sp / span) + off) % 2; const tri = ph < 1 ? ph : 2 - ph;
+            const along = (tri - 0.5) * span;
+            pr.position.set(horiz ? along : lane, 0, horiz ? lane : along);
+            pr.rotation.y = horiz ? (ph < 1 ? Math.PI / 2 : -Math.PI / 2) : (ph < 1 ? 0 : Math.PI);
+            const sw = Math.sin(t * 6 + off * 3) * 0.5; if (pr._legs) { pr._legs[0].rotation.x = sw; pr._legs[1].rotation.x = -sw; }
+          } });
+        }
+        [[true, -2.2, 6.0, 0x2c6fb0], [false, 2.2, 5.2, 0x4aa564]].forEach((cfg, i) => {
+          const h = cfg[0], lane = cfg[1], sp = cfg[2], col = cfg[3];
+          const car = mkCar(col); scene.add(car);
+          agents.push({ mesh: car, update: (t) => {
+            const ph = ((t * sp / (HALF * 2)) + i * 0.4) % 2; const tri = ph < 1 ? ph : 2 - ph;
+            const along = (tri - 0.5) * (HALF * 2);
+            car.position.set(h ? along : lane, 0, h ? lane : along);
+            car.rotation.y = h ? (ph < 1 ? -Math.PI / 2 : Math.PI / 2) : (ph < 1 ? Math.PI : 0);
+          } });
+        });
+      }
+      function buildRoom() {
+        const R = 30;
+        const wallM = new THREE.MeshStandardMaterial({ color: 0xcdbfa8, roughness: 0.95, side: THREE.DoubleSide });
+        const wallH = 14;
+        const mkWall = (w, x, z, ry) => { const ww = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, 0.6), wallM); ww.position.set(x, wallH / 2, z); ww.rotation.y = ry; ww.receiveShadow = true; scene.add(ww); };
+        mkWall(R * 2, 0, -R, 0); mkWall(R * 2, -R, 0, Math.PI / 2); mkWall(R * 2, R, 0, Math.PI / 2);
+        const rug = new THREE.Mesh(new THREE.PlaneGeometry(22, 16), new THREE.MeshStandardMaterial({ color: 0x9a5f54, roughness: 1 }));
+        rug.rotation.x = -Math.PI / 2; rug.position.y = 0.03; scene.add(rug);
+        const sofaM = new THREE.MeshStandardMaterial({ color: 0x3f6f8c, roughness: 0.85 });
+        const sofa = new THREE.Group();
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(10, 1.4, 4), sofaM); seat.position.y = 1.6; seat.castShadow = true;
+        const back = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 1), sofaM); back.position.set(0, 2.8, -1.7); back.castShadow = true;
+        const aL = new THREE.Mesh(new THREE.BoxGeometry(1, 2.4, 4), sofaM); aL.position.set(-5.5, 2.2, 0);
+        const aR = new THREE.Mesh(new THREE.BoxGeometry(1, 2.4, 4), sofaM); aR.position.set(5.5, 2.2, 0);
+        sofa.add(seat); sofa.add(back); sofa.add(aL); sofa.add(aR);
+        sofa.position.set(0, 0, -R + 6); scene.add(sofa);
+        const woodM = new THREE.MeshStandardMaterial({ color: 0x7a5536, roughness: 0.7 });
+        const table = new THREE.Mesh(new THREE.BoxGeometry(7, 0.6, 4), woodM); table.position.set(0, 2.2, 2); table.castShadow = true; scene.add(table);
+        [[3, 1.8], [3, -1.8], [-3, 1.8], [-3, -1.8]].forEach((p) => { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.2, 0.4), woodM); leg.position.set(p[0], 1.1, 2 + p[1]); scene.add(leg); });
+        const shelf = new THREE.Mesh(new THREE.BoxGeometry(8, 9, 1.2), woodM); shelf.position.set(R - 2, 4.5, -8); shelf.castShadow = true; scene.add(shelf);
+        for (let s = 0; s < 3; s++) { const bk = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.4, 1.0), new THREE.MeshStandardMaterial({ color: 0x6a4f2c, roughness: 1 })); bk.position.set(R - 2, 2 + s * 3, -8); scene.add(bk); }
+        const pot = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.8, 1.8, 10), new THREE.MeshStandardMaterial({ color: 0xb56a45, roughness: 1 })); pot.position.set(-R + 4, 0.9, -R + 4); pot.castShadow = true; scene.add(pot);
+        const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(2.4, 0), new THREE.MeshStandardMaterial({ color: 0x3f7d3a, roughness: 1, flatShading: true })); leaf.position.set(-R + 4, 3.4, -R + 4); leaf.castShadow = true; scene.add(leaf);
+        const lamp = new THREE.PointLight(0xffd9a0, 0.7, 70); lamp.position.set(R - 8, 11, 8); scene.add(lamp);
+      }
+      if (id === 'city') buildCity();
+      else if (id === 'room') buildRoom();
 
       // Rover: a body + a bright nose so its facing is obvious, on four wheels.
       const rov = new THREE.Group();
@@ -307,6 +463,9 @@
           trailGeo.setDrawRange(0, trailN);
           trailGeo.attributes.position.needsUpdate = true;
         }
+
+        // Drive the live city agents (pedestrians, traffic).
+        if (agents.length) { const tsec = now / 1000; for (let i = 0; i < agents.length; i++) agents[i].update(tsec); }
 
         if (fpvRef.current) {
           // First person: sit in the rover, look the way it drives.
