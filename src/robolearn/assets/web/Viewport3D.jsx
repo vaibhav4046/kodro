@@ -14,13 +14,13 @@
   const SCALE = 0.03;
 
   const SKY = {
-    earth: 0x9ec7e8, mars: 0xd98a5a, underwater: 0x0b3a4c, space: 0x05060d,
+    city: 0x93acc0, earth: 0x9ec7e8, mars: 0xd98a5a, underwater: 0x0b3a4c, space: 0x05060d,
   };
   const GROUND = {
-    earth: 0x4a6b39, mars: 0x9a4a2e, underwater: 0x1c4a55, space: 0x3a3c44,
+    city: 0x2b313d, earth: 0x4a6b39, mars: 0x9a4a2e, underwater: 0x1c4a55, space: 0x3a3c44,
   };
   const FOG = {
-    earth: 0xb6cdba, mars: 0xc08050, underwater: 0x0a2a38, space: 0x05060d,
+    city: 0xb3c2cc, earth: 0xb6cdba, mars: 0xc08050, underwater: 0x0a2a38, space: 0x05060d,
   };
 
   function Viewport3D({ terrain, rover, fpv }) {
