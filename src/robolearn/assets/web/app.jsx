@@ -1306,6 +1306,32 @@ rover.say("Survey done")`
       return () => window.removeEventListener('keydown', h);
     }, []);
 
+    // Focus management for the modals. Each is marked aria-modal, which promises
+    // assistive tech that focus is confined to the dialog, so honour it: when one
+    // opens, move focus into it and trap Tab inside; on close, restore focus to
+    // whatever had it before. Keyed on the open-state so it does not run per frame.
+    const anyModalOpen = swarmOpen || vaOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp;
+    useEffect(() => {
+      if (!anyModalOpen) return undefined;
+      const modal = Array.prototype.slice.call(document.querySelectorAll('.modal[aria-modal="true"]')).pop();
+      if (!modal) return undefined;
+      const prev = document.activeElement;
+      const focusables = () => Array.prototype.slice.call(modal.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')).filter((el) => !el.disabled && el.offsetParent !== null);
+      const f = focusables();
+      if (f.length) f[0].focus();
+      const onKey = (e) => {
+        if (e.key !== 'Tab') return;
+        const items = focusables();
+        if (!items.length) return;
+        const first = items[0], last = items[items.length - 1], a = document.activeElement;
+        if (!modal.contains(a)) { e.preventDefault(); first.focus(); return; }
+        if (e.shiftKey && a === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+      };
+      document.addEventListener('keydown', onKey, true);
+      return () => { document.removeEventListener('keydown', onKey, true); if (prev && prev.focus) prev.focus(); };
+    }, [anyModalOpen]);
+
     const statusLabel = { idle: 'Standby', running: 'Running', paused: 'Stepping', done: 'Complete', error: 'Halted' }[runState];
 
     return (
@@ -1553,10 +1579,10 @@ rover.say("Survey done")`
                 </select>
               )}
               <span className="view-toggle">
-                <button type="button" className={'terrain-btn' + (view3d ? ' active' : '')} title="Real 3D view" onClick={() => setView3d(true)}>3D</button>
-                <button type="button" className={'terrain-btn' + (!view3d ? ' active' : '')} title="Flat 2.5D view" onClick={() => setView3d(false)}>2.5D</button>
+                <button type="button" className={'terrain-btn' + (view3d ? ' active' : '')} aria-pressed={view3d} title="Real 3D view" onClick={() => setView3d(true)}>3D</button>
+                <button type="button" className={'terrain-btn' + (!view3d ? ' active' : '')} aria-pressed={!view3d} title="Flat 2.5D view" onClick={() => setView3d(false)}>2.5D</button>
                 {view3d && (
-                  <button type="button" className="terrain-btn" title="Switch between orbit and first person" onClick={() => setFpv(f => !f)}>{fpv ? '👁 First person' : '🛰 Orbit'}</button>
+                  <button type="button" className="terrain-btn" aria-pressed={fpv} title="Switch between orbit and first person" onClick={() => setFpv(f => !f)}>{fpv ? '👁 First person' : '🛰 Orbit'}</button>
                 )}
               </span>
             </div>
