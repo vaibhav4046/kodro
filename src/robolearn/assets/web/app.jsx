@@ -237,7 +237,6 @@ rover.say("Survey done")`
     const [trail, setTrail] = useState([]);
     const odoRef = useRef(0);
     const [odo, setOdo] = useState(0);
-    const sensorRef = useRef(600);
     const [sensorDist, setSensorDist] = useState(600);
 
     // RoboLearn bridge: lessons (from Python), currently-loaded lesson id,
@@ -829,7 +828,7 @@ rover.say("Survey done")`
       sensor(name, args) {
         const s = live.current;
         switch (name) {
-          case 'distance': { const d = Math.round(rayDistance(s.x, s.y, s.heading)); sensorRef.current = d; setSensorDist(d); return d; }
+          case 'distance': { const d = Math.round(rayDistance(s.x, s.y, s.heading)); setSensorDist(d); return d; }
           case 'heading': return Math.round(((s.heading % 360) + 360) % 360);
           case 'battery': return Math.round(s.battery);
           case 'speed': return Math.round(s.speed);
@@ -1117,7 +1116,7 @@ rover.say("Survey done")`
       trailRef.current = []; setTrail([]);
       setProps([]);
       odoRef.current = 0; setOdo(0);
-      sensorRef.current = 600; setSensorDist(600);
+      setSensorDist(600);
       setActiveLine(0);
       setSay('');
       sync();
