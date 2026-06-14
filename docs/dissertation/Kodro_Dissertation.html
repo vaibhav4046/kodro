@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Kodro Dissertation, Vaibhav Lalwani</title>
+<style>
+  @page { size: A4; margin: 20mm 22mm 18mm 22mm; }
+  :root{ --ink:#111; --muted:#3a3a3a; --rule:#9a9a9a; --soft:#eee; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ font-family:"Georgia","Cambria",serif; color:var(--ink); font-size:11pt; line-height:1.5; text-align:justify; hyphens:auto; -webkit-hyphens:auto; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  h1,h2,h3{ font-family:"Calibri","Segoe UI",sans-serif; color:#000; text-align:left; hyphens:none; }
+  h2{ font-size:15pt; margin:16pt 0 6pt; padding-bottom:3pt; border-bottom:1.4px solid #000; page-break-after:avoid; }
+  h3{ font-size:12pt; margin:11pt 0 3pt; page-break-after:avoid; }
+  p{ margin:0 0 8pt; }
+  ul,ol{ margin:4pt 0 9pt; padding-left:20pt; }
+  li{ margin-bottom:4pt; }
+  a{ color:#000; }
+  .pb{ page-break-before:always; }
+  .todo{ background:var(--soft); border-left:3px solid #000; padding:9pt 12pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.6pt; line-height:1.5; color:var(--muted); margin:6pt 0 10pt; }
+  .todo b{ color:#000; }
+  /* cover */
+  .cover{ height:252mm; display:flex; flex-direction:column; page-break-after:always; text-align:center; }
+  .cover .gap{ flex:0 0 14mm; }
+  .cover .grow{ flex:1 1 auto; }
+  .uol-official{ max-height:60pt; width:auto; display:block; margin:0 auto 6pt; }
+  .dept{ font-family:"Calibri","Segoe UI",sans-serif; font-size:9pt; letter-spacing:2.2px; text-transform:uppercase; color:var(--muted); }
+  .cover h1{ font-size:25pt; line-height:1.16; margin:26pt 0 8pt; text-align:center; }
+  .cover .sub{ font-size:13pt; font-style:italic; color:var(--muted); margin-bottom:24pt; }
+  .cover .meta{ font-family:"Calibri","Segoe UI",sans-serif; font-size:12pt; line-height:2.0; }
+  .cover .meta b{ color:#000; }
+  .cover .foot{ font-family:"Calibri","Segoe UI",sans-serif; font-size:9.5pt; color:var(--muted); }
+  .toc{ font-family:"Calibri","Segoe UI",sans-serif; font-size:11pt; line-height:1.9; }
+  .toc div{ display:flex; justify-content:space-between; }
+  .ethics{ background:var(--soft); border-left:3px solid #000; padding:12pt 14pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:10.4pt; line-height:1.6; }
+  table{ width:100%; border-collapse:collapse; margin:6pt 0 10pt; font-family:"Calibri","Segoe UI",sans-serif; font-size:9.6pt; }
+  th,td{ border:1px solid #000; padding:5pt 7pt; text-align:left; vertical-align:top; }
+  th{ background:#000; color:#fff; }
+  tr{ page-break-inside:avoid; }
+  .refs{ font-family:"Calibri","Segoe UI",sans-serif; font-size:9.4pt; line-height:1.4; }
+  .refs p{ padding-left:16pt; text-indent:-16pt; margin:0 0 4pt; }
+</style>
+</head>
+<body>
+
+<!-- ===== TITLE PAGE ===== -->
+<section class="cover">
+  <div class="gap"></div>
+  <img class="uol-official" src="../ca1/img/uol_logo.png" alt="University of Liverpool"
+       onerror="this.style.display='none'">
+  <div class="dept">Department of Computer Science &nbsp;&middot;&nbsp; COMP702 MSc Project</div>
+  <h1>Kodro: An Offline, Self-Refining Platform for Designing Robots and Validating Their Behaviour in a Realistic Simulation</h1>
+  <div class="sub">Dissertation submitted in partial fulfilment of the requirements for the degree of Master of Science</div>
+  <div class="grow"></div>
+  <div class="meta">
+    <div><b>Author</b> &nbsp; Vaibhav Lalwani</div>
+    <div><b>Student ID</b> &nbsp; 201979723</div>
+    <div><b>Supervisor</b> &nbsp; Keith Dures</div>
+    <div><b>Submission</b> &nbsp; September 2026</div>
+  </div>
+  <div class="grow"></div>
+  <div class="foot">University of Liverpool &nbsp;&middot;&nbsp; COMP702 MSc Project Dissertation (CA3)</div>
+</section>
+
+<!-- ===== ANONYMOUS TITLE PAGE ===== -->
+<section class="cover">
+  <div class="gap"></div>
+  <div class="dept">Department of Computer Science &nbsp;&middot;&nbsp; COMP702 MSc Project</div>
+  <h1>Kodro: An Offline, Self-Refining Platform for Designing Robots and Validating Their Behaviour in a Realistic Simulation</h1>
+  <div class="sub">Anonymous title page for marking</div>
+  <div class="grow"></div>
+  <div class="meta"><div><b>Student ID</b> &nbsp; 201979723</div></div>
+  <div class="grow"></div>
+  <div class="foot">University of Liverpool &nbsp;&middot;&nbsp; September 2026</div>
+</section>
+
+<!-- ===== ACKNOWLEDGEMENTS ===== -->
+<h2>Acknowledgements</h2>
+<p>I thank my supervisor, Keith Dures, for his guidance throughout this project.</p>
+<div class="todo"><b>To complete:</b> personal acknowledgements before final submission.</div>
+
+<!-- ===== ABSTRACT ===== -->
+<h2>Abstract</h2>
+<p>This dissertation presents Kodro, an offline desktop platform on which a non-expert designs a custom robot, programs it by code, blocks or voice, and validates how it behaves in a realistic simulated world before committing to real hardware. The work studies a focused question: how far an artificial intelligence assistant can usefully self refine from accumulated use, and how trustworthy a simulator can be made, under a hard constraint that everything runs locally with no cloud service, no accounts and no retraining of the model. The platform grounds every suggestion in the robot's own capability specification so the assistant cannot propose a part the build does not have, reviews the generated control code, and validates it across randomised conditions in worlds that range from a street with pedestrians and traffic to an indoor room. Self refinement is delivered honestly at the level of the system, through reflection memory and a growing skill library rather than weight retraining, which remains unsolved offline. The dissertation reports what was built, how it was evaluated against usability, design and self refinement, and what the results say about the offline boundary.</p>
+<div class="todo"><b>To finalise after results:</b> add the measured headline numbers (design study task success, self refinement trend, AI correctness and invention rates) once the evaluation has run.</div>
+
+<!-- ===== STATEMENT OF ETHICAL COMPLIANCE ===== -->
+<h2>Statement of Ethical Compliance</h2>
+<div class="ethics">The declared categories for this project are data category A0 and participant category 2. I confirm that I have followed the School's ethical guidance throughout. The development and the simulated persona evaluation involved no human participants and no personal data. The planned design study with human participants was conducted only with appropriate consent and within the activities permitted under the agreed categories, and any data collected was anonymised at the point of collection and is not linked to any individual.</div>
+
+<!-- ===== TABLE OF CONTENTS ===== -->
+<h2>Table of Contents</h2>
+<div class="toc">
+  <div><span>1 &nbsp; Introduction and Background</span><span></span></div>
+  <div><span>2 &nbsp; Requirements Analysis</span><span></span></div>
+  <div><span>3 &nbsp; Design</span><span></span></div>
+  <div><span>4 &nbsp; Implementation</span><span></span></div>
+  <div><span>5 &nbsp; Testing and Evaluation</span><span></span></div>
+  <div><span>6 &nbsp; Project Ethics</span><span></span></div>
+  <div><span>7 &nbsp; Conclusion and Future Work</span><span></span></div>
+  <div><span>References</span><span></span></div>
+  <div><span>Appendices</span><span></span></div>
+</div>
+<div class="todo"><b>Note:</b> page numbers are added on the final typeset pass. Maximum 50 pages excluding the appendix, no word count, PDF only, checked against Turnitin. Due 11 September 2026.</div>
+
+<!-- ===== 1 INTRODUCTION AND BACKGROUND ===== -->
+<h2 class="pb">1. Introduction and Background</h2>
+<h3>1.1 Motivation</h3>
+<p>Plenty of people have an idea for a robot and no safe way to try it. Buying parts, wiring a board and writing control code is slow and expensive, and the first time a real robot meets the real world it tends to drive into something. Kodro closes that gap with a single offline download. A user designs a robot in a builder, choosing a chassis, a controller board such as an ESP32 or a micro:bit, and the sensors and motors it carries; programs its behaviour in real Python, in blocks, or by voice, with grounded artificial intelligence help and a second agent that reviews the code; then runs it in a simulated world that behaves like the real one, with terrain, physics and other agents such as pedestrians and traffic moving around it.</p>
+<h3>1.2 Aim and research question</h3>
+<p>The project asks how much an offline system can genuinely refine itself, and how trustworthy its validation can be, under a hard constraint that rules out the cloud and rules out changing the model's weights. This dissertation describes the platform that was built to study that question and reports what the study found.</p>
+<h3>1.3 Background</h3>
+<p>The design rests on three bodies of work. Constructionism holds that people learn most when they build something they can watch behave and then debug (Papert, 1980), while cognitive load theory warns that an elaborate scene can spend a beginner's attention on the view rather than the problem (Sweller, 1988). The central problem in robotics is the sim to real gap, the drop in performance when behaviour tuned in simulation meets the real world, for which the standard answer is domain randomization rather than a perfect simulator (Tobin et al., 2017); realistic worlds also need agents that move with intent, drawn here from the social force model (Helbing and Molnar, 1995) and reciprocal velocity obstacles (van den Berg et al., 2008). The assistant builds on grounding generation in retrieved sources to control hallucination (Lewis et al., 2020; Huang et al., 2023) and on programs written against a fixed robot interface (Liang et al., 2023; Ahn et al., 2022), while its self refinement follows verbal reflection (Shinn et al., 2023) and a growing skill library (Wang et al., 2023) rather than the unsolved weight level evolution (Tao et al., 2024).</p>
+<div class="todo"><b>To expand:</b> widen the background into a full literature review with a critical comparison of existing robot simulators and end-user robotics tools. Carry forward and deepen the CA1 literature section.</div>
+
+<!-- ===== 2 REQUIREMENTS ANALYSIS ===== -->
+<h2 class="pb">2. Requirements Analysis</h2>
+<p>The requirements are stated with a plain test of done so progress can be judged rather than asserted. The essential requirements are: a robot design whose specification drives the simulation; sandboxed execution of the robot's real Python validated against per scenario success criteria; validation in a realistic world across randomised conditions; an artificial intelligence layer that runs on a local model only with a deterministic rule based fallback; and every byte of user data kept on the device.</p>
+<table>
+  <thead><tr><th style="width:34%">Requirement</th><th>Test of done</th></tr></thead>
+  <tbody>
+    <tr><td>Specification drives the simulation</td><td>Changing the build measurably changes behaviour: a heavier robot drains its battery faster, a stronger motor set raises top speed, a fitted sensor unlocks its command and an absent one withholds it.</td></tr>
+    <tr><td>Sandboxed, validated execution</td><td>A hostile program cannot reach the disk and a correct program is scored correctly against the scenario.</td></tr>
+    <tr><td>Realistic, repeatable validation</td><td>The same program runs across several randomised seeds and a per run report of successes, collisions and time to goal is produced.</td></tr>
+    <tr><td>Local only AI with fallback</td><td>The platform is fully usable with the network switched off and no model present, falling back within two seconds.</td></tr>
+    <tr><td>Data stays on the device</td><td>A network trace during normal use shows no traffic.</td></tr>
+  </tbody>
+</table>
+<div class="todo"><b>To expand:</b> add functional and non functional requirements tables, use cases for each robot family (rover, self-driving car, personal companion, humanoid, custom build), and trace each requirement to where it is met in the implementation.</div>
+
+<!-- ===== 3 DESIGN ===== -->
+<h2 class="pb">3. Design</h2>
+<p>The platform is written in Python 3.12 and presented through a desktop web view, with the interface built in React and pre-compiled to a single offline bundle, the three dimensional world drawn with a vendored copy of Three.js, and the user's designs and the system's accumulated experience stored in a single local SQLite file. The artificial intelligence calls a small open weight model served locally by Ollama. The robot the user designs is the single source of truth the rest of the system reads: its board, sensors and motors set the mass, the top speed and the commands that exist, and the grounded assistant reads the same specification so it cannot suggest a part the build does not have. Behaviour is validated across randomised seeds after Tobin et al. (2017), in worlds chosen to suit the robot, from an open terrain to a street with pedestrians and traffic to an indoor room.</p>
+<h3>3.1 Self refinement design</h3>
+<p>Self refinement is delivered at the level of the system and is described as refinement, not improvement, on purpose. Three mechanisms carry it, all local and all measurable. After each run the system writes a short reflection on what failed and what worked and retrieves the most similar past reflections into the next suggestion, after Shinn et al. (2023). Control routines that passed validation are kept as named, parameterised skills in a growing library and composed into later designs, after Wang et al. (2023). An experience table of past designs and their outcomes is sampled so advice on a new build is anchored in what actually happened on similar ones. None of this edits the model.</p>
+<div class="todo"><b>To expand:</b> add architecture diagrams (component, data flow, the design to validate to refine loop), the world model, the agent design (social force pedestrians, ORCA avoidance), and the environment recommendation logic that suggests the best world for a given robot.</div>
+
+<!-- ===== 4 IMPLEMENTATION ===== -->
+<h2 class="pb">4. Implementation</h2>
+<p>This chapter describes the realised system. The headline components built to date are the Robot Lab, where a user designs a custom robot whose specification drives the simulation; the realistic worlds, including Riverside City with road markings, a crossing, buildings, pedestrians and traffic; the grounded assistant, the second agent code reviewer and the voice route; the multi robot swarm; and the offline self refinement store.</p>
+<div class="todo"><b>To write as the build completes:</b> describe each component with the key code, the offline AI pipeline (retrieval, grounding, the rule based fallback), the three dimensional rendering, the sandbox and verifier, the environment recommendation, and the indoor room worlds for companion and humanoid robots. Include the continuous integration gate and the test suite. Carry forward CA2 demonstration material where useful.</div>
+
+<!-- ===== 5 TESTING AND EVALUATION ===== -->
+<h2 class="pb">5. Testing and Evaluation</h2>
+<p>Evaluation asks three separate questions. The first is whether the platform is usable, tested continuously with a simulated persona panel in the tradition of discount usability inspection (Nielsen, 1994). The second is whether it helps: whether a non-expert using Kodro produces a robot that behaves better in a held out realistic scenario than one designed without it. The third is whether the artificial intelligence genuinely self refines, measured directly by whether the median iterations to a working design fall as the experience memory grows, the skill library's reuse rate rises, and a retrieved reflection more often precedes a successful fix than chance would give. The artificial intelligence is also measured on its own terms, with success bars set in advance: grounded answers correct at least eighty five percent of the time and inventing content less than five percent of the time, the latter a release gate.</p>
+<div class="todo"><b>To fill with results:</b> report the automated test coverage, the persona round trajectory, the design study results (task success across randomised seeds, collisions, iterations to a working design, with and without the tool), and the self refinement ablation (memory on versus off). Report the honest measured numbers, including weak results, not only the best.</div>
+
+<!-- ===== 6 PROJECT ETHICS ===== -->
+<h2 class="pb">6. Project Ethics</h2>
+<p>The declared categories are data category A0 and participant category 2. The development and the simulated persona evaluation involved no human participants and no personal data. The design study with human participants used adult and older makers and students rather than young children, which kept the safeguarding burden proportionate, with plain explanation, consent, and anonymisation at the point of collection. One risk is specific to the technology and deserves naming on its own: the output here is control code for a machine a user may later build, so a confident falsehood could produce code that drives a real robot into a person or a wall. The design treats this as a safety requirement: every suggestion is grounded in the robot's specification, the assistant refuses rather than guesses, and any code runs first in the sandboxed simulation against the scenario, so a wrong suggestion fails visibly on screen rather than on a real robot. The mandatory simulation gate, not the model, stands between a generated program and the real world.</p>
+
+<!-- ===== 7 CONCLUSION AND FUTURE WORK ===== -->
+<h2 class="pb">7. Conclusion and Future Work</h2>
+<div class="todo"><b>To write at the end:</b> summarise what was achieved against the aim, state honestly how far offline self refinement reached and what the validation could and could not promise, reflect on what was learned, and set out future work (richer 3D and asset pipelines, dynamic agent collision with full social force and ORCA, more robot families and indoor worlds, a real classroom or field study at scale).</p></div>
+
+<!-- ===== REFERENCES ===== -->
+<h2 class="pb">References</h2>
+<div class="refs">
+  <p>Ahn, M., Brohan, A., Brown, N. et al. (2022) Do as I can, not as I say: grounding language in robotic affordances. <i>arXiv:2204.01691</i>.</p>
+  <p>Helbing, D. and Molnar, P. (1995) Social force model for pedestrian dynamics. <i>Physical Review E</i>, 51(5), pp. 4282 to 4286.</p>
+  <p>Huang, L., Yu, W., Ma, W. et al. (2023) A survey on hallucination in large language models. <i>ACM Transactions on Information Systems</i> (arXiv:2311.05232).</p>
+  <p>Lewis, P., Perez, E., Piktus, A. et al. (2020) Retrieval augmented generation for knowledge intensive NLP tasks. <i>Advances in Neural Information Processing Systems</i>, 33.</p>
+  <p>Liang, J., Huang, W., Xia, F. et al. (2023) Code as policies: language model programs for embodied control. <i>IEEE International Conference on Robotics and Automation (ICRA)</i>.</p>
+  <p>Nielsen, J. (1994) Usability engineering. San Francisco: Morgan Kaufmann.</p>
+  <p>Papert, S. (1980) Mindstorms: children, computers, and powerful ideas. New York: Basic Books.</p>
+  <p>Shinn, N., Cassano, F., Berman, E. et al. (2023) Reflexion: language agents with verbal reinforcement learning. <i>arXiv:2303.11366</i>.</p>
+  <p>Sweller, J. (1988) Cognitive load during problem solving: effects on learning. <i>Cognitive Science</i>, 12(2), pp. 257 to 285.</p>
+  <p>Tao, Z., Lin, T.E., Chen, X. et al. (2024) A survey on self evolution of large language models. <i>arXiv:2404.14387</i>.</p>
+  <p>Tobin, J., Fong, R., Ray, A. et al. (2017) Domain randomization for transferring deep neural networks from simulation to the real world. <i>IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)</i>, pp. 23 to 30.</p>
+  <p>van den Berg, J., Lin, M. and Manocha, D. (2008) Reciprocal velocity obstacles for real-time multi-agent navigation. <i>IEEE International Conference on Robotics and Automation (ICRA)</i>, pp. 1928 to 1935.</p>
+  <p>Wang, G., Xie, Y., Jiang, Y. et al. (2023) Voyager: an open-ended embodied agent with large language models. <i>arXiv:2305.16291</i>.</p>
+</div>
+
+<!-- ===== APPENDICES ===== -->
+<h2 class="pb">Appendices</h2>
+<p><b>Appendix A. Code archive.</b> The full source, build scripts and test suite accompany this dissertation as supplementary material.</p>
+<p><b>Appendix B. Persona generation.</b> The persona generation prompt and rating scale used in the usability evaluation are reproduced here.</p>
+<div class="todo"><b>To attach:</b> the code archive, the persona prompt, additional evaluation tables, and any material that supports but is not essential to the main 50 pages.</div>
+
+<p class="disc" style="margin-top:14pt; font-size:9pt; color:var(--muted); font-style:italic; border-top:1px solid #000; padding-top:8pt;">Working draft. Generative artificial intelligence assisted the development of the software and the drafting of this document, acknowledged in line with University guidance. Sections marked to complete are filled as the build and evaluation finish; all reported figures will be the measured results.</p>
+
+</body>
+</html>
