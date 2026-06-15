@@ -297,6 +297,44 @@
         p._legs = [lLeg, rLeg];
         return p;
       }
+      // A small autonomous robot for the roaming fleet: a coloured rover body on
+      // four wheels with a glowing eye, so the other machines read as robots.
+      function mkRobotAgent(col) {
+        const g = new THREE.Group();
+        const bodyM = new THREE.MeshStandardMaterial({ color: col, roughness: 0.4, metalness: 0.4 });
+        const eyeM = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.8 });
+        const hull = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.6, 1.1), bodyM); hull.position.y = 0.62; hull.castShadow = true; g.add(hull);
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), bodyM); dome.position.set(0.1, 1.05, 0); dome.castShadow = true; g.add(dome);
+        const eye = new THREE.Mesh(new THREE.CircleGeometry(0.12, 14), eyeM); eye.position.set(0.78, 0.7, 0); eye.rotation.y = Math.PI / 2; g.add(eye);
+        const wm = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.85 });
+        const wheels = [];
+        [[0.55, 0.62], [0.55, -0.62], [-0.55, 0.62], [-0.55, -0.62]].forEach((p) => {
+          const w = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.22, 12), wm); w.rotation.x = Math.PI / 2; w.position.set(p[0], 0.3, p[1]); w.castShadow = true; g.add(w); wheels.push(w);
+        });
+        g._wheels = wheels;
+        return g;
+      }
+      // Render every KodroAgents entity (cars, people, roaming robots) as a 3D
+      // mesh driven by the shared sim, so what the collision test sees is what
+      // the eye sees. Used by the city and the open terrain worlds.
+      function renderAgents() {
+        const KA = window.KodroAgents;
+        if (!KA) return;
+        KA.list().forEach((ag, i) => {
+          let mesh;
+          if (ag.kind === 'car') mesh = mkCar(ag.color != null ? ag.color : 0x2c6fb0);
+          else if (ag.kind === 'robot') mesh = mkRobotAgent(ag.color != null ? ag.color : 0x5ce0d8);
+          else mesh = mkPerson(ag.color != null ? ag.color : 0x5aa0d8);
+          scene.add(mesh);
+          agents.push({ mesh, update: () => {
+            const a = KA.list()[i]; if (!a) return;
+            mesh.position.set(a.x * SCALE, 0, -a.y * SCALE);
+            mesh.rotation.y = Math.atan2(a.dy, a.dx);
+            if (ag.kind === 'person' && mesh._legs) { mesh._legs[0].rotation.x = a.leg * 0.5; mesh._legs[1].rotation.x = -a.leg * 0.5; }
+            if (ag.kind === 'robot' && mesh._wheels) { for (let k = 0; k < mesh._wheels.length; k++) mesh._wheels[k].rotation.y = a.leg; }
+          } });
+        });
+      }
       function buildCity() {
         const HALF = 1500 * SCALE;       // 45 units
         const ROADW = 150 * SCALE * 2;   // 9 units carriageway
@@ -340,19 +378,7 @@
         // Render the shared moving agents as 3D meshes, driven by the same
         // simulation the collision test reads, so a pedestrian the robot can
         // see in the world is one it can actually hit.
-        const KA = window.KodroAgents;
-        if (KA) {
-          KA.list().forEach((ag, i) => {
-            const mesh = ag.kind === 'car' ? mkCar(ag.color != null ? ag.color : 0x2c6fb0) : mkPerson(ag.color != null ? ag.color : 0x5aa0d8);
-            scene.add(mesh);
-            agents.push({ mesh, update: () => {
-              const a = KA.list()[i]; if (!a) return;
-              mesh.position.set(a.x * SCALE, 0, -a.y * SCALE);
-              mesh.rotation.y = Math.atan2(a.dy, a.dx);
-              if (ag.kind === 'person' && mesh._legs) { mesh._legs[0].rotation.x = a.leg * 0.5; mesh._legs[1].rotation.x = -a.leg * 0.5; }
-            } });
-          });
-        }
+        renderAgents();
       }
       function buildRoom() {
         const R = 30;
@@ -395,8 +421,12 @@
           });
         }
       }
+      // Make sure the shared agent sim is built for THIS world before we render
+      // its meshes (the viewport effect can run before App's build effect).
+      if (window.KodroAgents && window.KodroAgents.world() !== id) window.KodroAgents.build(id);
       if (id === 'city') buildCity();
       else if (id === 'room') buildRoom();
+      else renderAgents(); // open terrain worlds: render the roaming robot fleet
 
       // The robot: built to match the kind the user designed in Robot Lab, so
       // a rover, a car, a home companion or an arm each look like themselves.

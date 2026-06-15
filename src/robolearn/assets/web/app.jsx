@@ -783,7 +783,7 @@ rover.say("Survey done")`
       // robot must avoid them, not just the parked cars and buildings.
       if (window.KodroAgents && window.KodroAgents.world() === terrain.id) {
         for (const a of window.KodroAgents.list()) {
-          if (Math.hypot(a.x - x, a.y - y) < a.r + R) return { type: a.kind === 'person' ? 'pedestrian' : 'vehicle', o: a };
+          if (Math.hypot(a.x - x, a.y - y) < a.r + R) return { type: a.kind === 'person' ? 'pedestrian' : a.kind === 'robot' ? 'robot' : 'vehicle', o: a };
         }
       }
       return null;
@@ -949,8 +949,9 @@ rover.say("Survey done")`
         setCrashKey(k => k + 1);
         const what = crashed.type === 'wall' ? 'arena boundary'
           : crashed.type === 'pedestrian' ? 'a pedestrian'
-            : crashed.type === 'vehicle' ? 'a vehicle'
-              : terrain.obstacleLabel.toLowerCase();
+            : crashed.type === 'robot' ? 'another robot'
+              : crashed.type === 'vehicle' ? 'a vehicle'
+                : terrain.obstacleLabel.toLowerCase();
         sfx('crash');
         addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
         // Self-refinement: record the run and surface what the system learned.
