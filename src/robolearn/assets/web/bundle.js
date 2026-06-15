@@ -3324,10 +3324,55 @@
       }
       scene.add(ground);
       if (id !== 'city' && id !== 'room') {
-        const grid = new THREE.GridHelper(400, 80, 0x000000, 0x000000);
-        grid.material.opacity = 0.08;
-        grid.material.transparent = true;
-        scene.add(grid);
+        // Give the open ground a procedural grain texture so it reads as a
+        // surface (sand, regolith, seabed) instead of a flat coloured plane,
+        // which was the biggest tell that the world was a tech demo.
+        const gtex = typeof document !== 'undefined' && function () {
+          const cv = document.createElement('canvas');
+          cv.width = cv.height = 256;
+          const c2 = cv.getContext('2d');
+          if (!c2) return null;
+          const base = new THREE.Color(GROUND[id] != null ? GROUND[id] : GROUND.earth);
+          c2.fillStyle = '#' + base.getHexString();
+          c2.fillRect(0, 0, 256, 256);
+          const speckle = (n, amp, alpha) => {
+            for (let i = 0; i < n; i++) {
+              const x = Math.random() * 256,
+                y = Math.random() * 256,
+                r = Math.random() * 1.8 + 0.4;
+              const cc = base.clone();
+              cc.offsetHSL(0, 0, (Math.random() < 0.5 ? -1 : 1) * (amp * 0.5 + Math.random() * amp));
+              c2.fillStyle = 'rgba(' + Math.round(cc.r * 255) + ',' + Math.round(cc.g * 255) + ',' + Math.round(cc.b * 255) + ',' + alpha + ')';
+              c2.beginPath();
+              c2.arc(x, y, r, 0, 6.283);
+              c2.fill();
+            }
+          };
+          speckle(id === 'underwater' ? 1400 : 2600, 0.12, 0.6); // grain
+          for (let i = 0; i < 14; i++) {
+            // soft larger patches for variation
+            const x = Math.random() * 256,
+              y = Math.random() * 256,
+              r = 12 + Math.random() * 34;
+            const cc = base.clone();
+            cc.offsetHSL(0, 0, (Math.random() < 0.5 ? -1 : 1) * 0.06);
+            const g = c2.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, 'rgba(' + Math.round(cc.r * 255) + ',' + Math.round(cc.g * 255) + ',' + Math.round(cc.b * 255) + ',0.4)');
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            c2.fillStyle = g;
+            c2.beginPath();
+            c2.arc(x, y, r, 0, 6.283);
+            c2.fill();
+          }
+          const t = new THREE.CanvasTexture(cv);
+          t.wrapS = t.wrapT = THREE.RepeatWrapping;
+          t.repeat.set(9, 9);
+          return t;
+        }();
+        if (gtex) {
+          groundMat.map = gtex;
+          groundMat.needsUpdate = true;
+        }
       }
 
       // An environment map captured from the sky and ground, so metal surfaces
