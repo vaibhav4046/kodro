@@ -10,6 +10,16 @@ cloud: you build a custom machine, write its behaviour in code, blocks or plain
 language, and validate it in a 3D world chosen to suit it. The system reflects
 on each run and refines what it suggests next.
 
+## Try it in one command
+
+```
+python scripts/demo.py
+```
+
+Serves the studio on http://localhost:8080 and opens your browser. No build, no
+account, no network. On Windows you can double-click `run-demo.cmd`. See
+[`DEMO.md`](DEMO.md).
+
 Kodro is for a capable non expert adult who wants to design and test robot
 behaviour without a lab, a kit, or a cloud subscription. It is **not** a
 photoreal game engine, it is **not** a cloud robotics suite, and it is **not**
