@@ -24,6 +24,7 @@
   let raf = 0;
   let last = null;
   const R = 30; // rover collision radius (cm), matched to the engine
+  const ROBOT_COLORS = [0x5ce0d8, 0xe0b45c, 0xd35d7a, 0x7a5fc0];
 
   // lane(dir, axis, offset): a one-way lane. dir +1/-1 is travel direction along
   // the moving axis; offset is the fixed cross-axis position.
@@ -65,6 +66,80 @@
       base: speed
     };
   }
+  // An autonomous robot: roams to random goals, steers around the player rover
+  // and the other robots, and turns back at the arena edge. Distinct from the
+  // lane agents above, which run on fixed tracks.
+  function rbt(x, y, color, base) {
+    return {
+      kind: 'robot',
+      x: x,
+      y: y,
+      heading: Math.atan2(-y, -x),
+      base: base || 130,
+      r: 42,
+      color: color,
+      dx: 1,
+      dy: 0,
+      leg: 0,
+      spin: 0,
+      gx: x,
+      gy: y,
+      retime: 0
+    };
+  }
+  function wrap(a) {
+    while (a > Math.PI) a -= Math.PI * 2;
+    while (a < -Math.PI) a += Math.PI * 2;
+    return a;
+  }
+  function steerRobot(a, dt, rov, all) {
+    const BOUND = 1350;
+    // pick a fresh goal when reached or the timer runs out
+    a.retime -= dt;
+    if (a.retime <= 0 || Math.hypot(a.gx - a.x, a.gy - a.y) < 130) {
+      a.gx = (Math.random() - 0.5) * 2 * BOUND;
+      a.gy = (Math.random() - 0.5) * 2 * BOUND;
+      a.retime = 4 + Math.random() * 5;
+    }
+    let want = Math.atan2(a.gy - a.y, a.gx - a.x);
+    // steer away from anything close ahead: the player rover, then other robots
+    let steer = 0;
+    const dodge = (ox, oy, rad) => {
+      const dx = ox - a.x,
+        dy = oy - a.y,
+        d = Math.hypot(dx, dy);
+      if (d > 0.1 && d < rad) {
+        const rel = wrap(Math.atan2(dy, dx) - a.heading);
+        if (Math.abs(rel) < 1.3) steer -= (rel >= 0 ? 1 : -1) * (1 - d / rad) * 1.6;
+      }
+    };
+    if (rov) dodge(rov.x, rov.y, 300);
+    for (let j = 0; j < all.length; j++) {
+      const o = all[j];
+      if (o !== a && o.kind === 'robot') dodge(o.x, o.y, 240);
+    }
+    // bias back toward the centre near the edge so it never escapes the arena
+    if (Math.abs(a.x) > BOUND || Math.abs(a.y) > BOUND) want = Math.atan2(-a.y, -a.x);
+    a.heading += wrap(want + steer - a.heading) * Math.min(1, dt * 3.5);
+    const spd = a.base * (steer ? 0.7 : 1);
+    a.x += Math.cos(a.heading) * spd * dt;
+    a.y += Math.sin(a.heading) * spd * dt;
+    a.dx = Math.cos(a.heading);
+    a.dy = Math.sin(a.heading);
+    a.speed = spd;
+    a.spin += spd * dt * 0.04; // wheel-spin proxy for the renderer
+    a.leg = a.spin;
+  }
+
+  // 2 to 3 roaming robots, spread out, so every world has machines moving and
+  // reacting, not a static prop field.
+  function addRobots(n, palette) {
+    const spots = [[-900, -700], [950, -650], [-150, 1000], [700, 800], [-1000, 400]];
+    for (let i = 0; i < n; i++) {
+      const p = spots[i % spots.length];
+      agents.push(rbt(p[0], p[1], palette[i % palette.length], 120 + i % 3 * 25));
+    }
+  }
   function build(id) {
     stop();
     agents = [];
@@ -87,9 +162,15 @@
       // but on the crossing lane so it reads as using the crossing.
       agents.push(ped(false, 1, 320, 46, 0, shirts[4], 700));
       agents.push(ped(false, -1, 360, 44, 350, shirts[5], 700));
+      addRobots(3, ROBOT_COLORS);
     } else if (id === 'room') {
       agents.push(ped(true, 1, -360, 40, 0, 0x6aa0d8, 1300));
       agents.push(ped(false, 1, 360, 32, 200, 0xc97f6a, 1100));
+    } else {
+      // Open terrain worlds were static. Give them a small autonomous fleet that
+      // roams and reacts, so the world is alive and the player has machines to
+      // share it with.
+      addRobots(3, ROBOT_COLORS);
     }
     step(0); // place every agent on its lane immediately, before the first frame
     start();
@@ -99,6 +180,10 @@
     const rov = window.KODRO_ROVER;
     for (let i = 0; i < agents.length; i++) {
       const a = agents[i];
+      if (a.kind === 'robot') {
+        steerRobot(a, dt, rov, agents);
+        continue;
+      }
       // provisional position from current s, along the lane in the travel dir
       const halfShift = (a.s % a.span + a.span) % a.span - a.span / 2;
       const along = a.dir * halfShift;
@@ -3535,6 +3620,76 @@
         p._legs = [lLeg, rLeg];
         return p;
       }
+      // A small autonomous robot for the roaming fleet: a coloured rover body on
+      // four wheels with a glowing eye, so the other machines read as robots.
+      function mkRobotAgent(col) {
+        const g = new THREE.Group();
+        const bodyM = new THREE.MeshStandardMaterial({
+          color: col,
+          roughness: 0.4,
+          metalness: 0.4
+        });
+        const eyeM = new THREE.MeshStandardMaterial({
+          color: col,
+          emissive: col,
+          emissiveIntensity: 0.8
+        });
+        const hull = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.6, 1.1), bodyM);
+        hull.position.y = 0.62;
+        hull.castShadow = true;
+        g.add(hull);
+        const dome = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 10), bodyM);
+        dome.position.set(0.1, 1.05, 0);
+        dome.castShadow = true;
+        g.add(dome);
+        const eye = new THREE.Mesh(new THREE.CircleGeometry(0.12, 14), eyeM);
+        eye.position.set(0.78, 0.7, 0);
+        eye.rotation.y = Math.PI / 2;
+        g.add(eye);
+        const wm = new THREE.MeshStandardMaterial({
+          color: 0x14161b,
+          roughness: 0.85
+        });
+        const wheels = [];
+        [[0.55, 0.62], [0.55, -0.62], [-0.55, 0.62], [-0.55, -0.62]].forEach(p => {
+          const w = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.22, 12), wm);
+          w.rotation.x = Math.PI / 2;
+          w.position.set(p[0], 0.3, p[1]);
+          w.castShadow = true;
+          g.add(w);
+          wheels.push(w);
+        });
+        g._wheels = wheels;
+        return g;
+      }
+      // Render every KodroAgents entity (cars, people, roaming robots) as a 3D
+      // mesh driven by the shared sim, so what the collision test sees is what
+      // the eye sees. Used by the city and the open terrain worlds.
+      function renderAgents() {
+        const KA = window.KodroAgents;
+        if (!KA) return;
+        KA.list().forEach((ag, i) => {
+          let mesh;
+          if (ag.kind === 'car') mesh = mkCar(ag.color != null ? ag.color : 0x2c6fb0);else if (ag.kind === 'robot') mesh = mkRobotAgent(ag.color != null ? ag.color : 0x5ce0d8);else mesh = mkPerson(ag.color != null ? ag.color : 0x5aa0d8);
+          scene.add(mesh);
+          agents.push({
+            mesh,
+            update: () => {
+              const a = KA.list()[i];
+              if (!a) return;
+              mesh.position.set(a.x * SCALE, 0, -a.y * SCALE);
+              mesh.rotation.y = Math.atan2(a.dy, a.dx);
+              if (ag.kind === 'person' && mesh._legs) {
+                mesh._legs[0].rotation.x = a.leg * 0.5;
+                mesh._legs[1].rotation.x = -a.leg * 0.5;
+              }
+              if (ag.kind === 'robot' && mesh._wheels) {
+                for (let k = 0; k < mesh._wheels.length; k++) mesh._wheels[k].rotation.y = a.leg;
+              }
+            }
+          });
+        });
+      }
       function buildCity() {
         const HALF = 1500 * SCALE; // 45 units
         const ROADW = 150 * SCALE * 2; // 9 units carriageway
@@ -3618,26 +3773,7 @@
         // Render the shared moving agents as 3D meshes, driven by the same
         // simulation the collision test reads, so a pedestrian the robot can
         // see in the world is one it can actually hit.
-        const KA = window.KodroAgents;
-        if (KA) {
-          KA.list().forEach((ag, i) => {
-            const mesh = ag.kind === 'car' ? mkCar(ag.color != null ? ag.color : 0x2c6fb0) : mkPerson(ag.color != null ? ag.color : 0x5aa0d8);
-            scene.add(mesh);
-            agents.push({
-              mesh,
-              update: () => {
-                const a = KA.list()[i];
-                if (!a) return;
-                mesh.position.set(a.x * SCALE, 0, -a.y * SCALE);
-                mesh.rotation.y = Math.atan2(a.dy, a.dx);
-                if (ag.kind === 'person' && mesh._legs) {
-                  mesh._legs[0].rotation.x = a.leg * 0.5;
-                  mesh._legs[1].rotation.x = -a.leg * 0.5;
-                }
-              }
-            });
-          });
-        }
+        renderAgents();
       }
       function buildRoom() {
         const R = 30;
@@ -3754,7 +3890,10 @@
           });
         }
       }
-      if (id === 'city') buildCity();else if (id === 'room') buildRoom();
+      // Make sure the shared agent sim is built for THIS world before we render
+      // its meshes (the viewport effect can run before App's build effect).
+      if (window.KodroAgents && window.KodroAgents.world() !== id) window.KodroAgents.build(id);
+      if (id === 'city') buildCity();else if (id === 'room') buildRoom();else renderAgents(); // open terrain worlds: render the roaming robot fleet
 
       // The robot: built to match the kind the user designed in Robot Lab, so
       // a rover, a car, a home companion or an arm each look like themselves.
@@ -7808,7 +7947,7 @@ rover.say("Survey done")`
       if (window.KodroAgents && window.KodroAgents.world() === terrain.id) {
         for (const a of window.KodroAgents.list()) {
           if (Math.hypot(a.x - x, a.y - y) < a.r + R) return {
-            type: a.kind === 'person' ? 'pedestrian' : 'vehicle',
+            type: a.kind === 'person' ? 'pedestrian' : a.kind === 'robot' ? 'robot' : 'vehicle',
             o: a
           };
         }
@@ -8020,7 +8159,7 @@ rover.say("Survey done")`
       sync();
       if (crashed) {
         setCrashKey(k => k + 1);
-        const what = crashed.type === 'wall' ? 'arena boundary' : crashed.type === 'pedestrian' ? 'a pedestrian' : crashed.type === 'vehicle' ? 'a vehicle' : terrain.obstacleLabel.toLowerCase();
+        const what = crashed.type === 'wall' ? 'arena boundary' : crashed.type === 'pedestrian' ? 'a pedestrian' : crashed.type === 'robot' ? 'another robot' : crashed.type === 'vehicle' ? 'a vehicle' : terrain.obstacleLabel.toLowerCase();
         sfx('crash');
         addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
         // Self-refinement: record the run and surface what the system learned.
