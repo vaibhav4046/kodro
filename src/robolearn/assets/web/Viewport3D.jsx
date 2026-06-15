@@ -131,7 +131,24 @@
 
       // Ground.
       const groundMat = new THREE.MeshStandardMaterial({ color: GROUND[id] != null ? GROUND[id] : GROUND.earth, roughness: 1 });
-      const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), groundMat);
+      const openWorld = id !== 'city' && id !== 'room';
+      // Open terrain gets a subdivided, gently displaced surface (dunes, swells)
+      // so light grazes real undulations instead of reading as a billiard-flat
+      // plane. City and room keep a flat floor.
+      const groundGeo = openWorld ? new THREE.PlaneGeometry(400, 400, 96, 96) : new THREE.PlaneGeometry(400, 400);
+      if (openWorld) {
+        const amp = id === 'underwater' ? 2.6 : id === 'space' ? 1.8 : 3.0;
+        const pos = groundGeo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i), y = pos.getY(i); // plane is in XY before rotation
+          const h = Math.sin(x * 0.05) * Math.cos(y * 0.045) * 0.6
+                  + Math.sin(x * 0.013 + y * 0.017) * 0.3
+                  + Math.sin((x + y) * 0.09) * 0.12;
+          pos.setZ(i, h * amp);
+        }
+        groundGeo.computeVertexNormals();
+      }
+      const ground = new THREE.Mesh(groundGeo, groundMat);
       ground.rotation.x = -Math.PI / 2;
       ground.receiveShadow = true;
       if (indoor) { groundMat.roughness = 0.7; groundMat.metalness = 0.05; }
