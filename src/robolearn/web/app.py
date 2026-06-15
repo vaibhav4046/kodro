@@ -368,8 +368,11 @@ class BridgeAPI:
         Within a family prefer the largest parameter count (gemma3:4b over
         gemma3:1b) -- this is the escalation/repair model, so capability wins.
         """
-        # Prefer the locally customised tutor (baked persona + rover API), which
-        # is more accurate on this domain and lower latency than a stock model.
+        # Prefer the locally fine-tuned model (QLoRA on Kodro tasks), then the
+        # older baked tutor, both more accurate on this domain than a stock model.
+        for name in installed:
+            if name.lower().startswith("kodro-coder"):
+                return name
         for name in installed:
             if name.lower().startswith("kodro-tutor"):
                 return name
@@ -858,6 +861,9 @@ class BridgeAPI:
         model on failure, so a small drafter is safe -- and several times
         faster to first token.
         """
+        for name in installed:
+            if name.lower().startswith("kodro-coder"):
+                return name
         for name in installed:
             if name.lower().startswith("robolearn-fast"):
                 return name
