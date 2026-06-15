@@ -88,6 +88,12 @@ class BridgeAPI:
         # Pre-load the local model so the FIRST vibe request doesn't pay the
         # multi-second model-load cost; keep_alive holds it warm after.
         threading.Thread(target=self._warm_ai, daemon=True).start()
+        # Warm the offline speech recogniser too, so the first voice command is
+        # not stuck behind an 8 second model load.
+        with contextlib.suppress(Exception):
+            from robolearn.ai import whisper_stt
+
+            whisper_stt.preload()
 
     def _warm_ai(self) -> None:
         """Load the preferred local model into Ollama's memory (best-effort)."""
@@ -1184,6 +1190,16 @@ class BridgeAPI:
         Blocking (pywebview runs API calls off the UI thread), capped at
         ``timeout_s`` seconds of listening.
         """
+        # Prefer the offline faster-whisper recogniser (Silero VAD + Whisper):
+        # accurate, cross-platform, no cloud. Fall back to Windows System.Speech
+        # only when the local speech stack is not installed.
+        try:
+            from robolearn.ai import whisper_stt
+
+            if whisper_stt.available():
+                return whisper_stt.record_and_transcribe(timeout_s)
+        except Exception:  # pragma: no cover - import/runtime guard
+            pass
         platform: str = sys.platform
         if not platform.startswith("win"):
             return {"ok": False, "reason": "Voice input is available on Windows only."}
