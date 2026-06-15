@@ -456,10 +456,20 @@ rover.say("Survey done")`
       setVibeBusy(false);
     }
 
+    // Autonomous test: when code is applied, run it through the real interpreter
+    // and kinematics with no animation and report what actually happens, so the
+    // assistant checks its own work instead of leaving it to the user.
+    function selfTestReport(src) {
+      if (!window.KodroSelfTest) return;
+      const t = window.KodroSelfTest(src);
+      addConsole('Self-test: ' + t.summary, (t.ok && !t.hitWall) ? 'ok' : 'err');
+    }
+
     function vibeApply(code, model) {
       setVibeOpen(false);
       addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
       typewriteCode(code);
+      selfTestReport(code);
     }
 
     async function runReview() {
@@ -480,6 +490,7 @@ rover.say("Survey done")`
         setReviewOpen(false);
         addConsole('Reviewer (' + (reviewData.model || aiInfo.model) + ') tidied your code. Read it, then press Run.', 'sys');
         typewriteCode(reviewData.code);
+        selfTestReport(reviewData.code);
       }
     }
 
