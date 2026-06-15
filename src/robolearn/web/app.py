@@ -861,8 +861,10 @@ class BridgeAPI:
         model on failure, so a small drafter is safe -- and several times
         faster to first token.
         """
+        # The 1B kodro-fast drafter gives a fast first token; the 3B kodro-coder
+        # is reserved for the quality/escalation pass in _pick_ai_model.
         for name in installed:
-            if name.lower().startswith("kodro-coder"):
+            if name.lower().startswith("kodro-fast"):
                 return name
         for name in installed:
             if name.lower().startswith("robolearn-fast"):
