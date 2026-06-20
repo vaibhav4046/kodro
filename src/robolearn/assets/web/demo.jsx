@@ -52,7 +52,11 @@
         const scn = window.KodroScenario.defaultFor(robot().world || 'city');
         const rep = window.KodroScenario.run(PROGRAM, scn, 5);
         const g = rep.aggregate;
-        return { text: 'Success ' + Math.round((g.successRate || 0) * 100) + '% (' + g.successCount + '/' + g.seeds + '), mean collisions ' + g.meanCollisions + ', mean battery ' + g.meanBattery + '%, mean score ' + g.meanScore + '. Saved to memory and SQLite.', tone: g.successRate >= 0.5 ? 'ok' : 'warn' };
+        // Use the single pass verdict the scenario derives from its own criteria
+        // (with the shared PASS_RATE fallback for older reports), so the demo
+        // agrees with the studio and the dashboard instead of its own threshold.
+        const passed = g.passed != null ? g.passed : (g.successRate || 0) >= ((window.KodroScenario && window.KodroScenario.PASS_RATE) || 0.6);
+        return { text: 'Success ' + Math.round((g.successRate || 0) * 100) + '% (' + g.successCount + '/' + g.seeds + '), mean collisions ' + g.meanCollisions + ', mean battery ' + g.meanBattery + '%, mean score ' + g.meanScore + '. Saved to memory and SQLite.', tone: passed ? 'ok' : 'warn' };
       },
     },
     {
