@@ -131,6 +131,63 @@
   // Make sure a default exists from first load so the sim never sees undefined.
   window.getKodroRobot();
 
+  // ---- canonical command registry. ONE source of truth for which commands a
+  // build supports, read by the interpreter host, the assistant and the UI, so
+  // no panel invents a command the robot cannot actually run. Keys are the
+  // runtime command names (including the lesson aliases the interpreter emits);
+  // each maps to the part that must be fitted for the command to be available.
+  const BASE_COMMANDS = ['move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'stop'];
+  const COMMAND_PART = {
+    distance: 'ultrasonic', read_distance: 'ultrasonic', sensor: 'ultrasonic',
+    heading: 'imu', read_heading: 'imu', tilt: 'imu',
+    see: 'camera', locate: 'gps', bumped: 'bumper', on_line: 'line', grab: 'gripper',
+  };
+  // The user-facing command name for each part, used in messages and the UI.
+  const PART_COMMAND = {
+    ultrasonic: 'read_distance', imu: 'read_heading', camera: 'see',
+    gps: 'locate', bumper: 'bumped', line: 'on_line', gripper: 'grab',
+  };
+  function partLabel(id) { return (SENSORS[id] && SENSORS[id].name) || (ACTUATORS[id] && ACTUATORS[id].name) || id; }
+  function fittedParts(robot) {
+    if (!robot) return null; // no build context (e.g. headless QA): do not gate
+    return [].concat(robot.sensors || [], robot.actuators || []);
+  }
+  window.KodroCommands = {
+    COMMAND_PART: COMMAND_PART,
+    // {ok} for an always-available command, else {ok:false, part, label, reason}.
+    check: function (robot, cmdName) {
+      const part = COMMAND_PART[cmdName];
+      if (!part) return { ok: true };
+      const fitted = fittedParts(robot);
+      if (fitted === null || fitted.indexOf(part) >= 0) return { ok: true, part: part };
+      return {
+        ok: false, part: part, label: partLabel(part),
+        reason: 'This robot has no ' + partLabel(part) + ', so ' + cmdName + '() is not available. Fit a ' + partLabel(part) + ' in the Robot Lab to use it.',
+      };
+    },
+    // The full availability list for the UI cards and the assistant grounding:
+    // every base command plus one entry per part-gated command, with reasons.
+    availability: function (robot) {
+      const out = BASE_COMMANDS.map(function (c) { return { name: c, available: true, requires: null }; });
+      Object.keys(PART_COMMAND).forEach(function (part) {
+        const cmd = PART_COMMAND[part];
+        const r = window.KodroCommands.check(robot, cmd);
+        out.push({ name: cmd, available: r.ok, requires: part, partLabel: partLabel(part), reason: r.ok ? null : r.reason });
+      });
+      return out;
+    },
+    // A short grounding line for the assistant: the commands it may use and the
+    // ones it must refuse because the part is not fitted.
+    groundingText: function (robot) {
+      const a = window.KodroCommands.availability(robot);
+      const ok = a.filter(function (c) { return c.available; }).map(function (c) { return c.name + '()'; });
+      const no = a.filter(function (c) { return !c.available; }).map(function (c) { return c.name + '() (needs ' + c.partLabel + ')'; });
+      let t = 'Commands this build supports: ' + ok.join(', ') + '.';
+      if (no.length) t += ' Not available, do not use and refuse if asked: ' + no.join(', ') + '.';
+      return t;
+    },
+  };
+
   function Chip(props) {
     const on = props.on;
     return (
@@ -287,6 +344,65 @@
     save(spec);
     return spec;
   };
+
+  // ---- onboarding agent: natural language -> a validated RobotSpec ----------
+  // The starting-page agent maps a spoken or typed description onto the SAME
+  // parts catalogue, so it can only ever produce a buildable robot. It never
+  // emits executable code; the output is data, validated field by field against
+  // the catalogue, with anything unknown dropped. This is the deterministic
+  // path; a local model may rephrase the prompt first, but this mapper has the
+  // final word on what parts the robot actually gets.
+  function robotFromText(text) {
+    const t = String(text || '').toLowerCase();
+    let type = 'rover';
+    if (/(car|vehicle|self.?driv|autonomous|road|traffic)/.test(t)) type = 'car';
+    else if (/(robotic arm|\barm\b|manipulat|pick and place)/.test(t)) type = 'arm';
+    else if (/(home|companion|personal|indoor|assistant|helper|house)/.test(t)) type = 'home';
+    else if (/(rover|explor|terrain|outdoor|mars|moon|planet|rough)/.test(t)) type = 'rover';
+    const spec = specFromType(type, null);
+    const sensors = spec.sensors.slice();
+    const actuators = spec.actuators.slice();
+    function add(list, id) { if (list.indexOf(id) < 0) list.push(id); }
+    function drop(list, id) { const i = list.indexOf(id); if (i >= 0) list.splice(i, 1); }
+    if (/(camera|vision|\bsee\b|marker|look)/.test(t)) add(sensors, 'camera');
+    if (/(ultrasonic|distance|obstacle|avoid|range|sonar)/.test(t)) add(sensors, 'ultrasonic');
+    if (/(imu|gyro|balance|tilt|orient|accelerom)/.test(t)) add(sensors, 'imu');
+    if (/(gps|location|position|navigat)/.test(t)) add(sensors, 'gps');
+    if (/(line follow|follow.?line|\bline\b|track)/.test(t)) add(sensors, 'line');
+    if (/(bumper|touch|contact|switch)/.test(t)) add(sensors, 'bumper');
+    if (/(gripper|grab|grip|claw|\bpick\b)/.test(t)) add(actuators, 'gripper');
+    if (/(four wheel|4 wheel|4wd|four.?motor|all.?wheel)/.test(t)) { add(actuators, 'motors4'); drop(actuators, 'motors2'); }
+    if (/(steer|servo|ackermann)/.test(t)) add(actuators, 'servos');
+    let board = spec.board;
+    if (/arduino|uno/.test(t)) board = 'uno';
+    else if (/micro.?bit/.test(t)) board = 'microbit';
+    else if (/pico|raspberry/.test(t)) board = 'pico';
+    else if (/esp32|\besp\b/.test(t)) board = 'esp32';
+    // Validate every field against the catalogue: drop anything unknown.
+    const vs = sensors.filter(function (s) { return SENSORS[s]; });
+    const va = actuators.filter(function (a) { return ACTUATORS[a]; });
+    const vb = BOARDS[board] ? board : 'esp32';
+    const name = (TYPES[type] && TYPES[type].name) || 'My Robot';
+    return { type: type, name: name, board: vb, sensors: vs, actuators: va };
+  }
+  RobotLab.fromText = robotFromText;
+  // Apply an arbitrary spec, validated against the catalogue and saved. Used by
+  // the guided demo to add or remove a part and show the command registry react.
+  RobotLab.applySpec = function (spec) {
+    const vs = (spec.sensors || []).filter(function (s) { return SENSORS[s]; });
+    const va = (spec.actuators || []).filter(function (a) { return ACTUATORS[a]; });
+    const vb = BOARDS[spec.board] ? spec.board : 'esp32';
+    const vt = TYPES[spec.type] ? spec.type : 'rover';
+    const clean = { type: vt, name: spec.name || 'My Robot', board: vb, sensors: vs, actuators: va };
+    save(clean);
+    return { spec: clean, derived: derive(clean), world: (WORLD_FOR[clean.type] || {}) };
+  };
+  RobotLab.buildFromText = function (text) {
+    const spec = robotFromText(text);
+    save(spec);
+    return { spec: spec, derived: derive(spec), world: (WORLD_FOR[spec.type] || {}) };
+  };
+  window.KodroRobotFromText = robotFromText;
 
   window.RobotLab = RobotLab;
 })();

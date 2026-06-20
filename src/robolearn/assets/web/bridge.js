@@ -75,6 +75,9 @@
     budgetBuild: (usd, goal) => call("budget_build", usd, goal || ""),
     speak: (text, voice, rate) => call("speak", text, voice || "female", rate || 0),
     log: (level, msg) => call("log", level, msg),
+    saveScenarioRun: (report) => call("save_scenario_run", report),
+    listScenarioRuns: (limit) => call("list_scenario_runs", limit || 50),
+    setAiModel: (name) => call("set_ai_model", name || ""),
   };
 
   // Best-effort hello, so the Python side knows the UI is alive.
