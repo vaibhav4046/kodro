@@ -87,6 +87,15 @@
       canvas.addEventListener('webglcontextlost', onContextLost, false);
       mount.appendChild(canvas);
 
+      // Cinematic post-processing (offline bloom + vignette). Gated to the
+      // Cinematic tier and disabled under reduced motion; null on any GPU
+      // allocation failure, in which case tick() renders straight to the canvas
+      // exactly as before. Created after the renderer so it shares its context.
+      let post = null;
+      if ((Q === 'cinematic') && !reduce && window.KodroPost && window.KodroPost.create) {
+        post = window.KodroPost.create(THREE, renderer, w, h);
+      }
+
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(SKY[id] != null ? SKY[id] : SKY.earth);
       // Underwater murk swallows distance much sooner than open air; the Moon
@@ -217,6 +226,17 @@
           return t;
         })();
         if (gtex) { groundMat.map = gtex; groundMat.needsUpdate = true; }
+        // Surface relief: a Sobel-derived normal map plus a roughness map so the
+        // PBR sun and fill light graze real micro-relief (sand sheen, regolith
+        // pits, seabed ripple) instead of a glass-smooth coloured plane. Headless
+        // or canvas-less devices get nulls and render exactly as before.
+        const gmaps = (window.KodroTextures && window.KodroTextures.groundMaps)
+          ? window.KodroTextures.groundMaps(THREE, groundColor, id) : null;
+        if (gmaps) {
+          if (gmaps.normal) { groundMat.normalMap = gmaps.normal; if (groundMat.normalScale) groundMat.normalScale.set(0.7, 0.7); }
+          if (gmaps.rough) { groundMat.roughnessMap = gmaps.rough; }
+          groundMat.needsUpdate = true;
+        }
       }
 
       // An environment map captured from the sky and ground, so metal surfaces
@@ -728,6 +748,7 @@
       const onResize = () => {
         w = mount.clientWidth || w; h = mount.clientHeight || h;
         camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
+        if (post) post.setSize(w, h);
       };
       window.addEventListener('resize', onResize);
 
@@ -825,7 +846,17 @@
           camera.position.copy(camPos);
           camera.lookAt(cur.x, 2, cur.z);
         }
-        renderer.render(scene, camera);
+        // Cinematic uses the offline bloom/vignette pass; every other tier (and
+        // the post-downgrade slow-GPU path) renders straight to the canvas. If
+        // the post pass ever throws at frame time (e.g. an old GPU that cannot
+        // linear-filter the half-float bloom target), disable it permanently and
+        // fall back to the plain render so the view never freezes.
+        if (post && !downgraded) {
+          try { post.render(scene, camera); }
+          catch (e) { void e; try { post.dispose(); } catch (e2) { void e2; } post = null; renderer.setRenderTarget(null); renderer.render(scene, camera); }
+        } else {
+          renderer.render(scene, camera);
+        }
         raf = window.requestAnimationFrame(tick);
       };
       tick();
@@ -833,6 +864,7 @@
       return () => {
         disposed = true;
         window.cancelAnimationFrame(raf);
+        if (post) { try { post.dispose(); } catch (e) { void e; } post = null; }
         window.removeEventListener('resize', onResize);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointermove', onMove);
@@ -852,6 +884,8 @@
             // shared), so dispose the maps too. dispose() is idempotent.
             if (m.map) m.map.dispose();
             if (m.emissiveMap) m.emissiveMap.dispose();
+            if (m.normalMap) m.normalMap.dispose();
+            if (m.roughnessMap) m.roughnessMap.dispose();
             m.dispose();
           });
         });

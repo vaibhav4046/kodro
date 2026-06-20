@@ -119,6 +119,7 @@ const CAP = `<!DOCTYPE html>
         if (onb) localStorage.removeItem('or_onboarded');
         else localStorage.setItem('or_onboarded', '1');
         var w = q.get('world'); if (w) localStorage.setItem('or_terrain', w);
+        var qq = q.get('q'); if (qq) localStorage.setItem('kodro_quality', qq);
       } catch (e) { void e; }
       window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel') };
     })();
