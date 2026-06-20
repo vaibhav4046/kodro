@@ -561,10 +561,65 @@
           });
         }
       }
+      // Structured indoor worlds (lab, warehouse, debug grid) all resolve to the
+      // room base, so without this they rendered as identical copies of the
+      // living room. Each now gets walls plus props that match its identity, and
+      // the props sit on the REAL collision obstacles, so what the robot can hit
+      // is what the eye sees and every world reads as itself.
+      function buildIndoor(kind) {
+        const R = 30, wallH = 14;
+        const wallCol = kind === 'warehouse' ? 0x4a4d54 : kind === 'debug_grid' ? 0x12161d : 0xd3d8df;
+        const wallM = new THREE.MeshStandardMaterial({ color: wallCol, roughness: 0.92, metalness: kind === 'warehouse' ? 0.2 : 0.05, side: THREE.DoubleSide });
+        const mkWall = (w, x, z, ry) => { const ww = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, 0.6), wallM); ww.position.set(x, wallH / 2, z); ww.rotation.y = ry; ww.receiveShadow = true; scene.add(ww); };
+        mkWall(R * 2, 0, -R, 0); mkWall(R * 2, -R, 0, Math.PI / 2); mkWall(R * 2, R, 0, Math.PI / 2);
+        if (kind === 'debug_grid' && THREE.GridHelper) {
+          const grid = new THREE.GridHelper(R * 2, 30, 0x5ce0d8, 0x2a6f6a);
+          if (grid.material) { grid.material.transparent = true; grid.material.opacity = 0.5; grid.material.fog = false; }
+          grid.position.y = 0.05; scene.add(grid);
+        }
+        const ceil = new THREE.PointLight(kind === 'warehouse' ? 0xffe6c0 : 0xffffff, kind === 'warehouse' ? 0.5 : 0.85, 160);
+        ceil.position.set(0, wallH + 6, 0); scene.add(ceil);
+        const benchM = new THREE.MeshStandardMaterial({ color: 0xc9ccd2, roughness: 0.5, metalness: 0.35 });
+        const steelM = new THREE.MeshStandardMaterial({ color: 0x8d939c, roughness: 0.4, metalness: 0.7 });
+        const crateM = new THREE.MeshStandardMaterial({ color: 0xb07a3a, roughness: 0.8 });
+        const rackM = new THREE.MeshStandardMaterial({ color: 0x3a4654, roughness: 0.5, metalness: 0.6 });
+        const markM = new THREE.MeshStandardMaterial({ color: 0x5ce0d8, emissive: 0x5ce0d8, emissiveIntensity: 0.6 });
+        obstacles.forEach((o) => {
+          const px = o.x * SCALE, pz = -o.y * SCALE, r = Math.max(0.8, o.r * SCALE);
+          if (kind === 'lab') {
+            const top = new THREE.Mesh(new THREE.BoxGeometry(r * 2.2, 0.5, r * 1.4), benchM); top.position.set(px, 2.0, pz); top.castShadow = true; top.receiveShadow = true; scene.add(top);
+            const inst = new THREE.Mesh(new THREE.BoxGeometry(r * 0.8, r * 0.7, r * 0.8), steelM); inst.position.set(px, 2.25 + r * 0.35, pz); inst.castShadow = true; scene.add(inst);
+            [[-1, -0.6], [1, -0.6], [-1, 0.6], [1, 0.6]].forEach((c) => { const lg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.0, 0.18), steelM); lg.position.set(px + c[0] * r, 1.0, pz + c[1] * r); scene.add(lg); });
+          } else if (kind === 'warehouse') {
+            const h = Math.min(12, r * 2.4 + 3);
+            const rack = new THREE.Mesh(new THREE.BoxGeometry(r * 2, h, r * 1.6), rackM); rack.position.set(px, h / 2, pz); rack.castShadow = true; rack.receiveShadow = true; scene.add(rack);
+            for (let s = 0; s < 3; s++) { const cr = new THREE.Mesh(new THREE.BoxGeometry(r * 1.4, 1.6, r * 1.2), crateM); cr.position.set(px, 1.0 + s * (h / 3), pz); cr.castShadow = true; scene.add(cr); }
+          } else {
+            const m = new THREE.Mesh(new THREE.ConeGeometry(r * 0.6, r * 1.4, 4), markM); m.position.set(px, r * 0.7, pz); m.castShadow = true; scene.add(m);
+          }
+        });
+        // Render the shared agent people (workers) so an unseen agent cannot be
+        // hit; the bare debug grid stays empty by design.
+        const KAr = window.KodroAgents;
+        if (KAr && kind !== 'debug_grid') {
+          KAr.list().forEach((ag, i) => {
+            if (ag.kind !== 'person') return;
+            const pr = mkPerson(ag.color != null ? ag.color : 0x9fb0c4); scene.add(pr);
+            agents.push({ mesh: pr, update: () => {
+              const a = KAr.list()[i]; if (!a) return;
+              pr.position.set(a.x * SCALE, 0, -a.y * SCALE);
+              pr.rotation.y = Math.atan2(a.dy, a.dx);
+              if (pr._legs) { pr._legs[0].rotation.x = a.leg * 0.5; pr._legs[1].rotation.x = -a.leg * 0.5; }
+            } });
+          });
+        }
+      }
       // Make sure the shared agent sim is built for THIS world before we render
       // its meshes (the viewport effect can run before App's build effect).
       if (window.KodroAgents && window.KodroAgents.world() !== id) window.KodroAgents.build(id);
-      if (id === 'city') buildCity();
+      const _siteId = terrain && terrain.siteId;
+      if (_siteId === 'lab' || _siteId === 'warehouse' || _siteId === 'debug_grid') buildIndoor(_siteId);
+      else if (id === 'city') buildCity();
       else if (id === 'room') buildRoom();
       else renderAgents(); // open terrain worlds: render the roaming robot fleet
 

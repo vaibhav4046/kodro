@@ -1761,7 +1761,7 @@ rover.say("Survey done")`
                   title="Drop the rover at a real place. Real gravity, traction and light"
                 >
                   <option value="" disabled>🌍 Mission site…</option>
-                  {[['earth', '🌍 Earth'], ['underwater', '🌊 Underwater'], ['mars', '🔴 Mars'], ['space', '🌑 Space']].map(([base, label]) => {
+                  {[['earth', '🌍 Earth'], ['underwater', '🌊 Underwater'], ['mars', '🔴 Mars'], ['space', '🌑 Space'], ['room', '🔬 Test bays']].map(([base, label]) => {
                     const ids = Object.keys(window.SITES).filter(id => window.SITES[id].base === base);
                     return ids.length === 0 ? null : (
                       <optgroup key={base} label={label}>
