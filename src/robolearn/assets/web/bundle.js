@@ -6635,9 +6635,9 @@ Object.assign(window, {
       why: 'a fixed manipulator works at a table indoors.'
     },
     custom: {
-      id: 'city',
-      label: 'Riverside City',
-      why: 'start in the busy city, then try the others.'
+      id: 'earth',
+      label: 'Open terrain',
+      why: 'start on safe open ground, then try the city and the others.'
     }
   };
   const CHASSIS_MASS = 380; // grams, frame + battery + wiring, before parts
