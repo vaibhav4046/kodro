@@ -3559,8 +3559,11 @@
         color: 0x6b4f2c,
         roughness: 1
       });
+      // Foliage harmonised with the biome: on a sandy site the canopy dries to a
+      // muted olive instead of a cartoon jungle green; a green biome stays green.
+      const _leafCol = siteGround != null ? new THREE.Color(0x4a7a30).lerp(new THREE.Color(groundColor), 0.42) : new THREE.Color(0x356b2a);
       const leafMat = new THREE.MeshStandardMaterial({
-        color: 0x356b2a,
+        color: _leafCol,
         roughness: 1,
         flatShading: true
       });

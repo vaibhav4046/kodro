@@ -239,7 +239,10 @@
       const siteRock = hexFromCss(terrain && terrain.obFill);
       const rockMat = new THREE.MeshStandardMaterial({ color: siteRock != null ? siteRock : (id === 'mars' ? 0x7e3a26 : id === 'underwater' ? 0x2c6068 : 0x6a6a64), roughness: 1, flatShading: true });
       const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4f2c, roughness: 1 });
-      const leafMat = new THREE.MeshStandardMaterial({ color: 0x356b2a, roughness: 1, flatShading: true });
+      // Foliage harmonised with the biome: on a sandy site the canopy dries to a
+      // muted olive instead of a cartoon jungle green; a green biome stays green.
+      const _leafCol = (siteGround != null) ? new THREE.Color(0x4a7a30).lerp(new THREE.Color(groundColor), 0.42) : new THREE.Color(0x356b2a);
+      const leafMat = new THREE.MeshStandardMaterial({ color: _leafCol, roughness: 1, flatShading: true });
       const coralMat = new THREE.MeshStandardMaterial({ color: 0xc9607a, roughness: 0.85, flatShading: true });
       const rimMat = new THREE.MeshStandardMaterial({ color: 0x3a3c44, roughness: 1, flatShading: true });
       // Vary the rock silhouette by world and by the obstacle's own value so a
