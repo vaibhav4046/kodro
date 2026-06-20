@@ -4379,13 +4379,13 @@
         });
         if (rType !== 'arm') {
           if (fitted.indexOf('ultrasonic') >= 0) {
-            [0.16, -0.16].forEach(z => {
-              const e = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.1, 14), darkM);
+            [0.2, -0.2].forEach(z => {
+              const e = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.13, 16), darkM);
               e.rotation.z = Math.PI / 2;
               e.position.set(fx, sy, z);
               body.add(e);
-              const r = new THREE.Mesh(new THREE.CircleGeometry(0.07, 12), accMat());
-              r.position.set(fx + 0.06, sy, z);
+              const r = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), accMat());
+              r.position.set(fx + 0.08, sy, z);
               r.rotation.y = Math.PI / 2;
               body.add(r);
             });
@@ -4438,7 +4438,10 @@
       }
       // Practical scale: a robot indoors shares a small room with furniture, so
       // it is sized down to fit rather than towering over the sofa.
-      if (id === 'room') rov.scale.setScalar(0.85);
+      // Give the robot real presence: it was reading as a distant toy. Scale it
+      // up so the build and its sensor pods are legible (indoors stays a touch
+      // smaller so it does not tower over the furniture).
+      rov.scale.setScalar(id === 'room' ? 1.05 : 1.4);
       scene.add(rov);
 
       // A trail ribbon that grows as the rover drives.
