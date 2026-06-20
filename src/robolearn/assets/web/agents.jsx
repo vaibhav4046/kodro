@@ -149,6 +149,14 @@
   }
 
   function loop(now) {
+    // Backgrounded tab: skip the step but keep the loop alive and reset the
+    // clock, so a hidden tab does no work and the agents do not teleport when
+    // it returns (step() also clamps dt, this avoids even that catch-up).
+    if (typeof document !== 'undefined' && document.hidden) {
+      last = now;
+      raf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame(loop) : 0;
+      return;
+    }
     if (last == null) last = now;
     step((now - last) / 1000); last = now;
     raf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame(loop) : 0;

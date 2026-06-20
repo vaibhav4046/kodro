@@ -75,6 +75,7 @@
   .konb-agent-input:focus{border-color:#5ed6ff}
   .konb-agent-mic{padding:12px 14px}
   .konb-agent-or{text-align:center;color:#6f86a6;font-size:13px;margin:14px 0 0;letter-spacing:.02em}
+  .konb-agent-err{text-align:center;color:#ffb4a8;font-size:13px;margin:10px 0 0;line-height:1.4}
   .konb-built{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:12px 0 0}
   .konb-chip{background:#11202e;border:1px solid #2a4258;border-radius:999px;color:#bfe6ff;font-size:12px;padding:4px 11px}
   `;
@@ -98,6 +99,7 @@
     const [agentText, setAgentText] = useState("");
     const [built, setBuilt] = useState(null);
     const [agentBusy, setAgentBusy] = useState(false);
+    const [agentErr, setAgentErr] = useState("");
 
     useEffect(() => {
       const tag = "kodro-onb-style";
@@ -134,7 +136,15 @@
     // the parts catalogue, then jump to the world recommendation for it.
     function buildFromAgent(text) {
       const q = (text != null ? text : agentText).trim();
-      if (!q || !window.RobotLab || !window.RobotLab.buildFromText) return;
+      if (!q) return;
+      // If the build assistant could not load, do not fail silently: tell the
+      // user and point them at the tile picker right below, which needs no
+      // assistant. (RobotLab is bundled, so this is a defensive fallback.)
+      if (!window.RobotLab || !window.RobotLab.buildFromText) {
+        setAgentErr("The build assistant could not load. Pick a starting point below instead.");
+        return;
+      }
+      setAgentErr("");
       const res = window.RobotLab.buildFromText(q);
       setBuilt(res);
       setType(res.spec.type);
@@ -188,6 +198,7 @@
                   )}
                   <button className="konb-btn primary" type="button" disabled={!agentText.trim()} onClick={() => buildFromAgent()}>Build it</button>
                 </div>
+                {agentErr && <p className="konb-agent-err" role="alert">{agentErr}</p>}
                 <p className="konb-agent-or">or pick a starting point</p>
               </div>
               <div className="konb-grid" role="radiogroup" aria-label="Robot type">

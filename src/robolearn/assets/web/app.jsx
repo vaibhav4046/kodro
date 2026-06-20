@@ -194,7 +194,15 @@ rover.say("Survey done")`
   };
 
   function App() {
-    const [terrainId, setTerrainId] = useState(() => localStorage.getItem('or_terrain') || 'mars');
+    const [terrainId, setTerrainId] = useState(() => {
+      const saved = localStorage.getItem('or_terrain');
+      if (saved) return saved;
+      // Fresh load: open in the world recommended for the current build, so the
+      // first impression matches the rover (the default rover recommends Earth),
+      // instead of a hardcoded Mars that contradicts the build's own world.
+      try { const rb = window.getKodroRobot && window.getKodroRobot(); if (rb && rb.world) return rb.world; } catch (e) { void e; }
+      return 'mars';
+    });
     const [activeTab, setActiveTab] = useState(() => {
       const saved = localStorage.getItem('or_tab');
       if (saved) return saved;
@@ -370,6 +378,9 @@ rover.say("Survey done")`
     // shadow + pixel-ratio cost so a laptop stays smooth, or maxes a screenshot.
     const [quality, setQuality] = useState(() => { try { return localStorage.getItem('kodro_quality') || 'high'; } catch (e) { return 'high'; } });
     if (typeof window !== 'undefined') window.KODRO_QUALITY = quality;
+    // Bumped each time the user explicitly opens the 3D view, so the canvas can
+    // take focus (keyboard orbit) without stealing focus on the initial load.
+    const [focus3dKey, setFocus3dKey] = useState(0);
     // Robot Lab: design a custom robot whose spec drives the simulation.
     const [robotLabOpen, setRobotLabOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => (window.getKodroRobot ? window.getKodroRobot() : null));
@@ -1015,7 +1026,16 @@ rover.say("Survey done")`
         return profileArea > 0 ? area / profileArea : p;
       }
       await frames(dur, (p) => {
-        const cf = coverFrac(p);
+        let cf = coverFrac(p);
+        // Out of charge mid-move: solve the cover-fraction at which the battery
+        // reaches zero and clamp the committed position to it, so the robot
+        // halts EXACTLY at the crossing rather than one frame past it (which
+        // over-reported the distance travelled and the odometer add).
+        let outOfCharge = false;
+        if (drainFull > 0 && drainFull * cf >= b0) {
+          cf = b0 / drainFull; // battery hits 0 at this fraction of the move
+          outOfCharge = true;
+        }
         const nx = x0 + dirx * total * cf;
         const ny = y0 + diry * total * cf;
         const hit = collisionAt(nx, ny);
@@ -1028,7 +1048,7 @@ rover.say("Survey done")`
         pushTrailPoint();
         setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading)));
         sync();
-        if (s.battery <= 0) { flat = true; return true; } // out of charge mid-move
+        if (outOfCharge) { flat = true; return true; } // halted at battery zero
         return false;
       });
       // A Reset/restart while this move was animating bumps the token: bail
@@ -1732,7 +1752,7 @@ rover.say("Survey done")`
                 </select>
               )}
               <span className="view-toggle">
-                <button type="button" className={'terrain-btn' + (view3d ? ' active' : '')} aria-pressed={view3d} title="Real 3D view" onClick={() => setView3d(true)}>3D</button>
+                <button type="button" className={'terrain-btn' + (view3d ? ' active' : '')} aria-pressed={view3d} title="Real 3D view" onClick={() => { setView3d(true); setFocus3dKey(k => k + 1); }}>3D</button>
                 <button type="button" className={'terrain-btn' + (!view3d ? ' active' : '')} aria-pressed={!view3d} title="Flat 2.5D view" onClick={() => setView3d(false)}>2.5D</button>
                 {view3d && (
                   <button type="button" className="terrain-btn" aria-pressed={fpv} title="Switch between orbit and first person" onClick={() => setFpv(f => !f)}>{fpv ? '👁 First person' : '🛰 Orbit'}</button>
@@ -1749,7 +1769,7 @@ rover.say("Survey done")`
               </span>
             </div>
             {view3d
-              ? <window.Viewport3D key={'vp3d-' + quality} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} />
+              ? <window.Viewport3D key={'vp3d-' + (terrain && terrain.id) + '-' + (robotSpec && robotSpec.type) + (quality === 'cinematic' ? '-cine' : '-std')} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} />
               : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
           </div>
 

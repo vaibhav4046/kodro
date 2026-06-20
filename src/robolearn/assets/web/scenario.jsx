@@ -68,8 +68,10 @@
     return Math.max(0, best);
   }
 
-  // One headless run with the parameters this seed produced.
-  function runOnce(src, scenario, seed) {
+  // One headless run with the parameters this seed produced. `gateRobot` is the
+  // build whose fitted parts gate the part-specific commands; run() resolves it
+  // once and never passes null on a user-facing path (see run()).
+  function runOnce(src, scenario, seed, gateRobot) {
     if (!window.RoverLang) return { ok: false, error: 'interpreter not loaded' };
     let program;
     try { program = window.RoverLang.compile(src); }
@@ -84,7 +86,7 @@
     const noiseCm = cfg.sensorNoise || 0;
     const jitter = cfg.obstacleJitter || 0;
 
-    const robot = window.getKodroRobot ? window.getKodroRobot() : null;
+    const robot = gateRobot;
     const massFac = (robot && robot.massFactor ? robot.massFactor : 1) * massMul;
     const start = scenario.startPose || { x: 0, y: 0, heading: 0 };
     const goal = scenario.goalPose || { x: 0, y: -1000, r: 120 };
@@ -191,11 +193,20 @@
     };
   }
 
-  function run(src, scenario, n) {
+  function run(src, scenario, n, opts) {
     const seeds = Math.max(1, n || 5);
     const base = (scenario && scenario.seed) || 1;
+    // Resolve the build once. A user-facing validation must run against a real
+    // build: a null robot would make KodroCommands.check pass EVERY part-gated
+    // command (a camera-only build could 'pass' a ranging lesson). So for the
+    // user path we substitute an empty-but-non-null build, which gates every
+    // part-specific command correctly. Only an explicit headless harness
+    // (opts.harness) is allowed the null = no-gating shortcut.
+    const harness = !!(opts && opts.harness);
+    const live = window.getKodroRobot ? window.getKodroRobot() : null;
+    const gateRobot = harness ? live : (live || { sensors: [], actuators: [] });
     const runs = [];
-    for (let i = 0; i < seeds; i++) runs.push(runOnce(src, scenario, base + i * 101));
+    for (let i = 0; i < seeds; i++) runs.push(runOnce(src, scenario, base + i * 101, gateRobot));
     const ok = runs.filter(function (r) { return r && !r.compile; });
     const reached = ok.filter(function (r) { return r.reachedGoal; });
     const mean = function (sel) { return ok.length ? ok.reduce(function (a, r) { return a + (sel(r) || 0); }, 0) / ok.length : 0; };

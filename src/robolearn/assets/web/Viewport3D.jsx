@@ -23,12 +23,40 @@
     room: 0xe9ddc8, city: 0xb3c2cc, earth: 0xb6cdba, mars: 0xc08050, underwater: 0x0a2a38, space: 0x05060d,
   };
 
-  function Viewport3D({ terrain, rover, fpv, robotType }) {
+  function Viewport3D({ terrain, rover, fpv, robotType, quality, focusKey }) {
     const mountRef = useRef(null);
     const stateRef = useRef({ x: 0, y: 0, heading: 0 });
     const fpvRef = useRef(!!fpv);
+    // Handles to the live GL objects so a quality change applies in place
+    // (pixel ratio, shadows) instead of remounting and rebuilding the scene.
+    const glRef = useRef(null);
     stateRef.current = rover || stateRef.current;
     fpvRef.current = !!fpv;
+
+    // Apply a render-quality change in place. Low/Med/High differ only by pixel
+    // ratio and shadow resolution, all adjustable on the live renderer, so the
+    // Low/Med/High switch no longer tears down and rebuilds the whole scene
+    // (which cost 200-500ms and a fresh GL context). Cinematic still remounts
+    // via the key because it needs the offline post pipeline built at setup.
+    useEffect(() => {
+      const g = glRef.current;
+      if (!g || !g.renderer) return;
+      const Q = quality || 'high';
+      const dpr = (window.devicePixelRatio || 1);
+      g.renderer.setPixelRatio(Q === 'low' ? 1 : Q === 'med' ? Math.min(1.25, dpr) : Q === 'cinematic' ? Math.min(2, dpr * 1.5) : Math.min(1.5, dpr));
+      const wantShadow = (Q !== 'low');
+      g.renderer.shadowMap.enabled = wantShadow;
+      g.renderer.shadowMap.needsUpdate = true;
+      if (g.sun) {
+        g.sun.castShadow = wantShadow;
+        const n = Q === 'low' ? 512 : Q === 'med' ? 1024 : Q === 'cinematic' ? 2048 : (g.indoor ? 2048 : 1024);
+        if (g.sun.shadow.mapSize.x !== n) {
+          g.sun.shadow.mapSize.set(n, n);
+          // Drop the cached shadow map so Three.js reallocates it at the new size.
+          if (g.sun.shadow.map) { g.sun.shadow.map.dispose(); g.sun.shadow.map = null; }
+        }
+      }
+    }, [quality]);
 
     useEffect(() => {
       const THREE = (typeof window !== 'undefined') && window.THREE;
@@ -48,9 +76,18 @@
       let h = mount.clientHeight || 500;
 
       // Honour the pupil's motion preference: no smoothing-induced drift.
-      const reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-      const posLerp = reduce ? 1 : 0.16;
-      const camLerp = reduce ? 1 : 0.12;
+      // Live, not read-once: if the OS setting changes while the view is open,
+      // a matchMedia listener flips the smoothing immediately (tick() reads
+      // these each frame), so the preference never goes stale.
+      const reduceMql = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)')) || null;
+      let reduce = !!(reduceMql && reduceMql.matches);
+      let posLerp = reduce ? 1 : 0.16;
+      let camLerp = reduce ? 1 : 0.12;
+      const onReduceChange = (e) => { reduce = !!e.matches; posLerp = reduce ? 1 : 0.16; camLerp = reduce ? 1 : 0.12; };
+      if (reduceMql) {
+        if (reduceMql.addEventListener) reduceMql.addEventListener('change', onReduceChange);
+        else if (reduceMql.addListener) reduceMql.addListener(onReduceChange); // older Safari
+      }
 
       // Guard WebGL: a failed context (old GPU, lost context) shows a calm
       // message and the pupil can fall back to the flat view, never a blank box.
@@ -768,6 +805,15 @@
       let frames = 0, slow = 0, downgraded = false, last = (window.performance && window.performance.now) ? window.performance.now() : 0;
       const tick = () => {
         if (disposed) return;
+        // Backgrounded tab: do no render or sim work. rAF is already throttled
+        // when hidden, but a frame can still fire (picture-in-picture, a second
+        // monitor), so skip the body and reset the clock so the first visible
+        // frame sees a small dt instead of a multi-second jump.
+        if (typeof document !== 'undefined' && document.hidden) {
+          last = (window.performance && window.performance.now) ? window.performance.now() : last;
+          raf = window.requestAnimationFrame(tick);
+          return;
+        }
         const now = (window.performance && window.performance.now) ? window.performance.now() : last + 16;
         const dt = now - last; last = now;
         if (!downgraded && ++frames > 12) {
@@ -869,10 +915,18 @@
         }
         raf = window.requestAnimationFrame(tick);
       };
+      // Expose the live renderer + sun so the in-place quality effect can adjust
+      // pixel ratio and shadows without a remount. Set after the scene is built.
+      glRef.current = { renderer, sun, indoor };
       tick();
 
       return () => {
         disposed = true;
+        glRef.current = null;
+        if (reduceMql) {
+          if (reduceMql.removeEventListener) reduceMql.removeEventListener('change', onReduceChange);
+          else if (reduceMql.removeListener) reduceMql.removeListener(onReduceChange);
+        }
         window.cancelAnimationFrame(raf);
         if (post) { try { post.dispose(); } catch (e) { void e; } post = null; }
         window.removeEventListener('resize', onResize);
@@ -903,7 +957,27 @@
       };
     }, [terrain && terrain.id, robotType]);
 
-    return React.createElement('div', { className: 'viewport3d', ref: mountRef });
+    // Move keyboard focus to the canvas when the user explicitly opens the 3D
+    // view (focusKey bumps on that click only). focusKey starts at 0 so the
+    // initial page load never steals focus. Declared AFTER the build effect so
+    // on a fresh mount the canvas is already appended when this runs (React
+    // runs effects in declaration order).
+    useEffect(() => {
+      if (!focusKey) return;
+      const mount = mountRef.current;
+      const cv = mount && mount.querySelector('canvas');
+      if (cv && cv.focus) { try { cv.focus(); } catch (e) { void e; } }
+    }, [focusKey]);
+
+    // A caption that surfaces the keyboard controls. It is hidden until the
+    // canvas is focused (see .vp3d-help in styles.css), so sighted keyboard
+    // users get a visible hint the moment they tab in, without cluttering the
+    // pointer-driven view. aria-hidden because the canvas's own aria-label
+    // already announces the same controls to screen readers.
+    return React.createElement(
+      'div', { className: 'viewport3d', ref: mountRef },
+      React.createElement('div', { className: 'vp3d-help', 'aria-hidden': 'true' }, 'Arrow keys orbit  ·  +/- zoom  ·  drag to look'),
+    );
   }
 
   window.Viewport3D = Viewport3D;
