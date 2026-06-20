@@ -195,7 +195,7 @@ rover.say("Survey done")`
 
   function App() {
     const [terrainId, setTerrainId] = useState(() => localStorage.getItem('or_terrain') || 'mars');
-    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('or_tab') || 'basecamp');
+    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('or_tab') || 'autopilot');
     const [programs, setPrograms] = useState(() => {
       try { const s = JSON.parse(localStorage.getItem('or_programs')); if (s) return s; } catch (e) {}
       const o = {}; Object.keys(EXAMPLES).forEach(k => o[k] = EXAMPLES[k].code); return o;
