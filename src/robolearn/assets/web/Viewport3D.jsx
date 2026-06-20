@@ -60,6 +60,15 @@
       // Softer shadows and filmic tone mapping lift the look out of the flat,
       // plasticky default that read as generic.
       if (THREE.PCFSoftShadowMap != null) renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      // Performance mode (window.KODRO_QUALITY: 'low'|'med'|'high'|'cinematic').
+      // Bounds the two biggest costs, shadow resolution and pixel ratio, so a
+      // laptop without a discrete GPU stays smooth on Low while Cinematic maxes
+      // fidelity for a screenshot. Read at (re)build time so a change reapplies
+      // when the viewport remounts.
+      const Q = (window.KODRO_QUALITY || 'high');
+      const _dpr = (window.devicePixelRatio || 1);
+      renderer.setPixelRatio(Q === 'low' ? 1 : Q === 'med' ? Math.min(1.25, _dpr) : Q === 'cinematic' ? Math.min(2, _dpr * 1.5) : Math.min(1.5, _dpr));
+      renderer.shadowMap.enabled = (Q !== 'low');
       if (THREE.ACESFilmicToneMapping != null) { renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08; }
       if (THREE.SRGBColorSpace != null) renderer.outputColorSpace = THREE.SRGBColorSpace;
       else if (THREE.sRGBEncoding != null) renderer.outputEncoding = THREE.sRGBEncoding;
@@ -92,7 +101,8 @@
       const sun = new THREE.DirectionalLight(sunCol, sunInt);
       sun.position.set(indoor ? 18 : 40, indoor ? 38 : 80, indoor ? 22 : 30);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(indoor ? 2048 : 1024, indoor ? 2048 : 1024); // sharper than the old 512, still light on iGPUs
+      const _shMap = Q === 'low' ? 512 : Q === 'med' ? 1024 : Q === 'cinematic' ? 2048 : (indoor ? 2048 : 1024);
+      sun.shadow.mapSize.set(_shMap, _shMap); // quality-scaled: lighter on iGPUs at Low/Med, crisp at High/Cinematic
       sun.shadow.camera.near = 1; sun.shadow.camera.far = 320;
       sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
       sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120;

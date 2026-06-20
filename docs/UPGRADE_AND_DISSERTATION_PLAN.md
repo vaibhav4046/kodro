@@ -55,7 +55,16 @@ template. Each item shipped + rebuilt bundle + verified.
       `save_scenario_run` + bridge.js `saveScenarioRun`, and to localStorage
       via `KodroMemory.saveScenarioReport`. Registered in build ORDER.
       REMAINING (folded into B8/B9): on-screen report card + trigger button.
-- B4. Environment realism. **PARTIAL (core already present)**. Viewport3D
+- B4. Environment realism. **DONE** (verified: build 17 sources, QA 21/21;
+      headless WebGL render hangs in this env (documented SwiftShader limit),
+      but default-quality render path is unchanged so no regression). Added
+      Lab + Warehouse + Debug Grid presets (terrains.jsx SITES, auto-listed in
+      the world picker); added a Low/Med/High/Cinematic performance toggle
+      (Viewport3D reads window.KODRO_QUALITY -> shadow res + pixel ratio; UI
+      selector in the view bar; viewport remounts on change). Robot POV was
+      already present (the fpv first-person/orbit toggle). City + outdoor
+      terrains already existed. Prior note retained below for context:
+      Viewport3D
       already renders City + Room + Earth/Mars/Moon/underwater/space with
       shadows, PMREM env maps, PBR materials, fog, obstacles and moving
       agents (traffic + pedestrians that brake for the robot). REMAINING
