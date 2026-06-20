@@ -434,14 +434,16 @@ rover.say("Survey done")`
     // forever. Poll briefly at mount, and re-check every time the panel is
     // opened -- so starting Ollama later lights it up without a restart.
     function refreshAiStatus() {
-      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
-      window.RoboLearn.aiStatus().then(s => { if (s) setAiInfo(s); }).catch(() => {});
+      // KodroAI uses the desktop bridge when present, else talks to the local
+      // Ollama server directly, so status reflects the model in both run modes.
+      if (!window.KodroAI) return;
+      Promise.resolve(window.KodroAI.status()).then(s => { if (s) setAiInfo(s); }).catch(() => {});
     }
     // Let the user point Kodro at any local model they have pulled (DeepSeek,
     // Nemotron, Qwen, a custom fine-tune). Persisted server side; empty = auto.
     function pickModel(name) {
-      if (!window.RoboLearn || !window.RoboLearn.setAiModel) return;
-      window.RoboLearn.setAiModel(name || '').then(() => refreshAiStatus()).catch(() => {});
+      if (!window.KodroAI) return;
+      Promise.resolve(window.KodroAI.setModel(name || '')).then(() => refreshAiStatus()).catch(() => {});
     }
     // B3 trigger: validate the current program across randomised seeds in the
     // scenario that fits this robot, persist the report, and open the dashboard.
@@ -463,12 +465,11 @@ rover.say("Survey done")`
       setRealismOpen(true);
     }
     useEffect(() => {
+      // Refresh a few times after mount: the desktop bridge injects late, and in
+      // browser mode the Ollama probe is async, so one shot can miss it.
       let tries = 0;
-      const t = setInterval(() => {
-        tries += 1;
-        if (window.RoboLearn && window.RoboLearn.isAvailable()) { refreshAiStatus(); clearInterval(t); }
-        else if (tries > 20) clearInterval(t);
-      }, 500);
+      refreshAiStatus();
+      const t = setInterval(() => { tries += 1; refreshAiStatus(); if (tries > 6) clearInterval(t); }, 700);
       return () => clearInterval(t);
     }, []);
     useEffect(() => { if (vibeOpen) refreshAiStatus(); }, [vibeOpen]);
@@ -505,12 +506,12 @@ rover.say("Survey done")`
         if (window.KodroCommands && window.getKodroRobot) {
           history.unshift({ role: 'user', text: window.KodroCommands.groundingText(window.getKodroRobot()) });
         }
-        const start = await window.RoboLearn.aiChatStart(history, currentLessonIdRef.current);
-        if (!start || !start.ok) { setVibeError((start && start.reason) || 'AI unavailable.'); setVibeBusy(false); return; }
+        const start = await window.KodroAI.chatStart(history, currentLessonIdRef.current);
+        if (!start || !start.ok) { setVibeError((start && start.reason) || 'AI unavailable. Start Ollama or run the desktop app.'); setVibeBusy(false); return; }
         let r = null;
         for (;;) {
           await new Promise(res => setTimeout(res, 250));
-          const p = await window.RoboLearn.aiChatPoll(start.jobId);
+          const p = await window.KodroAI.chatPoll(start.jobId);
           if (!p || !p.ok) { r = p; break; }
           if (p.done) { r = p; break; }
           setVibeLive(p.text || '');
@@ -518,7 +519,7 @@ rover.say("Survey done")`
         setVibeLive('');
         if (r && r.ok && r.type === 'question') {
           setVibeMsgs(m => [...m, { role: 'ai', kind: 'text', text: r.text }]);
-          if (!muted) window.RoboLearn.speak(r.text, voiceGender);
+          if (!muted) window.KodroAI.speak(r.text, voiceGender);
         } else if (r && r.ok && r.type === 'code') {
           setVibeMsgs(m => [...m, { role: 'ai', kind: 'code', text: r.code, model: r.model }]);
         } else {
@@ -550,7 +551,7 @@ rover.say("Survey done")`
       if (!src) { setReviewErr('Write some code first, then ask for a review.'); setReviewOpen(true); return; }
       setReviewOpen(true); setReviewBusy(true); setReviewErr(null); setReviewData(null);
       try {
-        const r = await window.RoboLearn.aiReviewCode(src, currentLessonId || null);
+        const r = await window.KodroAI.reviewCode(src, currentLessonId || null);
         if (r && r.ok) setReviewData(r);
         else setReviewErr((r && r.reason) || 'Review unavailable.');
       } catch (e) { setReviewErr(String(e)); }
@@ -624,7 +625,7 @@ rover.say("Survey done")`
       if (!q || askBusy) return;
       setAskBusy(true); setAskData(null);
       try {
-        const r = await window.RoboLearn.aiAsk(q);
+        const r = await window.KodroAI.ask(q);
         setAskData(r || { ok: false, reason: 'No response.' });
       } catch (e) { setAskData({ ok: false, reason: String(e) }); }
       setAskBusy(false);
@@ -1178,9 +1179,8 @@ rover.say("Survey done")`
             sfx('say');
             // Rover speaks aloud with the OS's offline TTS voice (Windows
             // SAPI via the bridge); silent in browser preview or when muted.
-            if (window.RoboLearn && window.RoboLearn.isAvailable()
-                && (!window.RLSound || !window.RLSound.isMuted())) {
-              window.RoboLearn.speak(ev.text, voiceGender);
+            if (window.KodroAI && (!window.RLSound || !window.RLSound.isMuted())) {
+              window.KodroAI.speak(ev.text, voiceGender);
             }
             showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
           case 'place': {
@@ -1678,7 +1678,7 @@ rover.say("Survey done")`
                         onClick={() => {
                           const gloss = lesson.glossary ? Object.keys(lesson.glossary).map(t => t + ': ' + lesson.glossary[t]).join('. ') : '';
                           const text = (lesson.intro || '').trim() + (gloss ? '. ' + gloss : '');
-                          if (text && window.RoboLearn) window.RoboLearn.speak(text, voiceGender, -2);
+                          if (text && window.KodroAI) window.KodroAI.speak(text, voiceGender, -2);
                         }}
                       >🔊 Read aloud</button>
                     </div>
