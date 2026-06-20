@@ -154,11 +154,16 @@
       if (agentBusy || !window.RoboLearn || !window.RoboLearn.isAvailable || !window.RoboLearn.isAvailable()) return;
       const listen = window.RoboLearn.listen || window.RoboLearn.voiceCommand;
       if (!listen) return;
-      setAgentBusy(true);
+      setAgentBusy(true); setAgentErr("");
       Promise.resolve(listen(6)).then(function (r) {
         const txt = r && (r.text || r.transcript || (typeof r === "string" ? r : ""));
         if (txt && txt.trim()) { setAgentText(txt); buildFromAgent(txt); }
-      }).catch(function () {}).then(function () { setAgentBusy(false); });
+        // Do not fail silently: an empty/failed capture tells the user to retry
+        // or type, rather than leaving the button looking stuck.
+        else { setAgentErr((r && r.reason) || "Did not catch that. Try again, or type your robot below."); }
+      }).catch(function (e) {
+        setAgentErr((e && e.message) || "Voice input failed. Try again, or type your robot below.");
+      }).then(function () { setAgentBusy(false); });
     }
 
     return (

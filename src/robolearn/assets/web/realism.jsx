@@ -69,10 +69,14 @@
     sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'nominal'));
     const sensors = card('Sensors', sensorRows, '#5ce0d8');
 
-    // Scenario score card.
+    // Scenario score card. The single pass/fail verdict comes from the report
+    // (scenario.run derives aggregate.passed from the scenario's own criteria);
+    // fall back to the shared PASS_RATE for reports saved before that field.
+    const passRate = (window.KodroScenario && window.KodroScenario.PASS_RATE) || 0.6;
+    const aggPassed = agg ? (agg.passed != null ? agg.passed : (agg.successRate || 0) >= passRate) : false;
     const scoreRows = agg ? [
       row('Scenario', (last.scenario && last.scenario.name) || '-'),
-      row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', (agg.successRate >= 0.6 ? '#5ce0d8' : '#f5c451')),
+      row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', (aggPassed ? '#5ce0d8' : '#f5c451')),
       row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')),
       row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'),
       row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'),

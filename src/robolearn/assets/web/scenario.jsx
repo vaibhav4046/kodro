@@ -21,6 +21,11 @@
 (function () {
   const WALL = 1500; // arena half-extent in cm, matches the engine and self-test
   const STEP_CAP = 200000;
+  // Single source of truth for "did this design pass the spread". A majority of
+  // randomised seeds must reach the goal, and mean collisions must stay within
+  // the scenario's own successCriteria.maxCollisions. The UI renders this one
+  // boolean instead of each surface re-deriving its own 0.6 threshold.
+  const PASS_RATE = 0.6;
 
   // Deterministic PRNG so a seed reproduces a run exactly (reproducible demo).
   function mulberry32(a) {
@@ -121,7 +126,12 @@
           case 'speed': return Math.round(s.speed);
           case 'x': return Math.round(s.x);
           case 'y': return Math.round(-s.y);
-          case 'gravity': return 9.81; case 'temperature': return 16; case 'light': return 0.8; case 'tilt': return 0;
+          case 'gravity': return 9.81; case 'temperature': return 16; case 'light': return 0.8;
+          // Mirror the live host (app.jsx) so a program branching on tilt()/
+          // read_colour() validates the same way it runs: same tilt formula,
+          // and the scenario's environment preset as the ground id.
+          case 'tilt': return Math.round((Math.sin(s.x * 0.01) * 6 + Math.cos(s.y * 0.013) * 5) * 10) / 10;
+          case 'ground': return scenario.environmentPreset || 'earth';
           default: return 0;
         }
       },
@@ -227,6 +237,13 @@
       minClearance: ok.length ? Math.min.apply(null, ok.map(function (r) { return r.minObstacleDistance; })) : 0,
       compileError: allCompileFail ? ((runs[0] && runs[0].error) || 'Your code has a syntax error.') : null,
     };
+    // Derive the single pass/fail verdict from the scenario's own criteria so the
+    // per-scenario successCriteria is live data, not decoration. reachGoal is
+    // already captured by successRate; maxCollisions gates the collision spread.
+    const crit = (scenario && scenario.successCriteria) || {};
+    aggregate.passed = !allCompileFail
+      && aggregate.successRate >= PASS_RATE
+      && (crit.maxCollisions == null || aggregate.meanCollisions <= crit.maxCollisions);
     const report = { scenario: { scenarioId: scenario.scenarioId, name: scenario.name, environmentPreset: scenario.environmentPreset, seed: base }, runs: runs, aggregate: aggregate, ts: Date.now() };
     // Persist locally (offline) so the realism dashboard and the assistant can
     // read past validation. The desktop SQLite bridge mirrors this when present.
@@ -272,5 +289,5 @@
     return PRESETS.terrain_traverse;
   }
 
-  window.KodroScenario = { PRESETS: PRESETS, run: run, runOnce: runOnce, defaultFor: defaultFor };
+  window.KodroScenario = { PRESETS: PRESETS, run: run, runOnce: runOnce, defaultFor: defaultFor, PASS_RATE: PASS_RATE };
 })();
