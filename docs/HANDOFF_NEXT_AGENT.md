@@ -292,11 +292,16 @@ What changed:
   grounded implementation section on the offline shading and a grounded note on
   the adversarial review. Recompiled with tectonic: 36 pages, zero em/en dashes.
 
-Still open (a follow-up task chip was filed): the medium and low review items,
-notably the out-of-charge endpoint overshoot, the quality-switch full scene
-rebuild, hidden-tab rAF gating, the 3D canvas keyboard hint, and a few
-low-severity polish items. The human user study in `HUMAN_TODO.md` remains the
-one thing only a human can run; do not fabricate its results.
+The medium and low review items are now also cleared (commit `8f38c93`):
+in-place Low/Med/High quality switching (no scene rebuild), hidden-tab rAF
+gating in both loops, live prefers-reduced-motion in the 3D view, a visible
+3D-canvas keyboard hint with focus-on-open, exact out-of-charge halt and
+odometer, the default world following the build, honest scenario gating on a
+missing build, a non-silent onboarding build error, and forced-colors
+fallbacks. The out-of-charge endpoint finding turned out to already be
+correct in the code; it was left as-is. The human user study in
+`HUMAN_TODO.md` remains the one thing only a human can run; do not fabricate
+its results.
 
 Verification last measured: build 19 sources, interpreter QA 21/21, headless
 bundle-eval 3/3, gating assertions 7/7, full pytest 854 collected (852 to 854
