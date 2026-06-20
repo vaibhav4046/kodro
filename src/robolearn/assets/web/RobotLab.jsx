@@ -73,7 +73,7 @@
     car: { id: 'city', label: 'Riverside City', why: 'a road vehicle must cope with traffic and pedestrians.' },
     home: { id: 'room', label: 'Living Room', why: 'a companion robot shares an indoor space with people and furniture.' },
     arm: { id: 'room', label: 'Living Room', why: 'a fixed manipulator works at a table indoors.' },
-    custom: { id: 'city', label: 'Riverside City', why: 'start in the busy city, then try the others.' },
+    custom: { id: 'earth', label: 'Open terrain', why: 'start on safe open ground, then try the city and the others.' },
   };
 
   const CHASSIS_MASS = 380; // grams, frame + battery + wiring, before parts
