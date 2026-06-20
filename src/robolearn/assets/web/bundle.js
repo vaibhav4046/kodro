@@ -6707,7 +6707,15 @@ Object.assign(window, {
   function load() {
     try {
       const raw = localStorage.getItem(STORE);
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const s = JSON.parse(raw);
+        // Floor: a saved build with no sensors cannot run the obstacle-avoidance
+        // demos and confuses first-time users ("ultrasonic needed"). Give every
+        // build at least an ultrasonic + IMU so it can sense and the default
+        // autopilot just works on first Run; it stays editable in the Robot Lab.
+        if (s && (!Array.isArray(s.sensors) || s.sensors.length === 0)) s.sensors = ['ultrasonic', 'imu'];
+        return s;
+      }
     } catch (e) {
       void e;
     }
@@ -8719,7 +8727,7 @@ rover.say("Survey done")`
   };
   function App() {
     const [terrainId, setTerrainId] = useState(() => localStorage.getItem('or_terrain') || 'mars');
-    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('or_tab') || 'basecamp');
+    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('or_tab') || 'autopilot');
     const [programs, setPrograms] = useState(() => {
       try {
         const s = JSON.parse(localStorage.getItem('or_programs'));
