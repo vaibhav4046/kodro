@@ -48,19 +48,42 @@ URDF or a Blender export into the scene and have it appear. This keeps
 the app fully offline and zero dependency on asset pipelines, but it
 caps visual fidelity and blocks importing real hardware models.
 
-We are working toward a Blender to glTF asset workflow and URDF import
-for real robot models; see the roadmap.
+The procedural surfaces are now shaded with generated relief, not just
+flat colour. Each open terrain ground builds a tileable normal map
+(Sobel derived from a height field) and a roughness map in canvas at
+scene build time, so the sun and fill light graze real micro relief:
+sand catches a sheen, regolith reads as pits, the seabed ripples. This
+is still procedural geometry, but it closes a lot of the gap that made
+the ground read as a flat plane.
 
-## No post-processing
+A glTF or GLB loader stays on the roadmap rather than shipped because
+it cannot be done under the hard offline rule today. Three.js ships
+GLTFLoader only in its examples tree, which is not vendored here, and
+the zero network constraint means it cannot be fetched and vendored in
+this environment; and good interchange models would themselves need an
+asset pipeline the offline build does not have. So the honest position
+is: the renderer is procedural by design, now with real surface
+shading, and an asset loader is future work, not a missing feature we
+quietly skipped. See the roadmap for the Blender to glTF and URDF path.
 
-The viewport renders with core Three.js: an environment map, shadow
-maps and tone mapping. There is no bloom, no screen space ambient
-occlusion, no depth of field, no motion blur, no anti aliasing pass
-beyond what the browser provides. The look is clean and readable but
-not cinematic.
+## Post-processing (Cinematic tier only)
 
-We are working toward a measured, optional post-processing chain that
-does not compromise the offline or low hardware guarantees.
+The Low, Medium and High tiers render with core Three.js: an
+environment map, shadow maps and tone mapping, with no post pass beyond
+what the browser provides. The Cinematic tier adds a small, hand
+written, fully offline post chain: a bloom pass (bright pass plus a
+separable Gaussian blur) and a vignette, composited on top of the
+normal render. It is written directly against the core renderer with no
+EffectComposer and no examples code, because those are not vendored and
+cannot be fetched offline.
+
+It is gated deliberately. It runs only at Cinematic, is disabled under
+prefers-reduced-motion, and turns itself off if the slow hardware auto
+downgrade fires or if the GPU cannot allocate the render targets, in
+which case the view falls back to the plain render. So the offline and
+low hardware guarantees hold: a basic laptop on Low or High is never
+asked to pay for it. There is still no screen space ambient occlusion,
+depth of field or motion blur; those remain future work.
 
 ## Robot spec gating (now complete)
 
