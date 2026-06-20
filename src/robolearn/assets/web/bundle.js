@@ -8717,7 +8717,7 @@ rover.say("Survey done")`
   };
   function App() {
     const [terrainId, setTerrainId] = useState(() => localStorage.getItem('or_terrain') || 'mars');
-    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('or_tab') || 'autopilot');
+    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('or_tab') || 'basecamp');
     const [programs, setPrograms] = useState(() => {
       try {
         const s = JSON.parse(localStorage.getItem('or_programs'));
