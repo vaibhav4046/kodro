@@ -8101,6 +8101,12 @@ Object.assign(window, {
     const ok = runs.filter(function (r) {
       return r && !r.compile;
     });
+    // Every seed failed to even compile: a typo, not a behaviour failure. Flag it
+    // so the UI shows a code error instead of a misleading 0% pass, and do not
+    // persist a junk all-zero report to memory or SQLite.
+    const allCompileFail = runs.length > 0 && runs.every(function (r) {
+      return r && r.compile;
+    });
     const reached = ok.filter(function (r) {
       return r.reachedGoal;
     });
@@ -8133,7 +8139,8 @@ Object.assign(window, {
       }, 0),
       minClearance: ok.length ? Math.min.apply(null, ok.map(function (r) {
         return r.minObstacleDistance;
-      })) : 0
+      })) : 0,
+      compileError: allCompileFail ? runs[0] && runs[0].error || 'Your code has a syntax error.' : null
     };
     const report = {
       scenario: {
@@ -8148,11 +8155,13 @@ Object.assign(window, {
     };
     // Persist locally (offline) so the realism dashboard and the assistant can
     // read past validation. The desktop SQLite bridge mirrors this when present.
-    try {
-      if (window.KodroMemory && window.KodroMemory.saveScenarioReport) window.KodroMemory.saveScenarioReport(report);
-      if (window.RoboLearn && window.RoboLearn.saveScenarioRun) window.RoboLearn.saveScenarioRun(report);
-    } catch (e) {
-      void e;
+    if (!allCompileFail) {
+      try {
+        if (window.KodroMemory && window.KodroMemory.saveScenarioReport) window.KodroMemory.saveScenarioReport(report);
+        if (window.RoboLearn && window.RoboLearn.saveScenarioRun) window.RoboLearn.saveScenarioRun(report);
+      } catch (e) {
+        void e;
+      }
     }
     return report;
   }
@@ -8383,8 +8392,19 @@ Object.assign(window, {
     const physics = card('Robot physics', [row('Mass', (robot.mass || '-') + ' g'), row('Top speed', speedFac.toFixed(2) + '×'), row('Acceleration', accel), row('Terrain friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'), row('Battery / charge', '~' + (robot.runtimeMin || '-') + ' min')]);
 
     // Sensor card.
+    // Status reflects the gating truth: only a sensor whose command is actually
+    // implemented (ultrasonic -> distance, imu -> heading) reads as command
+    // ready (teal). Camera, GPS, bumper and line are fitted hardware that change
+    // the build but carry no command, so they read neutral, not the same teal as
+    // a functional sensor, matching the Command registry card below.
+    const cmdPart = window.KodroCommands && window.KodroCommands.COMMAND_PART || {};
+    const sensorHasCmd = function (s) {
+      return Object.keys(cmdPart).some(function (k) {
+        return cmdPart[k] === s;
+      });
+    };
     const sensorRows = robot.sensors && robot.sensors.length ? robot.sensors.map(function (s) {
-      return row(SENSOR_LABEL[s] || s, 'active', '#5ce0d8');
+      return sensorHasCmd(s) ? row(SENSOR_LABEL[s] || s, 'command ready', '#5ce0d8') : row(SENSOR_LABEL[s] || s, 'fitted, no command', '#9fb4d2');
     }) : [row('Sensors', 'none fitted', '#f5c451')];
     sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'nominal'));
     const sensors = card('Sensors', sensorRows, '#5ce0d8');
@@ -8476,7 +8496,7 @@ Object.assign(window, {
  *   window.KodroDemo({ onClose })
  */
 (function () {
-  const PROGRAM = ['set_speed(60)', 'for i in range(120):', '    if read_distance() < 140:', '        turn_right(30)', '    else:', '        move_forward(1)'].join('\n');
+  const PROGRAM = ['set_speed(60)', 'for i in range(120):', '    if distance() < 140:', '        turn_right(30)', '    else:', '        move_forward(1)'].join('\n');
   function robot() {
     return window.getKodroRobot && window.getKodroRobot() || {};
   }
@@ -8502,8 +8522,8 @@ Object.assign(window, {
       };
     }
   }, {
-    title: 'read_distance() is available',
-    blurb: 'Because an ultrasonic sensor is fitted, the distance command is in the registry that every panel reads.',
+    title: 'distance() is available',
+    blurb: 'Because an ultrasonic sensor is fitted, the distance() command is in the registry that every panel reads.',
     action: 'Check the registry',
     run: function () {
       const a = window.KodroCommands.availability(robot());
@@ -8541,7 +8561,7 @@ Object.assign(window, {
           return x !== 'ultrasonic';
         })
       }));
-      const g = window.KodroCommands.check(robot(), 'read_distance');
+      const g = window.KodroCommands.check(robot(), 'distance');
       return {
         text: g.ok ? 'Unexpectedly still available.' : 'Refused. ' + g.reason,
         tone: g.ok ? 'warn' : 'err'
@@ -8589,10 +8609,32 @@ Object.assign(window, {
   }];
   function KodroDemo(props) {
     const {
-      useState
+      useState,
+      useEffect,
+      useRef
     } = React;
     const [i, setI] = useState(0);
     const [results, setResults] = useState({});
+    const snapRef = useRef(undefined);
+    // Snapshot the pre-demo build so the tour, which builds and strips parts as
+    // real actions (step 4 removes the ultrasonic), never permanently alters the
+    // user's saved robot. Restore it when the demo closes or unmounts, by any
+    // exit path (Close, Done, backdrop, or an abandon mid-tour).
+    useEffect(function () {
+      try {
+        const rb = window.getKodroRobot && window.getKodroRobot();
+        snapRef.current = rb ? JSON.parse(JSON.stringify(rb)) : null;
+      } catch (e) {
+        snapRef.current = undefined;
+      }
+      return function () {
+        try {
+          if (snapRef.current && window.RobotLab && window.RobotLab.applySpec) window.RobotLab.applySpec(snapRef.current);
+        } catch (e) {
+          void e;
+        }
+      };
+    }, []);
     const step = STEPS[i];
     const res = results[i];
     const toneColor = function (t) {
@@ -8735,7 +8777,8 @@ Object.assign(window, {
         font: 'inherit'
       },
       onClick: function () {
-        return setI(i - 1);
+        setResults({});
+        setI(i - 1);
       }
     }, 'Back'), i < STEPS.length - 1 ? React.createElement('button', {
       style: {
@@ -8751,7 +8794,10 @@ Object.assign(window, {
       },
       disabled: !res,
       onClick: function () {
-        if (res) setI(i + 1);
+        if (res) {
+          setResults({});
+          setI(i + 1);
+        }
       }
     }, 'Next') : React.createElement('button', {
       style: {
@@ -9678,6 +9724,13 @@ rover.say("Survey done")`
       addConsole('Validating across 5 randomised seeds in "' + scn.name + '" (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
       const rep = window.KodroScenario.run(code, scn, 5);
       const a = rep.aggregate;
+      // A compile error in the program is a code mistake, not a 0% behaviour
+      // result: surface it as an error and do not show a misleading pass rate
+      // (scenario.run also skips persisting the junk all-zero report).
+      if (a.compileError) {
+        addConsole('Validation could not run: ' + a.compileError + ' Fix the code and try again.', 'err');
+        return;
+      }
       addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', a.successRate >= 0.6 ? 'ok' : 'warn');
       setRealismOpen(true);
     }
@@ -10091,6 +10144,7 @@ rover.say("Survey done")`
       k: 'ifobs',
       label: 'if obstacle ahead',
       container: true,
+      requires: 'distance',
       code: () => 'if obstacle_ahead():',
       color: 'var(--mars)'
     }];
@@ -12395,14 +12449,22 @@ rover.say("Survey done")`
       onClick: () => setBlocksOpen(false)
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
       className: "blocks-palette"
-    }, BLOCK_DEFS.map(d => /*#__PURE__*/React.createElement("button", {
-      key: d.k,
-      className: "block-chip",
-      style: {
-        borderColor: d.color
-      },
-      onClick: () => addBlock(d)
-    }, d.label, d.unit ? ' ' + d.val + d.unit : '')), /*#__PURE__*/React.createElement("button", {
+    }, BLOCK_DEFS.map(d => {
+      // Gating parity with the text editor: a block whose command
+      // needs a part this build lacks is disabled here, so the limit
+      // is visible before running rather than a runtime refusal.
+      const gateOk = !d.requires || !window.KodroCommands || window.KodroCommands.check(robotSpec, d.requires).ok;
+      return /*#__PURE__*/React.createElement("button", {
+        key: d.k,
+        className: "block-chip",
+        style: {
+          borderColor: d.color
+        },
+        disabled: !gateOk,
+        title: gateOk ? undefined : 'This build has no part for ' + d.requires + '()',
+        onClick: () => addBlock(d)
+      }, d.label, d.unit ? ' ' + d.val + d.unit : '');
+    }), /*#__PURE__*/React.createElement("button", {
       className: "block-chip block-end",
       onClick: endBlock,
       disabled: blockIndent === 0

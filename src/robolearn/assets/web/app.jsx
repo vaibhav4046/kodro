@@ -452,6 +452,13 @@ rover.say("Survey done")`
       addConsole('Validating across 5 randomised seeds in "' + scn.name + '" (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
       const rep = window.KodroScenario.run(code, scn, 5);
       const a = rep.aggregate;
+      // A compile error in the program is a code mistake, not a 0% behaviour
+      // result: surface it as an error and do not show a misleading pass rate
+      // (scenario.run also skips persisting the junk all-zero report).
+      if (a.compileError) {
+        addConsole('Validation could not run: ' + a.compileError + ' Fix the code and try again.', 'err');
+        return;
+      }
       addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', (a.successRate >= 0.6 ? 'ok' : 'warn'));
       setRealismOpen(true);
     }
@@ -679,7 +686,7 @@ rover.say("Survey done")`
       { k: 'pendown', label: 'pen down', code: () => 'pen_down()', color: 'var(--brass)' },
       { k: 'penup', label: 'pen up', code: () => 'pen_up()', color: 'var(--brass)' },
       { k: 'repeat', label: 'repeat', unit: '×', val: 4, container: true, code: v => 'for i in range(' + v + '):', color: 'var(--mars)' },
-      { k: 'ifobs', label: 'if obstacle ahead', container: true, code: () => 'if obstacle_ahead():', color: 'var(--mars)' },
+      { k: 'ifobs', label: 'if obstacle ahead', container: true, requires: 'distance', code: () => 'if obstacle_ahead():', color: 'var(--mars)' },
     ];
     const [blocksOpen, setBlocksOpen] = useState(false);
     const [blocks, setBlocks] = useState([]);       // {k,label,val,indent,container,color,unit}
@@ -2131,11 +2138,18 @@ rover.say("Survey done")`
                 <button className="btn-mini" aria-label="Close" onClick={() => setBlocksOpen(false)}>✕</button>
               </div>
               <div className="blocks-palette">
-                {BLOCK_DEFS.map(d => (
-                  <button key={d.k} className="block-chip" style={{ borderColor: d.color }} onClick={() => addBlock(d)}>
-                    {d.label}{d.unit ? ' ' + d.val + d.unit : ''}
-                  </button>
-                ))}
+                {BLOCK_DEFS.map(d => {
+                  // Gating parity with the text editor: a block whose command
+                  // needs a part this build lacks is disabled here, so the limit
+                  // is visible before running rather than a runtime refusal.
+                  const gateOk = !d.requires || !window.KodroCommands || window.KodroCommands.check(robotSpec, d.requires).ok;
+                  return (
+                    <button key={d.k} className="block-chip" style={{ borderColor: d.color }} disabled={!gateOk}
+                      title={gateOk ? undefined : 'This build has no part for ' + d.requires + '()'} onClick={() => addBlock(d)}>
+                      {d.label}{d.unit ? ' ' + d.val + d.unit : ''}
+                    </button>
+                  );
+                })}
                 <button className="block-chip block-end" onClick={endBlock} disabled={blockIndent === 0}>↤ end block</button>
               </div>
               <div className="blocks-program" aria-label="Your program">

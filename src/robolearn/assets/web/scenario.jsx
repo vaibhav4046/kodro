@@ -208,6 +208,10 @@
     const runs = [];
     for (let i = 0; i < seeds; i++) runs.push(runOnce(src, scenario, base + i * 101, gateRobot));
     const ok = runs.filter(function (r) { return r && !r.compile; });
+    // Every seed failed to even compile: a typo, not a behaviour failure. Flag it
+    // so the UI shows a code error instead of a misleading 0% pass, and do not
+    // persist a junk all-zero report to memory or SQLite.
+    const allCompileFail = runs.length > 0 && runs.every(function (r) { return r && r.compile; });
     const reached = ok.filter(function (r) { return r.reachedGoal; });
     const mean = function (sel) { return ok.length ? ok.reduce(function (a, r) { return a + (sel(r) || 0); }, 0) / ok.length : 0; };
     const times = reached.map(function (r) { return r.timeToGoal; });
@@ -221,14 +225,17 @@
       meanScore: Math.round(mean(function (r) { return r.finalScore; })),
       commandErrors: ok.reduce(function (a, r) { return a + (r.commandErrors || 0); }, 0),
       minClearance: ok.length ? Math.min.apply(null, ok.map(function (r) { return r.minObstacleDistance; })) : 0,
+      compileError: allCompileFail ? ((runs[0] && runs[0].error) || 'Your code has a syntax error.') : null,
     };
     const report = { scenario: { scenarioId: scenario.scenarioId, name: scenario.name, environmentPreset: scenario.environmentPreset, seed: base }, runs: runs, aggregate: aggregate, ts: Date.now() };
     // Persist locally (offline) so the realism dashboard and the assistant can
     // read past validation. The desktop SQLite bridge mirrors this when present.
-    try {
-      if (window.KodroMemory && window.KodroMemory.saveScenarioReport) window.KodroMemory.saveScenarioReport(report);
-      if (window.RoboLearn && window.RoboLearn.saveScenarioRun) window.RoboLearn.saveScenarioRun(report);
-    } catch (e) { void e; }
+    if (!allCompileFail) {
+      try {
+        if (window.KodroMemory && window.KodroMemory.saveScenarioReport) window.KodroMemory.saveScenarioReport(report);
+        if (window.RoboLearn && window.RoboLearn.saveScenarioRun) window.RoboLearn.saveScenarioRun(report);
+      } catch (e) { void e; }
+    }
     return report;
   }
 
