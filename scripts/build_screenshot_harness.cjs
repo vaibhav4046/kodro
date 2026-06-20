@@ -121,7 +121,7 @@ const CAP = `<!DOCTYPE html>
         var w = q.get('world'); if (w) localStorage.setItem('or_terrain', w);
         var qq = q.get('q'); if (qq) localStorage.setItem('kodro_quality', qq);
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe') };
     })();
   </script>
   <div id="root"></div>
@@ -147,6 +147,26 @@ const CAP = `<!DOCTYPE html>
       if (!C.onb && C.run) {
         // Click Run so a capture can show the rover mid-drive (trail + heading).
         setTimeout(function () { var b = [].slice.call(document.querySelectorAll('.ctrl')); for (var i = 0; i < b.length; i++) { if ((b[i].textContent || '').indexOf('Run') >= 0) { b[i].click(); return; } } }, 1400);
+      }
+      if (!C.onb && C.vibe) {
+        // Drive the Vibe panel end-to-end like a user: open it, type the prompt
+        // into the React-controlled textarea (native setter + input event), then
+        // click Send. A long virtual-time-budget lets the local model reply.
+        setTimeout(function () {
+          var vb = document.querySelector('.btn-vibe'); if (vb) vb.click();
+          setTimeout(function () {
+            var inp = document.querySelector('.vibe-input');
+            if (inp) {
+              var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+              setter.call(inp, C.vibe);
+              inp.dispatchEvent(new Event('input', { bubbles: true }));
+              setTimeout(function () {
+                var btns = [].slice.call(document.querySelectorAll('button'));
+                for (var i = 0; i < btns.length; i++) { if ((btns[i].textContent || '').trim() === 'Send') { btns[i].click(); return; } }
+              }, 400);
+            }
+          }, 700);
+        }, 1200);
       }
       if (!C.onb && C.panel) {
         setTimeout(function () {
