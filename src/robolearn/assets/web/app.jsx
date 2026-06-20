@@ -351,6 +351,10 @@ rover.say("Survey done")`
     const [vibeOpen, setVibeOpen] = useState(false);
     const [realismOpen, setRealismOpen] = useState(false);
     const [demoOpen, setDemoOpen] = useState(false);
+    // Render-quality tier read by Viewport3D (Low/Med/High/Cinematic): bounds
+    // shadow + pixel-ratio cost so a laptop stays smooth, or maxes a screenshot.
+    const [quality, setQuality] = useState(() => { try { return localStorage.getItem('kodro_quality') || 'high'; } catch (e) { return 'high'; } });
+    if (typeof window !== 'undefined') window.KODRO_QUALITY = quality;
     // Robot Lab: design a custom robot whose spec drives the simulation.
     const [robotLabOpen, setRobotLabOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => (window.getKodroRobot ? window.getKodroRobot() : null));
@@ -1701,10 +1705,19 @@ rover.say("Survey done")`
                 {view3d && (
                   <button type="button" className="terrain-btn" aria-pressed={fpv} title="Switch between orbit and first person" onClick={() => setFpv(f => !f)}>{fpv ? '👁 First person' : '🛰 Orbit'}</button>
                 )}
+                {view3d && (
+                  <select className="terrain-btn" value={quality} title="Render quality (Low keeps a basic laptop smooth, Cinematic maxes a screenshot)" aria-label="Render quality" style={{ cursor: 'pointer' }}
+                    onChange={e => { const v = e.target.value; window.KODRO_QUALITY = v; setQuality(v); try { localStorage.setItem('kodro_quality', v); } catch (err) { void err; } }}>
+                    <option value="low">Low</option>
+                    <option value="med">Medium</option>
+                    <option value="high">High</option>
+                    <option value="cinematic">Cinematic</option>
+                  </select>
+                )}
               </span>
             </div>
             {view3d
-              ? <window.Viewport3D terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} />
+              ? <window.Viewport3D key={'vp3d-' + quality} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} />
               : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
           </div>
 

@@ -330,6 +330,45 @@
       },
       obFill: 'radial-gradient(circle at 38% 24%, #e2ecf6, #a2b8cc 64%, #66809a)',
     },
+    lab: {
+      base: 'room', label: 'ROBOTICS LAB', name: 'Robotics Lab - Test Bay',
+      coord: 'Indoor controlled environment',
+      env: { temp: 22, tempLabel: 'ROOM TEMP', light: 95 },
+      traction: 1.08,  // clean epoxy floor, excellent grip
+      seed: 401, count: 7, minR: 38, maxR: 70, decorSeed: 411, decorCount: 30,
+      groundBg: {
+        background: 'radial-gradient(circle at 45% 40%, #d8dde4, #b9c0c9 58%, #969ea8 100%)',
+        texture: 'linear-gradient(0deg, transparent 49%, rgba(90,100,115,0.18) 50%, transparent 51%), linear-gradient(90deg, transparent 49%, rgba(90,100,115,0.18) 50%, transparent 51%)',
+        texSize: '54px 54px',
+      },
+      obFill: 'radial-gradient(circle at 40% 26%, #e9edf1, #b6bec8 66%, #828a96)',
+    },
+    warehouse: {
+      base: 'room', label: 'WAREHOUSE', name: 'Warehouse Test Zone',
+      coord: 'Indoor logistics floor',
+      env: { temp: 17, tempLabel: 'AIR TEMP', light: 72 },
+      traction: 0.95,  // sealed concrete
+      seed: 402, count: 14, minR: 50, maxR: 110, decorSeed: 412, decorCount: 22,
+      groundBg: {
+        background: 'radial-gradient(circle at 46% 42%, #6f7277, #54565b 58%, #3c3e42 100%)',
+        texture: 'linear-gradient(0deg, transparent 48%, rgba(20,22,26,0.5) 49%, transparent 50%), linear-gradient(90deg, transparent 48%, rgba(255,210,120,0.12) 49%, transparent 50%)',
+        texSize: '120px 120px',
+      },
+      obFill: 'radial-gradient(circle at 40% 26%, #c9892f, #8a5c1c 66%, #553808)',
+    },
+    debug_grid: {
+      base: 'room', label: 'DEBUG GRID', name: 'Minimal Debug Grid',
+      coord: 'Calibration grid - no decor',
+      env: { temp: 20, tempLabel: 'AMBIENT', light: 88 },
+      traction: 1.0,  // ideal reference surface
+      seed: 403, count: 4, minR: 40, maxR: 70, decorSeed: 413, decorCount: 0,
+      groundBg: {
+        background: 'radial-gradient(circle at 50% 45%, #14171c, #0e1014 60%, #08090c 100%)',
+        texture: 'linear-gradient(0deg, transparent 49%, rgba(94,224,216,0.28) 50%, transparent 51%), linear-gradient(90deg, transparent 49%, rgba(94,224,216,0.28) 50%, transparent 51%)',
+        texSize: '40px 40px',
+      },
+      obFill: 'radial-gradient(circle at 40% 26%, #2a3340, #1a2230 66%, #0e1420)',
+    },
   };
 
   // Resolve a terrain OR site id into a renderable terrain object.
