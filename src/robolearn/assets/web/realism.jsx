@@ -52,8 +52,19 @@
     ]);
 
     // Sensor card.
+    // Status reflects the gating truth: only a sensor whose command is actually
+    // implemented (ultrasonic -> distance, imu -> heading) reads as command
+    // ready (teal). Camera, GPS, bumper and line are fitted hardware that change
+    // the build but carry no command, so they read neutral, not the same teal as
+    // a functional sensor, matching the Command registry card below.
+    const cmdPart = (window.KodroCommands && window.KodroCommands.COMMAND_PART) || {};
+    const sensorHasCmd = function (s) { return Object.keys(cmdPart).some(function (k) { return cmdPart[k] === s; }); };
     const sensorRows = (robot.sensors && robot.sensors.length)
-      ? robot.sensors.map(function (s) { return row(SENSOR_LABEL[s] || s, 'active', '#5ce0d8'); })
+      ? robot.sensors.map(function (s) {
+          return sensorHasCmd(s)
+            ? row(SENSOR_LABEL[s] || s, 'command ready', '#5ce0d8')
+            : row(SENSOR_LABEL[s] || s, 'fitted, no command', '#9fb4d2');
+        })
       : [row('Sensors', 'none fitted', '#f5c451')];
     sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'nominal'));
     const sensors = card('Sensors', sensorRows, '#5ce0d8');

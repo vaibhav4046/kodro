@@ -13,7 +13,7 @@
   const PROGRAM = [
     'set_speed(60)',
     'for i in range(120):',
-    '    if read_distance() < 140:',
+    '    if distance() < 140:',
     '        turn_right(30)',
     '    else:',
     '        move_forward(1)',
@@ -35,8 +35,8 @@
       },
     },
     {
-      title: 'read_distance() is available',
-      blurb: 'Because an ultrasonic sensor is fitted, the distance command is in the registry that every panel reads.',
+      title: 'distance() is available',
+      blurb: 'Because an ultrasonic sensor is fitted, the distance() command is in the registry that every panel reads.',
       action: 'Check the registry',
       run: function () {
         const a = window.KodroCommands.availability(robot());
@@ -62,7 +62,7 @@
       run: function () {
         const s = robot();
         window.RobotLab.applySpec(Object.assign({}, s, { sensors: (s.sensors || []).filter(function (x) { return x !== 'ultrasonic'; }) }));
-        const g = window.KodroCommands.check(robot(), 'read_distance');
+        const g = window.KodroCommands.check(robot(), 'distance');
         return { text: g.ok ? 'Unexpectedly still available.' : 'Refused. ' + g.reason, tone: g.ok ? 'warn' : 'err' };
       },
     },
@@ -92,9 +92,20 @@
   ];
 
   function KodroDemo(props) {
-    const { useState } = React;
+    const { useState, useEffect, useRef } = React;
     const [i, setI] = useState(0);
     const [results, setResults] = useState({});
+    const snapRef = useRef(undefined);
+    // Snapshot the pre-demo build so the tour, which builds and strips parts as
+    // real actions (step 4 removes the ultrasonic), never permanently alters the
+    // user's saved robot. Restore it when the demo closes or unmounts, by any
+    // exit path (Close, Done, backdrop, or an abandon mid-tour).
+    useEffect(function () {
+      try { const rb = window.getKodroRobot && window.getKodroRobot(); snapRef.current = rb ? JSON.parse(JSON.stringify(rb)) : null; } catch (e) { snapRef.current = undefined; }
+      return function () {
+        try { if (snapRef.current && window.RobotLab && window.RobotLab.applySpec) window.RobotLab.applySpec(snapRef.current); } catch (e) { void e; }
+      };
+    }, []);
     const step = STEPS[i];
     const res = results[i];
     const toneColor = function (t) { return t === 'err' ? '#ff8f7a' : t === 'warn' ? '#f5c451' : '#5ce0d8'; };
@@ -118,9 +129,9 @@
         React.createElement('div', { style: { display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 22 } },
           React.createElement('button', { style: { appearance: 'none', border: '1px solid #283a55', background: 'transparent', color: '#9fb4d2', cursor: 'pointer', borderRadius: 11, padding: '10px 18px', font: 'inherit' }, onClick: function () { return props.onClose && props.onClose(); } }, 'Close'),
           React.createElement('div', { style: { display: 'flex', gap: 10 } },
-            i > 0 && React.createElement('button', { style: { appearance: 'none', border: '1px solid #283a55', background: 'transparent', color: '#9fb4d2', cursor: 'pointer', borderRadius: 11, padding: '10px 18px', font: 'inherit' }, onClick: function () { return setI(i - 1); } }, 'Back'),
+            i > 0 && React.createElement('button', { style: { appearance: 'none', border: '1px solid #283a55', background: 'transparent', color: '#9fb4d2', cursor: 'pointer', borderRadius: 11, padding: '10px 18px', font: 'inherit' }, onClick: function () { setResults({}); setI(i - 1); } }, 'Back'),
             i < STEPS.length - 1
-              ? React.createElement('button', { style: { appearance: 'none', border: 0, background: res ? '#5ed6ff' : '#1b2738', color: res ? '#06121b' : '#5d728f', cursor: res ? 'pointer' : 'not-allowed', borderRadius: 11, padding: '10px 20px', fontWeight: 650, font: 'inherit' }, disabled: !res, onClick: function () { if (res) setI(i + 1); } }, 'Next')
+              ? React.createElement('button', { style: { appearance: 'none', border: 0, background: res ? '#5ed6ff' : '#1b2738', color: res ? '#06121b' : '#5d728f', cursor: res ? 'pointer' : 'not-allowed', borderRadius: 11, padding: '10px 20px', fontWeight: 650, font: 'inherit' }, disabled: !res, onClick: function () { if (res) { setResults({}); setI(i + 1); } } }, 'Next')
               : React.createElement('button', { style: { appearance: 'none', border: 0, background: '#5ed6ff', color: '#06121b', cursor: 'pointer', borderRadius: 11, padding: '10px 20px', fontWeight: 650, font: 'inherit' }, onClick: function () { return props.onClose && props.onClose(); } }, 'Done')
           )
         )

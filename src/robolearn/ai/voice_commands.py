@@ -38,7 +38,7 @@ _WORDS: dict[str, int] = {
     "fifteen": 15,
     "twenty": 20,
     "thirty": 30,
-    "forty": 45,
+    "forty": 40,
     "forty five": 45,
     "ninety": 90,
     "forty-five": 45,
@@ -73,6 +73,14 @@ def parse_voice_command(text: str) -> str | None:
     if not t:
         return None
 
+    # An explicit "say ..." / "announce ..." prefix is a verbatim announcement,
+    # checked BEFORE the movement and action keywords so "say go left" announces
+    # the words rather than being swallowed into a turn or a move.
+    for prefix in ("say ", "announce "):
+        if t.startswith(prefix):
+            message = t[len(prefix):].strip().replace('"', "")
+            return f'say("{message}")' if message else None
+
     # Speed first, so "go faster" is not swallowed by the "go" movement word.
     if "speed" in t or "faster" in t or "slower" in t:
         return f"set_speed({_number(t, 60)})"
@@ -102,8 +110,5 @@ def parse_voice_command(text: str) -> str | None:
         return f"wait({_number(t, 1)})"
     if "stop" in t or "halt" in t:
         return "set_speed(0)"
-    if t.startswith("say "):
-        message = t[4:].strip().replace('"', "")
-        return f'say("{message}")' if message else None
 
     return None
