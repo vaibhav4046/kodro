@@ -85,20 +85,31 @@ low hardware guarantees hold: a basic laptop on Low or High is never
 asked to pay for it. There is still no screen space ambient occlusion,
 depth of field or motion blur; those remain future work.
 
-## Robot spec gating (now complete)
+## Robot spec gating: enforced for the implemented commands
 
 The Robot Lab derives a robot specification from the parts you choose,
 and a single command registry (`KodroCommands` in `RobotLab.jsx`) is the
-source of truth for which commands the build supports. Gating is now
-enforced for every part-gated command, the ultrasonic and distance
-sensor plus the IMU, camera, GPS, bumper, line follower and gripper,
-across the text editor, the blocks palette, the voice route and the
-grounded assistant. A program that calls a command whose part is not
-fitted gets a readable refusal rather than a faked reading, and the
-assistant is told the same registry so it refuses too. The remaining
-gap is that some part-gated commands (camera, GPS, bumper, line) are
-recognised and refused by the registry but are not yet fully simulated
-in the runtime, so they are validation-gated rather than fully playable.
+source of truth for which commands the build supports. The commands that
+are actually implemented in the interpreter, the ultrasonic range read
+`distance()` and the IMU read `heading()` (with its `tilt` reading), are
+gated end to end: the text editor, the blocks palette, the voice route
+and the grounded assistant all refuse the call with a readable message
+when the part is not fitted, rather than faking a reading, and the
+assistant is handed the same registry so it refuses too.
+
+The other catalogue parts, the camera, GPS, bumper, line follower and
+gripper, are real fitted hardware: they add mass and change how the build
+accelerates, brakes and drains its battery, so choosing them still
+changes the behaviour. What they do not yet have is a runnable command
+binding (`see()`, `locate()`, `bumped()`, `on_line()`, `grab()`). The
+catalogue used to advertise those commands, which then failed with a
+confusing "name is not defined" instead of a clean refusal, so they have
+been removed from the advertised set and from the assistant's grounding:
+nothing is promised that the runtime cannot honour. Implementing those
+bindings, and gating a ground-colour read behind the line follower, is a
+near-term roadmap item. Until then the honest position is that gating is
+enforced for the commands that exist, and the remaining parts are
+hardware that shapes the build without a dedicated command.
 
 ## Arena size mismatch between the JS and Python engines
 

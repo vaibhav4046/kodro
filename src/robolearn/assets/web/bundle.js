@@ -6959,20 +6959,26 @@ Object.assign(window, {
       note: 'Rugged and forgiving, a classic first board.'
     }
   };
+  // `cmd` is the runnable, GATED command a part adds. Only parts whose command
+  // is actually implemented in the interpreter carry one: the ultrasonic range
+  // (distance()) and the IMU (heading()). The other parts are real fitted
+  // hardware that change the build's mass and behaviour, but their command
+  // bindings (vision, positioning, contact, line, gripper) are not implemented
+  // yet, so they advertise no callable command rather than a phantom one that
+  // would fail with a confusing error. See docs/known-limitations.md.
   const SENSORS = {
     ultrasonic: {
       id: 'ultrasonic',
       name: 'Ultrasonic range',
       mass: 9,
-      enables: 'sensor()  distance ahead',
-      cmd: 'sensor'
+      enables: 'distance()  range ahead',
+      cmd: 'distance'
     },
     line: {
       id: 'line',
       name: 'Line follower',
       mass: 6,
-      enables: 'on_line()  follow a track',
-      cmd: 'on_line'
+      enables: 'line tracking (fitted; adds mass)'
     },
     imu: {
       id: 'imu',
@@ -6985,22 +6991,19 @@ Object.assign(window, {
       id: 'camera',
       name: 'Camera',
       mass: 12,
-      enables: 'see()  look for a marker',
-      cmd: 'see'
+      enables: 'computer vision (fitted; adds mass)'
     },
     gps: {
       id: 'gps',
       name: 'GPS',
       mass: 8,
-      enables: 'locate()  position outdoors',
-      cmd: 'locate'
+      enables: 'positioning (fitted; adds mass)'
     },
     bumper: {
       id: 'bumper',
       name: 'Bumper switch',
       mass: 5,
-      enables: 'bumped()  contact stop',
-      cmd: 'bumped'
+      enables: 'contact bumper (fitted; adds mass)'
     }
   };
   const ACTUATORS = {
@@ -7030,8 +7033,7 @@ Object.assign(window, {
       name: 'Gripper arm',
       mass: 90,
       speed: 0.9,
-      enables: 'grab()  pick things up',
-      cmd: 'grab'
+      enables: 'manipulator (fitted; adds reach and mass)'
     }
   };
   const TYPES = {
@@ -7242,28 +7244,22 @@ Object.assign(window, {
   // runtime command names (including the lesson aliases the interpreter emits);
   // each maps to the part that must be fitted for the command to be available.
   const BASE_COMMANDS = ['move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'stop'];
+  // Only commands the interpreter actually implements are gated, keyed by the
+  // internal name host.sensor receives (after the lesson-alias mapping). The
+  // camera/gps/bumper/line/gripper commands are not implemented, so they are
+  // not listed (they would never reach this gate) and are not advertised.
   const COMMAND_PART = {
     distance: 'ultrasonic',
     read_distance: 'ultrasonic',
-    sensor: 'ultrasonic',
     heading: 'imu',
     read_heading: 'imu',
-    tilt: 'imu',
-    see: 'camera',
-    locate: 'gps',
-    bumped: 'bumper',
-    on_line: 'line',
-    grab: 'gripper'
+    tilt: 'imu'
   };
-  // The user-facing command name for each part, used in messages and the UI.
+  // The user-facing command name for each part that HAS a working command,
+  // used in messages, the availability list and the assistant grounding.
   const PART_COMMAND = {
-    ultrasonic: 'read_distance',
-    imu: 'read_heading',
-    camera: 'see',
-    gps: 'locate',
-    bumper: 'bumped',
-    line: 'on_line',
-    gripper: 'grab'
+    ultrasonic: 'distance',
+    imu: 'heading'
   };
   function partLabel(id) {
     return SENSORS[id] && SENSORS[id].name || ACTUATORS[id] && ACTUATORS[id].name || id;
@@ -10354,9 +10350,14 @@ rover.say("Survey done")`
         if (PREFERS_REDUCED_MOTION()) {
           // Snap with NO animation, but still sample the swept path so a
           // boulder/wall mid-route halts the rover instead of being tunnelled
-          // through (the collision check lives in onFrame). QA rank 4.
-          for (const p of [0.25, 0.5, 0.75, 1]) {
-            if (onFrame(p)) break;
+          // through (the collision check lives in onFrame). Sample at a fixed
+          // fine resolution rather than four fixed fractions: at the 4000cm max
+          // move that is ~62cm per step, under the smallest collision band, so
+          // a long move can no longer skip past a small obstacle and the
+          // accessibility path grades the same as the animated one. QA rank 4.
+          const STEPS = 64;
+          for (let k = 1; k <= STEPS; k++) {
+            if (onFrame(k / STEPS)) break;
           }
           resolve('done');
           return;

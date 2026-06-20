@@ -22,19 +22,26 @@
     pico: { id: 'pico', name: 'Raspberry Pi Pico', mass: 6, note: 'Cheap, low power, MicroPython native.' },
     uno: { id: 'uno', name: 'Arduino Uno', mass: 25, note: 'Rugged and forgiving, a classic first board.' },
   };
+  // `cmd` is the runnable, GATED command a part adds. Only parts whose command
+  // is actually implemented in the interpreter carry one: the ultrasonic range
+  // (distance()) and the IMU (heading()). The other parts are real fitted
+  // hardware that change the build's mass and behaviour, but their command
+  // bindings (vision, positioning, contact, line, gripper) are not implemented
+  // yet, so they advertise no callable command rather than a phantom one that
+  // would fail with a confusing error. See docs/known-limitations.md.
   const SENSORS = {
-    ultrasonic: { id: 'ultrasonic', name: 'Ultrasonic range', mass: 9, enables: 'sensor()  distance ahead', cmd: 'sensor' },
-    line: { id: 'line', name: 'Line follower', mass: 6, enables: 'on_line()  follow a track', cmd: 'on_line' },
+    ultrasonic: { id: 'ultrasonic', name: 'Ultrasonic range', mass: 9, enables: 'distance()  range ahead', cmd: 'distance' },
+    line: { id: 'line', name: 'Line follower', mass: 6, enables: 'line tracking (fitted; adds mass)' },
     imu: { id: 'imu', name: 'IMU (gyro + accel)', mass: 4, enables: 'heading()  stable turns', cmd: 'heading' },
-    camera: { id: 'camera', name: 'Camera', mass: 12, enables: 'see()  look for a marker', cmd: 'see' },
-    gps: { id: 'gps', name: 'GPS', mass: 8, enables: 'locate()  position outdoors', cmd: 'locate' },
-    bumper: { id: 'bumper', name: 'Bumper switch', mass: 5, enables: 'bumped()  contact stop', cmd: 'bumped' },
+    camera: { id: 'camera', name: 'Camera', mass: 12, enables: 'computer vision (fitted; adds mass)' },
+    gps: { id: 'gps', name: 'GPS', mass: 8, enables: 'positioning (fitted; adds mass)' },
+    bumper: { id: 'bumper', name: 'Bumper switch', mass: 5, enables: 'contact bumper (fitted; adds mass)' },
   };
   const ACTUATORS = {
     motors2: { id: 'motors2', name: '2 DC motors', mass: 120, speed: 1.0, note: 'Two wheels, differential drive.' },
     motors4: { id: 'motors4', name: '4 DC motors', mass: 220, speed: 1.25, note: 'Four wheels, more grip and torque.' },
     servos: { id: 'servos', name: 'Steering servo', mass: 40, speed: 1.1, note: 'Car style front steering.' },
-    gripper: { id: 'gripper', name: 'Gripper arm', mass: 90, speed: 0.9, enables: 'grab()  pick things up', cmd: 'grab' },
+    gripper: { id: 'gripper', name: 'Gripper arm', mass: 90, speed: 0.9, enables: 'manipulator (fitted; adds reach and mass)' },
   };
 
   const TYPES = {
@@ -148,15 +155,18 @@
   // runtime command names (including the lesson aliases the interpreter emits);
   // each maps to the part that must be fitted for the command to be available.
   const BASE_COMMANDS = ['move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'stop'];
+  // Only commands the interpreter actually implements are gated, keyed by the
+  // internal name host.sensor receives (after the lesson-alias mapping). The
+  // camera/gps/bumper/line/gripper commands are not implemented, so they are
+  // not listed (they would never reach this gate) and are not advertised.
   const COMMAND_PART = {
-    distance: 'ultrasonic', read_distance: 'ultrasonic', sensor: 'ultrasonic',
+    distance: 'ultrasonic', read_distance: 'ultrasonic',
     heading: 'imu', read_heading: 'imu', tilt: 'imu',
-    see: 'camera', locate: 'gps', bumped: 'bumper', on_line: 'line', grab: 'gripper',
   };
-  // The user-facing command name for each part, used in messages and the UI.
+  // The user-facing command name for each part that HAS a working command,
+  // used in messages, the availability list and the assistant grounding.
   const PART_COMMAND = {
-    ultrasonic: 'read_distance', imu: 'read_heading', camera: 'see',
-    gps: 'locate', bumper: 'bumped', line: 'on_line', gripper: 'grab',
+    ultrasonic: 'distance', imu: 'heading',
   };
   function partLabel(id) { return (SENSORS[id] && SENSORS[id].name) || (ACTUATORS[id] && ACTUATORS[id].name) || id; }
   function fittedParts(robot) {
