@@ -177,6 +177,15 @@
           if (!reachedGoal && Math.hypot(s.x - goal.x, s.y - goal.y) <= goal.r) { reachedGoal = true; timeToGoal = steps; }
         } else if (ev.type === 'turn') { turns++; s.heading += ev.deg; }
         else if (ev.type === 'speed') { s.speed = Math.max(0, Math.min(100, ev.value)); }
+        else if (ev.type === 'scan') {
+          // scan() reports an ultrasonic range, so gate it on the same part the
+          // live run-pump does. A build without an ultrasonic must refuse here
+          // too, otherwise a program halts in the live run but validates clean.
+          if (window.KodroCommands) {
+            const g = window.KodroCommands.check(robot, 'scan');
+            if (!g.ok) { commandErrors++; runError = g.reason; break; }
+          }
+        }
       }
     } catch (e) { runError = (e && e.message) || String(e); }
 
