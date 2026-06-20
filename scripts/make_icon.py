@@ -1,8 +1,9 @@
-"""Generate the RoboLearn app icon (assets/icon.ico) from the orbit mark.
+"""Generate the Kodro app icon (assets/icon.ico) from the brand mark.
 
-Reproducible: a dark rounded square, a tilted cyan orbit ring, planet dot and
-satellite dot -- the brand mark from the mission bar -- rendered at every
-Windows icon size. No binary asset has to be checked in by hand.
+Reproducible: a dark rounded "world" tile with a trajectory swept across it
+and the robot as a bright node at the head of its path, rendered at every
+Windows icon size. Matches ORBIT_SVG in app.jsx. No binary asset has to be
+checked in by hand.
 
 Usage::
 
@@ -11,7 +12,6 @@ Usage::
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -22,46 +22,52 @@ OUT = REPO_ROOT / "src" / "robolearn" / "assets" / "icon.ico"
 NAVY = (15, 18, 32, 255)
 NAVY_EDGE = (31, 36, 64, 255)
 CYAN = (92, 224, 216, 255)
-PAPER = (245, 240, 228, 255)
+CYAN_DIM = (92, 224, 216, 77)
+
+
+def _quad_bezier(p0, p1, p2, n=64):
+    """Sample a quadratic Bezier (start, control, end) into a point list."""
+    pts = []
+    for i in range(n + 1):
+        t = i / n
+        u = 1 - t
+        x = u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0]
+        y = u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1]
+        pts.append((x, y))
+    return pts
 
 
 def draw_mark(size: int) -> Image.Image:
-    """Render the orbit mark at ``size``x``size`` (4x supersampled)."""
     s = size * 4
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
 
-    # Rounded-square tile.
+    # The tile itself is the "world".
     radius = s * 0.22
     d.rounded_rectangle(
         [0, 0, s - 1, s - 1], radius=radius, fill=NAVY, outline=NAVY_EDGE, width=max(1, s // 64)
     )
 
-    cx = cy = s / 2
+    # Map the ORBIT_SVG 64-unit coordinate space into a padded inner area.
+    pad = s * 0.18
+    span = s - 2 * pad
 
-    # Planet.
-    pr = s * 0.16
-    d.ellipse([cx - pr, cy - pr, cx + pr, cy + pr], fill=PAPER)
+    def m(x, y):
+        return (pad + x / 64.0 * span, pad + y / 64.0 * span)
 
-    # Tilted orbit ring (ellipse approximated by rotated points).
-    a, b = s * 0.34, s * 0.13  # semi-axes
-    tilt = math.radians(-24)
-    pts = []
-    for i in range(120):
-        t = 2 * math.pi * i / 120
-        x, y = a * math.cos(t), b * math.sin(t)
-        xr = x * math.cos(tilt) - y * math.sin(tilt)
-        yr = x * math.sin(tilt) + y * math.cos(tilt)
-        pts.append((cx + xr, cy + yr))
-    d.line([*pts, pts[0]], fill=CYAN, width=max(2, s // 36), joint="curve")
+    # Trajectory: M16 48 Q23 25 47 19
+    traj = _quad_bezier(m(16, 48), m(23, 25), m(47, 19))
+    d.line(traj, fill=CYAN, width=max(2, s // 28), joint="curve")
 
-    # Satellite dot on the ring.
-    t = math.radians(40)
-    x, y = a * math.cos(t), b * math.sin(t)
-    xr = x * math.cos(tilt) - y * math.sin(tilt)
-    yr = x * math.sin(tilt) + y * math.cos(tilt)
-    sr = s * 0.055
-    d.ellipse([cx + xr - sr, cy + yr - sr, cx + xr + sr, cy + yr + sr], fill=CYAN)
+    # Start waypoint (dim).
+    sx, sy = m(16, 48)
+    sr = 2.8 / 64.0 * span
+    d.ellipse([sx - sr, sy - sr, sx + sr, sy + sr], fill=CYAN_DIM)
+
+    # Robot node: bright solid dot at the head of the path.
+    rx, ry = m(47, 19)
+    rr = 6.2 / 64.0 * span
+    d.ellipse([rx - rr, ry - rr, rx + rr, ry + rr], fill=CYAN)
 
     return img.resize((size, size), Image.LANCZOS)
 

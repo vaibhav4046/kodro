@@ -61,5 +61,18 @@
   function useSkill(name) { const l = load(SKEY); const s = l.find((x) => x.name === name); if (s) { s.uses = (s.uses || 0) + 1; save(SKEY, l); } return s ? s.code : null; }
   function removeSkill(name) { save(SKEY, load(SKEY).filter((s) => s.name !== name)); try { window.dispatchEvent(new CustomEvent('kodro-memory')); } catch (e) { void e; } }
 
-  window.KodroMemory = { record, reflections, lessonFor, saveSkill, skills, useSkill, removeSkill };
+  // ---- scenario validation reports (domain randomisation across seeds) ----
+  const CKEY = 'kodro_scenarios_v1';
+  function saveScenarioReport(report) {
+    if (!report) return false;
+    const list = load(CKEY);
+    list.unshift(report);
+    if (list.length > MAX) list.length = MAX;
+    save(CKEY, list);
+    try { window.dispatchEvent(new CustomEvent('kodro-memory')); } catch (e) { void e; }
+    return true;
+  }
+  function scenarioReports() { return load(CKEY); }
+
+  window.KodroMemory = { record, reflections, lessonFor, saveSkill, skills, useSkill, removeSkill, saveScenarioReport, scenarioReports };
 })();

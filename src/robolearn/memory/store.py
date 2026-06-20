@@ -73,6 +73,21 @@ CREATE TABLE IF NOT EXISTS pending_hint (
     rule_name TEXT NOT NULL,
     PRIMARY KEY (pupil_id, lesson_id)
 );
+
+CREATE TABLE IF NOT EXISTS scenario_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scenario_id TEXT NOT NULL,
+    name TEXT,
+    environment TEXT,
+    seeds INTEGER,
+    success_rate REAL,
+    mean_collisions REAL,
+    mean_battery REAL,
+    mean_time INTEGER,
+    mean_score INTEGER,
+    report_json TEXT,
+    ts INTEGER NOT NULL
+);
 """
 
 
@@ -330,6 +345,51 @@ class Store:
         sql += " ORDER BY ts ASC"
         rows = self._conn.execute(sql, params).fetchall()
         return [_row_to_submission(r) for r in rows]
+
+    # --- scenario validation runs -------------------------------------------
+
+    def save_scenario_run(self, report: dict[str, Any]) -> int:
+        """Persist one domain-randomised scenario validation report.
+
+        ``report`` is the object the web validator produces: a scenario
+        descriptor, the per-seed runs and an aggregate. The aggregate is
+        denormalised into columns for cheap querying while the full report is
+        kept as JSON so nothing is lost. Returns the new row id.
+        """
+        scn = report.get("scenario", {}) or {}
+        agg = report.get("aggregate", {}) or {}
+        now = int(report.get("ts") or _now_ms())
+        cur = self._conn.execute(
+            """
+            INSERT INTO scenario_runs
+              (scenario_id, name, environment, seeds, success_rate,
+               mean_collisions, mean_battery, mean_time, mean_score,
+               report_json, ts)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(scn.get("scenarioId") or "scenario"),
+                str(scn.get("name") or ""),
+                str(scn.get("environmentPreset") or ""),
+                int(agg.get("seeds") or 0),
+                float(agg.get("successRate") or 0.0),
+                float(agg.get("meanCollisions") or 0.0),
+                float(agg.get("meanBattery") or 0.0),
+                int(agg.get("meanTimeToGoal") or 0),
+                int(agg.get("meanScore") or 0),
+                json.dumps(report, separators=(",", ":")),
+                now,
+            ),
+        )
+        return int(cur.lastrowid or 0)
+
+    def list_scenario_runs(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        """Return saved scenario runs, newest first, as plain dicts."""
+        rows = self._conn.execute(
+            "SELECT * FROM scenario_runs ORDER BY ts DESC LIMIT ?",
+            (int(limit),),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
     # --- concept strength ---------------------------------------------------
 

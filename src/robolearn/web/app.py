@@ -82,6 +82,17 @@ class BridgeAPI:
         # Model-pick cache: /api/tags can block ~seconds behind an in-flight
         # generation, so don't pay it on every request.
         self._ai_models_cache: tuple[float, list[str]] | None = None
+        # User-chosen model override (persisted to ~/.robolearn/ai_models.json),
+        # honoured by both pick methods so a user can point Kodro at any local
+        # model they installed (DeepSeek, Nemotron, Qwen, etc.). None = auto.
+        self._ai_model_override: str | None = None
+        with contextlib.suppress(Exception):
+            import json as _json
+            from pathlib import Path as _Path
+
+            _p = _Path.home() / ".robolearn" / "ai_models.json"
+            if _p.exists():
+                self._ai_model_override = (_json.loads(_p.read_text()) or {}).get("model") or None
         # Exact-transcript response cache: a repeated request (same lesson,
         # same wording -- common in a classroom) answers instantly.
         self._ai_answer_cache: dict[str, dict[str, Any]] = {}
@@ -129,6 +140,26 @@ class BridgeAPI:
             if lesson.id == lesson_id:
                 return self._lesson_to_dict(lesson)
         return None
+
+    def save_scenario_run(self, report: dict[str, Any]) -> dict[str, Any]:
+        """Persist a domain-randomised scenario validation report to SQLite.
+
+        Called by the web validator (``window.RoboLearn.saveScenarioRun``) so a
+        run's spread is kept on the machine for the realism dashboard and the
+        assistant. Fully local; nothing leaves the device.
+        """
+        try:
+            row_id = self._store.save_scenario_run(report or {})
+            return {"ok": True, "id": row_id}
+        except Exception as exc:  # noqa: BLE001 - surface any persistence failure to the UI
+            return {"ok": False, "reason": str(exc)}
+
+    def list_scenario_runs(self, limit: int = 50) -> dict[str, Any]:
+        """Return saved scenario runs, newest first."""
+        try:
+            return {"ok": True, "runs": self._store.list_scenario_runs(limit=int(limit))}
+        except Exception as exc:  # noqa: BLE001 - surface query failure to the UI
+            return {"ok": False, "reason": str(exc), "runs": []}
 
     def get_pupil_summary(self) -> dict[str, Any]:
         """Return the active pupil's display name + recent score summary."""
@@ -374,6 +405,8 @@ class BridgeAPI:
         Within a family prefer the largest parameter count (gemma3:4b over
         gemma3:1b) -- this is the escalation/repair model, so capability wins.
         """
+        if self._ai_model_override and (not installed or self._ai_model_override in installed):
+            return self._ai_model_override
         # Prefer the locally fine-tuned model (QLoRA on Kodro tasks), then the
         # older baked tutor, both more accurate on this domain than a stock model.
         for name in installed:
@@ -407,7 +440,27 @@ class BridgeAPI:
             "available": True,
             "models": installed,
             "model": self._pick_ai_model(installed),
+            "override": self._ai_model_override,
         }
+
+    def set_ai_model(self, name: str = "") -> dict[str, Any]:
+        """Choose which installed local model the assistant uses, and persist it.
+
+        An empty name clears the override and returns to automatic selection.
+        Lets a user point Kodro at any local model they have pulled (DeepSeek,
+        Nemotron, Qwen, a custom fine-tune, etc.). Strictly local; no account.
+        """
+        choice = (name or "").strip() or None
+        self._ai_model_override = choice
+        self._ai_models_cache = None
+        with contextlib.suppress(Exception):
+            import json as _json
+            from pathlib import Path as _Path
+
+            _d = _Path.home() / ".robolearn"
+            _d.mkdir(parents=True, exist_ok=True)
+            (_d / "ai_models.json").write_text(_json.dumps({"model": choice}))
+        return {"ok": True, "model": choice}
 
     _BUILD_SYSTEM = (
         "You are a friendly hardware mentor helping a student build a REAL "
@@ -867,6 +920,8 @@ class BridgeAPI:
         model on failure, so a small drafter is safe -- and several times
         faster to first token.
         """
+        if self._ai_model_override and (not installed or self._ai_model_override in installed):
+            return self._ai_model_override
         # The 1B kodro-fast drafter gives a fast first token; the 3B kodro-coder
         # is reserved for the quality/escalation pass in _pick_ai_model.
         for name in installed:

@@ -34,6 +34,55 @@ def test_store_creates_schema_on_init(tmp_path: Path) -> None:
     store._conn.execute("SELECT 1 FROM pupils").fetchall()  # type: ignore[attr-defined]
     store._conn.execute("SELECT 1 FROM submissions").fetchall()  # type: ignore[attr-defined]
     store._conn.execute("SELECT 1 FROM concept_strength").fetchall()  # type: ignore[attr-defined]
+    store._conn.execute("SELECT 1 FROM scenario_runs").fetchall()  # type: ignore[attr-defined]
+
+
+def test_save_and_list_scenario_runs(tmp_path: Path) -> None:
+    """A domain-randomised scenario report round-trips through SQLite."""
+    import json
+
+    store = Store(tmp_path / "p.db")
+    report = {
+        "scenario": {
+            "scenarioId": "city_cross",
+            "name": "Cross",
+            "environmentPreset": "city",
+            "seed": 7,
+        },
+        "runs": [{"seed": 7, "reachedGoal": True, "collisions": 0, "finalScore": 88}],
+        "aggregate": {
+            "seeds": 5,
+            "successRate": 0.8,
+            "successCount": 4,
+            "meanCollisions": 0.4,
+            "meanBattery": 31.2,
+            "meanTimeToGoal": 42,
+            "meanScore": 76,
+        },
+        "ts": 1_700_000_000_000,
+    }
+    row_id = store.save_scenario_run(report)
+    assert row_id > 0
+    runs = store.list_scenario_runs()
+    assert len(runs) == 1
+    row = runs[0]
+    assert row["scenario_id"] == "city_cross"
+    assert row["environment"] == "city"
+    assert row["seeds"] == 5
+    assert abs(row["success_rate"] - 0.8) < 1e-9
+    assert row["mean_score"] == 76
+    restored = json.loads(row["report_json"])
+    assert restored["aggregate"]["successCount"] == 4
+    assert restored["runs"][0]["finalScore"] == 88
+
+
+def test_scenario_runs_newest_first(tmp_path: Path) -> None:
+    """Listing returns the most recent run first."""
+    store = Store(tmp_path / "p.db")
+    store.save_scenario_run({"scenario": {"scenarioId": "a"}, "aggregate": {}, "ts": 1000})
+    store.save_scenario_run({"scenario": {"scenarioId": "b"}, "aggregate": {}, "ts": 2000})
+    runs = store.list_scenario_runs()
+    assert [r["scenario_id"] for r in runs] == ["b", "a"]
 
 
 def test_create_and_get_pupil(tmp_path: Path) -> None:

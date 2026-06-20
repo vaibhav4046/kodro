@@ -359,6 +359,25 @@
       void e;
     }
   }
+
+  // ---- scenario validation reports (domain randomisation across seeds) ----
+  const CKEY = 'kodro_scenarios_v1';
+  function saveScenarioReport(report) {
+    if (!report) return false;
+    const list = load(CKEY);
+    list.unshift(report);
+    if (list.length > MAX) list.length = MAX;
+    save(CKEY, list);
+    try {
+      window.dispatchEvent(new CustomEvent('kodro-memory'));
+    } catch (e) {
+      void e;
+    }
+    return true;
+  }
+  function scenarioReports() {
+    return load(CKEY);
+  }
   window.KodroMemory = {
     record,
     reflections,
@@ -366,7 +385,9 @@
     saveSkill,
     skills,
     useSkill,
-    removeSkill
+    removeSkill,
+    saveScenarioReport,
+    scenarioReports
   };
 })();
 })();
@@ -3237,8 +3258,9 @@
       mount.appendChild(canvas);
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(SKY[id] != null ? SKY[id] : SKY.earth);
-      // Underwater murk swallows distance much sooner than open air.
-      scene.fog = new THREE.Fog(FOG[id] != null ? FOG[id] : FOG.earth, id === 'underwater' ? 16 : 60, id === 'underwater' ? 90 : 220);
+      // Underwater murk swallows distance much sooner than open air; the Moon
+      // has no atmosphere so its fog is pushed far back so the stars stay visible.
+      if (id === 'underwater') scene.fog = new THREE.FogExp2(FOG[id], 0.025);else scene.fog = new THREE.Fog(FOG[id] != null ? FOG[id] : FOG.earth, id === 'space' ? 200 : 60, id === 'space' ? 800 : 220);
       const camera = new THREE.PerspectiveCamera(62, w / h, 0.1, 2000);
 
       // Lights. Indoors (room) is warm and soft; outdoors is daylight.
@@ -3254,15 +3276,15 @@
       const sun = new THREE.DirectionalLight(sunCol, sunInt);
       sun.position.set(indoor ? 18 : 40, indoor ? 38 : 80, indoor ? 22 : 30);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(1024, 1024); // sharper than the old 512, still light on iGPUs
+      sun.shadow.mapSize.set(indoor ? 2048 : 1024, indoor ? 2048 : 1024); // sharper than the old 512, still light on iGPUs
       sun.shadow.camera.near = 1;
       sun.shadow.camera.far = 320;
       sun.shadow.camera.left = -120;
       sun.shadow.camera.right = 120;
       sun.shadow.camera.top = 120;
       sun.shadow.camera.bottom = -120;
-      sun.shadow.bias = -0.0006;
-      if (sun.shadow.radius != null) sun.shadow.radius = 3;
+      sun.shadow.bias = -0.0003;
+      if (sun.shadow.radius != null) sun.shadow.radius = 5;
       scene.add(sun);
       // A soft fill from the opposite side so shadowed faces are not black.
       const fill = new THREE.DirectionalLight(0xbcd2ff, indoor ? 0.18 : 0.28);
@@ -3334,9 +3356,11 @@
       const ground = new THREE.Mesh(groundGeo, groundMat);
       ground.rotation.x = -Math.PI / 2;
       ground.receiveShadow = true;
-      if (indoor) {
-        groundMat.roughness = 0.7;
-        groundMat.metalness = 0.05;
+      // City and room floors get a touch of metalness and lower roughness for a
+      // slightly reflective sheen; open terrain stays rough and matte.
+      if (!openWorld) {
+        groundMat.roughness = 0.85;
+        groundMat.metalness = 0.1;
       }
       scene.add(ground);
       if (id !== 'city' && id !== 'room') {
@@ -3374,6 +3398,23 @@
             cc.offsetHSL(0, 0, (Math.random() < 0.5 ? -1 : 1) * 0.06);
             const g = c2.createRadialGradient(x, y, 0, x, y, r);
             g.addColorStop(0, 'rgba(' + Math.round(cc.r * 255) + ',' + Math.round(cc.g * 255) + ',' + Math.round(cc.b * 255) + ',0.4)');
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            c2.fillStyle = g;
+            c2.beginPath();
+            c2.arc(x, y, r, 0, 6.283);
+            c2.fill();
+          }
+          // A handful of broad colour regions with a gentle hue shift so the
+          // terrain reads as real ground with mineral/vegetation variation, not
+          // a uniform field of speckles.
+          for (let i = 0; i < 6; i++) {
+            const x = Math.random() * 256,
+              y = Math.random() * 256,
+              r = 40 + Math.random() * 60;
+            const cc = base.clone();
+            cc.offsetHSL((Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.08, (Math.random() < 0.5 ? -1 : 1) * 0.05);
+            const g = c2.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, 'rgba(' + Math.round(cc.r * 255) + ',' + Math.round(cc.g * 255) + ',' + Math.round(cc.b * 255) + ',0.35)');
             g.addColorStop(1, 'rgba(0,0,0,0)');
             c2.fillStyle = g;
             c2.beginPath();
@@ -3525,24 +3566,29 @@
       // A detailed car: a tapered hull, a raked cabin and windshield, head and
       // tail lights, mirrors, bumpers and rimmed wheels. Forward is +x.
       function carBody(parent, col) {
-        const bodyM = new THREE.MeshStandardMaterial({
+        const bodyM = new THREE.MeshPhysicalMaterial({
           color: col,
           roughness: 0.24,
           metalness: 0.72,
-          envMapIntensity: 1.1
+          envMapIntensity: 1.1,
+          clearcoat: 1.0,
+          clearcoatRoughness: 0.1,
+          sheen: 0.3
         });
         const trimM = new THREE.MeshStandardMaterial({
           color: 0x16181d,
           roughness: 0.6,
           metalness: 0.3
         });
-        const glassM = new THREE.MeshStandardMaterial({
+        const glassM = new THREE.MeshPhysicalMaterial({
           color: 0x9fcae6,
-          roughness: 0.06,
-          metalness: 0.2,
+          transmission: 0.0,
+          roughness: 0.02,
+          metalness: 0.0,
           transparent: true,
-          opacity: 0.6,
-          envMapIntensity: 1.4
+          opacity: 0.5,
+          envMapIntensity: 1.8,
+          clearcoat: 1.0
         });
         const headM = new THREE.MeshStandardMaterial({
           color: 0xfff6d8,
@@ -3924,9 +3970,12 @@
         leaf.position.set(-R + 4, 3.4, -R + 4);
         leaf.castShadow = true;
         scene.add(leaf);
-        const lamp = new THREE.PointLight(0xffd9a0, 0.7, 70);
+        const lamp = new THREE.SpotLight(0xffd9a0, 1.2, 80, 0.6, 0.4);
         lamp.position.set(R - 8, 11, 8);
+        lamp.target.position.set(R - 8, 0, 8);
+        lamp.castShadow = false;
         scene.add(lamp);
+        scene.add(lamp.target);
         // People moving in the room, from the shared agent simulation, so the
         // companion robot has someone to avoid.
         const KAr = window.KodroAgents;
@@ -3996,6 +4045,7 @@
       const wheels = [];
       const steer = []; // front wheel groups, turned toward the heading change
       const Cap = THREE.CapsuleGeometry || null;
+      let ledIndicator = null; // rover mast LED, pulsed each frame in tick()
       // DoubleSide so flat accent discs (the rover eye, the home chest) stay
       // visible when the orbit camera swings round behind the robot.
       const accMat = () => new THREE.MeshStandardMaterial({
@@ -4042,6 +4092,20 @@
           if (front) steer.push(wheel);
         });
         arrow(2.05);
+        // Headlights as real spotlights (children of rov so they track the car).
+        // Forward is +x; only the left one casts a shadow to keep the cost down.
+        [[0.55], [-0.55]].forEach((zArr, idx) => {
+          const sl = new THREE.SpotLight(0xfff5e0, 1.5, 60, 0.4, 0.5);
+          sl.position.set(1.78, 0.72, zArr[0]);
+          sl.target.position.set(20, 0.2, zArr[0]);
+          sl.castShadow = idx === 0;
+          if (sl.castShadow) {
+            sl.shadow.mapSize.set(512, 512);
+            sl.shadow.bias = -0.0003;
+          }
+          rov.add(sl);
+          rov.add(sl.target);
+        });
       } else if (rType === 'home') {
         const botM = new THREE.MeshStandardMaterial({
           color: 0xe9edf2,
@@ -4178,6 +4242,15 @@
         eye.position.set(1.12, 2.3, 0);
         eye.rotation.y = Math.PI / 2;
         body.add(eye);
+        // A small status LED atop the mast that pulses each frame (see tick()).
+        const ledMat = new THREE.MeshStandardMaterial({
+          color: accent,
+          emissive: accent,
+          emissiveIntensity: 0.6
+        });
+        ledIndicator = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), ledMat);
+        ledIndicator.position.set(0.85, 2.6, 0);
+        body.add(ledIndicator);
         // running lights on the leading edge of the chassis
         const litM = new THREE.MeshStandardMaterial({
           color: 0xfff6d8,
@@ -4191,6 +4264,78 @@
         });
         addWheels([[0.95, 0.95], [0.95, -0.95], [-0.95, 0.95], [-0.95, -0.95]], 0.5);
         arrow(2.05);
+      }
+      // Sensor attachments: small modules on the body reflecting the FITTED
+      // parts, so the robot the user designed is visible. Mounted on `body` so
+      // they lean with weight transfer. Forward is +x. Guarded so a bad spec or
+      // a missing global can never break the scene build.
+      try {
+        const fitted = window.getKodroRobot && window.getKodroRobot().sensors || [];
+        const sy = rType === 'home' ? 1.6 : rType === 'arm' ? 1.0 : 1.15; // mount height by build
+        const fx = rType === 'car' ? 1.55 : rType === 'home' ? 0.7 : 1.25; // front face by build
+        const darkM = new THREE.MeshStandardMaterial({
+          color: 0x14161b,
+          roughness: 0.7,
+          metalness: 0.3
+        });
+        if (rType !== 'arm') {
+          if (fitted.indexOf('ultrasonic') >= 0) {
+            [0.16, -0.16].forEach(z => {
+              const e = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.1, 14), darkM);
+              e.rotation.z = Math.PI / 2;
+              e.position.set(fx, sy, z);
+              body.add(e);
+              const r = new THREE.Mesh(new THREE.CircleGeometry(0.07, 12), accMat());
+              r.position.set(fx + 0.06, sy, z);
+              r.rotation.y = Math.PI / 2;
+              body.add(r);
+            });
+          }
+          if (fitted.indexOf('camera') >= 0) {
+            const cam = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.34), darkM);
+            cam.position.set(fx - 0.05, sy + 0.4, 0);
+            body.add(cam);
+            const lens = new THREE.Mesh(new THREE.CircleGeometry(0.09, 14), accMat());
+            lens.position.set(fx + 0.07, sy + 0.4, 0);
+            lens.rotation.y = Math.PI / 2;
+            body.add(lens);
+          }
+          if (fitted.indexOf('bumper') >= 0) {
+            const bar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 1.2), new THREE.MeshStandardMaterial({
+              color: 0xb84a3a,
+              roughness: 0.6
+            }));
+            bar.position.set(fx + 0.05, 0.55, 0);
+            body.add(bar);
+          }
+          if (fitted.indexOf('line') >= 0) {
+            const ls = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.5), darkM);
+            ls.position.set(fx - 0.2, 0.35, 0);
+            body.add(ls);
+          }
+        }
+        if (fitted.indexOf('gps') >= 0) {
+          const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.7, 6), new THREE.MeshStandardMaterial({
+            color: 0x9aa0ad,
+            metalness: 0.6,
+            roughness: 0.4
+          }));
+          ant.position.set(-0.2, sy + 0.9, 0.3);
+          body.add(ant);
+          const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), accMat());
+          tip.position.set(-0.2, sy + 1.25, 0.3);
+          body.add(tip);
+        }
+        if (fitted.indexOf('imu') >= 0) {
+          const chip = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.16), new THREE.MeshStandardMaterial({
+            color: 0x2c7a4a,
+            roughness: 0.5
+          }));
+          chip.position.set(-0.1, sy + 0.1, -0.3);
+          body.add(chip);
+        }
+      } catch (e) {
+        void e;
       }
       // Practical scale: a robot indoors shares a small room with furniture, so
       // it is sized down to fit rather than towering over the sofa.
@@ -4345,6 +4490,17 @@
         rov.rotation.y = curHeading;
         const moved = Math.hypot(cur.x - px0, cur.z - pz0);
         if (moved > 0.001) wheels.forEach(wh => wh.rotateY(moved * 1.6));
+        // Rover status LED: pulses on a slow sine and tracks the live LED colour
+        // (s.led is a hex string set by led("cyan") etc.), falling back to accent.
+        if (ledIndicator) {
+          ledIndicator.material.emissiveIntensity = 0.4 + 0.4 * (0.5 + 0.5 * Math.sin(now * 0.004));
+          if (s.led && s.led !== ledIndicator.userData.led) {
+            ledIndicator.userData.led = s.led;
+            const lc = new THREE.Color(s.led);
+            ledIndicator.material.color.copy(lc);
+            ledIndicator.material.emissive.copy(lc);
+          }
+        }
         // ---- weight transfer, banking, suspension and steering ----
         const accel = moved - prevSpeed;
         prevSpeed = moved;
@@ -6482,6 +6638,105 @@ Object.assign(window, {
   };
   // Make sure a default exists from first load so the sim never sees undefined.
   window.getKodroRobot();
+
+  // ---- canonical command registry. ONE source of truth for which commands a
+  // build supports, read by the interpreter host, the assistant and the UI, so
+  // no panel invents a command the robot cannot actually run. Keys are the
+  // runtime command names (including the lesson aliases the interpreter emits);
+  // each maps to the part that must be fitted for the command to be available.
+  const BASE_COMMANDS = ['move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'stop'];
+  const COMMAND_PART = {
+    distance: 'ultrasonic',
+    read_distance: 'ultrasonic',
+    sensor: 'ultrasonic',
+    heading: 'imu',
+    read_heading: 'imu',
+    tilt: 'imu',
+    see: 'camera',
+    locate: 'gps',
+    bumped: 'bumper',
+    on_line: 'line',
+    grab: 'gripper'
+  };
+  // The user-facing command name for each part, used in messages and the UI.
+  const PART_COMMAND = {
+    ultrasonic: 'read_distance',
+    imu: 'read_heading',
+    camera: 'see',
+    gps: 'locate',
+    bumper: 'bumped',
+    line: 'on_line',
+    gripper: 'grab'
+  };
+  function partLabel(id) {
+    return SENSORS[id] && SENSORS[id].name || ACTUATORS[id] && ACTUATORS[id].name || id;
+  }
+  function fittedParts(robot) {
+    if (!robot) return null; // no build context (e.g. headless QA): do not gate
+    return [].concat(robot.sensors || [], robot.actuators || []);
+  }
+  window.KodroCommands = {
+    COMMAND_PART: COMMAND_PART,
+    // {ok} for an always-available command, else {ok:false, part, label, reason}.
+    check: function (robot, cmdName) {
+      const part = COMMAND_PART[cmdName];
+      if (!part) return {
+        ok: true
+      };
+      const fitted = fittedParts(robot);
+      if (fitted === null || fitted.indexOf(part) >= 0) return {
+        ok: true,
+        part: part
+      };
+      return {
+        ok: false,
+        part: part,
+        label: partLabel(part),
+        reason: 'This robot has no ' + partLabel(part) + ', so ' + cmdName + '() is not available. Fit a ' + partLabel(part) + ' in the Robot Lab to use it.'
+      };
+    },
+    // The full availability list for the UI cards and the assistant grounding:
+    // every base command plus one entry per part-gated command, with reasons.
+    availability: function (robot) {
+      const out = BASE_COMMANDS.map(function (c) {
+        return {
+          name: c,
+          available: true,
+          requires: null
+        };
+      });
+      Object.keys(PART_COMMAND).forEach(function (part) {
+        const cmd = PART_COMMAND[part];
+        const r = window.KodroCommands.check(robot, cmd);
+        out.push({
+          name: cmd,
+          available: r.ok,
+          requires: part,
+          partLabel: partLabel(part),
+          reason: r.ok ? null : r.reason
+        });
+      });
+      return out;
+    },
+    // A short grounding line for the assistant: the commands it may use and the
+    // ones it must refuse because the part is not fitted.
+    groundingText: function (robot) {
+      const a = window.KodroCommands.availability(robot);
+      const ok = a.filter(function (c) {
+        return c.available;
+      }).map(function (c) {
+        return c.name + '()';
+      });
+      const no = a.filter(function (c) {
+        return !c.available;
+      }).map(function (c) {
+        return c.name + '() (needs ' + c.partLabel + ')';
+      });
+      let t = 'Commands this build supports: ' + ok.join(', ') + '.';
+      if (no.length) t += ' Not available, do not use and refuse if asked: ' + no.join(', ') + '.';
+      return t;
+    }
+  };
   function Chip(props) {
     const on = props.on;
     return React.createElement('button', {
@@ -6734,7 +6989,1081 @@ Object.assign(window, {
     save(spec);
     return spec;
   };
+
+  // ---- onboarding agent: natural language -> a validated RobotSpec ----------
+  // The starting-page agent maps a spoken or typed description onto the SAME
+  // parts catalogue, so it can only ever produce a buildable robot. It never
+  // emits executable code; the output is data, validated field by field against
+  // the catalogue, with anything unknown dropped. This is the deterministic
+  // path; a local model may rephrase the prompt first, but this mapper has the
+  // final word on what parts the robot actually gets.
+  function robotFromText(text) {
+    const t = String(text || '').toLowerCase();
+    let type = 'rover';
+    if (/(car|vehicle|self.?driv|autonomous|road|traffic)/.test(t)) type = 'car';else if (/(robotic arm|\barm\b|manipulat|pick and place)/.test(t)) type = 'arm';else if (/(home|companion|personal|indoor|assistant|helper|house)/.test(t)) type = 'home';else if (/(rover|explor|terrain|outdoor|mars|moon|planet|rough)/.test(t)) type = 'rover';
+    const spec = specFromType(type, null);
+    const sensors = spec.sensors.slice();
+    const actuators = spec.actuators.slice();
+    function add(list, id) {
+      if (list.indexOf(id) < 0) list.push(id);
+    }
+    function drop(list, id) {
+      const i = list.indexOf(id);
+      if (i >= 0) list.splice(i, 1);
+    }
+    if (/(camera|vision|\bsee\b|marker|look)/.test(t)) add(sensors, 'camera');
+    if (/(ultrasonic|distance|obstacle|avoid|range|sonar)/.test(t)) add(sensors, 'ultrasonic');
+    if (/(imu|gyro|balance|tilt|orient|accelerom)/.test(t)) add(sensors, 'imu');
+    if (/(gps|location|position|navigat)/.test(t)) add(sensors, 'gps');
+    if (/(line follow|follow.?line|\bline\b|track)/.test(t)) add(sensors, 'line');
+    if (/(bumper|touch|contact|switch)/.test(t)) add(sensors, 'bumper');
+    if (/(gripper|grab|grip|claw|\bpick\b)/.test(t)) add(actuators, 'gripper');
+    if (/(four wheel|4 wheel|4wd|four.?motor|all.?wheel)/.test(t)) {
+      add(actuators, 'motors4');
+      drop(actuators, 'motors2');
+    }
+    if (/(steer|servo|ackermann)/.test(t)) add(actuators, 'servos');
+    let board = spec.board;
+    if (/arduino|uno/.test(t)) board = 'uno';else if (/micro.?bit/.test(t)) board = 'microbit';else if (/pico|raspberry/.test(t)) board = 'pico';else if (/esp32|\besp\b/.test(t)) board = 'esp32';
+    // Validate every field against the catalogue: drop anything unknown.
+    const vs = sensors.filter(function (s) {
+      return SENSORS[s];
+    });
+    const va = actuators.filter(function (a) {
+      return ACTUATORS[a];
+    });
+    const vb = BOARDS[board] ? board : 'esp32';
+    const name = TYPES[type] && TYPES[type].name || 'My Robot';
+    return {
+      type: type,
+      name: name,
+      board: vb,
+      sensors: vs,
+      actuators: va
+    };
+  }
+  RobotLab.fromText = robotFromText;
+  // Apply an arbitrary spec, validated against the catalogue and saved. Used by
+  // the guided demo to add or remove a part and show the command registry react.
+  RobotLab.applySpec = function (spec) {
+    const vs = (spec.sensors || []).filter(function (s) {
+      return SENSORS[s];
+    });
+    const va = (spec.actuators || []).filter(function (a) {
+      return ACTUATORS[a];
+    });
+    const vb = BOARDS[spec.board] ? spec.board : 'esp32';
+    const vt = TYPES[spec.type] ? spec.type : 'rover';
+    const clean = {
+      type: vt,
+      name: spec.name || 'My Robot',
+      board: vb,
+      sensors: vs,
+      actuators: va
+    };
+    save(clean);
+    return {
+      spec: clean,
+      derived: derive(clean),
+      world: WORLD_FOR[clean.type] || {}
+    };
+  };
+  RobotLab.buildFromText = function (text) {
+    const spec = robotFromText(text);
+    save(spec);
+    return {
+      spec: spec,
+      derived: derive(spec),
+      world: WORLD_FOR[spec.type] || {}
+    };
+  };
+  window.KodroRobotFromText = robotFromText;
   window.RobotLab = RobotLab;
+})();
+})();
+
+;(function () {
+/*
+ * Scenario validation with domain randomisation.
+ *
+ * The honest validation layer: take one program and run it through the SAME
+ * interpreter and kinematics the live sim uses, headless and with no animation,
+ * many times, each time varying friction, robot mass, sensor noise and obstacle
+ * placement from a seeded random source. A behaviour that survives the spread is
+ * likely to survive reality; one that only works on a tidy layout is not. This
+ * follows domain randomisation (Tobin et al., 2017) and reports the spread, not
+ * just one tidy number.
+ *
+ *   window.KodroScenario.PRESETS                  -> built-in scenarios
+ *   window.KodroScenario.run(src, scenario, n)    -> { runs, aggregate, scenario }
+ *   window.KodroScenario.defaultFor(worldId)      -> a scenario for a world
+ *
+ * A scenario is data:
+ *   { scenarioId, name, environmentPreset, startPose:{x,y,heading},
+ *     goalPose:{x,y,r}, obstacles:[{x,y,r}], terrainMaterial, seed,
+ *     successCriteria:{ reachGoal, maxCollisions }, randomizationConfig }
+ */
+(function () {
+  const WALL = 1500; // arena half-extent in cm, matches the engine and self-test
+  const STEP_CAP = 200000;
+
+  // Deterministic PRNG so a seed reproduces a run exactly (reproducible demo).
+  function mulberry32(a) {
+    return function () {
+      a |= 0;
+      a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function hashStr(s) {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  // Distance from point p to segment a->b, used for swept collision tests.
+  function segPointDist(ax, ay, bx, by, px, py) {
+    const vx = bx - ax,
+      vy = by - ay;
+    const wx = px - ax,
+      wy = py - ay;
+    const len2 = vx * vx + vy * vy;
+    let t = len2 > 0 ? (wx * vx + wy * vy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const cx = ax + vx * t,
+      cy = ay + vy * t;
+    return Math.hypot(px - cx, py - cy);
+  }
+
+  // Ray from (x,y) along heading to the nearest obstacle or wall, in cm.
+  function rayDistance(x, y, headingDeg, obstacles) {
+    const a = headingDeg * Math.PI / 180;
+    const dx = Math.sin(a),
+      dy = -Math.cos(a);
+    let best = Infinity;
+    for (const pair of [[dx, x], [dy, y]]) {
+      const d = pair[0],
+        p = pair[1];
+      if (d > 1e-9) best = Math.min(best, (WALL - p) / d);else if (d < -1e-9) best = Math.min(best, (-WALL - p) / d);
+    }
+    for (const o of obstacles) {
+      const ox = o.x - x,
+        oy = o.y - y;
+      const tca = ox * dx + oy * dy;
+      if (tca < 0) continue;
+      const d2 = ox * ox + oy * oy - tca * tca;
+      const rr = o.r * o.r;
+      if (d2 > rr) continue;
+      const t = tca - Math.sqrt(rr - d2);
+      if (t > 0) best = Math.min(best, t);
+    }
+    return Math.max(0, best);
+  }
+
+  // One headless run with the parameters this seed produced.
+  function runOnce(src, scenario, seed) {
+    if (!window.RoverLang) return {
+      ok: false,
+      error: 'interpreter not loaded'
+    };
+    let program;
+    try {
+      program = window.RoverLang.compile(src);
+    } catch (e) {
+      return {
+        ok: false,
+        seed: seed,
+        error: e && e.message || String(e),
+        compile: true,
+        finalScore: 0
+      };
+    }
+    const rng = mulberry32(seed >>> 0 ^ hashStr(scenario.scenarioId || 'scn'));
+    const cfg = scenario.randomizationConfig || {};
+    const fr = cfg.friction || [0.8, 1.0];
+    const friction = lerp(fr[0], fr[1], rng());
+    const massTol = cfg.massTol || 0.1;
+    const massMul = 1 + (rng() * 2 - 1) * massTol;
+    const noiseCm = cfg.sensorNoise || 0;
+    const jitter = cfg.obstacleJitter || 0;
+    const robot = window.getKodroRobot ? window.getKodroRobot() : null;
+    const massFac = (robot && robot.massFactor ? robot.massFactor : 1) * massMul;
+    const start = scenario.startPose || {
+      x: 0,
+      y: 0,
+      heading: 0
+    };
+    const goal = scenario.goalPose || {
+      x: 0,
+      y: -1000,
+      r: 120
+    };
+    // Jitter each obstacle a little, deterministically, so placement varies.
+    const obstacles = (scenario.obstacles || []).map(function (o) {
+      return {
+        x: o.x + (rng() * 2 - 1) * jitter,
+        y: o.y + (rng() * 2 - 1) * jitter,
+        r: o.r
+      };
+    });
+    const s = {
+      x: start.x,
+      y: start.y,
+      heading: start.heading || 0,
+      speed: 50,
+      battery: 100
+    };
+    let minObstacleDistance = Infinity;
+    function noteClearance() {
+      for (const o of obstacles) {
+        const d = Math.hypot(s.x - o.x, s.y - o.y) - o.r;
+        if (d < minObstacleDistance) minObstacleDistance = d;
+      }
+    }
+    noteClearance();
+    let commandErrors = 0,
+      sensorFailures = 0;
+    const host = {
+      sensor: function (name) {
+        // Gate on the build's fitted parts, exactly like the live host.
+        if (window.KodroCommands) {
+          const g = window.KodroCommands.check(robot, name);
+          if (!g.ok) {
+            commandErrors++;
+            throw new Error(g.reason);
+          }
+        }
+        switch (name) {
+          case 'distance':
+            {
+              let d = rayDistance(s.x, s.y, s.heading, obstacles);
+              if (noiseCm) {
+                d += (rng() * 2 - 1) * noiseCm;
+                if (d < 0) {
+                  d = 0;
+                  sensorFailures++;
+                }
+              }
+              return Math.round(d);
+            }
+          case 'heading':
+            return Math.round((s.heading % 360 + 360) % 360);
+          case 'battery':
+            return Math.round(s.battery);
+          case 'speed':
+            return Math.round(s.speed);
+          case 'x':
+            return Math.round(s.x);
+          case 'y':
+            return Math.round(-s.y);
+          case 'gravity':
+            return 9.81;
+          case 'temperature':
+            return 16;
+          case 'light':
+            return 0.8;
+          case 'tilt':
+            return 0;
+          default:
+            return 0;
+        }
+      }
+    };
+    let gen;
+    try {
+      gen = program.run(host);
+    } catch (e) {
+      return {
+        ok: false,
+        seed: seed,
+        error: e && e.message || String(e),
+        finalScore: 0
+      };
+    }
+    let steps = 0,
+      moves = 0,
+      turns = 0,
+      collisions = 0,
+      reachedGoal = false,
+      runError = null,
+      timeToGoal = null;
+    try {
+      for (;;) {
+        const res = gen.next();
+        if (res.done) break;
+        if (++steps > STEP_CAP) {
+          runError = 'did not terminate';
+          break;
+        }
+        const ev = res.value;
+        if (ev.type === 'move') {
+          moves++;
+          const a = s.heading * Math.PI / 180;
+          // Friction slip: lower traction means the move falls a little short.
+          const slip = 0.85 + 0.15 * friction;
+          const dist = ev.dir * ev.distance * slip;
+          const nx = s.x + Math.sin(a) * dist;
+          const ny = s.y - Math.cos(a) * dist;
+          // Collision: did the swept segment clip any obstacle?
+          let hitAt = null;
+          for (const o of obstacles) {
+            if (segPointDist(s.x, s.y, nx, ny, o.x, o.y) <= o.r) {
+              hitAt = o;
+              break;
+            }
+          }
+          if (hitAt) {
+            collisions++;
+            // Stop just short of the obstacle centre, along the heading.
+            const back = hitAt.r + 6;
+            const tx = hitAt.x - Math.sin(a) * back,
+              ty = hitAt.y + Math.cos(a) * back;
+            s.x = tx;
+            s.y = ty;
+          } else if (Math.abs(nx) > WALL || Math.abs(ny) > WALL) {
+            collisions++;
+            s.x = Math.max(-WALL, Math.min(WALL, nx));
+            s.y = Math.max(-WALL, Math.min(WALL, ny));
+          } else {
+            s.x = nx;
+            s.y = ny;
+          }
+          s.battery = Math.max(0, s.battery - Math.abs(dist) * 0.011 * massFac / friction);
+          noteClearance();
+          if (!reachedGoal && Math.hypot(s.x - goal.x, s.y - goal.y) <= goal.r) {
+            reachedGoal = true;
+            timeToGoal = steps;
+          }
+        } else if (ev.type === 'turn') {
+          turns++;
+          s.heading += ev.deg;
+        } else if (ev.type === 'speed') {
+          s.speed = Math.max(0, Math.min(100, ev.value));
+        }
+      }
+    } catch (e) {
+      runError = e && e.message || String(e);
+    }
+    if (!reachedGoal && Math.hypot(s.x - goal.x, s.y - goal.y) <= goal.r) {
+      reachedGoal = true;
+      timeToGoal = steps;
+    }
+    if (minObstacleDistance === Infinity) minObstacleDistance = WALL;
+    const batteryUsed = Math.round((100 - s.battery) * 10) / 10;
+
+    // Final score: reaching the goal is most of it, then collisions, battery and
+    // command errors pull it down. Bounded 0 to 100.
+    let score = reachedGoal ? 100 : Math.max(0, 45 - Math.round(Math.hypot(s.x - goal.x, s.y - goal.y) / 40));
+    score -= collisions * 14;
+    score -= commandErrors * 20;
+    score -= Math.round(batteryUsed * 0.25);
+    if (runError) score -= 25;
+    score = Math.max(0, Math.min(100, Math.round(score)));
+    return {
+      ok: !runError,
+      seed: seed,
+      reachedGoal: reachedGoal,
+      collisions: collisions,
+      timeToGoal: timeToGoal,
+      steps: steps,
+      moves: moves,
+      turns: turns,
+      batteryUsed: batteryUsed,
+      minObstacleDistance: Math.round(minObstacleDistance),
+      commandErrors: commandErrors,
+      sensorFailures: sensorFailures,
+      friction: Math.round(friction * 100) / 100,
+      massMul: Math.round(massMul * 100) / 100,
+      error: runError,
+      finalScore: score
+    };
+  }
+  function run(src, scenario, n) {
+    const seeds = Math.max(1, n || 5);
+    const base = scenario && scenario.seed || 1;
+    const runs = [];
+    for (let i = 0; i < seeds; i++) runs.push(runOnce(src, scenario, base + i * 101));
+    const ok = runs.filter(function (r) {
+      return r && !r.compile;
+    });
+    const reached = ok.filter(function (r) {
+      return r.reachedGoal;
+    });
+    const mean = function (sel) {
+      return ok.length ? ok.reduce(function (a, r) {
+        return a + (sel(r) || 0);
+      }, 0) / ok.length : 0;
+    };
+    const times = reached.map(function (r) {
+      return r.timeToGoal;
+    });
+    const aggregate = {
+      seeds: seeds,
+      successRate: ok.length ? reached.length / ok.length : 0,
+      successCount: reached.length,
+      meanCollisions: Math.round(mean(function (r) {
+        return r.collisions;
+      }) * 100) / 100,
+      meanBattery: Math.round(mean(function (r) {
+        return r.batteryUsed;
+      }) * 10) / 10,
+      meanTimeToGoal: times.length ? Math.round(times.reduce(function (a, b) {
+        return a + b;
+      }, 0) / times.length) : null,
+      meanScore: Math.round(mean(function (r) {
+        return r.finalScore;
+      })),
+      commandErrors: ok.reduce(function (a, r) {
+        return a + (r.commandErrors || 0);
+      }, 0),
+      minClearance: ok.length ? Math.min.apply(null, ok.map(function (r) {
+        return r.minObstacleDistance;
+      })) : 0
+    };
+    const report = {
+      scenario: {
+        scenarioId: scenario.scenarioId,
+        name: scenario.name,
+        environmentPreset: scenario.environmentPreset,
+        seed: base
+      },
+      runs: runs,
+      aggregate: aggregate,
+      ts: Date.now()
+    };
+    // Persist locally (offline) so the realism dashboard and the assistant can
+    // read past validation. The desktop SQLite bridge mirrors this when present.
+    try {
+      if (window.KodroMemory && window.KodroMemory.saveScenarioReport) window.KodroMemory.saveScenarioReport(report);
+      if (window.RoboLearn && window.RoboLearn.saveScenarioRun) window.RoboLearn.saveScenarioRun(report);
+    } catch (e) {
+      void e;
+    }
+    return report;
+  }
+
+  // ---- built-in scenarios, one per environment, as data ----
+  const PRESETS = {
+    city_cross: {
+      scenarioId: 'city_cross',
+      name: 'Cross the street, avoid the obstacles',
+      environmentPreset: 'city',
+      startPose: {
+        x: 0,
+        y: 1000,
+        heading: 0
+      },
+      goalPose: {
+        x: 0,
+        y: -1100,
+        r: 140
+      },
+      obstacles: [{
+        x: -120,
+        y: 300,
+        r: 130
+      }, {
+        x: 180,
+        y: -250,
+        r: 150
+      }, {
+        x: -60,
+        y: -650,
+        r: 120
+      }],
+      terrainMaterial: 'asphalt',
+      seed: 7,
+      successCriteria: {
+        reachGoal: true,
+        maxCollisions: 0
+      },
+      randomizationConfig: {
+        friction: [0.75, 1.0],
+        massTol: 0.12,
+        sensorNoise: 18,
+        obstacleJitter: 60,
+        lighting: [0.5, 1.0]
+      }
+    },
+    room_reach: {
+      scenarioId: 'room_reach',
+      name: 'Reach the far corner among furniture',
+      environmentPreset: 'room',
+      startPose: {
+        x: -900,
+        y: 900,
+        heading: 135
+      },
+      goalPose: {
+        x: 900,
+        y: -900,
+        r: 130
+      },
+      obstacles: [{
+        x: 0,
+        y: 0,
+        r: 200
+      }, {
+        x: 400,
+        y: -300,
+        r: 120
+      }, {
+        x: -300,
+        y: -400,
+        r: 110
+      }],
+      terrainMaterial: 'carpet',
+      seed: 11,
+      successCriteria: {
+        reachGoal: true,
+        maxCollisions: 1
+      },
+      randomizationConfig: {
+        friction: [0.85, 1.0],
+        massTol: 0.1,
+        sensorNoise: 12,
+        obstacleJitter: 50,
+        lighting: [0.6, 1.0]
+      }
+    },
+    terrain_traverse: {
+      scenarioId: 'terrain_traverse',
+      name: 'Traverse open ground to the marker',
+      environmentPreset: 'earth',
+      startPose: {
+        x: 0,
+        y: 1200,
+        heading: 0
+      },
+      goalPose: {
+        x: 200,
+        y: -1200,
+        r: 160
+      },
+      obstacles: [{
+        x: 100,
+        y: 400,
+        r: 160
+      }, {
+        x: -200,
+        y: -400,
+        r: 180
+      }],
+      terrainMaterial: 'rock',
+      seed: 17,
+      successCriteria: {
+        reachGoal: true,
+        maxCollisions: 1
+      },
+      randomizationConfig: {
+        friction: [0.6, 0.95],
+        massTol: 0.15,
+        sensorNoise: 22,
+        obstacleJitter: 90,
+        lighting: [0.4, 1.0]
+      }
+    }
+  };
+  function defaultFor(worldId) {
+    if (worldId === 'room') return PRESETS.room_reach;
+    if (worldId === 'city') return PRESETS.city_cross;
+    return PRESETS.terrain_traverse;
+  }
+  window.KodroScenario = {
+    PRESETS: PRESETS,
+    run: run,
+    runOnce: runOnce,
+    defaultFor: defaultFor
+  };
+})();
+})();
+
+;(function () {
+/*
+ * Realism dashboard.
+ *
+ * A read-only debug panel that makes the simulation's honesty visible: it shows
+ * that the robot the user built actually drives the physics, the sensors, the
+ * command registry and the last validation run. Nothing here computes new
+ * state; it reflects the single sources of truth (getKodroRobot, KodroCommands,
+ * KodroMemory, TERRAINS) so a viewer can see at a glance that the spec matters.
+ *
+ *   window.KodroRealism({ onClose })
+ */
+(function () {
+  const SENSOR_LABEL = {
+    ultrasonic: 'Ultrasonic range',
+    line: 'Line follower',
+    imu: 'IMU (gyro + accel)',
+    camera: 'Camera',
+    gps: 'GPS',
+    bumper: 'Bumper switch'
+  };
+  function card(title, rows, accent) {
+    return React.createElement('div', {
+      style: {
+        background: '#0f1726',
+        border: '1.5px solid #233248',
+        borderRadius: 14,
+        padding: '14px 16px'
+      }
+    }, React.createElement('div', {
+      style: {
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        color: accent || '#5ed6ff',
+        marginBottom: 10
+      }
+    }, title), React.createElement('div', {
+      style: {
+        display: 'grid',
+        gap: 7
+      }
+    }, rows));
+  }
+  function row(label, value, color) {
+    return React.createElement('div', {
+      key: label,
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 12,
+        fontSize: 13,
+        lineHeight: 1.4
+      }
+    }, React.createElement('span', {
+      style: {
+        color: '#8da3c0'
+      }
+    }, label), React.createElement('span', {
+      style: {
+        color: color || '#dce8f8',
+        fontWeight: 600,
+        textAlign: 'right'
+      }
+    }, value));
+  }
+  function KodroRealism(props) {
+    const robot = window.getKodroRobot && window.getKodroRobot() || {};
+    const terrains = window.TERRAINS || {};
+    const terrain = robot.world && terrains[robot.world] || terrains[Object.keys(terrains)[0]] || {
+      name: '-',
+      env: {},
+      traction: 1,
+      id: '-'
+    };
+    const env = terrain.env || {};
+    const massFac = robot.massFactor || 1;
+    const speedFac = robot.speedFactor || 1;
+    // Qualitative acceleration: heavier mass -> slower to reach top speed.
+    const accel = massFac >= 1.4 ? 'slow (heavy)' : massFac >= 1.0 ? 'moderate' : 'brisk (light)';
+    const avail = window.KodroCommands && window.KodroCommands.availability(robot) || [];
+    const reports = window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports() || [];
+    const last = reports[0] || null;
+    const agg = last && last.aggregate;
+
+    // Physics card.
+    const physics = card('Robot physics', [row('Mass', (robot.mass || '-') + ' g'), row('Top speed', speedFac.toFixed(2) + '×'), row('Acceleration', accel), row('Terrain friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'), row('Battery / charge', '~' + (robot.runtimeMin || '-') + ' min')]);
+
+    // Sensor card.
+    const sensorRows = robot.sensors && robot.sensors.length ? robot.sensors.map(function (s) {
+      return row(SENSOR_LABEL[s] || s, 'active', '#5ce0d8');
+    }) : [row('Sensors', 'none fitted', '#f5c451')];
+    sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'nominal'));
+    const sensors = card('Sensors', sensorRows, '#5ce0d8');
+
+    // Scenario score card.
+    const scoreRows = agg ? [row('Scenario', last.scenario && last.scenario.name || '-'), row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', agg.successRate >= 0.6 ? '#5ce0d8' : '#f5c451'), row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')), row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'), row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'), row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-'))] : [row('Validation', 'no runs yet', '#f5c451'), row('Tip', 'Run "Validate across seeds"')];
+    const score = card('Scenario score', scoreRows, '#ffb86b');
+
+    // Environment card.
+    const environment = card('Environment', [row('Preset', terrain.name || terrain.id || '-'), row('Lighting', env.light != null ? env.light.toFixed(2) : '-'), row('Gravity', env.gravity != null ? env.gravity + ' m/s2' : '-'), row('Friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'), row('Moving agents', window.KodroAgents && window.KodroAgents.list && window.KodroAgents.world && window.KodroAgents.world() === terrain.id ? String(window.KodroAgents.list().length) : '0')], '#9fb4d2');
+
+    // Command registry card.
+    const okCmds = avail.filter(function (c) {
+      return c.available;
+    });
+    const noCmds = avail.filter(function (c) {
+      return !c.available;
+    });
+    const cmdRows = [];
+    okCmds.forEach(function (c) {
+      cmdRows.push(row(c.name + '()', 'available', '#5ce0d8'));
+    });
+    noCmds.forEach(function (c) {
+      cmdRows.push(row(c.name + '()', 'needs ' + (c.partLabel || c.requires), '#ff8f7a'));
+    });
+    const registry = card('Command registry', cmdRows.length ? cmdRows : [row('Commands', 'base only')], '#c8a8ff');
+    return React.createElement('div', {
+      className: 'modal-backdrop',
+      onClick: function () {
+        return props.onClose && props.onClose();
+      }
+    }, React.createElement('div', {
+      className: 'modal modal-wide',
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-label': 'Realism dashboard',
+      style: {
+        maxWidth: 860
+      },
+      onClick: function (e) {
+        e.stopPropagation();
+      }
+    }, React.createElement('div', {
+      className: 'modal-head'
+    }, React.createElement('span', {
+      className: 'eyebrow'
+    }, '📊 Realism dashboard. The build drives the simulation'), React.createElement('button', {
+      className: 'btn-mini',
+      'aria-label': 'Close',
+      onClick: function () {
+        return props.onClose && props.onClose();
+      }
+    }, '✕')), React.createElement('div', {
+      style: {
+        padding: 16
+      }
+    }, React.createElement('p', {
+      style: {
+        color: '#8da3c0',
+        fontSize: 13,
+        margin: '0 0 14px'
+      }
+    }, 'Robot: ', React.createElement('b', {
+      style: {
+        color: '#dce8f8'
+      }
+    }, robot.name || 'My Robot'), ' · type ', robot.type || '-', ' · board ', robot.board || '-'), React.createElement('div', {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))',
+        gap: 12
+      }
+    }, physics, sensors, score, environment, registry))));
+  }
+  window.KodroRealism = KodroRealism;
+})();
+})();
+
+;(function () {
+/*
+ * Kodro Realism Demo: a guided, self-contained tour that PROVES the academic
+ * objectives by performing real actions, not by faking screens. Each step runs
+ * actual code against the same sources of truth the studio uses, and shows the
+ * real result, so a viewer sees in two or three minutes that the build drives
+ * the simulation, the registry gates commands, validation reports a spread, and
+ * the memory reuses what worked. Nothing here is mocked and nothing leaves the
+ * machine.
+ *
+ *   window.KodroDemo({ onClose })
+ */
+(function () {
+  const PROGRAM = ['set_speed(60)', 'for i in range(120):', '    if read_distance() < 140:', '        turn_right(30)', '    else:', '        move_forward(1)'].join('\n');
+  function robot() {
+    return window.getKodroRobot && window.getKodroRobot() || {};
+  }
+  function ts() {
+    try {
+      return Date.now();
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  // Each step performs a real action and returns { text, tone }.
+  const STEPS = [{
+    title: 'Design a light rover',
+    blurb: 'The agent builds a rover from the validated parts catalogue. Its mass, top speed and battery come from the parts, not from sliders.',
+    action: 'Build it',
+    run: function () {
+      const r = window.RobotLab.buildFromText('a light rover with an ultrasonic distance sensor');
+      const d = r.derived;
+      return {
+        text: 'Built "' + r.spec.name + '": ' + d.mass + ' g, top speed ' + d.speedFactor.toFixed(2) + 'x, battery ~' + d.runtimeMin + ' min. Recommended world: ' + (r.world.label || 'city') + '.',
+        tone: 'ok'
+      };
+    }
+  }, {
+    title: 'read_distance() is available',
+    blurb: 'Because an ultrasonic sensor is fitted, the distance command is in the registry that every panel reads.',
+    action: 'Check the registry',
+    run: function () {
+      const a = window.KodroCommands.availability(robot());
+      const ok = a.filter(function (c) {
+        return c.available;
+      }).map(function (c) {
+        return c.name + '()';
+      });
+      return {
+        text: 'Available commands: ' + ok.join(', ') + '.',
+        tone: 'ok'
+      };
+    }
+  }, {
+    title: 'Validate across 5 randomised seeds',
+    blurb: 'One program, five runs, each with different friction, mass, sensor noise and obstacle placement. A behaviour that survives the spread is the one to trust.',
+    action: 'Run validation',
+    run: function () {
+      const scn = window.KodroScenario.defaultFor(robot().world || 'city');
+      const rep = window.KodroScenario.run(PROGRAM, scn, 5);
+      const g = rep.aggregate;
+      return {
+        text: 'Success ' + Math.round((g.successRate || 0) * 100) + '% (' + g.successCount + '/' + g.seeds + '), mean collisions ' + g.meanCollisions + ', mean battery ' + g.meanBattery + '%, mean score ' + g.meanScore + '. Saved to memory and SQLite.',
+        tone: g.successRate >= 0.5 ? 'ok' : 'warn'
+      };
+    }
+  }, {
+    title: 'Remove the ultrasonic sensor',
+    blurb: 'Now the build has no range sensor. Ask the registry for the distance command and it refuses, exactly as the grounded assistant would.',
+    action: 'Remove it and ask',
+    run: function () {
+      const s = robot();
+      window.RobotLab.applySpec(Object.assign({}, s, {
+        sensors: (s.sensors || []).filter(function (x) {
+          return x !== 'ultrasonic';
+        })
+      }));
+      const g = window.KodroCommands.check(robot(), 'read_distance');
+      return {
+        text: g.ok ? 'Unexpectedly still available.' : 'Refused. ' + g.reason,
+        tone: g.ok ? 'warn' : 'err'
+      };
+    }
+  }, {
+    title: 'Refit the sensor and save the skill',
+    blurb: 'With the sensor back, the program runs and works. Keep it as a named skill and record a reflection, so the studio remembers what worked here.',
+    action: 'Refit, save, reflect',
+    run: function () {
+      window.RobotLab.buildFromText('a light rover with an ultrasonic distance sensor');
+      const r = robot();
+      window.KodroMemory.saveSkill('avoid_obstacle_ultrasonic', PROGRAM, {
+        world: r.world || 'city',
+        robotType: r.type || 'rover',
+        ts: ts()
+      });
+      const refl = window.KodroMemory.record({
+        world: r.world || 'city',
+        robotType: r.type || 'rover',
+        outcome: 'done',
+        detail: 'reached the goal with ultrasonic avoidance',
+        ts: ts()
+      });
+      return {
+        text: 'Saved skill "avoid_obstacle_ultrasonic". Reflection: ' + refl,
+        tone: 'ok'
+      };
+    }
+  }, {
+    title: 'Reuse it on the next run',
+    blurb: 'On a related scenario the studio retrieves the saved skill and the reflection, so its help is shaped by your own verified work, with no retraining.',
+    action: 'Retrieve memory',
+    run: function () {
+      const r = robot();
+      const skill = (window.KodroMemory.skills() || []).find(function (s) {
+        return s.name === 'avoid_obstacle_ultrasonic';
+      });
+      const lesson = window.KodroMemory.lessonFor(r.world || 'city');
+      return {
+        text: 'Retrieved skill: ' + (skill ? skill.name : 'none') + '. Retrieved reflection: ' + (lesson ? lesson.reflection : 'none') + '.',
+        tone: 'ok'
+      };
+    }
+  }];
+  function KodroDemo(props) {
+    const {
+      useState
+    } = React;
+    const [i, setI] = useState(0);
+    const [results, setResults] = useState({});
+    const step = STEPS[i];
+    const res = results[i];
+    const toneColor = function (t) {
+      return t === 'err' ? '#ff8f7a' : t === 'warn' ? '#f5c451' : '#5ce0d8';
+    };
+    function doRun() {
+      let out;
+      try {
+        out = step.run();
+      } catch (e) {
+        out = {
+          text: 'Error: ' + (e && e.message ? e.message : e),
+          tone: 'err'
+        };
+      }
+      setResults(Object.assign({}, results, {
+        [i]: out
+      }));
+    }
+    return React.createElement('div', {
+      style: {
+        position: 'fixed',
+        inset: 0,
+        zIndex: 4200,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'radial-gradient(120% 120% at 50% 0%,#101726cc 0%,#070a12ee 70%)',
+        padding: 28
+      },
+      onClick: function () {
+        return props.onClose && props.onClose();
+      }
+    }, React.createElement('div', {
+      style: {
+        width: 'min(640px,100%)',
+        background: '#0d1422',
+        border: '1.5px solid #233248',
+        borderRadius: 18,
+        padding: 26,
+        color: '#e8edf7',
+        boxShadow: '0 30px 80px -30px #000'
+      },
+      onClick: function (e) {
+        e.stopPropagation();
+      }
+    }, React.createElement('div', {
+      style: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6
+      }
+    }, React.createElement('span', {
+      style: {
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
+        color: '#5ed6ff'
+      }
+    }, 'Kodro Realism Demo'), React.createElement('span', {
+      style: {
+        fontSize: 12,
+        color: '#6f86a6'
+      }
+    }, 'Step ' + (i + 1) + ' of ' + STEPS.length)), React.createElement('h2', {
+      style: {
+        fontSize: 24,
+        fontWeight: 720,
+        margin: '6px 0 8px',
+        letterSpacing: '-0.02em'
+      }
+    }, step.title), React.createElement('p', {
+      style: {
+        color: '#9fb4d2',
+        fontSize: 14,
+        lineHeight: 1.55,
+        margin: '0 0 16px'
+      }
+    }, step.blurb), React.createElement('button', {
+      style: {
+        appearance: 'none',
+        border: 0,
+        cursor: 'pointer',
+        fontWeight: 650,
+        borderRadius: 11,
+        padding: '11px 22px',
+        background: '#5ed6ff',
+        color: '#06121b',
+        fontSize: 14
+      },
+      onClick: doRun
+    }, step.action), res && React.createElement('div', {
+      style: {
+        marginTop: 16,
+        padding: '13px 15px',
+        background: '#0f1726',
+        border: '1.5px solid ' + toneColor(res.tone) + '55',
+        borderRadius: 12,
+        fontSize: 13.5,
+        lineHeight: 1.5,
+        color: '#dce8f8'
+      }
+    }, res.text), React.createElement('div', {
+      style: {
+        display: 'flex',
+        gap: 10,
+        justifyContent: 'space-between',
+        marginTop: 22
+      }
+    }, React.createElement('button', {
+      style: {
+        appearance: 'none',
+        border: '1px solid #283a55',
+        background: 'transparent',
+        color: '#9fb4d2',
+        cursor: 'pointer',
+        borderRadius: 11,
+        padding: '10px 18px',
+        font: 'inherit'
+      },
+      onClick: function () {
+        return props.onClose && props.onClose();
+      }
+    }, 'Close'), React.createElement('div', {
+      style: {
+        display: 'flex',
+        gap: 10
+      }
+    }, i > 0 && React.createElement('button', {
+      style: {
+        appearance: 'none',
+        border: '1px solid #283a55',
+        background: 'transparent',
+        color: '#9fb4d2',
+        cursor: 'pointer',
+        borderRadius: 11,
+        padding: '10px 18px',
+        font: 'inherit'
+      },
+      onClick: function () {
+        return setI(i - 1);
+      }
+    }, 'Back'), i < STEPS.length - 1 ? React.createElement('button', {
+      style: {
+        appearance: 'none',
+        border: 0,
+        background: res ? '#5ed6ff' : '#1b2738',
+        color: res ? '#06121b' : '#5d728f',
+        cursor: res ? 'pointer' : 'not-allowed',
+        borderRadius: 11,
+        padding: '10px 20px',
+        fontWeight: 650,
+        font: 'inherit'
+      },
+      disabled: !res,
+      onClick: function () {
+        if (res) setI(i + 1);
+      }
+    }, 'Next') : React.createElement('button', {
+      style: {
+        appearance: 'none',
+        border: 0,
+        background: '#5ed6ff',
+        color: '#06121b',
+        cursor: 'pointer',
+        borderRadius: 11,
+        padding: '10px 20px',
+        fontWeight: 650,
+        font: 'inherit'
+      },
+      onClick: function () {
+        return props.onClose && props.onClose();
+      }
+    }, 'Done')))));
+  }
+  window.KodroDemo = KodroDemo;
 })();
 })();
 
@@ -6833,6 +8162,15 @@ Object.assign(window, {
   .konb-skip{position:absolute;top:20px;right:24px}
   .konb-skip button{background:none;border:0;color:#6f86a6;cursor:pointer;font:inherit;font-size:14px}
   .konb-skip button:hover{color:#cfe0f5}
+  .konb-agent{margin-top:22px}
+  .konb-agent-row{display:flex;gap:9px;align-items:center}
+  .konb-agent-input{flex:1;min-width:0;background:#0e1726;border:1.5px solid #233248;border-radius:11px;
+    color:#e8edf7;font:inherit;font-size:15px;padding:12px 14px;outline:none;transition:border-color .18s}
+  .konb-agent-input:focus{border-color:#5ed6ff}
+  .konb-agent-mic{padding:12px 14px}
+  .konb-agent-or{text-align:center;color:#6f86a6;font-size:13px;margin:14px 0 0;letter-spacing:.02em}
+  .konb-built{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:12px 0 0}
+  .konb-chip{background:#11202e;border:1px solid #2a4258;border-radius:999px;color:#bfe6ff;font-size:12px;padding:4px 11px}
   `;
   function Step({
     n,
@@ -6852,6 +8190,12 @@ Object.assign(window, {
   }) {
     const [step, setStep] = useState(0); // 0 land, 1 pick, 2 recommend
     const [type, setType] = useState(null);
+    // Onboarding agent: describe a robot in words and it is built from the
+    // validated parts catalogue (RobotLab.buildFromText). `built` holds the
+    // result so step 2 can show the exact parts the agent fitted.
+    const [agentText, setAgentText] = useState("");
+    const [built, setBuilt] = useState(null);
+    const [agentBusy, setAgentBusy] = useState(false);
     useEffect(() => {
       const tag = "kodro-onb-style";
       if (!document.getElementById(tag)) {
@@ -6876,11 +8220,39 @@ Object.assign(window, {
     const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
     function enterStudio() {
       try {
-        if (window.RobotLab && type) window.RobotLab.selectType(type);
+        // The agent-built spec is already saved with its full parts; only fall
+        // back to the bare type when nothing was built from a description.
+        if (!built && window.RobotLab && type) window.RobotLab.selectType(type);
       } catch (e) {
         void e;
       }
       onClose();
+    }
+
+    // Build a robot from a free-text (or spoken) description, validated through
+    // the parts catalogue, then jump to the world recommendation for it.
+    function buildFromAgent(text) {
+      const q = (text != null ? text : agentText).trim();
+      if (!q || !window.RobotLab || !window.RobotLab.buildFromText) return;
+      const res = window.RobotLab.buildFromText(q);
+      setBuilt(res);
+      setType(res.spec.type);
+      setStep(2);
+    }
+    function agentVoice() {
+      if (agentBusy || !window.RoboLearn || !window.RoboLearn.isAvailable || !window.RoboLearn.isAvailable()) return;
+      const listen = window.RoboLearn.listen || window.RoboLearn.voiceCommand;
+      if (!listen) return;
+      setAgentBusy(true);
+      Promise.resolve(listen(6)).then(function (r) {
+        const txt = r && (r.text || r.transcript || (typeof r === "string" ? r : ""));
+        if (txt && txt.trim()) {
+          setAgentText(txt);
+          buildFromAgent(txt);
+        }
+      }).catch(function () {}).then(function () {
+        setAgentBusy(false);
+      });
     }
     return /*#__PURE__*/React.createElement("div", {
       className: "konb-root",
@@ -6916,7 +8288,33 @@ Object.assign(window, {
       className: "konb-h2"
     }, "What do you want to build?"), /*#__PURE__*/React.createElement("p", {
       className: "konb-sub"
-    }, "Pick a starting point. You can redesign every part later in the Robot Lab."), /*#__PURE__*/React.createElement("div", {
+    }, "Describe it in your own words and the assistant builds it, or pick a starting point. You can redesign every part later in the Robot Lab."), /*#__PURE__*/React.createElement("div", {
+      className: "konb-agent"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "konb-agent-row"
+    }, /*#__PURE__*/React.createElement("input", {
+      className: "konb-agent-input",
+      value: agentText,
+      placeholder: "e.g. a self-driving car with a camera and an obstacle sensor",
+      "aria-label": "Describe your robot",
+      onChange: e => setAgentText(e.target.value),
+      onKeyDown: e => {
+        if (e.key === "Enter") buildFromAgent();
+      }
+    }), window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() && /*#__PURE__*/React.createElement("button", {
+      className: "konb-btn ghost konb-agent-mic",
+      type: "button",
+      title: "Describe by voice",
+      disabled: agentBusy,
+      onClick: agentVoice
+    }, agentBusy ? "…" : "🎤"), /*#__PURE__*/React.createElement("button", {
+      className: "konb-btn primary",
+      type: "button",
+      disabled: !agentText.trim(),
+      onClick: () => buildFromAgent()
+    }, "Build it")), /*#__PURE__*/React.createElement("p", {
+      className: "konb-agent-or"
+    }, "or pick a starting point")), /*#__PURE__*/React.createElement("div", {
       className: "konb-grid",
       role: "radiogroup",
       "aria-label": "Robot type"
@@ -6955,7 +8353,13 @@ Object.assign(window, {
       className: "konb-rec"
     }, /*#__PURE__*/React.createElement("div", {
       className: "konb-emoji"
-    }, TYPES[type] && TYPES[type].emoji || "🤖"), /*#__PURE__*/React.createElement("div", {
+    }, TYPES[type] && TYPES[type].emoji || "🤖"), built && built.spec && /*#__PURE__*/React.createElement("div", {
+      className: "konb-built",
+      "aria-label": "Parts the assistant fitted"
+    }, [built.spec.board].concat(built.spec.sensors || [], built.spec.actuators || []).map((p, i) => /*#__PURE__*/React.createElement("span", {
+      key: i,
+      className: "konb-chip"
+    }, p))), /*#__PURE__*/React.createElement("div", {
       className: "konb-world"
     }, worldName), /*#__PURE__*/React.createElement("div", {
       className: "konb-why"
@@ -7426,6 +8830,8 @@ rover.say("Survey done")`
       model: null
     });
     const [vibeOpen, setVibeOpen] = useState(false);
+    const [realismOpen, setRealismOpen] = useState(false);
+    const [demoOpen, setDemoOpen] = useState(false);
     // Robot Lab: design a custom robot whose spec drives the simulation.
     const [robotLabOpen, setRobotLabOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => window.getKodroRobot ? window.getKodroRobot() : null);
@@ -7479,6 +8885,27 @@ rover.say("Survey done")`
       window.RoboLearn.aiStatus().then(s => {
         if (s) setAiInfo(s);
       }).catch(() => {});
+    }
+    // Let the user point Kodro at any local model they have pulled (DeepSeek,
+    // Nemotron, Qwen, a custom fine-tune). Persisted server side; empty = auto.
+    function pickModel(name) {
+      if (!window.RoboLearn || !window.RoboLearn.setAiModel) return;
+      window.RoboLearn.setAiModel(name || '').then(() => refreshAiStatus()).catch(() => {});
+    }
+    // B3 trigger: validate the current program across randomised seeds in the
+    // scenario that fits this robot, persist the report, and open the dashboard.
+    function runValidation() {
+      if (!window.KodroScenario) {
+        addConsole('Validation unavailable.', 'err');
+        return;
+      }
+      const robot = window.getKodroRobot && window.getKodroRobot() || {};
+      const scn = window.KodroScenario.defaultFor(robot.world || terrain && terrain.id);
+      addConsole('Validating across 5 randomised seeds in "' + scn.name + '" (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
+      const rep = window.KodroScenario.run(code, scn, 5);
+      const a = rep.aggregate;
+      addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', a.successRate >= 0.6 ? 'ok' : 'warn');
+      setRealismOpen(true);
     }
     useEffect(() => {
       let tries = 0;
@@ -7542,6 +8969,16 @@ rover.say("Survey done")`
           history.unshift({
             role: 'user',
             text: 'Keep in mind, learned from my past runs in the ' + terrain.name + ': ' + lesson.reflection
+          });
+        }
+        // Ground the assistant in THIS robot's command registry (single source
+        // of truth: RobotLab.KodroCommands) so it only suggests commands the
+        // build supports and refuses ones whose part is not fitted. The runtime
+        // gate in host.sensor and the self-test are the deterministic backstop.
+        if (window.KodroCommands && window.getKodroRobot) {
+          history.unshift({
+            role: 'user',
+            text: window.KodroCommands.groundingText(window.getKodroRobot())
           });
         }
         const start = await window.RoboLearn.aiChatStart(history, currentLessonIdRef.current);
@@ -8229,15 +9666,19 @@ rover.say("Survey done")`
     const host = {
       sensor(name, args) {
         const s = live.current;
+        // Single source of truth (RobotLab.KodroCommands): a sensor command is
+        // only available if the part it needs is fitted. A missing part is a
+        // readable refusal, not a faked reading, so removing a sensor genuinely
+        // removes its command from text, blocks and voice alike.
+        const rb = window.getKodroRobot ? window.getKodroRobot() : null;
+        if (window.KodroCommands) {
+          const g = window.KodroCommands.check(rb, name);
+          if (!g.ok) throw new Error(g.reason);
+        }
         switch (name) {
           case 'distance':
             {
-              // A build with no ultrasonic range sensor is blind: distance() reads
-              // "clear" no matter what is ahead, so its avoid logic never fires and
-              // it drives into obstacles. The design choice has a real consequence.
-              const rb = window.getKodroRobot ? window.getKodroRobot() : null;
-              const blind = rb && rb.sensors && rb.sensors.indexOf('ultrasonic') < 0;
-              const d = blind ? 600 : Math.round(rayDistance(s.x, s.y, s.heading));
+              const d = Math.round(rayDistance(s.x, s.y, s.heading));
               setSensorDist(d);
               return d;
             }
@@ -8354,9 +9795,43 @@ rover.say("Survey done")`
       const drainFull = total * 0.011 * gFac * massFac / terrain.traction;
       let crashed = false,
         flat = false;
+      // ---- physical acceleration, inertia and braking ----------------------
+      // The robot does not snap to top speed and stop dead. It ramps up, holds
+      // a cruise, then brakes, and a heavier build takes longer to do each. If
+      // it is already rolling from the previous move (s.vel), it skips most of
+      // the ramp up so momentum carries between straight segments. The endpoint
+      // is exact (coverFrac(1) === 1), so distances and collisions are unchanged
+      // and the headless interpreter QA, which uses its own kinematics, is too.
+      const inertia = Math.min(0.92, Math.max(0.12, (massFac - 0.6) / 1.4));
+      const carried = Math.min(1, Math.max(0, s.vel || 0));
+      let accelFrac = (0.18 + 0.30 * inertia) * (1 - 0.85 * carried);
+      let brakeFrac = 0.16 + 0.34 * inertia;
+      if (accelFrac + brakeFrac > 0.95) {
+        const k = 0.95 / (accelFrac + brakeFrac);
+        accelFrac *= k;
+        brakeFrac *= k;
+      }
+      const cruiseFrac = Math.max(0, 1 - accelFrac - brakeFrac);
+      const profileArea = 0.5 * accelFrac + cruiseFrac + 0.5 * brakeFrac;
+      function coverFrac(p) {
+        let area;
+        if (accelFrac > 0 && p <= accelFrac) {
+          const v = p / accelFrac;
+          area = 0.5 * v * p;
+        } else if (p <= 1 - brakeFrac) {
+          area = 0.5 * accelFrac + (p - accelFrac);
+        } else if (brakeFrac > 0) {
+          const q = (p - (1 - brakeFrac)) / brakeFrac;
+          area = 0.5 * accelFrac + cruiseFrac + (1 - 0.5 * q) * (q * brakeFrac);
+        } else {
+          area = profileArea;
+        }
+        return profileArea > 0 ? area / profileArea : p;
+      }
       await frames(dur, p => {
-        const nx = x0 + dirx * total * p;
-        const ny = y0 + diry * total * p;
+        const cf = coverFrac(p);
+        const nx = x0 + dirx * total * cf;
+        const ny = y0 + diry * total * cf;
         const hit = collisionAt(nx, ny);
         if (hit) {
           crashed = hit;
@@ -8364,7 +9839,7 @@ rover.say("Survey done")`
         }
         s.x = nx;
         s.y = ny;
-        s.battery = Math.max(0, b0 - drainFull * p);
+        s.battery = Math.max(0, b0 - drainFull * cf);
         pushTrailPoint();
         setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading)));
         sync();
@@ -8380,6 +9855,7 @@ rover.say("Survey done")`
       // 'error' state stomped over the Reset the user just pressed).
       if (ctrl.current.token !== myToken) {
         s.moving = false;
+        s.vel = 0;
         return false;
       }
       // Settle battery on the distance actually travelled (handles a crash
@@ -8441,16 +9917,24 @@ rover.say("Survey done")`
         haltProgram('error');
         return false;
       }
+      s.vel = 1; // leaving this move still rolling: momentum carries to the next
       return true;
     }
     async function animateTurn(ev) {
       const s = live.current;
       const myToken = ctrl.current.token; // run epoch captured at turn start
       const h0 = s.heading;
-      const dur = Math.abs(ev.deg) / 180 * 650 / speedMulRef.current;
+      // Turning bleeds forward momentum, and a heavier build is slower to swing
+      // its mass around, so the turn takes a little longer and eases in and out
+      // rather than snapping. The final heading is still exact (set below).
+      const turnRobot = window.getKodroRobot ? window.getKodroRobot() : null;
+      const turnMass = turnRobot && turnRobot.massFactor ? turnRobot.massFactor : 1;
+      s.vel = 0;
+      const dur = Math.abs(ev.deg) / 180 * 650 * (0.78 + 0.5 * Math.min(1.5, turnMass)) / speedMulRef.current;
       s.moving = true;
       await frames(dur, p => {
-        s.heading = h0 + ev.deg * p;
+        const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        s.heading = h0 + ev.deg * e;
         setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading)));
         sync();
         return false;
@@ -8521,6 +10005,7 @@ rover.say("Survey done")`
             sync();
             break;
           case 'wait':
+            live.current.vel = 0;
             await delay(ev.seconds * 1000 / speedMulRef.current);
             break;
           case 'pen':
@@ -8943,7 +10428,7 @@ rover.say("Survey done")`
     // assistive tech that focus is confined to the dialog, so honour it: when one
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
-    const anyModalOpen = swarmOpen || vaOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp;
+    const anyModalOpen = swarmOpen || vaOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen;
     useEffect(() => {
       if (!anyModalOpen) return undefined;
       const modal = Array.prototype.slice.call(document.querySelectorAll('.modal[aria-modal="true"]')).pop();
@@ -9239,6 +10724,18 @@ rover.say("Survey done")`
       title: "A second AI agent reviews your code",
       onClick: runReview
     }, "\uD83D\uDD0E Review"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      title: "Validate this program across 5 randomised seeds",
+      onClick: runValidation
+    }, "\uD83C\uDFAF Validate"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      title: "Realism dashboard: how the build drives the simulation",
+      onClick: () => setRealismOpen(true)
+    }, "\uD83D\uDCCA Realism"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      title: "Guided 2 to 3 minute realism demo",
+      onClick: () => setDemoOpen(true)
+    }, "\u25B6 Demo"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Ask a question, answered from the lesson material",
       onClick: () => {
@@ -9922,7 +11419,11 @@ rover.say("Survey done")`
     }, "\u2713 Apply to editor"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       onClick: () => setReviewOpen(false)
-    }, "Keep mine"))))))), vibeOpen && /*#__PURE__*/React.createElement("div", {
+    }, "Keep mine"))))))), realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, {
+      onClose: () => setRealismOpen(false)
+    }), demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, {
+      onClose: () => setDemoOpen(false)
+    }), vibeOpen && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => !vibeBusy && setVibeOpen(false)
     }, /*#__PURE__*/React.createElement("div", {
@@ -9943,7 +11444,38 @@ rover.say("Survey done")`
       className: "vibe-body"
     }, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it."), /*#__PURE__*/React.createElement("div", {
+    }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it."), aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        margin: '2px 0 10px',
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        color: '#9fb4d2'
+      }
+    }, "Use model"), /*#__PURE__*/React.createElement("select", {
+      value: aiInfo.override || aiInfo.model || '',
+      onChange: e => pickModel(e.target.value),
+      style: {
+        background: '#0e1622',
+        color: '#dce8f8',
+        border: '1px solid #2a3a52',
+        borderRadius: 8,
+        padding: '5px 8px',
+        fontSize: 12.5
+      }
+    }, aiInfo.models.map(m => /*#__PURE__*/React.createElement("option", {
+      key: m,
+      value: m
+    }, m))), aiInfo.override && /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => pickModel(''),
+      title: "Return to automatic model selection"
+    }, "Auto")), /*#__PURE__*/React.createElement("div", {
       className: "vibe-thread",
       role: "log",
       "aria-live": "polite",

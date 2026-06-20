@@ -68,6 +68,15 @@
   .konb-skip{position:absolute;top:20px;right:24px}
   .konb-skip button{background:none;border:0;color:#6f86a6;cursor:pointer;font:inherit;font-size:14px}
   .konb-skip button:hover{color:#cfe0f5}
+  .konb-agent{margin-top:22px}
+  .konb-agent-row{display:flex;gap:9px;align-items:center}
+  .konb-agent-input{flex:1;min-width:0;background:#0e1726;border:1.5px solid #233248;border-radius:11px;
+    color:#e8edf7;font:inherit;font-size:15px;padding:12px 14px;outline:none;transition:border-color .18s}
+  .konb-agent-input:focus{border-color:#5ed6ff}
+  .konb-agent-mic{padding:12px 14px}
+  .konb-agent-or{text-align:center;color:#6f86a6;font-size:13px;margin:14px 0 0;letter-spacing:.02em}
+  .konb-built{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:12px 0 0}
+  .konb-chip{background:#11202e;border:1px solid #2a4258;border-radius:999px;color:#bfe6ff;font-size:12px;padding:4px 11px}
   `;
 
   function Step({ n, current }) {
@@ -83,6 +92,12 @@
   function KodroOnboarding({ onClose }) {
     const [step, setStep] = useState(0); // 0 land, 1 pick, 2 recommend
     const [type, setType] = useState(null);
+    // Onboarding agent: describe a robot in words and it is built from the
+    // validated parts catalogue (RobotLab.buildFromText). `built` holds the
+    // result so step 2 can show the exact parts the agent fitted.
+    const [agentText, setAgentText] = useState("");
+    const [built, setBuilt] = useState(null);
+    const [agentBusy, setAgentBusy] = useState(false);
 
     useEffect(() => {
       const tag = "kodro-onb-style";
@@ -107,8 +122,33 @@
     const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
     function enterStudio() {
-      try { if (window.RobotLab && type) window.RobotLab.selectType(type); } catch (e) { void e; }
+      try {
+        // The agent-built spec is already saved with its full parts; only fall
+        // back to the bare type when nothing was built from a description.
+        if (!built && window.RobotLab && type) window.RobotLab.selectType(type);
+      } catch (e) { void e; }
       onClose();
+    }
+
+    // Build a robot from a free-text (or spoken) description, validated through
+    // the parts catalogue, then jump to the world recommendation for it.
+    function buildFromAgent(text) {
+      const q = (text != null ? text : agentText).trim();
+      if (!q || !window.RobotLab || !window.RobotLab.buildFromText) return;
+      const res = window.RobotLab.buildFromText(q);
+      setBuilt(res);
+      setType(res.spec.type);
+      setStep(2);
+    }
+    function agentVoice() {
+      if (agentBusy || !window.RoboLearn || !window.RoboLearn.isAvailable || !window.RoboLearn.isAvailable()) return;
+      const listen = window.RoboLearn.listen || window.RoboLearn.voiceCommand;
+      if (!listen) return;
+      setAgentBusy(true);
+      Promise.resolve(listen(6)).then(function (r) {
+        const txt = r && (r.text || r.transcript || (typeof r === "string" ? r : ""));
+        if (txt && txt.trim()) { setAgentText(txt); buildFromAgent(txt); }
+      }).catch(function () {}).then(function () { setAgentBusy(false); });
     }
 
     return (
@@ -132,7 +172,24 @@
           {step === 1 && (
             <div>
               <h2 className="konb-h2">What do you want to build?</h2>
-              <p className="konb-sub">Pick a starting point. You can redesign every part later in the Robot Lab.</p>
+              <p className="konb-sub">Describe it in your own words and the assistant builds it, or pick a starting point. You can redesign every part later in the Robot Lab.</p>
+              <div className="konb-agent">
+                <div className="konb-agent-row">
+                  <input
+                    className="konb-agent-input"
+                    value={agentText}
+                    placeholder="e.g. a self-driving car with a camera and an obstacle sensor"
+                    aria-label="Describe your robot"
+                    onChange={(e) => setAgentText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") buildFromAgent(); }}
+                  />
+                  {window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() && (
+                    <button className="konb-btn ghost konb-agent-mic" type="button" title="Describe by voice" disabled={agentBusy} onClick={agentVoice}>{agentBusy ? "…" : "🎤"}</button>
+                  )}
+                  <button className="konb-btn primary" type="button" disabled={!agentText.trim()} onClick={() => buildFromAgent()}>Build it</button>
+                </div>
+                <p className="konb-agent-or">or pick a starting point</p>
+              </div>
               <div className="konb-grid" role="radiogroup" aria-label="Robot type">
                 {order.map((id) => {
                   const t = TYPES[id];
@@ -165,6 +222,13 @@
               <p className="konb-sub">The assistant picks a world that suits your robot. Test it there, then try the others.</p>
               <div className="konb-rec">
                 <div className="konb-emoji">{(TYPES[type] && TYPES[type].emoji) || "🤖"}</div>
+                {built && built.spec && (
+                  <div className="konb-built" aria-label="Parts the assistant fitted">
+                    {[built.spec.board].concat(built.spec.sensors || [], built.spec.actuators || []).map((p, i) => (
+                      <span key={i} className="konb-chip">{p}</span>
+                    ))}
+                  </div>
+                )}
                 <div className="konb-world">{worldName}</div>
                 <div className="konb-why">{cap(rec.why) || "Start in the busy city, then try the others."}</div>
               </div>

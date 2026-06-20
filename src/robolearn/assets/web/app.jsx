@@ -349,6 +349,8 @@ rover.say("Survey done")`
     // --- AI vibe coding (local Ollama: Qwen/Gemma; graceful when absent) ---
     const [aiInfo, setAiInfo] = useState({ available: false, model: null });
     const [vibeOpen, setVibeOpen] = useState(false);
+    const [realismOpen, setRealismOpen] = useState(false);
+    const [demoOpen, setDemoOpen] = useState(false);
     // Robot Lab: design a custom robot whose spec drives the simulation.
     const [robotLabOpen, setRobotLabOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => (window.getKodroRobot ? window.getKodroRobot() : null));
@@ -397,6 +399,24 @@ rover.say("Survey done")`
       if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
       window.RoboLearn.aiStatus().then(s => { if (s) setAiInfo(s); }).catch(() => {});
     }
+    // Let the user point Kodro at any local model they have pulled (DeepSeek,
+    // Nemotron, Qwen, a custom fine-tune). Persisted server side; empty = auto.
+    function pickModel(name) {
+      if (!window.RoboLearn || !window.RoboLearn.setAiModel) return;
+      window.RoboLearn.setAiModel(name || '').then(() => refreshAiStatus()).catch(() => {});
+    }
+    // B3 trigger: validate the current program across randomised seeds in the
+    // scenario that fits this robot, persist the report, and open the dashboard.
+    function runValidation() {
+      if (!window.KodroScenario) { addConsole('Validation unavailable.', 'err'); return; }
+      const robot = (window.getKodroRobot && window.getKodroRobot()) || {};
+      const scn = window.KodroScenario.defaultFor(robot.world || (terrain && terrain.id));
+      addConsole('Validating across 5 randomised seeds in "' + scn.name + '" (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
+      const rep = window.KodroScenario.run(code, scn, 5);
+      const a = rep.aggregate;
+      addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', (a.successRate >= 0.6 ? 'ok' : 'warn'));
+      setRealismOpen(true);
+    }
     useEffect(() => {
       let tries = 0;
       const t = setInterval(() => {
@@ -432,6 +452,13 @@ rover.say("Survey done")`
         const lesson = window.KodroMemory && window.KodroMemory.lessonFor(terrain.id);
         if (lesson && lesson.reflection) {
           history.unshift({ role: 'user', text: 'Keep in mind, learned from my past runs in the ' + terrain.name + ': ' + lesson.reflection });
+        }
+        // Ground the assistant in THIS robot's command registry (single source
+        // of truth: RobotLab.KodroCommands) so it only suggests commands the
+        // build supports and refuses ones whose part is not fitted. The runtime
+        // gate in host.sensor and the self-test are the deterministic backstop.
+        if (window.KodroCommands && window.getKodroRobot) {
+          history.unshift({ role: 'user', text: window.KodroCommands.groundingText(window.getKodroRobot()) });
         }
         const start = await window.RoboLearn.aiChatStart(history, currentLessonIdRef.current);
         if (!start || !start.ok) { setVibeError((start && start.reason) || 'AI unavailable.'); setVibeBusy(false); return; }
@@ -838,14 +865,18 @@ rover.say("Survey done")`
     const host = {
       sensor(name, args) {
         const s = live.current;
+        // Single source of truth (RobotLab.KodroCommands): a sensor command is
+        // only available if the part it needs is fitted. A missing part is a
+        // readable refusal, not a faked reading, so removing a sensor genuinely
+        // removes its command from text, blocks and voice alike.
+        const rb = window.getKodroRobot ? window.getKodroRobot() : null;
+        if (window.KodroCommands) {
+          const g = window.KodroCommands.check(rb, name);
+          if (!g.ok) throw new Error(g.reason);
+        }
         switch (name) {
           case 'distance': {
-            // A build with no ultrasonic range sensor is blind: distance() reads
-            // "clear" no matter what is ahead, so its avoid logic never fires and
-            // it drives into obstacles. The design choice has a real consequence.
-            const rb = window.getKodroRobot ? window.getKodroRobot() : null;
-            const blind = rb && rb.sensors && rb.sensors.indexOf('ultrasonic') < 0;
-            const d = blind ? 600 : Math.round(rayDistance(s.x, s.y, s.heading));
+            const d = Math.round(rayDistance(s.x, s.y, s.heading));
             setSensorDist(d); return d;
           }
           case 'heading': return Math.round(((s.heading % 360) + 360) % 360);
@@ -929,16 +960,39 @@ rover.say("Survey done")`
       const b0 = s.battery;
       const drainFull = total * 0.011 * gFac * massFac / terrain.traction;
       let crashed = false, flat = false;
+      // ---- physical acceleration, inertia and braking ----------------------
+      // The robot does not snap to top speed and stop dead. It ramps up, holds
+      // a cruise, then brakes, and a heavier build takes longer to do each. If
+      // it is already rolling from the previous move (s.vel), it skips most of
+      // the ramp up so momentum carries between straight segments. The endpoint
+      // is exact (coverFrac(1) === 1), so distances and collisions are unchanged
+      // and the headless interpreter QA, which uses its own kinematics, is too.
+      const inertia = Math.min(0.92, Math.max(0.12, (massFac - 0.6) / 1.4));
+      const carried = Math.min(1, Math.max(0, s.vel || 0));
+      let accelFrac = (0.18 + 0.30 * inertia) * (1 - 0.85 * carried);
+      let brakeFrac = 0.16 + 0.34 * inertia;
+      if (accelFrac + brakeFrac > 0.95) { const k = 0.95 / (accelFrac + brakeFrac); accelFrac *= k; brakeFrac *= k; }
+      const cruiseFrac = Math.max(0, 1 - accelFrac - brakeFrac);
+      const profileArea = 0.5 * accelFrac + cruiseFrac + 0.5 * brakeFrac;
+      function coverFrac(p) {
+        let area;
+        if (accelFrac > 0 && p <= accelFrac) { const v = p / accelFrac; area = 0.5 * v * p; }
+        else if (p <= 1 - brakeFrac) { area = 0.5 * accelFrac + (p - accelFrac); }
+        else if (brakeFrac > 0) { const q = (p - (1 - brakeFrac)) / brakeFrac; area = 0.5 * accelFrac + cruiseFrac + (1 - 0.5 * q) * (q * brakeFrac); }
+        else { area = profileArea; }
+        return profileArea > 0 ? area / profileArea : p;
+      }
       await frames(dur, (p) => {
-        const nx = x0 + dirx * total * p;
-        const ny = y0 + diry * total * p;
+        const cf = coverFrac(p);
+        const nx = x0 + dirx * total * cf;
+        const ny = y0 + diry * total * cf;
         const hit = collisionAt(nx, ny);
         if (hit) {
           crashed = hit;
           return true; // stop frame loop, keep last safe pos
         }
         s.x = nx; s.y = ny;
-        s.battery = Math.max(0, b0 - drainFull * p);
+        s.battery = Math.max(0, b0 - drainFull * cf);
         pushTrailPoint();
         setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading)));
         sync();
@@ -949,7 +1003,7 @@ rover.say("Survey done")`
       // before touching the shared odometer or halting, so a stale in-flight
       // move can't corrupt the fresh run (phantom odometer add, or a spurious
       // 'error' state stomped over the Reset the user just pressed).
-      if (ctrl.current.token !== myToken) { s.moving = false; return false; }
+      if (ctrl.current.token !== myToken) { s.moving = false; s.vel = 0; return false; }
       // Settle battery on the distance actually travelled (handles a crash
       // that stopped the move early), relative to the pre-move level b0.
       const travelled = Math.hypot(s.x - x0, s.y - y0);
@@ -993,6 +1047,7 @@ rover.say("Survey done")`
         haltProgram('error');
         return false;
       }
+      s.vel = 1; // leaving this move still rolling: momentum carries to the next
       return true;
     }
 
@@ -1000,9 +1055,15 @@ rover.say("Survey done")`
       const s = live.current;
       const myToken = ctrl.current.token;  // run epoch captured at turn start
       const h0 = s.heading;
-      const dur = (Math.abs(ev.deg) / 180) * 650 / speedMulRef.current;
+      // Turning bleeds forward momentum, and a heavier build is slower to swing
+      // its mass around, so the turn takes a little longer and eases in and out
+      // rather than snapping. The final heading is still exact (set below).
+      const turnRobot = window.getKodroRobot ? window.getKodroRobot() : null;
+      const turnMass = turnRobot && turnRobot.massFactor ? turnRobot.massFactor : 1;
+      s.vel = 0;
+      const dur = (Math.abs(ev.deg) / 180) * 650 * (0.78 + 0.5 * Math.min(1.5, turnMass)) / speedMulRef.current;
       s.moving = true;
-      await frames(dur, (p) => { s.heading = h0 + ev.deg * p; setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading))); sync(); return false; });
+      await frames(dur, (p) => { const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; s.heading = h0 + ev.deg * e; setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading))); sync(); return false; });
       if (ctrl.current.token !== myToken) { s.moving = false; return false; }  // superseded by Reset/restart
       s.heading = h0 + ev.deg; s.moving = false;
       s.battery = Math.max(0, s.battery - Math.abs(ev.deg) * 0.004);
@@ -1044,7 +1105,7 @@ rover.say("Survey done")`
           case 'move': sfx('move'); return await animateMove(ev);
           case 'turn': sfx('turn'); return await animateTurn(ev);
           case 'speed': live.current.speed = Math.max(0, Math.min(100, ev.value)); sync(); break;
-          case 'wait': await delay(ev.seconds * 1000 / speedMulRef.current); break;
+          case 'wait': live.current.vel = 0; await delay(ev.seconds * 1000 / speedMulRef.current); break;
           case 'pen':
             live.current.penDown = ev.down;
             if (ev.down) { trailRef.current.push([{ x: live.current.x, y: live.current.y }]); setTrail([...trailRef.current]); }
@@ -1363,7 +1424,7 @@ rover.say("Survey done")`
     // assistive tech that focus is confined to the dialog, so honour it: when one
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
-    const anyModalOpen = swarmOpen || vaOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp;
+    const anyModalOpen = swarmOpen || vaOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen;
     useEffect(() => {
       if (!anyModalOpen) return undefined;
       const modal = Array.prototype.slice.call(document.querySelectorAll('.modal[aria-modal="true"]')).pop();
@@ -1507,6 +1568,9 @@ rover.say("Survey done")`
                 <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>✨ Vibe</button>
                 <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>🧩 Blocks</button>
                 <button className="btn-mini" title="A second AI agent reviews your code" onClick={runReview}>🔎 Review</button>
+                <button className="btn-mini" title="Validate this program across 5 randomised seeds" onClick={runValidation}>🎯 Validate</button>
+                <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>📊 Realism</button>
+                <button className="btn-mini" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}>▶ Demo</button>
                 <button className="btn-mini" title="Ask a question, answered from the lesson material" onClick={() => { setAskOpen(true); setAskData(null); }}>❓ Ask</button>
                 <button className="btn-mini" title="Speak a command. Works offline, no AI model needed" disabled={voiceBusy} onClick={runVoiceCommand}>{voiceBusy ? '🎙…' : '🎙 Voice'}</button>
                 <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>🐝 Swarm</button>
@@ -1919,6 +1983,8 @@ rover.say("Survey done")`
           </div>
         )}
 
+        {realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, { onClose: () => setRealismOpen(false) })}
+        {demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, { onClose: () => setDemoOpen(false) })}
         {vibeOpen && (
           <div className="modal-backdrop" onClick={() => !vibeBusy && setVibeOpen(false)}>
             <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
@@ -1929,6 +1995,16 @@ rover.say("Survey done")`
               {aiInfo.available ? (
                 <div className="vibe-body">
                   <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
+                  {aiInfo.models && aiInfo.models.length > 1 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12.5, color: '#9fb4d2' }}>Use model</span>
+                      <select value={aiInfo.override || aiInfo.model || ''} onChange={e => pickModel(e.target.value)}
+                        style={{ background: '#0e1622', color: '#dce8f8', border: '1px solid #2a3a52', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
+                        {aiInfo.models.map(m => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      {aiInfo.override && <button className="btn-mini" onClick={() => pickModel('')} title="Return to automatic model selection">Auto</button>}
+                    </div>
+                  )}
                   <div className="vibe-thread" role="log" aria-live="polite" aria-label="AI conversation">
                     {vibeMsgs.length === 0 && (
                       <p className="vibe-empty">Chat with the AI like a coding partner. It may ask a question first, e.g. try <i>"explore the field"</i> or <i>"draw a star"</i>.</p>

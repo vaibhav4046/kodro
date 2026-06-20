@@ -72,8 +72,10 @@
 
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(SKY[id] != null ? SKY[id] : SKY.earth);
-      // Underwater murk swallows distance much sooner than open air.
-      scene.fog = new THREE.Fog(FOG[id] != null ? FOG[id] : FOG.earth, id === 'underwater' ? 16 : 60, id === 'underwater' ? 90 : 220);
+      // Underwater murk swallows distance much sooner than open air; the Moon
+      // has no atmosphere so its fog is pushed far back so the stars stay visible.
+      if (id === 'underwater') scene.fog = new THREE.FogExp2(FOG[id], 0.025);
+      else scene.fog = new THREE.Fog(FOG[id] != null ? FOG[id] : FOG.earth, id === 'space' ? 200 : 60, id === 'space' ? 800 : 220);
 
       const camera = new THREE.PerspectiveCamera(62, w / h, 0.1, 2000);
 
@@ -90,12 +92,12 @@
       const sun = new THREE.DirectionalLight(sunCol, sunInt);
       sun.position.set(indoor ? 18 : 40, indoor ? 38 : 80, indoor ? 22 : 30);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(1024, 1024); // sharper than the old 512, still light on iGPUs
+      sun.shadow.mapSize.set(indoor ? 2048 : 1024, indoor ? 2048 : 1024); // sharper than the old 512, still light on iGPUs
       sun.shadow.camera.near = 1; sun.shadow.camera.far = 320;
       sun.shadow.camera.left = -120; sun.shadow.camera.right = 120;
       sun.shadow.camera.top = 120; sun.shadow.camera.bottom = -120;
-      sun.shadow.bias = -0.0006;
-      if (sun.shadow.radius != null) sun.shadow.radius = 3;
+      sun.shadow.bias = -0.0003;
+      if (sun.shadow.radius != null) sun.shadow.radius = 5;
       scene.add(sun);
       // A soft fill from the opposite side so shadowed faces are not black.
       const fill = new THREE.DirectionalLight(0xbcd2ff, indoor ? 0.18 : 0.28);
@@ -151,7 +153,9 @@
       const ground = new THREE.Mesh(groundGeo, groundMat);
       ground.rotation.x = -Math.PI / 2;
       ground.receiveShadow = true;
-      if (indoor) { groundMat.roughness = 0.7; groundMat.metalness = 0.05; }
+      // City and room floors get a touch of metalness and lower roughness for a
+      // slightly reflective sheen; open terrain stays rough and matte.
+      if (!openWorld) { groundMat.roughness = 0.85; groundMat.metalness = 0.1; }
       scene.add(ground);
       if (id !== 'city' && id !== 'room') {
         // Give the open ground a procedural grain texture so it reads as a
@@ -176,6 +180,17 @@
             const cc = base.clone(); cc.offsetHSL(0, 0, (Math.random() < 0.5 ? -1 : 1) * 0.06);
             const g = c2.createRadialGradient(x, y, 0, x, y, r);
             g.addColorStop(0, 'rgba(' + Math.round(cc.r * 255) + ',' + Math.round(cc.g * 255) + ',' + Math.round(cc.b * 255) + ',0.4)');
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            c2.fillStyle = g; c2.beginPath(); c2.arc(x, y, r, 0, 6.283); c2.fill();
+          }
+          // A handful of broad colour regions with a gentle hue shift so the
+          // terrain reads as real ground with mineral/vegetation variation, not
+          // a uniform field of speckles.
+          for (let i = 0; i < 6; i++) {
+            const x = Math.random() * 256, y = Math.random() * 256, r = 40 + Math.random() * 60;
+            const cc = base.clone(); cc.offsetHSL((Math.random() - 0.5) * 0.04, (Math.random() - 0.5) * 0.08, (Math.random() < 0.5 ? -1 : 1) * 0.05);
+            const g = c2.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, 'rgba(' + Math.round(cc.r * 255) + ',' + Math.round(cc.g * 255) + ',' + Math.round(cc.b * 255) + ',0.35)');
             g.addColorStop(1, 'rgba(0,0,0,0)');
             c2.fillStyle = g; c2.beginPath(); c2.arc(x, y, r, 0, 6.283); c2.fill();
           }
@@ -283,9 +298,9 @@
       // A detailed car: a tapered hull, a raked cabin and windshield, head and
       // tail lights, mirrors, bumpers and rimmed wheels. Forward is +x.
       function carBody(parent, col) {
-        const bodyM = new THREE.MeshStandardMaterial({ color: col, roughness: 0.24, metalness: 0.72, envMapIntensity: 1.1 });
+        const bodyM = new THREE.MeshPhysicalMaterial({ color: col, roughness: 0.24, metalness: 0.72, envMapIntensity: 1.1, clearcoat: 1.0, clearcoatRoughness: 0.1, sheen: 0.3 });
         const trimM = new THREE.MeshStandardMaterial({ color: 0x16181d, roughness: 0.6, metalness: 0.3 });
-        const glassM = new THREE.MeshStandardMaterial({ color: 0x9fcae6, roughness: 0.06, metalness: 0.2, transparent: true, opacity: 0.6, envMapIntensity: 1.4 });
+        const glassM = new THREE.MeshPhysicalMaterial({ color: 0x9fcae6, transmission: 0.0, roughness: 0.02, metalness: 0.0, transparent: true, opacity: 0.5, envMapIntensity: 1.8, clearcoat: 1.0 });
         const headM = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff0c0, emissiveIntensity: 0.9 });
         const tailM = new THREE.MeshStandardMaterial({ color: 0xff5a4a, emissive: 0xff3322, emissiveIntensity: 0.8 });
         // lower hull, slightly narrower at the base for a tapered look
@@ -448,7 +463,7 @@
         for (let s = 0; s < 3; s++) { const bk = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.4, 1.0), new THREE.MeshStandardMaterial({ color: 0x6a4f2c, roughness: 1 })); bk.position.set(R - 2, 2 + s * 3, -8); scene.add(bk); }
         const pot = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.8, 1.8, 10), new THREE.MeshStandardMaterial({ color: 0xb56a45, roughness: 1 })); pot.position.set(-R + 4, 0.9, -R + 4); pot.castShadow = true; scene.add(pot);
         const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(2.4, 0), new THREE.MeshStandardMaterial({ color: 0x3f7d3a, roughness: 1, flatShading: true })); leaf.position.set(-R + 4, 3.4, -R + 4); leaf.castShadow = true; scene.add(leaf);
-        const lamp = new THREE.PointLight(0xffd9a0, 0.7, 70); lamp.position.set(R - 8, 11, 8); scene.add(lamp);
+        const lamp = new THREE.SpotLight(0xffd9a0, 1.2, 80, 0.6, 0.4); lamp.position.set(R - 8, 11, 8); lamp.target.position.set(R - 8, 0, 8); lamp.castShadow = false; scene.add(lamp); scene.add(lamp.target);
         // People moving in the room, from the shared agent simulation, so the
         // companion robot has someone to avoid.
         const KAr = window.KodroAgents;
@@ -491,6 +506,7 @@
       const wheels = [];
       const steer = []; // front wheel groups, turned toward the heading change
       const Cap = THREE.CapsuleGeometry || null;
+      let ledIndicator = null; // rover mast LED, pulsed each frame in tick()
       // DoubleSide so flat accent discs (the rover eye, the home chest) stay
       // visible when the orbit camera swings round behind the robot.
       const accMat = () => new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5, side: THREE.DoubleSide });
@@ -510,6 +526,16 @@
         carBody(body, 0x2c6fb0);
         carWheels(rov, (wheel, tyre, front) => { wheels.push(tyre); if (front) steer.push(wheel); });
         arrow(2.05);
+        // Headlights as real spotlights (children of rov so they track the car).
+        // Forward is +x; only the left one casts a shadow to keep the cost down.
+        [[0.55], [-0.55]].forEach((zArr, idx) => {
+          const sl = new THREE.SpotLight(0xfff5e0, 1.5, 60, 0.4, 0.5);
+          sl.position.set(1.78, 0.72, zArr[0]);
+          sl.target.position.set(20, 0.2, zArr[0]);
+          sl.castShadow = idx === 0;
+          if (sl.castShadow) { sl.shadow.mapSize.set(512, 512); sl.shadow.bias = -0.0003; }
+          rov.add(sl); rov.add(sl.target);
+        });
       } else if (rType === 'home') {
         const botM = new THREE.MeshStandardMaterial({ color: 0xe9edf2, roughness: 0.4, metalness: 0.1 });
         const base = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 1.05, 0.5, 20), new THREE.MeshStandardMaterial({ color: 0x3a4150, roughness: 0.6 })); base.position.y = 0.25; base.castShadow = true; body.add(base);
@@ -552,12 +578,51 @@
         const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.0, 8), bodyMat); mast.position.set(0.85, 1.75, 0); body.add(mast);
         const camHead = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.72), bodyMat); camHead.position.set(0.85, 2.3, 0); camHead.castShadow = true; body.add(camHead);
         const eye = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), accMat()); eye.position.set(1.12, 2.3, 0); eye.rotation.y = Math.PI / 2; body.add(eye);
+        // A small status LED atop the mast that pulses each frame (see tick()).
+        const ledMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.6 });
+        ledIndicator = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), ledMat);
+        ledIndicator.position.set(0.85, 2.6, 0); body.add(ledIndicator);
         // running lights on the leading edge of the chassis
         const litM = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff0c0, emissiveIntensity: 0.9 });
         [[1.3, 0.55], [1.3, -0.55]].forEach((p) => { const l = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.28), litM); l.position.set(p[0], 0.85, p[1]); body.add(l); });
         addWheels([[0.95, 0.95], [0.95, -0.95], [-0.95, 0.95], [-0.95, -0.95]], 0.5);
         arrow(2.05);
       }
+      // Sensor attachments: small modules on the body reflecting the FITTED
+      // parts, so the robot the user designed is visible. Mounted on `body` so
+      // they lean with weight transfer. Forward is +x. Guarded so a bad spec or
+      // a missing global can never break the scene build.
+      try {
+        const fitted = (window.getKodroRobot && window.getKodroRobot().sensors) || [];
+        const sy = rType === 'home' ? 1.6 : rType === 'arm' ? 1.0 : 1.15; // mount height by build
+        const fx = rType === 'car' ? 1.55 : rType === 'home' ? 0.7 : 1.25;  // front face by build
+        const darkM = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.7, metalness: 0.3 });
+        if (rType !== 'arm') {
+          if (fitted.indexOf('ultrasonic') >= 0) {
+            [0.16, -0.16].forEach((z) => {
+              const e = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.1, 14), darkM); e.rotation.z = Math.PI / 2; e.position.set(fx, sy, z); body.add(e);
+              const r = new THREE.Mesh(new THREE.CircleGeometry(0.07, 12), accMat()); r.position.set(fx + 0.06, sy, z); r.rotation.y = Math.PI / 2; body.add(r);
+            });
+          }
+          if (fitted.indexOf('camera') >= 0) {
+            const cam = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.34), darkM); cam.position.set(fx - 0.05, sy + 0.4, 0); body.add(cam);
+            const lens = new THREE.Mesh(new THREE.CircleGeometry(0.09, 14), accMat()); lens.position.set(fx + 0.07, sy + 0.4, 0); lens.rotation.y = Math.PI / 2; body.add(lens);
+          }
+          if (fitted.indexOf('bumper') >= 0) {
+            const bar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 1.2), new THREE.MeshStandardMaterial({ color: 0xb84a3a, roughness: 0.6 })); bar.position.set(fx + 0.05, 0.55, 0); body.add(bar);
+          }
+          if (fitted.indexOf('line') >= 0) {
+            const ls = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.06, 0.5), darkM); ls.position.set(fx - 0.2, 0.35, 0); body.add(ls);
+          }
+        }
+        if (fitted.indexOf('gps') >= 0) {
+          const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.7, 6), new THREE.MeshStandardMaterial({ color: 0x9aa0ad, metalness: 0.6, roughness: 0.4 })); ant.position.set(-0.2, sy + 0.9, 0.3); body.add(ant);
+          const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), accMat()); tip.position.set(-0.2, sy + 1.25, 0.3); body.add(tip);
+        }
+        if (fitted.indexOf('imu') >= 0) {
+          const chip = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.16), new THREE.MeshStandardMaterial({ color: 0x2c7a4a, roughness: 0.5 })); chip.position.set(-0.1, sy + 0.1, -0.3); body.add(chip);
+        }
+      } catch (e) { void e; }
       // Practical scale: a robot indoors shares a small room with furniture, so
       // it is sized down to fit rather than towering over the sofa.
       if (id === 'room') rov.scale.setScalar(0.85);
@@ -676,6 +741,16 @@
         rov.rotation.y = curHeading;
         const moved = Math.hypot(cur.x - px0, cur.z - pz0);
         if (moved > 0.001) wheels.forEach((wh) => wh.rotateY(moved * 1.6));
+        // Rover status LED: pulses on a slow sine and tracks the live LED colour
+        // (s.led is a hex string set by led("cyan") etc.), falling back to accent.
+        if (ledIndicator) {
+          ledIndicator.material.emissiveIntensity = 0.4 + 0.4 * (0.5 + 0.5 * Math.sin(now * 0.004));
+          if (s.led && s.led !== ledIndicator.userData.led) {
+            ledIndicator.userData.led = s.led;
+            const lc = new THREE.Color(s.led);
+            ledIndicator.material.color.copy(lc); ledIndicator.material.emissive.copy(lc);
+          }
+        }
         // ---- weight transfer, banking, suspension and steering ----
         const accel = moved - prevSpeed; prevSpeed = moved;
         vsmooth += (moved - vsmooth) * 0.2;
