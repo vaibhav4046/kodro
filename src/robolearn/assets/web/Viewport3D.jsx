@@ -245,9 +245,11 @@
       // cannot generate it, the scene simply renders without reflections.
       try {
         if (THREE.PMREMGenerator) {
-          const pmrem = new THREE.PMREMGenerator(renderer);
-          scene.environment = pmrem.fromScene(scene, 0.04, 1, 1200).texture;
-          pmrem.dispose();
+          let pmrem = null;
+          // dispose in finally so the generator's internal render targets are
+          // freed even if fromScene throws on a GPU that cannot allocate them.
+          try { pmrem = new THREE.PMREMGenerator(renderer); scene.environment = pmrem.fromScene(scene, 0.04, 1, 1200).texture; }
+          finally { if (pmrem) pmrem.dispose(); }
         }
       } catch (e) { void e; }
 
@@ -784,7 +786,12 @@
         cur.z += (tz - cur.z) * posLerp;
         curHeading = angLerp(curHeading, tr, posLerp);
         rov.position.set(cur.x, 0, cur.z);
-        rov.rotation.y = curHeading;
+        // The engine advances by (sin h, -cos h); after the z-flip the 3D travel
+        // direction is (sin h, cos h). The mesh is built forward = local +x, and
+        // a Y-rotation of +x by theta gives (cos theta, -sin theta), so theta
+        // must be curHeading - 90deg for the mesh to face the way it actually
+        // moves (it was crabbing 90deg before). Matches how the agents face.
+        rov.rotation.y = curHeading - Math.PI / 2;
         const moved = Math.hypot(cur.x - px0, cur.z - pz0);
         if (moved > 0.001) wheels.forEach((wh) => wh.rotateY(moved * 1.6));
         // Rover status LED: pulses on a slow sine and tracks the live LED colour
@@ -813,7 +820,10 @@
         body.position.y = -Math.abs(susp) * 0.35;
         // front wheels steer toward the heading change
         if (steer.length) { const sa = clamp(turn * 26, -0.5, 0.5); steer.forEach((wg) => { wg.rotation.y += (sa - wg.rotation.y) * 0.3; }); }
-        const fwd = tmp.set(Math.cos(curHeading), 0, -Math.sin(curHeading));
+        // First-person forward is the real 3D travel direction (sin h, cos h),
+        // the same vector the rover mesh now faces, so the driver view looks
+        // where the robot actually drives rather than 90deg off to the side.
+        const fwd = tmp.set(Math.sin(curHeading), 0, Math.cos(curHeading));
 
         // Grow the trail when the rover has actually moved.
         if (trailN === 0 || Math.hypot(cur.x - trailPos[(trailN - 1) * 3], cur.z - trailPos[(trailN - 1) * 3 + 2]) > 0.25) {
