@@ -932,8 +932,13 @@ rover.say("Survey done")`
         if (PREFERS_REDUCED_MOTION()) {
           // Snap with NO animation, but still sample the swept path so a
           // boulder/wall mid-route halts the rover instead of being tunnelled
-          // through (the collision check lives in onFrame). QA rank 4.
-          for (const p of [0.25, 0.5, 0.75, 1]) { if (onFrame(p)) break; }
+          // through (the collision check lives in onFrame). Sample at a fixed
+          // fine resolution rather than four fixed fractions: at the 4000cm max
+          // move that is ~62cm per step, under the smallest collision band, so
+          // a long move can no longer skip past a small obstacle and the
+          // accessibility path grades the same as the animated one. QA rank 4.
+          const STEPS = 64;
+          for (let k = 1; k <= STEPS; k++) { if (onFrame(k / STEPS)) break; }
           resolve('done'); return;
         }
         const start = performance.now();
