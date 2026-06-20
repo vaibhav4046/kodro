@@ -108,6 +108,17 @@ body {
 .status-dot.paused { background:var(--warning); }
 .status-dot.done { background:var(--success); }
 .status-dot.error { background:var(--danger); box-shadow:0 0 10px var(--danger); }
+/* Windows high-contrast / forced-colors collapses every background to a system
+   colour, so the dots (which differ only by colour) become identical. Give each
+   state a distinct fill/border SHAPE cue that survives the override. */
+@media (forced-colors: active) {
+  .status-dot { forced-color-adjust:none; width:9px; height:9px; background:Canvas; border:1.5px solid CanvasText; box-shadow:none; }
+  .status-dot.idle { background:Canvas; border-style:solid; }
+  .status-dot.run { background:Highlight; border-style:solid; }
+  .status-dot.paused { background:Canvas; border-style:dashed; }
+  .status-dot.done { background:CanvasText; border-style:solid; }
+  .status-dot.error { background:Canvas; border-style:double; border-width:3px; }
+}
 @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.35;} }
 
 .speed-ctrl { display:flex; align-items:center; gap:9px; }
@@ -592,6 +603,12 @@ textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible,
 .lesson-verdict { margin-left:auto; font-family:var(--font-mono); font-size:11px; font-weight:600; }
 .lesson-verdict.pass { color:var(--success); }
 .lesson-verdict.fail { color:var(--warning); }
+/* Forced-colors maps both verdict colours to the same system colour, so add a
+   glyph prefix as a non-colour pass/fail cue. */
+@media (forced-colors: active) {
+  .lesson-verdict.pass::before { content:'\2713\00a0'; } /* check mark */
+  .lesson-verdict.fail::before { content:'\2717\00a0'; } /* ballot x */
+}
 .lesson-intro { font-size:12px; line-height:1.5; color:var(--fg-2); margin-top:6px; }
 .lesson-reasons { margin:6px 0 0 16px; font-size:11.5px; color:var(--warning); }
 .lesson-reasons li { margin:2px 0; }
@@ -1057,6 +1074,16 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .vp3d-fail{ display:flex; align-items:center; justify-content:center; height:100%; padding:24px; text-align:center; color:var(--fg-2); font-size:13px; }
 .viewport3d.vp3d-lost::after{ content:'3D paused — switch to 2.5D in the bar'; position:absolute; inset:auto 0 12px 0; text-align:center; color:var(--fg-2); font-family:var(--font-mono); font-size:11px; }
 .viewport3d canvas:focus-visible{ outline:2px solid var(--cyan); outline-offset:-2px; }
+/* Stronger, always-on focus ring for keyboard orbit (programmatic focus on
+   open does not always trip :focus-visible, so target :focus too). */
+.viewport3d canvas:focus{ outline:3px solid var(--cyan); outline-offset:-3px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.45); }
+/* Keyboard-control caption: hidden until the canvas (a descendant) is focused,
+   so sighted keyboard users get a visible hint without cluttering the view. */
+.vp3d-help{ position:absolute; left:50%; bottom:12px; transform:translateX(-50%); padding:5px 12px; border-radius:99px;
+  background:rgba(8,10,14,.72); color:var(--fg-1); font-family:var(--font-mono); font-size:11px; letter-spacing:.02em;
+  white-space:nowrap; pointer-events:none; opacity:0; transition:opacity var(--duration-normal,.3s) var(--ease,ease); }
+.viewport3d:focus-within .vp3d-help{ opacity:1; }
+@media (prefers-reduced-motion: reduce){ .vp3d-help{ transition:none; } }
 .view-toggle button:focus-visible, .terrain-btn:focus-visible{ outline:2px solid var(--cyan); outline-offset:1px; }
 
 /* ===================== Robot Lab ===================== */

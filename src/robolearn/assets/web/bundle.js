@@ -217,6 +217,14 @@
     }
   }
   function loop(now) {
+    // Backgrounded tab: skip the step but keep the loop alive and reset the
+    // clock, so a hidden tab does no work and the agents do not teleport when
+    // it returns (step() also clamps dt, this avoids even that catch-up).
+    if (typeof document !== 'undefined' && document.hidden) {
+      last = now;
+      raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame(loop) : 0;
+      return;
+    }
     if (last == null) last = now;
     step((now - last) / 1000);
     last = now;
@@ -3651,7 +3659,9 @@
     terrain,
     rover,
     fpv,
-    robotType
+    robotType,
+    quality,
+    focusKey
   }) {
     const mountRef = useRef(null);
     const stateRef = useRef({
@@ -3660,8 +3670,56 @@
       heading: 0
     });
     const fpvRef = useRef(!!fpv);
+    // Handles to the live GL objects so a quality change applies in place
+    // (pixel ratio, shadows) instead of remounting and rebuilding the scene.
+    const glRef = useRef(null);
     stateRef.current = rover || stateRef.current;
     fpvRef.current = !!fpv;
+
+    // Move keyboard focus to the canvas when the user explicitly opens the 3D
+    // view (focusKey bumps on that click only). focusKey starts at 0 so the
+    // initial page load never steals focus. Runs after the build effect mounts
+    // the canvas, so the canvas is present to receive focus.
+    useEffect(() => {
+      if (!focusKey) return;
+      const mount = mountRef.current;
+      const cv = mount && mount.querySelector('canvas');
+      if (cv && cv.focus) {
+        try {
+          cv.focus();
+        } catch (e) {
+          void e;
+        }
+      }
+    }, [focusKey]);
+
+    // Apply a render-quality change in place. Low/Med/High differ only by pixel
+    // ratio and shadow resolution, all adjustable on the live renderer, so the
+    // Low/Med/High switch no longer tears down and rebuilds the whole scene
+    // (which cost 200-500ms and a fresh GL context). Cinematic still remounts
+    // via the key because it needs the offline post pipeline built at setup.
+    useEffect(() => {
+      const g = glRef.current;
+      if (!g || !g.renderer) return;
+      const Q = quality || 'high';
+      const dpr = window.devicePixelRatio || 1;
+      g.renderer.setPixelRatio(Q === 'low' ? 1 : Q === 'med' ? Math.min(1.25, dpr) : Q === 'cinematic' ? Math.min(2, dpr * 1.5) : Math.min(1.5, dpr));
+      const wantShadow = Q !== 'low';
+      g.renderer.shadowMap.enabled = wantShadow;
+      g.renderer.shadowMap.needsUpdate = true;
+      if (g.sun) {
+        g.sun.castShadow = wantShadow;
+        const n = Q === 'low' ? 512 : Q === 'med' ? 1024 : Q === 'cinematic' ? 2048 : g.indoor ? 2048 : 1024;
+        if (g.sun.shadow.mapSize.x !== n) {
+          g.sun.shadow.mapSize.set(n, n);
+          // Drop the cached shadow map so Three.js reallocates it at the new size.
+          if (g.sun.shadow.map) {
+            g.sun.shadow.map.dispose();
+            g.sun.shadow.map = null;
+          }
+        }
+      }
+    }, [quality]);
     useEffect(() => {
       const THREE = typeof window !== 'undefined' && window.THREE;
       const mount = mountRef.current;
@@ -3684,9 +3742,21 @@
       let h = mount.clientHeight || 500;
 
       // Honour the pupil's motion preference: no smoothing-induced drift.
-      const reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-      const posLerp = reduce ? 1 : 0.16;
-      const camLerp = reduce ? 1 : 0.12;
+      // Live, not read-once: if the OS setting changes while the view is open,
+      // a matchMedia listener flips the smoothing immediately (tick() reads
+      // these each frame), so the preference never goes stale.
+      const reduceMql = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)') || null;
+      let reduce = !!(reduceMql && reduceMql.matches);
+      let posLerp = reduce ? 1 : 0.16;
+      let camLerp = reduce ? 1 : 0.12;
+      const onReduceChange = e => {
+        reduce = !!e.matches;
+        posLerp = reduce ? 1 : 0.16;
+        camLerp = reduce ? 1 : 0.12;
+      };
+      if (reduceMql) {
+        if (reduceMql.addEventListener) reduceMql.addEventListener('change', onReduceChange);else if (reduceMql.addListener) reduceMql.addListener(onReduceChange); // older Safari
+      }
 
       // Guard WebGL: a failed context (old GPU, lost context) shows a calm
       // message and the pupil can fall back to the flat view, never a blank box.
@@ -4978,6 +5048,15 @@
         last = window.performance && window.performance.now ? window.performance.now() : 0;
       const tick = () => {
         if (disposed) return;
+        // Backgrounded tab: do no render or sim work. rAF is already throttled
+        // when hidden, but a frame can still fire (picture-in-picture, a second
+        // monitor), so skip the body and reset the clock so the first visible
+        // frame sees a small dt instead of a multi-second jump.
+        if (typeof document !== 'undefined' && document.hidden) {
+          last = window.performance && window.performance.now ? window.performance.now() : last;
+          raf = window.requestAnimationFrame(tick);
+          return;
+        }
         const now = window.performance && window.performance.now ? window.performance.now() : last + 16;
         const dt = now - last;
         last = now;
@@ -5105,9 +5184,20 @@
         }
         raf = window.requestAnimationFrame(tick);
       };
+      // Expose the live renderer + sun so the in-place quality effect can adjust
+      // pixel ratio and shadows without a remount. Set after the scene is built.
+      glRef.current = {
+        renderer,
+        sun,
+        indoor
+      };
       tick();
       return () => {
         disposed = true;
+        glRef.current = null;
+        if (reduceMql) {
+          if (reduceMql.removeEventListener) reduceMql.removeEventListener('change', onReduceChange);else if (reduceMql.removeListener) reduceMql.removeListener(onReduceChange);
+        }
         window.cancelAnimationFrame(raf);
         if (post) {
           try {
@@ -5144,10 +5234,19 @@
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       };
     }, [terrain && terrain.id, robotType]);
+
+    // A caption that surfaces the keyboard controls. It is hidden until the
+    // canvas is focused (see .vp3d-help in styles.css), so sighted keyboard
+    // users get a visible hint the moment they tab in, without cluttering the
+    // pointer-driven view. aria-hidden because the canvas's own aria-label
+    // already announces the same controls to screen readers.
     return React.createElement('div', {
       className: 'viewport3d',
       ref: mountRef
-    });
+    }, React.createElement('div', {
+      className: 'vp3d-help',
+      'aria-hidden': 'true'
+    }, 'Arrow keys orbit  ·  +/- zoom  ·  drag to look'));
   }
   window.Viewport3D = Viewport3D;
 })();
@@ -7761,8 +7860,10 @@ Object.assign(window, {
     return Math.max(0, best);
   }
 
-  // One headless run with the parameters this seed produced.
-  function runOnce(src, scenario, seed) {
+  // One headless run with the parameters this seed produced. `gateRobot` is the
+  // build whose fitted parts gate the part-specific commands; run() resolves it
+  // once and never passes null on a user-facing path (see run()).
+  function runOnce(src, scenario, seed, gateRobot) {
     if (!window.RoverLang) return {
       ok: false,
       error: 'interpreter not loaded'
@@ -7787,7 +7888,7 @@ Object.assign(window, {
     const massMul = 1 + (rng() * 2 - 1) * massTol;
     const noiseCm = cfg.sensorNoise || 0;
     const jitter = cfg.obstacleJitter || 0;
-    const robot = window.getKodroRobot ? window.getKodroRobot() : null;
+    const robot = gateRobot;
     const massFac = (robot && robot.massFactor ? robot.massFactor : 1) * massMul;
     const start = scenario.startPose || {
       x: 0,
@@ -7979,11 +8080,23 @@ Object.assign(window, {
       finalScore: score
     };
   }
-  function run(src, scenario, n) {
+  function run(src, scenario, n, opts) {
     const seeds = Math.max(1, n || 5);
     const base = scenario && scenario.seed || 1;
+    // Resolve the build once. A user-facing validation must run against a real
+    // build: a null robot would make KodroCommands.check pass EVERY part-gated
+    // command (a camera-only build could 'pass' a ranging lesson). So for the
+    // user path we substitute an empty-but-non-null build, which gates every
+    // part-specific command correctly. Only an explicit headless harness
+    // (opts.harness) is allowed the null = no-gating shortcut.
+    const harness = !!(opts && opts.harness);
+    const live = window.getKodroRobot ? window.getKodroRobot() : null;
+    const gateRobot = harness ? live : live || {
+      sensors: [],
+      actuators: []
+    };
     const runs = [];
-    for (let i = 0; i < seeds; i++) runs.push(runOnce(src, scenario, base + i * 101));
+    for (let i = 0; i < seeds; i++) runs.push(runOnce(src, scenario, base + i * 101, gateRobot));
     const ok = runs.filter(function (r) {
       return r && !r.compile;
     });
@@ -8762,6 +8875,7 @@ Object.assign(window, {
   .konb-agent-input:focus{border-color:#5ed6ff}
   .konb-agent-mic{padding:12px 14px}
   .konb-agent-or{text-align:center;color:#6f86a6;font-size:13px;margin:14px 0 0;letter-spacing:.02em}
+  .konb-agent-err{text-align:center;color:#ffb4a8;font-size:13px;margin:10px 0 0;line-height:1.4}
   .konb-built{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:12px 0 0}
   .konb-chip{background:#11202e;border:1px solid #2a4258;border-radius:999px;color:#bfe6ff;font-size:12px;padding:4px 11px}
   `;
@@ -8789,6 +8903,7 @@ Object.assign(window, {
     const [agentText, setAgentText] = useState("");
     const [built, setBuilt] = useState(null);
     const [agentBusy, setAgentBusy] = useState(false);
+    const [agentErr, setAgentErr] = useState("");
     useEffect(() => {
       const tag = "kodro-onb-style";
       if (!document.getElementById(tag)) {
@@ -8826,7 +8941,15 @@ Object.assign(window, {
     // the parts catalogue, then jump to the world recommendation for it.
     function buildFromAgent(text) {
       const q = (text != null ? text : agentText).trim();
-      if (!q || !window.RobotLab || !window.RobotLab.buildFromText) return;
+      if (!q) return;
+      // If the build assistant could not load, do not fail silently: tell the
+      // user and point them at the tile picker right below, which needs no
+      // assistant. (RobotLab is bundled, so this is a defensive fallback.)
+      if (!window.RobotLab || !window.RobotLab.buildFromText) {
+        setAgentErr("The build assistant could not load. Pick a starting point below instead.");
+        return;
+      }
+      setAgentErr("");
       const res = window.RobotLab.buildFromText(q);
       setBuilt(res);
       setType(res.spec.type);
@@ -8905,7 +9028,10 @@ Object.assign(window, {
       type: "button",
       disabled: !agentText.trim(),
       onClick: () => buildFromAgent()
-    }, "Build it")), /*#__PURE__*/React.createElement("p", {
+    }, "Build it")), agentErr && /*#__PURE__*/React.createElement("p", {
+      className: "konb-agent-err",
+      role: "alert"
+    }, agentErr), /*#__PURE__*/React.createElement("p", {
       className: "konb-agent-or"
     }, "or pick a starting point")), /*#__PURE__*/React.createElement("div", {
       className: "konb-grid",
@@ -9204,7 +9330,20 @@ rover.say("Survey done")`
     }))
   };
   function App() {
-    const [terrainId, setTerrainId] = useState(() => localStorage.getItem('or_terrain') || 'mars');
+    const [terrainId, setTerrainId] = useState(() => {
+      const saved = localStorage.getItem('or_terrain');
+      if (saved) return saved;
+      // Fresh load: open in the world recommended for the current build, so the
+      // first impression matches the rover (the default rover recommends Earth),
+      // instead of a hardcoded Mars that contradicts the build's own world.
+      try {
+        const rb = window.getKodroRobot && window.getKodroRobot();
+        if (rb && rb.world) return rb.world;
+      } catch (e) {
+        void e;
+      }
+      return 'mars';
+    });
     const [activeTab, setActiveTab] = useState(() => {
       const saved = localStorage.getItem('or_tab');
       if (saved) return saved;
@@ -9453,6 +9592,9 @@ rover.say("Survey done")`
       }
     });
     if (typeof window !== 'undefined') window.KODRO_QUALITY = quality;
+    // Bumped each time the user explicitly opens the 3D view, so the canvas can
+    // take focus (keyboard orbit) without stealing focus on the initial load.
+    const [focus3dKey, setFocus3dKey] = useState(0);
     // Robot Lab: design a custom robot whose spec drives the simulation.
     const [robotLabOpen, setRobotLabOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => window.getKodroRobot ? window.getKodroRobot() : null);
@@ -10465,7 +10607,16 @@ rover.say("Survey done")`
         return profileArea > 0 ? area / profileArea : p;
       }
       await frames(dur, p => {
-        const cf = coverFrac(p);
+        let cf = coverFrac(p);
+        // Out of charge mid-move: solve the cover-fraction at which the battery
+        // reaches zero and clamp the committed position to it, so the robot
+        // halts EXACTLY at the crossing rather than one frame past it (which
+        // over-reported the distance travelled and the odometer add).
+        let outOfCharge = false;
+        if (drainFull > 0 && drainFull * cf >= b0) {
+          cf = b0 / drainFull; // battery hits 0 at this fraction of the move
+          outOfCharge = true;
+        }
         const nx = x0 + dirx * total * cf;
         const ny = y0 + diry * total * cf;
         const hit = collisionAt(nx, ny);
@@ -10479,10 +10630,10 @@ rover.say("Survey done")`
         pushTrailPoint();
         setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading)));
         sync();
-        if (s.battery <= 0) {
+        if (outOfCharge) {
           flat = true;
           return true;
-        } // out of charge mid-move
+        } // halted at battery zero
         return false;
       });
       // A Reset/restart while this move was animating bumps the token: bail
@@ -11573,7 +11724,10 @@ rover.say("Survey done")`
       className: 'terrain-btn' + (view3d ? ' active' : ''),
       "aria-pressed": view3d,
       title: "Real 3D view",
-      onClick: () => setView3d(true)
+      onClick: () => {
+        setView3d(true);
+        setFocus3dKey(k => k + 1);
+      }
     }, "3D"), /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: 'terrain-btn' + (!view3d ? ' active' : ''),
@@ -11613,11 +11767,13 @@ rover.say("Survey done")`
     }, "High"), /*#__PURE__*/React.createElement("option", {
       value: "cinematic"
     }, "Cinematic")))), view3d ? /*#__PURE__*/React.createElement(window.Viewport3D, {
-      key: 'vp3d-' + quality,
+      key: 'vp3d-' + (terrain && terrain.id) + '-' + (robotSpec && robotSpec.type) + (quality === 'cinematic' ? '-cine' : '-std'),
       terrain: terrain,
       rover: rover,
       fpv: fpv,
-      robotType: robotSpec && robotSpec.type
+      robotType: robotSpec && robotSpec.type,
+      quality: quality,
+      focusKey: focus3dKey
     }) : /*#__PURE__*/React.createElement(window.Viewport, {
       terrain: terrain,
       rover: rover,
