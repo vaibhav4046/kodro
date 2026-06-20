@@ -36,6 +36,14 @@
       if (!THREE || !mount) return undefined;
 
       const id = (terrain && terrain.id) || 'earth';
+      // Site-aware 3D ground colour. An Earth-based site (Sahara, Kenya, Egypt)
+      // or a Mars/space variant carries its own palette in groundBg/obFill, used
+      // by the 2D view. Pull the dominant hex so the 3D ground MATCHES the site
+      // instead of always rendering the base terrain's colour (the green-Sahara
+      // bug). Falls back to the base map when a site has no palette.
+      const hexFromCss = (str) => { if (!str) return null; const m = String(str).match(/#([0-9a-fA-F]{6})/g); if (!m || !m.length) return null; return parseInt((m[1] || m[0]).slice(1), 16); };
+      const siteGround = hexFromCss(terrain && terrain.groundBg && terrain.groundBg.background);
+      const groundColor = (siteGround != null) ? siteGround : (GROUND[id] != null ? GROUND[id] : GROUND.earth);
       let w = mount.clientWidth || 800;
       let h = mount.clientHeight || 500;
 
@@ -69,7 +77,7 @@
       const _dpr = (window.devicePixelRatio || 1);
       renderer.setPixelRatio(Q === 'low' ? 1 : Q === 'med' ? Math.min(1.25, _dpr) : Q === 'cinematic' ? Math.min(2, _dpr * 1.5) : Math.min(1.5, _dpr));
       renderer.shadowMap.enabled = (Q !== 'low');
-      if (THREE.ACESFilmicToneMapping != null) { renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.08; }
+      if (THREE.ACESFilmicToneMapping != null) { renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15; }
       if (THREE.SRGBColorSpace != null) renderer.outputColorSpace = THREE.SRGBColorSpace;
       else if (THREE.sRGBEncoding != null) renderer.outputEncoding = THREE.sRGBEncoding;
       const canvas = renderer.domElement;
@@ -94,10 +102,10 @@
       const grndCol2 = indoor ? 0x3a2f28 : 0x404048;
       // Each world carries its own light mood: the Moon is dim and contrasty,
       // the abyss is dark and blue, Mars is dusty and half-lit, indoors is warm.
-      const hemiInt = id === 'space' ? 0.45 : id === 'underwater' ? 0.5 : indoor ? 0.7 : id === 'mars' ? 0.68 : 0.9;
+      const hemiInt = id === 'space' ? 0.4 : id === 'underwater' ? 0.45 : indoor ? 0.62 : id === 'mars' ? 0.52 : 0.6;
       scene.add(new THREE.HemisphereLight(skyCol2, grndCol2, hemiInt));
       const sunCol = indoor ? 0xffe9c4 : id === 'underwater' ? 0x6fb7c9 : id === 'mars' ? 0xffd9b0 : 0xfff4e2;
-      const sunInt = id === 'space' ? 0.7 : id === 'underwater' ? 0.45 : indoor ? 0.85 : id === 'mars' ? 0.8 : 1.05;
+      const sunInt = id === 'space' ? 0.9 : id === 'underwater' ? 0.6 : indoor ? 1.05 : id === 'mars' ? 1.05 : 1.4;
       const sun = new THREE.DirectionalLight(sunCol, sunInt);
       sun.position.set(indoor ? 18 : 40, indoor ? 38 : 80, indoor ? 22 : 30);
       sun.castShadow = true;
@@ -142,7 +150,7 @@
       }
 
       // Ground.
-      const groundMat = new THREE.MeshStandardMaterial({ color: GROUND[id] != null ? GROUND[id] : GROUND.earth, roughness: 1 });
+      const groundMat = new THREE.MeshStandardMaterial({ color: groundColor, roughness: 1 });
       const openWorld = id !== 'city' && id !== 'room';
       // Open terrain gets a subdivided, gently displaced surface (dunes, swells)
       // so light grazes real undulations instead of reading as a billiard-flat
@@ -174,7 +182,7 @@
         const gtex = (typeof document !== 'undefined') && (function () {
           const cv = document.createElement('canvas'); cv.width = cv.height = 256;
           const c2 = cv.getContext('2d'); if (!c2) return null;
-          const base = new THREE.Color(GROUND[id] != null ? GROUND[id] : GROUND.earth);
+          const base = new THREE.Color(groundColor);
           c2.fillStyle = '#' + base.getHexString(); c2.fillRect(0, 0, 256, 256);
           const speckle = (n, amp, alpha) => {
             for (let i = 0; i < n; i++) {
@@ -228,7 +236,8 @@
       const agents = [];
 
       // Obstacles as 3D meshes (trees + rocks on Earth, rocks elsewhere).
-      const rockMat = new THREE.MeshStandardMaterial({ color: id === 'mars' ? 0x7e3a26 : id === 'underwater' ? 0x2c6068 : 0x6a6a64, roughness: 1, flatShading: true });
+      const siteRock = hexFromCss(terrain && terrain.obFill);
+      const rockMat = new THREE.MeshStandardMaterial({ color: siteRock != null ? siteRock : (id === 'mars' ? 0x7e3a26 : id === 'underwater' ? 0x2c6068 : 0x6a6a64), roughness: 1, flatShading: true });
       const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4f2c, roughness: 1 });
       const leafMat = new THREE.MeshStandardMaterial({ color: 0x356b2a, roughness: 1, flatShading: true });
       const coralMat = new THREE.MeshStandardMaterial({ color: 0xc9607a, roughness: 0.85, flatShading: true });
@@ -659,7 +668,7 @@
 
       // Third-person orbit: drag to rotate, wheel or two-finger pinch to zoom,
       // so it works on a tablet or Chromebook as well as a mouse.
-      let azim = 2.4, elev = 0.62, dist = id === 'room' ? 15 : 26, dragging = false, lx = 0, ly = 0;
+      let azim = 2.4, elev = 0.62, dist = id === 'room' ? 13 : 19, dragging = false, lx = 0, ly = 0;
       const dom = renderer.domElement;
       const ptrs = new Map();
       let pinch = 0;
