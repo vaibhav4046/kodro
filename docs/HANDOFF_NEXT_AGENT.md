@@ -258,3 +258,47 @@ and prove every claim.
 > exhaustive bug and UX review with browser proof, and deepen the dissertation
 > with grounded content only. Respect every rule in section 0. Never fake a
 > score or a result. Verify everything, quote the evidence, and ship to main.
+
+---
+
+## 9. Update after the shading, bug-review and dissertation pass (2026-06-20)
+
+Shipped to `main` and `kodro-identity-pass` (both at the same commit, pushed to
+`origin`). Verified each step rather than asserted.
+
+What changed:
+
+- Shading upgrade (offline, behind the quality tiers). Two new modules:
+  `textures.jsx` (`KodroTextures.groundMaps`) adds a tileable Sobel-derived
+  normal map plus a roughness map to open-terrain ground; `post.jsx`
+  (`KodroPost.create`) is a hand-written bloom plus vignette at the Cinematic
+  tier, composited additively over the unchanged base render, gated and
+  degrading gracefully (off under reduced motion, off after the slow-GPU
+  downgrade, dropped on target-allocation or frame-time failure). No new
+  vendored binary, no network.
+- The glTF lever is recorded as honest roadmap, not shipped: neither a loader
+  nor good models are obtainable under the zero-network rule in this
+  environment. The real offline win was procedural relief plus the gated post
+  pass. Documented in `docs/known-limitations.md`.
+- Exhaustive bug and UX review (multi-agent find then adversarial verify across
+  first run, command gating, movement, accessibility, performance and mobile).
+  Every confirmed critical and high was fixed and re-verified, the visual ones
+  in a headless Chrome SwiftShader capture (`docs/img/audit/*`): the mission-site
+  crash, the 90-degree 3D rover/FPV heading, the arm first-run failure, the
+  phantom-command catalogue (now reconciled so only `distance()` and `heading()`
+  are advertised and gated), the reduced-motion tunnelling, plus accessibility
+  (slider name, telemetry live region, contrast) and the 375px toolbar.
+- Dissertation: corrected the now-false "no post-processing" claims, added a
+  grounded implementation section on the offline shading and a grounded note on
+  the adversarial review. Recompiled with tectonic: 36 pages, zero em/en dashes.
+
+Still open (a follow-up task chip was filed): the medium and low review items,
+notably the out-of-charge endpoint overshoot, the quality-switch full scene
+rebuild, hidden-tab rAF gating, the 3D canvas keyboard hint, and a few
+low-severity polish items. The human user study in `HUMAN_TODO.md` remains the
+one thing only a human can run; do not fabricate its results.
+
+Verification last measured: build 19 sources, interpreter QA 21/21, headless
+bundle-eval 3/3, gating assertions 7/7, full pytest 854 collected (852 to 854
+pass with 0 to 2 Tk GUI tests skipped depending on whether this Python's Tcl
+initialises that run; zero failures).
