@@ -121,7 +121,7 @@ const CAP = `<!DOCTYPE html>
         var w = q.get('world'); if (w) localStorage.setItem('or_terrain', w);
         var qq = q.get('q'); if (qq) localStorage.setItem('kodro_quality', qq);
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run') };
     })();
   </script>
   <div id="root"></div>
@@ -143,6 +143,10 @@ const CAP = `<!DOCTYPE html>
       function clickAria(label) { var el = document.querySelector('[aria-label="' + label + '"]'); if (el) { el.click(); return true; } return false; }
       if (!C.onb && C.robot) {
         setTimeout(function () { try { window.dispatchEvent(new CustomEvent('kodro-robot', { detail: { type: C.robot, world: C.world || undefined } })); } catch (e) { void e; } }, 500);
+      }
+      if (!C.onb && C.run) {
+        // Click Run so a capture can show the rover mid-drive (trail + heading).
+        setTimeout(function () { var b = [].slice.call(document.querySelectorAll('.ctrl')); for (var i = 0; i < b.length; i++) { if ((b[i].textContent || '').indexOf('Run') >= 0) { b[i].click(); return; } } }, 1400);
       }
       if (!C.onb && C.panel) {
         setTimeout(function () {

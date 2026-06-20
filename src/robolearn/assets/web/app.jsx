@@ -195,7 +195,20 @@ rover.say("Survey done")`
 
   function App() {
     const [terrainId, setTerrainId] = useState(() => localStorage.getItem('or_terrain') || 'mars');
-    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('or_tab') || 'autopilot');
+    const [activeTab, setActiveTab] = useState(() => {
+      const saved = localStorage.getItem('or_tab');
+      if (saved) return saved;
+      // Default to the autopilot showcase, but only if the current build can
+      // actually range: a camera-only arm (or any build with no ultrasonic)
+      // would fail autopilot's first distance() call with a gating refusal, so
+      // it opens on the base-command 'starter' example instead and first Run
+      // always works.
+      try {
+        const rb = window.getKodroRobot && window.getKodroRobot();
+        if (rb && window.KodroCommands && !window.KodroCommands.check(rb, 'distance').ok) return 'basecamp';
+      } catch (e) { void e; }
+      return 'autopilot';
+    });
     const [programs, setPrograms] = useState(() => {
       try { const s = JSON.parse(localStorage.getItem('or_programs')); if (s) return s; } catch (e) {}
       const o = {}; Object.keys(EXAMPLES).forEach(k => o[k] = EXAMPLES[k].code); return o;
@@ -304,7 +317,9 @@ rover.say("Survey done")`
     // avoid a temporal-dead-zone ReferenceError.)
     const code = currentLessonId
       ? (lessonBuffers[currentLessonId] !== undefined ? lessonBuffers[currentLessonId] : '')
-      : programs[activeTab];
+      // Never hand the editor undefined (it would .split(undefined) and crash):
+      // if activeTab is somehow not a known example key, fall back to basecamp.
+      : (programs[activeTab] !== undefined ? programs[activeTab] : (programs.basecamp || ''));
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
@@ -367,6 +382,14 @@ rover.say("Survey done")`
           setTerrainId(w);
           try { localStorage.setItem('or_terrain', w); } catch (err) { void err; }
         }
+        // If the freshly chosen build cannot range (no ultrasonic), a
+        // distance-based example would fail on the first Run with a gating
+        // refusal. Move off it to the base-command 'starter' so the first Run
+        // after picking, say, a camera-only arm still works.
+        try {
+          const canRange = !window.KodroCommands || window.KodroCommands.check(e.detail, 'distance').ok;
+          if (!canRange) setActiveTab((t) => (t === 'autopilot' || t === 'avoid') ? 'basecamp' : t);
+        } catch (err) { void err; }
       };
       window.addEventListener('kodro-robot', onRobot);
       return () => window.removeEventListener('kodro-robot', onRobot);
@@ -1332,7 +1355,11 @@ rover.say("Survey done")`
       setTerrainId(id);
       setRunState('idle');
       setLessonVerdict(null);  // verdict was graded on the lesson's own world
-      setConsoleLines([{ type: 'sys', text: 'Switched to ' + TERRAINS[id].name + '. ' + TERRAINS[id].coord }]);
+      // Resolve through resolveSite: a real-world mission site id (e.g. 'sahara')
+      // lives in SITES, not TERRAINS, so TERRAINS[id] would be undefined and the
+      // old TERRAINS[id].name threw a TypeError that killed the render.
+      const t = (window.resolveSite ? window.resolveSite(id) : null) || TERRAINS[id] || TERRAINS.earth;
+      setConsoleLines([{ type: 'sys', text: 'Switched to ' + (t.name || id) + '.' + (t.coord ? ' ' + t.coord : '') }]);
     }
 
     function onCodeChange(v) {
@@ -1476,8 +1503,8 @@ rover.say("Survey done")`
           </div>
           <div className="bar-divider"></div>
           <div className="speed-ctrl">
-            <label>Sim speed</label>
-            <input type="range" className="slider" min="0.4" max="3" step="0.1" value={speedMul} onChange={e => setSpeedMul(parseFloat(e.target.value))} />
+            <label htmlFor="sim-speed">Sim speed</label>
+            <input id="sim-speed" type="range" className="slider" min="0.4" max="3" step="0.1" value={speedMul} onChange={e => setSpeedMul(parseFloat(e.target.value))} aria-label="Simulation speed" aria-valuetext={speedMul + ' times'} />
             <span className="num" style={{ fontSize: 11, color: 'var(--fg-2)', width: 30 }}>{speedMul.toFixed(1)}×</span>
           </div>
           <div className="bar-spacer"></div>

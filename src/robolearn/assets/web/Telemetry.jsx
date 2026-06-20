@@ -57,12 +57,25 @@
     const dist = sensorDist == null ? 600 : sensorDist;
     const distState = dist < 80 ? 'danger' : dist < 200 ? 'warn' : '';
     const distColor = dist < 80 ? 'var(--danger)' : dist < 200 ? 'var(--warning)' : accent;
+    // A text cue for proximity so the state is not signalled by colour alone
+    // (WCAG 1.4.1).
+    const distWord = distState === 'danger' ? 'Obstacle close' : distState === 'warn' ? 'Caution' : 'Clear';
+    // A single coarse status message for a polite live region. It is a CATEGORY,
+    // not the live number, so it changes only when the rover crosses a threshold
+    // and the screen reader announces once per change instead of every frame
+    // (WCAG 4.1.3 without the per-frame spam a naive aria-live on the number
+    // would cause).
+    const liveMsg = distState === 'danger' ? 'Warning: obstacle close ahead'
+      : battery <= 20 ? 'Battery low'
+      : rover.moving ? 'Driving' : 'Idle';
+    const srOnly = { position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 };
 
     return (
       <div className="tele-body">
+        <div role="status" aria-live="polite" style={srOnly}>{liveMsg}</div>
         <div className="tele-section">
           <span className="eyebrow">Navigation</span>
-          <div className="compass-wrap">
+          <div className="compass-wrap" role="img" aria-label={'Heading ' + (Math.round(norm(rover.heading)) % 360) + ' degrees, ' + cardinal(rover.heading)}>
             <Compass heading={rover.heading} accent={accent} />
             <div className="compass-info">
               <div className="ci-deg">{Math.round(norm(rover.heading)) % 360}°</div>
@@ -76,9 +89,10 @@
 
         <div className="tele-section">
           <span className="eyebrow">Proximity · Front Lidar</span>
-          <div className={'dist-readout ' + distState}>
+          <div className={'dist-readout ' + distState} aria-label={distWord + ', ' + (dist >= 600 ? '600 plus' : dist.toFixed(0)) + ' centimetres to obstacle'}>
             <span className="dr-val">{dist >= 600 ? '600+' : dist.toFixed(0)}</span>
             <span className="dr-unit">cm to obstacle</span>
+            {distState ? <span className="dr-state" style={{ color: distColor, fontWeight: 600, marginLeft: 8 }}>{distWord}</span> : null}
           </div>
           <div className="bar-track">
             <div className="bar-fill" style={{ width: Math.min(100, (dist / 600) * 100) + '%', background: distColor }}></div>

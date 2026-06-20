@@ -3938,9 +3938,15 @@
       // cannot generate it, the scene simply renders without reflections.
       try {
         if (THREE.PMREMGenerator) {
-          const pmrem = new THREE.PMREMGenerator(renderer);
-          scene.environment = pmrem.fromScene(scene, 0.04, 1, 1200).texture;
-          pmrem.dispose();
+          let pmrem = null;
+          // dispose in finally so the generator's internal render targets are
+          // freed even if fromScene throws on a GPU that cannot allocate them.
+          try {
+            pmrem = new THREE.PMREMGenerator(renderer);
+            scene.environment = pmrem.fromScene(scene, 0.04, 1, 1200).texture;
+          } finally {
+            if (pmrem) pmrem.dispose();
+          }
         }
       } catch (e) {
         void e;
@@ -4995,7 +5001,12 @@
         cur.z += (tz - cur.z) * posLerp;
         curHeading = angLerp(curHeading, tr, posLerp);
         rov.position.set(cur.x, 0, cur.z);
-        rov.rotation.y = curHeading;
+        // The engine advances by (sin h, -cos h); after the z-flip the 3D travel
+        // direction is (sin h, cos h). The mesh is built forward = local +x, and
+        // a Y-rotation of +x by theta gives (cos theta, -sin theta), so theta
+        // must be curHeading - 90deg for the mesh to face the way it actually
+        // moves (it was crabbing 90deg before). Matches how the agents face.
+        rov.rotation.y = curHeading - Math.PI / 2;
         const moved = Math.hypot(cur.x - px0, cur.z - pz0);
         if (moved > 0.001) wheels.forEach(wh => wh.rotateY(moved * 1.6));
         // Rover status LED: pulses on a slow sine and tracks the live LED colour
@@ -5032,7 +5043,10 @@
             wg.rotation.y += (sa - wg.rotation.y) * 0.3;
           });
         }
-        const fwd = tmp.set(Math.cos(curHeading), 0, -Math.sin(curHeading));
+        // First-person forward is the real 3D travel direction (sin h, cos h),
+        // the same vector the rover mesh now faces, so the driver view looks
+        // where the robot actually drives rather than 90deg off to the side.
+        const fwd = tmp.set(Math.sin(curHeading), 0, Math.cos(curHeading));
 
         // Grow the trail when the rover has actually moved.
         if (trailN === 0 || Math.hypot(cur.x - trailPos[(trailN - 1) * 3], cur.z - trailPos[(trailN - 1) * 3 + 2]) > 0.25) {
@@ -5468,14 +5482,40 @@
     const dist = sensorDist == null ? 600 : sensorDist;
     const distState = dist < 80 ? 'danger' : dist < 200 ? 'warn' : '';
     const distColor = dist < 80 ? 'var(--danger)' : dist < 200 ? 'var(--warning)' : accent;
+    // A text cue for proximity so the state is not signalled by colour alone
+    // (WCAG 1.4.1).
+    const distWord = distState === 'danger' ? 'Obstacle close' : distState === 'warn' ? 'Caution' : 'Clear';
+    // A single coarse status message for a polite live region. It is a CATEGORY,
+    // not the live number, so it changes only when the rover crosses a threshold
+    // and the screen reader announces once per change instead of every frame
+    // (WCAG 4.1.3 without the per-frame spam a naive aria-live on the number
+    // would cause).
+    const liveMsg = distState === 'danger' ? 'Warning: obstacle close ahead' : battery <= 20 ? 'Battery low' : rover.moving ? 'Driving' : 'Idle';
+    const srOnly = {
+      position: 'absolute',
+      width: 1,
+      height: 1,
+      padding: 0,
+      margin: -1,
+      overflow: 'hidden',
+      clip: 'rect(0 0 0 0)',
+      whiteSpace: 'nowrap',
+      border: 0
+    };
     return /*#__PURE__*/React.createElement("div", {
       className: "tele-body"
     }, /*#__PURE__*/React.createElement("div", {
+      role: "status",
+      "aria-live": "polite",
+      style: srOnly
+    }, liveMsg), /*#__PURE__*/React.createElement("div", {
       className: "tele-section"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
     }, "Navigation"), /*#__PURE__*/React.createElement("div", {
-      className: "compass-wrap"
+      className: "compass-wrap",
+      role: "img",
+      "aria-label": 'Heading ' + Math.round(norm(rover.heading)) % 360 + ' degrees, ' + cardinal(rover.heading)
     }, /*#__PURE__*/React.createElement(Compass, {
       heading: rover.heading,
       accent: accent
@@ -5500,12 +5540,20 @@
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
     }, "Proximity \xB7 Front Lidar"), /*#__PURE__*/React.createElement("div", {
-      className: 'dist-readout ' + distState
+      className: 'dist-readout ' + distState,
+      "aria-label": distWord + ', ' + (dist >= 600 ? '600 plus' : dist.toFixed(0)) + ' centimetres to obstacle'
     }, /*#__PURE__*/React.createElement("span", {
       className: "dr-val"
     }, dist >= 600 ? '600+' : dist.toFixed(0)), /*#__PURE__*/React.createElement("span", {
       className: "dr-unit"
-    }, "cm to obstacle")), /*#__PURE__*/React.createElement("div", {
+    }, "cm to obstacle"), distState ? /*#__PURE__*/React.createElement("span", {
+      className: "dr-state",
+      style: {
+        color: distColor,
+        fontWeight: 600,
+        marginLeft: 8
+      }
+    }, distWord) : null), /*#__PURE__*/React.createElement("div", {
       className: "bar-track"
     }, /*#__PURE__*/React.createElement("div", {
       className: "bar-fill",
@@ -9161,7 +9209,22 @@ rover.say("Survey done")`
   };
   function App() {
     const [terrainId, setTerrainId] = useState(() => localStorage.getItem('or_terrain') || 'mars');
-    const [activeTab, setActiveTab] = useState(() => localStorage.getItem('or_tab') || 'autopilot');
+    const [activeTab, setActiveTab] = useState(() => {
+      const saved = localStorage.getItem('or_tab');
+      if (saved) return saved;
+      // Default to the autopilot showcase, but only if the current build can
+      // actually range: a camera-only arm (or any build with no ultrasonic)
+      // would fail autopilot's first distance() call with a gating refusal, so
+      // it opens on the base-command 'starter' example instead and first Run
+      // always works.
+      try {
+        const rb = window.getKodroRobot && window.getKodroRobot();
+        if (rb && window.KodroCommands && !window.KodroCommands.check(rb, 'distance').ok) return 'basecamp';
+      } catch (e) {
+        void e;
+      }
+      return 'autopilot';
+    });
     const [programs, setPrograms] = useState(() => {
       try {
         const s = JSON.parse(localStorage.getItem('or_programs'));
@@ -9321,7 +9384,10 @@ rover.say("Survey done")`
     // The editor's current source: a lesson's own buffer when one is loaded,
     // otherwise the active example tab. (Declared AFTER the state above to
     // avoid a temporal-dead-zone ReferenceError.)
-    const code = currentLessonId ? lessonBuffers[currentLessonId] !== undefined ? lessonBuffers[currentLessonId] : '' : programs[activeTab];
+    const code = currentLessonId ? lessonBuffers[currentLessonId] !== undefined ? lessonBuffers[currentLessonId] : ''
+    // Never hand the editor undefined (it would .split(undefined) and crash):
+    // if activeTab is somehow not a known example key, fall back to basecamp.
+    : programs[activeTab] !== undefined ? programs[activeTab] : programs.basecamp || '';
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
@@ -9406,6 +9472,16 @@ rover.say("Survey done")`
           } catch (err) {
             void err;
           }
+        }
+        // If the freshly chosen build cannot range (no ultrasonic), a
+        // distance-based example would fail on the first Run with a gating
+        // refusal. Move off it to the base-command 'starter' so the first Run
+        // after picking, say, a camera-only arm still works.
+        try {
+          const canRange = !window.KodroCommands || window.KodroCommands.check(e.detail, 'distance').ok;
+          if (!canRange) setActiveTab(t => t === 'autopilot' || t === 'avoid' ? 'basecamp' : t);
+        } catch (err) {
+          void err;
         }
       };
       window.addEventListener('kodro-robot', onRobot);
@@ -10848,9 +10924,13 @@ rover.say("Survey done")`
       setTerrainId(id);
       setRunState('idle');
       setLessonVerdict(null); // verdict was graded on the lesson's own world
+      // Resolve through resolveSite: a real-world mission site id (e.g. 'sahara')
+      // lives in SITES, not TERRAINS, so TERRAINS[id] would be undefined and the
+      // old TERRAINS[id].name threw a TypeError that killed the render.
+      const t = (window.resolveSite ? window.resolveSite(id) : null) || TERRAINS[id] || TERRAINS.earth;
       setConsoleLines([{
         type: 'sys',
-        text: 'Switched to ' + TERRAINS[id].name + '. ' + TERRAINS[id].coord
+        text: 'Switched to ' + (t.name || id) + '.' + (t.coord ? ' ' + t.coord : '')
       }]);
     }
     function onCodeChange(v) {
@@ -11070,14 +11150,19 @@ rover.say("Survey done")`
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "speed-ctrl"
-    }, /*#__PURE__*/React.createElement("label", null, "Sim speed"), /*#__PURE__*/React.createElement("input", {
+    }, /*#__PURE__*/React.createElement("label", {
+      htmlFor: "sim-speed"
+    }, "Sim speed"), /*#__PURE__*/React.createElement("input", {
+      id: "sim-speed",
       type: "range",
       className: "slider",
       min: "0.4",
       max: "3",
       step: "0.1",
       value: speedMul,
-      onChange: e => setSpeedMul(parseFloat(e.target.value))
+      onChange: e => setSpeedMul(parseFloat(e.target.value)),
+      "aria-label": "Simulation speed",
+      "aria-valuetext": speedMul + ' times'
     }), /*#__PURE__*/React.createElement("span", {
       className: "num",
       style: {

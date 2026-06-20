@@ -487,6 +487,7 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 :root {
   --fg-2:#d9d3c4;   /* >= 7:1 on --navy */
   --fg-3:#b3ad9e;   /* >= 4.5:1 on --navy */
+  --fg-4:#a9a394;   /* code comments, gutter, timestamps: was ~1.5:1, now >= 4.5:1 */
 }
 
 /* Visible keyboard focus on every interactive control. */
@@ -549,6 +550,31 @@ textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible,
     width:100% !important; max-width:100%; min-height:300px; border-right:none;
   }
   .missionbar { flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px; }
+}
+
+/* Phone width (QA bug review): at ~375px the absolutely-centred view toolbar
+   was clipped by .view-panel overflow:hidden so the City button and the
+   FPV/quality controls fell off-canvas, the editor action row crushed its
+   buttons, and tap targets sat well under the 44px minimum. Take the toolbars
+   out of absolute centring, let them wrap, and grow the touch targets. */
+@media (max-width: 640px) {
+  .view-panel .terrain-switch {
+    position:static; transform:none; left:auto; top:auto;
+    flex-wrap:wrap; justify-content:center; gap:6px;
+    max-width:100%; padding:6px; background:var(--navy-2);
+  }
+  .view-toggle { flex-wrap:wrap; }
+  .panel-head { flex-wrap:wrap; height:auto; row-gap:6px; }
+  .tabs { flex-wrap:wrap; }
+  .btn-mini { flex:0 0 auto; white-space:nowrap; }
+  /* >= 44px touch targets (WCAG 2.5.5) on the primary phone controls. */
+  .ctrl, .icon-btn, .terrain-btn, .tab, .btn-mini, .view-toggle button, .lesson-picker {
+    min-height:44px;
+  }
+  .icon-btn { width:44px; height:44px; }
+  /* The row resizer is a child of .panel, so the 1099px child-combinator rule
+     never hid it; it is dead weight on touch and can fight vertical scroll. */
+  .resizer-row { display:none; }
 }
 
 /* Persistent lesson card (QA #3): brief + live PASS/score/hint verdict that
