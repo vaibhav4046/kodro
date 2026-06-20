@@ -3676,23 +3676,6 @@
     stateRef.current = rover || stateRef.current;
     fpvRef.current = !!fpv;
 
-    // Move keyboard focus to the canvas when the user explicitly opens the 3D
-    // view (focusKey bumps on that click only). focusKey starts at 0 so the
-    // initial page load never steals focus. Runs after the build effect mounts
-    // the canvas, so the canvas is present to receive focus.
-    useEffect(() => {
-      if (!focusKey) return;
-      const mount = mountRef.current;
-      const cv = mount && mount.querySelector('canvas');
-      if (cv && cv.focus) {
-        try {
-          cv.focus();
-        } catch (e) {
-          void e;
-        }
-      }
-    }, [focusKey]);
-
     // Apply a render-quality change in place. Low/Med/High differ only by pixel
     // ratio and shadow resolution, all adjustable on the live renderer, so the
     // Low/Med/High switch no longer tears down and rebuilds the whole scene
@@ -5234,6 +5217,24 @@
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       };
     }, [terrain && terrain.id, robotType]);
+
+    // Move keyboard focus to the canvas when the user explicitly opens the 3D
+    // view (focusKey bumps on that click only). focusKey starts at 0 so the
+    // initial page load never steals focus. Declared AFTER the build effect so
+    // on a fresh mount the canvas is already appended when this runs (React
+    // runs effects in declaration order).
+    useEffect(() => {
+      if (!focusKey) return;
+      const mount = mountRef.current;
+      const cv = mount && mount.querySelector('canvas');
+      if (cv && cv.focus) {
+        try {
+          cv.focus();
+        } catch (e) {
+          void e;
+        }
+      }
+    }, [focusKey]);
 
     // A caption that surfaces the keyboard controls. It is hidden until the
     // canvas is focused (see .vp3d-help in styles.css), so sighted keyboard
