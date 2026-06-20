@@ -125,7 +125,7 @@
 
   // Public accessor for the simulation (battery, speed, sensor gating).
   window.getKodroRobot = function () {
-    if (!window.KODRO_ROBOT) { const s = load(); window.KODRO_ROBOT = Object.assign({}, s, derive(s)); }
+    if (!window.KODRO_ROBOT) { const s = load(); window.KODRO_ROBOT = Object.assign({}, s, derive(s), { world: (WORLD_FOR[s.type] || {}).id }); }
     return window.KODRO_ROBOT;
   };
   // Make sure a default exists from first load so the sim never sees undefined.
