@@ -6737,7 +6737,9 @@ Object.assign(window, {
   window.getKodroRobot = function () {
     if (!window.KODRO_ROBOT) {
       const s = load();
-      window.KODRO_ROBOT = Object.assign({}, s, derive(s));
+      window.KODRO_ROBOT = Object.assign({}, s, derive(s), {
+        world: (WORLD_FOR[s.type] || {}).id
+      });
     }
     return window.KODRO_ROBOT;
   };
