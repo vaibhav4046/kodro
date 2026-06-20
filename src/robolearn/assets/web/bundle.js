@@ -7351,6 +7351,7 @@ Object.assign(window, {
   const COMMAND_PART = {
     distance: 'ultrasonic',
     read_distance: 'ultrasonic',
+    scan: 'ultrasonic',
     heading: 'imu',
     read_heading: 'imu',
     tilt: 'imu'
@@ -7799,6 +7800,11 @@ Object.assign(window, {
 (function () {
   const WALL = 1500; // arena half-extent in cm, matches the engine and self-test
   const STEP_CAP = 200000;
+  // Single source of truth for "did this design pass the spread". A majority of
+  // randomised seeds must reach the goal, and mean collisions must stay within
+  // the scenario's own successCriteria.maxCollisions. The UI renders this one
+  // boolean instead of each surface re-deriving its own 0.6 threshold.
+  const PASS_RATE = 0.6;
 
   // Deterministic PRNG so a seed reproduces a run exactly (reproducible demo).
   function mulberry32(a) {
@@ -7965,8 +7971,13 @@ Object.assign(window, {
             return 16;
           case 'light':
             return 0.8;
+          // Mirror the live host (app.jsx) so a program branching on tilt()/
+          // read_colour() validates the same way it runs: same tilt formula,
+          // and the scenario's environment preset as the ground id.
           case 'tilt':
-            return 0;
+            return Math.round((Math.sin(s.x * 0.01) * 6 + Math.cos(s.y * 0.013) * 5) * 10) / 10;
+          case 'ground':
+            return scenario.environmentPreset || 'earth';
           default:
             return 0;
         }
@@ -8142,6 +8153,11 @@ Object.assign(window, {
       })) : 0,
       compileError: allCompileFail ? runs[0] && runs[0].error || 'Your code has a syntax error.' : null
     };
+    // Derive the single pass/fail verdict from the scenario's own criteria so the
+    // per-scenario successCriteria is live data, not decoration. reachGoal is
+    // already captured by successRate; maxCollisions gates the collision spread.
+    const crit = scenario && scenario.successCriteria || {};
+    aggregate.passed = !allCompileFail && aggregate.successRate >= PASS_RATE && (crit.maxCollisions == null || aggregate.meanCollisions <= crit.maxCollisions);
     const report = {
       scenario: {
         scenarioId: scenario.scenarioId,
@@ -8297,7 +8313,8 @@ Object.assign(window, {
     PRESETS: PRESETS,
     run: run,
     runOnce: runOnce,
-    defaultFor: defaultFor
+    defaultFor: defaultFor,
+    PASS_RATE: PASS_RATE
   };
 })();
 })();
@@ -8409,8 +8426,12 @@ Object.assign(window, {
     sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'nominal'));
     const sensors = card('Sensors', sensorRows, '#5ce0d8');
 
-    // Scenario score card.
-    const scoreRows = agg ? [row('Scenario', last.scenario && last.scenario.name || '-'), row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', agg.successRate >= 0.6 ? '#5ce0d8' : '#f5c451'), row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')), row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'), row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'), row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-'))] : [row('Validation', 'no runs yet', '#f5c451'), row('Tip', 'Run "Validate across seeds"')];
+    // Scenario score card. The single pass/fail verdict comes from the report
+    // (scenario.run derives aggregate.passed from the scenario's own criteria);
+    // fall back to the shared PASS_RATE for reports saved before that field.
+    const passRate = window.KodroScenario && window.KodroScenario.PASS_RATE || 0.6;
+    const aggPassed = agg ? agg.passed != null ? agg.passed : (agg.successRate || 0) >= passRate : false;
+    const scoreRows = agg ? [row('Scenario', last.scenario && last.scenario.name || '-'), row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', aggPassed ? '#5ce0d8' : '#f5c451'), row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')), row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'), row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'), row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-'))] : [row('Validation', 'no runs yet', '#f5c451'), row('Tip', 'Run "Validate across seeds"')];
     const score = card('Scenario score', scoreRows, '#ffb86b');
 
     // Environment card.
@@ -9007,13 +9028,21 @@ Object.assign(window, {
       const listen = window.RoboLearn.listen || window.RoboLearn.voiceCommand;
       if (!listen) return;
       setAgentBusy(true);
+      setAgentErr("");
       Promise.resolve(listen(6)).then(function (r) {
         const txt = r && (r.text || r.transcript || (typeof r === "string" ? r : ""));
         if (txt && txt.trim()) {
           setAgentText(txt);
           buildFromAgent(txt);
         }
-      }).catch(function () {}).then(function () {
+        // Do not fail silently: an empty/failed capture tells the user to retry
+        // or type, rather than leaving the button looking stuck.
+        else {
+          setAgentErr(r && r.reason || "Did not catch that. Try again, or type your robot below.");
+        }
+      }).catch(function (e) {
+        setAgentErr(e && e.message || "Voice input failed. Try again, or type your robot below.");
+      }).then(function () {
         setAgentBusy(false);
       });
     }
@@ -9731,7 +9760,7 @@ rover.say("Survey done")`
         addConsole('Validation could not run: ' + a.compileError + ' Fix the code and try again.', 'err');
         return;
       }
-      addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', a.successRate >= 0.6 ? 'ok' : 'warn');
+      addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', a.passed ? 'ok' : 'warn');
       setRealismOpen(true);
     }
     useEffect(() => {
@@ -9901,6 +9930,13 @@ rover.say("Survey done")`
     const [vaData, setVaData] = useState(null);
     async function runVoiceAgent() {
       if (vaBusy) return;
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
+        setVaData({
+          ok: false,
+          reason: 'Voice needs the desktop app.'
+        });
+        return;
+      }
       setVaBusy(true);
       setVaData(null);
       try {
@@ -9924,6 +9960,10 @@ rover.say("Survey done")`
     const [voiceBusy, setVoiceBusy] = useState(false);
     async function runVoiceCommand() {
       if (voiceBusy) return;
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
+        addConsole('Voice needs the desktop app.', 'err');
+        return;
+      }
       setVoiceBusy(true);
       addConsole('Listening… say a command like "go forward three" or "turn left ninety".', 'sys');
       try {
@@ -10005,6 +10045,10 @@ rover.say("Survey done")`
     }
     async function vibeMic() {
       if (micBusy) return;
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
+        setVibeError('Voice needs the desktop app.');
+        return;
+      }
       setMicBusy(true);
       setVibeError(null);
       try {
@@ -10096,6 +10140,7 @@ rover.say("Survey done")`
     }, {
       k: 'scan',
       label: 'scan',
+      requires: 'scan',
       code: () => 'scan()',
       color: 'var(--success)'
     }, {
@@ -10897,14 +10942,30 @@ rover.say("Survey done")`
             setProps([]);
             break;
           case 'scan':
-            sfx('scan');
-            live.current.scanning = true;
-            sync();
-            addConsole('Scanning. Nearest obstacle ' + Math.round(rayDistance(live.current.x, live.current.y, live.current.heading)) + ' cm ahead.', 'sys');
-            await delay(1000 / speedMulRef.current);
-            live.current.scanning = false;
-            sync();
-            break;
+            {
+              // scan() reports an ultrasonic range, so gate it on the same part
+              // distance() needs. A no-ultrasonic build refuses here for BOTH the
+              // text editor and the blocks path (both compile to scan()), instead
+              // of faking a reading distance() would correctly refuse.
+              const scanRobot = window.getKodroRobot ? window.getKodroRobot() : null;
+              if (window.KodroCommands) {
+                const g = window.KodroCommands.check(scanRobot, 'scan');
+                if (!g.ok) {
+                  const err = new Error(g.reason);
+                  err.line = ev.line;
+                  handleRuntimeError(err);
+                  return false;
+                }
+              }
+              sfx('scan');
+              live.current.scanning = true;
+              sync();
+              addConsole('Scanning. Nearest obstacle ' + Math.round(rayDistance(live.current.x, live.current.y, live.current.heading)) + ' cm ahead.', 'sys');
+              await delay(1000 / speedMulRef.current);
+              live.current.scanning = false;
+              sync();
+              break;
+            }
         }
         return true;
       } finally {
@@ -12488,7 +12549,15 @@ rover.say("Survey done")`
       max: b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20,
       "aria-label": b.label + ' amount',
       onChange: e => {
-        const v = Number(e.target.value) || 1;
+        // Clamp to this block's real min/max so the number shown
+        // is the number that runs (interpreter.clampNum would
+        // otherwise silently clamp a too-big value at run time),
+        // and use Number.isFinite so 0 (valid for set speed)
+        // is kept rather than coerced to 1 by truthiness.
+        const lo = b.unit === '%' ? 0 : 1;
+        const hi = b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20;
+        const raw = Number(e.target.value);
+        const v = Number.isFinite(raw) ? Math.max(lo, Math.min(hi, raw)) : lo;
         setBlocks(bs => bs.map((x, j) => j === i ? {
           ...x,
           val: v

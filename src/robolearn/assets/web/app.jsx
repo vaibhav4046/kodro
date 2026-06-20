@@ -459,7 +459,7 @@ rover.say("Survey done")`
         addConsole('Validation could not run: ' + a.compileError + ' Fix the code and try again.', 'err');
         return;
       }
-      addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', (a.successRate >= 0.6 ? 'ok' : 'warn'));
+      addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', (a.passed ? 'ok' : 'warn'));
       setRealismOpen(true);
     }
     useEffect(() => {
@@ -572,6 +572,7 @@ rover.say("Survey done")`
     const [vaData, setVaData] = useState(null);
     async function runVoiceAgent() {
       if (vaBusy) return;
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) { setVaData({ ok: false, reason: 'Voice needs the desktop app.' }); return; }
       setVaBusy(true); setVaData(null);
       try {
         const r = await window.RoboLearn.voiceAgent(6);
@@ -587,6 +588,7 @@ rover.say("Survey done")`
     const [voiceBusy, setVoiceBusy] = useState(false);
     async function runVoiceCommand() {
       if (voiceBusy) return;
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) { addConsole('Voice needs the desktop app.', 'err'); return; }
       setVoiceBusy(true);
       addConsole('Listening… say a command like "go forward three" or "turn left ninety".', 'sys');
       try {
@@ -641,6 +643,7 @@ rover.say("Survey done")`
 
     async function vibeMic() {
       if (micBusy) return;
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) { setVibeError('Voice needs the desktop app.'); return; }
       setMicBusy(true); setVibeError(null);
       try {
         const r = await window.RoboLearn.listen(6);
@@ -678,7 +681,7 @@ rover.say("Survey done")`
       { k: 'beep', label: 'beep', code: () => 'beep(1)', color: 'var(--brass)' },
       { k: 'say', label: 'say hello', code: () => 'say("hello")', color: 'var(--brass)' },
       { k: 'led', label: 'LED cyan', code: () => 'led("cyan")', color: 'var(--brass)' },
-      { k: 'scan', label: 'scan', code: () => 'scan()', color: 'var(--success)' },
+      { k: 'scan', label: 'scan', requires: 'scan', code: () => 'scan()', color: 'var(--success)' },
       { k: 'collect', label: 'collect sample', code: () => 'collect_sample()', color: 'var(--success)' },
       { k: 'drop', label: 'drop sample', code: () => 'drop_sample()', color: 'var(--success)' },
       { k: 'speed', label: 'set speed', unit: '%', val: 60, code: v => 'set_speed(' + v + ')', color: 'var(--cyan)' },
@@ -1189,13 +1192,23 @@ rover.say("Survey done")`
             break;
           }
           case 'clear_props': setProps([]); break;
-          case 'scan':
+          case 'scan': {
+            // scan() reports an ultrasonic range, so gate it on the same part
+            // distance() needs. A no-ultrasonic build refuses here for BOTH the
+            // text editor and the blocks path (both compile to scan()), instead
+            // of faking a reading distance() would correctly refuse.
+            const scanRobot = window.getKodroRobot ? window.getKodroRobot() : null;
+            if (window.KodroCommands) {
+              const g = window.KodroCommands.check(scanRobot, 'scan');
+              if (!g.ok) { const err = new Error(g.reason); err.line = ev.line; handleRuntimeError(err); return false; }
+            }
             sfx('scan');
             live.current.scanning = true; sync();
             addConsole('Scanning. Nearest obstacle ' + Math.round(rayDistance(live.current.x, live.current.y, live.current.heading)) + ' cm ahead.', 'sys');
             await delay(1000 / speedMulRef.current);
             live.current.scanning = false; sync();
             break;
+          }
         }
         return true;
       } finally {
@@ -2161,7 +2174,18 @@ rover.say("Survey done")`
                       <input
                         type="number" className="block-num" value={b.val} min={b.unit === '%' ? 0 : 1} max={b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20}
                         aria-label={b.label + ' amount'}
-                        onChange={e => { const v = Number(e.target.value) || 1; setBlocks(bs => bs.map((x, j) => j === i ? { ...x, val: v } : x)); }}
+                        onChange={e => {
+                          // Clamp to this block's real min/max so the number shown
+                          // is the number that runs (interpreter.clampNum would
+                          // otherwise silently clamp a too-big value at run time),
+                          // and use Number.isFinite so 0 (valid for set speed)
+                          // is kept rather than coerced to 1 by truthiness.
+                          const lo = b.unit === '%' ? 0 : 1;
+                          const hi = b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20;
+                          const raw = Number(e.target.value);
+                          const v = Number.isFinite(raw) ? Math.max(lo, Math.min(hi, raw)) : lo;
+                          setBlocks(bs => bs.map((x, j) => j === i ? { ...x, val: v } : x));
+                        }}
                       />
                     )}
                     {b.unit && <span className="vibe-hint">{b.unit}</span>}

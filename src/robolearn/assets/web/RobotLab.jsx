@@ -160,7 +160,7 @@
   // camera/gps/bumper/line/gripper commands are not implemented, so they are
   // not listed (they would never reach this gate) and are not advertised.
   const COMMAND_PART = {
-    distance: 'ultrasonic', read_distance: 'ultrasonic',
+    distance: 'ultrasonic', read_distance: 'ultrasonic', scan: 'ultrasonic',
     heading: 'imu', read_heading: 'imu', tilt: 'imu',
   };
   // The user-facing command name for each part that HAS a working command,
