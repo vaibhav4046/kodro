@@ -485,50 +485,22 @@
     }
 
     // --- Scratch-style blocks mode -----------------------------------------
-    // BLOCK_DEFS is pure data (see app-data.jsx); pulled off window here.
-    const BLOCK_DEFS = window.KodroBlockDefs || [];
-    const [blocksOpen, setBlocksOpen] = useState(false);
-    const [blocks, setBlocks] = useState([]);       // {k,label,val,indent,container,color,unit}
-    const [blockIndent, setBlockIndent] = useState(0);
-    function addBlock(def) {
-      setBlocks(bs => [...bs, { k: def.k, label: def.label, val: def.val, indent: blockIndent, container: !!def.container, color: def.color, unit: def.unit }]);
-      if (def.container) setBlockIndent(d => Math.min(3, d + 1));
-      sfx('led');
-    }
-    function endBlock() { setBlockIndent(d => Math.max(0, d - 1)); }
-    function removeBlock(i) {
-      setBlocks(bs => bs.filter((_, j) => j !== i));
-    }
-    function moveBlock(i, dir) {
-      setBlocks(bs => {
-        const j = i + dir;
-        if (j < 0 || j >= bs.length) return bs;
-        const next = bs.slice();
-        const tmp = next[i]; next[i] = next[j]; next[j] = tmp;
-        return next;
-      });
-      sfx('led');
-    }
-    function blocksToPython() {
-      const defs = {}; BLOCK_DEFS.forEach(d => { defs[d.k] = d; });
-      const lines = [];
-      for (let i = 0; i < blocks.length; i++) {
-        const b = blocks[i];
-        lines.push('    '.repeat(b.indent) + defs[b.k].code(b.val));
-        if (b.container) {
-          const next = blocks[i + 1];
-          // An empty container needs a body to be valid Python.
-          if (!next || next.indent <= b.indent) lines.push('    '.repeat(b.indent + 1) + 'pass');
-        }
-      }
-      return lines.join('\n') + '\n';
-    }
-    function insertBlocksCode() {
-      if (!blocks.length) return;
-      setBlocksOpen(false);
-      addConsole('Blocks turned into Python. Read it, then press Run.', 'sys');
-      typewriteCode(blocksToPython());
-    }
+    // Extracted verbatim into window.KodroHooks.useBlocks. The three callbacks
+    // it leans on (sfx, addConsole, typewriteCode) are hoisted function decls in
+    // this component, so passing them here is safe even though two are textually
+    // defined below. Fallback keeps the panel functional if the hook is absent.
+    const {
+      BLOCK_DEFS, blocksOpen, setBlocksOpen, blocks, setBlocks,
+      blockIndent, setBlockIndent, addBlock, endBlock, removeBlock,
+      moveBlock, insertBlocksCode,
+    } = (window.KodroHooks && window.KodroHooks.useBlocks)
+      ? window.KodroHooks.useBlocks({ sfx, addConsole, typewriteCode })
+      : {
+        BLOCK_DEFS: window.KodroBlockDefs || [],
+        blocksOpen: false, setBlocksOpen: () => {}, blocks: [], setBlocks: () => {},
+        blockIndent: 0, setBlockIndent: () => {}, addBlock: () => {}, endBlock: () => {},
+        removeBlock: () => {}, moveBlock: () => {}, insertBlocksCode: () => {},
+      };
     function toggleSound() {
       setMuted(m => { const next = !m; if (window.RLSound) window.RLSound.setMuted(next); return next; });
     }
