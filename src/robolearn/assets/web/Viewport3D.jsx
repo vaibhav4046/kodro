@@ -148,6 +148,13 @@
       // has no atmosphere so its fog is pushed far back so the stars stay visible.
       if (id === 'underwater') scene.fog = new THREE.FogExp2(FOG[id], 0.025);
       else scene.fog = new THREE.Fog(FOG[id] != null ? FOG[id] : FOG.earth, id === 'space' ? 200 : 60, id === 'space' ? 800 : 220);
+      // Indoor test bays (lab/warehouse/debug) resolve to the room base, so they
+      // inherited the room's warm cream sky and the grey props washed out into a
+      // void. Give each its own backdrop + fog so the walls and props read.
+      const _sid = terrain && terrain.siteId;
+      if (_sid === 'lab') { scene.background = new THREE.Color(0xaeb6c2); scene.fog = new THREE.Fog(0xaeb6c2, 70, 240); }
+      else if (_sid === 'warehouse') { scene.background = new THREE.Color(0x383b42); scene.fog = new THREE.Fog(0x383b42, 50, 200); }
+      else if (_sid === 'debug_grid') { scene.background = new THREE.Color(0x0a0c10); scene.fog = new THREE.Fog(0x0a0c10, 90, 320); }
 
       const camera = new THREE.PerspectiveCamera(62, w / h, 0.1, 2000);
 
@@ -180,6 +187,11 @@
       // A gradient sky dome so the world has a horizon, not a flat wall of fog.
       const skyTop = new THREE.Color(SKY[id] != null ? SKY[id] : SKY.earth);
       const skyBot = new THREE.Color(FOG[id] != null ? FOG[id] : FOG.earth);
+      // Indoor bays: the dome is the visible backdrop, so colour it to match the
+      // bay instead of the room's cream, or the grey props wash out into it.
+      if (_sid === 'lab') { skyTop.set(0xc2c8d2); skyBot.set(0xaeb6c2); }
+      else if (_sid === 'warehouse') { skyTop.set(0x44474e); skyBot.set(0x2c2f35); }
+      else if (_sid === 'debug_grid') { skyTop.set(0x10141c); skyBot.set(0x06080c); }
       const skyGeo = new THREE.SphereGeometry(900, 24, 12);
       const skyCol = [];
       const pos = skyGeo.attributes.position;
