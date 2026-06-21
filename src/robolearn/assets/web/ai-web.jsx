@@ -81,6 +81,43 @@
   }
   function stripFences(t) { return t.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim(); }
 
+  // The robot API is BARE functions, not object methods. The small local model
+  // tends to emit rover.move_forward()/rover.right() which do not exist and
+  // NameError at run time, so the prompt is explicit and the output is gated.
+  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or create any object.';
+
+  // The fine-tuned model strongly prefers object-method style (rover.move_forward,
+  // rover.forward, rover.right) which the interpreter's bare-function surface does
+  // not all accept. Rewrite those forms to the equivalent working bare call, so
+  // its output runs regardless of how stubbornly it writes rover.x(...).
+  function normalizeApi(code) {
+    if (!code) return code;
+    const alias = { forward: 'move_forward', backward: 'move_backward', left: 'turn_left', right: 'turn_right' };
+    return code.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, function (m, name) {
+      return (alias[name] || name) + '(';
+    });
+  }
+
+  // Dry-run generated code through the real JS interpreter so the browser path
+  // does not ship code that fails (the desktop bridge already validates; this
+  // gives browser mode the same guarantee). Returns {ok} or {ok:false,error}.
+  function validate(code) {
+    try {
+      if (typeof window === 'undefined' || !window.RoverLang) return { ok: true };
+      const prog = window.RoverLang.compile(code);
+      const host = {
+        move: function () {}, turn: function () {}, sensor: function () { return 0; },
+        say: function () {}, led: function () {}, beep: function () {}, setSpeed: function () {},
+        scan: function () {}, wait: function () {}, penDown: function () {}, penUp: function () {},
+        log: function () {}, place: function () {}, collect: function () {}, drop: function () {}, clearProps: function () {},
+      };
+      const gen = prog.run(host);
+      let n = 0;
+      for (const _ev of gen) { if (++n > 4000) break; }
+      return { ok: true };
+    } catch (e) { return { ok: false, error: (e && e.message) || String(e) }; }
+  }
+
   // --- streamed chat (start a job, poll for live text + final result) -------
   const jobs = {};
   let jid = 0;
@@ -96,7 +133,7 @@
     const id = 'wj' + (++jid);
     const job = { done: false, text: '', result: null };
     jobs[id] = job;
-    const sys = 'You are Kodro\'s offline coding assistant for a simulated robot. Reply with EITHER one short clarifying question OR runnable rover Python that uses only the commands the build supports. Prefer code. Put code in a python fence and add no prose around it.';
+    const sys = 'You are Kodro\'s offline coding assistant for a simulated robot. ' + API_HINT + ' Reply with EITHER one short clarifying question OR only runnable code using those bare functions, in a python fence, no prose around it.';
     const prompt = (history || []).map(function (m) {
       return (m.role === 'user' ? 'User: ' : 'Assistant: ') + (m.text || '');
     }).join('\n') + '\nAssistant:';
@@ -123,9 +160,22 @@
           }
         }
         const full = job.text.trim();
-        job.result = looksLikeCode(full)
-          ? { ok: true, done: true, type: 'code', code: extractCode(full), model: model }
-          : { ok: true, done: true, type: 'question', text: stripFences(full), model: model };
+        if (looksLikeCode(full)) {
+          let code = normalizeApi(extractCode(full));
+          const v = validate(code);
+          if (!v.ok) {
+            // One repair round, feeding the real interpreter error back, so the
+            // browser ships code that actually runs (mirrors the desktop gate).
+            try {
+              const fix = await genOnce(model, prompt + '\n\nThat code failed to run with this error: ' + v.error + '\nReturn ONLY corrected code. ' + API_HINT, { system: sys, num_predict: 400, temperature: 0.2 });
+              const fixed = normalizeApi(extractCode(fix));
+              if (fixed && validate(fixed).ok) code = fixed;
+            } catch (e2) { void e2; }
+          }
+          job.result = { ok: true, done: true, type: 'code', code: code, model: model };
+        } else {
+          job.result = { ok: true, done: true, type: 'question', text: stripFences(full), model: model };
+        }
         job.done = true;
       } catch (e) {
         job.result = { ok: false, reason: 'AI generation failed: ' + ((e && e.message) || e) };
@@ -172,7 +222,7 @@
     const sys = 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
     try {
       const out = await genOnce(model, 'Review and tidy this rover program:\n\n' + src, { system: sys, num_predict: 500 });
-      const code = extractCode(out);
+      const code = normalizeApi(extractCode(out));
       const notes = stripFences(out.replace(/```[\s\S]*?```/g, '')).trim();
       return { ok: true, revised: !!code && code !== src.trim(), code: code, notes: notes || 'Reviewed.', model: model };
     } catch (e) { return { ok: false, reason: 'Review failed: ' + ((e && e.message) || e) }; }
