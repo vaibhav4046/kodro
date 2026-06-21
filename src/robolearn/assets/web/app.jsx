@@ -202,9 +202,12 @@
       return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', key); };
     }, [settingsOpen]);
 
-    // --- AI vibe coding (local Ollama: Qwen/Gemma; graceful when absent) ---
-    const [aiInfo, setAiInfo] = useState({ available: false, model: null });
     const [vibeOpen, setVibeOpen] = useState(false);
+    // --- AI vibe coding (local Ollama: Qwen/Gemma; graceful when absent) ---
+    // Extracted to window.KodroHooks.useAiStatus (hooks.jsx): owns aiInfo plus
+    // the status-refresh / model-pick logic, polling at mount and re-checking
+    // when the vibe panel opens. vibeOpen is its only external input.
+    const { aiInfo, pickModel, refreshAiStatus } = (window.KodroHooks ? window.KodroHooks.useAiStatus(vibeOpen) : { aiInfo: {}, pickModel: function(){}, refreshAiStatus: function(){} });
     const [realismOpen, setRealismOpen] = useState(false);
     const [demoOpen, setDemoOpen] = useState(false);
     // Render-quality tier read by Viewport3D (Low/Med/High/Cinematic): bounds
@@ -262,22 +265,6 @@
     const [vibePrompt, setVibePrompt] = useState('');
     const [vibeBusy, setVibeBusy] = useState(false);
     const [vibeError, setVibeError] = useState(null);
-    // The pywebview bridge injects asynchronously AFTER React mounts, so a
-    // one-shot check at mount races it and can leave the panel "offline"
-    // forever. Poll briefly at mount, and re-check every time the panel is
-    // opened -- so starting Ollama later lights it up without a restart.
-    function refreshAiStatus() {
-      // KodroAI uses the desktop bridge when present, else talks to the local
-      // Ollama server directly, so status reflects the model in both run modes.
-      if (!window.KodroAI) return;
-      Promise.resolve(window.KodroAI.status()).then(s => { if (s) setAiInfo(s); }).catch(() => {});
-    }
-    // Let the user point Kodro at any local model they have pulled (DeepSeek,
-    // Nemotron, Qwen, a custom fine-tune). Persisted server side; empty = auto.
-    function pickModel(name) {
-      if (!window.KodroAI) return;
-      Promise.resolve(window.KodroAI.setModel(name || '')).then(() => refreshAiStatus()).catch(() => {});
-    }
     // B3 trigger: validate the current program across randomised seeds in the
     // scenario that fits this robot, persist the report, and open the dashboard.
     function runValidation() {
@@ -297,15 +284,6 @@
       addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', (a.passed ? 'ok' : 'warn'));
       setRealismOpen(true);
     }
-    useEffect(() => {
-      // Refresh a few times after mount: the desktop bridge injects late, and in
-      // browser mode the Ollama probe is async, so one shot can miss it.
-      let tries = 0;
-      refreshAiStatus();
-      const t = setInterval(() => { tries += 1; refreshAiStatus(); if (tries > 6) clearInterval(t); }, 700);
-      return () => clearInterval(t);
-    }, []);
-    useEffect(() => { if (vibeOpen) refreshAiStatus(); }, [vibeOpen]);
     // Chat thread: [{role:'user'|'ai', kind:'text'|'code', text}]
     const [vibeMsgs, setVibeMsgs] = useState([]);
     const [micBusy, setMicBusy] = useState(false);
