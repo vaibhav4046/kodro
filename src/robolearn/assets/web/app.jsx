@@ -507,24 +507,8 @@
     }
 
     // --- Scratch-style blocks mode -----------------------------------------
-    const BLOCK_DEFS = [
-      { k: 'forward', label: 'move forward', unit: 'm', val: 2, code: v => 'move_forward(' + v + ')', color: 'var(--cyan)' },
-      { k: 'back', label: 'move backward', unit: 'm', val: 1, code: v => 'move_backward(' + v + ')', color: 'var(--cyan)' },
-      { k: 'left', label: 'turn left', unit: '°', val: 90, code: v => 'turn_left(' + v + ')', color: 'var(--warning)' },
-      { k: 'right', label: 'turn right', unit: '°', val: 90, code: v => 'turn_right(' + v + ')', color: 'var(--warning)' },
-      { k: 'beep', label: 'beep', code: () => 'beep(1)', color: 'var(--brass)' },
-      { k: 'say', label: 'say hello', code: () => 'say("hello")', color: 'var(--brass)' },
-      { k: 'led', label: 'LED cyan', code: () => 'led("cyan")', color: 'var(--brass)' },
-      { k: 'scan', label: 'scan', requires: 'scan', code: () => 'scan()', color: 'var(--success)' },
-      { k: 'collect', label: 'collect sample', code: () => 'collect_sample()', color: 'var(--success)' },
-      { k: 'drop', label: 'drop sample', code: () => 'drop_sample()', color: 'var(--success)' },
-      { k: 'speed', label: 'set speed', unit: '%', val: 60, code: v => 'set_speed(' + v + ')', color: 'var(--cyan)' },
-      { k: 'wait', label: 'wait', unit: 's', val: 1, code: v => 'wait(' + v + ')', color: 'var(--cyan)' },
-      { k: 'pendown', label: 'pen down', code: () => 'pen_down()', color: 'var(--brass)' },
-      { k: 'penup', label: 'pen up', code: () => 'pen_up()', color: 'var(--brass)' },
-      { k: 'repeat', label: 'repeat', unit: '×', val: 4, container: true, code: v => 'for i in range(' + v + '):', color: 'var(--mars)' },
-      { k: 'ifobs', label: 'if obstacle ahead', container: true, requires: 'distance', code: () => 'if obstacle_ahead():', color: 'var(--mars)' },
-    ];
+    // BLOCK_DEFS is pure data (see app-data.jsx); pulled off window here.
+    const BLOCK_DEFS = window.KodroBlockDefs || [];
     const [blocksOpen, setBlocksOpen] = useState(false);
     const [blocks, setBlocks] = useState([]);       // {k,label,val,indent,container,color,unit}
     const [blockIndent, setBlockIndent] = useState(0);
@@ -2132,17 +2116,13 @@
     );
   }
 
-  const TWEAK_DEFAULTS = { zoom: 1, tilt: 46, grid: true, ambientFx: true, trail: 'terrain' };
+  // TWEAK_DEFAULTS and ORBIT_SVG are pure data (see app-data.jsx); pulled off window.
+  const TWEAK_DEFAULTS = window.KodroTweakDefaults || {};
 
   // Kodro brand mark: a circular orbit (the simulated world), a trajectory swept
   // along it, and the robot as the solid node at the head of its path. Monochrome
   // via currentColor so it inherits whatever colour .brand-mark sets (theme-safe).
-  const ORBIT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-    <circle cx="32" cy="32" r="21" stroke="currentColor" stroke-width="2.4" opacity="0.2"></circle>
-    <path d="M15 44 A21 21 0 1 1 44 15" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" opacity="0.9"></path>
-    <circle cx="15" cy="44" r="2.6" fill="currentColor" opacity="0.45"></circle>
-    <circle cx="44" cy="15" r="6.4" fill="currentColor"></circle>
-  </svg>`;
+  const ORBIT_SVG = window.KodroOrbitSvg || '';
 
   // adjust grid columns to include resizer tracks
   const style = document.createElement('style');
