@@ -598,6 +598,12 @@
           if (grid.material) { grid.material.transparent = true; grid.material.opacity = 0.5; grid.material.fog = false; }
           grid.position.y = 0.05; scene.add(grid);
         }
+        // Floor grid for the lab/warehouse so the floor reads as a real surface
+        // (epoxy joints / painted bay lines) instead of a flat void.
+        if ((kind === 'lab' || kind === 'warehouse') && THREE.GridHelper) {
+          const fg = new THREE.GridHelper(R * 2, kind === 'lab' ? 20 : 12, kind === 'lab' ? 0x9aa3b0 : 0x555a62, kind === 'lab' ? 0xc4ccd6 : 0x3f444c);
+          fg.position.y = 0.04; scene.add(fg);
+        }
         const ceil = new THREE.PointLight(kind === 'warehouse' ? 0xffe6c0 : 0xffffff, kind === 'warehouse' ? 0.5 : 0.85, 160);
         ceil.position.set(0, wallH + 6, 0); scene.add(ceil);
         const benchM = new THREE.MeshStandardMaterial({ color: 0xc9ccd2, roughness: 0.5, metalness: 0.35 });
@@ -612,9 +618,17 @@
             const inst = new THREE.Mesh(new THREE.BoxGeometry(r * 0.8, r * 0.7, r * 0.8), steelM); inst.position.set(px, 2.25 + r * 0.35, pz); inst.castShadow = true; scene.add(inst);
             [[-1, -0.6], [1, -0.6], [-1, 0.6], [1, 0.6]].forEach((c) => { const lg = new THREE.Mesh(new THREE.BoxGeometry(0.18, 2.0, 0.18), steelM); lg.position.set(px + c[0] * r, 1.0, pz + c[1] * r); scene.add(lg); });
           } else if (kind === 'warehouse') {
-            const h = Math.min(12, r * 2.4 + 3);
-            const rack = new THREE.Mesh(new THREE.BoxGeometry(r * 2, h, r * 1.6), rackM); rack.position.set(px, h / 2, pz); rack.castShadow = true; rack.receiveShadow = true; scene.add(rack);
-            for (let s = 0; s < 3; s++) { const cr = new THREE.Mesh(new THREE.BoxGeometry(r * 1.4, 1.6, r * 1.2), crateM); cr.position.set(px, 1.0 + s * (h / 3), pz); cr.castShadow = true; scene.add(cr); }
+            // An open shelving rack (posts + shelves + crates), size-capped so a
+            // big obstacle radius does not become a giant solid slab.
+            const rw = Math.min(2.6, 1.2 + r * 0.5), rd = Math.min(1.8, 1.0 + r * 0.3), h = Math.min(9, 5 + r * 0.8);
+            const frame = new THREE.Group();
+            [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach((c) => { const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, h, 0.18), rackM); post.position.set(c[0] * rw, h / 2, c[1] * rd); post.castShadow = true; frame.add(post); });
+            for (let s = 0; s < 3; s++) {
+              const y = 0.5 + s * (h / 3);
+              const shelf = new THREE.Mesh(new THREE.BoxGeometry(rw * 2 + 0.2, 0.12, rd * 2 + 0.2), rackM); shelf.position.set(0, y, 0); shelf.receiveShadow = true; frame.add(shelf);
+              const cr = new THREE.Mesh(new THREE.BoxGeometry(rw * 1.3, 0.9, rd * 1.3), crateM); cr.position.set(0, y + 0.55, 0); cr.castShadow = true; frame.add(cr);
+            }
+            frame.position.set(px, 0, pz); scene.add(frame);
           } else {
             const m = new THREE.Mesh(new THREE.ConeGeometry(r * 0.6, r * 1.4, 4), markM); m.position.set(px, r * 0.7, pz); m.castShadow = true; scene.add(m);
           }
