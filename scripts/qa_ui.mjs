@@ -9,6 +9,15 @@
  *   (a) the screenshot is blank/tiny (the studio did not actually render), or
  *   (b) the page logged a genuine JS console error / uncaught exception.
  *
+ * For the `studio-earth-run` flow it goes one step further and checks BEHAVIOUR,
+ * not just paint: a second headless pass dumps the post-run DOM (--dump-dom) and
+ * asserts the telemetry odometer reads a non-zero distance, i.e. the rover
+ * actually drove when Run was clicked. A green screenshot proves the studio
+ * painted; the odometer check proves the simulation ran. This catches a whole
+ * class of drift the pixel check misses: a broken interpreter, a Run button
+ * wired to nothing, a frozen animation loop, or a physics regression that
+ * leaves the rover parked.
+ *
  * It is a SMOKE report: it always exits 0. If Chrome or the static server is
  * missing (e.g. a headless CI box with no GPU) it prints SKIP and exits 0 so it
  * never breaks a pipeline. Flows run SEQUENTIALLY with a short gap between them
@@ -40,8 +49,15 @@ const MIN_PNG_BYTES = 90_000;
 const GAP_MS = 1200;
 // Generous virtual-time so worlds, robots and the Run click all settle.
 const VTIME_MS = 12_000;
+// The behaviour pass needs the rover to finish driving, not just to render the
+// first frame: Run is clicked ~1.4s in and the starter program animates several
+// forward moves. Give it more headroom than the paint pass so the odometer has
+// actually accumulated distance by the time we dump the DOM.
+const BEHAVIOUR_VTIME_MS = 16_000;
 // Hard ceiling on a single Chrome invocation in case it wedges.
 const SPAWN_TIMEOUT_MS = 45_000;
+// The flow whose Run we verify actually moved the rover (odometer > 0).
+const BEHAVIOUR_FLOW = 'studio-earth-run';
 
 // First Chrome we can find. The Git-Bash-style path in the task maps to this
 // Windows location; fall back to a couple of common spots / PATH.
@@ -91,6 +107,98 @@ function probeServer() {
     req.on('error', () => resolve(0));
     req.on('timeout', () => { req.destroy(); resolve(0); });
   });
+}
+
+// Drive the run flow a SECOND time, dumping the post-run DOM instead of a
+// screenshot, and assert the rover actually moved. Telemetry.jsx renders the
+// odometer as:  <span class="g-label">Odometer</span>
+//               <span class="g-val">17.6<span class="g-unit">m</span></span>
+// from `{(odometer/100).toFixed(1)}` + an "m" unit span. We look for that
+// reading and PASS iff it parses to > 0.0. Falls back to a weaker-but-real
+// signal (the live telemetry markers present AND the run clearly executed) only
+// if the odometer cannot be located, and SAYS SO in the reason string.
+// Returns { pass, reason, value }.
+function checkRoverMoved(chrome, flow) {
+  const udd = path.join(TMP, `udd_behaviour_${flow.name}`);
+  const log = path.join(TMP, `log_behaviour_${flow.name}.txt`);
+  const url = `${BASE}?${flow.url}`;
+
+  const args = [
+    '--headless=new',
+    '--window-size=1280,800',
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
+    '--no-sandbox',
+    `--virtual-time-budget=${BEHAVIOUR_VTIME_MS}`,
+    `--user-data-dir=${udd}`,
+    '--enable-logging=stderr',
+    '--v=0',
+    '--dump-dom',
+    url,
+  ];
+
+  const res = spawnSync(chrome, args, {
+    encoding: 'utf8',
+    timeout: SPAWN_TIMEOUT_MS,
+    windowsHide: true,
+    maxBuffer: 64 * 1024 * 1024, // the dumped DOM can be large; don't truncate it
+  });
+
+  const stderr = (res.stderr || '') + (res.error ? `\nSPAWN_ERROR: ${res.error.message}` : '');
+  try { writeFileSync(log, stderr); } catch { /* best effort */ }
+  if (res.error) return { pass: false, reason: `dump-dom spawn failed: ${res.error.message}`, value: null };
+
+  const dom = res.stdout || '';
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)', value: null };
+
+  // Console must not have logged a real error during the run, or "the rover
+  // moved" would be meaningless. Reuse the same noise/fail matchers.
+  const consoleError = stderr
+    .split(/\r?\n/)
+    .filter((l) => l && !NOISE.test(l) && FAIL.test(l))[0];
+
+  // PRIMARY: pull the odometer reading out of the gauge. The label and value
+  // sit in adjacent spans; the value is `N.N` immediately followed by the unit
+  // span `<span class="g-unit">m</span>`. Anchor on g-val + g-unit so we match
+  // the odometer/environment gauges and not some unrelated "N.N m" in prose.
+  // The Odometer gauge is the only one whose unit is a bare "m", so this is
+  // specific to it in practice.
+  let matched = null;
+  const gaugeRe = /<span class="g-val">\s*(\d+(?:\.\d+)?)\s*<span class="g-unit">\s*m\s*<\/span>/gi;
+  let m;
+  while ((m = gaugeRe.exec(dom)) !== null) {
+    const v = parseFloat(m[1]);
+    if (Number.isFinite(v) && v > 0) { matched = v; break; }
+    if (matched === null && Number.isFinite(v)) matched = v; // remember a 0.0 so we can report it
+  }
+
+  if (matched !== null && matched > 0) {
+    const driving = /DRIVING/.test(dom);
+    const tag = driving ? `, status DRIVING` : '';
+    return { pass: true, reason: `rover moved (odometer ${matched.toFixed(1)}m${tag})`, value: matched };
+  }
+
+  // The odometer was found but reads zero: the rover did NOT move. That is a
+  // genuine behaviour failure, not a harness limitation — report it plainly.
+  if (matched !== null && matched === 0) {
+    return { pass: false, reason: `rover did NOT move (odometer 0.0m after Run)`, value: 0 };
+  }
+
+  // FALLBACK: odometer span not locatable (markup drift). Don't silently fake a
+  // pass — assert the weaker-but-real signal and label it as the fallback. The
+  // run executed if the live-telemetry panel mounted (odometer label + status
+  // gauge) and the page showed DRIVING with no console error.
+  const haveTelemetry = /Odometer/.test(dom) && /(DRIVING|IDLE)/.test(dom);
+  const driving = /DRIVING/.test(dom);
+  if (haveTelemetry && driving && !consoleError) {
+    return { pass: true, reason: 'rover moved (FALLBACK: odometer value not parseable, but telemetry mounted and status=DRIVING)', value: null };
+  }
+
+  // Could not confirm movement by any real signal.
+  const why = consoleError ? `console error during run: ${consoleError.slice(0, 120)}`
+    : !haveTelemetry ? 'telemetry panel/odometer not found in DOM'
+    : 'odometer not > 0 and status not DRIVING';
+  return { pass: false, reason: `could not confirm rover moved (${why})`, value: matched };
 }
 
 // Run one flow in headless Chrome. Returns { pass, reason, bytes }.
@@ -178,8 +286,19 @@ function cleanup() {
   let clean = 0;
   for (const flow of FLOWS) {
     const r = runFlow(chrome, flow);
-    if (r.pass) clean++;
+    let flowPass = r.pass;
     console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${flow.name.padEnd(18)} ${r.reason}`);
+
+    // For the run flow, also assert the rover actually MOVED, not just that the
+    // studio painted. A second --dump-dom pass reads the telemetry odometer.
+    // The behaviour result is folded into THIS flow's pass/fail.
+    if (flow.name === BEHAVIOUR_FLOW && r.pass) {
+      const b = checkRoverMoved(chrome, flow);
+      flowPass = flowPass && b.pass;
+      console.log(`${b.pass ? 'PASS' : 'FAIL'}  ${'  └ behaviour'.padEnd(18)} ${b.reason}`);
+    }
+
+    if (flowPass) clean++;
     // Let the single-threaded dev server recover before the next hit.
     if (flow !== FLOWS[FLOWS.length - 1]) {
       const until = Date.now() + GAP_MS;
