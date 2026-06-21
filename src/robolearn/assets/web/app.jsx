@@ -249,11 +249,14 @@
       window.addEventListener('kodro-memory', on);
       return () => window.removeEventListener('kodro-memory', on);
     }, []);
-    // Second-agent code review (propose-then-critique on the local model).
-    const [reviewOpen, setReviewOpen] = useState(false);
-    const [reviewBusy, setReviewBusy] = useState(false);
-    const [reviewData, setReviewData] = useState(null);
-    const [reviewErr, setReviewErr] = useState(null);
+    // Second-agent code review: extracted to window.KodroHooks.useReview
+    // (hooks.jsx). Owns reviewOpen/reviewBusy/reviewData/reviewErr + the
+    // runReview/applyReview handlers, moved verbatim. The handlers read the
+    // live editor code, currentLessonId, the AI model label (aiInfo) and three
+    // App callbacks (addConsole/typewriteCode/selfTestReport, hoisted below).
+    const { reviewOpen, setReviewOpen, reviewBusy, reviewData, reviewErr, runReview, applyReview } = (window.KodroHooks && window.KodroHooks.useReview)
+      ? window.KodroHooks.useReview({ code, addConsole, typewriteCode, currentLessonId, aiInfo, selfTestReport })
+      : { reviewOpen: false, setReviewOpen: function () {}, reviewBusy: false, reviewData: null, reviewErr: null, runReview: function () {}, applyReview: function () {} };
     // Teacher dashboard: class concept-strength heatmap (now in the web app).
     const [teacherOpen, setTeacherOpen] = useState(false);
     const [teacherData, setTeacherData] = useState(null);
@@ -356,27 +359,7 @@
       selfTestReport(code);
     }
 
-    async function runReview() {
-      if (reviewBusy) return;
-      const src = (code || '').trim();
-      if (!src) { setReviewErr('Write some code first, then ask for a review.'); setReviewOpen(true); return; }
-      setReviewOpen(true); setReviewBusy(true); setReviewErr(null); setReviewData(null);
-      try {
-        const r = await window.KodroAI.reviewCode(src, currentLessonId || null);
-        if (r && r.ok) setReviewData(r);
-        else setReviewErr((r && r.reason) || 'Review unavailable.');
-      } catch (e) { setReviewErr(String(e)); }
-      setReviewBusy(false);
-    }
-
-    function applyReview() {
-      if (reviewData && reviewData.revised && reviewData.code) {
-        setReviewOpen(false);
-        addConsole('Reviewer (' + (reviewData.model || aiInfo.model) + ') tidied your code. Read it, then press Run.', 'sys');
-        typewriteCode(reviewData.code);
-        selfTestReport(reviewData.code);
-      }
-    }
+    // runReview / applyReview moved to window.KodroHooks.useReview (hooks.jsx).
 
     // Wave voice agent: speak to drive the rover or ask a grounded question.
     const [vaOpen, setVaOpen] = useState(false);

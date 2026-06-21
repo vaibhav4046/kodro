@@ -9907,6 +9907,14 @@ Object.assign(window, {
  * addConsole (console line), typewriteCode (animate code into the editor).
  * blocksToPython is kept byte-identical so generated Python is unchanged.
  *
+ * useReview({ code, addConsole, typewriteCode, currentLessonId, aiInfo,
+ * selfTestReport }): the second-agent code-review concern (propose-then-critique
+ * on the local model). It owns reviewOpen/reviewBusy/reviewData/reviewErr and
+ * the runReview (calls window.KodroAI.reviewCode) + applyReview handlers, moved
+ * VERBATIM. The handlers read the live editor code, the current lesson id, the
+ * AI model label (aiInfo) and three App callbacks (addConsole, typewriteCode,
+ * selfTestReport) -- all threaded in because they belong to other concerns.
+ *
  * Uses the global React (like every other web module), so the IIFE reads
  * React.useState / React.useEffect rather than importing.
  */
@@ -10073,10 +10081,62 @@ Object.assign(window, {
       insertBlocksCode
     };
   }
+  function useReview(opts) {
+    opts = opts || {};
+    const code = opts.code;
+    const addConsole = opts.addConsole || function () {};
+    const typewriteCode = opts.typewriteCode || function () {};
+    const currentLessonId = opts.currentLessonId;
+    const aiInfo = opts.aiInfo || {};
+    const selfTestReport = opts.selfTestReport || function () {};
+    // Second-agent code review (propose-then-critique on the local model).
+    const [reviewOpen, setReviewOpen] = useState(false);
+    const [reviewBusy, setReviewBusy] = useState(false);
+    const [reviewData, setReviewData] = useState(null);
+    const [reviewErr, setReviewErr] = useState(null);
+    async function runReview() {
+      if (reviewBusy) return;
+      const src = (code || '').trim();
+      if (!src) {
+        setReviewErr('Write some code first, then ask for a review.');
+        setReviewOpen(true);
+        return;
+      }
+      setReviewOpen(true);
+      setReviewBusy(true);
+      setReviewErr(null);
+      setReviewData(null);
+      try {
+        const r = await window.KodroAI.reviewCode(src, currentLessonId || null);
+        if (r && r.ok) setReviewData(r);else setReviewErr(r && r.reason || 'Review unavailable.');
+      } catch (e) {
+        setReviewErr(String(e));
+      }
+      setReviewBusy(false);
+    }
+    function applyReview() {
+      if (reviewData && reviewData.revised && reviewData.code) {
+        setReviewOpen(false);
+        addConsole('Reviewer (' + (reviewData.model || aiInfo.model) + ') tidied your code. Read it, then press Run.', 'sys');
+        typewriteCode(reviewData.code);
+        selfTestReport(reviewData.code);
+      }
+    }
+    return {
+      reviewOpen,
+      setReviewOpen,
+      reviewBusy,
+      reviewData,
+      reviewErr,
+      runReview,
+      applyReview
+    };
+  }
   window.KodroHooks = {
     useAiStatus,
     useResizers,
-    useBlocks
+    useBlocks,
+    useReview
   };
 })();
 })();
@@ -10774,11 +10834,35 @@ rover.say("Survey done")`
       window.addEventListener('kodro-memory', on);
       return () => window.removeEventListener('kodro-memory', on);
     }, []);
-    // Second-agent code review (propose-then-critique on the local model).
-    const [reviewOpen, setReviewOpen] = useState(false);
-    const [reviewBusy, setReviewBusy] = useState(false);
-    const [reviewData, setReviewData] = useState(null);
-    const [reviewErr, setReviewErr] = useState(null);
+    // Second-agent code review: extracted to window.KodroHooks.useReview
+    // (hooks.jsx). Owns reviewOpen/reviewBusy/reviewData/reviewErr + the
+    // runReview/applyReview handlers, moved verbatim. The handlers read the
+    // live editor code, currentLessonId, the AI model label (aiInfo) and three
+    // App callbacks (addConsole/typewriteCode/selfTestReport, hoisted below).
+    const {
+      reviewOpen,
+      setReviewOpen,
+      reviewBusy,
+      reviewData,
+      reviewErr,
+      runReview,
+      applyReview
+    } = window.KodroHooks && window.KodroHooks.useReview ? window.KodroHooks.useReview({
+      code,
+      addConsole,
+      typewriteCode,
+      currentLessonId,
+      aiInfo,
+      selfTestReport
+    }) : {
+      reviewOpen: false,
+      setReviewOpen: function () {},
+      reviewBusy: false,
+      reviewData: null,
+      reviewErr: null,
+      runReview: function () {},
+      applyReview: function () {}
+    };
     // Teacher dashboard: class concept-strength heatmap (now in the web app).
     const [teacherOpen, setTeacherOpen] = useState(false);
     const [teacherData, setTeacherData] = useState(null);
@@ -10930,34 +11014,8 @@ rover.say("Survey done")`
       typewriteCode(code);
       selfTestReport(code);
     }
-    async function runReview() {
-      if (reviewBusy) return;
-      const src = (code || '').trim();
-      if (!src) {
-        setReviewErr('Write some code first, then ask for a review.');
-        setReviewOpen(true);
-        return;
-      }
-      setReviewOpen(true);
-      setReviewBusy(true);
-      setReviewErr(null);
-      setReviewData(null);
-      try {
-        const r = await window.KodroAI.reviewCode(src, currentLessonId || null);
-        if (r && r.ok) setReviewData(r);else setReviewErr(r && r.reason || 'Review unavailable.');
-      } catch (e) {
-        setReviewErr(String(e));
-      }
-      setReviewBusy(false);
-    }
-    function applyReview() {
-      if (reviewData && reviewData.revised && reviewData.code) {
-        setReviewOpen(false);
-        addConsole('Reviewer (' + (reviewData.model || aiInfo.model) + ') tidied your code. Read it, then press Run.', 'sys');
-        typewriteCode(reviewData.code);
-        selfTestReport(reviewData.code);
-      }
-    }
+
+    // runReview / applyReview moved to window.KodroHooks.useReview (hooks.jsx).
 
     // Wave voice agent: speak to drive the rover or ask a grounded question.
     const [vaOpen, setVaOpen] = useState(false);
