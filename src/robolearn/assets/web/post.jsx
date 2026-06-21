@@ -101,9 +101,12 @@
         blending: (blending == null ? THREE.NoBlending : blending),
         transparent: blending != null,
       });
-      const brightMat = mk(BRIGHT_FS, { tDiffuse: { value: sceneRT.texture }, threshold: { value: 0.7 }, knee: { value: 0.25 } });
+      // Threshold raised + intensity lowered so bloom accents real highlights
+      // (lights, sky, emissive) instead of blooming the whole lit ground, which
+      // washed bright worlds (Earth) into a blown-out haze.
+      const brightMat = mk(BRIGHT_FS, { tDiffuse: { value: sceneRT.texture }, threshold: { value: 0.9 }, knee: { value: 0.2 } });
       const blurMat = mk(BLUR_FS, { tDiffuse: { value: null }, dir: { value: new THREE.Vector2() } });
-      const bloomMat = mk(BLOOM_FS, { tBloom: { value: bloomA.texture }, intensity: { value: 0.65 } }, THREE.AdditiveBlending);
+      const bloomMat = mk(BLOOM_FS, { tBloom: { value: bloomA.texture }, intensity: { value: 0.42 } }, THREE.AdditiveBlending);
       const vigMat = mk(VIG_FS, { strength: { value: 0.4 } }, THREE.MultiplyBlending);
 
       const quadScene = new THREE.Scene();
