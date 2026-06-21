@@ -19,13 +19,13 @@ at 1280x800 via headless Chrome with `--use-angle=swiftshader` (see prior
 captures in docs/img/audit). Do NOT hammer the single-thread server: one shot at
 a time, pause between.
 
-## Honest ratings (last full brutal review = 6.5 avg; updated by earned fixes)
-- Offline robustness: 8 -> 9  (auto-fallback to 2.5D on 3D failure, b6858b0)
-- AI / vibe: 7 -> 8  (normalizer + validate gate; measured 8/8 runnable, e112471, a85c4eb)
-- UX / first-run: 6 -> ~6.5  (onboarding reduced-motion + phone 44px, 2d7183d) -- MORE TO DO
-- Visual realism: 6.5  -- NEXT
-- Code quality: 7  -- big lever, risky
-- Dissertation: 6.5  (integrity fixes 0a0b920) -- needs author decision
+## Honest ratings (2nd full review avg 6.6; then more earned fixes shipped)
+- Offline robustness: 9  (auto-fallback b6858b0; whisper local_files_only 30e3571)
+- AI / vibe: 8  (normalizer+validate, measured 8/8 qa_vibe.mjs, dangling-token strip 30e3571)
+- Visual realism: 5 -> ~7  (indoor backdrop 8b20006; warehouse racks + indoor floor grid + bloom de-tune 585faa1 -- re-review to confirm)
+- UX / first-run: 6  (onboarding reduced-motion+44px 2d7183d) -- STILL: mobile .konb-sub copy clips at right edge; studio tabs run off phone; 9-button action row overload
+- Code quality: 6  -- two god components (app.jsx ~2320 lines / web/app.py 1548); dual interp only vocab-parity not semantic; "854" is 833 pass + 21 skip locally (state honestly)
+- Dissertation: 7  -- persona table (tex 458-462) still differs from evaluation.md; sensor-gating contradiction (tex ~492 says only ultrasonic gated, but IMU heading is too); evaluation.md/decision-log still KS3/KS4-framed vs adult thesis; O5 refinement overclaim
 
 ## Remaining work per axis (do, verify, re-review, repeat)
 1. VISUAL (next): indoor worlds (lab/warehouse) under-lit and wash out -- darker
