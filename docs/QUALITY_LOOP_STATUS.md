@@ -24,7 +24,8 @@ a time, pause between.
 - AI / vibe: 8  (normalizer+validate, measured 8/8 qa_vibe.mjs, dangling-token strip 30e3571)
 - Visual realism: 5 -> ~7  (indoor backdrop 8b20006; warehouse racks + indoor floor grid + bloom de-tune 585faa1 -- re-review to confirm)
 - UX / first-run: 6  (onboarding reduced-motion+44px 2d7183d) -- STILL: mobile .konb-sub copy clips at right edge; studio tabs run off phone; 9-button action row overload
-- Code quality: 6  -- two god components (app.jsx ~2320 lines / web/app.py 1548); dual interp only vocab-parity not semantic; "854" is 833 pass + 21 skip locally (state honestly)
+- Code quality: 6 -> ~7  (app.jsx 2320 -> 2133: extracted EXAMPLES/LED_COLORS 52f7df9, BLOCK_DEFS/TWEAK_DEFAULTS/ORBIT_SVG 67a7512 + fixed a latent use-before-def; NEW UI regression net qa_ui.mjs 6/6 clean 3423676 closes the "no UI tests" gap). REMAINING for code-9: extract the ~100 React hooks / split the big JSX into sub-components -- needs BEHAVIOUR-level tests (qa_ui is a blank/console smoke, not behaviour) so it is safe; do one hook at a time, qa_ui + QA green after each. web/app.py 1548-line BridgeAPI split also pending.
+- Test layers: scripts/qa_interpreter.mjs (21/21), scripts/qa_ui.mjs (6/6 flows), scripts/qa_vibe.mjs (8/8 runnable), pytest (854), bundle-eval (3).
 - Dissertation: 7  -- persona table (tex 458-462) still differs from evaluation.md; sensor-gating contradiction (tex ~492 says only ultrasonic gated, but IMU heading is too); evaluation.md/decision-log still KS3/KS4-framed vs adult thesis; O5 refinement overclaim
 
 ## Remaining work per axis (do, verify, re-review, repeat)
