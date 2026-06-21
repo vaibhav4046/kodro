@@ -93,9 +93,13 @@
   function normalizeApi(code) {
     if (!code) return code;
     const alias = { forward: 'move_forward', backward: 'move_backward', left: 'turn_left', right: 'turn_right' };
-    return code.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, function (m, name) {
+    let out = code.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, function (m, name) {
       return (alias[name] || name) + '(';
     });
+    // Drop a dangling bare object token on its own line (the model sometimes
+    // trails a stray "rover" after the real code, which would NameError).
+    out = out.replace(/^[ \t]*(?:rover|robot|bot)[ \t]*$/gm, '');
+    return out;
   }
 
   // Dry-run generated code through the real JS interpreter so the browser path

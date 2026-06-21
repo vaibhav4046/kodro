@@ -38,7 +38,12 @@ def _model():
             from faster_whisper import WhisperModel
 
             # base/int8 on CPU: ~1 s per short phrase, leaves the GPU for Ollama.
-            _MODEL = WhisperModel("base", device="cpu", compute_type="int8")
+            # local_files_only=True is the offline guarantee: faster-whisper would
+            # otherwise download the model from HuggingFace on first use. With it,
+            # a machine that has the model cached uses it; one that does not raises
+            # here and the caller falls back to the platform speech recogniser,
+            # so voice never silently reaches the network.
+            _MODEL = WhisperModel("base", device="cpu", compute_type="int8", local_files_only=True)
         return _MODEL
 
 
