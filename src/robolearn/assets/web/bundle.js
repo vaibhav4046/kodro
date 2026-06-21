@@ -9892,6 +9892,12 @@ Object.assign(window, {
  * injects late) and re-checking whenever the vibe panel opens. The ONLY
  * external input is vibeOpen (App state); everything else is owned here.
  *
+ * useResizers(): the panel-resizer / layout concern. It owns the three panel
+ * size states (editor width, telemetry width, console height) and the
+ * startDrag(kind, e) pointer handler that mutates them via window
+ * pointermove/pointerup listeners. Fully self-contained -- no external inputs;
+ * exposes the sizes + startDrag to the JSX.
+ *
  * Uses the global React (like every other web module), so the IIFE reads
  * React.useState / React.useEffect rather than importing.
  */
@@ -9947,8 +9953,40 @@ Object.assign(window, {
       refreshAiStatus
     };
   }
+  function useResizers() {
+    // ---------- layout resizers ----------
+    const [editorW, setEditorW] = useState(404);
+    const [teleW, setTeleW] = useState(318);
+    const [consoleH, setConsoleH] = useState(184);
+    function startDrag(kind, e) {
+      e.preventDefault();
+      const sx = e.clientX,
+        sy = e.clientY;
+      const w0 = editorW,
+        t0 = teleW,
+        c0 = consoleH;
+      const move = ev => {
+        if (kind === 'editor') setEditorW(Math.max(280, Math.min(640, w0 + (ev.clientX - sx))));else if (kind === 'tele') setTeleW(Math.max(240, Math.min(460, t0 - (ev.clientX - sx))));else if (kind === 'console') setConsoleH(Math.max(90, Math.min(420, c0 - (ev.clientY - sy))));
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        document.body.style.cursor = '';
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      document.body.style.cursor = kind === 'console' ? 'row-resize' : 'col-resize';
+    }
+    return {
+      editorW,
+      teleW,
+      consoleH,
+      startDrag
+    };
+  }
   window.KodroHooks = {
-    useAiStatus
+    useAiStatus,
+    useResizers
   };
 })();
 })();
@@ -12056,28 +12094,17 @@ rover.say("Survey done")`
     }, [terrainId]);
 
     // ---------- layout resizers ----------
-    const [editorW, setEditorW] = useState(404);
-    const [teleW, setTeleW] = useState(318);
-    const [consoleH, setConsoleH] = useState(184);
-    function startDrag(kind, e) {
-      e.preventDefault();
-      const sx = e.clientX,
-        sy = e.clientY;
-      const w0 = editorW,
-        t0 = teleW,
-        c0 = consoleH;
-      const move = ev => {
-        if (kind === 'editor') setEditorW(Math.max(280, Math.min(640, w0 + (ev.clientX - sx))));else if (kind === 'tele') setTeleW(Math.max(240, Math.min(460, t0 - (ev.clientX - sx))));else if (kind === 'console') setConsoleH(Math.max(90, Math.min(420, c0 - (ev.clientY - sy))));
-      };
-      const up = () => {
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-        document.body.style.cursor = '';
-      };
-      window.addEventListener('pointermove', move);
-      window.addEventListener('pointerup', up);
-      document.body.style.cursor = kind === 'console' ? 'row-resize' : 'col-resize';
-    }
+    const {
+      editorW,
+      teleW,
+      consoleH,
+      startDrag
+    } = window.KodroHooks && window.KodroHooks.useResizers ? window.KodroHooks.useResizers() : {
+      editorW: 404,
+      teleW: 318,
+      consoleH: 184,
+      startDrag: function () {}
+    };
 
     // interactive camera: drag the viewport to orbit (yaw + pitch), wheel to zoom
     function camDrag(e) {
