@@ -216,9 +216,16 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .terrain-switch {
   position:absolute; top:14px; left:50%; transform:translateX(-50%);
   display:flex; gap:3px; padding:4px; z-index:12;
+  /* Cap to the panel width and scroll horizontally rather than clip: the row of
+     world buttons + mission select + view/quality controls is wider than a
+     narrow viewport panel, which cut off the end controls (MARS etc.). */
+  max-width:calc(100% - 16px); overflow-x:auto; overflow-y:hidden; scrollbar-width:thin;
   background:rgba(8,9,15,0.7); backdrop-filter:blur(12px);
   border:0.5px solid var(--border); border-radius:6px; box-shadow:var(--shadow-menu);
 }
+.terrain-switch::-webkit-scrollbar{ height:5px; }
+.terrain-switch::-webkit-scrollbar-thumb{ background:var(--border); border-radius:3px; }
+.terrain-switch > *{ flex:0 0 auto; }
 .terrain-btn {
   display:flex; align-items:center; gap:7px;
   font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase;
