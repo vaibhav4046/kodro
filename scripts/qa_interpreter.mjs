@@ -107,8 +107,10 @@ check('while loop terminates via guard', run('n = 0\nwhile n < 5:\n    rover.for
 check('sensor distance() reads wall', run('d = rover.distance()\nprint(d)').steps > 0, '');
 
 console.log('\n== SHIPPED EXAMPLE PROGRAMS ==');
-// Pull every EXAMPLES[*].code straight out of app.jsx so we test the real text.
-const APP = readFileSync(new URL('../src/robolearn/assets/web/app.jsx', import.meta.url), 'utf8');
+// Pull every EXAMPLES[*].code straight out of app-data.jsx so we test the real
+// text. (The pure EXAMPLES table was extracted from app.jsx into app-data.jsx;
+// it still sits between `const EXAMPLES = {` and `const LED_COLORS`.)
+const APP = readFileSync(new URL('../src/robolearn/assets/web/app-data.jsx', import.meta.url), 'utf8');
 const block = APP.slice(APP.indexOf('const EXAMPLES = {'), APP.indexOf('const LED_COLORS'));
 const re = /(\w+):\s*\{\s*label:\s*'([^']+)',\s*code:\s*`([\s\S]*?)`\s*\}/g;
 let m, count = 0;

@@ -9882,23 +9882,21 @@ Object.assign(window, {
 })();
 
 ;(function () {
-/* ============================================================================
-   ORBITAL ROVER — App (runtime + UI wiring)
-   ========================================================================== */
+/* Pure, module-level data extracted from app.jsx (zero React, zero state).
+ *
+ * These are plain data tables the App component reads at runtime:
+ *   - EXAMPLES    the starter/example program strings shown as editor tabs
+ *   - LED_COLORS  the rover LED colour swatches
+ *
+ * They contain no React, no hooks, no component state, and no props, so they
+ * live in their own IIFE module and are exposed on window for app.jsx to pull
+ * off. Keeping them here shrinks the App component file without changing any
+ * behaviour: app.jsx reads window.KodroExamples / window.KodroLedColors and
+ * uses them exactly as before.
+ *
+ * Exposed as window.KodroExamples and window.KodroLedColors.
+ */
 (function () {
-  const {
-    useState,
-    useRef,
-    useEffect,
-    useCallback
-  } = React;
-  const TERRAINS = window.TERRAINS;
-  const WALL = TERRAINS.WALL;
-  const RobotLab = window.RobotLab;
-  const R = 30; // rover collision radius (cm)
-  // Live check (re-evaluated per move) so toggling the OS setting takes effect.
-  const PREFERS_REDUCED_MOTION = () => typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
-
   // ---------------- example programs ----------------
   const EXAMPLES = {
     basecamp: {
@@ -10078,6 +10076,36 @@ rover.say("Survey done")`
     white: '#f5f0e4',
     off: null
   };
+  if (typeof window !== 'undefined') {
+    window.KodroExamples = EXAMPLES;
+    window.KodroLedColors = LED_COLORS;
+  }
+})();
+})();
+
+;(function () {
+/* ============================================================================
+   ORBITAL ROVER — App (runtime + UI wiring)
+   ========================================================================== */
+(function () {
+  const {
+    useState,
+    useRef,
+    useEffect,
+    useCallback
+  } = React;
+  const TERRAINS = window.TERRAINS;
+  const WALL = TERRAINS.WALL;
+  const RobotLab = window.RobotLab;
+  const R = 30; // rover collision radius (cm)
+  // Live check (re-evaluated per move) so toggling the OS setting takes effect.
+  const PREFERS_REDUCED_MOTION = () => typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
+
+  // ---------------- example programs & LED colours ----------------
+  // Pure data tables, extracted to app-data.jsx (loaded before this module);
+  // pulled off window here so usage sites below are unchanged.
+  const EXAMPLES = window.KodroExamples || {};
+  const LED_COLORS = window.KodroLedColors || {};
 
   // ---------------- icons ----------------
   const I = {
