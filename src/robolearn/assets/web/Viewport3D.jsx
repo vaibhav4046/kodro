@@ -23,7 +23,7 @@
     room: 0xe9ddc8, city: 0xb3c2cc, earth: 0xb6cdba, mars: 0xc08050, underwater: 0x0a2a38, space: 0x05060d,
   };
 
-  function Viewport3D({ terrain, rover, fpv, robotType, quality, focusKey }) {
+  function Viewport3D({ terrain, rover, fpv, robotType, quality, focusKey, onFail }) {
     const mountRef = useRef(null);
     const stateRef = useRef({ x: 0, y: 0, heading: 0 });
     const fpvRef = useRef(!!fpv);
@@ -61,7 +61,15 @@
     useEffect(() => {
       const THREE = (typeof window !== 'undefined') && window.THREE;
       const mount = mountRef.current;
-      if (!THREE || !mount) return undefined;
+      if (!mount) return undefined;
+      // THREE present but broken/absent (vendored file failed to define the
+      // global): show a calm message and auto-switch to the working 2.5D view
+      // instead of leaving a blank panel.
+      if (!THREE) {
+        mount.innerHTML = '<div class="vp3d-fail">3D is unavailable on this machine. Showing the 2.5D view.</div>';
+        if (typeof onFail === 'function') { try { onFail(); } catch (e) { void e; } }
+        return undefined;
+      }
 
       const id = (terrain && terrain.id) || 'earth';
       // Site-aware 3D ground colour. An Earth-based site (Sahara, Kenya, Egypt)
@@ -95,7 +103,8 @@
       try {
         renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: true });
       } catch (err) {
-        mount.innerHTML = '<div class="vp3d-fail">3D needs a graphics card this machine cannot give. Switch to the 2.5D view in the bar.</div>';
+        mount.innerHTML = '<div class="vp3d-fail">3D needs a graphics card this machine cannot give. Showing the 2.5D view.</div>';
+        if (typeof onFail === 'function') { try { onFail(); } catch (e) { void e; } }
         return undefined;
       }
       let disposed = false;
