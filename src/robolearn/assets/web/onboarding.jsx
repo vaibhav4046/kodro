@@ -83,12 +83,16 @@
     .konb-btn,.konb-tile,.konb-dot{transition:none}
   }
   @media (max-width:480px){
-    .konb-root{padding:18px}
+    .konb-root{padding:16px;overflow-x:hidden}
+    .konb-card{max-width:100%}
+    .konb-title{font-size:clamp(28px,9vw,40px)}
+    .konb-tag{font-size:clamp(15px,4.6vw,19px)}
+    .konb-actions{flex-direction:column;align-items:stretch}
     .konb-agent-row{flex-wrap:wrap}
     .konb-agent-input{flex:1 1 100%}
     .konb-agent-mic{min-height:44px;min-width:44px}
     .konb-grid{grid-template-columns:1fr;gap:10px}
-    .konb-btn{min-height:44px}
+    .konb-btn{min-height:44px;width:100%}
     .konb-tile{min-height:44px}
     .konb-skip button{min-height:44px;padding:8px 10px}
   }
