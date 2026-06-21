@@ -9110,6 +9110,20 @@ Object.assign(window, {
   .konb-agent-err{text-align:center;color:#ffb4a8;font-size:13px;margin:10px 0 0;line-height:1.4}
   .konb-built{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:12px 0 0}
   .konb-chip{background:#11202e;border:1px solid #2a4258;border-radius:999px;color:#bfe6ff;font-size:12px;padding:4px 11px}
+  @media (prefers-reduced-motion: reduce){
+    .konb-root{animation:none}.konb-card{animation:none}
+    .konb-btn,.konb-tile,.konb-dot{transition:none}
+  }
+  @media (max-width:480px){
+    .konb-root{padding:18px}
+    .konb-agent-row{flex-wrap:wrap}
+    .konb-agent-input{flex:1 1 100%}
+    .konb-agent-mic{min-height:44px;min-width:44px}
+    .konb-grid{grid-template-columns:1fr;gap:10px}
+    .konb-btn{min-height:44px}
+    .konb-tile{min-height:44px}
+    .konb-skip button{min-height:44px;padding:8px 10px}
+  }
   `;
   function Step({
     n,
