@@ -593,6 +593,30 @@
         // The base window texture is only a clone source: each building got its
         // own independent clone, so the base can be freed now (it is never rendered).
         if (winTex) winTex.dispose();
+        // Traffic lights at the intersection: thin pole + 3 small spheres.
+        try {
+          const poleM = new THREE.MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.6, metalness: 0.3 });
+          [[ROADW / 2 + 2, 2], [-(ROADW / 2 + 2), -2]].forEach((p) => {
+            const tl = new THREE.Group();
+            const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5, 8), poleM); pole.position.y = 2.5; pole.castShadow = true; tl.add(pole);
+            const box = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.3), poleM); box.position.y = 5.6; tl.add(box);
+            const red = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), new THREE.MeshStandardMaterial({ color: 0xff3322, emissive: 0xff3322, emissiveIntensity: 0.9 })); red.position.set(0, 6.0, 0.18); tl.add(red);
+            const yel = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffaa22, emissive: 0xffaa22, emissiveIntensity: 0.2 })); yel.position.set(0, 5.6, 0.18); tl.add(yel);
+            const grn = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), new THREE.MeshStandardMaterial({ color: 0x33cc44, emissive: 0x33cc44, emissiveIntensity: 0.2 })); grn.position.set(0, 5.2, 0.18); tl.add(grn);
+            tl.position.set(p[0], 0, p[1]); scene.add(tl);
+          });
+        } catch (e) { if (window.console) console.warn('Viewport3D traffic lights failed:', e); }
+        // Street trees along the pavement: cylinder trunk + icosahedron foliage.
+        try {
+          const sTrunkM = new THREE.MeshStandardMaterial({ color: 0x6b4f2c, roughness: 1 });
+          const sLeafM = new THREE.MeshStandardMaterial({ color: 0x3a6b2a, roughness: 1, flatShading: true });
+          [[ROADW / 2 + 6, 10], [ROADW / 2 + 6, -10], [ROADW / 2 + 6, 25], [-(ROADW / 2 + 6), -25], [-(ROADW / 2 + 6), 15]].forEach((p) => {
+            const t = new THREE.Group();
+            const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 3, 6), sTrunkM); trunk.position.y = 1.5; trunk.castShadow = true; t.add(trunk);
+            const fol = new THREE.Mesh(new THREE.IcosahedronGeometry(1.4, 0), sLeafM); fol.position.y = 3.8; fol.castShadow = true; t.add(fol);
+            t.position.set(p[0], 0, p[1]); scene.add(t);
+          });
+        } catch (e) { if (window.console) console.warn('Viewport3D street trees failed:', e); }
         // Render the shared moving agents as 3D meshes, driven by the same
         // simulation the collision test reads, so a pedestrian the robot can
         // see in the world is one it can actually hit.
@@ -604,8 +628,35 @@
         const wallH = 14;
         const mkWall = (w, x, z, ry) => { const ww = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, 0.6), wallM); ww.position.set(x, wallH / 2, z); ww.rotation.y = ry; ww.receiveShadow = true; scene.add(ww); };
         mkWall(R * 2, 0, -R, 0); mkWall(R * 2, -R, 0, Math.PI / 2); mkWall(R * 2, R, 0, Math.PI / 2);
-        const rug = new THREE.Mesh(new THREE.PlaneGeometry(22, 16), new THREE.MeshStandardMaterial({ color: 0x9a5f54, roughness: 1 }));
-        rug.rotation.x = -Math.PI / 2; rug.position.y = 0.03; scene.add(rug);
+        // Window on the right wall: sky-blue backing with a cross frame.
+        try {
+          const winFrameM = new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.8 });
+          const winGlassM = new THREE.MeshStandardMaterial({ color: 0x8ec5e8, roughness: 0.2, metalness: 0.1, emissive: 0x4a7a9a, emissiveIntensity: 0.25 });
+          const winGlass = new THREE.Mesh(new THREE.PlaneGeometry(7, 5), winGlassM);
+          winGlass.rotation.y = -Math.PI / 2; winGlass.position.set(R - 0.35, 8, -4); scene.add(winGlass);
+          const barH = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 5.2), winFrameM); barH.position.set(R - 0.32, 8, -4); scene.add(barH);
+          const barV = new THREE.Mesh(new THREE.BoxGeometry(0.08, 5.2, 0.2), winFrameM); barV.position.set(R - 0.32, 8, -4); scene.add(barV);
+          const fT = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 7.3), winFrameM); fT.position.set(R - 0.33, 10.6, -4); scene.add(fT);
+          const fB = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, 7.3), winFrameM); fB.position.set(R - 0.33, 5.4, -4); scene.add(fB);
+          const fL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 5.5, 0.3), winFrameM); fL.position.set(R - 0.33, 8, -7.5); scene.add(fL);
+          const fR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 5.5, 0.3), winFrameM); fR.position.set(R - 0.33, 8, -0.5); scene.add(fR);
+        } catch (e) { if (window.console) console.warn('Viewport3D window failed:', e); }
+        // Rug under the table with a subtle warm red/brown canvas pattern.
+        try {
+          const rugTex = (typeof document !== 'undefined') && (function () {
+            const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+            const c2 = cv.getContext('2d'); if (!c2) return null;
+            c2.fillStyle = '#8a4a3e'; c2.fillRect(0, 0, 128, 128);
+            c2.strokeStyle = 'rgba(180,120,80,0.35)'; c2.lineWidth = 2;
+            c2.strokeRect(6, 6, 116, 116); c2.strokeRect(16, 16, 96, 96);
+            for (let i = 0; i < 6; i++) { c2.beginPath(); c2.arc(64, 64, 18 + i * 10, 0, 6.283); c2.strokeStyle = 'rgba(160,90,70,' + (0.3 - i * 0.04) + ')'; c2.stroke(); }
+            return new THREE.CanvasTexture(cv);
+          })();
+          const rugM = new THREE.MeshStandardMaterial({ color: 0x9a5f54, roughness: 1 });
+          if (rugTex) { rugM.map = rugTex; rugM.needsUpdate = true; }
+          const rug = new THREE.Mesh(new THREE.PlaneGeometry(10, 7), rugM);
+          rug.rotation.x = -Math.PI / 2; rug.position.set(-14.1, 0.03, -11.4); scene.add(rug);
+        } catch (e) { if (window.console) console.warn('Viewport3D rug failed:', e); }
         const sofaM = new THREE.MeshStandardMaterial({ color: 0x3f6f8c, roughness: 0.85 });
         const sofa = new THREE.Group();
         const seat = new THREE.Mesh(new THREE.BoxGeometry(10, 1.4, 4), sofaM); seat.position.y = 1.6; seat.castShadow = true;
@@ -620,9 +671,31 @@
         [[2.5, 1.8], [2.5, -1.8], [-2.5, 1.8], [-2.5, -1.8]].forEach((p) => { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 2.2, 0.4), woodM); leg.position.set(TX + p[0], 1.1, TZ + p[1]); scene.add(leg); });
         const shelf = new THREE.Mesh(new THREE.BoxGeometry(8, 9, 1.2), woodM); shelf.position.set(R - 2, 4.5, -8); shelf.castShadow = true; scene.add(shelf);
         for (let s = 0; s < 3; s++) { const bk = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.4, 1.0), new THREE.MeshStandardMaterial({ color: 0x6a4f2c, roughness: 1 })); bk.position.set(R - 2, 2 + s * 3, -8); scene.add(bk); }
+        // Books on the shelf: thin boxes of varying colours.
+        try {
+          const bookCols = [0x8b3a3a, 0x2c5f8a, 0x5a7a3a, 0x8a6a2c, 0x6a3a6a, 0x3a6a5a];
+          for (let s = 0; s < 2; s++) {
+            const shelfY = 2 + s * 3 + 0.3;
+            for (let b = 0; b < 6; b++) {
+              const bw = 0.5 + (b % 3) * 0.15;
+              const bh = 1.4 + (b % 2) * 0.4;
+              const book = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.7), new THREE.MeshStandardMaterial({ color: bookCols[b % bookCols.length], roughness: 0.8 }));
+              book.position.set(R - 5 + b * 1.0, shelfY + bh / 2, -8);
+              book.castShadow = true; scene.add(book);
+            }
+          }
+        } catch (e) { if (window.console) console.warn('Viewport3D books failed:', e); }
         const pot = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 0.8, 1.8, 10), new THREE.MeshStandardMaterial({ color: 0xb56a45, roughness: 1 })); pot.position.set(-R + 4, 0.9, -R + 4); pot.castShadow = true; scene.add(pot);
         const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(2.4, 0), new THREE.MeshStandardMaterial({ color: 0x3f7d3a, roughness: 1, flatShading: true })); leaf.position.set(-R + 4, 3.4, -R + 4); leaf.castShadow = true; scene.add(leaf);
         const lamp = new THREE.SpotLight(0xffd9a0, 1.2, 80, 0.6, 0.4); lamp.position.set(R - 8, 11, 8); lamp.target.position.set(R - 8, 0, 8); lamp.castShadow = false; scene.add(lamp); scene.add(lamp.target);
+        // Ceiling light fixture: short cylinder + glowing sphere, centered above.
+        try {
+          const ceilM = new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.5, metalness: 0.3 });
+          const ceilArm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5, 8), ceilM);
+          ceilArm.position.set(0, wallH - 0.8, 0); scene.add(ceilArm);
+          const ceilBulb = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12), new THREE.MeshStandardMaterial({ color: 0xfff5d0, emissive: 0xffe8a0, emissiveIntensity: 0.6 }));
+          ceilBulb.position.set(0, wallH - 1.8, 0); scene.add(ceilBulb);
+        } catch (e) { if (window.console) console.warn('Viewport3D ceiling light failed:', e); }
         // People moving in the room, from the shared agent simulation, so the
         // companion robot has someone to avoid.
         const KAr = window.KodroAgents;
@@ -713,7 +786,48 @@
       if (_siteId === 'lab' || _siteId === 'warehouse' || _siteId === 'debug_grid') buildIndoor(_siteId);
       else if (id === 'city') buildCity();
       else if (id === 'room') buildRoom();
-      else renderAgents(); // open terrain worlds: render the roaming robot fleet
+      else {
+        renderAgents(); // open terrain worlds: render the roaming robot fleet
+        // Rover base camp on open terrain (earth/mars/space): a landing pad,
+        // instrument boxes with antenna sticks, and a tilted solar panel so the
+        // rover is not sitting in a void. Guarded so a failure never breaks the scene.
+        try {
+          const _rt = robotType || (window.getKodroRobot && window.getKodroRobot().type) || 'rover';
+          if (_rt === 'rover' && (id === 'earth' || id === 'mars' || id === 'space')) {
+            const _accent = new THREE.Color((terrain && terrain.accent) || '#5ce0d8');
+            // landing pad: flat disc (radius 60cm, height 2cm), dark metallic
+            const padM = new THREE.MeshStandardMaterial({ color: 0x2a2d34, roughness: 0.4, metalness: 0.7 });
+            const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.02, 24), padM);
+            pad.position.set(0, 0.011, 0); pad.receiveShadow = true; scene.add(pad);
+            // instrument boxes with emissive antenna sticks
+            const boxM = new THREE.MeshStandardMaterial({ color: 0x6a7079, roughness: 0.5, metalness: 0.4 });
+            const antM = new THREE.MeshStandardMaterial({ color: 0x9aa0ad, roughness: 0.3, metalness: 0.7 });
+            const tipM = new THREE.MeshStandardMaterial({ color: _accent, emissive: _accent, emissiveIntensity: 0.8 });
+            [[0.85, 0.5], [-0.75, 0.6], [0.6, -0.75]].forEach((p) => {
+              const box = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), boxM);
+              box.position.set(p[0], 0.12, p[1]); box.castShadow = true; scene.add(box);
+              const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.4, 6), antM);
+              ant.position.set(p[0], 0.42, p[1]); scene.add(ant);
+              const tip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), tipM);
+              tip.position.set(p[0], 0.63, p[1]); scene.add(tip);
+            });
+            // solar panel: flat box tilted 30deg, dark blue with grid lines
+            const panelTex = (typeof document !== 'undefined') && (function () {
+              const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+              const c2 = cv.getContext('2d'); if (!c2) return null;
+              c2.fillStyle = '#1b2740'; c2.fillRect(0, 0, 64, 64);
+              c2.strokeStyle = '#3a5a8a'; c2.lineWidth = 1;
+              for (let i = 0; i <= 4; i++) { c2.beginPath(); c2.moveTo(i * 16, 0); c2.lineTo(i * 16, 64); c2.stroke(); }
+              for (let i = 0; i <= 4; i++) { c2.beginPath(); c2.moveTo(0, i * 16); c2.lineTo(64, i * 16); c2.stroke(); }
+              const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 2); return t;
+            })();
+            const panelM = new THREE.MeshStandardMaterial({ color: 0x1b2740, roughness: 0.3, metalness: 0.5 });
+            if (panelTex) { panelM.map = panelTex; panelM.needsUpdate = true; }
+            const panel = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.04, 0.5), panelM);
+            panel.position.set(-0.9, 0.3, -0.5); panel.rotation.z = 30 * Math.PI / 180; panel.castShadow = true; scene.add(panel);
+          }
+        } catch (e) { if (window.console) console.warn('Viewport3D base camp failed:', e); }
+      }
 
       // The robot: built to match the kind the user designed in Robot Lab, so
       // a rover, a car, a home companion or an arm each look like themselves.
@@ -860,6 +974,18 @@
       // up so the build and its sensor pods are legible (indoors stays a touch
       // smaller so it does not tower over the furniture).
       rov.scale.setScalar(id === 'room' ? 1.05 : 1.4);
+      // Fake contact shadow: a dark, semi-transparent flattened circle under the
+      // robot. Child of rov so it follows the robot; castShadow=false so it never
+      // pollutes the shadow map. Visible from the orbit camera for groundedness.
+      try {
+        const shadowGeo = new THREE.CircleGeometry(2.0, 24);
+        const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.25, depthWrite: false });
+        const contactShadow = new THREE.Mesh(shadowGeo, shadowMat);
+        contactShadow.rotation.x = -Math.PI / 2;
+        contactShadow.position.y = 0.02;
+        contactShadow.castShadow = false;
+        rov.add(contactShadow);
+      } catch (e) { if (window.console) console.warn('Viewport3D contact shadow failed:', e); }
       scene.add(rov);
 
       // A trail ribbon that grows as the rover drives.

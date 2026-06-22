@@ -326,6 +326,15 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 /* ===================== Telemetry rail ===================== */
 .tele-panel { background:var(--navy); border-left:0.5px solid var(--border); }
 .tele-body { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; }
+/* Mobile telemetry toggle: hidden on desktop, revealed under 768px. */
+.tele-toggle {
+  display:none; align-items:center; justify-content:center;
+  width:28px; height:28px; flex:none; margin-left:6px;
+  font-family:var(--font-mono); font-size:13px; color:var(--fg-2);
+  background:transparent; border:1px solid var(--border); border-radius:5px;
+  cursor:pointer; transition:all 140ms var(--ease);
+}
+.tele-toggle:hover { color:var(--fg-1); border-color:var(--fg-3); }
 .tele-section { padding:14px 14px 16px; border-bottom:0.5px solid var(--border); }
 .tele-section .eyebrow { margin-bottom:12px; display:block; }
 
@@ -579,6 +588,40 @@ textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible,
     width:100% !important; max-width:100%; min-height:300px; border-right:none;
   }
   .missionbar { flex-wrap:wrap; height:auto; padding:8px 12px; gap:10px; }
+}
+
+/* Tablet / narrow laptop (mobile responsiveness pass): below 768px the
+   3-column studio stacks to one column (editor → viewport → telemetry),
+   the mission bar shrinks to a single 48px horizontally-scrollable row,
+   navbar icon labels hide to save space, and the telemetry rail collapses
+   by default with a toggle. The 1099px rule already flips .workspace to a
+   flex column; these rules refine panel sizes and the bar for touch. */
+@media (max-width: 768px) {
+  .app { grid-template-rows:48px 1fr; }
+  .missionbar {
+    flex-wrap:nowrap; height:48px; padding:0 10px; gap:10px;
+    overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
+  }
+  .missionbar::-webkit-scrollbar { height:0; display:none; }
+  /* Hide the text labels on icon buttons; the descriptive aria-label still
+     exposes the full purpose to screen readers and touch users via AT. */
+  .icon-btn-label { display:none; }
+  .icon-btn { width:34px; min-width:34px; padding:0; justify-content:center; }
+  .speed-ctrl label { display:none; }
+  .bar-status { white-space:nowrap; }
+  /* Reinforce single-column stacking and set per-panel min-heights. */
+  .workspace > .panel, .editor-panel, .view-panel, .tele-panel {
+    width:100% !important; max-width:100%;
+    border-right:none; border-left:none;
+  }
+  .editor-panel { min-height:300px; }
+  .view-panel { min-height:250px; }
+  .tele-panel { min-height:0; }
+  .tele-panel:not(.tele-collapsed) { min-height:220px; }
+  /* Reveal the mobile-only telemetry toggle and hide the body when collapsed. */
+  .tele-toggle { display:inline-flex; }
+  .tele-panel.tele-collapsed .tele-body { display:none; }
+  .tele-panel.tele-collapsed .panel-head { border-bottom:none; }
 }
 
 /* Phone width (QA bug review): at ~375px the absolutely-centred view toolbar
