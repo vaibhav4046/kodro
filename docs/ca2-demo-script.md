@@ -1,58 +1,104 @@
-# CA2 Demo Script: the Kodro Realism Demo
+# Kodro Demo Script (2 to 3 minutes)
 
-A two to three minute demonstration that proves the academic objectives by
-performing real actions, not by showing mocked screens. It is built into the
-app as the "Demo" button (`demo.jsx`, `window.KodroDemo`); this document is the
-spoken script and the rationale for each step.
+A guided walkthrough that proves the academic objectives in a live demo.
+Designed for a hackathon pitch, a viva, or a GitHub visitor.
 
-Start offline, with no network and no model required. The deterministic path
-runs the whole demo; a local model is optional and only enriches the wording.
+## Before you start
 
-## The flow
+1. Install Ollama and pull the model: `ollama pull kodro-coder:latest`
+2. Launch Kodro: `python -m robolearn.web` (or run `Kodro.exe`)
+3. Confirm the status bar shows "AI: online" (Ollama is up)
 
-1. **Design a light rover.** Open the demo and press *Build it*. The onboarding
-   agent builds a rover from the validated parts catalogue and reports its
-   mass, top speed and battery, all derived from the parts. Point out that
-   these are not sliders; they fall out of the build.
+If Ollama is not installed, the demo still works. The assistant falls back
+to a deterministic rule engine within two seconds. Say so in the demo.
 
-2. **`read_distance()` is available.** Press *Check the registry*. Because an
-   ultrasonic sensor is fitted, the distance command is in the registry that
-   every panel reads. Read out the available commands.
+## The demo (90 seconds to 3 minutes)
 
-3. **Validate across five randomised seeds.** Press *Run validation*. One
-   program runs five times, each with different friction, mass, sensor noise
-   and obstacle placement. The aggregate reports the success rate, mean
-   collisions and mean battery. Make the point that a behaviour which survives
-   the spread is the one to trust, and that a low rate honestly shows a brittle
-   program rather than hiding it. The report is saved to SQLite.
+### Step 1: Offline proof (10 seconds)
 
-4. **Remove the ultrasonic sensor.** Press *Remove it and ask*. The build now
-   has no range sensor, and the registry refuses `read_distance()` with a
-   readable reason. This is exactly what the grounded assistant does: it will
-   not write code for a part the robot does not carry. This is the safety
-   argument made visible.
+Open the app. Point out that it launched from a single file with no
+network. The onboarding screen appears: "Build a robot. Teach it. Watch
+it work." Click "Skip to studio" or pick a robot type to continue.
 
-5. **Refit the sensor and save the skill.** Press *Refit, save, reflect*. With
-   the sensor back, keep the working program as a named skill
-   (`avoid_obstacle_ultrasonic`) and record a reflection. Nothing is retrained;
-   the studio simply remembers what worked, in the local store.
+### Step 2: Design a robot (20 seconds)
 
-6. **Reuse it on the next run.** Press *Retrieve memory*. On a related run the
-   studio retrieves the saved skill and the reflection, so its help is shaped
-   by the user's own verified work. This is the honest, system-level
-   self-refinement the project claims, with no model weights changed.
+Click "Robot Lab" in the navbar. Choose "Rover" as the type. Pick an ESP32
+board. Add an ultrasonic sensor. Add a 2-motor drive. Watch the live
+specification update: mass 529g, top speed 1.0x, battery 113 minutes,
+supported commands now include distance(). Click Save. The system
+recommends the Earth terrain and explains why.
 
-## What it proves
+### Step 3: Program it (20 seconds)
 
-- The robot specification drives the simulation (step 1).
-- One command registry gates every surface (steps 2 and 4).
-- Validation is randomised and reported as a spread, then persisted (step 3).
-- The assistant refuses an unavailable command (step 4).
-- The system refines from use without retraining (steps 5 and 6).
+The editor shows a short starter program. Click "Vibe" (the AI assistant).
+Type: "drive forward 3 metres then turn right and beep". The local model
+generates Python. Click insert. The code appears in the editor. Click Run.
+The rover drives forward, turns, and beeps. The status bar shows
+"Complete". The telemetry panel shows the distance travelled, battery
+drained, and heading.
 
-## Honesty notes
+### Step 4: Sensor-gated behaviour (20 seconds)
 
-The demo fakes nothing. Every step calls the same code the studio uses
-(`RobotLab`, `KodroCommands`, `KodroScenario`, `KodroMemory`). The validation
-numbers are whatever the run produces. The whole demo works with the network
-off and no model installed.
+Click "Vibe" again. Type: "drive forward but stop before hitting anything
+using the distance sensor". The assistant generates a while loop with
+distance(). Click insert, then Run. The rover drives forward and stops
+before the wall. The distance sensor reading is visible in telemetry.
+
+Now go back to Robot Lab, remove the ultrasonic sensor, and save. Try the
+same prompt. The assistant refuses or warns that the distance command is
+not available on this build. This proves the grounding: the assistant
+cannot suggest a capability the robot does not have.
+
+### Step 5: Self-refinement (15 seconds)
+
+Click "Memory" in the navbar. The panel shows a reflection from the run
+you just completed: "Reached the goal" or "Hit the wall" with a specific
+lesson. This is the system refining itself from usage. It persists across
+sessions in localStorage. No model weights were changed.
+
+### Step 6: Validation across worlds (15 seconds)
+
+Switch the world from the terrain selector (Earth to Mars, or City). The
+3D viewport updates with a new environment. Run the same program. The
+rover behaves differently on different terrain (traction affects speed and
+battery drain). The telemetry shows the difference.
+
+### Step 7: The 3D world (10 seconds)
+
+Orbit the camera by dragging. The world has depth: buildings, traffic,
+pedestrians, terrain features. The robot has natural motion: weight
+transfer on acceleration, banking on turns, front-wheel steering. This is
+not a flat diagram.
+
+## What to say during the demo
+
+Key talking points, in priority order:
+
+1. "This runs entirely offline. No API key, no cloud, no account. The AI
+   is a local model served by Ollama on localhost."
+2. "The robot specification drives the simulation. Change the parts and
+   the behaviour changes. The assistant is grounded in the spec."
+3. "Every line of generated code runs through a deterministic safety check
+   before it reaches the user. The model is not trusted alone."
+4. "The system self-refines from usage through reflection memory and a
+   skill library. No weight retraining. Honest system-level refinement."
+5. "851 tests, 86 percent coverage, 47 of 47 interpreter QA. Three
+   operating systems in CI."
+
+## What NOT to say
+
+- "This replaces Isaac Sim / Gazebo / Webots." It does not.
+- "This is production-grade robotics validation." It is a research tool.
+- "The AI is always correct." It is not. The safety net exists because it
+  is not.
+- "This has ROS2 integration." It does not.
+
+## Troubleshooting
+
+- If the 3D viewport is blank: the machine may lack WebGL. The 2D view is
+  the fallback. Toggle it in the terrain bar.
+- If the AI panel shows "offline": Ollama is not running. Start it with
+  `ollama serve` or use the deterministic fallback (it works without a
+  model).
+- If the rover does not move: check the console for errors. The program
+  may have a syntax error. The editor highlights the active line.
