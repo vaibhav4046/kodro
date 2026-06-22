@@ -39,16 +39,11 @@
     const [activeTab, setActiveTab] = useState(() => {
       const saved = localStorage.getItem('or_tab');
       if (saved) return saved;
-      // Default to the autopilot showcase, but only if the current build can
-      // actually range: a camera-only arm (or any build with no ultrasonic)
-      // would fail autopilot's first distance() call with a gating refusal, so
-      // it opens on the base-command 'starter' example instead and first Run
-      // always works.
-      try {
-        const rb = window.getKodroRobot && window.getKodroRobot();
-        if (rb && window.KodroCommands && !window.KodroCommands.check(rb, 'distance').ok) return 'basecamp';
-      } catch (e) { void e; }
-      return 'autopilot';
+      // Default to the short 'starter' example (drive tab) so the first thing a
+      // user sees is a friendly 6-line program, not a wall of code. It uses only
+      // base commands (forward/turn/say), so it runs on every robot build without
+      // a gating refusal -- no need to branch on distance() availability.
+      return 'drive';
     });
     const [programs, setPrograms] = useState(() => {
       try { const s = JSON.parse(localStorage.getItem('or_programs')); if (s) return s; } catch (e) {}
@@ -160,7 +155,7 @@
       ? (lessonBuffers[currentLessonId] !== undefined ? lessonBuffers[currentLessonId] : '')
       // Never hand the editor undefined (it would .split(undefined) and crash):
       // if activeTab is somehow not a known example key, fall back to basecamp.
-      : (programs[activeTab] !== undefined ? programs[activeTab] : (programs.basecamp || ''));
+      : (programs[activeTab] !== undefined ? programs[activeTab] : (programs.drive || ''));
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
@@ -245,7 +240,7 @@
         // after picking, say, a camera-only arm still works.
         try {
           const canRange = !window.KodroCommands || window.KodroCommands.check(e.detail, 'distance').ok;
-          if (!canRange) setActiveTab((t) => (t === 'autopilot' || t === 'avoid') ? 'basecamp' : t);
+          if (!canRange) setActiveTab((t) => (t === 'autopilot' || t === 'avoid') ? 'drive' : t);
         } catch (err) { void err; }
       };
       window.addEventListener('kodro-robot', onRobot);
@@ -1318,13 +1313,13 @@
             <span>{statusLabel}</span>
           </div>
           <div className="bar-divider"></div>
-          <button className="icon-btn voice-agent-btn" title="Talk to Kodro. Speak a command or ask a question" aria-label="Voice agent" onClick={() => { setVaOpen(true); setVaData(null); runVoiceAgent(); }}>🎙</button>
-          <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab" onClick={() => setRobotLabOpen(true)}>🛠</button>
-          <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills" onClick={() => setMemoryOpen(true)}>🧠</button>
-          <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot" onClick={() => setBuildOpen(true)}>🤖</button>
-          <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setShowHelp(true)}>?</button>
+          <button className="icon-btn voice-agent-btn" title="Talk to Kodro. Speak a command or ask a question" aria-label="Voice agent" onClick={() => { setVaOpen(true); setVaData(null); runVoiceAgent(); }}>🎙<span className="icon-btn-label">Voice</span></button>
+          <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab" onClick={() => setRobotLabOpen(true)}>🛠<span className="icon-btn-label">Robot Lab</span></button>
+          <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills" onClick={() => setMemoryOpen(true)}>🧠<span className="icon-btn-label">Memory</span></button>
+          <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot" onClick={() => setBuildOpen(true)}>🤖<span className="icon-btn-label">Build</span></button>
+          <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setShowHelp(true)}>?<span className="icon-btn-label">Help</span></button>
           <div className="settings-wrap">
-            <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>⚙</button>
+            <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>⚙<span className="icon-btn-label">Settings</span></button>
             {settingsOpen && (
               <div className="settings-pop" role="dialog" aria-label="Settings">
                 {pupils.length > 0 && (
@@ -1401,15 +1396,17 @@
                     </select>
                   </div>
                 )}
-                <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>✨ Vibe</button>
-                <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>🧩 Blocks</button>
-                <button className="btn-mini" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)'} onClick={runReview}>🔎 Review</button>
-                <button className="btn-mini" title="Validate this program across 5 randomised seeds" onClick={runValidation}>🎯 Validate</button>
-                <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>📊 Realism</button>
-                <button className="btn-mini" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}>▶ Demo</button>
-                <button className="btn-mini" title={aiInfo.available ? 'Ask a question, answered from the lesson material' : 'Ask a question, answered from the lesson material (needs local Ollama)'} onClick={() => { setAskOpen(true); setAskData(null); }}>❓ Ask</button>
-                <button className="btn-mini" title="Speak a command. Works offline, no AI model needed" disabled={voiceBusy} onClick={runVoiceCommand}>{voiceBusy ? '🎙…' : '🎙 Voice'}</button>
-                <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>🐝 Swarm</button>
+                <div className="panel-actions">
+                  <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>✨ Vibe</button>
+                  <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>🧩 Blocks</button>
+                  <button className="btn-mini" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)'} onClick={runReview}>🔎 Review</button>
+                  <button className="btn-mini" title="Validate this program across 5 randomised seeds" onClick={runValidation}>🎯 Validate</button>
+                  <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>📊 Realism</button>
+                  <button className="btn-mini" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}>▶ Demo</button>
+                  <button className="btn-mini" title={aiInfo.available ? 'Ask a question, answered from the lesson material' : 'Ask a question, answered from the lesson material (needs local Ollama)'} onClick={() => { setAskOpen(true); setAskData(null); }}>❓ Ask</button>
+                  <button className="btn-mini" title="Speak a command. Works offline, no AI model needed" disabled={voiceBusy} onClick={runVoiceCommand}>{voiceBusy ? '🎙…' : '🎙 Voice'}</button>
+                  <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>🐝 Swarm</button>
+                </div>
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
               <div className="api-hint">

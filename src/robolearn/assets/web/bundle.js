@@ -3821,7 +3821,7 @@
       scene.background = new THREE.Color(SKY[id] != null ? SKY[id] : SKY.earth);
       // Underwater murk swallows distance much sooner than open air; the Moon
       // has no atmosphere so its fog is pushed far back so the stars stay visible.
-      if (id === 'underwater') scene.fog = new THREE.FogExp2(FOG[id], 0.025);else scene.fog = new THREE.Fog(FOG[id] != null ? FOG[id] : FOG.earth, id === 'space' ? 200 : 60, id === 'space' ? 800 : 220);
+      if (id === 'underwater') scene.fog = new THREE.FogExp2(FOG[id], 0.025);else if (id === 'mars') scene.fog = new THREE.FogExp2(FOG[id], 0.008);else scene.fog = new THREE.Fog(FOG[id] != null ? FOG[id] : FOG.earth, id === 'space' ? 200 : 60, id === 'space' ? 800 : id === 'earth' ? 280 : 220);
       // Indoor test bays (lab/warehouse/debug) resolve to the room base, so they
       // inherited the room's warm cream sky and the grey props washed out into a
       // void. Give each its own backdrop + fog so the walls and props read.
@@ -3844,7 +3844,7 @@
       const grndCol2 = indoor ? 0x3a2f28 : 0x404048;
       // Each world carries its own light mood: the Moon is dim and contrasty,
       // the abyss is dark and blue, Mars is dusty and half-lit, indoors is warm.
-      const hemiInt = id === 'space' ? 0.4 : id === 'underwater' ? 0.45 : indoor ? 0.62 : id === 'mars' ? 0.52 : 0.6;
+      const hemiInt = id === 'space' ? 0.4 : id === 'underwater' ? 0.45 : indoor ? 0.85 : id === 'mars' ? 0.52 : 0.6;
       scene.add(new THREE.HemisphereLight(skyCol2, grndCol2, hemiInt));
       const sunCol = indoor ? 0xffe9c4 : id === 'underwater' ? 0x6fb7c9 : id === 'mars' ? 0xffd9b0 : 0xfff4e2;
       const sunInt = id === 'space' ? 0.9 : id === 'underwater' ? 0.6 : indoor ? 1.05 : id === 'mars' ? 1.05 : 1.4;
@@ -3859,13 +3859,20 @@
       sun.shadow.camera.right = 120;
       sun.shadow.camera.top = 120;
       sun.shadow.camera.bottom = -120;
-      sun.shadow.bias = -0.0003;
+      sun.shadow.bias = -0.0004;
       if (sun.shadow.radius != null) sun.shadow.radius = 5;
       scene.add(sun);
       // A soft fill from the opposite side so shadowed faces are not black.
       const fill = new THREE.DirectionalLight(0xbcd2ff, indoor ? 0.18 : 0.28);
       fill.position.set(-30, 26, -22);
       scene.add(fill);
+      // A second warm fill for indoor rooms so furniture and the robot are not
+      // lost in under-lit corners; positioned 45 degrees off the first fill.
+      if (indoor) {
+        const warmFill = new THREE.DirectionalLight(0xffe8c0, 0.3);
+        warmFill.position.set(-6, 26, -37);
+        scene.add(warmFill);
+      }
 
       // A gradient sky dome so the world has a horizon, not a flat wall of fog.
       const skyTop = new THREE.Color(SKY[id] != null ? SKY[id] : SKY.earth);
@@ -3885,9 +3892,17 @@
       const skyGeo = new THREE.SphereGeometry(900, 24, 12);
       const skyCol = [];
       const pos = skyGeo.attributes.position;
+      // Horizon haze: a soft warm/cyan glow band near the horizon line (y~0,
+      // t~0.5) so the sky has depth instead of a flat gradient. Earth/Mars get
+      // a sunset-orange band; underwater gets a cyan-green glow; space is skipped.
+      const hazeCol = id === 'underwater' ? new THREE.Color(0x3adfc4) : id === 'earth' || id === 'mars' ? new THREE.Color(0xffa050) : null;
       for (let i = 0; i < pos.count; i++) {
         const t = Math.max(0, Math.min(1, pos.getY(i) / 900 * 0.5 + 0.5));
         const c = skyBot.clone().lerp(skyTop, t);
+        if (hazeCol) {
+          const band = Math.exp(-Math.pow((t - 0.5) * 3.2, 2)); // gaussian centred on horizon
+          c.lerp(hazeCol, band * 0.35);
+        }
         skyCol.push(c.r, c.g, c.b);
       }
       skyGeo.setAttribute('color', new THREE.Float32BufferAttribute(skyCol, 3));
@@ -3901,8 +3916,11 @@
       // cloud on the upper hemisphere (it is a scene child, so teardown disposes it).
       if (id === 'space') {
         const sg = new THREE.BufferGeometry();
-        const N = 800,
-          arr = new Float32Array(N * 3);
+        const N = 1200,
+          arr = new Float32Array(N * 3),
+          colArr = new Float32Array(N * 3),
+          sizeArr = new Float32Array(N);
+        const starCols = [[1, 1, 1], [0.7, 0.8, 1.0], [1.0, 0.95, 0.8]]; // white, pale blue, pale yellow
         for (let i = 0; i < N; i++) {
           const u = Math.random() * 2 - 1,
             th = Math.random() * Math.PI * 2,
@@ -3910,14 +3928,25 @@
           arr[i * 3] = Math.cos(th) * rr * 850;
           arr[i * 3 + 1] = Math.abs(u) * 850;
           arr[i * 3 + 2] = Math.sin(th) * rr * 850;
+          const col = starCols[Math.random() * starCols.length | 0];
+          colArr[i * 3] = col[0];
+          colArr[i * 3 + 1] = col[1];
+          colArr[i * 3 + 2] = col[2];
+          sizeArr[i] = 0.8 + Math.random() * 1.6; // 0.8 to 2.4
         }
         sg.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-        scene.add(new THREE.Points(sg, new THREE.PointsMaterial({
-          color: 0xffffff,
-          size: 1.6,
-          sizeAttenuation: false,
+        sg.setAttribute('color', new THREE.BufferAttribute(colArr, 3));
+        sg.setAttribute('size', new THREE.BufferAttribute(sizeArr, 1));
+        // PointsMaterial in r137 lacks per-vertex size, so a core ShaderMaterial
+        // gives both per-vertex colours and sizes in a single BufferGeometry.
+        const starMat = new THREE.ShaderMaterial({
+          vertexShader: 'attribute float size;\nattribute vec3 color;\nvarying vec3 vColor;\nvoid main(){vColor=color;gl_PointSize=size;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+          fragmentShader: 'varying vec3 vColor;\nvoid main(){vec2 c=gl_PointCoord-0.5;float d=length(c);if(d>0.5)discard;float a=smoothstep(0.5,0.15,d);gl_FragColor=vec4(vColor,a);}',
+          transparent: true,
+          depthWrite: false,
           fog: false
-        })));
+        });
+        scene.add(new THREE.Points(sg, starMat));
       }
 
       // Ground.
@@ -3949,6 +3978,56 @@
       if (!openWorld) {
         groundMat.roughness = 0.85;
         groundMat.metalness = 0.1;
+      }
+      // Indoor/city floors: a subtle canvas texture (tile grid for rooms, faint
+      // road markings for city) so the ground reads as a real surface, not a
+      // flat colour slab. RepeatWrapping tiles the pattern across the floor.
+      if (id === 'room' || id === 'city') {
+        const ftex = typeof document !== 'undefined' && function () {
+          const cv = document.createElement('canvas');
+          cv.width = cv.height = 128;
+          const c2 = cv.getContext('2d');
+          if (!c2) return null;
+          c2.fillStyle = '#ffffff';
+          c2.fillRect(0, 0, 128, 128); // white base: material colour shows through
+          if (id === 'room') {
+            // light tile grid lines at low opacity
+            c2.strokeStyle = 'rgba(0,0,0,0.10)';
+            c2.lineWidth = 1;
+            c2.beginPath();
+            c2.moveTo(0, 0.5);
+            c2.lineTo(128, 0.5);
+            c2.moveTo(0.5, 0);
+            c2.lineTo(0.5, 128);
+            c2.stroke();
+          } else {
+            // faint road markings: dashed centre line and edge lines
+            c2.strokeStyle = 'rgba(230,216,134,0.20)';
+            c2.lineWidth = 2;
+            c2.setLineDash([16, 12]);
+            c2.beginPath();
+            c2.moveTo(64, 0);
+            c2.lineTo(64, 128);
+            c2.stroke();
+            c2.setLineDash([]);
+            c2.strokeStyle = 'rgba(232,236,242,0.12)';
+            c2.lineWidth = 1;
+            c2.beginPath();
+            c2.moveTo(24, 0);
+            c2.lineTo(24, 128);
+            c2.moveTo(104, 0);
+            c2.lineTo(104, 128);
+            c2.stroke();
+          }
+          const t = new THREE.CanvasTexture(cv);
+          t.wrapS = t.wrapT = THREE.RepeatWrapping;
+          t.repeat.set(id === 'room' ? 6 : 4, id === 'room' ? 6 : 4);
+          return t;
+        }();
+        if (ftex) {
+          groundMat.map = ftex;
+          groundMat.needsUpdate = true;
+        }
       }
       scene.add(ground);
       if (id !== 'city' && id !== 'room') {
@@ -4183,7 +4262,7 @@
           color: col,
           roughness: 0.24,
           metalness: 0.72,
-          envMapIntensity: 1.1,
+          envMapIntensity: 1.3,
           clearcoat: 1.0,
           clearcoatRoughness: 0.1,
           sheen: 0.3
@@ -4498,7 +4577,7 @@
       function buildRoom() {
         const R = 30;
         const wallM = new THREE.MeshStandardMaterial({
-          color: 0xcdbfa8,
+          color: 0xaea28f,
           roughness: 0.95,
           side: THREE.DoubleSide
         });
@@ -4980,7 +5059,7 @@
           color: 0x2b2f3a,
           roughness: 0.42,
           metalness: 0.45,
-          envMapIntensity: 1.0
+          envMapIntensity: 1.15
         });
         const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.7, 1.7), bodyMat);
         chassis.position.y = 0.92;
@@ -11712,18 +11791,11 @@ rover.say("Survey done")`
     const [activeTab, setActiveTab] = useState(() => {
       const saved = localStorage.getItem('or_tab');
       if (saved) return saved;
-      // Default to the autopilot showcase, but only if the current build can
-      // actually range: a camera-only arm (or any build with no ultrasonic)
-      // would fail autopilot's first distance() call with a gating refusal, so
-      // it opens on the base-command 'starter' example instead and first Run
-      // always works.
-      try {
-        const rb = window.getKodroRobot && window.getKodroRobot();
-        if (rb && window.KodroCommands && !window.KodroCommands.check(rb, 'distance').ok) return 'basecamp';
-      } catch (e) {
-        void e;
-      }
-      return 'autopilot';
+      // Default to the short 'starter' example (drive tab) so the first thing a
+      // user sees is a friendly 6-line program, not a wall of code. It uses only
+      // base commands (forward/turn/say), so it runs on every robot build without
+      // a gating refusal -- no need to branch on distance() availability.
+      return 'drive';
     });
     const [programs, setPrograms] = useState(() => {
       try {
@@ -11887,7 +11959,7 @@ rover.say("Survey done")`
     const code = currentLessonId ? lessonBuffers[currentLessonId] !== undefined ? lessonBuffers[currentLessonId] : ''
     // Never hand the editor undefined (it would .split(undefined) and crash):
     // if activeTab is somehow not a known example key, fall back to basecamp.
-    : programs[activeTab] !== undefined ? programs[activeTab] : programs.basecamp || '';
+    : programs[activeTab] !== undefined ? programs[activeTab] : programs.drive || '';
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
     const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
@@ -11996,7 +12068,7 @@ rover.say("Survey done")`
         // after picking, say, a camera-only arm still works.
         try {
           const canRange = !window.KodroCommands || window.KodroCommands.check(e.detail, 'distance').ok;
-          if (!canRange) setActiveTab(t => t === 'autopilot' || t === 'avoid' ? 'basecamp' : t);
+          if (!canRange) setActiveTab(t => t === 'autopilot' || t === 'avoid' ? 'drive' : t);
         } catch (err) {
           void err;
         }
@@ -13622,27 +13694,37 @@ rover.say("Survey done")`
         setVaData(null);
         runVoiceAgent();
       }
-    }, "\uD83C\uDF99"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83C\uDF99", /*#__PURE__*/React.createElement("span", {
+      className: "icon-btn-label"
+    }, "Voice")), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
       title: "Robot Lab. Design a custom robot",
       "aria-label": "Robot Lab",
       onClick: () => setRobotLabOpen(true)
-    }, "\uD83D\uDEE0"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83D\uDEE0", /*#__PURE__*/React.createElement("span", {
+      className: "icon-btn-label"
+    }, "Robot Lab")), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
       title: "Memory. What the system learned, and your skill library",
       "aria-label": "Memory and skills",
       onClick: () => setMemoryOpen(true)
-    }, "\uD83E\uDDE0"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83E\uDDE0", /*#__PURE__*/React.createElement("span", {
+      className: "icon-btn-label"
+    }, "Memory")), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
       title: "Build a real robot on a budget",
       "aria-label": "Build a real robot",
       onClick: () => setBuildOpen(true)
-    }, "\uD83E\uDD16"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83E\uDD16", /*#__PURE__*/React.createElement("span", {
+      className: "icon-btn-label"
+    }, "Build")), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
       title: "Keyboard shortcuts (?)",
       "aria-label": "Keyboard shortcuts",
       onClick: () => setShowHelp(true)
-    }, "?"), /*#__PURE__*/React.createElement("div", {
+    }, "?", /*#__PURE__*/React.createElement("span", {
+      className: "icon-btn-label"
+    }, "Help")), /*#__PURE__*/React.createElement("div", {
       className: "settings-wrap"
     }, /*#__PURE__*/React.createElement("button", {
       ref: settingsBtnRef,
@@ -13652,7 +13734,9 @@ rover.say("Survey done")`
       "aria-haspopup": "dialog",
       "aria-expanded": settingsOpen,
       onClick: () => setSettingsOpen(o => !o)
-    }, "\u2699"), settingsOpen && /*#__PURE__*/React.createElement("div", {
+    }, "\u2699", /*#__PURE__*/React.createElement("span", {
+      className: "icon-btn-label"
+    }, "Settings")), settingsOpen && /*#__PURE__*/React.createElement("div", {
       className: "settings-pop",
       role: "dialog",
       "aria-label": "Settings"
@@ -13783,7 +13867,9 @@ rover.say("Survey done")`
     }, "Pick a lesson\u2026"), lessons.map(l => /*#__PURE__*/React.createElement("option", {
       key: l.id,
       value: l.id
-    }, l.id, " \xB7 ", l.title, " [", l.keyStage, "]")))), /*#__PURE__*/React.createElement("button", {
+    }, l.id, " \xB7 ", l.title, " [", l.keyStage, "]")))), /*#__PURE__*/React.createElement("div", {
+      className: "panel-actions"
+    }, /*#__PURE__*/React.createElement("button", {
       className: "btn-mini btn-vibe",
       title: aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)',
       onClick: () => setVibeOpen(true)
@@ -13823,7 +13909,7 @@ rover.say("Survey done")`
       className: "btn-mini",
       title: "Run your program on a swarm of rovers at once",
       onClick: runSwarm
-    }, "\uD83D\uDC1D Swarm")), /*#__PURE__*/React.createElement(window.Editor, {
+    }, "\uD83D\uDC1D Swarm"))), /*#__PURE__*/React.createElement(window.Editor, {
       code: code,
       onChange: onCodeChange,
       activeLine: activeLine,
