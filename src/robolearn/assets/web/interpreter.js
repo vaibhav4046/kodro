@@ -148,6 +148,11 @@
       if (s.kind === 'elif' || s.kind === 'else') {
         const prev = out[out.length - 1];
         if (!prev || (prev.kind !== 'if')) {
+          // for...else / while...else is valid Python we do not implement; give
+          // an accurate diagnostic instead of the misleading "else without if".
+          if (s.kind === 'else' && prev && (prev.kind === 'for' || prev.kind === 'while')) {
+            throw new RoverError('loop-else is not supported', s.line);
+          }
           throw new RoverError('"' + s.kind + '" without matching "if".', s.line);
         }
         if (s.kind === 'elif') prev.branches.push({ test: s.test, body: s.body });
@@ -236,7 +241,13 @@
           if (src[j] === '+' || src[j] === '-') j++;
           while (j < n && /[0-9]/.test(src[j])) j++;
         }
-        toks.push({ t: 'num', v: parseFloat(src.slice(i, j).replace(/_/g, '')) }); i = j; continue;
+        const slice = src.slice(i, j);
+        // Python has no number like 1.2.3; parseFloat would silently keep 1.2
+        // and drop the rest, so reject any literal with more than one dot.
+        if ((slice.match(/\./g) || []).length > 1) {
+          throw new RoverError('invalid number literal "' + slice + '"', line);
+        }
+        toks.push({ t: 'num', v: parseFloat(slice.replace(/_/g, '')) }); i = j; continue;
       }
       if (c === '"' || c === "'") {
         let j = i + 1, s = '';
@@ -339,11 +350,18 @@
     const parseMul = binLevel(['*', '/', '//', '%'], parseUnary);
     const parseAdd = binLevel(['+', '-'], parseMul);
     const parseCmp = function () {
-      let left = parseAdd();
+      const first = parseAdd();
+      // Python chains comparisons: `a < b < c` means `a < b and b < c`, with
+      // every operand evaluated exactly once. Collect the whole chain into one
+      // node (ops[] between operands[]) so the evaluator can short-circuit it.
+      const ops = [];
+      const operands = [first];
       while (peek() && peek().t === 'op' && ['<', '>', '<=', '>=', '==', '!='].indexOf(peek().v) >= 0) {
-        const op = next().v; left = { k: 'cmp', op: op, l: left, r: parseAdd() };
+        ops.push(next().v);
+        operands.push(parseAdd());
       }
-      return left;
+      if (ops.length === 0) return first;
+      return { k: 'cmp', ops: ops, operands: operands };
     };
     // `not` binds looser than comparison but tighter than `and` (Python order),
     // so `not a == b` means `not (a == b)`.
@@ -380,17 +398,26 @@
       range: function (a, b, c) {
         let start = 0, stop, step = 1;
         if (b === undefined) stop = a; else { start = a; stop = b; if (c !== undefined) step = c; }
+        // Python's range() takes only ints: a float arg or step is a TypeError,
+        // and a zero step is a ValueError. Match that so the JS sim agrees with
+        // the grader instead of silently iterating fractional ranges.
+        for (const v of [start, stop, step]) {
+          if (!Number.isInteger(Number(v))) {
+            throw new RoverError("'float' object cannot be interpreted as an integer");
+          }
+        }
+        if (step === 0) throw new RoverError('range() arg 3 must not be zero');
         const arr = [];
         if (step > 0) for (let i = start; i < stop; i += step) arr.push(i);
-        else if (step < 0) for (let i = start; i > stop; i += step) arr.push(i);
+        else for (let i = start; i > stop; i += step) arr.push(i);
         return arr;
       },
       len: x => { if (x && x.length != null) return x.length; throw new RoverError('len() needs a list or text.'); },
-      int: x => Math.trunc(Number(x)),
-      float: x => Number(x),
+      int: x => pyInt(x),
+      float: x => pyFloat(x),
       str: x => pyStr(x),
       abs: x => Math.abs(x),
-      round: (x, d) => d ? Number(Number(x).toFixed(d)) : Math.round(x),
+      round: (x, d) => pyRound(x, d),
       // Python min()/max() accept either several args or a single iterable.
       min: function () { let a = [].slice.call(arguments); if (a.length === 1 && Array.isArray(a[0])) a = a[0]; return Math.min.apply(null, a); },
       max: function () { let a = [].slice.call(arguments); if (a.length === 1 && Array.isArray(a[0])) a = a[0]; return Math.max.apply(null, a); },
@@ -406,9 +433,58 @@
     if (Array.isArray(v)) return '[' + v.map(pyStr).join(', ') + ']';
     if (typeof v === 'number') {
       if (Number.isInteger(v)) return String(v);
-      return String(Math.round(v * 1e6) / 1e6);
+      // Emit the full double repr (String(v)) so e.g. print(1/3) matches
+      // Python's '0.3333333333333333' rather than the old 6-digit truncation.
+      // Known modelling gap (out of scope): we do not track int vs float, so
+      // 4/2 prints '2' here where CPython prints '2.0'.
+      return String(v);
     }
     return String(v);
+  }
+
+  // round() with Python's banker's rounding (round half to even) for both the
+  // no-digit and d-digit forms, so the JS sim agrees with the grader. The
+  // `d != null` test (not `d ?`) routes round(x, 0) through the digit path.
+  function pyRound(x, d) {
+    const n = Number(x);
+    if (d != null) {
+      const f = Math.pow(10, d);
+      return roundHalfToEven(n * f) / f;
+    }
+    return roundHalfToEven(n);
+  }
+  function roundHalfToEven(n) {
+    const floor = Math.floor(n);
+    const diff = n - floor;
+    if (diff < 0.5) return floor;
+    if (diff > 0.5) return floor + 1;
+    // Exactly halfway: round to the even neighbour.
+    return (floor % 2 === 0) ? floor : floor + 1;
+  }
+
+  // int()/float() guard non-numeric strings with a value-error diagnostic. The
+  // graded Python sandbox does not even expose int/float, so this is purely a
+  // pupil-facing message, not a CPython-conformance claim. Numeric args keep
+  // the prior Math.trunc / Number behaviour.
+  function pyFloat(x) {
+    if (typeof x === 'string') {
+      const n = Number(x.trim());
+      if (Number.isNaN(n) || x.trim() === '') {
+        throw new RoverError('cannot convert "' + x + '" to a number');
+      }
+      return n;
+    }
+    return Number(x);
+  }
+  function pyInt(x) {
+    if (typeof x === 'string') {
+      const s = x.trim();
+      if (!/^[+-]?\d+$/.test(s)) {
+        throw new RoverError('cannot convert "' + x + '" to a whole number');
+      }
+      return parseInt(s, 10);
+    }
+    return Math.trunc(Number(x));
   }
 
   function truthy(v) {
@@ -447,8 +523,18 @@
             case 'not': return !truthy(evalExpr(node.e));
             case 'and': { const l = evalExpr(node.l); return truthy(l) ? evalExpr(node.r) : l; }
             case 'or': { const l = evalExpr(node.l); return truthy(l) ? l : evalExpr(node.r); }
-            case 'bin': return binop(node.op, evalExpr(node.l), evalExpr(node.r));
-            case 'cmp': return compare(node.op, evalExpr(node.l), evalExpr(node.r));
+            case 'bin': return binop(node.op, evalExpr(node.l), evalExpr(node.r), curLine);
+            case 'cmp': {
+              // Chained comparison a<b<c == (a<b) and (b<c), each operand
+              // evaluated exactly once, short-circuiting on the first false.
+              let prev = evalExpr(node.operands[0]);
+              for (let ci = 0; ci < node.ops.length; ci++) {
+                const rhs = evalExpr(node.operands[ci + 1]);
+                if (!truthy(compare(node.ops[ci], prev, rhs))) return false;
+                prev = rhs;
+              }
+              return true;
+            }
             case 'attr': return { __attr: true, obj: evalExpr(node.obj), name: node.name, node: node };
             case 'call': return evalCall(node);
             default: throw new RoverError('Cannot evaluate expression.', curLine);
@@ -539,7 +625,7 @@
             case 'assign': scope[s.target] = evalExpr(s.expr); yield { type: 'step', line: s.line }; return;
             case 'augassign': {
               const cur = (s.target in scope) ? scope[s.target] : 0;
-              scope[s.target] = binop(s.op, cur, evalExpr(s.expr));
+              scope[s.target] = binop(s.op, cur, evalExpr(s.expr), s.line);
               yield { type: 'step', line: s.line }; return;
             }
             case 'expr': {
@@ -695,11 +781,16 @@
   }
   function describe(node) { return node.k === 'name' ? node.v : node.k; }
 
-  function binop(op, l, r) {
+  function binop(op, l, r, line) {
     if (op === '+') {
       if (typeof l === 'string' || typeof r === 'string') return pyStr(l) + pyStr(r);
       if (Array.isArray(l) && Array.isArray(r)) return l.concat(r);
       return l + r;
+    }
+    // Python raises ZeroDivisionError for /, // and % by zero; JS would give
+    // Infinity/NaN, so raise here to match the grader and surface a diagnostic.
+    if ((op === '/' || op === '//' || op === '%') && r === 0) {
+      throw new RoverError('division by zero', line);
     }
     switch (op) {
       case '-': return l - r;
@@ -711,7 +802,7 @@
       case '%': return ((l % r) + r) % r;
       case '**': return Math.pow(l, r);
     }
-    throw new RoverError('Unknown operator "' + op + '".');
+    throw new RoverError('Unknown operator "' + op + '".', line);
   }
   // Python-style equality: True==1 / False==0 and element-wise list/tuple
   // compare, so the in-browser branch matches what the Python grader scores.
