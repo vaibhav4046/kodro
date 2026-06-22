@@ -107,6 +107,66 @@ lessons, confetti, an adaptive next-lesson recommendation) scored the build
 These threats are exactly what the planned human study is designed to
 address.
 
+## 3.5 Objective persona-task evaluation
+
+The heuristic review above is subjective. A second, **deterministic**
+persona evaluation removes the analyst from the scoring entirely: four
+simulated personas (a beginner with no code, a teacher preparing a class
+demo, a precise hobbyist maker, and a voice-first low-vision user) each
+attempt five tasks (drive forward; turn and move; drive a square; stop
+before an obstacle using `distance()`; a counted loop), phrased in that
+persona's own voice. The local assistant model answers; success is judged
+**only by the shipped interpreter and self-test** (`scripts/qa_personas.mjs`),
+over up to three correction turns in which the self-test summary is fed back
+as a user would report it. No model and no human scores the outcome —
+execution does. Fully offline; the local model is the only peer.
+
+Measured funnel over the 20 persona-task cells (model `kodro-coder`):
+
+| Outcome | Cells |
+| --- | :--: |
+| Compiled (valid program produced) | 18/20 (90%) |
+| Ran clean through the interpreter | 16/20 (80%) |
+| Stayed inside the arena (no wall hit) | 2/20 (10%) |
+| Completed the task | 6/20 (30%) |
+
+Mean turns to success: 1.0 (every success landed on the first attempt; no
+failing cell recovered across the correction turns).
+
+| Persona | Done | | Task | Done |
+| --- | :--: | :-- | --- | :--: |
+| Beginner (no code) | 1/5 | | Forward | 1/4 |
+| Teacher (class demo) | 1/5 | | Turn + move | 1/4 |
+| Maker (precise) | 3/5 | | Square | 0/4 |
+| Low-vision (voice) | 1/5 | | Obstacle stop | 0/4 |
+| | | | Counted loop | 4/4 |
+
+The reading cuts both ways. The assistant reliably produces compiling (90%)
+and running (80%) code — the floor a beginner needs to not be stranded on a
+syntax error. But task-correct behaviour is limited (30%), strongly
+dependent on phrasing precision (precise maker 60% against 20% for the
+vaguer voices) and task complexity (the counted loop succeeded everywhere;
+the square and the sensor-gated stop never did within three turns). This is
+the honest ceiling of a 1-to-4-billion-parameter model on a laptop with no
+cloud, reported as such rather than hidden.
+
+The result that matters for the design is the safety row. Of the 16
+programs that ran, 14 would have driven the robot into the arena wall,
+almost always because the model over-shot the distance (a plain "drive
+forward a few metres" became a 30-metre move). **The deterministic self-test
+caught every one** before it reached the learner and returned an actionable
+correction. The weakness of the model and the value of the safety net are
+one finding, not two: it is *because* the small offline model is
+untrustworthy alone that Kodro pairs it with a deterministic execution check
+rather than surfacing raw generated code.
+
+**Its own limits**, stated plainly: the personas are still simulated
+phrasings rather than real users; the task predicates are coarse proxies for
+success; and it exercises one model in one configuration on five short
+tasks, so it speaks to the assistant's code generation and safety net, not
+to whether a person learns. It too points to the same human study, and is
+not offered as a substitute for it.
+
 ## 4. Curriculum alignment
 
 The fifteen bundled lessons map to the UK Computing programme of study and

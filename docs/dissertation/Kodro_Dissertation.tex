@@ -432,6 +432,7 @@ Method & What it checks & Status \\
 Automated test suite & Correctness of every subsystem, regression safety & Done, continuous \\
 Functional QA harness & Interpreter and kinematics behaviour end to end & Done, continuous \\
 Persona review & Whole-product usability across user types & Done, formative \\
+Persona-task evaluation & Assistant code generation and the self-test safety net, scored by execution & Done, deterministic \\
 User and refinement study & Real efficacy and the refinement loop & Planned, future work \\
 \bottomrule
 \end{tabular}
@@ -466,8 +467,50 @@ Round & Personas & Focus & Mean (/10) \\
 \label{tab:persona}
 \end{table}
 
+\section{Objective persona-task evaluation}
+The persona review above is a subjective inspection, and its single-analyst scoring is its weakest point. To put a deterministic, reproducible number on the question that most affects a non-expert, whether the offline assistant turns a plain-language request into a program that actually works, a second persona evaluation was run that removes the analyst from the scoring entirely. Four simulated personas, a beginner with no code, a teacher preparing a class demonstration, a precise hobbyist maker, and a voice-first low-vision user, each attempt five tasks, phrased in that persona's own voice: drive forward, turn and move, drive a square, stop before an obstacle using the distance sensor, and a counted loop. The local assistant model answers; the result is judged not by any model and not by any human but by the same vendored interpreter and self-test that the product ships, over up to three correction turns in which the self-test's own summary is fed back the way a user would report it. Success is execution, not opinion. The harness is the script \texttt{scripts/qa\_personas.mjs} and is fully offline, with the local model as its only peer. Table~\ref{tab:objeval} reports the measured funnel over the twenty persona-task cells.
+
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lc}
+\toprule
+Outcome (over 20 persona $\times$ task cells) & Cells (\%) \\
+\midrule
+Compiled (valid program produced) & 18/20 (90\%) \\
+Ran clean through the interpreter & 16/20 (80\%) \\
+Stayed inside the arena (no wall hit) & 2/20 (10\%) \\
+Completed the task & 6/20 (30\%) \\
+\bottomrule
+\end{tabular}
+\caption{Objective persona-task funnel, model \texttt{kodro-coder}, up to three correction turns. Each outcome is judged by the shipped interpreter and self-test, not by a rater. Mean turns to success was 1.0 (every success landed on the first attempt; no failing cell recovered across the correction turns).}
+\label{tab:objeval}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lc@{\hskip 1.4cm}lc}
+\toprule
+Persona & Task complete & Task & Complete \\
+\midrule
+Beginner (no code) & 1/5 (20\%) & Forward & 1/4 (25\%) \\
+Teacher (class demo) & 1/5 (20\%) & Turn and move & 1/4 (25\%) \\
+Maker (precise) & 3/5 (60\%) & Square & 0/4 (0\%) \\
+Low-vision (voice-first) & 1/5 (20\%) & Obstacle stop & 0/4 (0\%) \\
+ & & Counted loop & 4/4 (100\%) \\
+\bottomrule
+\end{tabular}
+\caption{Task completion broken down by persona and by task.}
+\label{tab:objbreakdown}
+\end{table}
+
+The reading is candid and it cuts both ways. The assistant reliably produces syntactically valid code, ninety percent compiled, that mostly runs, eighty percent, which is the floor a beginner needs in order not to be stranded on a syntax error. But task-correct behaviour is limited: only thirty percent of cells completed the task; the precise maker phrasing succeeded at sixty percent against twenty percent for the vaguer voices; and the simple counted loop succeeded for every persona while the square and the sensor-gated stop never completed within three turns. This is the honest ceiling of a small model in the one-to-four-billion-parameter range running on a laptop with no cloud, and it is reported as such rather than hidden.
+
+The result that matters for the design is the third row. Of the sixteen programs that ran, fourteen would have driven the robot into the arena wall, almost always because the model over-shot the distance, a plain ``drive forward a few metres'' becoming a thirty-metre move. The deterministic self-test caught every one of these before it reached the learner and returned an actionable correction rather than a crash. The evaluation therefore validates the central architectural choice directly: the small offline model is not trustworthy on its own, which is exactly why Kodro pairs it with a deterministic execution check instead of surfacing raw generated code. The weakness of the model and the value of the safety net are one finding, not two.
+
 \section{Threats to validity}
-The persona review is a low-cost inspection method in the tradition of heuristic evaluation, and it is reported with its limits stated plainly rather than dressed up as user evidence. Three threats matter. First, a single analyst simulated every persona, so the scores carry that analyst's bias and the inter-rater reliability is unknown. Second, the personas are informed guesses about real makers and cannot capture genuine confusion, motivation or the messiness of real use. Third, re-scoring a build the analyst made risks optimism, so a rising mean should be read as a direction of travel that the tool became more learnable to drive, which is a usability signal and nothing more. The fifth round, scoring the new three-dimensional world lower than the fourth, is left in deliberately, because the honest record includes the rounds that went down as well as the rounds that went up. These threats are exactly what the planned user study is designed to address.
+The persona review is a low-cost inspection method in the tradition of heuristic evaluation, and it is reported with its limits stated plainly rather than dressed up as user evidence. Three threats matter. First, a single analyst simulated every persona, so the scores carry that analyst's bias and the inter-rater reliability is unknown. Second, the personas are informed guesses about real makers and cannot capture genuine confusion, motivation or the messiness of real use. Third, re-scoring a build the analyst made risks optimism, so a rising mean should be read as a direction of travel that the tool became more learnable to drive, which is a usability signal and nothing more. The fifth round, scoring the new three-dimensional world lower than the fourth, is left in deliberately, because the honest record includes the rounds that went down as well as the rounds that went up. These threats are exactly what the planned user study is designed to address. The objective persona-task evaluation in the previous section removes the rating bias, because nothing it reports is scored by a person, but it carries its own limits and they are stated with equal plainness: its personas are still simulated phrasings rather than real users; its task predicates are coarse proxies for success rather than a learner's judgement; and it exercises one model in one configuration on five short tasks, so it speaks to the assistant's code generation and safety net, not to whether a person actually learns. It too points to the same human study, and neither method is offered as a substitute for it.
 
 \section{The planned studies}
 Three studies are specified and left for a point at which they can be run under consent. The first asks whether the tool helps: a within-subject design with about sixteen non-experts, each attempting two comparable held-out scenarios, one with Kodro's grounded help and reviewer and one without, with order counterbalanced, where success is a design that completes the scenario in at least sixteen of twenty randomised runs, and iterations and collisions are recorded alongside. The second asks whether the tool refines: the same participant tackles a sequence of related scenarios in two arms whose only difference is the memory, the full arm against an ablated arm with reflection retrieval and the skill library turned off, with the full arm expected to reach a working design in at least a quarter fewer iterations. The third measures the assistant directly on a fixed set of design questions including adversarial and off-specification ones, where grounded answers must be correct at least eighty five percent of the time and invent a missing part less than five percent of the time, and where grounding must beat the same model asked without the specification, with the five percent invention rate set as a release gate above which only the deterministic path ships. The analysis for each is fixed before any data is collected, and a positive result is to be read as a signal to confirm at scale rather than as proof, because the samples are small and convenient.
@@ -476,7 +519,7 @@ Three studies are specified and left for a point at which they can be run under 
 The application is already instrumented for these studies without any cloud service. Every run is recorded with its program, trace, score, battery and collisions, the reflections and skills accumulate in the local store, and the results can be exported on demand, all on device. This is consistent with the offline constraint and it simplifies the ethics and data-protection position for any future study, because no personal data ever leaves the machine.
 
 \section{Summary of the evaluation}
-The honest position is that the product has been verified, it does what it claims and the tests prove it, and it has been heuristically reviewed, it should work for a range of makers, but it has not yet been validated with real users. The interpreter passes at twenty one of twenty one, the engine suite passes at scale with high coverage, and the persona review traces a real improvement as defects were fixed. The remaining step to a confident claim of usefulness is the human study, for which the instrumentation is in place, and the next chapter is candid about the limitations that study and the roadmap will have to address.
+The honest position is that the product has been verified, it does what it claims and the tests prove it, and it has been heuristically reviewed, it should work for a range of makers, but it has not yet been validated with real users. The interpreter passes at twenty one of twenty one, the engine suite passes at scale with high coverage, and the persona review traces a real improvement as defects were fixed. An objective persona-task evaluation, scored only by the shipped interpreter and self-test, then puts a deterministic figure on the offline assistant: it reliably produces running code but completes the task in only thirty percent of cells, and its chief result is that the deterministic self-test caught every unsafe program the model produced before it reached the learner, which is the safety argument the whole design rests on. The remaining step to a confident claim of usefulness is the human study, for which the instrumentation is in place, and the next chapter is candid about the limitations that study and the roadmap will have to address.
 
 \chapter{Discussion and Limitations}
 
