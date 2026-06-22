@@ -30,6 +30,14 @@ a time, pause between.
 - REMAINING for code-9 (<800) is no longer safe verbatim auto-extraction: it needs (1) untangling cross-wired concerns (voice/vibe share state) and (2) splitting the ~600-line JSX render into sub-components. Both are design-level refactors, only partially covered by the smoke net -> do with richer behaviour assertions + human review, not blind auto-passes.
 - Dissertation: 7  -- persona table (tex 458-462) still differs from evaluation.md; sensor-gating contradiction (tex ~492 says only ultrasonic gated, but IMU heading is too); evaluation.md/decision-log still KS3/KS4-framed vs adult thesis; O5 refinement overclaim
 
+## Brutal audit cycle (multi-agent, 2026-06-22)
+Workflow kodro-brutal-audit: 8 finder dims (react/three/python/offline/a11y/ux/harness/engine) -> adversarial verify. 15 confirmed real of 74 raw (CRIT 0, HIGH 1, MED 6, LOW 8). ALL 15 resolved:
+- 3b84d44 (8 fixes): setCode ReferenceError in voice paths -> onCodeChange [HIGH, broken shipped feature]; settings role=menu->dialog + drop role=menuitem; console nested role=alert removed; heatmap white-text contrast -> adaptive black/white by cell luminance; vibe poll cancel ref on panel close; typewriter+say timer unmount cleanup; status pill 'Stepping'->'Paused'; lesson verdict glyph aria-hidden.
+- a83b174 (5 fixes): resizer keyboard a11y (role=separator + tabIndex + aria-value* + Arrow nudge in useResizers + focus ring) [WCAG 2.1.1]; camDrag+useResizers pointercancel cleanup; dead Viewport3D setPixelRatio removed; accent material shared (was per-part factory); forced-colors glyph dedup.
+- 05b6b44: home/landing rebuilt to studio Orbital Rover tokens (Cormorant/Inter Tight/cyan), Lovable-grade offline editorial hero; folds in the 2 onboarding a11y findings (radiogroup->toggle buttons w/ aria-pressed; mic aria-label). Screenshot tmp/home_new.png.
+All verified each commit: build + qa_interpreter 21/21 + qa_ui 6/6 (+rover-moved behaviour) + bundle-eval 3.
+NEXT loop cycles: re-run brutal audit to confirm zero regressions + surface deeper bugs; harden the harness (qa_ui behaviour asserts per concern, exact odometer); finish app.jsx render-split for code-9; the 2 non-code blockers (human study, dissertation framing) stay the user's.
+
 ## Remaining work per axis (do, verify, re-review, repeat)
 1. VISUAL (next): indoor worlds (lab/warehouse) under-lit and wash out -- darker
    contrast walls + a floor relief/texture for indoor floors + horizon haze on
