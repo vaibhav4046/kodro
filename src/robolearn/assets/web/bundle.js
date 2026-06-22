@@ -264,11 +264,16 @@
  *   window.KodroMemory.record({world, robotType, outcome, detail})
  *   window.KodroMemory.reflections()      -- recent reflections, newest first
  *   window.KodroMemory.saveSkill(name, code, ctx) / skills() / removeSkill(name)
- *   window.KodroMemory.lessonFor(world)   -- the latest reflection for a world
+ *   window.KodroMemory.lessonFor(world, robotType?)  -- most relevant reflection
+ *   window.KodroMemory.findSkill(world, robotType)   -- best matching saved skill
+ *   window.KodroMemory.stats()           -- {reflectionCount, skillCount, ...}
+ *   window.KodroMemory.exportData()      -- JSON backup of reflections + skills
+ *   window.KodroMemory.importData(json)  -- restore from a backup string
  */
 (function () {
   const RKEY = 'kodro_reflections_v1';
   const SKEY = 'kodro_skills_v1';
+  const CKEY = 'kodro_scenarios_v1';
   const MAX = 40;
   function load(key) {
     try {
@@ -285,19 +290,40 @@
       void e;
     }
   }
+  function bump() {
+    try {
+      window.dispatchEvent(new CustomEvent('kodro-memory'));
+    } catch (e) {
+      void e;
+    }
+  }
 
-  // Turn a run outcome into a short, useful reflection. Rule based and
-  // deterministic; the local model can elaborate it when one is installed.
+  // Turn a run outcome into a short, specific, actionable reflection. Rule
+  // based and deterministic; the local model can elaborate it when one is
+  // installed. Each branch names the concrete command to add or change so the
+  // suggestion can be applied directly to the next program.
   function reflect(run) {
     const what = (run.detail || '').toLowerCase();
-    if (run.outcome === 'done') return 'Reached the goal. This program worked here; consider saving it as a skill to reuse.';
-    if (run.outcome === 'crash') {
-      if (what.indexOf('pedestrian') >= 0) return 'A pedestrian crossed the path. Read sensor() and slow or stop before moving on.';
-      if (what.indexOf('vehicle') >= 0 || what.indexOf('car') >= 0) return 'Traffic was in the way. Wait for the lane to clear, then cross.';
-      if (what.indexOf('boundary') >= 0 || what.indexOf('wall') >= 0) return 'Hit the edge of the area. Turn back before the boundary.';
-      return 'Collided with ' + (run.detail || 'an obstacle') + '. Add a turn or a shorter move to go around it.';
+    const detail = run.detail || 'an obstacle';
+    if (run.outcome === 'done') {
+      return "Program worked. Consider saving it as a skill with the Save button to reuse on similar tasks.";
     }
-    return 'Run stopped early. Check the last command and try again.';
+    if (run.outcome === 'crash') {
+      if (what.indexOf('pedestrian') >= 0) {
+        return "A pedestrian crossed. Add 'while distance() > 40: move_forward(1)' to sense and stop before moving into a crossing.";
+      }
+      if (what.indexOf('vehicle') >= 0 || what.indexOf('car') >= 0 || what.indexOf('traffic') >= 0) {
+        return "Traffic was in the way. Scan with distance() before entering a lane, and wait if the reading is under 100.";
+      }
+      if (what.indexOf('boundary') >= 0 || what.indexOf('wall') >= 0 || what.indexOf('edge') >= 0) {
+        return "Hit the boundary. The arena is 30m wide. Use shorter moves like move_forward(2) and check distance() before long drives.";
+      }
+      return "Collided with " + detail + ". Add a distance() check before moving forward.";
+    }
+    if (run.outcome === 'flat') {
+      return "Battery ran out. Use shorter moves or set a lower speed with set_speed(50) to conserve battery.";
+    }
+    return "Run stopped early. Check the last command and try again.";
   }
   function record(run) {
     const refl = reflect(run);
@@ -312,20 +338,44 @@
     });
     if (list.length > MAX) list.length = MAX;
     save(RKEY, list);
-    try {
-      window.dispatchEvent(new CustomEvent('kodro-memory'));
-    } catch (e) {
-      void e;
-    }
+    bump();
     return refl;
   }
   function reflections() {
     return load(RKEY);
   }
-  function lessonFor(world) {
+
+  // Relevance score for a reflection against (world, robotType). A reflection
+  // matching both scores higher than one matching only the world; newer
+  // reflections break ties so the most recent applicable lesson wins.
+  function reflScore(r, world, robotType) {
+    let s = 0;
+    if (world && r.world === world) s += 2;
+    if (robotType && r.robotType === robotType) s += 1;
+    // Half-credit for an empty world so early generic lessons still surface.
+    if (world && !r.world) s += 0.5;
+    if (robotType && !r.robotType) s += 0.25;
+    return s;
+  }
+
+  // Most relevant reflection for the given world (and optional robotType).
+  // Backward compatible: callers that pass only world still get the newest
+  // world match, identical to the old behaviour.
+  function lessonFor(world, robotType) {
     const l = load(RKEY);
-    for (const r of l) if (!world || r.world === world) return r;
-    return null;
+    if (!l.length) return null;
+    let best = null;
+    let bestScore = 0;
+    for (let i = 0; i < l.length; i++) {
+      const r = l[i];
+      if (world && r.world && r.world !== world) continue;
+      const s = reflScore(r, world, robotType) + (l.length - i) / 100000; // recency tiebreak
+      if (s > bestScore) {
+        bestScore = s;
+        best = r;
+      }
+    }
+    return best;
   }
   function saveSkill(name, code, ctx) {
     if (!name || !code) return false;
@@ -340,11 +390,7 @@
     });
     if (list.length > MAX) list.length = MAX;
     save(SKEY, list);
-    try {
-      window.dispatchEvent(new CustomEvent('kodro-memory'));
-    } catch (e) {
-      void e;
-    }
+    bump();
     return true;
   }
   function skills() {
@@ -361,26 +407,131 @@
   }
   function removeSkill(name) {
     save(SKEY, load(SKEY).filter(s => s.name !== name));
-    try {
-      window.dispatchEvent(new CustomEvent('kodro-memory'));
-    } catch (e) {
-      void e;
+    bump();
+  }
+
+  // Best saved skill for the current context. Prefers a skill saved for this
+  // exact world + robotType; falls back to world-only matches; ranks ties by
+  // most uses, then most recent. Returns null if nothing usable is stored.
+  function findSkill(world, robotType) {
+    const l = load(SKEY);
+    if (!l.length) return null;
+    function score(s) {
+      let sWorld = 0,
+        sType = 0;
+      if (world && s.world === world) sWorld = 2;else if (world && !s.world) sWorld = 0.5;
+      if (robotType && s.robotType === robotType) sType = 1;else if (robotType && !s.robotType) sType = 0.25;
+      return sWorld + sType;
     }
+    let best = null,
+      bestKey = -1;
+    for (const s of l) {
+      const sc = score(s);
+      if (sc <= 0) continue;
+      // Sort key: score * 1e6 + uses * 1e3 + ts. Higher is better.
+      const key = sc * 1e6 + (s.uses || 0) * 1e3 + (s.ts || 0);
+      if (key > bestKey) {
+        bestKey = key;
+        best = s;
+      }
+    }
+    return best;
+  }
+
+  // Snapshot for the Memory panel: counts, the most-used skill, and the most
+  // recent run outcome so the UI can show what the system currently knows.
+  function stats() {
+    const rs = load(RKEY);
+    const ss = load(SKEY);
+    let topSkill = null;
+    for (const s of ss) if (!topSkill || (s.uses || 0) > (topSkill.uses || 0)) topSkill = s;
+    const recent = rs[0] || null;
+    return {
+      reflectionCount: rs.length,
+      skillCount: ss.length,
+      topSkill: topSkill ? {
+        name: topSkill.name,
+        uses: topSkill.uses || 0,
+        world: topSkill.world || '',
+        robotType: topSkill.robotType || ''
+      } : null,
+      recentOutcome: recent ? {
+        outcome: recent.outcome,
+        world: recent.world || '',
+        robotType: recent.robotType || '',
+        ts: recent.ts || 0
+      } : null
+    };
+  }
+
+  // Backup / restore. Only reflections + skills are exported (scenario reports
+  // are reproducible from seeds, so they stay out of the backup to keep it
+  // small and portable). importData merges by name for skills and prepends
+  // reflections, capping at MAX; returns the number of items restored.
+  function exportData() {
+    return JSON.stringify({
+      version: 1,
+      exportedAt: Date.now(),
+      reflections: load(RKEY),
+      skills: load(SKEY)
+    });
+  }
+  function importData(json) {
+    let data;
+    try {
+      data = typeof json === 'string' ? JSON.parse(json) : json;
+    } catch (e) {
+      return 0;
+    }
+    if (!data || typeof data !== 'object') return 0;
+    let count = 0;
+    if (Array.isArray(data.reflections)) {
+      const existing = load(RKEY);
+      const merged = data.reflections.filter(r => r && typeof r === 'object' && r.reflection).map(r => ({
+        ts: r.ts || 0,
+        world: r.world || '',
+        robotType: r.robotType || '',
+        outcome: r.outcome || '',
+        detail: r.detail || '',
+        reflection: String(r.reflection)
+      })).concat(existing);
+      while (merged.length > MAX) merged.pop();
+      save(RKEY, merged);
+      count += merged.length;
+    }
+    if (Array.isArray(data.skills)) {
+      const existing = load(SKEY);
+      const byName = {};
+      for (const s of existing) byName[s.name] = s;
+      for (const s of data.skills) {
+        if (!s || !s.name || !s.code) continue;
+        const prev = byName[s.name];
+        byName[s.name] = {
+          name: String(s.name).slice(0, 40),
+          code: String(s.code),
+          world: s.world || prev && prev.world || '',
+          robotType: s.robotType || prev && prev.robotType || '',
+          ts: Math.max(s.ts || 0, prev && prev.ts || 0),
+          uses: Math.max(s.uses || 0, prev && prev.uses || 0)
+        };
+      }
+      const merged = Object.values(byName).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      while (merged.length > MAX) merged.pop();
+      save(SKEY, merged);
+      count += merged.length;
+    }
+    bump();
+    return count;
   }
 
   // ---- scenario validation reports (domain randomisation across seeds) ----
-  const CKEY = 'kodro_scenarios_v1';
   function saveScenarioReport(report) {
     if (!report) return false;
     const list = load(CKEY);
     list.unshift(report);
     if (list.length > MAX) list.length = MAX;
     save(CKEY, list);
-    try {
-      window.dispatchEvent(new CustomEvent('kodro-memory'));
-    } catch (e) {
-      void e;
-    }
+    bump();
     return true;
   }
   function scenarioReports() {
@@ -394,6 +545,10 @@
     skills,
     useSkill,
     removeSkill,
+    findSkill,
+    stats,
+    exportData,
+    importData,
     saveScenarioReport,
     scenarioReports
   };
@@ -5510,6 +5665,26 @@
         dragging = false,
         lx = 0,
         ly = 0;
+      // Cinematic auto-orbit (window.KODRO_CINEMATIC): when on and the user is
+      // not dragging, the camera slowly revolves around the robot for a
+      // hands-free showcase turntable.
+      let cinematic = false;
+      window.KODRO_CINEMATIC = false;
+      // Smooth camera reset (window.KODRO_RESET_CAM): animates azim/elev/dist
+      // back to the default (2.4, 0.62, 26) over 30 frames with smoothstep easing.
+      let resetFrames = 0,
+        resetStartAzim = 0,
+        resetStartElev = 0,
+        resetStartDist = 0;
+      window.KODRO_RESET_CAM = function () {
+        resetStartAzim = azim;
+        resetStartElev = elev;
+        resetStartDist = dist;
+        resetFrames = 30;
+      };
+      // Baseline fog near plane, saved so the fake-DOF tick can modulate it
+      // relative to the original value instead of drift-accumulating.
+      const fogNear0 = scene.fog && scene.fog.near != null ? scene.fog.near : null;
       const dom = renderer.domElement;
       const ptrs = new Map();
       let pinch = 0;
@@ -5695,19 +5870,56 @@
           const tsec = now / 1000;
           for (let i = 0; i < agents.length; i++) agents[i].update(tsec);
         }
+
+        // Sync the cinematic toggle from the host app each frame.
+        cinematic = !!window.KODRO_CINEMATIC;
+        // Cinematic auto-orbit: slowly revolve around the robot when enabled and
+        // the user is not dragging (third person only). 0.15 deg/frame -> a full
+        // turn in about 40 seconds, slow enough to feel like a film dolly.
+        if (cinematic && !dragging && !fpvRef.current) {
+          azim += 0.15 * Math.PI / 180;
+        }
+        // Smooth camera reset: ease azim/elev/dist back to the default over 30
+        // frames with smoothstep so the reset glides instead of snapping.
+        if (resetFrames > 0) {
+          const rt = (30 - resetFrames) / 30; // 0 -> 1
+          const re = rt * rt * (3 - 2 * rt); // smoothstep
+          azim = resetStartAzim + (2.4 - resetStartAzim) * re;
+          elev = resetStartElev + (0.62 - resetStartElev) * re;
+          dist = resetStartDist + (26 - resetStartDist) * re;
+          resetFrames--;
+        }
         if (fpvRef.current) {
           // First person: sit in the rover, look the way it drives.
-          camPos.set(cur.x + fwd.x * 1.2, 2.4, cur.z + fwd.z * 1.2);
+          // Head-bob: a small vertical sway (amplitude 0.02) whose frequency
+          // rises with speed, so FPV feels alive instead of a camera glued to
+          // rails. Bob fades to zero when the robot is still.
+          const sp = vsmooth;
+          const bobAmt = Math.min(1, sp * 6);
+          const bob = Math.sin(now * 0.015 * (1 + sp * 12)) * 0.02 * bobAmt;
+          camPos.set(cur.x + fwd.x * 1.2, 2.4 + bob, cur.z + fwd.z * 1.2);
           camera.position.copy(camPos);
-          camera.lookAt(cur.x + fwd.x * 20, 1.8, cur.z + fwd.z * 20);
+          camera.lookAt(cur.x + fwd.x * 20, 1.8 + bob, cur.z + fwd.z * 20);
         } else {
           // Third person orbit, damped so it eases rather than jumps.
+          // Frame-rate independent damping: the follow feels the same at 30 or
+          // 144 fps. alpha = 1 - (1 - 0.12)^(dt*60), dt in seconds.
           const ox = Math.cos(azim) * Math.cos(elev) * dist;
           const oy = Math.sin(elev) * dist + 4;
           const oz = Math.sin(azim) * Math.cos(elev) * dist;
-          camPos.lerp(camTarget.set(cur.x + ox, oy, cur.z + oz), camLerp);
+          const camAlpha = reduce ? 1 : 1 - Math.pow(1 - 0.12, dt / 1000 * 60);
+          camPos.lerp(camTarget.set(cur.x + ox, oy, cur.z + oz), camAlpha);
           camera.position.copy(camPos);
           camera.lookAt(cur.x, 2, cur.z);
+        }
+        // Fake depth of field: pull the fog near plane closer when the camera is
+        // far from the robot, so distant scenery softens into haze for a
+        // photographic depth feel without a post-processing pass. Subtle (up to
+        // 35% nearer) so it never looks like a wall of fog.
+        if (scene.fog && scene.fog.near != null && fogNear0 != null) {
+          const camDist = camera.position.distanceTo(cur);
+          const dofT = Math.max(0, Math.min(1, (camDist - 18) / 50));
+          scene.fog.near = fogNear0 * (1 - 0.35 * dofT);
         }
         // Cinematic uses the offline bloom/vignette pass; every other tier (and
         // the post-downgrade slow-GPU path) renders straight to the canvas. If
@@ -5743,6 +5955,18 @@
       tick();
       return () => {
         disposed = true;
+        // Drop the window hooks this instance exposed so a stale KODRO_RESET_CAM
+        // cannot write into a disposed closure after a remount.
+        try {
+          window.KODRO_CINEMATIC = undefined;
+        } catch (e) {
+          void e;
+        }
+        try {
+          window.KODRO_RESET_CAM = undefined;
+        } catch (e) {
+          void e;
+        }
         glRef.current = null;
         if (reduceMql) {
           if (reduceMql.removeEventListener) reduceMql.removeEventListener('change', onReduceChange);else if (reduceMql.removeListener) reduceMql.removeListener(onReduceChange);
@@ -10120,7 +10344,7 @@ Object.assign(window, {
   // The robot API is BARE functions, not object methods. The small local model
   // tends to emit rover.move_forward()/rover.right() which do not exist and
   // NameError at run time, so the prompt is explicit and the output is gated.
-  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.';
+  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. A turn is 90 degrees for a right angle, 180 to face back. A beep is beep(1). A wait is wait(1) for one second. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.\n\nExamples of correct code:\n# Example 1: move forward 3m, turn right 90, then move 2m\nmove_forward(3)\nturn_right(90)\nmove_forward(2)\n\n# Example 2: draw a square of side 2m\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n\n# Example 3: drive forward until close to a wall\nwhile distance() > 40:\n    move_forward(1)';
 
   // The fine-tuned model strongly prefers object-method style (rover.move_forward,
   // rover.forward, rover.right) which the interpreter's bare-function surface does
@@ -10142,6 +10366,16 @@ Object.assign(window, {
     };
     // Strip any stray markdown fences the model emits inside its code.
     var out = code.replace(/^```(?:python|py)?\s*/gim, '').replace(/```\s*$/gim, '');
+    // Strip prose prefixes the model emits before code ("Here is ...", "Sure, ...").
+    // Only drop a line if it does NOT contain a Python keyword or a function call,
+    // so we never eat an actual line of code that happens to start with these words.
+    var PY_KW = /\b(for|while|if|elif|else|def|return|import|from|in|not|and|or|True|False|None|break|continue|pass|with|try|except|finally|class|lambda|yield|raise|assert|del|global|nonlocal|is|as)\b/;
+    var CALL = /[A-Za-z_]\w*\s*\(/;
+    var PROSE_RE = /^[ \t]*(Here|Sure|This|The robot|To make|This code|This will|You can|Let me|I'll|Below)\b[^\n]*$/gmi;
+    out = out.replace(PROSE_RE, function (line) {
+      if (PY_KW.test(line) || CALL.test(line)) return line;
+      return '';
+    });
     // rover.robot.bot.method(...) -> method(...)
     out = out.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, function (m, name) {
       return (alias[name] || name) + '(';
@@ -10285,7 +10519,7 @@ Object.assign(window, {
             // One repair round, feeding the real interpreter error back, so the
             // browser ships code that actually runs (mirrors the desktop gate).
             try {
-              const fix = await genOnce(model, prompt + '\n\nThat code failed to run with this error: ' + v.error + '\nReturn ONLY corrected code. ' + API_HINT, {
+              const fix = await genOnce(model, prompt + '\n\nThat code failed to run with this error: ' + v.error + '\nThe code must use ONLY bare function calls like move_forward(3), NOT rover.move_forward(3). Fix the syntax and return only the corrected code. ' + API_HINT, {
                 system: sys,
                 num_predict: 400,
                 temperature: 0.2
@@ -11128,7 +11362,7 @@ rover.say("Survey done")`
       className: "modal-backdrop",
       onClick: onClose
     }, /*#__PURE__*/React.createElement("div", {
-      className: "modal",
+      className: "modal modal-wide",
       role: "dialog",
       "aria-modal": "true",
       "aria-label": "Keyboard shortcuts",
@@ -11141,9 +11375,35 @@ rover.say("Survey done")`
       className: "btn-mini",
       "aria-label": "Close",
       onClick: onClose
-    }, "\u2715")), /*#__PURE__*/React.createElement("dl", {
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "shortcut-groups"
+    }, /*#__PURE__*/React.createElement("section", {
+      className: "shortcut-group"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "shortcut-group-title"
+    }, "Run controls"), /*#__PURE__*/React.createElement("dl", {
       className: "shortcut-list"
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Run / Pause the program")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "F10")), /*#__PURE__*/React.createElement("dd", null, "Step one instruction")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Tab")), /*#__PURE__*/React.createElement("dd", null, "Indent (in the editor)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Shift"), "+", /*#__PURE__*/React.createElement("kbd", null, "Tab")), /*#__PURE__*/React.createElement("dd", null, "Dedent (in the editor)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Auto-indent the next line")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Esc")), /*#__PURE__*/React.createElement("dd", null, "Leave the editor / close this")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "?")), /*#__PURE__*/React.createElement("dd", null, "Show this help")))));
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Run / Pause the program")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "F5")), /*#__PURE__*/React.createElement("dd", null, "Run / Pause the program")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "Shift"), "+", /*#__PURE__*/React.createElement("kbd", null, "S")), /*#__PURE__*/React.createElement("dd", null, "Step one instruction")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "F10")), /*#__PURE__*/React.createElement("dd", null, "Step one instruction")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Esc")), /*#__PURE__*/React.createElement("dd", null, "Reset the rover (or close a dialog)")))), /*#__PURE__*/React.createElement("section", {
+      className: "shortcut-group"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "shortcut-group-title"
+    }, "View controls"), /*#__PURE__*/React.createElement("dl", {
+      className: "shortcut-list"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "D")), /*#__PURE__*/React.createElement("dd", null, "Toggle 2D / 3D view")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "F")), /*#__PURE__*/React.createElement("dd", null, "Toggle first-person camera")))), /*#__PURE__*/React.createElement("section", {
+      className: "shortcut-group"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "shortcut-group-title"
+    }, "Panels"), /*#__PURE__*/React.createElement("dl", {
+      className: "shortcut-list"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "B")), /*#__PURE__*/React.createElement("dd", null, "Toggle block coding panel")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "L")), /*#__PURE__*/React.createElement("dd", null, "Toggle Robot Lab")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "M")), /*#__PURE__*/React.createElement("dd", null, "Toggle Memory panel")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "/")), /*#__PURE__*/React.createElement("dd", null, "Toggle this help")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "?")), /*#__PURE__*/React.createElement("dd", null, "Toggle this help")))), /*#__PURE__*/React.createElement("section", {
+      className: "shortcut-group"
+    }, /*#__PURE__*/React.createElement("h3", {
+      className: "shortcut-group-title"
+    }, "Worlds"), /*#__PURE__*/React.createElement("dl", {
+      className: "shortcut-list"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "1")), /*#__PURE__*/React.createElement("dd", null, "City")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "2")), /*#__PURE__*/React.createElement("dd", null, "Room")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "3")), /*#__PURE__*/React.createElement("dd", null, "Earth")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "4")), /*#__PURE__*/React.createElement("dd", null, "Mars")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "5")), /*#__PURE__*/React.createElement("dd", null, "Underwater")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "6")), /*#__PURE__*/React.createElement("dd", null, "Space"))))), /*#__PURE__*/React.createElement("p", {
+      className: "shortcut-editor-hint"
+    }, "In the editor: ", /*#__PURE__*/React.createElement("kbd", null, "Tab"), " indent \xB7 ", /*#__PURE__*/React.createElement("kbd", null, "Shift"), "+", /*#__PURE__*/React.createElement("kbd", null, "Tab"), " dedent \xB7 ", /*#__PURE__*/React.createElement("kbd", null, "Enter"), " auto-indent next line \xB7 ", /*#__PURE__*/React.createElement("kbd", null, "Esc"), " leave the editor")));
   }
 
   // ---- Build a real robot ----
@@ -11671,11 +11931,23 @@ rover.say("Survey done")`
       className: "btn-mini btn-vibe",
       onClick: () => {
         const n = window.prompt && window.prompt('Name this skill');
-        if (n && window.KodroMemory) window.KodroMemory.saveSkill(n, code, {
-          world: terrain.id,
-          robotType: robotSpec && robotSpec.type || '',
-          ts: Date.now()
-        });
+        if (n && window.KodroMemory) {
+          window.KodroMemory.saveSkill(n, code, {
+            world: terrain.id,
+            robotType: robotSpec && robotSpec.type || '',
+            ts: Date.now()
+          });
+          try {
+            window.dispatchEvent(new CustomEvent('kodro-toast', {
+              detail: {
+                text: 'Skill saved',
+                kind: 'info'
+              }
+            }));
+          } catch (e) {
+            void e;
+          }
+        }
       }
     }, "\uFF0B Save current code as a skill"), (window.KodroMemory ? window.KodroMemory.skills() : []).length ? /*#__PURE__*/React.createElement("ul", {
       className: "mem-list"
@@ -12256,6 +12528,31 @@ rover.say("Survey done")`
     const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    // Toast notifications: transient success/error/info messages pinned to the
+    // bottom-right. A single CSS keyframe drives fade-in, hold and fade-out, so
+    // the JS only needs to mount the toast and unmount it after the animation.
+    const [toasts, setToasts] = useState([]);
+    const toastIdRef = useRef(0);
+    function showToast(text, kind) {
+      const id = ++toastIdRef.current;
+      setToasts(function (t) {
+        return t.concat([{
+          id: id,
+          text: text,
+          kind: kind || 'info'
+        }]);
+      });
+      setTimeout(function () {
+        setToasts(function (t) {
+          return t.filter(function (to) {
+            return to.id !== id;
+          });
+        });
+      }, 2400);
+    }
+    // Brief "Loading {world}..." overlay shown while the 3D scene rebuilds on a
+    // world switch, so the viewport does not flash empty for a frame.
+    const [worldLoading, setWorldLoading] = useState(null);
     // Mobile telemetry: collapsed by default under 768px; toggle expands it.
     const [teleCollapsed, setTeleCollapsed] = useState(() => {
       try {
@@ -12379,6 +12676,17 @@ rover.say("Survey done")`
       const on = () => setMemTick(n => n + 1 & 1023);
       window.addEventListener('kodro-memory', on);
       return () => window.removeEventListener('kodro-memory', on);
+    }, []);
+    // Bridge for toasts fired by sibling modules (e.g. the Memory panel's
+    // "Save current code as a skill" button dispatches a kodro-toast event so it
+    // can surface a toast without holding a direct reference to showToast).
+    useEffect(() => {
+      const onToast = e => {
+        const d = e && e.detail || {};
+        showToast(d.text || '', d.kind || 'info');
+      };
+      window.addEventListener('kodro-toast', onToast);
+      return () => window.removeEventListener('kodro-toast', onToast);
     }, []);
     // Second-agent code review: extracted to window.KodroHooks.useReview
     // (hooks.jsx). Owns reviewOpen/reviewBusy/reviewData/reviewErr + the
@@ -13296,6 +13604,7 @@ rover.say("Survey done")`
         const what = crashed.type === 'wall' ? 'arena boundary' : crashed.type === 'pedestrian' ? 'a pedestrian' : crashed.type === 'robot' ? 'another robot' : crashed.type === 'vehicle' ? 'a vehicle' : terrain.obstacleLabel.toLowerCase();
         sfx('crash');
         addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
+        showToast('Collision detected', 'err');
         // Self-refinement: record the run and surface what the system learned.
         if (window.KodroMemory) {
           const refl = window.KodroMemory.record({
@@ -13528,6 +13837,7 @@ rover.say("Survey done")`
         return;
       } // terminal line: stay quiet
       addConsole('Program finished.', 'ok');
+      showToast('Program complete', 'ok');
       // Self-refinement: a clean finish is a result worth remembering.
       if (window.KodroMemory) {
         window.KodroMemory.record({
@@ -13738,6 +14048,13 @@ rover.say("Survey done")`
         type: 'sys',
         text: 'Switched to ' + (t.name || id) + '.' + (t.coord ? ' ' + t.coord : '')
       }]);
+      // The 3D viewport rebuilds on a terrain change (keyed by terrain.id) and
+      // can flash an empty canvas for a frame while it spins up. Cover that with
+      // a 200ms "Loading..." cue so the transition reads as intentional.
+      setWorldLoading({
+        name: t.name || id
+      });
+      setTimeout(() => setWorldLoading(null), 200);
     }
     function onCodeChange(v) {
       if (currentLessonId) setLessonBuffers(b => ({
@@ -13840,22 +14157,143 @@ rover.say("Survey done")`
     onRunRef.current = onRun;
     const onStepRef = useRef(onStep);
     onStepRef.current = onStep;
+    const onResetRef = useRef(onReset);
+    onResetRef.current = onReset;
+    const onTerrainRef = useRef(onTerrain);
+    onTerrainRef.current = onTerrain;
     const showHelpRef = useRef(showHelp);
     showHelpRef.current = showHelp;
+    // "Any overlay open" drives Escape priority: close overlays before resetting
+    // the rover. Includes the settings popover (its own Escape handler also
+    // fires; the duplicate close is harmless) but excludes FPV, which has a
+    // dedicated Escape handler for motion-sensitive exit.
+    const anyOverlayOpenRef = useRef(false);
+    anyOverlayOpenRef.current = !!(swarmOpen || vaOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || settingsOpen);
+    const fpvRef = useRef(fpv);
+    fpvRef.current = fpv;
+    // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
+    const WORLDS_KB = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
     useEffect(() => {
       const typingIn = el => el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable);
+      const closeAllOverlays = () => {
+        setSwarmOpen(false);
+        setVaOpen(false);
+        setAskOpen(false);
+        setTeacherOpen(false);
+        setRobotLabOpen(false);
+        setMemoryOpen(false);
+        setReviewOpen(false);
+        setVibeOpen(false);
+        setBlocksOpen(false);
+        setBuildOpen(false);
+        setShowHelp(false);
+        setRealismOpen(false);
+        setDemoOpen(false);
+        setSettingsOpen(false);
+      };
       const h = e => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        const cmd = e.metaKey || e.ctrlKey;
+        // ---- Run controls ----
+        // Ctrl+Enter or F5: Run / Pause the current program.
+        if (cmd && e.key === 'Enter') {
           e.preventDefault();
           onRunRef.current();
-        } else if (e.key === 'F10') {
+          return;
+        }
+        if (e.key === 'F5') {
+          e.preventDefault();
+          onRunRef.current();
+          return;
+        }
+        // Ctrl+Shift+S or F10: Step one instruction.
+        if (cmd && e.shiftKey && (e.key === 'S' || e.key === 's')) {
           e.preventDefault();
           onStepRef.current();
-        } else if (e.key === 'Escape' && showHelpRef.current) {
-          setShowHelp(false);
+          return;
+        }
+        if (e.key === 'F10') {
+          e.preventDefault();
+          onStepRef.current();
+          return;
+        }
+        // Escape: close an open overlay, else reset the rover. A text field gets
+        // to keep Escape (it blurs the field); FPV has its own Escape-to-exit.
+        if (e.key === 'Escape') {
+          if (anyOverlayOpenRef.current) {
+            e.preventDefault();
+            closeAllOverlays();
+            return;
+          }
+          if (!typingIn(e.target) && !fpvRef.current) {
+            e.preventDefault();
+            onResetRef.current();
+          }
+          return;
+        }
+        // Everything below is a Ctrl/Cmd combo (plus the bare '?' help toggle).
+        if (cmd) {
+          // Ctrl+1..6: switch world (no Shift/Alt so Ctrl+Shift+1 etc. are free).
+          if (e.key >= '1' && e.key <= '6' && !e.shiftKey && !e.altKey) {
+            const id = WORLDS_KB[Number(e.key) - 1];
+            if (id) {
+              e.preventDefault();
+              onTerrainRef.current(id);
+            }
+            return;
+          }
+          // Ctrl+B: toggle the block coding panel.
+          if (!e.shiftKey && !e.altKey && (e.key === 'B' || e.key === 'b')) {
+            e.preventDefault();
+            setBlocksOpen(function (o) {
+              return !o;
+            });
+            return;
+          }
+          // Ctrl+L: toggle Robot Lab.
+          if (!e.shiftKey && !e.altKey && (e.key === 'L' || e.key === 'l')) {
+            e.preventDefault();
+            setRobotLabOpen(function (o) {
+              return !o;
+            });
+            return;
+          }
+          // Ctrl+M: toggle the Memory panel.
+          if (!e.shiftKey && !e.altKey && (e.key === 'M' || e.key === 'm')) {
+            e.preventDefault();
+            setMemoryOpen(function (o) {
+              return !o;
+            });
+            return;
+          }
+          // Ctrl+/: toggle the help / shortcuts modal.
+          if (e.key === '/') {
+            e.preventDefault();
+            setShowHelp(function (s) {
+              return !s;
+            });
+            return;
+          }
+          // Ctrl+D: toggle 2D / 3D view.
+          if (!e.shiftKey && !e.altKey && (e.key === 'D' || e.key === 'd')) {
+            e.preventDefault();
+            setView3d(function (v) {
+              return !v;
+            });
+            return;
+          }
+          // Ctrl+F: toggle first-person view (only meaningful in 3D).
+          if (!e.shiftKey && !e.altKey && (e.key === 'F' || e.key === 'f')) {
+            e.preventDefault();
+            setFpv(function (f) {
+              return !f;
+            });
+            return;
+          }
         } else if (e.key === '?' && !typingIn(e.target)) {
           e.preventDefault();
-          setShowHelp(s => !s);
+          setShowHelp(function (s) {
+            return !s;
+          });
         }
       };
       window.addEventListener('keydown', h);
@@ -14489,7 +14927,17 @@ rover.say("Survey done")`
         yaw: v === 0 ? 0 : -8,
         zoom: 1
       })
-    })), /*#__PURE__*/React.createElement("div", {
+    }), worldLoading && /*#__PURE__*/React.createElement("div", {
+      className: "world-loading",
+      role: "status",
+      "aria-live": "polite",
+      "aria-label": 'Loading ' + worldLoading.name
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "world-loading-card"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "world-loading-spinner",
+      "aria-hidden": "true"
+    }), /*#__PURE__*/React.createElement("span", null, "Loading ", worldLoading.name, "\u2026")))), /*#__PURE__*/React.createElement("div", {
       className: "resizer",
       role: "separator",
       "aria-orientation": "vertical",
@@ -14680,7 +15128,17 @@ rover.say("Survey done")`
       runBuild: runBuild,
       buildErr: buildErr,
       buildPlan: buildPlan
-    }), !onboarded && window.KodroOnboarding && /*#__PURE__*/React.createElement(window.KodroOnboarding, {
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "toast-stack",
+      role: "status",
+      "aria-live": "polite",
+      "aria-atomic": "false"
+    }, toasts.map(function (t) {
+      return /*#__PURE__*/React.createElement("div", {
+        key: t.id,
+        className: 'toast toast-' + t.kind
+      }, t.text);
+    })), !onboarded && window.KodroOnboarding && /*#__PURE__*/React.createElement(window.KodroOnboarding, {
       onClose: () => {
         setOnboarded(true);
         try {

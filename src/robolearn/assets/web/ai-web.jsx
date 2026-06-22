@@ -84,7 +84,7 @@
   // The robot API is BARE functions, not object methods. The small local model
   // tends to emit rover.move_forward()/rover.right() which do not exist and
   // NameError at run time, so the prompt is explicit and the output is gated.
-  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.';
+  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. A turn is 90 degrees for a right angle, 180 to face back. A beep is beep(1). A wait is wait(1) for one second. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.\n\nExamples of correct code:\n# Example 1: move forward 3m, turn right 90, then move 2m\nmove_forward(3)\nturn_right(90)\nmove_forward(2)\n\n# Example 2: draw a square of side 2m\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n\n# Example 3: drive forward until close to a wall\nwhile distance() > 40:\n    move_forward(1)';
 
   // The fine-tuned model strongly prefers object-method style (rover.move_forward,
   // rover.forward, rover.right) which the interpreter's bare-function surface does
@@ -95,6 +95,16 @@
     var alias = { forward: 'move_forward', backward: 'move_backward', left: 'turn_left', right: 'turn_right', speed: 'set_speed', scan: 'scan', distance: 'distance', heading: 'heading', battery: 'battery', stop: 'stop' };
     // Strip any stray markdown fences the model emits inside its code.
     var out = code.replace(/^```(?:python|py)?\s*/gim, '').replace(/```\s*$/gim, '');
+    // Strip prose prefixes the model emits before code ("Here is ...", "Sure, ...").
+    // Only drop a line if it does NOT contain a Python keyword or a function call,
+    // so we never eat an actual line of code that happens to start with these words.
+    var PY_KW = /\b(for|while|if|elif|else|def|return|import|from|in|not|and|or|True|False|None|break|continue|pass|with|try|except|finally|class|lambda|yield|raise|assert|del|global|nonlocal|is|as)\b/;
+    var CALL = /[A-Za-z_]\w*\s*\(/;
+    var PROSE_RE = /^[ \t]*(Here|Sure|This|The robot|To make|This code|This will|You can|Let me|I'll|Below)\b[^\n]*$/gmi;
+    out = out.replace(PROSE_RE, function (line) {
+      if (PY_KW.test(line) || CALL.test(line)) return line;
+      return '';
+    });
     // rover.robot.bot.method(...) -> method(...)
     out = out.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, function (m, name) {
       return (alias[name] || name) + '(';
@@ -182,7 +192,7 @@
             // One repair round, feeding the real interpreter error back, so the
             // browser ships code that actually runs (mirrors the desktop gate).
             try {
-              const fix = await genOnce(model, prompt + '\n\nThat code failed to run with this error: ' + v.error + '\nReturn ONLY corrected code. ' + API_HINT, { system: sys, num_predict: 400, temperature: 0.2 });
+              const fix = await genOnce(model, prompt + '\n\nThat code failed to run with this error: ' + v.error + '\nThe code must use ONLY bare function calls like move_forward(3), NOT rover.move_forward(3). Fix the syntax and return only the corrected code. ' + API_HINT, { system: sys, num_predict: 400, temperature: 0.2 });
               const fixed = normalizeApi(extractCode(fix));
               if (fixed && validate(fixed).ok) code = fixed;
             } catch (e2) { void e2; }

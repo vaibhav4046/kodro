@@ -164,6 +164,19 @@
     const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    // Toast notifications: transient success/error/info messages pinned to the
+    // bottom-right. A single CSS keyframe drives fade-in, hold and fade-out, so
+    // the JS only needs to mount the toast and unmount it after the animation.
+    const [toasts, setToasts] = useState([]);
+    const toastIdRef = useRef(0);
+    function showToast(text, kind) {
+      const id = ++toastIdRef.current;
+      setToasts(function (t) { return t.concat([{ id: id, text: text, kind: kind || 'info' }]); });
+      setTimeout(function () { setToasts(function (t) { return t.filter(function (to) { return to.id !== id; }); }); }, 2400);
+    }
+    // Brief "Loading {world}..." overlay shown while the 3D scene rebuilds on a
+    // world switch, so the viewport does not flash empty for a frame.
+    const [worldLoading, setWorldLoading] = useState(null);
     // Mobile telemetry: collapsed by default under 768px; toggle expands it.
     const [teleCollapsed, setTeleCollapsed] = useState(() => { try { return window.innerWidth <= 768; } catch (e) { return false; } });
     // First-run onboarding / landing flow (shown once, remembered, skippable).
@@ -255,6 +268,17 @@
       const on = () => setMemTick(n => (n + 1) & 1023);
       window.addEventListener('kodro-memory', on);
       return () => window.removeEventListener('kodro-memory', on);
+    }, []);
+    // Bridge for toasts fired by sibling modules (e.g. the Memory panel's
+    // "Save current code as a skill" button dispatches a kodro-toast event so it
+    // can surface a toast without holding a direct reference to showToast).
+    useEffect(() => {
+      const onToast = (e) => {
+        const d = (e && e.detail) || {};
+        showToast(d.text || '', d.kind || 'info');
+      };
+      window.addEventListener('kodro-toast', onToast);
+      return () => window.removeEventListener('kodro-toast', onToast);
     }, []);
     // Second-agent code review: extracted to window.KodroHooks.useReview
     // (hooks.jsx). Owns reviewOpen/reviewBusy/reviewData/reviewErr + the
@@ -854,6 +878,7 @@
                 : terrain.obstacleLabel.toLowerCase();
         sfx('crash');
         addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
+        showToast('Collision detected', 'err');
         // Self-refinement: record the run and surface what the system learned.
         if (window.KodroMemory) {
           const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'crash', detail: what, ts: Date.now() });
@@ -1002,6 +1027,7 @@
       setRunState('done');
       if (replRef.current) { replRef.current = false; return; }  // terminal line: stay quiet
       addConsole('Program finished.', 'ok');
+      showToast('Program complete', 'ok');
       // Self-refinement: a clean finish is a result worth remembering.
       if (window.KodroMemory) {
         window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'done', detail: 'finished without a collision', ts: Date.now() });
@@ -1177,6 +1203,11 @@
       // old TERRAINS[id].name threw a TypeError that killed the render.
       const t = (window.resolveSite ? window.resolveSite(id) : null) || TERRAINS[id] || TERRAINS.earth;
       setConsoleLines([{ type: 'sys', text: 'Switched to ' + (t.name || id) + '.' + (t.coord ? ' ' + t.coord : '') }]);
+      // The 3D viewport rebuilds on a terrain change (keyed by terrain.id) and
+      // can flash an empty canvas for a frame while it spins up. Cover that with
+      // a 200ms "Loading..." cue so the transition reads as intentional.
+      setWorldLoading({ name: t.name || id });
+      setTimeout(() => setWorldLoading(null), 200);
     }
 
     function onCodeChange(v) {
@@ -1240,14 +1271,66 @@
     // through refs that are kept current every render.
     const onRunRef = useRef(onRun); onRunRef.current = onRun;
     const onStepRef = useRef(onStep); onStepRef.current = onStep;
+    const onResetRef = useRef(onReset); onResetRef.current = onReset;
+    const onTerrainRef = useRef(onTerrain); onTerrainRef.current = onTerrain;
     const showHelpRef = useRef(showHelp); showHelpRef.current = showHelp;
+    // "Any overlay open" drives Escape priority: close overlays before resetting
+    // the rover. Includes the settings popover (its own Escape handler also
+    // fires; the duplicate close is harmless) but excludes FPV, which has a
+    // dedicated Escape handler for motion-sensitive exit.
+    const anyOverlayOpenRef = useRef(false);
+    anyOverlayOpenRef.current = !!(swarmOpen || vaOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || settingsOpen);
+    const fpvRef = useRef(fpv); fpvRef.current = fpv;
+    // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
+    const WORLDS_KB = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
     useEffect(() => {
       const typingIn = (el) => el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable);
+      const closeAllOverlays = () => {
+        setSwarmOpen(false); setVaOpen(false); setAskOpen(false); setTeacherOpen(false);
+        setRobotLabOpen(false); setMemoryOpen(false); setReviewOpen(false);
+        setVibeOpen(false); setBlocksOpen(false); setBuildOpen(false);
+        setShowHelp(false); setRealismOpen(false); setDemoOpen(false);
+        setSettingsOpen(false);
+      };
       const h = (e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); onRunRef.current(); }
-        else if (e.key === 'F10') { e.preventDefault(); onStepRef.current(); }
-        else if (e.key === 'Escape' && showHelpRef.current) { setShowHelp(false); }
-        else if (e.key === '?' && !typingIn(e.target)) { e.preventDefault(); setShowHelp(s => !s); }
+        const cmd = e.metaKey || e.ctrlKey;
+        // ---- Run controls ----
+        // Ctrl+Enter or F5: Run / Pause the current program.
+        if (cmd && e.key === 'Enter') { e.preventDefault(); onRunRef.current(); return; }
+        if (e.key === 'F5') { e.preventDefault(); onRunRef.current(); return; }
+        // Ctrl+Shift+S or F10: Step one instruction.
+        if (cmd && e.shiftKey && (e.key === 'S' || e.key === 's')) { e.preventDefault(); onStepRef.current(); return; }
+        if (e.key === 'F10') { e.preventDefault(); onStepRef.current(); return; }
+        // Escape: close an open overlay, else reset the rover. A text field gets
+        // to keep Escape (it blurs the field); FPV has its own Escape-to-exit.
+        if (e.key === 'Escape') {
+          if (anyOverlayOpenRef.current) { e.preventDefault(); closeAllOverlays(); return; }
+          if (!typingIn(e.target) && !fpvRef.current) { e.preventDefault(); onResetRef.current(); }
+          return;
+        }
+        // Everything below is a Ctrl/Cmd combo (plus the bare '?' help toggle).
+        if (cmd) {
+          // Ctrl+1..6: switch world (no Shift/Alt so Ctrl+Shift+1 etc. are free).
+          if (e.key >= '1' && e.key <= '6' && !e.shiftKey && !e.altKey) {
+            const id = WORLDS_KB[Number(e.key) - 1];
+            if (id) { e.preventDefault(); onTerrainRef.current(id); }
+            return;
+          }
+          // Ctrl+B: toggle the block coding panel.
+          if (!e.shiftKey && !e.altKey && (e.key === 'B' || e.key === 'b')) { e.preventDefault(); setBlocksOpen(function (o) { return !o; }); return; }
+          // Ctrl+L: toggle Robot Lab.
+          if (!e.shiftKey && !e.altKey && (e.key === 'L' || e.key === 'l')) { e.preventDefault(); setRobotLabOpen(function (o) { return !o; }); return; }
+          // Ctrl+M: toggle the Memory panel.
+          if (!e.shiftKey && !e.altKey && (e.key === 'M' || e.key === 'm')) { e.preventDefault(); setMemoryOpen(function (o) { return !o; }); return; }
+          // Ctrl+/: toggle the help / shortcuts modal.
+          if (e.key === '/') { e.preventDefault(); setShowHelp(function (s) { return !s; }); return; }
+          // Ctrl+D: toggle 2D / 3D view.
+          if (!e.shiftKey && !e.altKey && (e.key === 'D' || e.key === 'd')) { e.preventDefault(); setView3d(function (v) { return !v; }); return; }
+          // Ctrl+F: toggle first-person view (only meaningful in 3D).
+          if (!e.shiftKey && !e.altKey && (e.key === 'F' || e.key === 'f')) { e.preventDefault(); setFpv(function (f) { return !f; }); return; }
+        } else if (e.key === '?' && !typingIn(e.target)) {
+          e.preventDefault(); setShowHelp(function (s) { return !s; });
+        }
       };
       window.addEventListener('keydown', h);
       return () => window.removeEventListener('keydown', h);
@@ -1550,6 +1633,14 @@
             {view3d
               ? <window.Viewport3D key={'vp3d-' + (terrain && terrain.id) + '-' + (robotSpec && robotSpec.type) + (quality === 'cinematic' ? '-cine' : '-std')} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the 2.5D view.', 'sys'); }} />
               : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
+            {worldLoading && (
+              <div className="world-loading" role="status" aria-live="polite" aria-label={'Loading ' + worldLoading.name}>
+                <div className="world-loading-card">
+                  <span className="world-loading-spinner" aria-hidden="true"></span>
+                  <span>Loading {worldLoading.name}…</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="resizer" role="separator" aria-orientation="vertical" tabIndex={0} aria-label="Resize telemetry width (arrow left and right)" aria-valuenow={Math.round(teleW)} aria-valuemin={240} aria-valuemax={460} onKeyDown={e => { if (e.key === 'ArrowLeft') { e.preventDefault(); nudge('tele', 16); } else if (e.key === 'ArrowRight') { e.preventDefault(); nudge('tele', -16); } }} onPointerDown={e => startDrag('tele', e)} style={{ gridColumn: 4 }}></div>
@@ -1603,6 +1694,13 @@
         {showHelp && <window.KodroPanels.HelpModal onClose={() => setShowHelp(false)} />}
 
         {buildOpen && <window.KodroPanels.BuildModal onClose={() => setBuildOpen(false)} buildBudget={buildBudget} setBuildBudget={setBuildBudget} buildGoal={buildGoal} setBuildGoal={setBuildGoal} buildBusy={buildBusy} runBuild={runBuild} buildErr={buildErr} buildPlan={buildPlan} />}
+
+        {/* Toast notifications: success / error / info, bottom-right. */}
+        <div className="toast-stack" role="status" aria-live="polite" aria-atomic="false">
+          {toasts.map(function (t) {
+            return <div key={t.id} className={'toast toast-' + t.kind}>{t.text}</div>;
+          })}
+        </div>
 
         {!onboarded && window.KodroOnboarding && (
           <window.KodroOnboarding onClose={() => {

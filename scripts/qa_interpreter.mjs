@@ -140,6 +140,53 @@ check('square nets back near origin', (() => { const t = run('for i in range(4):
 check('while loop terminates via guard', run('n = 0\nwhile n < 5:\n    rover.forward(50)\n    n = n + 1').moves === 5, '');
 check('sensor distance() reads wall', run('d = rover.distance()\nprint(d)').steps > 0, '');
 
+console.log('\n== UNIT: edge cases ==');
+// Negative numbers: move_forward(-1) clamps to 0 (no-op move, not backward)
+check('move_forward(-1) distance clamped to 0', moveDist('move_forward(-1)') === 0, moveDist('move_forward(-1)') + 'cm');
+check('move_forward(-1) still emits a move event', run('move_forward(-1)').moves === 1, run('move_forward(-1)').moves + ' moves');
+check('move_forward(-1) produces no displacement', disp('move_forward(-1)') === 0, disp('move_forward(-1)') + 'cm');
+// Zero: move_forward(0) is a no-op move
+check('move_forward(0) distance is 0', moveDist('move_forward(0)') === 0, moveDist('move_forward(0)') + 'cm');
+check('move_forward(0) produces no displacement', disp('move_forward(0)') === 0, disp('move_forward(0)') + 'cm');
+// Float turns: turn_left(45.5) / turn_right(45.5) preserve the fractional degrees
+function turnDeg(src) {
+  for (const ev of compile(src).run({ sensor: () => 0 })) { if (ev.type === 'turn') return ev.deg; }
+  return null;
+}
+check('turn_left(45.5) emits -45.5 deg', turnDeg('turn_left(45.5)') === -45.5, turnDeg('turn_left(45.5)') + 'deg');
+check('turn_right(45.5) emits +45.5 deg', turnDeg('turn_right(45.5)') === 45.5, turnDeg('turn_right(45.5)') + 'deg');
+// Nested loops: inner body runs outer*inner times
+check('nested loops 3x2 = 6 moves', run('for i in range(3):\n    for j in range(2):\n        move_forward(1)').moves === 6, run('for i in range(3):\n    for j in range(2):\n        move_forward(1)').moves + ' moves');
+// Break in nested loop exits only the innermost loop
+check('break exits only innermost loop (3 moves)', run('for i in range(3):\n    for j in range(3):\n        if j == 1:\n            break\n        move_forward(1)').moves === 3, run('for i in range(3):\n    for j in range(3):\n        if j == 1:\n            break\n        move_forward(1)').moves + ' moves');
+// Continue skips the rest of one iteration
+check('continue skips one iteration (4 moves)', run('for i in range(5):\n    if i == 2:\n        continue\n    move_forward(1)').moves === 4, run('for i in range(5):\n    if i == 2:\n        continue\n    move_forward(1)').moves + ' moves');
+// Empty function body with pass
+check('def foo(): pass runs clean', runThrows('def foo():\n    pass\nfoo()') === null, runThrows('def foo():\n    pass\nfoo()'));
+// Function with return used in an expression
+check('function return 5 printed', printsOf('def foo():\n    return 5\nprint(foo())')[0] === '5', printsOf('def foo():\n    return 5\nprint(foo())')[0]);
+check('function return used in expression', printsOf('def double(n):\n    return n * 2\nprint(double(21))')[0] === '42', printsOf('def double(n):\n    return n * 2\nprint(double(21))')[0]);
+// String concatenation
+check('string concat "hello"+" "+"world"', printsOf('print("hello" + " " + "world")')[0] === 'hello world', printsOf('print("hello" + " " + "world")')[0]);
+// List indexing via [] is not supported (parseTrailers only handles . and ())
+check('[1,2,3][0] raises (no [] indexing)', runThrows('print([1,2,3][0])') !== null, runThrows('print([1,2,3][0])'));
+// Math builtins
+check('abs(-5) == 5', printsOf('print(abs(-5))')[0] === '5', printsOf('print(abs(-5))')[0]);
+check('round(3.7) == 4', printsOf('print(round(3.7))')[0] === '4', printsOf('print(round(3.7))')[0]);
+check('max(1, 2) == 2', printsOf('print(max(1, 2))')[0] === '2', printsOf('print(max(1, 2))')[0]);
+check('min(3, 1) == 1', printsOf('print(min(3, 1))')[0] === '1', printsOf('print(min(3, 1))')[0]);
+check('sqrt(16) == 4', printsOf('print(sqrt(16))')[0] === '4', printsOf('print(sqrt(16))')[0]);
+// Boolean expressions
+check('True and False -> False', printsOf('print(True and False)')[0] === 'False', printsOf('print(True and False)')[0]);
+check('True or False -> True', printsOf('print(True or False)')[0] === 'True', printsOf('print(True or False)')[0]);
+check('not True -> False', printsOf('print(not True)')[0] === 'False', printsOf('print(not True)')[0]);
+// Comparison chains (beyond the existing parity-fix regressions)
+check('chain 1 < 2 < 2 -> False', printsOf('print(1 < 2 < 2)')[0] === 'False', printsOf('print(1 < 2 < 2)')[0]);
+check('chain 5 > 3 > 1 -> True', printsOf('print(5 > 3 > 1)')[0] === 'True', printsOf('print(5 > 3 > 1)')[0]);
+check('chain 3 > 2 > 1 > 0 -> True (4-op)', printsOf('print(3 > 2 > 1 > 0)')[0] === 'True', printsOf('print(3 > 2 > 1 > 0)')[0]);
+// While with complex (and) condition
+check('while x<10 and y>0 stops at x=5 y=0', printsOf('x = 0\ny = 5\nwhile x < 10 and y > 0:\n    x = x + 1\n    y = y - 1\nprint(x, y)')[0] === '5 0', printsOf('x = 0\ny = 5\nwhile x < 10 and y > 0:\n    x = x + 1\n    y = y - 1\nprint(x, y)')[0]);
+
 console.log('\n== PYTHON-FIDELITY REGRESSIONS (8 fixes) ==');
 // Fix 1: chained comparison a<b<c is Python-associative (one AND of compares),
 // not left-associative. The old code returned wrong booleans.
