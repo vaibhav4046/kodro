@@ -108,7 +108,6 @@
         return undefined;
       }
       let disposed = false;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(w, h);
       renderer.shadowMap.enabled = true;
       // Softer shadows and filmic tone mapping lift the look out of the flat,
@@ -680,7 +679,10 @@
       let ledIndicator = null; // rover mast LED, pulsed each frame in tick()
       // DoubleSide so flat accent discs (the rover eye, the home chest) stay
       // visible when the orbit camera swings round behind the robot.
-      const accMat = () => new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5, side: THREE.DoubleSide });
+      // One shared accent material (identical params at every site); reused
+      // across the build instead of allocating a fresh material per part. The
+      // teardown traverse-dispose already frees it.
+      const accMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.5, side: THREE.DoubleSide });
       const addWheels = (positions, r) => {
         const wm = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.85 });
         const hubM = new THREE.MeshStandardMaterial({ color: 0x9aa0ad, roughness: 0.4, metalness: 0.6 });
@@ -692,7 +694,7 @@
           if (p[0] > 0) steer.push(wheel); // front axle steers
         });
       };
-      const arrow = (y) => { const a = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 4), accMat()); a.rotation.z = -Math.PI / 2; a.position.set(0.2, y, 0); body.add(a); };
+      const arrow = (y) => { const a = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 4), accMat); a.rotation.z = -Math.PI / 2; a.position.set(0.2, y, 0); body.add(a); };
       if (rType === 'car') {
         carBody(body, 0x2c6fb0);
         carWheels(rov, (wheel, tyre, front) => { wheels.push(tyre); if (front) steer.push(wheel); });
@@ -711,17 +713,17 @@
         const botM = new THREE.MeshStandardMaterial({ color: 0xe9edf2, roughness: 0.4, metalness: 0.1 });
         const base = new THREE.Mesh(new THREE.CylinderGeometry(0.92, 1.05, 0.5, 20), new THREE.MeshStandardMaterial({ color: 0x3a4150, roughness: 0.6 })); base.position.y = 0.25; base.castShadow = true; body.add(base);
         const torso = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.78, 1.1, 6, 16) : new THREE.CylinderGeometry(0.78, 0.78, 1.9, 16), botM); torso.position.y = 1.55; torso.castShadow = true; body.add(torso);
-        const chest = new THREE.Mesh(new THREE.CircleGeometry(0.26, 16), accMat()); chest.position.set(0.74, 1.6, 0); chest.rotation.y = Math.PI / 2; body.add(chest);
+        const chest = new THREE.Mesh(new THREE.CircleGeometry(0.26, 16), accMat); chest.position.set(0.74, 1.6, 0); chest.rotation.y = Math.PI / 2; body.add(chest);
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.66, 20, 16), botM); head.position.y = 2.75; head.castShadow = true; body.add(head);
         const visor = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 12), new THREE.MeshStandardMaterial({ color: 0x10141c, roughness: 0.2, metalness: 0.4 })); visor.scale.set(1, 0.7, 0.6); visor.position.set(0.42, 2.78, 0); body.add(visor);
-        [[0.78, 0.18], [0.78, -0.18]].forEach((p) => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), accMat()); e.position.set(p[0], 2.82, p[1]); body.add(e); });
+        [[0.78, 0.18], [0.78, -0.18]].forEach((p) => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), accMat); e.position.set(p[0], 2.82, p[1]); body.add(e); });
         // arms: a companion robot needs hands. Shoulder + upper arm + elbow +
         // forearm per side, hanging at rest, accent-coloured joints.
         const armMatH = new THREE.MeshStandardMaterial({ color: 0xd7dbe2, roughness: 0.45, metalness: 0.15 });
         [0.86, -0.86].forEach((z) => {
-          const sh = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), accMat()); sh.position.set(0, 2.0, z); body.add(sh);
+          const sh = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), accMat); sh.position.set(0, 2.0, z); body.add(sh);
           const up = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.17, 0.66, 4, 8) : new THREE.CylinderGeometry(0.17, 0.17, 1.0, 8), armMatH); up.position.set(0.06, 1.52, z); up.castShadow = true; body.add(up);
-          const el = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), accMat()); el.position.set(0.12, 1.08, z); body.add(el);
+          const el = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), accMat); el.position.set(0.12, 1.08, z); body.add(el);
           const fo = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.14, 0.52, 4, 8) : new THREE.CylinderGeometry(0.14, 0.14, 0.8, 8), armMatH); fo.position.set(0.18, 0.66, z); fo.castShadow = true; body.add(fo);
         });
         // wheels pushed out past the base skirt so they are actually visible
@@ -730,7 +732,7 @@
         arrow(3.5);
       } else if (rType === 'arm') {
         const armM = new THREE.MeshStandardMaterial({ color: 0xc7ccd4, roughness: 0.35, metalness: 0.6 });
-        const jointM = accMat();
+        const jointM = accMat;
         const base = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.2, 0.7, 20), new THREE.MeshStandardMaterial({ color: 0x39414c, roughness: 0.6 })); base.position.y = 0.35; base.castShadow = true; body.add(base);
         const j1 = new THREE.Mesh(new THREE.SphereGeometry(0.42, 14, 12), jointM); j1.position.y = 0.9; body.add(j1);
         const seg1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 2.2, 0.5), armM); seg1.position.set(0.2, 2.0, 0); seg1.rotation.z = -0.5; seg1.castShadow = true; body.add(seg1);
@@ -748,7 +750,7 @@
         const deck = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, 1.4), new THREE.MeshStandardMaterial({ color: 0x1b2740, roughness: 0.3, metalness: 0.5 })); deck.position.set(-0.2, 1.34, 0); body.add(deck);
         const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.0, 8), bodyMat); mast.position.set(0.85, 1.75, 0); body.add(mast);
         const camHead = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.72), bodyMat); camHead.position.set(0.85, 2.3, 0); camHead.castShadow = true; body.add(camHead);
-        const eye = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), accMat()); eye.position.set(1.12, 2.3, 0); eye.rotation.y = Math.PI / 2; body.add(eye);
+        const eye = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), accMat); eye.position.set(1.12, 2.3, 0); eye.rotation.y = Math.PI / 2; body.add(eye);
         // A small status LED atop the mast that pulses each frame (see tick()).
         const ledMat = new THREE.MeshStandardMaterial({ color: accent, emissive: accent, emissiveIntensity: 0.6 });
         ledIndicator = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), ledMat);
@@ -772,12 +774,12 @@
           if (fitted.indexOf('ultrasonic') >= 0) {
             [0.2, -0.2].forEach((z) => {
               const e = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.13, 16), darkM); e.rotation.z = Math.PI / 2; e.position.set(fx, sy, z); body.add(e);
-              const r = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), accMat()); r.position.set(fx + 0.08, sy, z); r.rotation.y = Math.PI / 2; body.add(r);
+              const r = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), accMat); r.position.set(fx + 0.08, sy, z); r.rotation.y = Math.PI / 2; body.add(r);
             });
           }
           if (fitted.indexOf('camera') >= 0) {
             const cam = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.34), darkM); cam.position.set(fx - 0.05, sy + 0.4, 0); body.add(cam);
-            const lens = new THREE.Mesh(new THREE.CircleGeometry(0.09, 14), accMat()); lens.position.set(fx + 0.07, sy + 0.4, 0); lens.rotation.y = Math.PI / 2; body.add(lens);
+            const lens = new THREE.Mesh(new THREE.CircleGeometry(0.09, 14), accMat); lens.position.set(fx + 0.07, sy + 0.4, 0); lens.rotation.y = Math.PI / 2; body.add(lens);
           }
           if (fitted.indexOf('bumper') >= 0) {
             const bar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 1.2), new THREE.MeshStandardMaterial({ color: 0xb84a3a, roughness: 0.6 })); bar.position.set(fx + 0.05, 0.55, 0); body.add(bar);
@@ -788,7 +790,7 @@
         }
         if (fitted.indexOf('gps') >= 0) {
           const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.7, 6), new THREE.MeshStandardMaterial({ color: 0x9aa0ad, metalness: 0.6, roughness: 0.4 })); ant.position.set(-0.2, sy + 0.9, 0.3); body.add(ant);
-          const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), accMat()); tip.position.set(-0.2, sy + 1.25, 0.3); body.add(tip);
+          const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), accMat); tip.position.set(-0.2, sy + 1.25, 0.3); body.add(tip);
         }
         if (fitted.indexOf('imu') >= 0) {
           const chip = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.16), new THREE.MeshStandardMaterial({ color: 0x2c7a4a, roughness: 0.5 })); chip.position.set(-0.1, sy + 0.1, -0.3); body.add(chip);

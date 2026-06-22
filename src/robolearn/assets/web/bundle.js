@@ -3780,7 +3780,6 @@
         return undefined;
       }
       let disposed = false;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.setSize(w, h);
       renderer.shadowMap.enabled = true;
       // Softer shadows and filmic tone mapping lift the look out of the flat,
@@ -4808,7 +4807,10 @@
       let ledIndicator = null; // rover mast LED, pulsed each frame in tick()
       // DoubleSide so flat accent discs (the rover eye, the home chest) stay
       // visible when the orbit camera swings round behind the robot.
-      const accMat = () => new THREE.MeshStandardMaterial({
+      // One shared accent material (identical params at every site); reused
+      // across the build instead of allocating a fresh material per part. The
+      // teardown traverse-dispose already frees it.
+      const accMat = new THREE.MeshStandardMaterial({
         color: accent,
         emissive: accent,
         emissiveIntensity: 0.5,
@@ -4840,7 +4842,7 @@
         });
       };
       const arrow = y => {
-        const a = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 4), accMat());
+        const a = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 4), accMat);
         a.rotation.z = -Math.PI / 2;
         a.position.set(0.2, y, 0);
         body.add(a);
@@ -4883,7 +4885,7 @@
         torso.position.y = 1.55;
         torso.castShadow = true;
         body.add(torso);
-        const chest = new THREE.Mesh(new THREE.CircleGeometry(0.26, 16), accMat());
+        const chest = new THREE.Mesh(new THREE.CircleGeometry(0.26, 16), accMat);
         chest.position.set(0.74, 1.6, 0);
         chest.rotation.y = Math.PI / 2;
         body.add(chest);
@@ -4900,7 +4902,7 @@
         visor.position.set(0.42, 2.78, 0);
         body.add(visor);
         [[0.78, 0.18], [0.78, -0.18]].forEach(p => {
-          const e = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), accMat());
+          const e = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), accMat);
           e.position.set(p[0], 2.82, p[1]);
           body.add(e);
         });
@@ -4912,14 +4914,14 @@
           metalness: 0.15
         });
         [0.86, -0.86].forEach(z => {
-          const sh = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), accMat());
+          const sh = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 10), accMat);
           sh.position.set(0, 2.0, z);
           body.add(sh);
           const up = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.17, 0.66, 4, 8) : new THREE.CylinderGeometry(0.17, 0.17, 1.0, 8), armMatH);
           up.position.set(0.06, 1.52, z);
           up.castShadow = true;
           body.add(up);
-          const el = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), accMat());
+          const el = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), accMat);
           el.position.set(0.12, 1.08, z);
           body.add(el);
           const fo = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.14, 0.52, 4, 8) : new THREE.CylinderGeometry(0.14, 0.14, 0.8, 8), armMatH);
@@ -4937,7 +4939,7 @@
           roughness: 0.35,
           metalness: 0.6
         });
-        const jointM = accMat();
+        const jointM = accMat;
         const base = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.2, 0.7, 20), new THREE.MeshStandardMaterial({
           color: 0x39414c,
           roughness: 0.6
@@ -4998,7 +5000,7 @@
         camHead.position.set(0.85, 2.3, 0);
         camHead.castShadow = true;
         body.add(camHead);
-        const eye = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), accMat());
+        const eye = new THREE.Mesh(new THREE.CircleGeometry(0.15, 16), accMat);
         eye.position.set(1.12, 2.3, 0);
         eye.rotation.y = Math.PI / 2;
         body.add(eye);
@@ -5045,7 +5047,7 @@
               e.rotation.z = Math.PI / 2;
               e.position.set(fx, sy, z);
               body.add(e);
-              const r = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), accMat());
+              const r = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), accMat);
               r.position.set(fx + 0.08, sy, z);
               r.rotation.y = Math.PI / 2;
               body.add(r);
@@ -5055,7 +5057,7 @@
             const cam = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.34), darkM);
             cam.position.set(fx - 0.05, sy + 0.4, 0);
             body.add(cam);
-            const lens = new THREE.Mesh(new THREE.CircleGeometry(0.09, 14), accMat());
+            const lens = new THREE.Mesh(new THREE.CircleGeometry(0.09, 14), accMat);
             lens.position.set(fx + 0.07, sy + 0.4, 0);
             lens.rotation.y = Math.PI / 2;
             body.add(lens);
@@ -5082,7 +5084,7 @@
           }));
           ant.position.set(-0.2, sy + 0.9, 0.3);
           body.add(ant);
-          const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), accMat());
+          const tip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), accMat);
           tip.position.set(-0.2, sy + 1.25, 0.3);
           body.add(tip);
         }
@@ -10221,17 +10223,25 @@ Object.assign(window, {
       const up = () => {
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
         document.body.style.cursor = '';
       };
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
       document.body.style.cursor = kind === 'console' ? 'row-resize' : 'col-resize';
+    }
+    // Keyboard alternative to dragging (WCAG 2.1.1): nudge a split by d pixels,
+    // clamped to the same bounds as the pointer drag.
+    function nudge(kind, d) {
+      if (kind === 'editor') setEditorW(w => Math.max(280, Math.min(640, w + d)));else if (kind === 'tele') setTeleW(w => Math.max(240, Math.min(460, w + d)));else if (kind === 'console') setConsoleH(h => Math.max(90, Math.min(420, h + d)));
     }
     return {
       editorW,
       teleW,
       consoleH,
-      startDrag
+      startDrag,
+      nudge
     };
   }
   function useBlocks(opts) {
@@ -12472,12 +12482,14 @@ rover.say("Survey done")`
       editorW,
       teleW,
       consoleH,
-      startDrag
+      startDrag,
+      nudge
     } = window.KodroHooks && window.KodroHooks.useResizers ? window.KodroHooks.useResizers() : {
       editorW: 404,
       teleW: 318,
       consoleH: 184,
-      startDrag: function () {}
+      startDrag: function () {},
+      nudge: function () {}
     };
 
     // interactive camera: drag the viewport to orbit (yaw + pitch), wheel to zoom
@@ -12499,10 +12511,12 @@ rover.say("Survey done")`
       const up = () => {
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
         document.body.style.cursor = '';
       };
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
       document.body.style.cursor = 'grabbing';
     }
     function camWheel(e) {
@@ -12922,6 +12936,22 @@ rover.say("Survey done")`
       }, "\uD83D\uDCA1 ", lessonVerdict.hint.message));
     })()), /*#__PURE__*/React.createElement("div", {
       className: "resizer-row",
+      role: "separator",
+      "aria-orientation": "horizontal",
+      tabIndex: 0,
+      "aria-label": "Resize console height (arrow up and down)",
+      "aria-valuenow": Math.round(consoleH),
+      "aria-valuemin": 90,
+      "aria-valuemax": 420,
+      onKeyDown: e => {
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          nudge('console', 16);
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          nudge('console', -16);
+        }
+      },
       onPointerDown: e => startDrag('console', e),
       style: {
         height: 5,
@@ -12994,6 +13024,22 @@ rover.say("Survey done")`
       }
     })))), /*#__PURE__*/React.createElement("div", {
       className: "resizer",
+      role: "separator",
+      "aria-orientation": "vertical",
+      tabIndex: 0,
+      "aria-label": "Resize editor width (arrow left and right)",
+      "aria-valuenow": Math.round(editorW),
+      "aria-valuemin": 280,
+      "aria-valuemax": 640,
+      onKeyDown: e => {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          nudge('editor', -16);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          nudge('editor', 16);
+        }
+      },
       onPointerDown: e => startDrag('editor', e),
       style: {
         gridColumn: 2
@@ -13122,6 +13168,22 @@ rover.say("Survey done")`
       })
     })), /*#__PURE__*/React.createElement("div", {
       className: "resizer",
+      role: "separator",
+      "aria-orientation": "vertical",
+      tabIndex: 0,
+      "aria-label": "Resize telemetry width (arrow left and right)",
+      "aria-valuenow": Math.round(teleW),
+      "aria-valuemin": 240,
+      "aria-valuemax": 460,
+      onKeyDown: e => {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          nudge('tele', 16);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          nudge('tele', -16);
+        }
+      },
       onPointerDown: e => startDrag('tele', e),
       style: {
         gridColumn: 4
