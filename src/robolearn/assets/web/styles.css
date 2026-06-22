@@ -756,6 +756,74 @@ kbd {
   .modal-backdrop, .modal { animation:none; }
 }
 
+/* Help modal: shortcuts grouped into sections (Run / View / Panels / Worlds). */
+.shortcut-groups { display:flex; flex-direction:column; gap:14px; }
+.shortcut-group { display:flex; flex-direction:column; gap:6px; }
+.shortcut-group-title {
+  margin:0; font-size:11px; font-weight:600; letter-spacing:0.12em;
+  text-transform:uppercase; color:var(--cyan);
+}
+.shortcut-editor-hint {
+  margin:12px 0 0; padding-top:10px; border-top:0.5px solid var(--border-2);
+  font-size:12px; color:var(--fg-3); line-height:1.7;
+}
+
+/* Toast notifications: transient success/error/info at the bottom-right.
+   One keyframe drives fade-in, hold and fade-out, so the JS only mounts the
+   element and removes it after the animation finishes. Pointer-events none on
+   the stack so toasts never block the UI underneath. */
+.toast-stack {
+  position:fixed; right:16px; bottom:16px; z-index:90;
+  display:flex; flex-direction:column-reverse; gap:8px;
+  pointer-events:none;
+}
+.toast {
+  pointer-events:auto;
+  padding:10px 16px; border-radius:8px;
+  font-size:13px; color:var(--fg-1); line-height:1.4;
+  background:var(--navy-2); border:1px solid var(--border);
+  box-shadow:var(--shadow-menu);
+  max-width:min(320px,90vw);
+  animation:toast-life 2.3s var(--ease) forwards;
+}
+.toast-ok { border-left:3px solid var(--success); }
+.toast-err { border-left:3px solid var(--danger); }
+.toast-info { border-left:3px solid var(--cyan); }
+@keyframes toast-life {
+  0% { opacity:0; transform:translateY(8px); }
+  10% { opacity:1; transform:translateY(0); }
+  85% { opacity:1; transform:translateY(0); }
+  100% { opacity:0; transform:translateY(8px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation:none; opacity:1; transform:none; }
+}
+
+/* World-switch loading overlay: covers the viewport while the 3D scene
+   rebuilds so the canvas does not flash empty for a frame. */
+.world-loading {
+  position:absolute; inset:0; z-index:50;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(8,9,15,0.45); backdrop-filter:blur(2px);
+  animation:fade-in 120ms var(--ease);
+}
+.world-loading-card {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 18px; border-radius:8px;
+  background:var(--navy-2); border:1px solid var(--border);
+  color:var(--fg-1); font-size:13px;
+  box-shadow:var(--shadow-menu);
+}
+.world-loading-spinner {
+  width:14px; height:14px; border-radius:50%; flex:none;
+  border:2px solid var(--border); border-top-color:var(--cyan);
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .world-loading, .world-loading-spinner { animation:none; }
+}
+
 /* Vibe coding (local AI) + Blocks mode (Scratch-style). */
 .modal-wide { width:min(560px,94vw); }
 .btn-vibe { color:var(--cyan); border-color:rgba(92,224,216,0.35); }

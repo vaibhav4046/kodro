@@ -1010,6 +1010,18 @@
       // Third-person orbit: drag to rotate, wheel or two-finger pinch to zoom,
       // so it works on a tablet or Chromebook as well as a mouse.
       let azim = 2.4, elev = 0.62, dist = id === 'room' ? 13 : 19, dragging = false, lx = 0, ly = 0;
+      // Cinematic auto-orbit (window.KODRO_CINEMATIC): when on and the user is
+      // not dragging, the camera slowly revolves around the robot for a
+      // hands-free showcase turntable.
+      let cinematic = false;
+      window.KODRO_CINEMATIC = false;
+      // Smooth camera reset (window.KODRO_RESET_CAM): animates azim/elev/dist
+      // back to the default (2.4, 0.62, 26) over 30 frames with smoothstep easing.
+      let resetFrames = 0, resetStartAzim = 0, resetStartElev = 0, resetStartDist = 0;
+      window.KODRO_RESET_CAM = function () { resetStartAzim = azim; resetStartElev = elev; resetStartDist = dist; resetFrames = 30; };
+      // Baseline fog near plane, saved so the fake-DOF tick can modulate it
+      // relative to the original value instead of drift-accumulating.
+      const fogNear0 = (scene.fog && scene.fog.near != null) ? scene.fog.near : null;
       const dom = renderer.domElement;
       const ptrs = new Map();
       let pinch = 0;
@@ -1164,19 +1176,55 @@
         // Drive the live city agents (pedestrians, traffic).
         if (agents.length) { const tsec = now / 1000; for (let i = 0; i < agents.length; i++) agents[i].update(tsec); }
 
+        // Sync the cinematic toggle from the host app each frame.
+        cinematic = !!window.KODRO_CINEMATIC;
+        // Cinematic auto-orbit: slowly revolve around the robot when enabled and
+        // the user is not dragging (third person only). 0.15 deg/frame -> a full
+        // turn in about 40 seconds, slow enough to feel like a film dolly.
+        if (cinematic && !dragging && !fpvRef.current) {
+          azim += 0.15 * Math.PI / 180;
+        }
+        // Smooth camera reset: ease azim/elev/dist back to the default over 30
+        // frames with smoothstep so the reset glides instead of snapping.
+        if (resetFrames > 0) {
+          const rt = (30 - resetFrames) / 30;      // 0 -> 1
+          const re = rt * rt * (3 - 2 * rt);       // smoothstep
+          azim = resetStartAzim + (2.4 - resetStartAzim) * re;
+          elev = resetStartElev + (0.62 - resetStartElev) * re;
+          dist = resetStartDist + (26 - resetStartDist) * re;
+          resetFrames--;
+        }
         if (fpvRef.current) {
           // First person: sit in the rover, look the way it drives.
-          camPos.set(cur.x + fwd.x * 1.2, 2.4, cur.z + fwd.z * 1.2);
+          // Head-bob: a small vertical sway (amplitude 0.02) whose frequency
+          // rises with speed, so FPV feels alive instead of a camera glued to
+          // rails. Bob fades to zero when the robot is still.
+          const sp = vsmooth;
+          const bobAmt = Math.min(1, sp * 6);
+          const bob = Math.sin(now * 0.015 * (1 + sp * 12)) * 0.02 * bobAmt;
+          camPos.set(cur.x + fwd.x * 1.2, 2.4 + bob, cur.z + fwd.z * 1.2);
           camera.position.copy(camPos);
-          camera.lookAt(cur.x + fwd.x * 20, 1.8, cur.z + fwd.z * 20);
+          camera.lookAt(cur.x + fwd.x * 20, 1.8 + bob, cur.z + fwd.z * 20);
         } else {
           // Third person orbit, damped so it eases rather than jumps.
+          // Frame-rate independent damping: the follow feels the same at 30 or
+          // 144 fps. alpha = 1 - (1 - 0.12)^(dt*60), dt in seconds.
           const ox = Math.cos(azim) * Math.cos(elev) * dist;
           const oy = Math.sin(elev) * dist + 4;
           const oz = Math.sin(azim) * Math.cos(elev) * dist;
-          camPos.lerp(camTarget.set(cur.x + ox, oy, cur.z + oz), camLerp);
+          const camAlpha = reduce ? 1 : (1 - Math.pow(1 - 0.12, (dt / 1000) * 60));
+          camPos.lerp(camTarget.set(cur.x + ox, oy, cur.z + oz), camAlpha);
           camera.position.copy(camPos);
           camera.lookAt(cur.x, 2, cur.z);
+        }
+        // Fake depth of field: pull the fog near plane closer when the camera is
+        // far from the robot, so distant scenery softens into haze for a
+        // photographic depth feel without a post-processing pass. Subtle (up to
+        // 35% nearer) so it never looks like a wall of fog.
+        if (scene.fog && scene.fog.near != null && fogNear0 != null) {
+          const camDist = camera.position.distanceTo(cur);
+          const dofT = Math.max(0, Math.min(1, (camDist - 18) / 50));
+          scene.fog.near = fogNear0 * (1 - 0.35 * dofT);
         }
         // Cinematic uses the offline bloom/vignette pass; every other tier (and
         // the post-downgrade slow-GPU path) renders straight to the canvas. If
@@ -1198,6 +1246,10 @@
 
       return () => {
         disposed = true;
+        // Drop the window hooks this instance exposed so a stale KODRO_RESET_CAM
+        // cannot write into a disposed closure after a remount.
+        try { window.KODRO_CINEMATIC = undefined; } catch (e) { void e; }
+        try { window.KODRO_RESET_CAM = undefined; } catch (e) { void e; }
         glRef.current = null;
         if (reduceMql) {
           if (reduceMql.removeEventListener) reduceMql.removeEventListener('change', onReduceChange);

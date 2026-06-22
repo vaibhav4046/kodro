@@ -21,20 +21,52 @@
   function HelpModal({ onClose }) {
     return (
       <div className="modal-backdrop" onClick={onClose}>
-        <div className="modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onClick={e => e.stopPropagation()}>
+        <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
             <span className="eyebrow">Keyboard shortcuts</span>
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
-          <dl className="shortcut-list">
-            <div><dt><kbd>Ctrl</kbd>+<kbd>Enter</kbd></dt><dd>Run / Pause the program</dd></div>
-            <div><dt><kbd>F10</kbd></dt><dd>Step one instruction</dd></div>
-            <div><dt><kbd>Tab</kbd></dt><dd>Indent (in the editor)</dd></div>
-            <div><dt><kbd>Shift</kbd>+<kbd>Tab</kbd></dt><dd>Dedent (in the editor)</dd></div>
-            <div><dt><kbd>Enter</kbd></dt><dd>Auto-indent the next line</dd></div>
-            <div><dt><kbd>Esc</kbd></dt><dd>Leave the editor / close this</dd></div>
-            <div><dt><kbd>?</kbd></dt><dd>Show this help</dd></div>
-          </dl>
+          <div className="shortcut-groups">
+            <section className="shortcut-group">
+              <h3 className="shortcut-group-title">Run controls</h3>
+              <dl className="shortcut-list">
+                <div><dt><kbd>Ctrl</kbd>+<kbd>Enter</kbd></dt><dd>Run / Pause the program</dd></div>
+                <div><dt><kbd>F5</kbd></dt><dd>Run / Pause the program</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></dt><dd>Step one instruction</dd></div>
+                <div><dt><kbd>F10</kbd></dt><dd>Step one instruction</dd></div>
+                <div><dt><kbd>Esc</kbd></dt><dd>Reset the rover (or close a dialog)</dd></div>
+              </dl>
+            </section>
+            <section className="shortcut-group">
+              <h3 className="shortcut-group-title">View controls</h3>
+              <dl className="shortcut-list">
+                <div><dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd>Toggle 2D / 3D view</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>F</kbd></dt><dd>Toggle first-person camera</dd></div>
+              </dl>
+            </section>
+            <section className="shortcut-group">
+              <h3 className="shortcut-group-title">Panels</h3>
+              <dl className="shortcut-list">
+                <div><dt><kbd>Ctrl</kbd>+<kbd>B</kbd></dt><dd>Toggle block coding panel</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>L</kbd></dt><dd>Toggle Robot Lab</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>M</kbd></dt><dd>Toggle Memory panel</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>/</kbd></dt><dd>Toggle this help</dd></div>
+                <div><dt><kbd>?</kbd></dt><dd>Toggle this help</dd></div>
+              </dl>
+            </section>
+            <section className="shortcut-group">
+              <h3 className="shortcut-group-title">Worlds</h3>
+              <dl className="shortcut-list">
+                <div><dt><kbd>Ctrl</kbd>+<kbd>1</kbd></dt><dd>City</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>2</kbd></dt><dd>Room</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>3</kbd></dt><dd>Earth</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>4</kbd></dt><dd>Mars</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>5</kbd></dt><dd>Underwater</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>6</kbd></dt><dd>Space</dd></div>
+              </dl>
+            </section>
+          </div>
+          <p className="shortcut-editor-hint">In the editor: <kbd>Tab</kbd> indent · <kbd>Shift</kbd>+<kbd>Tab</kbd> dedent · <kbd>Enter</kbd> auto-indent next line · <kbd>Esc</kbd> leave the editor</p>
         </div>
       </div>
     );
@@ -362,7 +394,7 @@
             </div>
             <div className="mem-col">
               <div className="rl-label">Skill library. Programs that worked, reused</div>
-              <button className="btn-mini btn-vibe" onClick={() => { const n = window.prompt && window.prompt('Name this skill'); if (n && window.KodroMemory) window.KodroMemory.saveSkill(n, code, { world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', ts: Date.now() }); }}>＋ Save current code as a skill</button>
+              <button className="btn-mini btn-vibe" onClick={() => { const n = window.prompt && window.prompt('Name this skill'); if (n && window.KodroMemory) { window.KodroMemory.saveSkill(n, code, { world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', ts: Date.now() }); try { window.dispatchEvent(new CustomEvent('kodro-toast', { detail: { text: 'Skill saved', kind: 'info' } })); } catch (e) { void e; } } }}>＋ Save current code as a skill</button>
               {(window.KodroMemory ? window.KodroMemory.skills() : []).length
                 ? <ul className="mem-list">
                     {window.KodroMemory.skills().map((s, i) => (
