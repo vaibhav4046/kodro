@@ -35,8 +35,15 @@ Workflow kodro-brutal-audit: 8 finder dims (react/three/python/offline/a11y/ux/h
 - 3b84d44 (8 fixes): setCode ReferenceError in voice paths -> onCodeChange [HIGH, broken shipped feature]; settings role=menu->dialog + drop role=menuitem; console nested role=alert removed; heatmap white-text contrast -> adaptive black/white by cell luminance; vibe poll cancel ref on panel close; typewriter+say timer unmount cleanup; status pill 'Stepping'->'Paused'; lesson verdict glyph aria-hidden.
 - a83b174 (5 fixes): resizer keyboard a11y (role=separator + tabIndex + aria-value* + Arrow nudge in useResizers + focus ring) [WCAG 2.1.1]; camDrag+useResizers pointercancel cleanup; dead Viewport3D setPixelRatio removed; accent material shared (was per-part factory); forced-colors glyph dedup.
 - 05b6b44: home/landing rebuilt to studio Orbital Rover tokens (Cormorant/Inter Tight/cyan), Lovable-grade offline editorial hero; folds in the 2 onboarding a11y findings (radiogroup->toggle buttons w/ aria-pressed; mic aria-label). Screenshot tmp/home_new.png.
-All verified each commit: build + qa_interpreter 21/21 + qa_ui 6/6 (+rover-moved behaviour) + bundle-eval 3.
-NEXT loop cycles: re-run brutal audit to confirm zero regressions + surface deeper bugs; harden the harness (qa_ui behaviour asserts per concern, exact odometer); finish app.jsx render-split for code-9; the 2 non-code blockers (human study, dissertation framing) stay the user's.
+All verified each commit: build + qa_interpreter + qa_ui 6/6 (+rover-moved behaviour) + bundle-eval 3.
+
+## Brutal audit cycle 2 (2026-06-22) — 18 confirmed of 22 (CRIT 0, HIGH 2, MED 10, LOW 6). ALL resolved:
+- 5054072: harness hardened — qa_ui now 6 flows + 5 behaviour asserts (blocks-insert->code, error-path, world-identity earth/lab/warehouse, exact odometer 11.2m). Caught+fixed a latent blocks-panel click-text bug.
+- b2e20da (interpreter Python parity, the high-value set): chained comparison a<b<c (was left-assoc, wrong booleans+branches); div/mod by zero -> RoverError not Inf/NaN; round() banker's (half-to-even); pyStr float repr (dropped 1e6 truncation); range() integer validation + step!=0; int()/float() bad-string -> error; number literal 1.2.3 rejected; loop-else accurate diagnostic. qa_interpreter 21 -> 47 cases. parity pytest 53, full pytest 859.
+- 12dc573 (ux + harness): onboarding stale agent-build cleared on tile re-pick; editor toolbar overflow (flex:none/nowrap + panel-head scroll); world-bar wraps instead of hiding controls; Review/Ask AI-needed tooltips; phone agent-row layout scoped; qa_vibe 60% pass-floor exit gate; qa_interpreter wired into CI via tests/unit/test_qa_interpreter.py; bundle.js excluded from pre-commit large-file check.
+Test suite now: qa_interpreter 47, qa_ui 6/6 + 5 behaviour, qa_vibe gated, pytest 860 (CI), CI gates the interpreter QA.
+Engine parity fixes directly strengthen the dissertation's "matches the CPython grader" claim.
+NOTE: audit-2's react/three/a11y/python/offline FIND dims hit 529 mid-run, so those dims are under-covered on the post-fix code -> a cycle 3 should re-cover them. Non-code blockers (human study, dissertation framing) stay the user's.
 
 ## Remaining work per axis (do, verify, re-review, repeat)
 1. VISUAL (next): indoor worlds (lab/warehouse) under-lit and wash out -- darker
