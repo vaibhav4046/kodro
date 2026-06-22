@@ -42,18 +42,37 @@ const KodroSelfTest = ctx.window.KodroSelfTest;
 if (!RoverLang || !KodroSelfTest) { console.error('FATAL: interpreter or self-test failed to load'); process.exit(2); }
 
 // --- mirror of the browser assistant's normaliser + extractor ---------------
-const ALIAS = { forward: 'move_forward', backward: 'move_backward', left: 'turn_left', right: 'turn_right' };
+const ALIAS = { forward: 'move_forward', backward: 'move_backward', left: 'turn_left', right: 'turn_right', speed: 'set_speed', scan: 'scan', distance: 'distance', heading: 'heading', battery: 'battery', stop: 'stop' };
 function normalizeApi(code) {
   if (!code) return code;
-  return code.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, (m, n) => (ALIAS[n] || n) + '(');
+  // Strip any remaining markdown fences or markers the extractor missed.
+  code = code.replace(/^```(?:python|py)?\s*/gim, '').replace(/```\s*$/gim, '');
+  // rover.robot.bot.method(...) -> method(...)
+  code = code.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, (m, n) => (ALIAS[n] || n) + '(');
+  // rover.robot.bot.method without parens (e.g. in a comment or assignment) -> bare name
+  code = code.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\b/g, (m, n) => ALIAS[n] || n);
+  // Common bare aliases -> canonical names (forward -> move_forward etc.)
+  code = code.replace(/\bforward\s*\(/g, 'move_forward(');
+  code = code.replace(/\bbackward\s*\(/g, 'move_backward(');
+  code = code.replace(/\bleft\s*\(/g, 'turn_left(');
+  code = code.replace(/\bright\s*\(/g, 'turn_right(');
+  return code;
 }
 function extractCode(t) {
-  const fence = t.match(/```(?:python|py)?\s*([\s\S]*?)```/i);
-  return (fence ? fence[1] : t).trim();
+  if (!t) return '';
+  // Try fenced code block (greedy: last fence wins, models sometimes emit prose then code).
+  const fences = [...t.matchAll(/```(?:python|py)?\s*([\s\S]*?)```/gi)];
+  if (fences.length) return fences[fences.length - 1][1].trim();
+  // No fence: strip obvious prose lines and keep the rest.
+  const lines = t.split('\n').filter((l) => {
+    const s = l.trim();
+    return s && !s.match(/^(here|sure|okay|this|the|to|you|i|let|now|below|that|your)\b/i) || s.match(/^\s*(move_|turn_|set_|say|led|beep|wait|scan|pen_|for |while |if |#)/i);
+  });
+  return lines.join('\n').trim();
 }
 
 // --- assistant grounding (the same contract the shipped assistant uses) ------
-const SYS = "You are Kodro's offline coding assistant for a simulated robot. The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say(\"text\"), led(\"colour\"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything(). Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: \"a few metres\" means move_forward(3), never 30 or 300. For repeated motion use a loop, for example \"for i in range(4):\" with an indented body. To stop before an obstacle, loop \"while distance() > 40:\" moving a small step like move_forward(1) inside. Keep programs short. Reply with only runnable code in a python fence.";
+const SYS = "You are Kodro's offline coding assistant for a simulated robot. The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say(\"text\"), led(\"colour\"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or robot.anything(). Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: \"a few metres\" means move_forward(3), never 30 or 300. For repeated motion use a loop, for example \"for i in range(4):\" with an indented body. To stop before an obstacle, loop \"while distance() > 40:\" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code in a single ```python fence. No prose before or after the fence. No explanations. No comments unless asked.";
 
 // --- the 4 simulated personas: distinct, non-expert phrasing styles ----------
 // Each templates a task's plain/precise goal into that persona's voice. The

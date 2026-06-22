@@ -4,12 +4,12 @@
   "maxTurns": 3,
   "cellCount": 20,
   "funnel": {
-    "compiled": 15,
-    "ran": 14,
+    "compiled": 17,
+    "ran": 15,
     "safe": 8,
     "taskComplete": 8
   },
-  "meanTurnsToSuccess": 1,
+  "meanTurnsToSuccess": 1.13,
   "byPersona": [
     {
       "persona": "beginner",
@@ -20,7 +20,7 @@
     {
       "persona": "teacher",
       "name": "Mr Okafor (teacher, class demo)",
-      "done": 1,
+      "done": 2,
       "of": 5
     },
     {
@@ -32,14 +32,14 @@
     {
       "persona": "access",
       "name": "Priya (low vision, voice-first)",
-      "done": 3,
+      "done": 2,
       "of": 5
     }
   ],
   "byTask": [
     {
       "task": "forward",
-      "done": 1,
+      "done": 3,
       "of": 4
     },
     {
@@ -49,12 +49,12 @@
     },
     {
       "task": "square",
-      "done": 1,
+      "done": 0,
       "of": 4
     },
     {
       "task": "obstacle",
-      "done": 1,
+      "done": 0,
       "of": 4
     },
     {
@@ -67,75 +67,25 @@
     {
       "persona": "beginner",
       "task": "forward",
-      "compiled": true,
-      "ran": true,
-      "safe": true,
-      "didTask": false,
-      "turns": 3,
-      "lastError": ""
-    },
-    {
-      "persona": "beginner",
-      "task": "turn_move",
-      "compiled": true,
-      "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
-    },
-    {
-      "persona": "beginner",
-      "task": "square",
       "compiled": false,
       "ran": false,
       "safe": false,
       "didTask": false,
       "turns": 3,
-      "lastError": "Will not compile (line 1): Unexpected character \"`\"."
+      "lastError": "Will not compile (line 1): Unexpected token \"kept\"."
     },
     {
       "persona": "beginner",
-      "task": "obstacle",
-      "compiled": true,
-      "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
-    },
-    {
-      "persona": "beginner",
-      "task": "loop",
-      "compiled": true,
-      "ran": true,
-      "safe": true,
-      "didTask": true,
-      "turns": 1,
-      "lastError": ""
-    },
-    {
-      "persona": "teacher",
-      "task": "forward",
-      "compiled": true,
-      "ran": true,
-      "safe": true,
-      "didTask": false,
-      "turns": 3,
-      "lastError": ""
-    },
-    {
-      "persona": "teacher",
       "task": "turn_move",
       "compiled": true,
-      "ran": false,
-      "safe": false,
+      "ran": true,
+      "safe": true,
       "didTask": false,
       "turns": 3,
-      "lastError": "Errors while running at line 2: Name \"blind\" is not defined."
+      "lastError": ""
     },
     {
-      "persona": "teacher",
+      "persona": "beginner",
       "task": "square",
       "compiled": true,
       "ran": true,
@@ -145,7 +95,7 @@
       "lastError": "hit the wall"
     },
     {
-      "persona": "teacher",
+      "persona": "beginner",
       "task": "obstacle",
       "compiled": false,
       "ran": false,
@@ -155,67 +105,17 @@
       "lastError": "Will not compile (line 1): Unexpected character \"`\"."
     },
     {
+      "persona": "beginner",
+      "task": "loop",
+      "compiled": true,
+      "ran": true,
+      "safe": false,
+      "didTask": true,
+      "turns": 2,
+      "lastError": "hit the wall"
+    },
+    {
       "persona": "teacher",
-      "task": "loop",
-      "compiled": true,
-      "ran": true,
-      "safe": false,
-      "didTask": true,
-      "turns": 1,
-      "lastError": "hit the wall"
-    },
-    {
-      "persona": "maker",
-      "task": "forward",
-      "compiled": true,
-      "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
-    },
-    {
-      "persona": "maker",
-      "task": "turn_move",
-      "compiled": true,
-      "ran": true,
-      "safe": true,
-      "didTask": true,
-      "turns": 1,
-      "lastError": ""
-    },
-    {
-      "persona": "maker",
-      "task": "square",
-      "compiled": true,
-      "ran": true,
-      "safe": true,
-      "didTask": true,
-      "turns": 1,
-      "lastError": ""
-    },
-    {
-      "persona": "maker",
-      "task": "obstacle",
-      "compiled": false,
-      "ran": false,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "Will not compile (line 1): Unexpected character \"`\"."
-    },
-    {
-      "persona": "maker",
-      "task": "loop",
-      "compiled": true,
-      "ran": true,
-      "safe": true,
-      "didTask": true,
-      "turns": 1,
-      "lastError": ""
-    },
-    {
-      "persona": "access",
       "task": "forward",
       "compiled": true,
       "ran": true,
@@ -225,7 +125,7 @@
       "lastError": ""
     },
     {
-      "persona": "access",
+      "persona": "teacher",
       "task": "turn_move",
       "compiled": false,
       "ran": false,
@@ -235,18 +135,78 @@
       "lastError": "Will not compile (line 1): Unexpected character \"`\"."
     },
     {
-      "persona": "access",
+      "persona": "teacher",
       "task": "square",
-      "compiled": false,
+      "compiled": true,
       "ran": false,
       "safe": false,
       "didTask": false,
       "turns": 3,
-      "lastError": "Will not compile (line 1): Unexpected token \"square\"."
+      "lastError": "Does not finish: it loops without stopping (200001+ steps)."
     },
     {
-      "persona": "access",
+      "persona": "teacher",
       "task": "obstacle",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": false,
+      "turns": 3,
+      "lastError": ""
+    },
+    {
+      "persona": "teacher",
+      "task": "loop",
+      "compiled": true,
+      "ran": true,
+      "safe": false,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "hit the wall"
+    },
+    {
+      "persona": "maker",
+      "task": "forward",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": ""
+    },
+    {
+      "persona": "maker",
+      "task": "turn_move",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": ""
+    },
+    {
+      "persona": "maker",
+      "task": "square",
+      "compiled": true,
+      "ran": true,
+      "safe": false,
+      "didTask": false,
+      "turns": 3,
+      "lastError": "hit the wall"
+    },
+    {
+      "persona": "maker",
+      "task": "obstacle",
+      "compiled": true,
+      "ran": true,
+      "safe": false,
+      "didTask": false,
+      "turns": 3,
+      "lastError": "hit the wall"
+    },
+    {
+      "persona": "maker",
+      "task": "loop",
       "compiled": true,
       "ran": true,
       "safe": true,
@@ -256,13 +216,53 @@
     },
     {
       "persona": "access",
-      "task": "loop",
+      "task": "forward",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": ""
+    },
+    {
+      "persona": "access",
+      "task": "turn_move",
+      "compiled": true,
+      "ran": false,
+      "safe": false,
+      "didTask": false,
+      "turns": 3,
+      "lastError": "Errors while running at line 4: \"d\" is not callable."
+    },
+    {
+      "persona": "access",
+      "task": "square",
       "compiled": true,
       "ran": true,
       "safe": false,
+      "didTask": false,
+      "turns": 3,
+      "lastError": "hit the wall"
+    },
+    {
+      "persona": "access",
+      "task": "obstacle",
+      "compiled": true,
+      "ran": true,
+      "safe": false,
+      "didTask": false,
+      "turns": 3,
+      "lastError": "hit the wall"
+    },
+    {
+      "persona": "access",
+      "task": "loop",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
       "didTask": true,
       "turns": 1,
-      "lastError": "hit the wall"
+      "lastError": ""
     }
   ]
 }

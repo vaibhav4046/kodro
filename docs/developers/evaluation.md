@@ -125,41 +125,46 @@ Measured funnel over the 20 persona-task cells (model `kodro-coder`):
 
 | Outcome | Cells |
 | --- | :--: |
-| Compiled (valid program produced) | 15/20 (75%) |
-| Ran clean through the interpreter | 14/20 (70%) |
+| Compiled (valid program produced) | 17/20 (85%) |
+| Ran clean through the interpreter | 15/20 (75%) |
 | Stayed inside the arena (no wall hit) | 8/20 (40%) |
 | Completed the task | 8/20 (40%) |
 
-Mean turns to success: 1.0 (every success landed on the first attempt; no
-failing cell recovered across the correction turns).
+Mean turns to success: 1.13 (most successes landed on the first attempt; one
+recovered on the second correction turn).
 
 | Persona | Done | | Task | Done |
 | --- | :--: | :-- | --- | :--: |
-| Beginner (no code) | 1/5 | | Forward | 1/4 |
-| Teacher (class demo) | 1/5 | | Turn + move | 1/4 |
-| Maker (precise) | 3/5 | | Square | 1/4 |
-| Low-vision (voice) | 3/5 | | Obstacle stop | 1/4 |
+| Beginner (no code) | 1/5 | | Forward | 3/4 |
+| Teacher (class demo) | 2/5 | | Turn + move | 1/4 |
+| Maker (precise) | 3/5 | | Square | 0/4 |
+| Low-vision (voice) | 2/5 | | Obstacle stop | 0/4 |
 | | | | Counted loop | 4/4 |
 
-The reading cuts both ways. The assistant produces compiling (75%) and
-running (70%) code — the floor a beginner needs to not be stranded on a
+The reading cuts both ways. The assistant produces compiling (85%) and
+running (75%) code, the floor a beginner needs to not be stranded on a
 syntax error. Task-correct behaviour is limited but real (40%), strongly
 dependent on phrasing precision (precise maker 60% against 20% for the
-beginner and teacher voices) and task complexity (the counted loop succeeded
-everywhere). This is the honest ceiling of a 1-to-4-billion-parameter model
+beginner voice) and task complexity (the counted loop succeeded everywhere,
+while the square and sensor-gated obstacle stop succeeded nowhere). This is
+the honest ceiling of a 1-to-4-billion-parameter model
 on a laptop with no cloud, reported as such rather than hidden.
 
-These figures are themselves one iteration the eval drove: an earlier run
-scored 30% task-complete and only 10% in-arena (the model over-shot
-distances, reading "a few metres" as a 30-metre move). Feeding that back as a
-single grounding change (the arena is small, a normal move is 1 to 5 metres,
-plus loop and sensor patterns) raised in-arena 10 to 40% and task 30 to 40%,
-and took square and obstacle-stop from 0 to 25%. The eval found a fixable
-weakness and the fix now ships in the grounding.
+These figures are themselves iterations the eval drove. The first run scored
+30% task-complete and only 10% in-arena (the model over-shot distances,
+reading "a few metres" as a 30-metre move). Feeding that back as a single
+grounding change (the arena is small, a normal move is 1 to 5 metres, plus
+loop and sensor patterns) raised in-arena 10 to 40% and task 30 to 40%. A
+second pass fixed the code extraction and normalisation in the harness and
+the shipped assistant: the model often wrapped its output in markdown fences
+or used `rover.forward()` instead of the bare `move_forward()`, and a
+stronger extractor plus a broader alias map lifted compilation from 65% to
+85% without touching the model. Each iteration found a fixable weakness and
+the fix now ships in the product.
 
 The result that matters most for the design is the safety row read against
-the run row. Even after the grounding fix, of the 14 programs that ran, 6
-would still have driven the robot into the arena wall. **The deterministic
+the run row. Even after both fixes, of the 15 programs that ran, 7 would
+still have driven the robot into the arena wall. **The deterministic
 self-test caught every one** before it reached the learner and returned an
 actionable correction. The weakness of the model and the value of the safety
 net are one finding, not two: it is *because* the small offline model is not
