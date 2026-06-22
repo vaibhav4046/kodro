@@ -10717,6 +10717,910 @@ rover.say("Survey done")`
 })();
 
 ;(function () {
+/* Presentational modal/popover components extracted from app.jsx.
+ *
+ * Each component here is a PURE function of its props: it renders one modal's
+ * JSX exactly as it lived inline in App's giant return, and receives the state
+ * and handlers it needs as props. No state, no effects, no window reads beyond
+ * what the original inline block already did (e.g. window.KodroMemory in Memory,
+ * window.RoverSchematic in Build) — those globals are loaded before this module
+ * in the ORDER array, same as when the markup lived in app.jsx.
+ *
+ * app.jsx keeps the open/close semantics: it still renders each as
+ *   {xOpen && <window.KodroPanels.XModal {...props} />}
+ * so behaviour is identical — this is a structural move, not a behavioural one.
+ *
+ * Exposed as window.KodroPanels.
+ */
+(function () {
+  const React = window.React;
+
+  // ---- Keyboard shortcuts (Help) ----
+  // Pure static content; only needs a close handler.
+  function HelpModal({
+    onClose
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: onClose
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Keyboard shortcuts",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "Keyboard shortcuts"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: onClose
+    }, "\u2715")), /*#__PURE__*/React.createElement("dl", {
+      className: "shortcut-list"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Run / Pause the program")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "F10")), /*#__PURE__*/React.createElement("dd", null, "Step one instruction")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Tab")), /*#__PURE__*/React.createElement("dd", null, "Indent (in the editor)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Shift"), "+", /*#__PURE__*/React.createElement("kbd", null, "Tab")), /*#__PURE__*/React.createElement("dd", null, "Dedent (in the editor)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Auto-indent the next line")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Esc")), /*#__PURE__*/React.createElement("dd", null, "Leave the editor / close this")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "?")), /*#__PURE__*/React.createElement("dd", null, "Show this help")))));
+  }
+
+  // ---- Build a real robot ----
+  // Renders window.RoverSchematic (loaded earlier in ORDER), same as inline.
+  function BuildModal({
+    onClose,
+    buildBudget,
+    setBuildBudget,
+    buildGoal,
+    setBuildGoal,
+    buildBusy,
+    runBuild,
+    buildErr,
+    buildPlan
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: onClose
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal modal-wide",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Build a real robot",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83E\uDD16 Build a real robot. What your budget can buy"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: onClose
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "build-body"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Type a budget and the local AI plans a real rover you can build and program, mapping what you learned here onto real hardware. Nothing is ordered; this runs offline."), /*#__PURE__*/React.createElement("div", {
+      className: "build-input"
+    }, /*#__PURE__*/React.createElement("label", null, "Budget (US$)", /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      min: "1",
+      max: "100000",
+      value: buildBudget,
+      onChange: e => setBuildBudget(e.target.value),
+      onKeyDown: e => {
+        if (e.key === 'Enter') runBuild();
+      }
+    })), /*#__PURE__*/React.createElement("label", {
+      className: "grow"
+    }, "Goal (optional)", /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      placeholder: "e.g. \"avoid walls and follow a line\"",
+      value: buildGoal,
+      onChange: e => setBuildGoal(e.target.value),
+      onKeyDown: e => {
+        if (e.key === 'Enter') runBuild();
+      }
+    })), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      disabled: buildBusy,
+      onClick: runBuild
+    }, buildBusy ? 'Planning…' : 'Generate')), buildErr && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, buildErr), buildPlan && /*#__PURE__*/React.createElement("div", {
+      className: "build-plan"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "build-head"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
+      style: {
+        margin: '0 0 2px'
+      }
+    }, buildPlan.tier), /*#__PURE__*/React.createElement("p", {
+      style: {
+        margin: 0,
+        color: 'var(--fg-2)',
+        fontSize: 12
+      }
+    }, buildPlan.summary)), /*#__PURE__*/React.createElement("div", {
+      className: 'build-cost' + (buildPlan.total <= buildPlan.budget ? ' ok' : ' over')
+    }, "$", Math.round(buildPlan.total), " ", /*#__PURE__*/React.createElement("span", null, "of $", buildPlan.budget))), /*#__PURE__*/React.createElement(window.RoverSchematic, {
+      parts: buildPlan.parts
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "build-cols"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow"
+    }, "Parts"), /*#__PURE__*/React.createElement("table", {
+      className: "build-table"
+    }, /*#__PURE__*/React.createElement("tbody", null, buildPlan.parts.map((p, i) => /*#__PURE__*/React.createElement("tr", {
+      key: i
+    }, /*#__PURE__*/React.createElement("td", null, p.name), /*#__PURE__*/React.createElement("td", {
+      className: "role"
+    }, p.role), /*#__PURE__*/React.createElement("td", {
+      className: "cost"
+    }, "$", p.cost)))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow"
+    }, "Build steps"), /*#__PURE__*/React.createElement("ol", {
+      className: "build-steps"
+    }, buildPlan.steps.map((s, i) => /*#__PURE__*/React.createElement("li", {
+      key: i
+    }, s))), buildPlan.maps && buildPlan.maps.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow",
+      style: {
+        marginTop: 8
+      }
+    }, "From Kodro to hardware"), /*#__PURE__*/React.createElement("dl", {
+      className: "build-maps"
+    }, buildPlan.maps.map((m, i) => /*#__PURE__*/React.createElement("div", {
+      key: i
+    }, /*#__PURE__*/React.createElement("dt", null, m.robolearn), /*#__PURE__*/React.createElement("dd", null, m.hardware))))))), buildPlan.fallback && /*#__PURE__*/React.createElement("p", {
+      className: "build-note"
+    }, "A standard plan is shown because the model could not tailor one within this budget.")))));
+  }
+
+  // ---- Agent swarm ----
+  // swarmBusy gates the backdrop close; setSwarmOpen closes via the ✕ button.
+  function SwarmModal({
+    swarmBusy,
+    setSwarmOpen,
+    swarmData
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => !swarmBusy && setSwarmOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Agent swarm",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83D\uDC1D Agent swarm. Your one program, run by a fleet at once"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setSwarmOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "swarm-body"
+    }, swarmBusy && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Launching the swarm\u2026"), swarmData && swarmData.paths && (() => {
+      const COLORS = ['#5ce0d8', '#e0b45c', '#7cc49b', '#c8685a', '#a78bfa', '#f0808a', '#62b6ff', '#b6e36a'];
+      const pts = swarmData.paths.flat();
+      let minX = Infinity,
+        maxX = -Infinity,
+        minY = Infinity,
+        maxY = -Infinity;
+      pts.forEach(([x, y]) => {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      });
+      if (!isFinite(minX)) {
+        minX = -1;
+        maxX = 1;
+        minY = -1;
+        maxY = 1;
+      }
+      const W = 380,
+        H = 260,
+        pad = 18;
+      const spanX = Math.max(0.5, maxX - minX),
+        spanY = Math.max(0.5, maxY - minY);
+      const sc = Math.min((W - 2 * pad) / spanX, (H - 2 * pad) / spanY);
+      const px = x => pad + (x - minX) * sc;
+      const py = y => H - pad - (y - minY) * sc; // flip: world y up
+      return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("svg", {
+        className: "swarm-plot",
+        viewBox: '0 0 ' + W + ' ' + H,
+        role: "img",
+        "aria-label": "Swarm trails"
+      }, /*#__PURE__*/React.createElement("rect", {
+        x: "0",
+        y: "0",
+        width: W,
+        height: H,
+        rx: "6",
+        fill: "var(--void)",
+        stroke: "var(--border)"
+      }), swarmData.paths.map((path, i) => {
+        const d = path.map(([x, y], j) => (j === 0 ? 'M' : 'L') + px(x) + ' ' + py(y)).join(' ');
+        const last = path[path.length - 1];
+        return /*#__PURE__*/React.createElement("g", {
+          key: i
+        }, /*#__PURE__*/React.createElement("path", {
+          d: d,
+          fill: "none",
+          stroke: COLORS[i % COLORS.length],
+          strokeWidth: "2",
+          strokeLinejoin: "round",
+          opacity: "0.9"
+        }), /*#__PURE__*/React.createElement("circle", {
+          cx: px(last[0]),
+          cy: py(last[1]),
+          r: "4",
+          fill: COLORS[i % COLORS.length]
+        }));
+      })), /*#__PURE__*/React.createElement("p", {
+        className: "build-note"
+      }, swarmData.n, " rovers ran the same program from different starting points. Identical code, no central controller, a coordinated pattern. All offline."));
+    })())));
+  }
+
+  // ---- Teacher dashboard ----
+  function TeacherModal({
+    onClose,
+    teacherData
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: onClose
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal modal-wide",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Teacher dashboard",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83D\uDCCA Teacher dashboard. Class concept strength"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: onClose
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "teacher-body"
+    }, !teacherData && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Reading the class memory on this machine\u2026"), teacherData && teacherData.pupils.length === 0 && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "No pupil data yet. Pass a lesson to start the heatmap."), teacherData && teacherData.pupils.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        overflow: 'auto',
+        maxHeight: '60vh'
+      }
+    }, /*#__PURE__*/React.createElement("table", {
+      className: "heatmap-table"
+    }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Pupil"), teacherData.concepts.map(c => /*#__PURE__*/React.createElement("th", {
+      key: c,
+      className: "hm-concept"
+    }, c)))), /*#__PURE__*/React.createElement("tbody", null, teacherData.pupils.map(p => /*#__PURE__*/React.createElement("tr", {
+      key: p.id
+    }, /*#__PURE__*/React.createElement("td", {
+      className: "hm-name"
+    }, p.name, p.active ? ' ·' : ''), teacherData.concepts.map(c => {
+      const v = p.scores[c];
+      const has = typeof v === 'number';
+      const pct = has ? Math.round(v * 100) : null;
+      const hue = has ? Math.round(v * 130) : 0; // 0 red → 130 green
+      // WCAG AA: white text fails contrast on the lighter (green/yellow)
+      // cells, so compute the cell's relative luminance and flip to black
+      // text once it crosses the threshold where white drops below 4.5:1.
+      const cellLum = (() => {
+        if (!has) return 0;
+        const s = 0.55,
+          l = 0.42,
+          q = l < 0.5 ? l * (1 + s) : l + s - l * s,
+          pp = 2 * l - q;
+        const hk = t => {
+          t = (t + 1) % 1;
+          if (t < 1 / 6) return pp + (q - pp) * 6 * t;
+          if (t < 1 / 2) return q;
+          if (t < 2 / 3) return pp + (q - pp) * (2 / 3 - t) * 6;
+          return pp;
+        };
+        const lin = c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        const h = hue / 360;
+        return 0.2126 * lin(hk(h + 1 / 3)) + 0.7152 * lin(hk(h)) + 0.0722 * lin(hk(h - 1 / 3));
+      })();
+      return /*#__PURE__*/React.createElement("td", {
+        key: c,
+        className: "hm-cell",
+        title: has ? c + ': ' + pct + '%' : 'not attempted',
+        style: {
+          background: has ? 'hsl(' + hue + ' 55% 42%)' : 'transparent',
+          color: has ? cellLum > 0.183 ? '#000' : '#fff' : 'var(--fg-4)'
+        }
+      }, has ? pct : '·');
+    }))))), /*#__PURE__*/React.createElement("p", {
+      className: "build-note"
+    }, "Each cell is a rolling strength score from 0 to 100 for that concept. Higher and greener is stronger. All data is local to this machine.")))));
+  }
+
+  // ---- AI code review ----
+  function ReviewModal({
+    reviewBusy,
+    setReviewOpen,
+    reviewErr,
+    reviewData,
+    applyReview
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => !reviewBusy && setReviewOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "AI code review",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83D\uDD0E Code review. A second AI agent checks your work"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setReviewOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "review-body"
+    }, reviewBusy && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "A reviewer agent is reading your code on this machine\u2026"), reviewErr && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, reviewErr), reviewData && !reviewBusy && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Reviewer: ", /*#__PURE__*/React.createElement("b", null, reviewData.model), " \xB7 runs entirely offline."), reviewData.issues && reviewData.issues.length > 0 ? /*#__PURE__*/React.createElement("ul", {
+      className: "review-issues"
+    }, reviewData.issues.map((it, i) => /*#__PURE__*/React.createElement("li", {
+      key: i
+    }, it))) : /*#__PURE__*/React.createElement("p", {
+      className: "review-clean"
+    }, "No problems spotted. Nice work."), reviewData.revised && reviewData.code && /*#__PURE__*/React.createElement("div", {
+      className: "review-rewrite"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "Suggested rewrite (checked to run safely)"), /*#__PURE__*/React.createElement("pre", {
+      className: "vibe-code"
+    }, reviewData.code), /*#__PURE__*/React.createElement("div", {
+      className: "vibe-code-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      onClick: applyReview
+    }, "\u2713 Apply to editor"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => setReviewOpen(false)
+    }, "Keep mine")))))));
+  }
+
+  // ---- Ask (lesson Q&A) ----
+  function AskModal({
+    askBusy,
+    setAskOpen,
+    askQuery,
+    setAskQuery,
+    runAsk,
+    askData
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => !askBusy && setAskOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Ask a question",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\u2753 Ask. Answered from the lesson material, not made up"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setAskOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "ask-body"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "build-input"
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "grow"
+    }, /*#__PURE__*/React.createElement("span", null, "Your question"), /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      value: askQuery,
+      placeholder: "e.g. how do I check for a wall?",
+      onChange: e => setAskQuery(e.target.value),
+      onKeyDown: e => {
+        if (e.key === 'Enter') runAsk();
+      },
+      autoFocus: true
+    })), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      disabled: askBusy || !askQuery.trim(),
+      onClick: runAsk
+    }, askBusy ? 'Looking…' : 'Ask')), askData && askData.ok === false && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, askData.reason), askData && askData.ok && /*#__PURE__*/React.createElement("div", {
+      className: "ask-answer"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "ask-text"
+    }, askData.answer), askData.sources && askData.sources.length > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "ask-sources"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "From the lessons"), askData.sources.map((s, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "ask-src"
+    }, /*#__PURE__*/React.createElement("b", null, "[", i + 1, "] ", s.source), /*#__PURE__*/React.createElement("span", null, s.text)))), askData.noModel && /*#__PURE__*/React.createElement("p", {
+      className: "build-note"
+    }, "Start a local model (Ollama) for a written answer; the lesson material above is shown offline.")))));
+  }
+
+  // ---- Voice agent (Talk to Kodro) ----
+  function VoiceAgentModal({
+    vaBusy,
+    setVaOpen,
+    vaData,
+    runVoiceAgent
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => !vaBusy && setVaOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal va-modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Talk to Kodro",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83C\uDF99 Talk to Kodro. Say a command, or ask a question"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setVaOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "va-body"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: 'va-wave' + (vaBusy ? ' live' : ''),
+      "aria-hidden": "true"
+    }, Array.from({
+      length: 28
+    }).map((_, i) => /*#__PURE__*/React.createElement("span", {
+      key: i,
+      style: {
+        ['--i']: i
+      }
+    }))), /*#__PURE__*/React.createElement("p", {
+      className: "va-status"
+    }, vaBusy ? 'Listening…' : vaData ? null : 'Tap the microphone in the bar to talk.'), vaData && vaData.text && /*#__PURE__*/React.createElement("p", {
+      className: "va-heard"
+    }, "\u201C", vaData.text, "\u201D"), vaData && vaData.ok === false && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, vaData.reason), vaData && vaData.ok && vaData.mode === 'command' && /*#__PURE__*/React.createElement("p", {
+      className: "va-result"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "va-tag"
+    }, "added to your code"), /*#__PURE__*/React.createElement("code", null, vaData.code)), vaData && vaData.ok && vaData.mode === 'answer' && /*#__PURE__*/React.createElement("div", {
+      className: "ask-answer"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "ask-text"
+    }, vaData.answer), vaData.sources && vaData.sources.length > 0 && /*#__PURE__*/React.createElement("div", {
+      className: "ask-sources"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "From the lessons"), vaData.sources.map((s, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "ask-src"
+    }, /*#__PURE__*/React.createElement("b", null, "[", i + 1, "] ", s.source), /*#__PURE__*/React.createElement("span", null, s.text))))), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      disabled: vaBusy,
+      onClick: runVoiceAgent
+    }, vaBusy ? 'Listening…' : '🎙 Talk again'))));
+  }
+
+  // ---- Memory and skills ----
+  // Reads window.KodroMemory directly (loaded earlier in ORDER), same as inline.
+  function MemoryModal({
+    setMemoryOpen,
+    memTick,
+    code,
+    terrain,
+    robotSpec,
+    currentLessonId,
+    setLessonBuffers,
+    setPrograms,
+    activeTab
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => setMemoryOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal modal-wide",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Memory and skills",
+      "data-tick": memTick,
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83E\uDDE0 Memory. The system refines from what it has seen, offline"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setMemoryOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "mem-body"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "mem-col"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "rl-label"
+    }, "Reflections from past runs"), (window.KodroMemory ? window.KodroMemory.reflections() : []).length ? /*#__PURE__*/React.createElement("ul", {
+      className: "mem-list"
+    }, window.KodroMemory.reflections().slice(0, 10).map((r, i) => /*#__PURE__*/React.createElement("li", {
+      key: i,
+      className: 'mem-refl mem-' + r.outcome
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "mem-ctx"
+    }, (r.world || '?') + ' · ' + (r.robotType || 'robot') + ' · ' + r.outcome), r.reflection))) : /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "No runs yet. Run a program and the system notes what happened, then draws on it.")), /*#__PURE__*/React.createElement("div", {
+      className: "mem-col"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "rl-label"
+    }, "Skill library. Programs that worked, reused"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini btn-vibe",
+      onClick: () => {
+        const n = window.prompt && window.prompt('Name this skill');
+        if (n && window.KodroMemory) window.KodroMemory.saveSkill(n, code, {
+          world: terrain.id,
+          robotType: robotSpec && robotSpec.type || '',
+          ts: Date.now()
+        });
+      }
+    }, "\uFF0B Save current code as a skill"), (window.KodroMemory ? window.KodroMemory.skills() : []).length ? /*#__PURE__*/React.createElement("ul", {
+      className: "mem-list"
+    }, window.KodroMemory.skills().map((s, i) => /*#__PURE__*/React.createElement("li", {
+      key: i,
+      className: "mem-skill"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "mem-skill-name"
+    }, s.name), /*#__PURE__*/React.createElement("span", {
+      className: "mem-skill-ctx"
+    }, (s.world || '') + ' · used ' + (s.uses || 0) + '×'), /*#__PURE__*/React.createElement("span", {
+      className: "mem-skill-act"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => {
+        const cd = window.KodroMemory.useSkill(s.name);
+        if (cd != null) {
+          if (currentLessonId) setLessonBuffers(b => ({
+            ...b,
+            [currentLessonId]: cd
+          }));else setPrograms(p => ({
+            ...p,
+            [activeTab]: cd
+          }));
+          setMemoryOpen(false);
+        }
+      }
+    }, "Insert"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => window.KodroMemory.removeSkill(s.name)
+    }, "\u2715"))))) : /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Save a program that worked, then reuse it on the next robot.")))));
+  }
+
+  // ---- Vibe coding (Code with AI) ----
+  function VibeModal({
+    setVibeOpen,
+    vibeCancelRef,
+    setVibeBusy,
+    aiInfo,
+    pickModel,
+    vibeMsgs,
+    setVibeMsgs,
+    vibeApply,
+    vibeBusy,
+    vibeLive,
+    vibeEndRef,
+    vibeError,
+    micBusy,
+    vibeMic,
+    vibePrompt,
+    setVibePrompt,
+    vibeSend
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => !vibeBusy && setVibeOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal modal-wide",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Code with AI",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\u2728 Vibe coding. Describe it, the AI writes it"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => {
+        vibeCancelRef.current = true;
+        setVibeBusy(false);
+        setVibeOpen(false);
+      }
+    }, "\u2715")), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
+      className: "vibe-body"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it."), aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        margin: '2px 0 10px',
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        color: '#9fb4d2'
+      }
+    }, "Use model"), /*#__PURE__*/React.createElement("select", {
+      value: aiInfo.override || aiInfo.model || '',
+      onChange: e => pickModel(e.target.value),
+      style: {
+        background: '#0e1622',
+        color: '#dce8f8',
+        border: '1px solid #2a3a52',
+        borderRadius: 8,
+        padding: '5px 8px',
+        fontSize: 12.5
+      }
+    }, aiInfo.models.map(m => /*#__PURE__*/React.createElement("option", {
+      key: m,
+      value: m
+    }, m))), aiInfo.override && /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => pickModel(''),
+      title: "Return to automatic model selection"
+    }, "Auto")), /*#__PURE__*/React.createElement("div", {
+      className: "vibe-thread",
+      role: "log",
+      "aria-live": "polite",
+      "aria-label": "AI conversation"
+    }, vibeMsgs.length === 0 && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-empty"
+    }, "Chat with the AI like a coding partner. It may ask a question first, e.g. try ", /*#__PURE__*/React.createElement("i", null, "\"explore the field\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"draw a star\""), "."), vibeMsgs.map((m, i) => m.kind === 'code' ? /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "vibe-msg ai code"
+    }, /*#__PURE__*/React.createElement("pre", {
+      className: "vibe-code"
+    }, m.text), /*#__PURE__*/React.createElement("div", {
+      className: "vibe-code-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      onClick: () => vibeApply(m.text, m.model)
+    }, "\u2713 Apply to editor"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => {
+        setVibeMsgs(ms => [...ms, {
+          role: 'user',
+          kind: 'text',
+          text: '(discarded, try again)'
+        }]);
+      }
+    }, "Discard"))) : /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: 'vibe-msg ' + m.role
+    }, /*#__PURE__*/React.createElement("span", null, m.text))), vibeBusy && /*#__PURE__*/React.createElement("div", {
+      className: "vibe-msg ai thinking"
+    }, vibeLive ? /*#__PURE__*/React.createElement("pre", {
+      className: "vibe-live"
+    }, vibeLive) : /*#__PURE__*/React.createElement("span", null, "Thinking\u2026")), /*#__PURE__*/React.createElement("div", {
+      ref: vibeEndRef
+    })), vibeError && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, vibeError), /*#__PURE__*/React.createElement("div", {
+      className: "vibe-inputrow"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "icon-btn",
+      title: "Speak your request (offline)",
+      "aria-label": "Voice input",
+      disabled: micBusy,
+      onClick: vibeMic
+    }, micBusy ? '…' : '🎤'), /*#__PURE__*/React.createElement("textarea", {
+      className: "vibe-input",
+      rows: 2,
+      placeholder: "Say what the rover should do. The AI may ask you a question back",
+      value: vibePrompt,
+      onChange: e => setVibePrompt(e.target.value),
+      onKeyDown: e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          vibeSend();
+        }
+      },
+      "aria-label": "Describe what the rover should do",
+      autoFocus: true
+    }), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      disabled: vibeBusy || !vibePrompt.trim(),
+      onClick: vibeSend
+    }, "Send")), /*#__PURE__*/React.createElement("span", {
+      className: "vibe-hint"
+    }, "Apply types the code into the editor. Nothing runs until you press Run.")) : /*#__PURE__*/React.createElement("div", {
+      className: "vibe-body"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "AI is offline. Vibe coding uses a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account):"), /*#__PURE__*/React.createElement("ol", {
+      className: "vibe-steps"
+    }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. This panel lights up automatically")))));
+  }
+
+  // ---- Blocks (visual block editor) ----
+  function BlocksModal({
+    setBlocksOpen,
+    BLOCK_DEFS,
+    robotSpec,
+    addBlock,
+    endBlock,
+    blockIndent,
+    setBlockIndent,
+    blocks,
+    setBlocks,
+    moveBlock,
+    removeBlock,
+    insertBlocksCode
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => setBlocksOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal modal-wide",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Block coding",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "\uD83E\uDDE9 Blocks. Click blocks to build, then turn them into Python"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setBlocksOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "blocks-palette"
+    }, BLOCK_DEFS.map(d => {
+      // Gating parity with the text editor: a block whose command
+      // needs a part this build lacks is disabled here, so the limit
+      // is visible before running rather than a runtime refusal.
+      const gateOk = !d.requires || !window.KodroCommands || window.KodroCommands.check(robotSpec, d.requires).ok;
+      return /*#__PURE__*/React.createElement("button", {
+        key: d.k,
+        className: "block-chip",
+        style: {
+          borderColor: d.color
+        },
+        disabled: !gateOk,
+        title: gateOk ? undefined : 'This build has no part for ' + d.requires + '()',
+        onClick: () => addBlock(d)
+      }, d.label, d.unit ? ' ' + d.val + d.unit : '');
+    }), /*#__PURE__*/React.createElement("button", {
+      className: "block-chip block-end",
+      onClick: endBlock,
+      disabled: blockIndent === 0
+    }, "\u21A4 end block")), /*#__PURE__*/React.createElement("div", {
+      className: "blocks-program",
+      "aria-label": "Your program"
+    }, blocks.length === 0 && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-hint"
+    }, "Click blocks above. They stack here like Scratch."), blocks.map((b, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "block-row",
+      style: {
+        marginLeft: b.indent * 22 + 'px',
+        borderLeftColor: b.color
+      }
+    }, /*#__PURE__*/React.createElement("span", null, b.label), b.val !== undefined && /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      className: "block-num",
+      value: b.val,
+      min: b.unit === '%' ? 0 : 1,
+      max: b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20,
+      "aria-label": b.label + ' amount',
+      onChange: e => {
+        // Clamp to this block's real min/max so the number shown
+        // is the number that runs (interpreter.clampNum would
+        // otherwise silently clamp a too-big value at run time),
+        // and use Number.isFinite so 0 (valid for set speed)
+        // is kept rather than coerced to 1 by truthiness.
+        const lo = b.unit === '%' ? 0 : 1;
+        const hi = b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20;
+        const raw = Number(e.target.value);
+        const v = Number.isFinite(raw) ? Math.max(lo, Math.min(hi, raw)) : lo;
+        setBlocks(bs => bs.map((x, j) => j === i ? {
+          ...x,
+          val: v
+        } : x));
+      }
+    }), b.unit && /*#__PURE__*/React.createElement("span", {
+      className: "vibe-hint"
+    }, b.unit), /*#__PURE__*/React.createElement("span", {
+      className: "block-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: i === 0,
+      "aria-label": 'move ' + b.label + ' up',
+      title: "Move up",
+      onClick: () => moveBlock(i, -1)
+    }, "\u2191"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: i === blocks.length - 1,
+      "aria-label": 'move ' + b.label + ' down',
+      title: "Move down",
+      onClick: () => moveBlock(i, 1)
+    }, "\u2193"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": 'remove ' + b.label,
+      onClick: () => removeBlock(i)
+    }, "\u2715"))))), /*#__PURE__*/React.createElement("div", {
+      className: "vibe-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: !blocks.length,
+      onClick: () => {
+        setBlocks([]);
+        setBlockIndent(0);
+      }
+    }, "Clear"), /*#__PURE__*/React.createElement("span", {
+      className: "vibe-hint",
+      style: {
+        flex: 1
+      }
+    }, "Turns into real Python. Watch it type itself into the editor."), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      disabled: !blocks.length,
+      onClick: insertBlocksCode
+    }, "Insert code \u2192"))));
+  }
+  window.KodroPanels = {
+    HelpModal,
+    BuildModal,
+    SwarmModal,
+    TeacherModal,
+    ReviewModal,
+    AskModal,
+    VoiceAgentModal,
+    MemoryModal,
+    VibeModal,
+    BlocksModal
+  };
+})();
+})();
+
+;(function () {
 /* ============================================================================
    ORBITAL ROVER — App (runtime + UI wiring)
    ========================================================================== */
@@ -13287,752 +14191,91 @@ rover.say("Survey done")`
       value: t.trail,
       options: ['terrain', 'cyan', 'amber'],
       onChange: v => setTweak('trail', v)
-    })), swarmOpen && /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => !swarmBusy && setSwarmOpen(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Agent swarm",
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "\uD83D\uDC1D Agent swarm. Your one program, run by a fleet at once"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => setSwarmOpen(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "swarm-body"
-    }, swarmBusy && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "Launching the swarm\u2026"), swarmData && swarmData.paths && (() => {
-      const COLORS = ['#5ce0d8', '#e0b45c', '#7cc49b', '#c8685a', '#a78bfa', '#f0808a', '#62b6ff', '#b6e36a'];
-      const pts = swarmData.paths.flat();
-      let minX = Infinity,
-        maxX = -Infinity,
-        minY = Infinity,
-        maxY = -Infinity;
-      pts.forEach(([x, y]) => {
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      });
-      if (!isFinite(minX)) {
-        minX = -1;
-        maxX = 1;
-        minY = -1;
-        maxY = 1;
-      }
-      const W = 380,
-        H = 260,
-        pad = 18;
-      const spanX = Math.max(0.5, maxX - minX),
-        spanY = Math.max(0.5, maxY - minY);
-      const sc = Math.min((W - 2 * pad) / spanX, (H - 2 * pad) / spanY);
-      const px = x => pad + (x - minX) * sc;
-      const py = y => H - pad - (y - minY) * sc; // flip: world y up
-      return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("svg", {
-        className: "swarm-plot",
-        viewBox: '0 0 ' + W + ' ' + H,
-        role: "img",
-        "aria-label": "Swarm trails"
-      }, /*#__PURE__*/React.createElement("rect", {
-        x: "0",
-        y: "0",
-        width: W,
-        height: H,
-        rx: "6",
-        fill: "var(--void)",
-        stroke: "var(--border)"
-      }), swarmData.paths.map((path, i) => {
-        const d = path.map(([x, y], j) => (j === 0 ? 'M' : 'L') + px(x) + ' ' + py(y)).join(' ');
-        const last = path[path.length - 1];
-        return /*#__PURE__*/React.createElement("g", {
-          key: i
-        }, /*#__PURE__*/React.createElement("path", {
-          d: d,
-          fill: "none",
-          stroke: COLORS[i % COLORS.length],
-          strokeWidth: "2",
-          strokeLinejoin: "round",
-          opacity: "0.9"
-        }), /*#__PURE__*/React.createElement("circle", {
-          cx: px(last[0]),
-          cy: py(last[1]),
-          r: "4",
-          fill: COLORS[i % COLORS.length]
-        }));
-      })), /*#__PURE__*/React.createElement("p", {
-        className: "build-note"
-      }, swarmData.n, " rovers ran the same program from different starting points. Identical code, no central controller, a coordinated pattern. All offline."));
-    })()))), vaOpen && /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => !vaBusy && setVaOpen(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal va-modal",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Talk to Kodro",
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "\uD83C\uDF99 Talk to Kodro. Say a command, or ask a question"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => setVaOpen(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "va-body"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: 'va-wave' + (vaBusy ? ' live' : ''),
-      "aria-hidden": "true"
-    }, Array.from({
-      length: 28
-    }).map((_, i) => /*#__PURE__*/React.createElement("span", {
-      key: i,
-      style: {
-        ['--i']: i
-      }
-    }))), /*#__PURE__*/React.createElement("p", {
-      className: "va-status"
-    }, vaBusy ? 'Listening…' : vaData ? null : 'Tap the microphone in the bar to talk.'), vaData && vaData.text && /*#__PURE__*/React.createElement("p", {
-      className: "va-heard"
-    }, "\u201C", vaData.text, "\u201D"), vaData && vaData.ok === false && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-error",
-      role: "alert"
-    }, vaData.reason), vaData && vaData.ok && vaData.mode === 'command' && /*#__PURE__*/React.createElement("p", {
-      className: "va-result"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "va-tag"
-    }, "added to your code"), /*#__PURE__*/React.createElement("code", null, vaData.code)), vaData && vaData.ok && vaData.mode === 'answer' && /*#__PURE__*/React.createElement("div", {
-      className: "ask-answer"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "ask-text"
-    }, vaData.answer), vaData.sources && vaData.sources.length > 0 && /*#__PURE__*/React.createElement("div", {
-      className: "ask-sources"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "From the lessons"), vaData.sources.map((s, i) => /*#__PURE__*/React.createElement("div", {
-      key: i,
-      className: "ask-src"
-    }, /*#__PURE__*/React.createElement("b", null, "[", i + 1, "] ", s.source), /*#__PURE__*/React.createElement("span", null, s.text))))), /*#__PURE__*/React.createElement("button", {
-      className: "ctrl ctrl-run",
-      disabled: vaBusy,
-      onClick: runVoiceAgent
-    }, vaBusy ? 'Listening…' : '🎙 Talk again')))), askOpen && /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => !askBusy && setAskOpen(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Ask a question",
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "\u2753 Ask. Answered from the lesson material, not made up"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => setAskOpen(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "ask-body"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "build-input"
-    }, /*#__PURE__*/React.createElement("label", {
-      className: "grow"
-    }, /*#__PURE__*/React.createElement("span", null, "Your question"), /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      value: askQuery,
-      placeholder: "e.g. how do I check for a wall?",
-      onChange: e => setAskQuery(e.target.value),
-      onKeyDown: e => {
-        if (e.key === 'Enter') runAsk();
-      },
-      autoFocus: true
-    })), /*#__PURE__*/React.createElement("button", {
-      className: "ctrl ctrl-run",
-      disabled: askBusy || !askQuery.trim(),
-      onClick: runAsk
-    }, askBusy ? 'Looking…' : 'Ask')), askData && askData.ok === false && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-error",
-      role: "alert"
-    }, askData.reason), askData && askData.ok && /*#__PURE__*/React.createElement("div", {
-      className: "ask-answer"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "ask-text"
-    }, askData.answer), askData.sources && askData.sources.length > 0 && /*#__PURE__*/React.createElement("div", {
-      className: "ask-sources"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "From the lessons"), askData.sources.map((s, i) => /*#__PURE__*/React.createElement("div", {
-      key: i,
-      className: "ask-src"
-    }, /*#__PURE__*/React.createElement("b", null, "[", i + 1, "] ", s.source), /*#__PURE__*/React.createElement("span", null, s.text)))), askData.noModel && /*#__PURE__*/React.createElement("p", {
-      className: "build-note"
-    }, "Start a local model (Ollama) for a written answer; the lesson material above is shown offline."))))), teacherOpen && /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => setTeacherOpen(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal modal-wide",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Teacher dashboard",
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "\uD83D\uDCCA Teacher dashboard. Class concept strength"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => setTeacherOpen(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "teacher-body"
-    }, !teacherData && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "Reading the class memory on this machine\u2026"), teacherData && teacherData.pupils.length === 0 && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "No pupil data yet. Pass a lesson to start the heatmap."), teacherData && teacherData.pupils.length > 0 && /*#__PURE__*/React.createElement("div", {
-      style: {
-        overflow: 'auto',
-        maxHeight: '60vh'
-      }
-    }, /*#__PURE__*/React.createElement("table", {
-      className: "heatmap-table"
-    }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Pupil"), teacherData.concepts.map(c => /*#__PURE__*/React.createElement("th", {
-      key: c,
-      className: "hm-concept"
-    }, c)))), /*#__PURE__*/React.createElement("tbody", null, teacherData.pupils.map(p => /*#__PURE__*/React.createElement("tr", {
-      key: p.id
-    }, /*#__PURE__*/React.createElement("td", {
-      className: "hm-name"
-    }, p.name, p.active ? ' ·' : ''), teacherData.concepts.map(c => {
-      const v = p.scores[c];
-      const has = typeof v === 'number';
-      const pct = has ? Math.round(v * 100) : null;
-      const hue = has ? Math.round(v * 130) : 0; // 0 red → 130 green
-      // WCAG AA: white text fails contrast on the lighter (green/yellow)
-      // cells, so compute the cell's relative luminance and flip to black
-      // text once it crosses the threshold where white drops below 4.5:1.
-      const cellLum = (() => {
-        if (!has) return 0;
-        const s = 0.55,
-          l = 0.42,
-          q = l < 0.5 ? l * (1 + s) : l + s - l * s,
-          pp = 2 * l - q;
-        const hk = t => {
-          t = (t + 1) % 1;
-          if (t < 1 / 6) return pp + (q - pp) * 6 * t;
-          if (t < 1 / 2) return q;
-          if (t < 2 / 3) return pp + (q - pp) * (2 / 3 - t) * 6;
-          return pp;
-        };
-        const lin = c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-        const h = hue / 360;
-        return 0.2126 * lin(hk(h + 1 / 3)) + 0.7152 * lin(hk(h)) + 0.0722 * lin(hk(h - 1 / 3));
-      })();
-      return /*#__PURE__*/React.createElement("td", {
-        key: c,
-        className: "hm-cell",
-        title: has ? c + ': ' + pct + '%' : 'not attempted',
-        style: {
-          background: has ? 'hsl(' + hue + ' 55% 42%)' : 'transparent',
-          color: has ? cellLum > 0.183 ? '#000' : '#fff' : 'var(--fg-4)'
-        }
-      }, has ? pct : '·');
-    }))))), /*#__PURE__*/React.createElement("p", {
-      className: "build-note"
-    }, "Each cell is a rolling strength score from 0 to 100 for that concept. Higher and greener is stronger. All data is local to this machine."))))), robotLabOpen && RobotLab && /*#__PURE__*/React.createElement(RobotLab, {
+    })), swarmOpen && /*#__PURE__*/React.createElement(window.KodroPanels.SwarmModal, {
+      swarmBusy: swarmBusy,
+      setSwarmOpen: setSwarmOpen,
+      swarmData: swarmData
+    }), vaOpen && /*#__PURE__*/React.createElement(window.KodroPanels.VoiceAgentModal, {
+      vaBusy: vaBusy,
+      setVaOpen: setVaOpen,
+      vaData: vaData,
+      runVoiceAgent: runVoiceAgent
+    }), askOpen && /*#__PURE__*/React.createElement(window.KodroPanels.AskModal, {
+      askBusy: askBusy,
+      setAskOpen: setAskOpen,
+      askQuery: askQuery,
+      setAskQuery: setAskQuery,
+      runAsk: runAsk,
+      askData: askData
+    }), teacherOpen && /*#__PURE__*/React.createElement(window.KodroPanels.TeacherModal, {
+      onClose: () => setTeacherOpen(false),
+      teacherData: teacherData
+    }), robotLabOpen && RobotLab && /*#__PURE__*/React.createElement(RobotLab, {
       onClose: () => setRobotLabOpen(false)
-    }), memoryOpen && /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => setMemoryOpen(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal modal-wide",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Memory and skills",
-      "data-tick": memTick,
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "\uD83E\uDDE0 Memory. The system refines from what it has seen, offline"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => setMemoryOpen(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "mem-body"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "mem-col"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "rl-label"
-    }, "Reflections from past runs"), (window.KodroMemory ? window.KodroMemory.reflections() : []).length ? /*#__PURE__*/React.createElement("ul", {
-      className: "mem-list"
-    }, window.KodroMemory.reflections().slice(0, 10).map((r, i) => /*#__PURE__*/React.createElement("li", {
-      key: i,
-      className: 'mem-refl mem-' + r.outcome
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "mem-ctx"
-    }, (r.world || '?') + ' · ' + (r.robotType || 'robot') + ' · ' + r.outcome), r.reflection))) : /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "No runs yet. Run a program and the system notes what happened, then draws on it.")), /*#__PURE__*/React.createElement("div", {
-      className: "mem-col"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "rl-label"
-    }, "Skill library. Programs that worked, reused"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini btn-vibe",
-      onClick: () => {
-        const n = window.prompt && window.prompt('Name this skill');
-        if (n && window.KodroMemory) window.KodroMemory.saveSkill(n, code, {
-          world: terrain.id,
-          robotType: robotSpec && robotSpec.type || '',
-          ts: Date.now()
-        });
-      }
-    }, "\uFF0B Save current code as a skill"), (window.KodroMemory ? window.KodroMemory.skills() : []).length ? /*#__PURE__*/React.createElement("ul", {
-      className: "mem-list"
-    }, window.KodroMemory.skills().map((s, i) => /*#__PURE__*/React.createElement("li", {
-      key: i,
-      className: "mem-skill"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "mem-skill-name"
-    }, s.name), /*#__PURE__*/React.createElement("span", {
-      className: "mem-skill-ctx"
-    }, (s.world || '') + ' · used ' + (s.uses || 0) + '×'), /*#__PURE__*/React.createElement("span", {
-      className: "mem-skill-act"
-    }, /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      onClick: () => {
-        const cd = window.KodroMemory.useSkill(s.name);
-        if (cd != null) {
-          if (currentLessonId) setLessonBuffers(b => ({
-            ...b,
-            [currentLessonId]: cd
-          }));else setPrograms(p => ({
-            ...p,
-            [activeTab]: cd
-          }));
-          setMemoryOpen(false);
-        }
-      }
-    }, "Insert"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      onClick: () => window.KodroMemory.removeSkill(s.name)
-    }, "\u2715"))))) : /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "Save a program that worked, then reuse it on the next robot."))))), reviewOpen && /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => !reviewBusy && setReviewOpen(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "AI code review",
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "\uD83D\uDD0E Code review. A second AI agent checks your work"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => setReviewOpen(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "review-body"
-    }, reviewBusy && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "A reviewer agent is reading your code on this machine\u2026"), reviewErr && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-error",
-      role: "alert"
-    }, reviewErr), reviewData && !reviewBusy && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "Reviewer: ", /*#__PURE__*/React.createElement("b", null, reviewData.model), " \xB7 runs entirely offline."), reviewData.issues && reviewData.issues.length > 0 ? /*#__PURE__*/React.createElement("ul", {
-      className: "review-issues"
-    }, reviewData.issues.map((it, i) => /*#__PURE__*/React.createElement("li", {
-      key: i
-    }, it))) : /*#__PURE__*/React.createElement("p", {
-      className: "review-clean"
-    }, "No problems spotted. Nice work."), reviewData.revised && reviewData.code && /*#__PURE__*/React.createElement("div", {
-      className: "review-rewrite"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "Suggested rewrite (checked to run safely)"), /*#__PURE__*/React.createElement("pre", {
-      className: "vibe-code"
-    }, reviewData.code), /*#__PURE__*/React.createElement("div", {
-      className: "vibe-code-actions"
-    }, /*#__PURE__*/React.createElement("button", {
-      className: "ctrl ctrl-run",
-      onClick: applyReview
-    }, "\u2713 Apply to editor"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      onClick: () => setReviewOpen(false)
-    }, "Keep mine"))))))), realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, {
+    }), memoryOpen && /*#__PURE__*/React.createElement(window.KodroPanels.MemoryModal, {
+      setMemoryOpen: setMemoryOpen,
+      memTick: memTick,
+      code: code,
+      terrain: terrain,
+      robotSpec: robotSpec,
+      currentLessonId: currentLessonId,
+      setLessonBuffers: setLessonBuffers,
+      setPrograms: setPrograms,
+      activeTab: activeTab
+    }), reviewOpen && /*#__PURE__*/React.createElement(window.KodroPanels.ReviewModal, {
+      reviewBusy: reviewBusy,
+      setReviewOpen: setReviewOpen,
+      reviewErr: reviewErr,
+      reviewData: reviewData,
+      applyReview: applyReview
+    }), realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, {
       onClose: () => setRealismOpen(false)
     }), demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, {
       onClose: () => setDemoOpen(false)
-    }), vibeOpen && /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => !vibeBusy && setVibeOpen(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal modal-wide",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Code with AI",
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "\u2728 Vibe coding. Describe it, the AI writes it"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => {
-        vibeCancelRef.current = true;
-        setVibeBusy(false);
-        setVibeOpen(false);
-      }
-    }, "\u2715")), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
-      className: "vibe-body"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it."), aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        margin: '2px 0 10px',
-        flexWrap: 'wrap'
-      }
-    }, /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 12.5,
-        color: '#9fb4d2'
-      }
-    }, "Use model"), /*#__PURE__*/React.createElement("select", {
-      value: aiInfo.override || aiInfo.model || '',
-      onChange: e => pickModel(e.target.value),
-      style: {
-        background: '#0e1622',
-        color: '#dce8f8',
-        border: '1px solid #2a3a52',
-        borderRadius: 8,
-        padding: '5px 8px',
-        fontSize: 12.5
-      }
-    }, aiInfo.models.map(m => /*#__PURE__*/React.createElement("option", {
-      key: m,
-      value: m
-    }, m))), aiInfo.override && /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      onClick: () => pickModel(''),
-      title: "Return to automatic model selection"
-    }, "Auto")), /*#__PURE__*/React.createElement("div", {
-      className: "vibe-thread",
-      role: "log",
-      "aria-live": "polite",
-      "aria-label": "AI conversation"
-    }, vibeMsgs.length === 0 && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-empty"
-    }, "Chat with the AI like a coding partner. It may ask a question first, e.g. try ", /*#__PURE__*/React.createElement("i", null, "\"explore the field\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"draw a star\""), "."), vibeMsgs.map((m, i) => m.kind === 'code' ? /*#__PURE__*/React.createElement("div", {
-      key: i,
-      className: "vibe-msg ai code"
-    }, /*#__PURE__*/React.createElement("pre", {
-      className: "vibe-code"
-    }, m.text), /*#__PURE__*/React.createElement("div", {
-      className: "vibe-code-actions"
-    }, /*#__PURE__*/React.createElement("button", {
-      className: "ctrl ctrl-run",
-      onClick: () => vibeApply(m.text, m.model)
-    }, "\u2713 Apply to editor"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      onClick: () => {
-        setVibeMsgs(ms => [...ms, {
-          role: 'user',
-          kind: 'text',
-          text: '(discarded, try again)'
-        }]);
-      }
-    }, "Discard"))) : /*#__PURE__*/React.createElement("div", {
-      key: i,
-      className: 'vibe-msg ' + m.role
-    }, /*#__PURE__*/React.createElement("span", null, m.text))), vibeBusy && /*#__PURE__*/React.createElement("div", {
-      className: "vibe-msg ai thinking"
-    }, vibeLive ? /*#__PURE__*/React.createElement("pre", {
-      className: "vibe-live"
-    }, vibeLive) : /*#__PURE__*/React.createElement("span", null, "Thinking\u2026")), /*#__PURE__*/React.createElement("div", {
-      ref: vibeEndRef
-    })), vibeError && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-error",
-      role: "alert"
-    }, vibeError), /*#__PURE__*/React.createElement("div", {
-      className: "vibe-inputrow"
-    }, /*#__PURE__*/React.createElement("button", {
-      className: "icon-btn",
-      title: "Speak your request (offline)",
-      "aria-label": "Voice input",
-      disabled: micBusy,
-      onClick: vibeMic
-    }, micBusy ? '…' : '🎤'), /*#__PURE__*/React.createElement("textarea", {
-      className: "vibe-input",
-      rows: 2,
-      placeholder: "Say what the rover should do. The AI may ask you a question back",
-      value: vibePrompt,
-      onChange: e => setVibePrompt(e.target.value),
-      onKeyDown: e => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          vibeSend();
-        }
-      },
-      "aria-label": "Describe what the rover should do",
-      autoFocus: true
-    }), /*#__PURE__*/React.createElement("button", {
-      className: "ctrl ctrl-run",
-      disabled: vibeBusy || !vibePrompt.trim(),
-      onClick: vibeSend
-    }, "Send")), /*#__PURE__*/React.createElement("span", {
-      className: "vibe-hint"
-    }, "Apply types the code into the editor. Nothing runs until you press Run.")) : /*#__PURE__*/React.createElement("div", {
-      className: "vibe-body"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "AI is offline. Vibe coding uses a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account):"), /*#__PURE__*/React.createElement("ol", {
-      className: "vibe-steps"
-    }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. This panel lights up automatically"))))), blocksOpen && /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => setBlocksOpen(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal modal-wide",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Block coding",
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "\uD83E\uDDE9 Blocks. Click blocks to build, then turn them into Python"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => setBlocksOpen(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "blocks-palette"
-    }, BLOCK_DEFS.map(d => {
-      // Gating parity with the text editor: a block whose command
-      // needs a part this build lacks is disabled here, so the limit
-      // is visible before running rather than a runtime refusal.
-      const gateOk = !d.requires || !window.KodroCommands || window.KodroCommands.check(robotSpec, d.requires).ok;
-      return /*#__PURE__*/React.createElement("button", {
-        key: d.k,
-        className: "block-chip",
-        style: {
-          borderColor: d.color
-        },
-        disabled: !gateOk,
-        title: gateOk ? undefined : 'This build has no part for ' + d.requires + '()',
-        onClick: () => addBlock(d)
-      }, d.label, d.unit ? ' ' + d.val + d.unit : '');
-    }), /*#__PURE__*/React.createElement("button", {
-      className: "block-chip block-end",
-      onClick: endBlock,
-      disabled: blockIndent === 0
-    }, "\u21A4 end block")), /*#__PURE__*/React.createElement("div", {
-      className: "blocks-program",
-      "aria-label": "Your program"
-    }, blocks.length === 0 && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-hint"
-    }, "Click blocks above. They stack here like Scratch."), blocks.map((b, i) => /*#__PURE__*/React.createElement("div", {
-      key: i,
-      className: "block-row",
-      style: {
-        marginLeft: b.indent * 22 + 'px',
-        borderLeftColor: b.color
-      }
-    }, /*#__PURE__*/React.createElement("span", null, b.label), b.val !== undefined && /*#__PURE__*/React.createElement("input", {
-      type: "number",
-      className: "block-num",
-      value: b.val,
-      min: b.unit === '%' ? 0 : 1,
-      max: b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20,
-      "aria-label": b.label + ' amount',
-      onChange: e => {
-        // Clamp to this block's real min/max so the number shown
-        // is the number that runs (interpreter.clampNum would
-        // otherwise silently clamp a too-big value at run time),
-        // and use Number.isFinite so 0 (valid for set speed)
-        // is kept rather than coerced to 1 by truthiness.
-        const lo = b.unit === '%' ? 0 : 1;
-        const hi = b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20;
-        const raw = Number(e.target.value);
-        const v = Number.isFinite(raw) ? Math.max(lo, Math.min(hi, raw)) : lo;
-        setBlocks(bs => bs.map((x, j) => j === i ? {
-          ...x,
-          val: v
-        } : x));
-      }
-    }), b.unit && /*#__PURE__*/React.createElement("span", {
-      className: "vibe-hint"
-    }, b.unit), /*#__PURE__*/React.createElement("span", {
-      className: "block-actions"
-    }, /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      disabled: i === 0,
-      "aria-label": 'move ' + b.label + ' up',
-      title: "Move up",
-      onClick: () => moveBlock(i, -1)
-    }, "\u2191"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      disabled: i === blocks.length - 1,
-      "aria-label": 'move ' + b.label + ' down',
-      title: "Move down",
-      onClick: () => moveBlock(i, 1)
-    }, "\u2193"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": 'remove ' + b.label,
-      onClick: () => removeBlock(i)
-    }, "\u2715"))))), /*#__PURE__*/React.createElement("div", {
-      className: "vibe-actions"
-    }, /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      disabled: !blocks.length,
-      onClick: () => {
-        setBlocks([]);
-        setBlockIndent(0);
-      }
-    }, "Clear"), /*#__PURE__*/React.createElement("span", {
-      className: "vibe-hint",
-      style: {
-        flex: 1
-      }
-    }, "Turns into real Python. Watch it type itself into the editor."), /*#__PURE__*/React.createElement("button", {
-      className: "ctrl ctrl-run",
-      disabled: !blocks.length,
-      onClick: insertBlocksCode
-    }, "Insert code \u2192")))), showHelp && /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => setShowHelp(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Keyboard shortcuts",
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "Keyboard shortcuts"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => setShowHelp(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("dl", {
-      className: "shortcut-list"
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Run / Pause the program")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "F10")), /*#__PURE__*/React.createElement("dd", null, "Step one instruction")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Tab")), /*#__PURE__*/React.createElement("dd", null, "Indent (in the editor)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Shift"), "+", /*#__PURE__*/React.createElement("kbd", null, "Tab")), /*#__PURE__*/React.createElement("dd", null, "Dedent (in the editor)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Enter")), /*#__PURE__*/React.createElement("dd", null, "Auto-indent the next line")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Esc")), /*#__PURE__*/React.createElement("dd", null, "Leave the editor / close this")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "?")), /*#__PURE__*/React.createElement("dd", null, "Show this help"))))), buildOpen && /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => setBuildOpen(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal modal-wide",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Build a real robot",
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "\uD83E\uDD16 Build a real robot. What your budget can buy"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => setBuildOpen(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "build-body"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "Type a budget and the local AI plans a real rover you can build and program, mapping what you learned here onto real hardware. Nothing is ordered; this runs offline."), /*#__PURE__*/React.createElement("div", {
-      className: "build-input"
-    }, /*#__PURE__*/React.createElement("label", null, "Budget (US$)", /*#__PURE__*/React.createElement("input", {
-      type: "number",
-      min: "1",
-      max: "100000",
-      value: buildBudget,
-      onChange: e => setBuildBudget(e.target.value),
-      onKeyDown: e => {
-        if (e.key === 'Enter') runBuild();
-      }
-    })), /*#__PURE__*/React.createElement("label", {
-      className: "grow"
-    }, "Goal (optional)", /*#__PURE__*/React.createElement("input", {
-      type: "text",
-      placeholder: "e.g. \"avoid walls and follow a line\"",
-      value: buildGoal,
-      onChange: e => setBuildGoal(e.target.value),
-      onKeyDown: e => {
-        if (e.key === 'Enter') runBuild();
-      }
-    })), /*#__PURE__*/React.createElement("button", {
-      className: "ctrl ctrl-run",
-      disabled: buildBusy,
-      onClick: runBuild
-    }, buildBusy ? 'Planning…' : 'Generate')), buildErr && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-error",
-      role: "alert"
-    }, buildErr), buildPlan && /*#__PURE__*/React.createElement("div", {
-      className: "build-plan"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "build-head"
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
-      style: {
-        margin: '0 0 2px'
-      }
-    }, buildPlan.tier), /*#__PURE__*/React.createElement("p", {
-      style: {
-        margin: 0,
-        color: 'var(--fg-2)',
-        fontSize: 12
-      }
-    }, buildPlan.summary)), /*#__PURE__*/React.createElement("div", {
-      className: 'build-cost' + (buildPlan.total <= buildPlan.budget ? ' ok' : ' over')
-    }, "$", Math.round(buildPlan.total), " ", /*#__PURE__*/React.createElement("span", null, "of $", buildPlan.budget))), /*#__PURE__*/React.createElement(window.RoverSchematic, {
-      parts: buildPlan.parts
-    }), /*#__PURE__*/React.createElement("div", {
-      className: "build-cols"
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-      className: "eyebrow"
-    }, "Parts"), /*#__PURE__*/React.createElement("table", {
-      className: "build-table"
-    }, /*#__PURE__*/React.createElement("tbody", null, buildPlan.parts.map((p, i) => /*#__PURE__*/React.createElement("tr", {
-      key: i
-    }, /*#__PURE__*/React.createElement("td", null, p.name), /*#__PURE__*/React.createElement("td", {
-      className: "role"
-    }, p.role), /*#__PURE__*/React.createElement("td", {
-      className: "cost"
-    }, "$", p.cost)))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-      className: "eyebrow"
-    }, "Build steps"), /*#__PURE__*/React.createElement("ol", {
-      className: "build-steps"
-    }, buildPlan.steps.map((s, i) => /*#__PURE__*/React.createElement("li", {
-      key: i
-    }, s))), buildPlan.maps && buildPlan.maps.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-      className: "eyebrow",
-      style: {
-        marginTop: 8
-      }
-    }, "From Kodro to hardware"), /*#__PURE__*/React.createElement("dl", {
-      className: "build-maps"
-    }, buildPlan.maps.map((m, i) => /*#__PURE__*/React.createElement("div", {
-      key: i
-    }, /*#__PURE__*/React.createElement("dt", null, m.robolearn), /*#__PURE__*/React.createElement("dd", null, m.hardware))))))), buildPlan.fallback && /*#__PURE__*/React.createElement("p", {
-      className: "build-note"
-    }, "A standard plan is shown because the model could not tailor one within this budget."))))), !onboarded && window.KodroOnboarding && /*#__PURE__*/React.createElement(window.KodroOnboarding, {
+    }), vibeOpen && /*#__PURE__*/React.createElement(window.KodroPanels.VibeModal, {
+      setVibeOpen: setVibeOpen,
+      vibeCancelRef: vibeCancelRef,
+      setVibeBusy: setVibeBusy,
+      aiInfo: aiInfo,
+      pickModel: pickModel,
+      vibeMsgs: vibeMsgs,
+      setVibeMsgs: setVibeMsgs,
+      vibeApply: vibeApply,
+      vibeBusy: vibeBusy,
+      vibeLive: vibeLive,
+      vibeEndRef: vibeEndRef,
+      vibeError: vibeError,
+      micBusy: micBusy,
+      vibeMic: vibeMic,
+      vibePrompt: vibePrompt,
+      setVibePrompt: setVibePrompt,
+      vibeSend: vibeSend
+    }), blocksOpen && /*#__PURE__*/React.createElement(window.KodroPanels.BlocksModal, {
+      setBlocksOpen: setBlocksOpen,
+      BLOCK_DEFS: BLOCK_DEFS,
+      robotSpec: robotSpec,
+      addBlock: addBlock,
+      endBlock: endBlock,
+      blockIndent: blockIndent,
+      setBlockIndent: setBlockIndent,
+      blocks: blocks,
+      setBlocks: setBlocks,
+      moveBlock: moveBlock,
+      removeBlock: removeBlock,
+      insertBlocksCode: insertBlocksCode
+    }), showHelp && /*#__PURE__*/React.createElement(window.KodroPanels.HelpModal, {
+      onClose: () => setShowHelp(false)
+    }), buildOpen && /*#__PURE__*/React.createElement(window.KodroPanels.BuildModal, {
+      onClose: () => setBuildOpen(false),
+      buildBudget: buildBudget,
+      setBuildBudget: setBuildBudget,
+      buildGoal: buildGoal,
+      setBuildGoal: setBuildGoal,
+      buildBusy: buildBusy,
+      runBuild: runBuild,
+      buildErr: buildErr,
+      buildPlan: buildPlan
+    }), !onboarded && window.KodroOnboarding && /*#__PURE__*/React.createElement(window.KodroOnboarding, {
       onClose: () => {
         setOnboarded(true);
         try {
