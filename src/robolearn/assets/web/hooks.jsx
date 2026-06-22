@@ -84,11 +84,18 @@
         else if (kind === 'tele') setTeleW(Math.max(240, Math.min(460, t0 - (ev.clientX - sx))));
         else if (kind === 'console') setConsoleH(Math.max(90, Math.min(420, c0 - (ev.clientY - sy))));
       };
-      const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); document.body.style.cursor = ''; };
-      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+      const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); document.body.style.cursor = ''; };
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
       document.body.style.cursor = kind === 'console' ? 'row-resize' : 'col-resize';
     }
-    return { editorW, teleW, consoleH, startDrag };
+    // Keyboard alternative to dragging (WCAG 2.1.1): nudge a split by d pixels,
+    // clamped to the same bounds as the pointer drag.
+    function nudge(kind, d) {
+      if (kind === 'editor') setEditorW(w => Math.max(280, Math.min(640, w + d)));
+      else if (kind === 'tele') setTeleW(w => Math.max(240, Math.min(460, w + d)));
+      else if (kind === 'console') setConsoleH(h => Math.max(90, Math.min(420, h + d)));
+    }
+    return { editorW, teleW, consoleH, startDrag, nudge };
   }
 
   function useBlocks(opts) {

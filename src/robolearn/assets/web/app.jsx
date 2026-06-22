@@ -1197,7 +1197,7 @@
     }, [terrainId]);
 
     // ---------- layout resizers ----------
-    const { editorW, teleW, consoleH, startDrag } = (window.KodroHooks && window.KodroHooks.useResizers) ? window.KodroHooks.useResizers() : { editorW: 404, teleW: 318, consoleH: 184, startDrag: function () {} };
+    const { editorW, teleW, consoleH, startDrag, nudge } = (window.KodroHooks && window.KodroHooks.useResizers) ? window.KodroHooks.useResizers() : { editorW: 404, teleW: 318, consoleH: 184, startDrag: function () {}, nudge: function () {} };
 
     // interactive camera: drag the viewport to orbit (yaw + pitch), wheel to zoom
     function camDrag(e) {
@@ -1214,10 +1214,10 @@
         }));
       };
       const up = () => {
-        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
         document.body.style.cursor = '';
       };
-      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
       document.body.style.cursor = 'grabbing';
     }
     function camWheel(e) {
@@ -1451,7 +1451,7 @@
                 );
               })()}
             </div>
-            <div className="resizer-row" onPointerDown={e => startDrag('console', e)} style={{ height: 5, cursor: 'row-resize', background: 'transparent', position: 'relative' }}>
+            <div className="resizer-row" role="separator" aria-orientation="horizontal" tabIndex={0} aria-label="Resize console height (arrow up and down)" aria-valuenow={Math.round(consoleH)} aria-valuemin={90} aria-valuemax={420} onKeyDown={e => { if (e.key === 'ArrowUp') { e.preventDefault(); nudge('console', 16); } else if (e.key === 'ArrowDown') { e.preventDefault(); nudge('console', -16); } }} onPointerDown={e => startDrag('console', e)} style={{ height: 5, cursor: 'row-resize', background: 'transparent', position: 'relative' }}>
               <div style={{ position: 'absolute', inset: '0 0', borderTop: '0.5px solid var(--border)' }}></div>
             </div>
             <div className="console" style={{ height: consoleH, flex: 'none' }}>
@@ -1488,7 +1488,7 @@
             </div>
           </div>
 
-          <div className="resizer" onPointerDown={e => startDrag('editor', e)} style={{ gridColumn: 2 }}></div>
+          <div className="resizer" role="separator" aria-orientation="vertical" tabIndex={0} aria-label="Resize editor width (arrow left and right)" aria-valuenow={Math.round(editorW)} aria-valuemin={280} aria-valuemax={640} onKeyDown={e => { if (e.key === 'ArrowLeft') { e.preventDefault(); nudge('editor', -16); } else if (e.key === 'ArrowRight') { e.preventDefault(); nudge('editor', 16); } }} onPointerDown={e => startDrag('editor', e)} style={{ gridColumn: 2 }}></div>
 
           {/* center: viewport */}
           <div className="panel view-panel" style={{ gridColumn: 3 }} onPointerDown={camDrag} onWheel={camWheel}>
@@ -1540,7 +1540,7 @@
               : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
           </div>
 
-          <div className="resizer" onPointerDown={e => startDrag('tele', e)} style={{ gridColumn: 4 }}></div>
+          <div className="resizer" role="separator" aria-orientation="vertical" tabIndex={0} aria-label="Resize telemetry width (arrow left and right)" aria-valuenow={Math.round(teleW)} aria-valuemin={240} aria-valuemax={460} onKeyDown={e => { if (e.key === 'ArrowLeft') { e.preventDefault(); nudge('tele', 16); } else if (e.key === 'ArrowRight') { e.preventDefault(); nudge('tele', -16); } }} onPointerDown={e => startDrag('tele', e)} style={{ gridColumn: 4 }}></div>
 
           {/* right: telemetry */}
           <div className="panel tele-panel" style={{ gridColumn: 5 }}>
