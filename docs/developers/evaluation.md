@@ -125,10 +125,10 @@ Measured funnel over the 20 persona-task cells (model `kodro-coder`):
 
 | Outcome | Cells |
 | --- | :--: |
-| Compiled (valid program produced) | 18/20 (90%) |
-| Ran clean through the interpreter | 16/20 (80%) |
-| Stayed inside the arena (no wall hit) | 2/20 (10%) |
-| Completed the task | 6/20 (30%) |
+| Compiled (valid program produced) | 15/20 (75%) |
+| Ran clean through the interpreter | 14/20 (70%) |
+| Stayed inside the arena (no wall hit) | 8/20 (40%) |
+| Completed the task | 8/20 (40%) |
 
 Mean turns to success: 1.0 (every success landed on the first attempt; no
 failing cell recovered across the correction turns).
@@ -137,28 +137,34 @@ failing cell recovered across the correction turns).
 | --- | :--: | :-- | --- | :--: |
 | Beginner (no code) | 1/5 | | Forward | 1/4 |
 | Teacher (class demo) | 1/5 | | Turn + move | 1/4 |
-| Maker (precise) | 3/5 | | Square | 0/4 |
-| Low-vision (voice) | 1/5 | | Obstacle stop | 0/4 |
+| Maker (precise) | 3/5 | | Square | 1/4 |
+| Low-vision (voice) | 3/5 | | Obstacle stop | 1/4 |
 | | | | Counted loop | 4/4 |
 
-The reading cuts both ways. The assistant reliably produces compiling (90%)
-and running (80%) code — the floor a beginner needs to not be stranded on a
-syntax error. But task-correct behaviour is limited (30%), strongly
+The reading cuts both ways. The assistant produces compiling (75%) and
+running (70%) code — the floor a beginner needs to not be stranded on a
+syntax error. Task-correct behaviour is limited but real (40%), strongly
 dependent on phrasing precision (precise maker 60% against 20% for the
-vaguer voices) and task complexity (the counted loop succeeded everywhere;
-the square and the sensor-gated stop never did within three turns). This is
-the honest ceiling of a 1-to-4-billion-parameter model on a laptop with no
-cloud, reported as such rather than hidden.
+beginner and teacher voices) and task complexity (the counted loop succeeded
+everywhere). This is the honest ceiling of a 1-to-4-billion-parameter model
+on a laptop with no cloud, reported as such rather than hidden.
 
-The result that matters for the design is the safety row. Of the 16
-programs that ran, 14 would have driven the robot into the arena wall,
-almost always because the model over-shot the distance (a plain "drive
-forward a few metres" became a 30-metre move). **The deterministic self-test
-caught every one** before it reached the learner and returned an actionable
-correction. The weakness of the model and the value of the safety net are
-one finding, not two: it is *because* the small offline model is
-untrustworthy alone that Kodro pairs it with a deterministic execution check
-rather than surfacing raw generated code.
+These figures are themselves one iteration the eval drove: an earlier run
+scored 30% task-complete and only 10% in-arena (the model over-shot
+distances, reading "a few metres" as a 30-metre move). Feeding that back as a
+single grounding change (the arena is small, a normal move is 1 to 5 metres,
+plus loop and sensor patterns) raised in-arena 10 to 40% and task 30 to 40%,
+and took square and obstacle-stop from 0 to 25%. The eval found a fixable
+weakness and the fix now ships in the grounding.
+
+The result that matters most for the design is the safety row read against
+the run row. Even after the grounding fix, of the 14 programs that ran, 6
+would still have driven the robot into the arena wall. **The deterministic
+self-test caught every one** before it reached the learner and returned an
+actionable correction. The weakness of the model and the value of the safety
+net are one finding, not two: it is *because* the small offline model is not
+fully trustworthy alone, even when well grounded, that Kodro pairs it with a
+deterministic execution check rather than surfacing raw generated code.
 
 **Its own limits**, stated plainly: the personas are still simulated
 phrasings rather than real users; the task predicates are coarse proxies for
