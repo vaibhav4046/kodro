@@ -83,6 +83,29 @@ function disp(src) {
   return Math.round(Math.hypot(t.finalX, t.finalY));
 }
 
+// Compile + run a program purely to observe whether it raises. Returns the
+// error message (string) if it threw, or null if it ran clean. Used by the
+// throw-case regressions so a fix that stops raising fails loudly.
+function runThrows(src) {
+  try {
+    const gen = compile(src).run({ sensor: () => 0 });
+    let n = 0;
+    while (true) { const r = gen.next(); if (r.done) break; if (++n > 1_000_000) break; }
+    return null;
+  } catch (e) {
+    return (e && e.message) || String(e);
+  }
+}
+
+// Collect a program's print outputs (for value/correctness regressions).
+function printsOf(src) {
+  const out = [];
+  for (const ev of compile(src).run({ sensor: () => 0 })) {
+    if (ev.type === 'print') out.push(ev.text);
+  }
+  return out;
+}
+
 let pass = 0, fail = 0;
 const fails = [];
 function check(name, cond, detail) {
@@ -101,32 +124,99 @@ check('turn_left(90) -> heading 270', run('turn_left(90)').heading === 270, run(
 check('set_speed(200) clamps to 100', run('set_speed(200)').speed === 100, run('set_speed(200)').speed + '');
 check('set_speed(-5) clamps to 0', run('set_speed(-5)').speed === 0, run('set_speed(-5)').speed + '');
 check('move_forward(10**400) finite, no hang', Number.isFinite(disp('move_forward(10 ** 400)')), disp('move_forward(10 ** 400)') + 'cm');
+// The clamp + non-finite guard explicitly, asserted on the emitted move event
+// distance (not displacement, which the arena wall would cap at 1500cm): a huge
+// finite arg clamps to the hi bound (40 m -> 4000 cm), and a non-finite arg
+// (10**400 -> Infinity) maps to the lo bound (0). A regression in clampNum or
+// the non-finite guard fails here.
+function moveDist(src) {
+  for (const ev of compile(src).run({ sensor: () => 0 })) { if (ev.type === 'move') return ev.distance; }
+  return null;
+}
+check('move_forward(99999) clamps to 4000cm', moveDist('move_forward(99999)') === 4000, moveDist('move_forward(99999)') + 'cm');
+check('move_forward(10**400) non-finite -> 0cm', moveDist('move_forward(10 ** 400)') === 0, moveDist('move_forward(10 ** 400)') + 'cm');
 check('for-loop runs body 4x (4 moves)', run('for i in range(4):\n    move_forward(1)').moves === 4, run('for i in range(4):\n    move_forward(1)').moves + ' moves');
 check('square nets back near origin', (() => { const t = run('for i in range(4):\n    rover.forward(300)\n    rover.turn_right(90)'); return Math.hypot(t.finalX, t.finalY) < 1; })(), '');
 check('while loop terminates via guard', run('n = 0\nwhile n < 5:\n    rover.forward(50)\n    n = n + 1').moves === 5, '');
 check('sensor distance() reads wall', run('d = rover.distance()\nprint(d)').steps > 0, '');
 
+console.log('\n== PYTHON-FIDELITY REGRESSIONS (8 fixes) ==');
+// Fix 1: chained comparison a<b<c is Python-associative (one AND of compares),
+// not left-associative. The old code returned wrong booleans.
+check('chain 3<2<1 -> False', printsOf('print(3 < 2 < 1)')[0] === 'False', printsOf('print(3 < 2 < 1)')[0]);
+check('chain 5<3<10 -> False', printsOf('print(5 < 3 < 10)')[0] === 'False', printsOf('print(5 < 3 < 10)')[0]);
+check('chain 0==0==0 -> True', printsOf('print(0 == 0 == 0)')[0] === 'True', printsOf('print(0 == 0 == 0)')[0]);
+check('chain 1<2<3 -> True', printsOf('print(1 < 2 < 3)')[0] === 'True', printsOf('print(1 < 2 < 3)')[0]);
+check('chain 90<h<270 picks right branch', printsOf('h = 180\nif 90 < h < 270:\n    print("yes")\nelse:\n    print("no")')[0] === 'yes', '');
+
+// Fix 2: division / floor-division / modulo by zero raise (Python ZeroDivisionError).
+check('1 / 0 raises division by zero', (runThrows('print(1 / 0)') || '').includes('division by zero'), runThrows('print(1 / 0)'));
+check('7 // 0 raises division by zero', (runThrows('print(7 // 0)') || '').includes('division by zero'), runThrows('print(7 // 0)'));
+check('5 % 0 raises division by zero', (runThrows('print(5 % 0)') || '').includes('division by zero'), runThrows('print(5 % 0)'));
+
+// Fix 3: round() uses banker's rounding (round half to even).
+check('round(0.5) -> 0', printsOf('print(round(0.5))')[0] === '0', printsOf('print(round(0.5))')[0]);
+check('round(2.5) -> 2', printsOf('print(round(2.5))')[0] === '2', printsOf('print(round(2.5))')[0]);
+check('round(2.5)+round(3.5) -> 6', printsOf('print(round(2.5) + round(3.5))')[0] === '6', printsOf('print(round(2.5) + round(3.5))')[0]);
+check('round(0.125, 2) -> 0.12', printsOf('print(round(0.125, 2))')[0] === '0.12', printsOf('print(round(0.125, 2))')[0]);
+check('round(3.5) -> 4', printsOf('print(round(3.5))')[0] === '4', printsOf('print(round(3.5))')[0]);
+
+// Fix 4: print of a non-integer float shows the full double repr, not 6 digits.
+check('print(1/3) == full double repr', printsOf('print(1 / 3)')[0] === '0.3333333333333333', printsOf('print(1 / 3)')[0]);
+
+// Fix 5: range() rejects float args/steps (TypeError) and a zero step (ValueError).
+check('range(2.5) raises float-not-int', (runThrows('for i in range(2.5):\n    print(i)') || '').includes('float'), runThrows('for i in range(2.5):\n    print(i)'));
+check('range(0,5,0.5) raises float-not-int', (runThrows('for i in range(0, 5, 0.5):\n    print(i)') || '').includes('float'), runThrows('for i in range(0, 5, 0.5):\n    print(i)'));
+check('range(0,5,0) raises zero-step', (runThrows('for i in range(0, 5, 0):\n    print(i)') || '').includes('must not be zero'), runThrows('for i in range(0, 5, 0):\n    print(i)'));
+
+// Fix 6: int()/float() of a non-numeric string raise a value-error diagnostic.
+check("int('abc') raises", runThrows("print(int('abc'))") !== null, runThrows("print(int('abc'))"));
+check("int('3.5') raises", runThrows("print(int('3.5'))") !== null, runThrows("print(int('3.5'))"));
+check("float('abc') raises", runThrows("print(float('abc'))") !== null, runThrows("print(float('abc'))"));
+
+// Fix 7: a number literal with two dots (1.2.3) is rejected, not silently 1.2.
+check('1.2.3 raises invalid number literal', (runThrows('print(1.2.3)') || '').includes('invalid number literal'), runThrows('print(1.2.3)'));
+
+// Fix 8: for/while ... else gives an accurate diagnostic, not "else without if".
+check('for-else accurate diagnostic', (runThrows('for i in range(3):\n    print(i)\nelse:\n    print("x")') || '').includes('loop-else is not supported'), runThrows('for i in range(3):\n    print(i)\nelse:\n    print("x")'));
+check('while-else accurate diagnostic', (runThrows('while False:\n    print(1)\nelse:\n    print(2)') || '').includes('loop-else is not supported'), runThrows('while False:\n    print(1)\nelse:\n    print(2)'));
+
 console.log('\n== SHIPPED EXAMPLE PROGRAMS ==');
-// Pull every EXAMPLES[*].code straight out of app-data.jsx so we test the real
-// text. (The pure EXAMPLES table was extracted from app.jsx into app-data.jsx;
-// it still sits between `const EXAMPLES = {` and `const LED_COLORS`.)
+// Load the REAL EXAMPLES object the same way interpreter.js is loaded: app-data.jsx
+// is a plain IIFE that exposes window.KodroExamples (no JSX, no React in the data
+// path), so evaluating it via new Function('window', src) gives us the exact
+// shipped example strings -- no brittle JSX scraping that can silently drop one.
 const APP = readFileSync(new URL('../src/robolearn/assets/web/app-data.jsx', import.meta.url), 'utf8');
-const block = APP.slice(APP.indexOf('const EXAMPLES = {'), APP.indexOf('const LED_COLORS'));
-const re = /(\w+):\s*\{\s*label:\s*'([^']+)',\s*code:\s*`([\s\S]*?)`\s*\}/g;
-let m, count = 0;
-while ((m = re.exec(block))) {
-  count++;
-  const [, key, label, code] = m;
+const dataWin = {};
+new Function('window', APP)(dataWin);
+const EXAMPLES = dataWin.KodroExamples || {};
+const exampleKeys = Object.keys(EXAMPLES);
+
+// Independent cross-check: count `code:` backtick literals in the raw source and
+// fail loudly if the parsed object count disagrees, so a future refactor that
+// breaks loading cannot silently shrink the example coverage.
+const literalCount = (APP.match(/\bcode:\s*`/g) || []).length;
+check('parsed example count matches code: literals', exampleKeys.length === literalCount,
+  exampleKeys.length + ' parsed vs ' + literalCount + ' literals');
+
+for (const key of exampleKeys) {
+  const ex = EXAMPLES[key];
+  const label = (ex && ex.label) || key;
+  const code = ex && ex.code;
   let ok = true, info = '';
-  try {
-    const t = run(code);
-    info = `steps=${t.steps} moves=${t.moves} turns=${t.turns} end=(${t.finalX},${t.finalY}) wallHit=${t.crashed}`;
-    // Arena is a 3000x3000 BOX (+/-1500 per axis). Stay inside it on both axes.
-    if (Math.abs(t.finalX) > WALL + 1 || Math.abs(t.finalY) > WALL + 1) { ok = false; info += ' OUT-OF-BOX'; }
-  } catch (e) { ok = false; info = 'THREW: ' + e.message; }
+  if (typeof code !== 'string') {
+    ok = false; info = 'NO CODE STRING';
+  } else {
+    try {
+      const t = run(code);
+      info = `steps=${t.steps} moves=${t.moves} turns=${t.turns} end=(${t.finalX},${t.finalY}) wallHit=${t.crashed}`;
+      // Arena is a 3000x3000 BOX (+/-1500 per axis). Stay inside it on both axes.
+      if (Math.abs(t.finalX) > WALL + 1 || Math.abs(t.finalY) > WALL + 1) { ok = false; info += ' OUT-OF-BOX'; }
+    } catch (e) { ok = false; info = 'THREW: ' + e.message; }
+  }
   check(label, ok, info);
 }
-check('found all 7 example programs', count === 7, count + ' found');
+check('found example programs (>= 7)', exampleKeys.length >= 7, exampleKeys.length + ' found');
 
 console.log('\n== RESULT: ' + pass + ' passed, ' + fail + ' failed ==');
 if (fail) { console.log('FAILURES:'); fails.forEach(f => console.log('  - ' + f)); process.exit(1); }
