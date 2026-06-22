@@ -1390,7 +1390,12 @@ def _strip_code_fences(raw: str) -> str:
             text = text[first_newline + 1 :]
         if text.rstrip().endswith("```"):
             text = text.rstrip()[:-3]
-    return _ensure_entrypoint(_quote_place_kinds(_normalize_quotes(text.strip()))) + "\n"
+    return (
+        _ensure_entrypoint(
+            _quote_place_kinds(_normalize_rover_api(_normalize_quotes(text.strip())))
+        )
+        + "\n"
+    )
 
 
 def _quote_place_kinds(code: str) -> str:
@@ -1422,6 +1427,45 @@ def _normalize_quotes(code: str) -> str:
         .replace("“", '"')
         .replace("”", '"')
     )
+
+
+_ROVER_API_ALIASES = {
+    "forward": "move_forward",
+    "backward": "move_backward",
+    "left": "turn_left",
+    "right": "turn_right",
+}
+_BARE_ROVER_NAMES = ("rover", "robot", "bot")
+
+
+def _normalize_rover_api(code: str) -> str:
+    """Rewrite object-method rover calls to the bare-function API, deterministically.
+
+    The small local model strongly prefers object-method style
+    (``rover.move_forward(3)``, ``rover.right(90)``, ``rover.set_speed(60)``)
+    which the interpreter's bare-function surface (``move_forward``,
+    ``turn_right``, ``set_speed`` ...) rejects with ``NameError``. This mirrors
+    the browser path's ``normalizeApi`` in ``ai-web.jsx``: strip the
+    ``rover.``/``robot.``/``bot.`` receiver and apply the
+    ``forward``/``backward``/``left``/``right`` aliases, so the output runs
+    however stubbornly the model writes it -- no model repair round-trip.
+
+    It also drops a dangling bare ``rover``/``robot``/``bot`` statement on its
+    own line (a standalone identifier that the JS method-call regex misses and
+    that would ``NameError`` at run time), e.g. the trailing ``rover`` the model
+    emits after a block of ``rover.x()`` calls.
+    """
+    import re
+
+    def _to_bare(match: "re.Match[str]") -> str:
+        name = match.group(1)
+        return f"{_ROVER_API_ALIASES.get(name, name)}("
+
+    rewritten = re.sub(r"\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(", _to_bare, code)
+    kept = [
+        line for line in rewritten.splitlines() if line.strip() not in _BARE_ROVER_NAMES
+    ]
+    return "\n".join(kept)
 
 
 def _ensure_entrypoint(code: str) -> str:

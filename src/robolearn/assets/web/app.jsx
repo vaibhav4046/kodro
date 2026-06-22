@@ -164,6 +164,8 @@
     const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    // Mobile telemetry: collapsed by default under 768px; toggle expands it.
+    const [teleCollapsed, setTeleCollapsed] = useState(() => { try { return window.innerWidth <= 768; } catch (e) { return false; } });
     // First-run onboarding / landing flow (shown once, remembered, skippable).
     const [onboarded, setOnboarded] = useState(() => localStorage.getItem('or_onboarded') === '1');
     // Budget robot builder (local AI hardware guide for a real-world rover).
@@ -1313,13 +1315,13 @@
             <span>{statusLabel}</span>
           </div>
           <div className="bar-divider"></div>
-          <button className="icon-btn voice-agent-btn" title="Talk to Kodro. Speak a command or ask a question" aria-label="Voice agent" onClick={() => { setVaOpen(true); setVaData(null); runVoiceAgent(); }}>🎙<span className="icon-btn-label">Voice</span></button>
-          <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab" onClick={() => setRobotLabOpen(true)}>🛠<span className="icon-btn-label">Robot Lab</span></button>
-          <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills" onClick={() => setMemoryOpen(true)}>🧠<span className="icon-btn-label">Memory</span></button>
-          <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot" onClick={() => setBuildOpen(true)}>🤖<span className="icon-btn-label">Build</span></button>
-          <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setShowHelp(true)}>?<span className="icon-btn-label">Help</span></button>
+          <button className="icon-btn voice-agent-btn" title="Talk to Kodro. Speak a command or ask a question" aria-label="Voice agent — speak a command or ask a question" onClick={() => { setVaOpen(true); setVaData(null); runVoiceAgent(); }}>🎙<span className="icon-btn-label">Voice</span></button>
+          <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab — design a custom robot" onClick={() => setRobotLabOpen(true)}>🛠<span className="icon-btn-label">Robot Lab</span></button>
+          <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills — what the system learned, and your skill library" onClick={() => setMemoryOpen(true)}>🧠<span className="icon-btn-label">Memory</span></button>
+          <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot — design one on a budget" onClick={() => setBuildOpen(true)}>🤖<span className="icon-btn-label">Build</span></button>
+          <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts — press question mark to see all shortcuts" onClick={() => setShowHelp(true)}>?<span className="icon-btn-label">Help</span></button>
           <div className="settings-wrap">
-            <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>⚙<span className="icon-btn-label">Settings</span></button>
+            <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings — theme, sound, readable text, and teacher tools" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>⚙<span className="icon-btn-label">Settings</span></button>
             {settingsOpen && (
               <div className="settings-pop" role="dialog" aria-label="Settings">
                 {pupils.length > 0 && (
@@ -1553,11 +1555,12 @@
           <div className="resizer" role="separator" aria-orientation="vertical" tabIndex={0} aria-label="Resize telemetry width (arrow left and right)" aria-valuenow={Math.round(teleW)} aria-valuemin={240} aria-valuemax={460} onKeyDown={e => { if (e.key === 'ArrowLeft') { e.preventDefault(); nudge('tele', 16); } else if (e.key === 'ArrowRight') { e.preventDefault(); nudge('tele', -16); } }} onPointerDown={e => startDrag('tele', e)} style={{ gridColumn: 4 }}></div>
 
           {/* right: telemetry */}
-          <div className="panel tele-panel" style={{ gridColumn: 5 }}>
+          <div className={'panel tele-panel' + (teleCollapsed ? ' tele-collapsed' : '')} style={{ gridColumn: 5 }}>
             <div className="panel-head">
               <span className="eyebrow">Telemetry</span>
               <div className="ph-spacer" style={{ flex: 1 }}></div>
               <span className="num" style={{ fontSize: 10, color: 'var(--fg-3)', letterSpacing: '0.1em' }}>OQ-ROVER-04</span>
+              <button type="button" className="tele-toggle" aria-expanded={!teleCollapsed} aria-label={teleCollapsed ? 'Expand telemetry panel' : 'Collapse telemetry panel'} onClick={() => setTeleCollapsed(c => !c)}>{teleCollapsed ? '▸' : '▾'}</button>
             </div>
             <window.Telemetry rover={rover} terrain={terrain} sensorDist={sensorDist} odometer={odo} />
           </div>

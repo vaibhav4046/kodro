@@ -45,6 +45,13 @@ Test suite now: qa_interpreter 47, qa_ui 6/6 + 5 behaviour, qa_vibe gated, pytes
 Engine parity fixes directly strengthen the dissertation's "matches the CPython grader" claim.
 NOTE: audit-2's react/three/a11y/python/offline FIND dims hit 529 mid-run, so those dims are under-covered on the post-fix code -> a cycle 3 should re-cover them. Non-code blockers (human study, dissertation framing) stay the user's.
 
+## Audit cycle 3 + assistant + harness + render-split (2026-06-22)
+- Audit cycle 3 (verify mostly 529'd): 5 confirmed -> all fixed 35faa47 (typewriter stale-tab snapshot, vibe stuck-busy on close, settings popover focus trap/restore, btn-mini 24px target, voice toggle aria-pressed).
+- Offline assistant grounding improved (ai-web API_HINT: arena size, 1-5m moves, loop/sensor patterns) 34b038a -> RE-MEASURED persona eval: safe 10->40%, task 30->40%, square/obstacle 0->25%, low-vision 20->60%. vibe 8/8. Dissertation .tex+evaluation.md updated to the new real 40% numbers + the honest "eval drove the fix" narrative 21f7ffa.
+- Harness now CONCRETE: qa_ui = 6 flows + 5 behaviour asserts + 13/13 modals render (1c1acdb opens+verifies every modal). Plus qa_interpreter 47, qa_vibe gated 8/8, pytest 860, CI gates interpreter.
+- RENDER-SPLIT (code-9 work, net-safe now): app.jsx 2087->1631; 10 modals extracted to panels.jsx (window.KodroPanels) 688c560. Session total app.jsx 2320 -> 1631. Modules: app-data.jsx, hooks.jsx (4 hooks), panels.jsx (10 modals). All net-verified.
+- Honest ceilings remaining: code <800 needs the always-on shell extracted (missionbar/editor/console/telemetry, riskier, prop-heavy, but net-covered by the 6 flows); AI axis bounded by the 1-4B offline model (~40% honest); Evaluation 10 needs the HUMAN study (user's, never faked).
+
 ## Remaining work per axis (do, verify, re-review, repeat)
 1. VISUAL (next): indoor worlds (lab/warehouse) under-lit and wash out -- darker
    contrast walls + a floor relief/texture for indoor floors + horizon haze on
