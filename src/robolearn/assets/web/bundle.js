@@ -9532,7 +9532,7 @@ Object.assign(window, {
     }), window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() && /*#__PURE__*/React.createElement("button", {
       className: "konb-btn ghost konb-agent-mic",
       type: "button",
-      "aria-label": "Describe your robot by voice",
+      "aria-label": agentBusy ? "Voice input busy" : "Describe your robot by voice",
       title: "Describe by voice",
       disabled: agentBusy,
       onClick: agentVoice
