@@ -299,11 +299,14 @@
     // in the thread while it thinks (the response feels instant instead of a
     // long opaque spinner).
     const [vibeLive, setVibeLive] = useState('');
+    // Lets the user cancel an in-flight generation by closing the panel; the
+    // poll loop checks this and bails quietly instead of showing an error.
+    const vibeCancelRef = useRef(false);
     async function vibeSend() {
       const text = vibePrompt.trim();
       if (vibeBusy || !text) return;
       const next = [...vibeMsgs, { role: 'user', kind: 'text', text }];
-      setVibeMsgs(next); setVibePrompt(''); setVibeBusy(true); setVibeError(null); setVibeLive('');
+      setVibeMsgs(next); setVibePrompt(''); setVibeBusy(true); setVibeError(null); setVibeLive(''); vibeCancelRef.current = false;
       try {
         const history = next.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
         // Self-refinement in action: feed the lesson the system remembers from
@@ -325,6 +328,7 @@
         let r = null;
         for (;;) {
           await new Promise(res => setTimeout(res, 250));
+          if (vibeCancelRef.current) { setVibeLive(''); setVibeBusy(false); return; }
           const p = await window.KodroAI.chatPoll(start.jobId);
           if (!p || !p.ok) { r = p; break; }
           if (p.done) { r = p; break; }
@@ -373,7 +377,7 @@
         const r = await window.RoboLearn.voiceAgent(6);
         setVaData(r || { ok: false, reason: 'No response.' });
         if (r && r.ok && r.mode === 'command' && r.code) {
-          setCode(c => (c && !c.endsWith('\n') ? c + '\n' : c) + r.code + '\n');
+          onCodeChange((code && !code.endsWith('\n') ? code + '\n' : code) + r.code + '\n');
           addConsole('Heard "' + r.text + '" → added ' + r.code, 'ok');
         }
       } catch (e) { setVaData({ ok: false, reason: String(e) }); }
@@ -389,7 +393,7 @@
       try {
         const r = await window.RoboLearn.voiceCommand(6);
         if (r && r.ok && r.code) {
-          setCode(c => (c && !c.endsWith('\n') ? c + '\n' : c) + r.code + '\n');
+          onCodeChange((code && !code.endsWith('\n') ? code + '\n' : code) + r.code + '\n');
           addConsole('Heard "' + r.text + '" → added ' + r.code, 'ok');
         } else {
           addConsole((r && r.reason) || 'Voice command not understood.', 'err');
@@ -466,6 +470,14 @@
         if (i >= codeText.length) { clearInterval(typeRef.current); typeRef.current = null; }
       }, 12);
     }
+
+    // If the app ever unmounts, clear the typewriter interval and the say-bubble
+    // timer so no stray timer fires against a torn-down tree. (sayTimer is
+    // declared below; this cleanup closure only runs at unmount, after init.)
+    useEffect(() => () => {
+      if (typeRef.current) clearInterval(typeRef.current);
+      if (sayTimer.current) clearTimeout(sayTimer.current);
+    }, []);
 
     // --- Scratch-style blocks mode -----------------------------------------
     // Extracted verbatim into window.KodroHooks.useBlocks. The three callbacks
@@ -1257,7 +1269,7 @@
       return () => { document.removeEventListener('keydown', onKey, true); if (prev && prev.focus) prev.focus(); };
     }, [anyModalOpen]);
 
-    const statusLabel = { idle: 'Standby', running: 'Running', paused: 'Stepping', done: 'Complete', error: 'Halted' }[runState];
+    const statusLabel = { idle: 'Standby', running: 'Running', paused: 'Paused', done: 'Complete', error: 'Halted' }[runState];
 
     return (
       <div className="app">
@@ -1301,7 +1313,7 @@
           <div className="settings-wrap">
             <button className="icon-btn" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>⚙</button>
             {settingsOpen && (
-              <div className="settings-pop" role="menu" aria-label="Settings">
+              <div className="settings-pop" role="dialog" aria-label="Settings">
                 {pupils.length > 0 && (
                   <label className="set-row">
                     <span>Pupil</span>
@@ -1326,22 +1338,22 @@
                     <option value="wiki">Wiki / Network</option>
                   </select>
                 </label>
-                <button className="set-row set-btn" role="menuitem" aria-pressed={!muted} onClick={toggleSound}>
+                <button className="set-row set-btn" aria-pressed={!muted} onClick={toggleSound}>
                   <span>Sound</span><span className="set-val">{muted ? 'Off' : 'On'}</span>
                 </button>
-                <button className="set-row set-btn" role="menuitem" aria-pressed={readable} onClick={() => setReadable(v => !v)}>
+                <button className="set-row set-btn" aria-pressed={readable} onClick={() => setReadable(v => !v)}>
                   <span>Readable text</span><span className="set-val">{readable ? 'On' : 'Off'}</span>
                 </button>
-                <button className="set-row set-btn" role="menuitem" onClick={() => setVoiceGender(v => v === 'female' ? 'male' : 'female')}>
+                <button className="set-row set-btn" onClick={() => setVoiceGender(v => v === 'female' ? 'male' : 'female')}>
                   <span>Voice</span><span className="set-val">{voiceGender === 'female' ? 'Female' : 'Male'}</span>
                 </button>
-                <button className="set-row set-btn" role="menuitem" onClick={() => { setSettingsOpen(false); pickPhotoClick(); }}>
+                <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); pickPhotoClick(); }}>
                   <span>Photo prop · place("photo")</span><span className="set-val">{photoUrl ? 'Loaded' : 'Pick…'}</span>
                 </button>
-                <button className="set-row set-btn" role="menuitem" onClick={openTeacher}>
+                <button className="set-row set-btn" onClick={openTeacher}>
                   <span>Teacher dashboard</span><span className="set-val">→</span>
                 </button>
-                <button className="set-row set-btn" role="menuitem" onClick={() => { setSettingsOpen(false); exportReportClick(); }}>
+                <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); exportReportClick(); }}>
                   <span>Export progress report</span><span className="set-val">→</span>
                 </button>
               </div>
@@ -1402,7 +1414,7 @@
                       {lesson.readingAge ? <span className="lesson-age" title="Reading age">Age {lesson.readingAge}+</span> : null}
                       {lessonVerdict && (
                         <span className={'lesson-verdict ' + (lessonVerdict.passed ? 'pass' : 'fail')}>
-                          {lessonVerdict.passed ? '✓ Complete' : '✗ Not yet'} · {lessonVerdict.score}/100
+                          <span aria-hidden="true">{lessonVerdict.passed ? '✓' : '✗'}</span> {lessonVerdict.passed ? 'Complete' : 'Not yet'} · {lessonVerdict.score}/100
                         </span>
                       )}
                       <button
@@ -1450,7 +1462,7 @@
               </div>
               <div className="console-out" ref={consoleEndRef} role="log" aria-live="polite" aria-label="Program output and lesson feedback">
                 {consoleLines.map((l, i) => (
-                  <div key={i} role={l.type === 'err' ? 'alert' : undefined} className={'cline ' + (l.type === 'err' ? 'err' : l.type === 'ok' ? 'ok' : l.type === 'sys' ? 'sys' : '')}>
+                  <div key={i} className={'cline ' + (l.type === 'err' ? 'err' : l.type === 'ok' ? 'ok' : l.type === 'sys' ? 'sys' : '')}>
                     {l.ts ? <span className="ts">{l.ts}</span> : null}
                     {l.text}
                   </div>
@@ -1699,9 +1711,20 @@
                               const has = typeof v === 'number';
                               const pct = has ? Math.round(v * 100) : null;
                               const hue = has ? Math.round(v * 130) : 0; // 0 red → 130 green
+                              // WCAG AA: white text fails contrast on the lighter (green/yellow)
+                              // cells, so compute the cell's relative luminance and flip to black
+                              // text once it crosses the threshold where white drops below 4.5:1.
+                              const cellLum = (() => {
+                                if (!has) return 0;
+                                const s = 0.55, l = 0.42, q = l < 0.5 ? l * (1 + s) : l + s - l * s, pp = 2 * l - q;
+                                const hk = (t) => { t = (t + 1) % 1; if (t < 1 / 6) return pp + (q - pp) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return pp + (q - pp) * (2 / 3 - t) * 6; return pp; };
+                                const lin = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+                                const h = hue / 360;
+                                return 0.2126 * lin(hk(h + 1 / 3)) + 0.7152 * lin(hk(h)) + 0.0722 * lin(hk(h - 1 / 3));
+                              })();
                               return (
                                 <td key={c} className="hm-cell" title={has ? c + ': ' + pct + '%' : 'not attempted'}
-                                  style={{ background: has ? 'hsl(' + hue + ' 55% 42%)' : 'transparent', color: has ? '#fff' : 'var(--fg-4)' }}>
+                                  style={{ background: has ? 'hsl(' + hue + ' 55% 42%)' : 'transparent', color: has ? (cellLum > 0.183 ? '#000' : '#fff') : 'var(--fg-4)' }}>
                                   {has ? pct : '·'}
                                 </td>
                               );
@@ -1810,7 +1833,7 @@
             <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
               <div className="modal-head">
                 <span className="eyebrow">✨ Vibe coding. Describe it, the AI writes it</span>
-                <button className="btn-mini" aria-label="Close" onClick={() => setVibeOpen(false)}>✕</button>
+                <button className="btn-mini" aria-label="Close" onClick={() => { vibeCancelRef.current = true; setVibeOpen(false); }}>✕</button>
               </div>
               {aiInfo.available ? (
                 <div className="vibe-body">

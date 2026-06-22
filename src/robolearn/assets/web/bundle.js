@@ -9059,12 +9059,20 @@ Object.assign(window, {
  * Kodro onboarding / landing flow.
  *
  * A self-contained, skippable first-run experience that sits in front of the
- * studio: a landing hero, a "what do you want to build" robot picker, and the
- * assistant's world recommendation for that robot. Decoupled from app.jsx -
- * it reuses RobotLab's canonical catalogue (TYPES / WORLD_FOR / selectType) so
- * choosing a robot here drives exactly the same world selection the Robot Lab
- * would. Mounting and persistence ("seen it already") are owned by App; this
- * module only renders the flow and calls onClose() when the user is done.
+ * studio: an editorial landing hero, a "what do you want to build" robot
+ * picker, and the assistant's world recommendation for that robot. Decoupled
+ * from app.jsx - it reuses RobotLab's canonical catalogue (TYPES / WORLD_FOR /
+ * selectType) so choosing a robot here drives exactly the same world selection
+ * the Robot Lab would. Mounting and persistence ("seen it already") are owned
+ * by App; this module only renders the flow and calls onClose() when done.
+ *
+ * Visual language is unified with the studio (styles.css :root): the Orbital
+ * Rover token system - void/navy surfaces, paper text, cyan = go, mars/brass
+ * accents, Cormorant display + Inter Tight body + JetBrains Mono labels. The
+ * landing leads with a large serif headline against a mono eyebrow, an orbital
+ * brand motif on a starfield, and a capability strip - an intentional editorial
+ * split, not a centred template. Atmosphere is CSS-only and GPU-friendly, and
+ * the whole motion path is gated behind prefers-reduced-motion.
  *
  * Exposes: window.KodroOnboarding({ onClose })
  */
@@ -9106,80 +9114,222 @@ Object.assign(window, {
     r: "6.4",
     fill: "currentColor"
   }));
+
+  // Capability labels for the hero strip: concrete, mono, what the studio does.
+  const CAPS = ["Design the machine", "Program its behaviour", "Simulate the world", "100% offline"];
   const CSS = `
-  .konb-root{position:fixed;inset:0;z-index:4000;display:flex;align-items:center;justify-content:center;
-    background:radial-gradient(120% 120% at 50% 0%,#101726 0%,#070a12 70%);
-    color:#e8edf7;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    animation:konb-fade .35s ease both;overflow:auto;padding:32px}
-  @keyframes konb-fade{from{opacity:0}to{opacity:1}}
-  @keyframes konb-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-  .konb-card{width:min(720px,100%);animation:konb-rise .4s ease both}
-  .konb-mark{width:72px;height:72px;color:#5ed6ff;margin:0 auto 22px;display:block}
-  .konb-mark svg{width:100%;height:100%}
-  .konb-title{font-size:clamp(34px,6vw,52px);font-weight:750;letter-spacing:-.03em;text-align:center;margin:0}
-  .konb-tag{font-size:clamp(17px,3vw,22px);font-weight:600;text-align:center;margin:14px 0 6px;color:#cfe0f5}
-  .konb-sub{text-align:center;color:#8da3c0;max-width:460px;margin:0 auto;line-height:1.5}
-  .konb-steps{display:flex;gap:7px;justify-content:center;margin:26px 0 4px}
-  .konb-dot{width:7px;height:7px;border-radius:50%;background:#2b3a55;transition:background .25s,width .25s}
-  .konb-dot.done{background:#5ed6ff;width:7px;border-radius:50%}
-  .konb-dot.on{background:#5ed6ff;width:20px;border-radius:4px}
-  .konb-actions{display:flex;gap:12px;justify-content:center;margin-top:32px;flex-wrap:wrap}
-  .konb-btn{appearance:none;border:0;cursor:pointer;font:inherit;font-weight:650;border-radius:11px;
-    padding:13px 26px;transition:transform .12s ease,background .2s,box-shadow .2s}
-  .konb-btn:active{transform:translateY(1px)}
-  .konb-btn.primary{background:#5ed6ff;color:#06121b;box-shadow:0 8px 26px -10px #5ed6ff}
-  .konb-btn.primary:hover{background:#7ee0ff}
-  .konb-btn.ghost{background:transparent;color:#9fb4d2;border:1px solid #283a55}
-  .konb-btn.ghost:hover{color:#dce8f8;border-color:#3b567a}
-  .konb-btn[disabled]{opacity:.4;cursor:not-allowed}
-  .konb-btn.primary[disabled]{background:#1b2738;color:#5d728f;box-shadow:none;opacity:1;cursor:not-allowed}
-  .konb-h2{font-size:clamp(24px,4vw,32px);font-weight:720;letter-spacing:-.02em;text-align:center;margin:0 0 8px}
-  .konb-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:26px}
-  @media (max-width:560px){.konb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  .konb-tile{text-align:left;background:#0f1726;border:1.5px solid #233248;border-radius:14px;padding:17px 17px 15px;
-    cursor:pointer;transition:border-color .18s,transform .12s,background .18s;color:inherit;font:inherit}
-  .konb-tile:hover{border-color:#3d5a80;transform:translateY(-2px)}
-  .konb-tile.sel{border-color:#5ed6ff;background:#11202e;box-shadow:0 0 0 1px #5ed6ff inset}
-  .konb-emoji{font-size:30px;line-height:1}
-  .konb-tname{font-weight:680;margin:9px 0 4px;font-size:16px}
-  .konb-blurb{color:#8da3c0;font-size:13px;line-height:1.45}
-  .konb-rec{background:#0f1726;border:1.5px solid #233248;border-radius:16px;padding:24px;margin-top:24px;text-align:center}
-  .konb-rec .konb-world{font-size:26px;font-weight:720;color:#5ed6ff;margin:6px 0}
-  .konb-rec .konb-why{color:#9fb4d2;line-height:1.5;max-width:440px;margin:6px auto 0}
-  .konb-skip{position:absolute;top:20px;right:24px}
-  .konb-skip button{background:none;border:0;color:#6f86a6;cursor:pointer;font:inherit;font-size:14px}
-  .konb-skip button:hover{color:#cfe0f5}
-  .konb-agent{margin-top:22px}
-  .konb-agent-row{display:flex;gap:9px;align-items:center}
-  .konb-agent-input{flex:1;min-width:0;background:#0e1726;border:1.5px solid #233248;border-radius:11px;
-    color:#e8edf7;font:inherit;font-size:15px;padding:12px 14px;outline:none;transition:border-color .18s}
-  .konb-agent-input:focus{border-color:#5ed6ff}
-  .konb-agent-mic{padding:12px 14px}
-  .konb-agent-or{text-align:center;color:#6f86a6;font-size:13px;margin:14px 0 0;letter-spacing:.02em}
-  .konb-agent-err{text-align:center;color:#ffb4a8;font-size:13px;margin:10px 0 0;line-height:1.4}
-  .konb-built{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:12px 0 0}
-  .konb-chip{background:#11202e;border:1px solid #2a4258;border-radius:999px;color:#bfe6ff;font-size:12px;padding:4px 11px}
-  @media (prefers-reduced-motion: reduce){
-    .konb-root{animation:none}.konb-card{animation:none}
-    .konb-btn,.konb-tile,.konb-dot{transition:none}
+  .konb-root{
+    position:fixed; inset:0; z-index:4000; overflow:auto;
+    color:var(--fg-1,#f5f0e4); font-family:var(--font-body,'Inter Tight',sans-serif);
+    background:
+      radial-gradient(120% 90% at 82% -6%, rgba(92,224,216,0.10), transparent 52%),
+      radial-gradient(80% 70% at 6% 104%, rgba(200,104,90,0.08), transparent 55%),
+      linear-gradient(180deg, var(--navy,#0f1220) 0%, var(--void,#08090f) 78%);
+    animation:konb-fade .4s var(--ease,cubic-bezier(.22,.61,.36,1)) both;
   }
-  @media (max-width:480px){
-    .konb-root{padding:16px;overflow-x:hidden}
-    .konb-card{max-width:100%}
-    .konb-title{font-size:clamp(28px,9vw,40px)}
-    .konb-tag{font-size:clamp(15px,4.6vw,19px)}
-    .konb-actions{flex-direction:column;align-items:stretch}
-    .konb-agent-row{flex-wrap:wrap}
-    .konb-agent-input{flex:1 1 100%}
-    .konb-agent-mic{min-height:44px;min-width:44px}
-    .konb-grid{grid-template-columns:1fr;gap:10px}
-    .konb-btn{min-height:44px;width:100%}
-    .konb-tile{min-height:44px}
-    .konb-skip button{min-height:44px;padding:8px 10px}
+  /* Starfield + faint orbital lines, painted CSS-only behind everything. */
+  .konb-root::before{
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:0; opacity:0.6;
+    background-image:
+      radial-gradient(1px 1px at 18% 24%, rgba(245,240,228,0.7), transparent),
+      radial-gradient(1px 1px at 67% 14%, rgba(245,240,228,0.5), transparent),
+      radial-gradient(1.4px 1.4px at 41% 62%, rgba(245,240,228,0.55), transparent),
+      radial-gradient(1px 1px at 88% 48%, rgba(92,224,216,0.6), transparent),
+      radial-gradient(1px 1px at 12% 78%, rgba(245,240,228,0.45), transparent),
+      radial-gradient(1.2px 1.2px at 74% 82%, rgba(245,240,228,0.4), transparent),
+      radial-gradient(1px 1px at 54% 32%, rgba(201,168,106,0.5), transparent);
+    background-repeat:no-repeat;
+  }
+  /* Fine grain over the whole panel for atmosphere (matches studio .grain). */
+  .konb-root::after{
+    content:''; position:absolute; inset:0; pointer-events:none; z-index:0; opacity:0.045;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  @keyframes konb-fade{from{opacity:0}to{opacity:1}}
+  @keyframes konb-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+  @keyframes konb-spin{to{transform:rotate(360deg)}}
+
+  .konb-shell{
+    position:relative; z-index:1; min-height:100%;
+    display:flex; flex-direction:column;
+    max-width:1140px; margin:0 auto; padding:30px clamp(20px,5vw,64px) 44px;
+  }
+  .konb-topbar{ display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .konb-wordmark{ display:flex; align-items:center; gap:11px; }
+  .konb-wordmark .wm-mark{ width:30px; height:30px; color:var(--cyan,#5ce0d8); flex:none; }
+  .konb-wordmark .wm-mark svg{ width:100%; height:100%; display:block; }
+  .konb-wordmark .wm-name{ font-family:var(--font-display,'Cormorant Garamond',serif); font-size:23px; font-weight:600; letter-spacing:.01em; line-height:1; }
+  .konb-wordmark .wm-sub{ font-family:var(--font-mono,monospace); font-size:8.5px; letter-spacing:.26em; text-transform:uppercase; color:var(--fg-3,#b3ad9e); margin-top:3px; }
+  .konb-skip{ background:none; border:1px solid var(--border,rgba(245,240,228,.12)); color:var(--fg-2,#d9d3c4);
+    font-family:var(--font-mono,monospace); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    border-radius:5px; padding:9px 14px; cursor:pointer; transition:all 160ms var(--ease,ease); }
+  .konb-skip:hover{ color:var(--fg-1,#f5f0e4); border-color:var(--fg-3,#b3ad9e); background:rgba(245,240,228,.04); }
+
+  .konb-body{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(24px,5vh,56px) 0 8px; }
+
+  /* ---- Eyebrow + section heads ---- */
+  .konb-eyebrow{
+    display:inline-flex; align-items:center; gap:9px;
+    font-family:var(--font-mono,monospace); font-size:10.5px; font-weight:500;
+    letter-spacing:.22em; text-transform:uppercase; color:var(--cyan,#5ce0d8);
+  }
+  .konb-eyebrow::before{ content:''; width:24px; height:1px; background:var(--cyan,#5ce0d8); opacity:.7; }
+
+  /* ============ STEP 0 — editorial hero ============ */
+  .konb-hero{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:clamp(28px,5vw,72px); align-items:center; animation:konb-rise .5s var(--ease,ease) both; }
+  .konb-lede{ min-width:0; }
+  .konb-h1{
+    font-family:var(--font-display,'Cormorant Garamond',serif); font-weight:600;
+    font-size:clamp(46px,8.5vw,104px); line-height:.94; letter-spacing:-.015em;
+    margin:18px 0 0; color:var(--fg-1,#f5f0e4);
+  }
+  .konb-h1 em{ font-style:italic; color:var(--cyan,#5ce0d8); }
+  .konb-lead{
+    font-size:clamp(15px,1.7vw,19px); line-height:1.6; color:var(--fg-2,#d9d3c4);
+    max-width:48ch; margin:22px 0 0;
+  }
+  .konb-lead b{ color:var(--fg-1,#f5f0e4); font-weight:600; }
+  .konb-caps{ display:flex; flex-wrap:wrap; gap:8px 10px; margin:26px 0 0; list-style:none; padding:0; }
+  .konb-caps li{
+    font-family:var(--font-mono,monospace); font-size:11px; letter-spacing:.04em; color:var(--fg-2,#d9d3c4);
+    border:0.5px solid var(--border,rgba(245,240,228,.12)); border-left:2px solid var(--brass,#c9a86a);
+    border-radius:5px; padding:6px 11px; background:rgba(245,240,228,.02);
+  }
+  .konb-caps li:last-child{ border-left-color:var(--cyan,#5ce0d8); color:var(--cyan,#5ce0d8); }
+
+  /* ---- Orbital motif panel ---- */
+  .konb-orbit{ position:relative; aspect-ratio:1/1; width:100%; max-width:380px; justify-self:end; align-self:center; }
+  .konb-orbit .ring{ position:absolute; inset:0; border-radius:50%; border:0.5px solid var(--border,rgba(245,240,228,.12)); }
+  .konb-orbit .ring.r2{ inset:13%; border-color:rgba(245,240,228,.08); }
+  .konb-orbit .ring.r3{ inset:27%; border-style:dashed; border-color:rgba(92,224,216,.18); }
+  .konb-orbit .spin{ position:absolute; inset:13%; animation:konb-spin 38s linear infinite; }
+  .konb-orbit .node{ position:absolute; top:-5px; left:50%; width:10px; height:10px; margin-left:-5px; border-radius:50%;
+    background:var(--cyan,#5ce0d8); box-shadow:0 0 14px 2px rgba(92,224,216,.7); }
+  .konb-orbit .spin.s2{ inset:27%; animation-duration:24s; animation-direction:reverse; }
+  .konb-orbit .spin.s2 .node{ width:7px; height:7px; margin-left:-3.5px; background:var(--mars,#c8685a); box-shadow:0 0 12px 1px rgba(200,104,90,.6); }
+  .konb-core{
+    position:absolute; inset:35%; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; color:var(--cyan,#5ce0d8);
+    background:radial-gradient(circle at 38% 30%, var(--navy-3,#1f2440), var(--navy,#0f1220) 72%);
+    border:0.5px solid var(--border,rgba(245,240,228,.12));
+    box-shadow:0 24px 60px -22px rgba(0,0,0,.7), inset 0 1px 0 rgba(245,240,228,.05);
+  }
+  .konb-core svg{ width:54%; height:54%; }
+
+  /* ============ Steps + actions ============ */
+  .konb-steps{ display:flex; gap:7px; align-items:center; margin:34px 0 0; }
+  .konb-dot{ width:7px; height:7px; border-radius:99px; background:var(--ink-2,#2b2e3d); transition:all .25s var(--ease,ease); }
+  .konb-dot.done{ background:var(--cyan-deep,#1a6f6a); }
+  .konb-dot.on{ width:24px; border-radius:4px; background:var(--cyan,#5ce0d8); }
+  .konb-progress{ font-family:var(--font-mono,monospace); font-size:10px; letter-spacing:.14em; color:var(--fg-3,#b3ad9e); text-transform:uppercase; margin-left:6px; }
+
+  .konb-actions{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:30px 0 0; }
+  .konb-btn{
+    appearance:none; cursor:pointer; font-family:var(--font-body,inherit); font-weight:600; font-size:14px;
+    display:inline-flex; align-items:center; gap:9px; min-height:46px; padding:0 24px; border-radius:6px;
+    border:1px solid var(--border,rgba(245,240,228,.12)); background:transparent; color:var(--fg-1,#f5f0e4);
+    transition:transform 120ms var(--ease,ease), background 180ms var(--ease,ease), border-color 180ms var(--ease,ease), box-shadow 180ms var(--ease,ease);
+  }
+  .konb-btn .arr{ font-family:var(--font-mono,monospace); transition:transform 180ms var(--ease,ease); }
+  .konb-btn:active{ transform:translateY(1px); }
+  .konb-btn.primary{ background:var(--cyan,#5ce0d8); color:var(--void,#08090f); border-color:var(--cyan,#5ce0d8); font-weight:700;
+    box-shadow:0 0 0 1px rgba(92,224,216,.4), 0 14px 34px -14px rgba(92,224,216,.7); }
+  .konb-btn.primary:hover{ background:var(--cyan-2,#3bc0b8); border-color:var(--cyan-2,#3bc0b8); }
+  .konb-btn.primary:hover .arr{ transform:translateX(4px); }
+  .konb-btn.ghost:hover{ color:var(--fg-1,#f5f0e4); border-color:var(--fg-3,#b3ad9e); background:rgba(245,240,228,.05); }
+  .konb-btn[disabled]{ cursor:not-allowed; opacity:1; }
+  .konb-btn.primary[disabled]{ background:var(--navy-3,#1f2440); color:var(--fg-3,#b3ad9e); border-color:var(--border,rgba(245,240,228,.12)); box-shadow:none; }
+
+  /* ============ STEP 1 / 2 — panel ============ */
+  .konb-panel{ width:min(760px,100%); margin:0 auto; animation:konb-rise .45s var(--ease,ease) both; }
+  .konb-h2{ font-family:var(--font-display,'Cormorant Garamond',serif); font-weight:600; font-size:clamp(30px,4.4vw,46px); line-height:1.02; letter-spacing:-.01em; margin:14px 0 0; }
+  .konb-sub{ font-size:14.5px; line-height:1.6; color:var(--fg-2,#d9d3c4); max-width:58ch; margin:12px 0 0; }
+
+  /* describe-your-robot assistant row */
+  .konb-agent{ margin:26px 0 0; }
+  .konb-agent-row{ display:flex; gap:9px; align-items:stretch; }
+  .konb-agent-input{
+    flex:1; min-width:0; background:var(--void,#08090f); border:1px solid var(--border,rgba(245,240,228,.12)); border-radius:6px;
+    color:var(--fg-1,#f5f0e4); font-family:var(--font-body,inherit); font-size:14.5px; padding:0 15px; min-height:46px; outline:none;
+    transition:border-color 160ms var(--ease,ease), box-shadow 160ms var(--ease,ease);
+  }
+  .konb-agent-input::placeholder{ color:var(--fg-3,#b3ad9e); }
+  .konb-agent-input:focus{ border-color:var(--cyan,#5ce0d8); box-shadow:0 0 0 3px rgba(92,224,216,.18); }
+  .konb-agent-mic{ min-width:46px; padding:0 14px; font-size:16px; }
+  .konb-agent-err{ color:var(--mars,#c8685a); font-size:13px; line-height:1.45; margin:10px 0 0; }
+  .konb-agent-or{ display:flex; align-items:center; gap:12px; font-family:var(--font-mono,monospace); font-size:10.5px;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--fg-3,#b3ad9e); margin:20px 0 4px; }
+  .konb-agent-or::before, .konb-agent-or::after{ content:''; flex:1; height:0.5px; background:var(--border,rgba(245,240,228,.12)); }
+
+  /* robot tiles — bento-ish, first tile spans wider on desktop */
+  .konb-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin:14px 0 0; }
+  .konb-tile{
+    grid-column:span 2; text-align:left; cursor:pointer; color:inherit; font:inherit; min-height:44px;
+    background:linear-gradient(180deg, var(--navy-2,#161a2d), var(--navy,#0f1220));
+    border:1px solid var(--border,rgba(245,240,228,.12)); border-radius:10px; padding:15px 16px;
+    transition:transform 140ms var(--ease,ease), border-color 160ms var(--ease,ease), box-shadow 160ms var(--ease,ease);
+  }
+  .konb-tile:hover{ transform:translateY(-2px); border-color:rgba(92,224,216,.4); box-shadow:0 16px 34px -22px rgba(0,0,0,.8); }
+  .konb-tile[aria-pressed="true"]{ border-color:var(--cyan,#5ce0d8); box-shadow:inset 0 0 0 1px var(--cyan,#5ce0d8), 0 14px 34px -20px rgba(92,224,216,.5); }
+  .konb-tile .t-top{ display:flex; align-items:center; justify-content:space-between; }
+  .konb-emoji{ font-size:26px; line-height:1; }
+  .konb-tile .t-check{ font-family:var(--font-mono,monospace); font-size:11px; color:var(--cyan,#5ce0d8); opacity:0; transition:opacity 140ms var(--ease,ease); }
+  .konb-tile[aria-pressed="true"] .t-check{ opacity:1; }
+  .konb-tname{ font-family:var(--font-display,'Cormorant Garamond',serif); font-size:19px; font-weight:600; margin:11px 0 3px; line-height:1.05; }
+  .konb-blurb{ color:var(--fg-2,#d9d3c4); font-size:12.5px; line-height:1.5; }
+
+  /* world recommendation card */
+  .konb-rec{
+    display:flex; gap:20px; align-items:center; margin:24px 0 0; padding:22px 24px;
+    background:linear-gradient(180deg, var(--navy-2,#161a2d), var(--navy,#0f1220));
+    border:1px solid var(--border,rgba(245,240,228,.12)); border-radius:12px;
+    box-shadow:0 24px 60px -30px rgba(0,0,0,.8);
+  }
+  .konb-rec .rec-badge{
+    flex:none; width:74px; height:74px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:38px;
+    background:radial-gradient(circle at 36% 28%, var(--navy-3,#1f2440), var(--void,#08090f) 78%);
+    border:0.5px solid var(--border,rgba(245,240,228,.12));
+  }
+  .konb-rec .rec-meta{ min-width:0; }
+  .konb-rec .rec-label{ font-family:var(--font-mono,monospace); font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--fg-3,#b3ad9e); }
+  .konb-world{ font-family:var(--font-display,'Cormorant Garamond',serif); font-size:clamp(26px,3.4vw,34px); font-weight:600; color:var(--cyan,#5ce0d8); line-height:1.04; margin:3px 0 6px; }
+  .konb-why{ color:var(--fg-2,#d9d3c4); font-size:13.5px; line-height:1.5; }
+  .konb-built{ display:flex; flex-wrap:wrap; gap:6px; margin:14px 0 0; }
+  .konb-chip{ font-family:var(--font-mono,monospace); font-size:11px; color:var(--cyan,#5ce0d8);
+    background:rgba(92,224,216,.08); border:0.5px solid rgba(92,224,216,.3); border-radius:99px; padding:4px 11px; }
+
+  @media (max-width:880px){
+    .konb-hero{ grid-template-columns:1fr; gap:34px; }
+    .konb-orbit{ max-width:280px; justify-self:start; order:-1; }
+    .konb-grid{ grid-template-columns:repeat(4,1fr); }
+    .konb-tile{ grid-column:span 2; }
+  }
+  @media (max-width:560px){
+    .konb-shell{ padding:20px 18px 34px; }
+    .konb-grid{ grid-template-columns:1fr; }
+    .konb-tile{ grid-column:auto; }
+    .konb-actions{ flex-direction:column; align-items:stretch; }
+    .konb-btn{ width:100%; justify-content:center; }
+    .konb-agent-row{ flex-wrap:wrap; }
+    .konb-agent-input{ flex:1 1 100%; }
+    .konb-agent-mic{ flex:1; }
+    .konb-orbit{ max-width:200px; }
+    .konb-rec{ flex-direction:column; align-items:flex-start; text-align:left; }
+  }
+
+  /* Visible keyboard focus on every control (AA). */
+  .konb-root button:focus-visible, .konb-root input:focus-visible, .konb-root [tabindex]:focus-visible{
+    outline:3px solid var(--cyan,#5ce0d8); outline-offset:2px; border-radius:6px;
+  }
+
+  /* Full reduced-motion path: no entry, no orbit, no transitions. */
+  @media (prefers-reduced-motion: reduce){
+    .konb-root, .konb-hero, .konb-panel{ animation:none; }
+    .konb-orbit .spin{ animation:none; }
+    .konb-btn, .konb-tile, .konb-dot, .konb-agent-input, .konb-skip, .konb-btn .arr, .konb-tile .t-check{ transition:none; }
   }
   `;
-  function Step({
-    n,
+  function Steps({
     current
   }) {
     return /*#__PURE__*/React.createElement("div", {
@@ -9188,8 +9338,11 @@ Object.assign(window, {
       "aria-label": "Step " + (current + 1) + " of 3"
     }, [0, 1, 2].map(i => /*#__PURE__*/React.createElement("div", {
       key: i,
-      className: "konb-dot" + (i === current ? " on" : i < current ? " done" : "")
-    })));
+      className: "konb-dot" + (i === current ? " on" : i < current ? " done" : ""),
+      "aria-hidden": "true"
+    })), /*#__PURE__*/React.createElement("span", {
+      className: "konb-progress"
+    }, current + 1 + " / 3"));
   }
   function KodroOnboarding({
     onClose
@@ -9283,35 +9436,85 @@ Object.assign(window, {
       "aria-modal": "true",
       "aria-label": "Welcome to Kodro"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "konb-skip"
-    }, /*#__PURE__*/React.createElement("button", {
+      className: "konb-shell"
+    }, /*#__PURE__*/React.createElement("header", {
+      className: "konb-topbar"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "konb-wordmark"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "wm-mark"
+    }, MARK), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      className: "wm-name"
+    }, "Kodro"), /*#__PURE__*/React.createElement("div", {
+      className: "wm-sub"
+    }, "Robot design studio \xB7 Offline"))), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "konb-skip",
       onClick: onClose
-    }, "Skip")), /*#__PURE__*/React.createElement("div", {
-      className: "konb-card"
-    }, step === 0 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
-      className: "konb-mark"
-    }, MARK), /*#__PURE__*/React.createElement("h1", {
-      className: "konb-title"
-    }, "Kodro"), /*#__PURE__*/React.createElement("p", {
-      className: "konb-tag"
-    }, "Design a robot. Program it. Watch it work."), /*#__PURE__*/React.createElement("p", {
-      className: "konb-sub"
-    }, "An offline robot design and simulation studio. Build a machine, write its behaviour, and validate it in a world that fits it - all on your own computer, no account, no cloud."), /*#__PURE__*/React.createElement(Step, {
+    }, "Skip to studio")), /*#__PURE__*/React.createElement("main", {
+      className: "konb-body"
+    }, step === 0 && /*#__PURE__*/React.createElement("section", {
+      className: "konb-hero",
+      "aria-labelledby": "konb-h1"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "konb-lede"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "konb-eyebrow"
+    }, "Offline robotics workbench"), /*#__PURE__*/React.createElement("h1", {
+      className: "konb-h1",
+      id: "konb-h1"
+    }, "Build a robot.", /*#__PURE__*/React.createElement("br", null), "Teach it.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("em", null, "Watch it work.")), /*#__PURE__*/React.createElement("p", {
+      className: "konb-lead"
+    }, "Kodro is an ", /*#__PURE__*/React.createElement("b", null, "offline robot design and simulation studio"), ". Assemble a machine from real parts, write the code that drives it, and validate it in a physics world that fits the build. Everything runs on your own computer, with a local AI assistant. No account, no cloud, no internet."), /*#__PURE__*/React.createElement("ul", {
+      className: "konb-caps"
+    }, CAPS.map((c, i) => /*#__PURE__*/React.createElement("li", {
+      key: i
+    }, c))), /*#__PURE__*/React.createElement(Steps, {
       current: 0
     }), /*#__PURE__*/React.createElement("div", {
       className: "konb-actions"
     }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
       className: "konb-btn primary",
       autoFocus: true,
       onClick: () => setStep(1)
-    }, "Get started"), /*#__PURE__*/React.createElement("button", {
+    }, "Start building ", /*#__PURE__*/React.createElement("span", {
+      className: "arr",
+      "aria-hidden": "true"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      type: "button",
       className: "konb-btn ghost",
       onClick: onClose
-    }, "Skip to studio"))), step === 1 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
-      className: "konb-h2"
+    }, "Skip to studio"))), /*#__PURE__*/React.createElement("div", {
+      className: "konb-orbit",
+      "aria-hidden": "true"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "ring r1"
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "ring r2"
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "ring r3"
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "spin s1"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "node"
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "spin s2"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "node"
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "konb-core"
+    }, MARK))), step === 1 && /*#__PURE__*/React.createElement("section", {
+      className: "konb-panel",
+      "aria-labelledby": "konb-h2-pick"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "konb-eyebrow"
+    }, "Step one"), /*#__PURE__*/React.createElement("h2", {
+      className: "konb-h2",
+      id: "konb-h2-pick"
     }, "What do you want to build?"), /*#__PURE__*/React.createElement("p", {
       className: "konb-sub"
-    }, "Describe it in your own words and the assistant builds it, or pick a starting point. You can redesign every part later in the Robot Lab."), /*#__PURE__*/React.createElement("div", {
+    }, "Describe it in your own words and the assistant fits the parts, or pick a starting point. You can redesign every part later in the Robot Lab."), /*#__PURE__*/React.createElement("div", {
       className: "konb-agent"
     }, /*#__PURE__*/React.createElement("div", {
       className: "konb-agent-row"
@@ -9327,6 +9530,7 @@ Object.assign(window, {
     }), window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() && /*#__PURE__*/React.createElement("button", {
       className: "konb-btn ghost konb-agent-mic",
       type: "button",
+      "aria-label": "Describe your robot by voice",
       title: "Describe by voice",
       disabled: agentBusy,
       onClick: agentVoice
@@ -9338,68 +9542,97 @@ Object.assign(window, {
     }, "Build it")), agentErr && /*#__PURE__*/React.createElement("p", {
       className: "konb-agent-err",
       role: "alert"
-    }, agentErr), /*#__PURE__*/React.createElement("p", {
-      className: "konb-agent-or"
+    }, agentErr), /*#__PURE__*/React.createElement("div", {
+      className: "konb-agent-or",
+      "aria-hidden": "true"
     }, "or pick a starting point")), /*#__PURE__*/React.createElement("div", {
       className: "konb-grid",
-      role: "radiogroup",
-      "aria-label": "Robot type"
+      role: "group",
+      "aria-label": "Robot starting points"
     }, order.map(id => {
       const t = TYPES[id];
       return /*#__PURE__*/React.createElement("button", {
         key: id,
-        role: "radio",
-        "aria-checked": type === id,
-        className: "konb-tile" + (type === id ? " sel" : ""),
+        type: "button",
+        "aria-pressed": type === id,
+        "aria-label": t.name + ". " + t.blurb,
+        className: "konb-tile",
         onClick: () => setType(id)
       }, /*#__PURE__*/React.createElement("div", {
-        className: "konb-emoji"
-      }, t.emoji), /*#__PURE__*/React.createElement("div", {
+        className: "t-top"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "konb-emoji",
+        "aria-hidden": "true"
+      }, t.emoji), /*#__PURE__*/React.createElement("span", {
+        className: "t-check",
+        "aria-hidden": "true"
+      }, "SELECTED")), /*#__PURE__*/React.createElement("div", {
         className: "konb-tname"
       }, t.name), /*#__PURE__*/React.createElement("div", {
         className: "konb-blurb"
       }, t.blurb));
-    })), /*#__PURE__*/React.createElement(Step, {
+    })), /*#__PURE__*/React.createElement(Steps, {
       current: 1
     }), /*#__PURE__*/React.createElement("div", {
       className: "konb-actions"
     }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
       className: "konb-btn ghost",
       onClick: () => setStep(0)
     }, "Back"), /*#__PURE__*/React.createElement("button", {
+      type: "button",
       className: "konb-btn primary",
       disabled: !type,
       title: !type ? "Pick a robot to continue" : undefined,
       onClick: () => setStep(2)
-    }, "Continue"))), step === 2 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
-      className: "konb-h2"
+    }, "Continue ", /*#__PURE__*/React.createElement("span", {
+      className: "arr",
+      "aria-hidden": "true"
+    }, "\u2192")))), step === 2 && /*#__PURE__*/React.createElement("section", {
+      className: "konb-panel",
+      "aria-labelledby": "konb-h2-rec"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "konb-eyebrow"
+    }, "Step two"), /*#__PURE__*/React.createElement("h2", {
+      className: "konb-h2",
+      id: "konb-h2-rec"
     }, "Where it gets tested first"), /*#__PURE__*/React.createElement("p", {
       className: "konb-sub"
-    }, "The assistant picks a world that suits your robot. Test it there, then try the others."), /*#__PURE__*/React.createElement("div", {
+    }, "The assistant picks a world that suits your robot. Test it there, then try the others from inside the studio."), /*#__PURE__*/React.createElement("div", {
       className: "konb-rec"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "konb-emoji"
-    }, TYPES[type] && TYPES[type].emoji || "🤖"), built && built.spec && /*#__PURE__*/React.createElement("div", {
+      className: "rec-badge",
+      "aria-hidden": "true"
+    }, TYPES[type] && TYPES[type].emoji || "🤖"), /*#__PURE__*/React.createElement("div", {
+      className: "rec-meta"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "rec-label"
+    }, "Recommended world"), /*#__PURE__*/React.createElement("div", {
+      className: "konb-world"
+    }, worldName), /*#__PURE__*/React.createElement("div", {
+      className: "konb-why"
+    }, cap(rec.why) || "Start in the busy city, then try the others."), built && built.spec && /*#__PURE__*/React.createElement("div", {
       className: "konb-built",
       "aria-label": "Parts the assistant fitted"
     }, [built.spec.board].concat(built.spec.sensors || [], built.spec.actuators || []).map((p, i) => /*#__PURE__*/React.createElement("span", {
       key: i,
       className: "konb-chip"
-    }, p))), /*#__PURE__*/React.createElement("div", {
-      className: "konb-world"
-    }, worldName), /*#__PURE__*/React.createElement("div", {
-      className: "konb-why"
-    }, cap(rec.why) || "Start in the busy city, then try the others.")), /*#__PURE__*/React.createElement(Step, {
+    }, p))))), /*#__PURE__*/React.createElement(Steps, {
       current: 2
     }), /*#__PURE__*/React.createElement("div", {
       className: "konb-actions"
     }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
       className: "konb-btn ghost",
       onClick: () => setStep(1)
     }, "Back"), /*#__PURE__*/React.createElement("button", {
+      type: "button",
       className: "konb-btn primary",
       onClick: enterStudio
-    }, "Enter studio")))));
+    }, "Enter studio ", /*#__PURE__*/React.createElement("span", {
+      className: "arr",
+      "aria-hidden": "true"
+    }, "\u2192")))))));
   }
   window.KodroOnboarding = KodroOnboarding;
 })();
@@ -10918,6 +11151,9 @@ rover.say("Survey done")`
     // in the thread while it thinks (the response feels instant instead of a
     // long opaque spinner).
     const [vibeLive, setVibeLive] = useState('');
+    // Lets the user cancel an in-flight generation by closing the panel; the
+    // poll loop checks this and bails quietly instead of showing an error.
+    const vibeCancelRef = useRef(false);
     async function vibeSend() {
       const text = vibePrompt.trim();
       if (vibeBusy || !text) return;
@@ -10931,6 +11167,7 @@ rover.say("Survey done")`
       setVibeBusy(true);
       setVibeError(null);
       setVibeLive('');
+      vibeCancelRef.current = false;
       try {
         const history = next.map(m => ({
           role: m.role === 'user' ? 'user' : 'assistant',
@@ -10965,6 +11202,11 @@ rover.say("Survey done")`
         let r = null;
         for (;;) {
           await new Promise(res => setTimeout(res, 250));
+          if (vibeCancelRef.current) {
+            setVibeLive('');
+            setVibeBusy(false);
+            return;
+          }
           const p = await window.KodroAI.chatPoll(start.jobId);
           if (!p || !p.ok) {
             r = p;
@@ -11039,7 +11281,7 @@ rover.say("Survey done")`
           reason: 'No response.'
         });
         if (r && r.ok && r.mode === 'command' && r.code) {
-          setCode(c => (c && !c.endsWith('\n') ? c + '\n' : c) + r.code + '\n');
+          onCodeChange((code && !code.endsWith('\n') ? code + '\n' : code) + r.code + '\n');
           addConsole('Heard "' + r.text + '" → added ' + r.code, 'ok');
         }
       } catch (e) {
@@ -11062,7 +11304,7 @@ rover.say("Survey done")`
       try {
         const r = await window.RoboLearn.voiceCommand(6);
         if (r && r.ok && r.code) {
-          setCode(c => (c && !c.endsWith('\n') ? c + '\n' : c) + r.code + '\n');
+          onCodeChange((code && !code.endsWith('\n') ? code + '\n' : code) + r.code + '\n');
           addConsole('Heard "' + r.text + '" → added ' + r.code, 'ok');
         } else {
           addConsole(r && r.reason || 'Voice command not understood.', 'err');
@@ -11185,6 +11427,14 @@ rover.say("Survey done")`
         }
       }, 12);
     }
+
+    // If the app ever unmounts, clear the typewriter interval and the say-bubble
+    // timer so no stray timer fires against a torn-down tree. (sayTimer is
+    // declared below; this cleanup closure only runs at unmount, after init.)
+    useEffect(() => () => {
+      if (typeRef.current) clearInterval(typeRef.current);
+      if (sayTimer.current) clearTimeout(sayTimer.current);
+    }, []);
 
     // --- Scratch-style blocks mode -----------------------------------------
     // Extracted verbatim into window.KodroHooks.useBlocks. The three callbacks
@@ -12334,7 +12584,7 @@ rover.say("Survey done")`
     const statusLabel = {
       idle: 'Standby',
       running: 'Running',
-      paused: 'Stepping',
+      paused: 'Paused',
       done: 'Complete',
       error: 'Halted'
     }[runState];
@@ -12450,7 +12700,7 @@ rover.say("Survey done")`
       onClick: () => setSettingsOpen(o => !o)
     }, "\u2699"), settingsOpen && /*#__PURE__*/React.createElement("div", {
       className: "settings-pop",
-      role: "menu",
+      role: "dialog",
       "aria-label": "Settings"
     }, pupils.length > 0 && /*#__PURE__*/React.createElement("label", {
       className: "set-row"
@@ -12493,27 +12743,23 @@ rover.say("Survey done")`
       value: "wiki"
     }, "Wiki / Network"))), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
-      role: "menuitem",
       "aria-pressed": !muted,
       onClick: toggleSound
     }, /*#__PURE__*/React.createElement("span", null, "Sound"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
     }, muted ? 'Off' : 'On')), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
-      role: "menuitem",
       "aria-pressed": readable,
       onClick: () => setReadable(v => !v)
     }, /*#__PURE__*/React.createElement("span", null, "Readable text"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
     }, readable ? 'On' : 'Off')), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
-      role: "menuitem",
       onClick: () => setVoiceGender(v => v === 'female' ? 'male' : 'female')
     }, /*#__PURE__*/React.createElement("span", null, "Voice"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
     }, voiceGender === 'female' ? 'Female' : 'Male')), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
-      role: "menuitem",
       onClick: () => {
         setSettingsOpen(false);
         pickPhotoClick();
@@ -12522,13 +12768,11 @@ rover.say("Survey done")`
       className: "set-val"
     }, photoUrl ? 'Loaded' : 'Pick…')), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
-      role: "menuitem",
       onClick: openTeacher
     }, /*#__PURE__*/React.createElement("span", null, "Teacher dashboard"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
     }, "\u2192")), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
-      role: "menuitem",
       onClick: () => {
         setSettingsOpen(false);
         exportReportClick();
@@ -12650,7 +12894,9 @@ rover.say("Survey done")`
         title: "Reading age"
       }, "Age ", lesson.readingAge, "+") : null, lessonVerdict && /*#__PURE__*/React.createElement("span", {
         className: 'lesson-verdict ' + (lessonVerdict.passed ? 'pass' : 'fail')
-      }, lessonVerdict.passed ? '✓ Complete' : '✗ Not yet', " \xB7 ", lessonVerdict.score, "/100"), /*#__PURE__*/React.createElement("button", {
+      }, /*#__PURE__*/React.createElement("span", {
+        "aria-hidden": "true"
+      }, lessonVerdict.passed ? '✓' : '✗'), " ", lessonVerdict.passed ? 'Complete' : 'Not yet', " \xB7 ", lessonVerdict.score, "/100"), /*#__PURE__*/React.createElement("button", {
         className: "read-aloud",
         type: "button",
         title: "Read this lesson aloud",
@@ -12718,7 +12964,6 @@ rover.say("Survey done")`
       "aria-label": "Program output and lesson feedback"
     }, consoleLines.map((l, i) => /*#__PURE__*/React.createElement("div", {
       key: i,
-      role: l.type === 'err' ? 'alert' : undefined,
       className: 'cline ' + (l.type === 'err' ? 'err' : l.type === 'ok' ? 'ok' : l.type === 'sys' ? 'sys' : '')
     }, l.ts ? /*#__PURE__*/React.createElement("span", {
       className: "ts"
@@ -13191,13 +13436,33 @@ rover.say("Survey done")`
       const has = typeof v === 'number';
       const pct = has ? Math.round(v * 100) : null;
       const hue = has ? Math.round(v * 130) : 0; // 0 red → 130 green
+      // WCAG AA: white text fails contrast on the lighter (green/yellow)
+      // cells, so compute the cell's relative luminance and flip to black
+      // text once it crosses the threshold where white drops below 4.5:1.
+      const cellLum = (() => {
+        if (!has) return 0;
+        const s = 0.55,
+          l = 0.42,
+          q = l < 0.5 ? l * (1 + s) : l + s - l * s,
+          pp = 2 * l - q;
+        const hk = t => {
+          t = (t + 1) % 1;
+          if (t < 1 / 6) return pp + (q - pp) * 6 * t;
+          if (t < 1 / 2) return q;
+          if (t < 2 / 3) return pp + (q - pp) * (2 / 3 - t) * 6;
+          return pp;
+        };
+        const lin = c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        const h = hue / 360;
+        return 0.2126 * lin(hk(h + 1 / 3)) + 0.7152 * lin(hk(h)) + 0.0722 * lin(hk(h - 1 / 3));
+      })();
       return /*#__PURE__*/React.createElement("td", {
         key: c,
         className: "hm-cell",
         title: has ? c + ': ' + pct + '%' : 'not attempted',
         style: {
           background: has ? 'hsl(' + hue + ' 55% 42%)' : 'transparent',
-          color: has ? '#fff' : 'var(--fg-4)'
+          color: has ? cellLum > 0.183 ? '#000' : '#fff' : 'var(--fg-4)'
         }
       }, has ? pct : '·');
     }))))), /*#__PURE__*/React.createElement("p", {
@@ -13348,7 +13613,10 @@ rover.say("Survey done")`
     }, "\u2728 Vibe coding. Describe it, the AI writes it"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
-      onClick: () => setVibeOpen(false)
+      onClick: () => {
+        vibeCancelRef.current = true;
+        setVibeOpen(false);
+      }
     }, "\u2715")), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
     }, /*#__PURE__*/React.createElement("p", {
