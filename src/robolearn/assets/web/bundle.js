@@ -9311,10 +9311,13 @@ Object.assign(window, {
     .konb-grid{ grid-template-columns:1fr; }
     .konb-tile{ grid-column:auto; }
     .konb-actions{ flex-direction:column; align-items:stretch; }
-    .konb-btn{ width:100%; justify-content:center; }
+    /* Full-width is for the step-nav buttons only, not the agent-row controls. */
+    .konb-actions .konb-btn{ width:100%; justify-content:center; }
+    /* Phone agent-row: input on its own line, mic + Build share the next line. */
     .konb-agent-row{ flex-wrap:wrap; }
     .konb-agent-input{ flex:1 1 100%; }
-    .konb-agent-mic{ flex:1; }
+    .konb-agent-mic{ flex:1; min-width:0; }
+    .konb-agent-row .konb-btn.primary{ flex:1; justify-content:center; }
     .konb-orbit{ max-width:200px; }
     .konb-rec{ flex-direction:column; align-items:flex-start; text-align:left; }
   }
@@ -9559,7 +9562,11 @@ Object.assign(window, {
         "aria-pressed": type === id,
         "aria-label": t.name + ". " + t.blurb,
         className: "konb-tile",
-        onClick: () => setType(id)
+        onClick: () => {
+          setType(id);
+          setBuilt(null);
+          setAgentText("");
+        }
       }, /*#__PURE__*/React.createElement("div", {
         className: "t-top"
       }, /*#__PURE__*/React.createElement("span", {
@@ -12852,7 +12859,7 @@ rover.say("Survey done")`
       onClick: () => setBlocksOpen(true)
     }, "\uD83E\uDDE9 Blocks"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      title: "A second AI agent reviews your code",
+      title: aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)',
       onClick: runReview
     }, "\uD83D\uDD0E Review"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
@@ -12868,7 +12875,7 @@ rover.say("Survey done")`
       onClick: () => setDemoOpen(true)
     }, "\u25B6 Demo"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      title: "Ask a question, answered from the lesson material",
+      title: aiInfo.available ? 'Ask a question, answered from the lesson material' : 'Ask a question, answered from the lesson material (needs local Ollama)',
       onClick: () => {
         setAskOpen(true);
         setAskData(null);

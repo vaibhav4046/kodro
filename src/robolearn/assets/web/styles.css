@@ -146,6 +146,9 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
   height:38px; padding:0 14px; flex:none;
   border-bottom:0.5px solid var(--border);
   background:var(--navy);
+  /* Scroll the toolbar (like .tabs) instead of clipping action buttons when the
+     editor column is narrow; the buttons keep their full label and stay reachable. */
+  overflow-x:auto;
 }
 .panel-head .eyebrow { color:var(--fg-2); }
 .panel-head .ph-spacer { flex:1; }
@@ -216,10 +219,12 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .terrain-switch {
   position:absolute; top:14px; left:50%; transform:translateX(-50%);
   display:flex; gap:3px; padding:4px; z-index:12;
-  /* Cap to the panel width and scroll horizontally rather than clip: the row of
-     world buttons + mission select + view/quality controls is wider than a
-     narrow viewport panel, which cut off the end controls (MARS etc.). */
-  max-width:calc(100% - 16px); overflow-x:auto; overflow-y:hidden; scrollbar-width:thin;
+  /* Cap to the panel width and wrap onto a second centered row rather than
+     hiding the end controls behind a near-invisible horizontal scroll: the row
+     of world buttons + mission select + view/quality controls is wider than a
+     narrow viewport panel, which used to push controls (MARS etc.) out of reach.
+     The bar is absolute and centered, so a second row is acceptable. */
+  max-width:calc(100% - 16px); flex-wrap:wrap; justify-content:center; row-gap:4px;
   background:rgba(8,9,15,0.7); backdrop-filter:blur(12px);
   border:0.5px solid var(--border); border-radius:6px; box-shadow:var(--shadow-menu);
 }
@@ -386,6 +391,9 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
   font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em; text-transform:uppercase;
   padding:4px 9px; border-radius:4px; border:1px solid var(--border); background:transparent;
   color:var(--fg-3); cursor:pointer; transition:all 140ms var(--ease);
+  /* Never shrink or wrap the label: at narrow editor widths the toolbar scrolls
+     (see .panel-head overflow-x) rather than clipping the action buttons. */
+  flex:none; white-space:nowrap;
 }
 .btn-mini:hover { color:var(--fg-1); border-color:var(--fg-3); }
 .btn-mini.active { color:var(--cyan); border-color:rgba(92,224,216,0.4); }
