@@ -84,7 +84,7 @@
   // The robot API is BARE functions, not object methods. The small local model
   // tends to emit rover.move_forward()/rover.right() which do not exist and
   // NameError at run time, so the prompt is explicit and the output is gated.
-  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short.';
+  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.';
 
   // The fine-tuned model strongly prefers object-method style (rover.move_forward,
   // rover.forward, rover.right) which the interpreter's bare-function surface does
@@ -92,12 +92,23 @@
   // its output runs regardless of how stubbornly it writes rover.x(...).
   function normalizeApi(code) {
     if (!code) return code;
-    const alias = { forward: 'move_forward', backward: 'move_backward', left: 'turn_left', right: 'turn_right' };
-    let out = code.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, function (m, name) {
+    var alias = { forward: 'move_forward', backward: 'move_backward', left: 'turn_left', right: 'turn_right', speed: 'set_speed', scan: 'scan', distance: 'distance', heading: 'heading', battery: 'battery', stop: 'stop' };
+    // Strip any stray markdown fences the model emits inside its code.
+    var out = code.replace(/^```(?:python|py)?\s*/gim, '').replace(/```\s*$/gim, '');
+    // rover.robot.bot.method(...) -> method(...)
+    out = out.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, function (m, name) {
       return (alias[name] || name) + '(';
     });
-    // Drop a dangling bare object token on its own line (the model sometimes
-    // trails a stray "rover" after the real code, which would NameError).
+    // rover.robot.bot.method without parens -> bare name
+    out = out.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\b/g, function (m, name) {
+      return alias[name] || name;
+    });
+    // Bare aliases -> canonical names
+    out = out.replace(/\bforward\s*\(/g, 'move_forward(');
+    out = out.replace(/\bbackward\s*\(/g, 'move_backward(');
+    out = out.replace(/\bleft\s*\(/g, 'turn_left(');
+    out = out.replace(/\bright\s*\(/g, 'turn_right(');
+    // Drop a dangling bare object token on its own line.
     out = out.replace(/^[ \t]*(?:rover|robot|bot)[ \t]*$/gm, '');
     return out;
   }
