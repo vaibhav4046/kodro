@@ -1390,11 +1390,11 @@
                 )}
                 <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>✨ Vibe</button>
                 <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>🧩 Blocks</button>
-                <button className="btn-mini" title="A second AI agent reviews your code" onClick={runReview}>🔎 Review</button>
+                <button className="btn-mini" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)'} onClick={runReview}>🔎 Review</button>
                 <button className="btn-mini" title="Validate this program across 5 randomised seeds" onClick={runValidation}>🎯 Validate</button>
                 <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>📊 Realism</button>
                 <button className="btn-mini" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}>▶ Demo</button>
-                <button className="btn-mini" title="Ask a question, answered from the lesson material" onClick={() => { setAskOpen(true); setAskData(null); }}>❓ Ask</button>
+                <button className="btn-mini" title={aiInfo.available ? 'Ask a question, answered from the lesson material' : 'Ask a question, answered from the lesson material (needs local Ollama)'} onClick={() => { setAskOpen(true); setAskData(null); }}>❓ Ask</button>
                 <button className="btn-mini" title="Speak a command. Works offline, no AI model needed" disabled={voiceBusy} onClick={runVoiceCommand}>{voiceBusy ? '🎙…' : '🎙 Voice'}</button>
                 <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>🐝 Swarm</button>
               </div>

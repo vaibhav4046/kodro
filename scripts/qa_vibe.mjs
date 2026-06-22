@@ -95,4 +95,6 @@ async function gen(prompt) {
   }
   const pct = Math.round((pass / PROMPTS.length) * 100);
   console.log('\n== VIBE QA: ' + pass + '/' + PROMPTS.length + ' (' + pct + '%) ran clean through the interpreter, model ' + MODEL + ' ==');
+  // Pass floor: a real (non-SKIP) run must clear 60% of prompts or it fails CI.
+  if (pass < Math.ceil(PROMPTS.length * 0.6)) process.exit(1);
 })();
