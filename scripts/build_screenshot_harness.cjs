@@ -104,6 +104,9 @@ fs.writeFileSync(path.join(WEB, 'studio_harness.html'), STUDIO);
 //   cap.html?world=mars&robot=rover  studio, rover on Mars
 //   cap.html?panel=lab        studio with the Robot Lab open
 //   cap.html?panel=memory     studio with the Memory panel open
+//   cap.html?open=vibe        studio with a named modal/popover opened. Names:
+//                             vibe blocks review validate realism demo ask
+//                             voiceagent robotlab memory build help settings
 // Combine with Chrome --virtual-time-budget so timed clicks and WebGL settle.
 const CAP = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8" />
@@ -121,7 +124,7 @@ const CAP = `<!DOCTYPE html>
         var w = q.get('world'); if (w) localStorage.setItem('or_terrain', w);
         var qq = q.get('q'); if (qq) localStorage.setItem('kodro_quality', qq);
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open') };
     })();
   </script>
   <div id="root"></div>
@@ -142,6 +145,17 @@ const CAP = `<!DOCTYPE html>
       }
       function clickAria(label) { var el = document.querySelector('[aria-label="' + label + '"]'); if (el) { el.click(); return true; } return false; }
       function clickTitle(title) { var el = document.querySelector('[title="' + title + '"]'); if (el) { el.click(); return true; } return false; }
+      // Some toolbar titles get a "(needs local Ollama)" suffix appended when no
+      // model is running, so an exact [title="..."] selector misses them. Match
+      // on a title PREFIX instead, scanning real elements, so the open=<name>
+      // driver opens those modals whether or not Ollama is present.
+      function clickTitleStartsWith(prefix) {
+        var els = [].slice.call(document.querySelectorAll('[title]'));
+        for (var i = 0; i < els.length; i++) {
+          if ((els[i].getAttribute('title') || '').indexOf(prefix) === 0) { els[i].click(); return true; }
+        }
+        return false;
+      }
       // Set a React-controlled textarea's value the way a user typing would:
       // native setter + a bubbling input event, so React's onChange fires.
       function setTextarea(sel, value) {
@@ -217,6 +231,41 @@ const CAP = `<!DOCTYPE html>
           var b = [].slice.call(document.querySelectorAll('.ctrl'));
           for (var i = 0; i < b.length; i++) { if ((b[i].textContent || '').indexOf('Run') >= 0) { b[i].click(); return; } }
         }, 1400);
+      }
+      if (!C.onb && C.open) {
+        // Modal-coverage driver (gated behind open=<name> so a normal load is
+        // unaffected). On load, click the toolbar button that opens the named
+        // modal/popover so the UI harness can assert each one renders. Triggers
+        // are taken from app.jsx: btn-vibe class for Vibe; aria-labels for the
+        // icon buttons (Voice agent / Robot Lab / Memory / Build / Keyboard
+        // shortcuts / Settings); and title text for the editor-toolbar buttons
+        // (Blocks / Review / Validate / Realism / Demo / Ask), matched on a title
+        // PREFIX because the AI buttons gain a "(needs local Ollama)" suffix when
+        // no model is running. Opening a modal does NOT need Ollama — the modal
+        // renders its input / "needs Ollama" state regardless.
+        var OPENERS = {
+          vibe: function () { var b = document.querySelector('.btn-vibe'); if (b) { b.click(); return true; } return false; },
+          blocks: function () { return clickTitleStartsWith('Build the program from blocks'); },
+          review: function () { return clickTitleStartsWith('A second AI agent reviews your code'); },
+          validate: function () { return clickTitleStartsWith('Validate this program across 5 randomised seeds'); },
+          realism: function () { return clickTitleStartsWith('Realism dashboard'); },
+          demo: function () { return clickTitleStartsWith('Guided 2 to 3 minute realism demo'); },
+          ask: function () { return clickTitleStartsWith('Ask a question, answered from the lesson material'); },
+          voiceagent: function () { return clickAria('Voice agent'); },
+          robotlab: function () { return clickAria('Robot Lab'); },
+          memory: function () { return clickAria('Memory and skills'); },
+          build: function () { return clickAria('Build a real robot'); },
+          help: function () { return clickAria('Keyboard shortcuts'); },
+          settings: function () { return clickAria('Settings'); }
+        };
+        // Wait for the studio toolbar to mount, then fire the opener. A second
+        // attempt covers a slow first paint without affecting a modal that is
+        // already open (the openers are idempotent toggles or no-ops on a hit).
+        var opener = OPENERS[String(C.open).toLowerCase()];
+        if (opener) {
+          setTimeout(function () { try { opener(); } catch (e) { void e; } }, 1000);
+          setTimeout(function () { try { if (!document.querySelector('[role="dialog"]')) opener(); } catch (e) { void e; } }, 1600);
+        }
       }
       if (C.onb) {
         if (C.step >= 1) setTimeout(function () { clickText('Get started'); }, 300);

@@ -130,6 +130,40 @@ const WORLD_IDENTITY = [
   { world: 'warehouse', expect: 'Warehouse Test Zone' },
 ];
 
+// MODALS RENDER: every studio toolbar button that opens a modal/popover, driven
+// one at a time via cap.html?open=<name>. For each we assert (a) the modal's own
+// known root marker is present in the dumped DOM, AND (b) no genuine console
+// error fired (same NOISE/FAIL filter as the paint pass). `marker` is matched
+// against the dumped HTML; it is taken from app.jsx (or the component file for
+// the window-mounted ones) so it tracks the REAL markup, not a guess:
+//   - aria-label="..."   the dialog's own accessible name (most modals)
+//   - a class            settings-pop (the Settings popover) / rl-modal (Lab)
+//   - a literal string   the Demo modal has no aria-label, so its eyebrow text
+// Modals that would normally need a model (Vibe / Ask / Review) still RENDER
+// without Ollama — they open to an input or a "needs Ollama" state — so opening
+// is asserted, NOT an AI response, and no Ollama is required.
+// Validate is intentionally NOT a modal: its button runs 5 seeds and prints a
+// "Validation:" console line, so it is asserted on that console marker instead
+// of a dialog root, and labelled as such.
+const MODALS = [
+  { name: 'vibe',       marker: /aria-label="Code with AI"/,        note: 'Vibe (Code with AI) modal' },
+  { name: 'blocks',     marker: /aria-label="Block coding"/,         note: 'Blocks (visual block editor) modal' },
+  { name: 'review',     marker: /aria-label="AI code review"/,       note: 'Review (second-agent) modal' },
+  { name: 'realism',    marker: /aria-label="Realism dashboard"/,    note: 'Realism dashboard modal' },
+  { name: 'demo',       marker: /Kodro Realism Demo/,                note: 'Guided Demo modal (no aria-label; eyebrow text)' },
+  { name: 'ask',        marker: /aria-label="Ask a question"/,       note: 'Ask (lesson Q&A) modal' },
+  { name: 'voiceagent', marker: /aria-label="Talk to Kodro"/,        note: 'Voice agent (Talk to Kodro) modal' },
+  { name: 'robotlab',   marker: /aria-label="Robot Lab"[^>]*role="dialog"|class="[^"]*rl-modal[^"]*"/, note: 'Robot Lab modal' },
+  { name: 'memory',     marker: /aria-label="Memory and skills"[^>]*data-tick|class="modal modal-wide"[^>]*aria-label="Memory and skills"|aria-label="Memory and skills"[^>]*role="dialog"|role="dialog"[^>]*aria-label="Memory and skills"/, note: 'Memory and skills modal' },
+  { name: 'build',      marker: /aria-label="Build a real robot"[^>]*role="dialog"|role="dialog"[^>]*aria-label="Build a real robot"/, note: 'Build a real robot modal' },
+  { name: 'help',       marker: /aria-label="Keyboard shortcuts"[^>]*role="dialog"|role="dialog"[^>]*aria-label="Keyboard shortcuts"/, note: 'Keyboard shortcuts modal' },
+  { name: 'settings',   marker: /class="settings-pop"/,              note: 'Settings popover' },
+];
+
+// Validate has no modal — it drives a 5-seed run and prints a "Validation:"
+// console line. Asserted separately on that marker so the coverage is honest.
+const VALIDATE = { name: 'validate', marker: /Validation:/, note: 'Validate (5-seed run; console line, not a modal)' };
+
 function findChrome() {
   for (const c of CHROME_CANDIDATES) {
     if (c === 'chrome' || c === 'google-chrome') return c; // resolved via PATH
@@ -336,6 +370,53 @@ function checkWorldIdentity(chrome, world, expectedName) {
   return { pass: false, reason: `${world}: could not confirm world identity (no deploy line, no active label)` };
 }
 
+// MODALS RENDER — open one modal/popover via cap.html?open=<name> and assert it
+// actually rendered. We dump the post-click DOM and require BOTH:
+//   (a) the modal's own root marker is present (a dialog-specific signal, NOT
+//       the toolbar button's shared aria-label — see note below), AND
+//   (b) no genuine console error fired (same NOISE/FAIL filter as elsewhere).
+// The icon-bar buttons (Robot Lab / Memory / Build / Keyboard shortcuts) carry
+// the SAME aria-label as their dialog, so a bare aria-label match would pass on
+// the button alone even if the modal never opened. The markers in MODALS guard
+// against that by anchoring on a dialog-only signal (role="dialog" adjacency, a
+// modal-only class like rl-modal / settings-pop, or a body-only string). Returns
+// { pass, reason }.
+function checkModalRenders(chrome, modal) {
+  const url = `${BASE}?world=earth&robot=rover&q=high&open=${modal.name}`;
+  const { dom, consoleError, error } = dumpDom(chrome, `modal_${modal.name}`, url);
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  // A real console error while opening is a fail even if the marker is present —
+  // a modal that mounts then throws is exactly the regression we are hunting.
+  if (consoleError) return { pass: false, reason: `console error opening ${modal.name}: ${consoleError.slice(0, 120)}` };
+
+  if (modal.marker.test(dom)) {
+    return { pass: true, reason: `${modal.note} opened and rendered (marker present, no console error)` };
+  }
+  // Marker absent: the modal did not open, or its root markup drifted. Report
+  // honestly which — a dialog root with the wrong name vs. nothing at all.
+  const anyDialog = /role="dialog"/.test(dom);
+  if (anyDialog) {
+    return { pass: false, reason: `${modal.note} marker NOT found, though a dialog is open — root markup may have drifted or the wrong modal opened` };
+  }
+  return { pass: false, reason: `${modal.note} did NOT open (no matching root and no dialog in the DOM)` };
+}
+
+// VALIDATE has no modal: its button runs 5 seeds and prints a "Validation:"
+// console line. Assert that console marker is in the DOM, with the same
+// console-error guard. Labelled as a console (not dialog) assert in MODALS.
+function checkValidateRuns(chrome, v) {
+  const url = `${BASE}?world=earth&robot=rover&q=high&open=${v.name}`;
+  const { dom, consoleError, error } = dumpDom(chrome, `modal_${v.name}`, url);
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error running validate: ${consoleError.slice(0, 120)}` };
+  if (v.marker.test(dom)) {
+    return { pass: true, reason: `${v.note} — "Validation:" result line printed to the console` };
+  }
+  return { pass: false, reason: `${v.note} — no "Validation:" console line after clicking Validate` };
+}
+
 // Run one flow in headless Chrome. Returns { pass, reason, bytes }.
 function runFlow(chrome, flow, timeoutMs = SPAWN_TIMEOUT_MS) {
   const shotWin = path.join(TMP, `shot_${flow.name}.png`); // absolute Windows path
@@ -483,8 +564,31 @@ function cleanup() {
 
   const behClean = behaviour.filter(Boolean).length;
 
+  // ---- Phase 3: modals render — open EVERY toolbar modal/popover, one at a
+  // time, and assert each renders cleanly. This closes the gap where the harness
+  // never opened the modals at all: a modal that throws on mount, or whose root
+  // markup silently breaks, now FAILS here instead of shipping unseen. Runs
+  // sequentially like the other phases (single-threaded dev server). No Ollama
+  // needed — we assert the modal OPENS, not that any AI responds.
+  console.log('\n== UI MODALS: open and verify every toolbar modal/popover renders ==');
+  const modals = [];
+
+  for (const m of MODALS) {
+    const mr = checkModalRenders(chrome, m);
+    modals.push(mr.pass);
+    console.log(`${mr.pass ? 'PASS' : 'FAIL'}  ${('modal-' + m.name).padEnd(20)} ${mr.reason}`);
+    gap();
+  }
+  // Validate is a console-line action, not a modal — assert it on its own marker.
+  const val = checkValidateRuns(chrome, VALIDATE);
+  modals.push(val.pass);
+  console.log(`${val.pass ? 'PASS' : 'FAIL'}  ${('modal-' + VALIDATE.name).padEnd(20)} ${val.reason}`);
+  gap();
+
+  const modalsClean = modals.filter(Boolean).length;
+
   cleanup();
-  console.log(`\n== UI SMOKE: ${clean}/${FLOWS.length} flows clean · ${behClean}/${behaviour.length} behaviour asserts pass ==`);
+  console.log(`\n== UI SMOKE: ${clean}/${FLOWS.length} flows clean · ${behClean}/${behaviour.length} behaviour asserts pass · ${modalsClean}/${modals.length} modals render ==`);
   // Smoke report: never break CI on a render/console hiccup or a GPU-less box.
   process.exit(0);
 })();
