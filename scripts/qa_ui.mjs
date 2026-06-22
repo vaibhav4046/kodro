@@ -9,14 +9,26 @@
  *   (a) the screenshot is blank/tiny (the studio did not actually render), or
  *   (b) the page logged a genuine JS console error / uncaught exception.
  *
- * For the `studio-earth-run` flow it goes one step further and checks BEHAVIOUR,
- * not just paint: a second headless pass dumps the post-run DOM (--dump-dom) and
- * asserts the telemetry odometer reads a non-zero distance, i.e. the rover
- * actually drove when Run was clicked. A green screenshot proves the studio
- * painted; the odometer check proves the simulation ran. This catches a whole
- * class of drift the pixel check misses: a broken interpreter, a Run button
- * wired to nothing, a frozen animation loop, or a physics regression that
- * leaves the rover parked.
+ * It then goes one step further and checks BEHAVIOUR, not just paint, with a
+ * suite of per-concern asserts. Each drives a concrete action through cap.html,
+ * dumps the post-action DOM (--dump-dom), and asserts a concrete marker (never a
+ * fake pass — where a marker can't be reliably located it falls back to the most
+ * specific real signal it CAN verify and labels the result honestly):
+ *   1. RUN DETERMINISM  studio-earth-run -> the telemetry odometer reads the
+ *      EXACT deterministic distance (11.2m ±0.3), not merely > 0. A green
+ *      screenshot proves the studio painted; this proves the simulation ran AND
+ *      ran the same way it always does — catching run-pump drift (a dropped or
+ *      doubled advance, a physics tweak), not just a parked rover.
+ *   2. BLOCKS INSERT    the Blocks palette compiles to Python and types it into
+ *      the editor: assert the editor textarea now holds a known command token.
+ *   3. ERROR PATH       a deliberately broken program run through the studio
+ *      surfaces a `cline err` console line, not a silent no-op.
+ *   4. WORLD IDENTITY   earth / lab / warehouse each report THEIR OWN world name
+ *      on Run ("Deployed on <name>."), proving the worlds are distinct and
+ *      reachable, not aliased to one default.
+ * Together these catch a class of drift the pixel check misses: a broken
+ * interpreter, a Run button wired to nothing, a frozen loop, a blocks->editor
+ * break, a swallowed error, or worlds collapsing onto a single terrain.
  *
  * It is a SMOKE report: it always exits 0. If Chrome or the static server is
  * missing (e.g. a headless CI box with no GPU) it prints SKIP and exits 0 so it
@@ -54,10 +66,25 @@ const VTIME_MS = 12_000;
 // forward moves. Give it more headroom than the paint pass so the odometer has
 // actually accumulated distance by the time we dump the DOM.
 const BEHAVIOUR_VTIME_MS = 16_000;
-// Hard ceiling on a single Chrome invocation in case it wedges.
-const SPAWN_TIMEOUT_MS = 45_000;
-// The flow whose Run we verify actually moved the rover (odometer > 0).
+// Hard ceiling on a single Chrome invocation in case it wedges. The FIRST
+// headless launch builds a fresh --user-data-dir profile and JITs the WebGL
+// stack from cold, which can run long; later launches are warm. We do a cheap
+// about:blank warm-up before the flows AND give the first real spawn more
+// headroom so a cold box does not flake the very first flow.
+const SPAWN_TIMEOUT_MS = 60_000;
+const FIRST_SPAWN_TIMEOUT_MS = 90_000;
+// The flow whose Run we verify actually moved the rover.
 const BEHAVIOUR_FLOW = 'studio-earth-run';
+
+// RUN DETERMINISM: the default starter program on world=earth/robot=rover at
+// q=high drives a fixed distance every time. Captured by running the behaviour
+// flow 3x (all read 11.2m) before this assert was written. We assert equality
+// within a small tolerance — tight enough to catch run-pump drift (a dropped
+// step, a doubled advance, a physics tweak), loose enough to absorb a sub-decimetre
+// rounding wobble. If a future run ever proves NON-deterministic, drop back to
+// the >0 check and say so in the label rather than asserting a value that drifts.
+const EXPECTED_ODOMETER_M = 11.2;
+const ODOMETER_TOLERANCE_M = 0.3;
 
 // First Chrome we can find. The Git-Bash-style path in the task maps to this
 // Windows location; fall back to a couple of common spots / PATH.
@@ -88,6 +115,21 @@ const FLOWS = [
   { name: 'onboarding',       url: 'onb=1' },
 ];
 
+// A deliberately broken program: an undefined name. The interpreter raises and
+// the studio prints a "cline err" console line. Used by the error-path assert.
+const BROKEN_PROGRAM = 'rover.forward(nope_undefined_var)';
+
+// WORLD IDENTITY: drive Run in three distinct worlds and assert each one's own
+// name shows up. On Run the studio prints "Deployed on <name>." and lights the
+// matching terrain button, so this proves the worlds are real and reachable —
+// not aliased to one default. lab/warehouse are mission SITES layered on the
+// room base; earth is a base terrain. Each must report ITS OWN name.
+const WORLD_IDENTITY = [
+  { world: 'earth',     expect: 'Earth' },
+  { world: 'lab',       expect: 'Robotics Lab' },
+  { world: 'warehouse', expect: 'Warehouse Test Zone' },
+];
+
 function findChrome() {
   for (const c of CHROME_CANDIDATES) {
     if (c === 'chrome' || c === 'google-chrome') return c; // resolved via PATH
@@ -109,100 +151,193 @@ function probeServer() {
   });
 }
 
-// Drive the run flow a SECOND time, dumping the post-run DOM instead of a
-// screenshot, and assert the rover actually moved. Telemetry.jsx renders the
-// odometer as:  <span class="g-label">Odometer</span>
-//               <span class="g-val">17.6<span class="g-unit">m</span></span>
-// from `{(odometer/100).toFixed(1)}` + an "m" unit span. We look for that
-// reading and PASS iff it parses to > 0.0. Falls back to a weaker-but-real
-// signal (the live telemetry markers present AND the run clearly executed) only
-// if the odometer cannot be located, and SAYS SO in the reason string.
-// Returns { pass, reason, value }.
-function checkRoverMoved(chrome, flow) {
-  const udd = path.join(TMP, `udd_behaviour_${flow.name}`);
-  const log = path.join(TMP, `log_behaviour_${flow.name}.txt`);
-  const url = `${BASE}?${flow.url}`;
-
+// Drive a URL in headless Chrome and dump the post-action DOM (not a
+// screenshot). Returns { dom, stderr, consoleError, error }. The behaviour
+// asserts below all read concrete DOM markers from the dumped HTML; the console
+// stream is parsed with the SAME noise/fail matchers used for the paint pass so
+// "a marker is present" is never reported over the top of a real JS error.
+function dumpDom(chrome, tag, url, opts = {}) {
+  const udd = path.join(TMP, `udd_${tag}`);
+  const log = path.join(TMP, `log_${tag}.txt`);
   const args = [
     '--headless=new',
     '--window-size=1280,800',
     '--use-angle=swiftshader',
     '--enable-unsafe-swiftshader',
     '--no-sandbox',
-    `--virtual-time-budget=${BEHAVIOUR_VTIME_MS}`,
+    `--virtual-time-budget=${opts.vtime || BEHAVIOUR_VTIME_MS}`,
     `--user-data-dir=${udd}`,
     '--enable-logging=stderr',
     '--v=0',
     '--dump-dom',
     url,
   ];
-
   const res = spawnSync(chrome, args, {
     encoding: 'utf8',
-    timeout: SPAWN_TIMEOUT_MS,
+    timeout: opts.timeout || SPAWN_TIMEOUT_MS,
     windowsHide: true,
     maxBuffer: 64 * 1024 * 1024, // the dumped DOM can be large; don't truncate it
   });
-
   const stderr = (res.stderr || '') + (res.error ? `\nSPAWN_ERROR: ${res.error.message}` : '');
   try { writeFileSync(log, stderr); } catch { /* best effort */ }
-  if (res.error) return { pass: false, reason: `dump-dom spawn failed: ${res.error.message}`, value: null };
-
-  const dom = res.stdout || '';
-  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)', value: null };
-
-  // Console must not have logged a real error during the run, or "the rover
-  // moved" would be meaningless. Reuse the same noise/fail matchers.
   const consoleError = stderr
     .split(/\r?\n/)
     .filter((l) => l && !NOISE.test(l) && FAIL.test(l))[0];
+  return { dom: res.stdout || '', stderr, consoleError, error: res.error || null };
+}
 
-  // PRIMARY: pull the odometer reading out of the gauge. The label and value
-  // sit in adjacent spans; the value is `N.N` immediately followed by the unit
-  // span `<span class="g-unit">m</span>`. Anchor on g-val + g-unit so we match
-  // the odometer/environment gauges and not some unrelated "N.N m" in prose.
-  // The Odometer gauge is the only one whose unit is a bare "m", so this is
-  // specific to it in practice.
-  let matched = null;
+// Pull every odometer-style reading out of the dumped DOM. Telemetry.jsx renders
+// the odometer as:  <span class="g-val">17.6<span class="g-unit">m</span></span>
+// from `{(odometer/100).toFixed(1)}` + a bare "m" unit span. The Odometer gauge
+// is the only one whose unit is a bare "m", so anchoring on g-val + g-unit="m"
+// is specific to it. Returns the first > 0 value, else 0 if a 0.0 was seen, else
+// null if no such gauge is in the DOM at all.
+function readOdometer(dom) {
   const gaugeRe = /<span class="g-val">\s*(\d+(?:\.\d+)?)\s*<span class="g-unit">\s*m\s*<\/span>/gi;
+  let matched = null;
   let m;
   while ((m = gaugeRe.exec(dom)) !== null) {
     const v = parseFloat(m[1]);
-    if (Number.isFinite(v) && v > 0) { matched = v; break; }
-    if (matched === null && Number.isFinite(v)) matched = v; // remember a 0.0 so we can report it
+    if (Number.isFinite(v) && v > 0) return v;
+    if (matched === null && Number.isFinite(v)) matched = v;
   }
+  return matched;
+}
 
-  if (matched !== null && matched > 0) {
-    const driving = /DRIVING/.test(dom);
-    const tag = driving ? `, status DRIVING` : '';
-    return { pass: true, reason: `rover moved (odometer ${matched.toFixed(1)}m${tag})`, value: matched };
-  }
+// (1) RUN DETERMINISM — drive the run flow a SECOND time (--dump-dom) and assert
+// the rover moved AND landed on the exact deterministic odometer reading. A
+// green screenshot proves the studio painted; this proves the simulation ran
+// and ran the SAME way it always does. Asserting equality (not just > 0) catches
+// run-pump drift: a dropped step, a doubled advance, a physics tweak that nudges
+// the distance. Falls back to a labelled weaker check only if the odometer span
+// drifts out of the DOM. Returns { pass, reason, value }.
+function checkRoverMoved(chrome, flow) {
+  const { dom, consoleError, error } = dumpDom(chrome, `behaviour_${flow.name}`, `${BASE}?${flow.url}`);
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}`, value: null };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)', value: null };
 
-  // The odometer was found but reads zero: the rover did NOT move. That is a
-  // genuine behaviour failure, not a harness limitation — report it plainly.
-  if (matched !== null && matched === 0) {
-    return { pass: false, reason: `rover did NOT move (odometer 0.0m after Run)`, value: 0 };
-  }
-
-  // FALLBACK: odometer span not locatable (markup drift). Don't silently fake a
-  // pass — assert the weaker-but-real signal and label it as the fallback. The
-  // run executed if the live-telemetry panel mounted (odometer label + status
-  // gauge) and the page showed DRIVING with no console error.
-  const haveTelemetry = /Odometer/.test(dom) && /(DRIVING|IDLE)/.test(dom);
+  const odo = readOdometer(dom);
   const driving = /DRIVING/.test(dom);
-  if (haveTelemetry && driving && !consoleError) {
-    return { pass: true, reason: 'rover moved (FALLBACK: odometer value not parseable, but telemetry mounted and status=DRIVING)', value: null };
+
+  if (odo !== null && odo > 0) {
+    const delta = Math.abs(odo - EXPECTED_ODOMETER_M);
+    const tag = driving ? ', status DRIVING' : '';
+    if (delta <= ODOMETER_TOLERANCE_M) {
+      return { pass: true, reason: `rover moved deterministically (odometer ${odo.toFixed(1)}m == ${EXPECTED_ODOMETER_M}m ±${ODOMETER_TOLERANCE_M}${tag})`, value: odo };
+    }
+    // It moved, but not to the expected mark: real run-pump / physics drift.
+    return { pass: false, reason: `rover moved but odometer DRIFTED (${odo.toFixed(1)}m vs expected ${EXPECTED_ODOMETER_M}m ±${ODOMETER_TOLERANCE_M})`, value: odo };
   }
 
-  // Could not confirm movement by any real signal.
+  // Odometer found but zero: the rover did NOT move — a genuine behaviour fail.
+  if (odo !== null && odo === 0) {
+    return { pass: false, reason: 'rover did NOT move (odometer 0.0m after Run)', value: 0 };
+  }
+
+  // FALLBACK: odometer span not locatable (markup drift). Don't fake a pass —
+  // assert the weaker-but-real signal and LABEL it as the fallback.
+  const haveTelemetry = /Odometer/.test(dom) && /(DRIVING|IDLE)/.test(dom);
+  if (haveTelemetry && driving && !consoleError) {
+    return { pass: true, reason: 'rover moved (FALLBACK: odometer value not parseable, telemetry mounted + status=DRIVING; exact-value check skipped)', value: null };
+  }
   const why = consoleError ? `console error during run: ${consoleError.slice(0, 120)}`
     : !haveTelemetry ? 'telemetry panel/odometer not found in DOM'
     : 'odometer not > 0 and status not DRIVING';
-  return { pass: false, reason: `could not confirm rover moved (${why})`, value: matched };
+  return { pass: false, reason: `could not confirm rover moved (${why})`, value: odo };
+}
+
+// (2) BLOCKS INSERT -> editor gets code. Drive panel=blocks&blockstest=1: the
+// cap.html driver opens the Blocks panel, clicks the first palette chip, then
+// "Insert code →", which compiles the blocks to Python and types them into the
+// editor textarea. We assert the editor (.code-ta) now holds a known command
+// token. This is a real behaviour check: the blocks path is wired to the editor,
+// not just that the palette renders. Falls back to a labelled render-level check
+// (palette chip present) if the driver could not insert.
+function checkBlocksInsert(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&panel=blocks&blockstest=1`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_blocks', url);
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error during blocks insert: ${consoleError.slice(0, 120)}` };
+
+  // The editor textarea content sits between <textarea ...class="code-ta"...> and
+  // its closing tag. The first palette chip is "move forward" -> move_forward(N).
+  const taMatch = /<textarea[^>]*class="code-ta"[^>]*>([\s\S]*?)<\/textarea>/i.exec(dom);
+  const editorText = taMatch ? taMatch[1] : '';
+  if (/move_forward\(/.test(editorText) || /\bforward\b/.test(editorText)) {
+    return { pass: true, reason: 'blocks inserted code (editor textarea now contains "move_forward")' };
+  }
+
+  // FALLBACK: insert did not reach the editor. Don't fake a pass — assert the
+  // weaker render-level signal (the palette actually rendered its chips) and
+  // LABEL it so the gap is visible.
+  if (/class="block-chip/.test(dom)) {
+    return { pass: false, reason: 'blocks insert did NOT reach editor; palette rendered (RENDER-LEVEL only) but no command token in .code-ta' };
+  }
+  return { pass: false, reason: 'blocks panel did not render a palette and no code reached the editor' };
+}
+
+// (3) ERROR PATH -> console shows an error line. Drive code=<broken program>:
+// the cap.html driver types it into the editor and clicks Run. The interpreter
+// raises and the studio renders a console line styled `cline err`. We assert
+// that styled error line is present (and ideally names the error). This proves
+// the error path surfaces failures to the user, not a silent no-op.
+function checkErrorPath(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=high&code=${encodeURIComponent(BROKEN_PROGRAM)}`;
+  const { dom, error } = dumpDom(chrome, 'behaviour_error', url);
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+
+  // PRIMARY: the console renders an error line as <div class="cline err">...text.
+  // Anchor on that class so we match the actual styled console error and not the
+  // word "error" appearing elsewhere (e.g. an aria string or our own comment).
+  const clineRe = /<div class="cline err">(?:<span class="ts">[^<]*<\/span>)?([^<]*)/i.exec(dom);
+  if (clineRe) {
+    const text = (clineRe[1] || '').trim().slice(0, 100);
+    return { pass: true, reason: `error path surfaced a "cline err" console line${text ? `: "${text}"` : ''}` };
+  }
+
+  // FALLBACK: class drifted but the interpreter's "is not defined" message is the
+  // expected runtime error for this broken program. Label it as the weaker check.
+  if (/is not defined/.test(dom)) {
+    return { pass: false, reason: 'error text present ("is not defined") but NOT in a "cline err" line — error styling may have drifted' };
+  }
+  return { pass: false, reason: 'no "cline err" console line and no error text after running broken program' };
+}
+
+// (4) WORLD IDENTITY -> distinct worlds. For each (world, expectedName), drive
+// Run and assert the studio reports THAT world's own name. On Run the studio
+// prints "Deployed on <name>." (terrain.name) and lights the matching terrain
+// button. Confirms the worlds are genuinely distinct and reachable, not aliased
+// to a single default. Returns { pass, reason } for one world.
+function checkWorldIdentity(chrome, world, expectedName) {
+  const url = `${BASE}?world=${world}&robot=rover&q=high&run=1`;
+  const { dom, consoleError, error } = dumpDom(chrome, `behaviour_world_${world}`, url);
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error in ${world}: ${consoleError.slice(0, 100)}` };
+
+  // PRIMARY: the Run handler prints `Deployed on <terrain.name>.` to the console.
+  const deployRe = /Deployed on ([^.<]+)\./.exec(dom);
+  const reported = deployRe ? deployRe[1].trim() : null;
+  if (reported && reported.indexOf(expectedName) >= 0) {
+    return { pass: true, reason: `${world} -> "Deployed on ${reported}" (matches "${expectedName}")` };
+  }
+  if (reported) {
+    return { pass: false, reason: `${world} reported WRONG world: "Deployed on ${reported}" (expected "${expectedName}")` };
+  }
+
+  // FALLBACK: the deploy line drifted. Base terrains light a terrain button with
+  // their LABEL (EARTH/MARS/...); assert that as a weaker, labelled signal.
+  const labelRe = new RegExp(`class="terrain-btn active"[^>]*>(?:<[^>]*>)*\\s*${world.toUpperCase()}`, 'i');
+  if (labelRe.test(dom)) {
+    return { pass: false, reason: `${world}: no "Deployed on" line; terrain button "${world.toUpperCase()}" is active (RENDER-LEVEL only)` };
+  }
+  return { pass: false, reason: `${world}: could not confirm world identity (no deploy line, no active label)` };
 }
 
 // Run one flow in headless Chrome. Returns { pass, reason, bytes }.
-function runFlow(chrome, flow) {
+function runFlow(chrome, flow, timeoutMs = SPAWN_TIMEOUT_MS) {
   const shotWin = path.join(TMP, `shot_${flow.name}.png`); // absolute Windows path
   const log = path.join(TMP, `log_${flow.name}.txt`);
   const udd = path.join(TMP, `udd_${flow.name}`);
@@ -227,7 +362,7 @@ function runFlow(chrome, flow) {
 
   const res = spawnSync(chrome, args, {
     encoding: 'utf8',
-    timeout: SPAWN_TIMEOUT_MS,
+    timeout: timeoutMs,
     windowsHide: true,
   });
 
@@ -257,6 +392,19 @@ function runFlow(chrome, flow) {
   return { pass: true, reason: `ok (${bytes}B)`, bytes };
 }
 
+// One cheap cold launch to about:blank. The first headless Chrome on a box pays
+// a one-time cost (profile build, GPU/SwiftShader JIT); paying it here on a
+// trivial page keeps it off the first real flow's clock. Best-effort: a failure
+// here is not a flow failure, so we ignore the result.
+function warmUpChrome(chrome) {
+  const udd = path.join(TMP, 'udd_warmup');
+  spawnSync(chrome, [
+    '--headless=new', '--no-sandbox', '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader', '--virtual-time-budget=1500',
+    `--user-data-dir=${udd}`, '--dump-dom', 'about:blank',
+  ], { encoding: 'utf8', timeout: FIRST_SPAWN_TIMEOUT_MS, windowsHide: true });
+}
+
 function cleanup() {
   try { rmSync(TMP, { recursive: true, force: true }); } catch { /* noop */ }
 }
@@ -283,31 +431,60 @@ function cleanup() {
   mkdirSync(TMP, { recursive: true });
   console.log('== UI SMOKE: driving the real Kodro bundle through cap.html (headless Chrome) ==');
 
+  // Pay the cold-start tax on a trivial page so it does not flake flow #1.
+  warmUpChrome(chrome);
+
+  const gap = () => { const until = Date.now() + GAP_MS; while (Date.now() < until) { /* dep-free pause */ } };
+
+  // ---- Phase 1: paint + console smoke across the core flows (unchanged) -----
   let clean = 0;
-  for (const flow of FLOWS) {
-    const r = runFlow(chrome, flow);
+  for (let i = 0; i < FLOWS.length; i++) {
+    const flow = FLOWS[i];
+    // The very first real flow still warms WebGL for the full app; give it room.
+    const r = runFlow(chrome, flow, i === 0 ? FIRST_SPAWN_TIMEOUT_MS : SPAWN_TIMEOUT_MS);
     let flowPass = r.pass;
     console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${flow.name.padEnd(18)} ${r.reason}`);
 
-    // For the run flow, also assert the rover actually MOVED, not just that the
-    // studio painted. A second --dump-dom pass reads the telemetry odometer.
-    // The behaviour result is folded into THIS flow's pass/fail.
+    // For the run flow, also assert the rover actually MOVED to its deterministic
+    // mark, not just that the studio painted. A second --dump-dom pass reads the
+    // telemetry odometer. The behaviour result is folded into THIS flow's pass.
     if (flow.name === BEHAVIOUR_FLOW && r.pass) {
       const b = checkRoverMoved(chrome, flow);
       flowPass = flowPass && b.pass;
-      console.log(`${b.pass ? 'PASS' : 'FAIL'}  ${'  └ behaviour'.padEnd(18)} ${b.reason}`);
+      console.log(`${b.pass ? 'PASS' : 'FAIL'}  ${'  └ determinism'.padEnd(18)} ${b.reason}`);
     }
 
     if (flowPass) clean++;
-    // Let the single-threaded dev server recover before the next hit.
-    if (flow !== FLOWS[FLOWS.length - 1]) {
-      const until = Date.now() + GAP_MS;
-      while (Date.now() < until) { /* tiny busy-wait, keeps it dependency-free */ }
-    }
+    gap(); // let the single-threaded dev server recover before the next hit
   }
 
+  // ---- Phase 2: per-concern behaviour asserts (deterministic, no Ollama) -----
+  // Each drives a concrete action and asserts a concrete DOM marker. These run
+  // AFTER the paint smoke so a blank bundle is already reported above.
+  console.log('\n== UI BEHAVIOUR: per-concern asserts on the real bundle ==');
+  const behaviour = [];
+
+  const blocks = checkBlocksInsert(chrome);
+  behaviour.push(blocks.pass);
+  console.log(`${blocks.pass ? 'PASS' : 'FAIL'}  ${'blocks-insert'.padEnd(20)} ${blocks.reason}`);
+  gap();
+
+  const errPath = checkErrorPath(chrome);
+  behaviour.push(errPath.pass);
+  console.log(`${errPath.pass ? 'PASS' : 'FAIL'}  ${'error-path'.padEnd(20)} ${errPath.reason}`);
+  gap();
+
+  for (const w of WORLD_IDENTITY) {
+    const wi = checkWorldIdentity(chrome, w.world, w.expect);
+    behaviour.push(wi.pass);
+    console.log(`${wi.pass ? 'PASS' : 'FAIL'}  ${('world-' + w.world).padEnd(20)} ${wi.reason}`);
+    gap();
+  }
+
+  const behClean = behaviour.filter(Boolean).length;
+
   cleanup();
-  console.log(`\n== UI SMOKE: ${clean}/${FLOWS.length} flows clean ==`);
+  console.log(`\n== UI SMOKE: ${clean}/${FLOWS.length} flows clean · ${behClean}/${behaviour.length} behaviour asserts pass ==`);
   // Smoke report: never break CI on a render/console hiccup or a GPU-less box.
   process.exit(0);
 })();

@@ -121,7 +121,7 @@ const CAP = `<!DOCTYPE html>
         var w = q.get('world'); if (w) localStorage.setItem('or_terrain', w);
         var qq = q.get('q'); if (qq) localStorage.setItem('kodro_quality', qq);
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code') };
     })();
   </script>
   <div id="root"></div>
@@ -141,6 +141,17 @@ const CAP = `<!DOCTYPE html>
         return false;
       }
       function clickAria(label) { var el = document.querySelector('[aria-label="' + label + '"]'); if (el) { el.click(); return true; } return false; }
+      function clickTitle(title) { var el = document.querySelector('[title="' + title + '"]'); if (el) { el.click(); return true; } return false; }
+      // Set a React-controlled textarea's value the way a user typing would:
+      // native setter + a bubbling input event, so React's onChange fires.
+      function setTextarea(sel, value) {
+        var inp = document.querySelector(sel);
+        if (!inp) return false;
+        var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+        setter.call(inp, value);
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+        return true;
+      }
       if (!C.onb && C.robot) {
         setTimeout(function () { try { window.dispatchEvent(new CustomEvent('kodro-robot', { detail: { type: C.robot, world: C.world || undefined } })); } catch (e) { void e; } }, 500);
       }
@@ -172,8 +183,40 @@ const CAP = `<!DOCTYPE html>
         setTimeout(function () {
           if (C.panel === 'lab') clickAria('Robot Lab');
           else if (C.panel === 'memory') clickAria('Memory and skills');
-          else if (C.panel === 'blocks') clickText('BLOCKS');
+          // The Blocks toolbar button reads "🧩 Blocks", so an uppercase
+          // text match misses it; open it by its unambiguous title instead.
+          else if (C.panel === 'blocks') clickTitle('Build the program from blocks');
         }, 1000);
+      }
+      if (!C.onb && C.blockstest) {
+        // Behaviour driver for the UI harness (gated behind blockstest=1 so it
+        // never affects a normal load). Open the Blocks panel, click the FIRST
+        // palette chip, then "Insert code →". The block palette turns into
+        // Python and types it into the editor, so the editor textarea ends up
+        // holding a known command token (move_forward) — proof the blocks path
+        // is wired to the editor, not just that the palette renders.
+        setTimeout(function () { clickTitle('Build the program from blocks'); }, 900);
+        setTimeout(function () {
+          var chip = document.querySelector('.block-chip:not([disabled])');
+          if (chip) chip.click();
+        }, 1300);
+        setTimeout(function () {
+          var btns = [].slice.call(document.querySelectorAll('.ctrl-run, button'));
+          for (var i = 0; i < btns.length; i++) {
+            if ((btns[i].textContent || '').indexOf('Insert code') >= 0) { btns[i].click(); return; }
+          }
+        }, 1700);
+      }
+      if (!C.onb && C.code) {
+        // Error-path driver: type a deliberately broken program into the editor,
+        // then click Run. The interpreter raises and the studio prints a
+        // "cline err" line in the console-out region. Used by the UI harness to
+        // assert the error path actually surfaces an error, not a silent no-op.
+        setTimeout(function () { setTextarea('.code-ta', C.code); }, 900);
+        setTimeout(function () {
+          var b = [].slice.call(document.querySelectorAll('.ctrl'));
+          for (var i = 0; i < b.length; i++) { if ((b[i].textContent || '').indexOf('Run') >= 0) { b[i].click(); return; } }
+        }, 1400);
       }
       if (C.onb) {
         if (C.step >= 1) setTimeout(function () { clickText('Get started'); }, 300);
