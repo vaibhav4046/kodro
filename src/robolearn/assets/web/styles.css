@@ -390,6 +390,8 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .btn-mini {
   font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em; text-transform:uppercase;
   padding:4px 9px; border-radius:4px; border:1px solid var(--border); background:transparent;
+  /* min target 24px at all widths (WCAG 2.5.8); the phone block raises it to 44. */
+  display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:24px;
   color:var(--fg-3); cursor:pointer; transition:all 140ms var(--ease);
   /* Never shrink or wrap the label: at narrow editor widths the toolbar scrolls
      (see .panel-head overflow-x) rather than clipping the action buttons. */

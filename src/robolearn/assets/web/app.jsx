@@ -192,14 +192,24 @@
       } catch (e) { setBuildErr(String(e)); }
       setBuildBusy(false);
     }
-    // Click-away + Escape close the settings popover.
+    // Click-away + Escape close the settings popover; focus moves into the
+    // popover on open and is restored to the gear button on close, so a keyboard
+    // user is not dropped back to the top of the page (WCAG 2.4.3).
+    const settingsBtnRef = useRef(null);
     useEffect(() => {
       if (!settingsOpen) return undefined;
+      const pop = document.querySelector('.settings-pop');
+      const first = pop && pop.querySelector('button, select, [tabindex]');
+      if (first) first.focus();
       const close = (e) => { if (!e.target.closest || !e.target.closest('.settings-wrap')) setSettingsOpen(false); };
       const key = (e) => { if (e.key === 'Escape') setSettingsOpen(false); };
       document.addEventListener('pointerdown', close);
       document.addEventListener('keydown', key);
-      return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', key); };
+      return () => {
+        document.removeEventListener('pointerdown', close);
+        document.removeEventListener('keydown', key);
+        if (settingsBtnRef.current) settingsBtnRef.current.focus();
+      };
     }, [settingsOpen]);
 
     const [vibeOpen, setVibeOpen] = useState(false);
@@ -457,9 +467,12 @@
     function typewriteCode(codeText) {
       if (typeRef.current) { clearInterval(typeRef.current); typeRef.current = null; }
       const lessonId = currentLessonIdRef.current;
+      // Snapshot the target tab at invocation (like lessonId) so a tab switch
+      // mid-animation cannot redirect the remaining typed code to another buffer.
+      const tab = activeTab;
       const setCode = (v) => {
         if (lessonId) setLessonBuffers(b => ({ ...b, [lessonId]: v }));
-        else setPrograms(p => ({ ...p, [activeTab]: v }));
+        else setPrograms(p => ({ ...p, [tab]: v }));
       };
       if (PREFERS_REDUCED_MOTION() || codeText.length > 4000) { setCode(codeText); return; }
       let i = 0;
@@ -1311,7 +1324,7 @@
           <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot" onClick={() => setBuildOpen(true)}>🤖</button>
           <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts" onClick={() => setShowHelp(true)}>?</button>
           <div className="settings-wrap">
-            <button className="icon-btn" title="Settings" aria-label="Settings" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>⚙</button>
+            <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>⚙</button>
             {settingsOpen && (
               <div className="settings-pop" role="dialog" aria-label="Settings">
                 {pupils.length > 0 && (
@@ -1344,7 +1357,7 @@
                 <button className="set-row set-btn" aria-pressed={readable} onClick={() => setReadable(v => !v)}>
                   <span>Readable text</span><span className="set-val">{readable ? 'On' : 'Off'}</span>
                 </button>
-                <button className="set-row set-btn" onClick={() => setVoiceGender(v => v === 'female' ? 'male' : 'female')}>
+                <button className="set-row set-btn" aria-pressed={voiceGender === 'female'} onClick={() => setVoiceGender(v => v === 'female' ? 'male' : 'female')}>
                   <span>Voice</span><span className="set-val">{voiceGender === 'female' ? 'Female' : 'Male'}</span>
                 </button>
                 <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); pickPhotoClick(); }}>
@@ -1833,7 +1846,7 @@
             <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
               <div className="modal-head">
                 <span className="eyebrow">✨ Vibe coding. Describe it, the AI writes it</span>
-                <button className="btn-mini" aria-label="Close" onClick={() => { vibeCancelRef.current = true; setVibeOpen(false); }}>✕</button>
+                <button className="btn-mini" aria-label="Close" onClick={() => { vibeCancelRef.current = true; setVibeBusy(false); setVibeOpen(false); }}>✕</button>
               </div>
               {aiInfo.available ? (
                 <div className="vibe-body">

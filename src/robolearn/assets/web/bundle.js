@@ -11001,9 +11001,15 @@ rover.say("Survey done")`
       }
       setBuildBusy(false);
     }
-    // Click-away + Escape close the settings popover.
+    // Click-away + Escape close the settings popover; focus moves into the
+    // popover on open and is restored to the gear button on close, so a keyboard
+    // user is not dropped back to the top of the page (WCAG 2.4.3).
+    const settingsBtnRef = useRef(null);
     useEffect(() => {
       if (!settingsOpen) return undefined;
+      const pop = document.querySelector('.settings-pop');
+      const first = pop && pop.querySelector('button, select, [tabindex]');
+      if (first) first.focus();
       const close = e => {
         if (!e.target.closest || !e.target.closest('.settings-wrap')) setSettingsOpen(false);
       };
@@ -11015,6 +11021,7 @@ rover.say("Survey done")`
       return () => {
         document.removeEventListener('pointerdown', close);
         document.removeEventListener('keydown', key);
+        if (settingsBtnRef.current) settingsBtnRef.current.focus();
       };
     }, [settingsOpen]);
     const [vibeOpen, setVibeOpen] = useState(false);
@@ -11420,13 +11427,16 @@ rover.say("Survey done")`
         typeRef.current = null;
       }
       const lessonId = currentLessonIdRef.current;
+      // Snapshot the target tab at invocation (like lessonId) so a tab switch
+      // mid-animation cannot redirect the remaining typed code to another buffer.
+      const tab = activeTab;
       const setCode = v => {
         if (lessonId) setLessonBuffers(b => ({
           ...b,
           [lessonId]: v
         }));else setPrograms(p => ({
           ...p,
-          [activeTab]: v
+          [tab]: v
         }));
       };
       if (PREFERS_REDUCED_MOTION() || codeText.length > 4000) {
@@ -12714,9 +12724,11 @@ rover.say("Survey done")`
     }, "?"), /*#__PURE__*/React.createElement("div", {
       className: "settings-wrap"
     }, /*#__PURE__*/React.createElement("button", {
+      ref: settingsBtnRef,
       className: "icon-btn",
       title: "Settings",
       "aria-label": "Settings",
+      "aria-haspopup": "dialog",
       "aria-expanded": settingsOpen,
       onClick: () => setSettingsOpen(o => !o)
     }, "\u2699"), settingsOpen && /*#__PURE__*/React.createElement("div", {
@@ -12776,6 +12788,7 @@ rover.say("Survey done")`
       className: "set-val"
     }, readable ? 'On' : 'Off')), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
+      "aria-pressed": voiceGender === 'female',
       onClick: () => setVoiceGender(v => v === 'female' ? 'male' : 'female')
     }, /*#__PURE__*/React.createElement("span", null, "Voice"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
@@ -13684,6 +13697,7 @@ rover.say("Survey done")`
       "aria-label": "Close",
       onClick: () => {
         vibeCancelRef.current = true;
+        setVibeBusy(false);
         setVibeOpen(false);
       }
     }, "\u2715")), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
