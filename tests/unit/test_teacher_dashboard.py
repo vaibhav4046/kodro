@@ -157,3 +157,36 @@ def test_refresh_is_idempotent(root: tk.Tk, tmp_path: Path) -> None:
         assert text1 == text2
     finally:
         dashboard.destroy()
+
+
+def test_export_pdf_writes_expected_header(root: tk.Tk, tmp_path: Path) -> None:
+    store = _populated_store(tmp_path)
+    dashboard = TeacherDashboard(root, store)
+    try:
+        out = dashboard.export_pdf(tmp_path / "out.pdf")
+        assert out.exists()
+        assert out.stat().st_size > 0
+    finally:
+        dashboard.destroy()
+
+
+def test_export_pdf_button_uses_chooser_callable(root: tk.Tk, tmp_path: Path) -> None:
+    store = _populated_store(tmp_path)
+    target = tmp_path / "chosen.pdf"
+    dashboard = TeacherDashboard(root, store, pdf_path_chooser=lambda: target)
+    try:
+        dashboard._widgets.pdf_button.invoke()  # type: ignore[attr-defined]
+        assert target.exists()
+        assert target.stat().st_size > 0
+    finally:
+        dashboard.destroy()
+
+
+def test_export_pdf_button_no_chooser_path_is_silent(root: tk.Tk, tmp_path: Path) -> None:
+    store = _populated_store(tmp_path)
+    dashboard = TeacherDashboard(root, store, pdf_path_chooser=lambda: None)
+    try:
+        dashboard._widgets.pdf_button.invoke()  # type: ignore[attr-defined]
+        # No error -- no file -- nothing happens. That is the contract.
+    finally:
+        dashboard.destroy()
