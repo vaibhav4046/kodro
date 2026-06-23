@@ -36,6 +36,7 @@ class _Widgets:
     drill_text: tk.Text
     pupil_listbox: tk.Listbox
     export_button: ttk.Button
+    pdf_button: ttk.Button
 
 
 class TeacherDashboard:
@@ -51,10 +52,12 @@ class TeacherDashboard:
         store: Store,
         *,
         export_path_chooser: Callable[[], Path | None] | None = None,
+        pdf_path_chooser: Callable[[], Path | None] | None = None,
     ) -> None:
         """Build the dashboard."""
         self._store = store
         self._export_path_chooser = export_path_chooser or _default_export_chooser
+        self._pdf_path_chooser = pdf_path_chooser or _default_pdf_chooser
         self._window = tk.Toplevel(parent)
         self._window.title("Teacher dashboard")
         self._window.transient(parent.winfo_toplevel())
@@ -89,6 +92,63 @@ class TeacherDashboard:
         with out.open("w", encoding="utf-8", newline="") as fh:
             writer = csv.writer(fh)
             writer.writerows(rows)
+        return out
+
+    def export_pdf(self, path: Path | str) -> Path | None:
+        """Write the class heatmap to ``path`` as PDF; return the path or None if reportlab is missing."""
+        try:
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4
+            from reportlab.lib.styles import getSampleStyleSheet
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        except ImportError:
+            from tkinter import messagebox
+            messagebox.showerror(
+                "Missing dependency",
+                "reportlab is required to export PDF. Install it with `pip install reportlab`",
+                parent=self._window,
+            )
+            return None
+
+        out = Path(path)
+        heatmap = class_heatmap(self._store)
+        pupils = {p.id: p for p in self._store.list_pupils()}
+        concepts = sorted({c for scores in heatmap.values() for c in scores})
+        
+        doc = SimpleDocTemplate(str(out), pagesize=A4, title="Kodro Teacher Dashboard")
+        styles = getSampleStyleSheet()
+        story = [
+            Paragraph("<b>Kodro — Class Heatmap</b>", styles["Title"]),
+            Spacer(1, 12),
+        ]
+        
+        table_data = [["Pupil", *concepts]]
+        for pupil_id, scores in heatmap.items():
+            pupil = pupils.get(pupil_id)
+            display = pupil.display_name if pupil else pupil_id[:8]
+            row = [display, *[f"{scores.get(c, 0.0) * 100:.1f}%" for c in concepts]]
+            table_data.append(row)
+            
+        if not concepts:
+            story.append(Paragraph("No pupil submissions yet.", styles["Normal"]))
+        else:
+            tbl = Table(table_data)
+            tbl.setStyle(
+                TableStyle(
+                    [
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#161b22")),
+                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 9),
+                        ("FONT", (0, 1), (-1, -1), "Helvetica", 8),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+                    ]
+                )
+            )
+            story.append(tbl)
+            
+        out.parent.mkdir(parents=True, exist_ok=True)
+        doc.build(story)
         return out
 
     def heatmap_text_dump(self) -> str:
@@ -128,13 +188,21 @@ class TeacherDashboard:
         drill_text = tk.Text(drill_frame, height=10, width=50, font=("TkFixedFont", 10))
         drill_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(6, 0))
 
-        export_button = ttk.Button(outer, text="Export CSV…", command=self._on_export_clicked)
-        export_button.pack(anchor=tk.E, pady=(6, 0))
+        button_frame = ttk.Frame(outer)
+        button_frame.pack(anchor=tk.E, pady=(6, 0))
+
+        export_button = ttk.Button(button_frame, text="Export CSV…", command=self._on_export_clicked)
+        export_button.pack(side=tk.LEFT, padx=(0, 4))
+        
+        pdf_button = ttk.Button(button_frame, text="Export PDF…", command=self._on_export_pdf_clicked)
+        pdf_button.pack(side=tk.LEFT)
+
         return _Widgets(
             heatmap_text=heatmap_text,
             drill_text=drill_text,
             pupil_listbox=pupil_listbox,
             export_button=export_button,
+            pdf_button=pdf_button,
         )
 
     def _refresh_heatmap(self) -> None:
@@ -204,11 +272,27 @@ class TeacherDashboard:
             return
         self.export_csv(path)
 
+    def _on_export_pdf_clicked(self) -> None:
+        path = self._pdf_path_chooser()
+        if path is None:
+            return
+        self.export_pdf(path)
+
 
 def _default_export_chooser() -> Path | None:  # pragma: no cover -- GUI
     chosen = filedialog.asksaveasfilename(
         defaultextension=".csv",
         filetypes=[("CSV", "*.csv"), ("All files", "*.*")],
+    )
+    if not chosen:
+        return None
+    return Path(chosen)
+
+
+def _default_pdf_chooser() -> Path | None:  # pragma: no cover -- GUI
+    chosen = filedialog.asksaveasfilename(
+        defaultextension=".pdf",
+        filetypes=[("PDF", "*.pdf"), ("All files", "*.*")],
     )
     if not chosen:
         return None
