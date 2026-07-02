@@ -1,34 +1,83 @@
-# Multi-Agent Teacher Evaluation (Summary)
+# Speculative Teacher-Persona Walkthrough (Summary)
 
-**Date of Study:** 23 June 2026
-**Methodology:** Simulated multi-agent persona evaluation (8 UK secondary-school Computing teacher personas).
+> **Read this first.** This document is an analyst-written speculative walkthrough of how
+> eight UK secondary-school teacher archetypes *might* respond to Kodro. It was written to
+> surface design requirements ahead of any classroom contact. It is a design review, not a
+> study: it involved **no participants, no measurements, and no model-generated scores**.
+> Nothing below is a finding. The measured evidence for the assistant is the objective
+> persona-task evaluation (`docs/developers/evaluation.md`, section 3.5: 40% task
+> completion, scored by the shipped interpreter and self-test). The real classroom
+> questions are answered only by the planned human study (`HUMAN_TODO.md`).
 
-## Executive Summary
-The Kodro platform was evaluated end-to-end by eight simulated teacher personas, ranging from non-specialist KS3 teachers to experienced GCSE CS teachers and SENDCo specialists. The overall reception was overwhelmingly positive, confirming that the tool is ready for classroom deployment. The offline nature of the application and the deterministic safety fallback were highlighted as critical successes.
+**Status:** Design-review artefact. No study has been conducted with teachers, simulated or otherwise, and this document approves nothing.
+**Method:** One analyst wrote eight teacher archetypes (non-specialist KS3 cover through experienced GCSE CS leads and a SENDCo) and walked the end-to-end workflow (welcome wizard, lessons, teacher dashboard, editor, replay debugger) through each archetype's likely priorities and objections.
 
-## Key Findings
+## Why write this at all
 
-### 1. Time-to-First-Success
-- **Average Time:** 5m 08s
-- **Range:** 2m 45s (Experienced CS teacher) to 8m 15s (Non-specialist).
-- **Conclusion:** The onboarding flow successfully gets users to their first working program in under 10 minutes, meeting the requirements for a standard 45-minute lesson block.
+A speculative walkthrough is cheap and forces the design to answer questions it had not
+asked itself: what does a summative assessment lesson need, what does a SENDCo look for,
+what does a school network actually block. Its output is a set of hypotheses to test in
+the human study, plus concrete roadmap items. It carries all the limits of the persona
+review in the dissertation, and one more: nothing here was run, so it is speculation
+end to end.
 
-### 2. Hint-Engine Usefulness
-- **Feedback:** Unanimously positive. The deterministic rule-based hints were praised for scaffolding learning rather than simply providing the answer.
-- **SENDCo Perspective:** The lack of LLM "hallucination" in the deterministic fallback is critical for supporting neurodivergent students, ensuring they receive consistent and reliable guidance.
+## Design hypotheses raised (to test in the human study)
 
-### 3. Achievement-System Reaction
-- **Feedback:** Positive, especially for Key Stage 3 (KS3). While older students (KS4) might be more motivated by grades, the achievements (like "perfect battery") encourage writing efficient code rather than just functional code.
+### 1. Onboarding must fit a lesson block
+- Hypothesis: a teacher needs a class to reach a first working program comfortably inside
+  a standard 45-minute lesson, including login-free startup and handout time.
+- No time measurement exists. Time-to-first-success is a metric the human study will
+  collect; it is not a number this document can supply.
 
-### 4. General Strengths
-- **Offline Constraint:** Universally praised as a massive logistical advantage. Avoiding school internet filters, GDPR compliance issues with student accounts, and bandwidth limitations makes deployment frictionless.
-- **Replay Debugger:** Identified as a standout pedagogical tool, allowing students to step backward through state changes to understand execution flow.
-- **Visual Feedback:** The 3D world provides immediate, intuitive feedback (e.g., crashing into a wall) that is far more engaging and understandable than a stack trace.
+### 2. Hint engine: determinism is the selling point, control is the ask
+- Hypothesis: a SENDCo would care that hints are deterministic, not hallucinated.
+  Consistent, repeatable guidance matters for neurodivergent pupils, so the deterministic
+  rule-based fallback is a designed-in advantage worth verifying with SEND specialists.
+- Hypothesis: a GCSE teacher would want hints toggleable off for summative assessment.
+  A hint engine that cannot be disabled undermines controlled-assessment conditions.
+  **Roadmap item: hint toggle for assessment mode.**
+- Hypothesis: hint wording may pitch above Year 7 reading level in places; worth checking
+  with KS3 teachers.
 
-### 5. Identified Areas for Future Growth
-- More explicit mapping to specific GCSE criteria (e.g., OCR/AQA specific terminology).
-- The ability to toggle the hint engine off for summative assessments.
+### 3. Achievement system: motivation likely varies by key stage
+- Hypothesis: badges (for example the battery-efficiency achievements) are more likely to
+  motivate KS3 than exam-focused Year 11, who care about grades. The design intent, that
+  achievements reward efficient code rather than merely working code, is a claim about
+  learning the study should probe rather than assume.
 
-## Release Recommendation
-**Status: APPROVED FOR v1.0.0 RELEASE.**
-Zero blocker-severity issues were identified. The application fulfils its core objectives and is ready for production release.
+### 4. Offline deployment is probably a logistical advantage
+- Hypothesis: a single offline executable sidesteps school web filtering, GDPR and
+  student-account consent overhead, and bandwidth limits, which would make deployment
+  materially easier than cloud IDEs. This is a deployment argument, not a measured
+  outcome; it should be checked with school IT leads and MAT-level decision makers.
+
+### 5. Curriculum mapping needs to speak exam-board language
+- Hypothesis: GCSE teachers will ask for explicit mapping from lessons to exam-board
+  terminology (OCR/AQA specification points), beyond the current programme-of-study
+  mapping in `curriculum-mapping.md`. **Roadmap item: exam-board criteria mapping.**
+
+### 6. Pedagogical surfaces worth studying
+- Hypothesis: the replay debugger (stepping backwards through state) is the strongest
+  teaching feature for explaining program state, and the 3D world's visible failure
+  (crashing into a wall) is more legible to beginners than a stack trace. Both are
+  plausible and unproven; the human study should test them directly.
+- Hypothesis: the teacher dashboard's class heatmap and its CSV/PDF exports serve real
+  reporting workflows (line management, parents' evenings). Whether they fit actual
+  reporting practice is a study question.
+
+## What this walkthrough cannot tell us
+
+- No time-on-task, satisfaction, usability, or attainment figures exist. Any such number
+  before the human study would be invented.
+- It cannot rank features, find blockers, or clear the product for release. Release
+  decisions rest on the measured evidence (test suite, QA harness, objective persona-task
+  evaluation) and, for classroom claims, on the human study.
+
+## Relationship to the evidence
+
+| Question | Where it is actually answered |
+|---|---|
+| Does the assistant produce working programs? | Objective persona-task evaluation, `docs/developers/evaluation.md` section 3.5 (40% task completion, measured) |
+| Is unsafe generated code caught? | Same evaluation: the deterministic self-test caught every unsafe program (measured) |
+| Does Kodro work for teachers and pupils in a classroom? | Planned human study (`HUMAN_TODO.md`); not yet run, no results exist |
+| What should the classroom study look for? | The hypotheses above |

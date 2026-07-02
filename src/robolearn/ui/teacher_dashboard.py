@@ -6,10 +6,9 @@ window with three areas:
 
 * a class-wide concept-strength heatmap (text grid),
 * a per-pupil drill-down (submissions list + score timeline), and
-* an "Export CSV" button that dumps the heatmap as comma-separated
-  values for the teacher's spreadsheet.
-
-PDF export is deferred to a future release (see ``HUMAN_TODO.md``).
+* "Export CSV" / "Export PDF" buttons that dump the heatmap for the
+  teacher's spreadsheet or reporting (PDF export needs the optional
+  ``reportlab`` dependency and shows an error dialog without it).
 
 Implemented in Task 17 of the build plan.
 """

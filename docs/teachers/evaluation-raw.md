@@ -1,52 +1,91 @@
-# Multi-Agent Teacher Evaluation (Raw Data)
+# Speculative Teacher-Persona Walkthrough (Archetype Notes)
 
-**Date of Study:** 23 June 2026
-**Methodology:** Simulated multi-agent persona evaluation. Eight distinct AI personas representing UK secondary-school Computing teachers were presented with the Kodro end-to-end workflow (wizard, lessons, dashboard, editor, debugger).
+> **Read this first.** This document is an analyst-written speculative walkthrough of how
+> eight UK secondary-school teacher archetypes *might* respond to Kodro, written to
+> surface design requirements. It is a design review, not a study: it involved **no
+> participants, no measurements, and no model-generated scores**. There are no timings,
+> no quotes, and no feedback below, only hypotheses the analyst wrote in each archetype's
+> voice of concern. The measured evidence for the assistant is the objective persona-task
+> evaluation (`docs/developers/evaluation.md`, section 3.5: 40% task completion). The real
+> classroom questions are answered only by the planned human study (`HUMAN_TODO.md`).
 
-## Persona 1: Alice (Head of Computing, mixed comprehensive)
-- **Time-to-first-success (Average across 3 lessons):** 4m 12s
-- **Hint-engine usefulness:** "Very useful. The fact it doesn't just give the answer but highlights the missing construct (like a while loop) matches how I teach."
-- **Achievement-system reaction:** "Motivating for KS3, might be ignored by older students. I like that it's unobtrusive."
-- **Free-form feedback:** "The offline constraint is a lifesaver. My school's filtering system breaks cloud-based IDEs constantly. The UI is clean, though I'd like to see more explicit mapping to OCR GCSE criteria."
+**Status:** Design-review artefact; approves nothing.
+**Method:** One analyst walked the end-to-end workflow (welcome wizard, lessons, teacher dashboard, editor, replay debugger) through eight archetypes' likely priorities and objections. Each note below is a hypothesis to test in the human study, not an observation.
 
-## Persona 2: Bob (NQT Computing teacher)
-- **Time-to-first-success:** 5m 30s
-- **Hint-engine usefulness:** "It caught a indentation error that I missed initially. Will save me running around the classroom to debug syntax errors."
-- **Achievement-system reaction:** "Great gamification element."
-- **Free-form feedback:** "I'm not a robotics expert, so the visual feedback of the rover crashing instead of just a traceback is fantastic. It makes failure funny rather than frustrating."
+## Archetype 1: Head of Computing, mixed comprehensive
 
-## Persona 3: Charlie (Primary transitioning to Secondary KS3)
-- **Time-to-first-success:** 7m 05s
-- **Hint-engine usefulness:** "Extremely helpful, though some of the Python terminology in the hints was slightly advanced for Year 7."
-- **Achievement-system reaction:** "Love it. Kids will compete for the badges."
-- **Free-form feedback:** "The transition from block-based to text-based code is the hardest part of my job. The dual view here really bridges that gap."
+- Likely priorities: departmental rollout, curriculum fit, reliability under school IT.
+- Hint engine: would probably approve of hints that point at the missing construct (for
+  example a `while` loop) rather than giving the answer, since that matches common
+  scaffolding practice. To verify in the study.
+- Achievements: plausibly motivating for KS3, plausibly ignored by older students.
+- Deployment: school filtering regularly breaks cloud IDEs, so an offline tool is likely
+  attractive; would still ask who maintains installs across a department.
+- Ask to expect: explicit mapping to OCR GCSE criteria. **Roadmap item.**
 
-## Persona 4: Diana (Experienced KS4/GCSE CS teacher)
-- **Time-to-first-success:** 2m 45s
-- **Hint-engine usefulness:** "Good, but I'd like the ability to turn it off for summative assessments."
-- **Achievement-system reaction:** "Neutral. My Year 11s care more about the grade than the badges."
-- **Free-form feedback:** "The replay debugger is the best feature here. Stepping backwards through a trace is exactly how students need to learn state changes."
+## Archetype 2: Early-career (NQT/ECT) Computing teacher
 
-## Persona 5: Ethan (SENDCo specialist)
-- **Time-to-first-success:** 6m 10s
-- **Hint-engine usefulness:** "The deterministic fallback is great. The fact that the hints are consistent and don't 'hallucinate' confusing advice is critical for my neurodivergent students."
-- **Achievement-system reaction:** "The clear visual indicators of success are very supportive."
-- **Free-form feedback:** "The UI contrast is good. The voice-first accessibility option is a standout feature that makes this uniquely inclusive."
+- Likely priorities: not being the only debugger in the room.
+- Hint engine: automatic detection of syntax and indentation errors would reduce
+  teacher-as-debugger load. Whether hints actually reduce hands-up rate is a study metric.
+- Visual failure: a rover visibly crashing is plausibly less discouraging than a
+  traceback for beginners. Worth testing against real pupils' reactions.
 
-## Persona 6: Fiona (After-school robotics club lead)
-- **Time-to-first-success:** 3m 20s
-- **Hint-engine usefulness:** "Helpful when they get stuck on logic, but I mostly let them figure it out."
-- **Achievement-system reaction:** "They will absolutely love the 'perfect battery' style achievements."
-- **Free-form feedback:** "The fact that the physics model, while kinematic, feels weighty means the kids actually care about driving smoothly. Being able to spec the robot parts and see the behaviour change is brilliant."
+## Archetype 3: Primary specialist transitioning to KS3
 
-## Persona 7: George (Non-specialist teaching KS3)
-- **Time-to-first-success:** 8m 15s
-- **Hint-engine usefulness:** "Essential. It teaches me at the same time it teaches the pupil."
-- **Achievement-system reaction:** "Very positive."
-- **Free-form feedback:** "I was intimidated by 'robotics', but the welcome wizard held my hand. The teacher dashboard class heatmap is exactly what I need for reporting."
+- Likely priorities: bridging block-based to text-based programming.
+- Hypothesis: the dual block/text view supports that transition, which is a recognised
+  pain point at KS2 to KS3.
+- Risk to check: hint vocabulary may pitch above Year 7 reading level in places.
+- Achievements: likely to land well with younger pupils.
 
-## Persona 8: Hannah (MAT Computing Lead)
-- **Time-to-first-success:** 3m 50s
-- **Hint-engine usefulness:** "Strong pedagogical design. It scaffolds rather than solves."
-- **Achievement-system reaction:** "A nice touch, though secondary to the learning outcomes."
-- **Free-form feedback:** "Deploying this as a single executable without needing to whitelist 20 domains or handle GDPR consent for student accounts makes this deployable tomorrow. The PDF export feature on the dashboard is essential for my line management meetings."
+## Archetype 4: Experienced KS4/GCSE CS teacher
+
+- Likely priorities: assessment integrity and exam preparation.
+- Ask to expect: the ability to turn the hint engine off for summative assessment.
+  **Roadmap item: assessment mode.**
+- Hypothesis: the replay debugger (stepping backwards through a trace) is the standout
+  pedagogical feature for teaching state change.
+- Achievements: probably neutral for grade-focused Year 11.
+
+## Archetype 5: SENDCo specialist
+
+- Likely priorities: consistency, predictability, accessibility.
+- Hypothesis: deterministic hints matter here most. Guidance that never varies for the
+  same error, and cannot hallucinate, supports neurodivergent pupils who are confused by
+  inconsistent feedback. This is a designed property of the fallback engine; whether it
+  delivers the expected benefit needs SEND-informed evaluation.
+- To check: UI contrast, reading level, and the voice-first accessibility path against
+  real access needs, not against the analyst's guess at them.
+
+## Archetype 6: After-school robotics club lead
+
+- Likely priorities: engagement and tinkering freedom over curriculum coverage.
+- Hypothesis: speccing robot parts and seeing behaviour change (mass, speed, battery) is
+  the hook for club use; efficiency achievements plausibly drive friendly competition.
+- Would probably use hints sparingly and prefer pupils to struggle productively.
+
+## Archetype 7: Non-specialist covering KS3 Computing
+
+- Likely priorities: not being exposed by the subject; needing the tool to teach them too.
+- Hypothesis: the welcome wizard and hint engine double as teacher upskilling. Whether a
+  non-specialist can run a full lesson unaided is one of the sharpest study questions.
+- Hypothesis: the dashboard's class heatmap supports the reporting a non-specialist is
+  least equipped to improvise.
+
+## Archetype 8: Multi-academy trust (MAT) Computing lead
+
+- Likely priorities: deployability at scale, data protection, evidence for line management.
+- Hypothesis: a single executable with no accounts, no domains to whitelist, and no
+  student personal data leaving the machine removes most MAT-level procurement friction.
+  To be checked with an actual MAT IT/DPO review, not assumed.
+- Hypothesis: CSV/PDF export from the teacher dashboard fits line-management reporting.
+
+## What is deliberately absent
+
+- **No time-to-first-success figures.** None were measured; the human study will measure
+  them.
+- **No quoted feedback.** No teacher, real or simulated, said anything; earlier drafts of
+  this document invented quotes and they have been removed.
+- **No approval or release recommendation.** Release rests on the measured evidence and,
+  for classroom claims, the human study.
