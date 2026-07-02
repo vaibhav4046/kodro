@@ -5,10 +5,16 @@ Pupil-facing functions in :mod:`robolearn.rover_api` will, once wired up in
 Task 6, ultimately call methods on a singleton :class:`Rover`. Keeping this
 class small and well-tested up front means later wiring is just plumbing.
 
-Battery model — Section 5 of the spec:
+Battery model (PERFECTION_PLAN E-P1): the constants come from the SHARED
+motion model (:mod:`robolearn.engine.motion_model`), the same table the JS
+tick reads, so a metre costs the same battery on screen and under the
+grader. Historically this module used 0.1 %/m and 0.05 %/deg while the
+visible sim drained 1.1 %/m and 0.004 %/deg - an 11x/12.5x divergence the
+golden-trace suite now pins closed.
 
-* ``0.1 %`` per metre moved.
-* ``0.05 %`` per degree turned.
+* ``1.1 %`` per metre actually travelled (wall-clamped moves drain only the
+  distance covered, matching the JS tick).
+* ``0.004 %`` per degree turned.
 * ``+1 %`` extra on each hard collision.
 """
 
@@ -18,18 +24,25 @@ import logging
 import math
 from dataclasses import dataclass
 
+from .motion_model import (
+    BATTERY_PCT_PER_COLLISION,
+    BATTERY_PCT_PER_DEGREE,
+    BATTERY_PCT_PER_METRE,
+    ROVER_RADIUS_M,
+    segment_circle_hit,
+)
 from .world import Sample, World
 
 logger = logging.getLogger(__name__)
 
-#: Battery cost per metre travelled (forwards or backwards).
-BATTERY_PER_METRE: float = 0.1
+#: Battery cost per metre travelled (forwards or backwards). Shared constant.
+BATTERY_PER_METRE: float = BATTERY_PCT_PER_METRE
 
-#: Battery cost per degree turned (left or right).
-BATTERY_PER_DEGREE: float = 0.05
+#: Battery cost per degree turned (left or right). Shared constant.
+BATTERY_PER_DEGREE: float = BATTERY_PCT_PER_DEGREE
 
 #: Extra battery cost added on each registered collision event.
-BATTERY_PER_COLLISION: float = 1.0
+BATTERY_PER_COLLISION: float = BATTERY_PCT_PER_COLLISION
 
 #: Default radius (metres) the rover uses for sample / base detection.
 DEFAULT_DETECTION_RADIUS_M: float = 0.3
@@ -82,13 +95,22 @@ class Rover:
     def move(self, distance_m: float) -> tuple[float, float]:
         """Translate the rover by ``distance_m`` metres along its heading.
 
-        Negative distances drive backwards. Movement does not check for
-        collisions here -- that is the physics layer's job. The destination
-        is clamped to the arena bounds so the rover cannot leave the world.
+        Negative distances drive backwards. The swept path is tested against
+        the world's circular obstacles (grown by the rover radius, the same
+        swept-circle shape the JS tick uses): a hit stops the rover AT the
+        contact point and registers a real collision (PERFECTION_PLAN E-A7 -
+        ``register_collision`` previously had zero production callers, so a
+        program that visibly crashed could still grade collision-free). The
+        destination is then clamped to the arena bounds; a clamped move also
+        registers a collision, because driving into the wall is one.
+
+        Battery and the odometer are charged for the distance ACTUALLY
+        travelled, not the distance commanded (the old behaviour drained the
+        full command even when the wall stopped the rover short).
 
         Returns:
             The ``(dx, dy)`` displacement actually applied, after any
-            clamping at the arena walls.
+            obstacle stop or clamping at the arena walls.
         """
         rad = math.radians(self.state.heading_deg)
         ideal_dx = distance_m * math.cos(rad)
@@ -96,13 +118,33 @@ class Rover:
         start_x, start_y = self.state.x, self.state.y
         target_x = start_x + ideal_dx
         target_y = start_y + ideal_dy
+        # Obstacle sweep: stop at the first contact along the segment.
+        hit_obstacle = False
+        for obstacle in self.world.obstacles:
+            t = segment_circle_hit(
+                start_x,
+                start_y,
+                target_x,
+                target_y,
+                obstacle.x,
+                obstacle.y,
+                obstacle.radius + ROVER_RADIUS_M,
+            )
+            if t is not None:
+                target_x = start_x + ideal_dx * t
+                target_y = start_y + ideal_dy * t
+                hit_obstacle = True
         bounds = self.world.bounds
         self.state.x = min(max(target_x, 0.0), bounds.width)
         self.state.y = min(max(target_y, 0.0), bounds.height)
+        hit_wall = self.state.x != target_x or self.state.y != target_y
         actual_dx = self.state.x - start_x
         actual_dy = self.state.y - start_y
-        self.state.distance_travelled_m += abs(distance_m)
-        self._drain_battery(abs(distance_m) * BATTERY_PER_METRE)
+        travelled = math.hypot(actual_dx, actual_dy)
+        self.state.distance_travelled_m += travelled
+        self._drain_battery(travelled * BATTERY_PER_METRE)
+        if hit_obstacle or hit_wall:
+            self.register_collision()
         return (actual_dx, actual_dy)
 
     def turn(self, angle_deg: float) -> None:

@@ -1,0 +1,156 @@
+"""Shared motion model - the Python twin of assets/web/motion-model.js (E-P1).
+
+One constant table and one set of pure formulas exist in exactly two places:
+this module and ``assets/web/motion-model.js``. Both emit the SAME canonical
+JSON of their constant table; ``tests/unit/test_motion_model_conformance.py``
+(E-C4) hashes the two strings and fails the build on any drift, and
+``tests/unit/test_golden_traces.py`` (E-P2) runs a corpus of programs through
+both engines and fails on behavioural drift.
+
+Before this module, the Python :class:`~robolearn.engine.rover.Rover` drained
+0.1 percent per metre while the JS tick drained 1.1 (11x apart), and 0.05 per
+degree against 0.004 (12.5x the other way). The JS constants are the
+calibrated, user-visible ones (the plan's 3.125 m/s anchor and every measured
+showcase number were taken against them), so Python adopts them here.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+
+#: Constant table. MUST mirror MODEL in assets/web/motion-model.js key for
+#: key and value for value; keep it flat so the canonical JSON is trivial.
+MODEL: dict[str, object] = {
+    "modelId": "kodro-motion-v1",
+    # arena + body
+    "arenaHalfExtentCm": 1500,
+    "roverRadiusCm": 30,
+    # calibration anchor: 3.125 m/s at set_speed(100), factors 1, traction 1.
+    "baseSpeedCmPerS": 312.5,
+    "msPerCm": 0.32,
+    "minSpeedUnits": 8,
+    # catalogue battery model (constant-power ledger, APPROXIMATED)
+    "drainPctPerCm": 0.011,
+    "drainPctPerDeg": 0.004,
+    "drainPctPerCollision": 1,
+    # catalogue turn timing
+    "turnMsPer180Deg": 650,
+    "turnMassBase": 0.78,
+    "turnMassSlope": 0.5,
+    "turnMassCap": 1.5,
+    # catalogue derivation bounds (RobotLab.derive)
+    "massBaselineG": 900,
+    "catMassFactorLo": 0.6,
+    "catMassFactorHi": 1.8,
+    "catSpeedFactorLo": 0.7,
+    "catSpeedFactorHi": 1.45,
+    # mobility bands (shared by catalogue and physical modes)
+    "mobilityStallBand": 0.45,
+    "mobilityWarnBand": 0.75,
+    "mobilityStallMul": 0.35,
+    "mobilityWarnMul": 0.7,
+    "mobilityNoDriveMul": 0.22,
+    # environment
+    "gravityEarthMps2": 9.81,
+    "sensorRangeCm": 600,
+    "obstacleAheadCm": 50,
+    # physical (KRS) model constants: E-A1/E-A2 closed forms.
+    # rollingResistance is the EFFECTIVE rolling + gearbox drag coefficient
+    # for small geared wheels, calibrated with the JS twin.
+    "rollingResistance": 0.12,
+    "drivetrainEfficiency": 0.55,
+    "idleDrawW": 1.5,
+    "brakeMu": 0.7,
+    "physMassFactorLo": 0.4,
+    "physMassFactorHi": 2.5,
+    "physSpeedFactorLo": 0.3,
+    "physSpeedFactorHi": 2,
+}
+
+#: Battery cost per METRE travelled, derived from the shared per-cm constant.
+BATTERY_PCT_PER_METRE: float = float(MODEL["drainPctPerCm"]) * 100.0  # type: ignore[arg-type]
+
+#: Battery cost per degree turned (shared constant).
+BATTERY_PCT_PER_DEGREE: float = float(MODEL["drainPctPerDeg"])  # type: ignore[arg-type]
+
+#: Extra battery cost per registered collision (shared constant).
+BATTERY_PCT_PER_COLLISION: float = float(MODEL["drainPctPerCollision"])  # type: ignore[arg-type]
+
+#: Rover body radius in metres (matches the JS collision circle of 30 cm).
+ROVER_RADIUS_M: float = float(MODEL["roverRadiusCm"]) / 100.0  # type: ignore[arg-type]
+
+
+def canonical_json() -> str:
+    """Serialise the constant table exactly like motion-model.js does.
+
+    Keys sorted, no whitespace, JSON number formatting. ``json.dumps`` and
+    ``JSON.stringify`` agree on every value used above (integers stay bare,
+    floats keep their shortest repr), which E-C4 asserts.
+    """
+    return json.dumps(MODEL, sort_keys=True, separators=(",", ":"))
+
+
+def gravity_factor(gravity_mps2: float | None) -> float:
+    """Mirror of KodroMotion.gravityFactor."""
+    g = gravity_mps2 or float(MODEL["gravityEarthMps2"])  # type: ignore[arg-type]
+    return 0.5 + 0.5 * (g / float(MODEL["gravityEarthMps2"]))  # type: ignore[arg-type]
+
+
+def mobility_score(speed_factor: float, mass_factor: float, traction: float) -> float:
+    """Mirror of KodroMotion.mobilityScore."""
+    return (speed_factor * traction) / mass_factor
+
+
+def move_drain_pct(
+    distance_cm: float, gravity_mps2: float | None, mass_factor: float, traction: float
+) -> float:
+    """Mirror of KodroMotion.moveDrainPct (percent for a distance in cm)."""
+    return (
+        distance_cm
+        * float(MODEL["drainPctPerCm"])  # type: ignore[arg-type]
+        * gravity_factor(gravity_mps2)
+        * mass_factor
+        / traction
+    )
+
+
+def turn_drain_pct(deg: float) -> float:
+    """Mirror of KodroMotion.turnDrainPct."""
+    return abs(deg) * float(MODEL["drainPctPerDeg"])  # type: ignore[arg-type]
+
+
+def segment_circle_hit(
+    ax: float,
+    ay: float,
+    bx: float,
+    by: float,
+    cx: float,
+    cy: float,
+    radius: float,
+) -> float | None:
+    """First contact parameter t in [0, 1] where segment a->b meets a circle.
+
+    The circle is the obstacle grown by the rover radius (a swept-circle
+    test, the same shape the JS tick and scenario validator use). Returns
+    ``None`` when the segment never touches the circle. Used by
+    :meth:`robolearn.engine.rover.Rover.move` to stop AT the contact point
+    and register a real collision (E-A7) instead of gliding through.
+    """
+    dx, dy = bx - ax, by - ay
+    fx, fy = ax - cx, ay - cy
+    a = dx * dx + dy * dy
+    if a <= 1e-12:
+        # Degenerate (zero-length) move: report contact only if already inside.
+        return 0.0 if (fx * fx + fy * fy) <= radius * radius else None
+    b = 2.0 * (fx * dx + fy * dy)
+    c = fx * fx + fy * fy - radius * radius
+    disc = b * b - 4.0 * a * c
+    if disc < 0.0:
+        return None
+    sqrt_disc = math.sqrt(disc)
+    t1 = (-b - sqrt_disc) / (2.0 * a)
+    t2 = (-b + sqrt_disc) / (2.0 * a)
+    if t2 < 0.0 or t1 > 1.0:
+        return None
+    return max(0.0, t1)

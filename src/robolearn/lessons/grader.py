@@ -7,8 +7,13 @@ grader emits a :class:`GradeResult` with three fields:
 * ``passed`` — True when every success criterion is satisfied.
 * ``reasons`` — one short, pupil-facing string per failing criterion. The
   hint engine (Task 10) maps these to actionable advice.
-* ``score`` — 0-100. Starts at 100 and loses points for every failed
-  criterion (-20 each) plus penalties for collisions and runaway battery.
+* ``score`` — 0-100. Starts at 100 and loses 20 points for every failed
+  criterion. Collisions and battery use lower the score only through the
+  ``no_collisions`` / ``max_battery_used`` criteria a lesson declares; there
+  is no separate per-collision deduction (the old docstring promised one the
+  code never applied - PERFECTION_PLAN E-A7). Collision counts are real now:
+  the engine registers a collision whenever a move hits an obstacle or the
+  arena wall, so ``no_collisions`` grades what actually happened.
 
 The grader is pure: it reads the trace, the lesson definition and the
 source string. No engine handles are required, which makes it trivial

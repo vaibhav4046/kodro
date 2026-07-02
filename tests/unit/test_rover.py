@@ -44,12 +44,31 @@ def test_move_clamps_to_arena_bounds() -> None:
     r = Rover(_world())
     r.move(999.0)
     assert r.state.x == pytest.approx(10.0)
+    # Driving into the wall is a collision now (E-A7), not a silent clamp.
+    assert r.state.collisions == 1
 
 
 def test_move_drains_battery_per_metre() -> None:
     r = Rover(_world())
+    r.move(3.0)
+    assert r.state.battery_pct == pytest.approx(100.0 - 3.0 * BATTERY_PER_METRE)
+
+
+def test_clamped_move_drains_actual_distance_only() -> None:
+    """A wall-clamped move drains the distance TRAVELLED, not commanded.
+
+    From base x=5 a 10 m command stops at the 10 m wall after 5 m; the old
+    model still charged the full 10 m (the JS/Python divergence the shared
+    motion model closed). The wall hit also registers one collision.
+    """
+    r = Rover(_world())
     r.move(10.0)
-    assert r.state.battery_pct == pytest.approx(100.0 - 10.0 * BATTERY_PER_METRE)
+    assert r.state.x == pytest.approx(10.0)
+    assert r.state.distance_travelled_m == pytest.approx(5.0)
+    assert r.state.collisions == 1
+    assert r.state.battery_pct == pytest.approx(
+        100.0 - 5.0 * BATTERY_PER_METRE - BATTERY_PER_COLLISION
+    )
 
 
 def test_move_backward_drains_battery_by_absolute_distance() -> None:
@@ -85,7 +104,13 @@ def test_turn_wraps_to_0_360() -> None:
 
 def test_battery_cannot_go_below_zero() -> None:
     r = Rover(_world())
-    r.move(10000.0)  # would drain far past zero
+    # Shuttle 4 m back and forth WITHIN the arena so every metre is real
+    # travelled distance (a single huge command would clamp at the wall and
+    # only drain the metres actually covered). 40 legs x 4 m x 1.1 %/m
+    # drains far past zero; the floor must hold at exactly 0.
+    for _ in range(40):
+        r.move(4.0)
+        r.turn(180.0)
     assert r.state.battery_pct == 0.0
 
 

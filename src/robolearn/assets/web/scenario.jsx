@@ -19,7 +19,9 @@
  *     successCriteria:{ reachGoal, maxCollisions }, randomizationConfig }
  */
 (function () {
-  const WALL = 1500; // arena half-extent in cm, matches the engine and self-test
+  // Arena half-extent from the SHARED motion model (E-P1): one constant, not
+  // a third hand-rolled copy. Fallback keeps headless loads working.
+  const WALL = (window.KodroMotion && window.KodroMotion.MODEL.arenaHalfExtentCm) || 1500;
   const STEP_CAP = 200000;
   // Single source of truth for "did this design pass the spread". A majority of
   // randomised seeds must reach the goal, and mean collisions must stay within
@@ -117,7 +119,16 @@
         }
         switch (name) {
           case 'distance': {
-            let d = rayDistance(s.x, s.y, s.heading, obstacles);
+            // SI2: honour an imported sensor's mount pose and range, exactly
+            // like the live host, so a program validates the way it runs.
+            let d;
+            const sp = robot && robot.phys && robot.phys.sensor;
+            if (sp && window.KodroMotion) {
+              const pose = window.KodroMotion.sensorPose(s.x, s.y, s.heading, sp.fwdCm, sp.leftCm, sp.yawDeg);
+              d = Math.min(sp.rangeCm, rayDistance(pose.x, pose.y, pose.heading, obstacles));
+            } else {
+              d = rayDistance(s.x, s.y, s.heading, obstacles);
+            }
             if (noiseCm) { d += (rng() * 2 - 1) * noiseCm; if (d < 0) { d = 0; sensorFailures++; } }
             return Math.round(d);
           }
@@ -172,7 +183,11 @@
             s.x = Math.max(-WALL, Math.min(WALL, nx));
             s.y = Math.max(-WALL, Math.min(WALL, ny));
           } else { s.x = nx; s.y = ny; }
-          s.battery = Math.max(0, s.battery - Math.abs(dist) * 0.011 * massFac / friction);
+          // Shared drain ledger (E-P1); an imported pack uses its energy-true
+          // per-cm figure (E-A2), scaled by this seed's mass randomisation.
+          s.battery = Math.max(0, s.battery - ((robot && robot.phys && robot.phys.energyWh !== undefined)
+            ? Math.abs(dist) * robot.phys.drainPctPerCmNominal * massMul
+            : window.KodroMotion.moveDrainPct(Math.abs(dist), window.KodroMotion.MODEL.gravityEarthMps2, massFac, friction)));
           noteClearance();
           if (!reachedGoal && Math.hypot(s.x - goal.x, s.y - goal.y) <= goal.r) { reachedGoal = true; timeToGoal = steps; }
         } else if (ev.type === 'turn') { turns++; s.heading += ev.deg; }

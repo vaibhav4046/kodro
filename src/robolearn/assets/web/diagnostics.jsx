@@ -14,7 +14,9 @@
  * Each dimension is { key, label, status: 'pass'|'warn'|'fail', reason, fix, margin }.
  */
 (function () {
-  const SENSOR_RANGE = 600; // cm the ultrasonic can see ahead (matches the sim ray)
+  // Default ultrasonic range from the SHARED motion model (E-P1); an imported
+  // spec's real sensor range overrides it per-build inside assess().
+  const SENSOR_RANGE = (window.KodroMotion && window.KodroMotion.MODEL.sensorRangeCm) || 600;
 
   function has(list, id) { return (list || []).indexOf(id) >= 0; }
 
@@ -25,10 +27,13 @@
     return Math.round(120 * speedFactor * speedFactor * massFactor);
   }
 
-  // Mobility headroom on a surface: drive torque times grip, divided by how
-  // heavy the build is. Below ~0.45 it cannot reliably get moving here.
+  // Mobility headroom on a surface: delegates to the shared motion model
+  // (E-P1) so the design check and the live tick can never disagree about
+  // what stalls. Below ~0.45 it cannot reliably get moving here.
   function mobilityScore(speedFactor, massFactor, traction) {
-    return (speedFactor * traction) / massFactor;
+    return window.KodroMotion
+      ? window.KodroMotion.mobilityScore(speedFactor, massFactor, traction)
+      : (speedFactor * traction) / massFactor;
   }
 
   function assess(spec, derived, terrain) {
@@ -66,19 +71,26 @@
     }
 
     // 2. OBSTACLE SENSING -- can it perceive and avoid hazards in time?
+    // An imported spec's REAL sensor range replaces the 600 cm default, and
+    // a physical build's braking distance comes from v^2/(2*mu*g) instead of
+    // the catalogue proxy (SI2).
+    const phys = derived.phys;
+    const SENSOR_RANGE_BUILD = (phys && phys.sensor && phys.sensor.rangeCm) || SENSOR_RANGE;
     const hasRange = has(sensors, 'ultrasonic');
-    const stop = stoppingDistance(speedFactor, massFactor);
+    const stop = (phys && phys.vMaxSimCmPerS !== undefined && window.KodroMotion)
+      ? Math.round(window.KodroMotion.physStoppingDistanceCm(phys.vMaxSimCmPerS, traction, gravity))
+      : stoppingDistance(speedFactor, massFactor);
     if (!hasRange) {
       dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'fail', margin: 0,
         reason: 'No range sensor fitted, so the robot drives blind. distance() reads clear no matter what is ahead, and it will run into obstacles.',
         fix: 'Fit an Ultrasonic range sensor so it can see and avoid what is in front.' });
-    } else if (stop > SENSOR_RANGE * 0.6) {
-      dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'warn', margin: +(SENSOR_RANGE / stop).toFixed(2),
-        reason: 'Stopping distance is about ' + stop + ' cm at top speed, which is tight against the ' + SENSOR_RANGE + ' cm the sensor sees. A late obstacle can be hit before it halts.',
+    } else if (stop > SENSOR_RANGE_BUILD * 0.6) {
+      dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'warn', margin: +(SENSOR_RANGE_BUILD / stop).toFixed(2),
+        reason: 'Stopping distance is about ' + stop + ' cm at top speed, which is tight against the ' + SENSOR_RANGE_BUILD + ' cm the sensor sees. A late obstacle can be hit before it halts.',
         fix: 'Cap speed with set_speed below 60, or lighten the build so it stops sooner.' });
     } else {
-      dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'pass', margin: +(SENSOR_RANGE / Math.max(1, stop)).toFixed(2),
-        reason: 'Range sensor fitted and it stops in about ' + stop + ' cm, well inside its ' + SENSOR_RANGE + ' cm view.', fix: '' });
+      dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'pass', margin: +(SENSOR_RANGE_BUILD / Math.max(1, stop)).toFixed(2),
+        reason: 'Range sensor fitted and it stops in about ' + stop + ' cm, well inside its ' + SENSOR_RANGE_BUILD + ' cm view.', fix: '' });
     }
 
     // 3. ENDURANCE -- will the charge last, given mass and gravity?
@@ -148,7 +160,7 @@
     }
 
     return { overall: overall, summary: summary, dimensions: dims, topFix: topFix,
-      numbers: { stoppingCm: stop, mobility: +mob.toFixed(2), enduranceMin: effMin, sensorRange: SENSOR_RANGE, blind: !hasRange } };
+      numbers: { stoppingCm: stop, mobility: +mob.toFixed(2), enduranceMin: effMin, sensorRange: SENSOR_RANGE_BUILD, blind: !hasRange } };
   }
 
   // After a run, turn the design report plus what actually happened into one

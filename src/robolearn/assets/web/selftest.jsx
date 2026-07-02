@@ -10,7 +10,9 @@
  *   }
  */
 (function () {
-  const WALL = 1500; // arena half-extent in cm, matches the engine
+  // Arena half-extent from the SHARED motion model (E-P1): the fourth
+  // hand-rolled replica now reads the same constant as everything else.
+  const WALL = (window.KodroMotion && window.KodroMotion.MODEL.arenaHalfExtentCm) || 1500;
 
   function rayToWall(x, y, headingDeg) {
     const a = headingDeg * Math.PI / 180;
