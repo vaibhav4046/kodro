@@ -5,11 +5,17 @@
  * viewport's existing teardown traverse disposes the geometry and materials.
  *
  * Per world (full tier):
- *   earth      -- circling birds (two-triangle wing flap) + drifting butterflies
+ *   earth      -- circling birds (flap-glide, banking) + drifting butterflies
+ *   city       -- gulls over the rooftops (birds only; street life is agents)
  *   mars       -- drifting fine dust + an occasional rotating dust devil
  *   underwater -- rising bubbles + a boids-lite fish school (cohesion+separation)
  *   space      -- slow-tumbling debris chunks + a distant glinting satellite
  *   room       -- a cat that wanders between waypoints and sits + swaying curtains
+ *
+ * Mission sites override the base world's life through SITE_LIFE (W4): a
+ * per-site gating table (no butterflies at minus 55 C Antarctica) plus two
+ * recolour variants reusing existing systems -- blowing snow (the dust drift,
+ * recoloured white) and steam vents (the dust devil, slowed and paled).
  *
  * Gates (non-negotiable):
  *   - the host does NOT build this at all under prefers-reduced-motion;
@@ -19,17 +25,45 @@
  *   - update() reuses preallocated vectors and arrays: no per-frame allocation.
  *
  *   window.KodroAmbient.build(THREE, scene, worldId, {quality, siteId})
- *     -> { update(t, dt), dispose() } | null
+ *     -> { update(t, dt), dispose(), flags: [system names] } | null
  */
 (function () {
+  // W4: per-site ambient-life gating. Keys override the base world's defaults;
+  // a missing key keeps the base behaviour. This is what stops butterflies
+  // flitting over the Ross Ice Shelf and puts steam vents on a lava field.
+  const SITE_LIFE = {
+    sahara: { butterflies: false },
+    india: { butterflies: false },
+    egypt: { butterflies: false },
+    kenya: {},
+    amazon: {},
+    japan: {},
+    antarctica: { birds: false, butterflies: false, snow: true },
+    nepal: { butterflies: false, snow: true },
+    iceland: { birds: false, butterflies: false, steam: true },
+    reef: {},
+    mariana: { fish: false },
+    olympus: {},
+    tycho: {},
+    europa: {},
+  };
+  // What each base world runs when no site overrides it.
+  const BASE_LIFE = {
+    earth: { birds: true, butterflies: true },
+    city: { gulls: true },
+    mars: { dust: true, devil: true },
+    underwater: { bubbles: true, fish: true },
+    space: { debris: true, satellite: true },
+    room: { cat: true, curtains: true },
+  };
+
   function build(THREE, scene, worldId, opts) {
     if (!THREE || !scene) return null;
     opts = opts || {};
     const sid = opts.siteId;
     // Indoor test bays (lab/warehouse/debug) resolve to the room base but are
-    // working spaces: no cat, no curtains. The city's life is the agent sim.
+    // working spaces: no cat, no curtains.
     if (sid === 'lab' || sid === 'warehouse' || sid === 'debug_grid') return null;
-    if (worldId === 'city') return null;
     const low = (opts.quality || 'high') === 'low';
 
     // Two layers: `base` always animates; `extra` is the richer set that a low
@@ -38,9 +72,34 @@
     const baseGrp = new THREE.Group();
     const extraGrp = new THREE.Group();
     root.add(baseGrp); root.add(extraGrp);
-    const systems = []; // { fn(t, dt), extra: bool }
+    const systems = []; // { fn(t, dt), extra: bool, name: string }
     // Shared scratch vectors so update() never allocates.
     const V1 = new THREE.Vector3(), V2 = new THREE.Vector3(), V3 = new THREE.Vector3();
+
+    // R1: a 16x16 radial-gradient sprite so point particles render as ROUND
+    // dots (bubbles, dust, snow) instead of the square unmasked default.
+    // Built lazily per scene so the teardown traverse owns its disposal via
+    // the materials that reference it; null (headless) keeps the old squares.
+    let dotTex;
+    const roundDot = () => {
+      if (dotTex !== undefined) return dotTex;
+      dotTex = null;
+      try {
+        if (typeof document !== 'undefined' && document.createElement) {
+          const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+          const c2 = cv.getContext('2d');
+          if (c2) {
+            const g = c2.createRadialGradient(8, 8, 0, 8, 8, 8);
+            g.addColorStop(0, 'rgba(255,255,255,1)');
+            g.addColorStop(0.55, 'rgba(255,255,255,0.7)');
+            g.addColorStop(1, 'rgba(255,255,255,0)');
+            c2.fillStyle = g; c2.fillRect(0, 0, 16, 16);
+            dotTex = new THREE.CanvasTexture(cv);
+          }
+        }
+      } catch (e) { dotTex = null; }
+      return dotTex;
+    };
 
     // One triangle (three verts), the whole wing budget for a bird/butterfly.
     const triGeo = (chord, span, lift) => {
@@ -49,37 +108,58 @@
       return g;
     };
 
-    // ---- earth: birds circling high, butterflies drifting near the ground ----
-    function birds(n) {
+    // ---- birds: wandering orbits, banking into turns, flap-glide (R3) -------
+    function birds(n, colorHex) {
       const geo = triGeo(0.95, 1.6, 0.1);
-      const mat = new THREE.MeshBasicMaterial({ color: 0x2c3038, side: THREE.DoubleSide });
+      const mat = new THREE.MeshBasicMaterial({ color: colorHex != null ? colorHex : 0x2c3038, side: THREE.DoubleSide });
       const flock = [];
       for (let i = 0; i < n; i++) {
         const b = new THREE.Group();
-        const wR = new THREE.Mesh(geo, mat); b.add(wR);
-        const wL = new THREE.Mesh(geo, mat); wL.scale.z = -1; b.add(wL);
+        // Wings hang off an inner group so banking (roll about the flight
+        // axis, local +x) composes cleanly under the outer yaw.
+        const bank = new THREE.Group(); b.add(bank);
+        const wR = new THREE.Mesh(geo, mat); bank.add(wR);
+        const wL = new THREE.Mesh(geo, mat); wL.scale.z = -1; bank.add(wL);
+        b.scale.setScalar(0.8 + Math.random() * 0.5); // size scatter 0.8..1.3
         baseGrp.add(b);
         flock.push({
-          b, wR, wL,
+          b, bank, wR, wL,
           cx: (Math.random() - 0.5) * 18, cz: (Math.random() - 0.5) * 18,
           r: 13 + Math.random() * 9, h: 12 + Math.random() * 7,
           w: (0.14 + Math.random() * 0.1) * (i % 2 ? 1 : -1),
           ph: Math.random() * 6.28, fq: 6 + Math.random() * 2.5,
+          wob: 0.6 + Math.random() * 0.5, glide: 0, bankNow: 0,
         });
       }
-      systems.push({ extra: false, fn: (t) => {
+      systems.push({ extra: false, name: colorHex != null ? 'gulls' : 'birds', fn: (t, dt) => {
+        const k1 = Math.min(1, (dt || 0.016) * 3);
+        const k2 = Math.min(1, (dt || 0.016) * 2.5);
         for (let i = 0; i < flock.length; i++) {
           const k = flock[i];
           const ang = t * k.w + k.ph;
-          const x = k.cx + Math.cos(ang) * k.r, z = k.cz + Math.sin(ang) * k.r;
+          // wandering orbit: the radius breathes on two incommensurate sines
+          // so no two laps trace the same circle
+          const rr = k.r * (1 + 0.16 * Math.sin(t * 0.171 * k.wob + k.ph) + 0.1 * Math.sin(t * 0.293 * k.wob + k.ph * 1.7));
+          const x = k.cx + Math.cos(ang) * rr, z = k.cz + Math.sin(ang) * rr;
           k.b.position.set(x, k.h + Math.sin(t * 0.5 + k.ph) * 1.1, z);
           // face along the tangent of the circle (forward = local +x)
           const vx = -Math.sin(ang) * k.w, vz = Math.cos(ang) * k.w;
           k.b.rotation.y = Math.atan2(-vz, vx);
-          // flap with a slow amplitude swell so the bird glides between bursts
+          // bank INTO the turn: for this yaw convention local +z is the bird's
+          // right and the orbit centre sits to its left when w > 0, so roll
+          // negative (left wing down) when circling anticlockwise.
+          const bankT = -(k.w > 0 ? 1 : -1) * Math.min(0.42, k.w * k.w * rr * 2.2);
+          k.bankNow += (bankT - k.bankNow) * k1;
+          k.bank.rotation.x = k.bankNow;
+          // flap-glide state machine: flap while climbing, hold a shallow V
+          // while descending (vy is the derivative of the height sine)
+          const vy = 0.55 * Math.cos(t * 0.5 + k.ph);
+          k.glide += ((vy < -0.12 ? 1 : 0) - k.glide) * k2;
           const amp = 0.3 + 0.55 * (0.5 + 0.5 * Math.sin(t * 0.33 + k.ph * 2));
-          const f = Math.sin(t * k.fq + k.ph) * amp;
-          k.wR.rotation.x = -f; k.wL.rotation.x = f;
+          const f = Math.sin(t * k.fq + k.ph) * amp * (1 - k.glide);
+          const vhold = 0.26 * k.glide; // shallow-V wing hold while gliding
+          k.wR.rotation.x = -f - vhold;
+          k.wL.rotation.x = f + vhold;
         }
       } });
     }
@@ -99,7 +179,7 @@
         const a = Math.random() * 6.28, d = 7 + Math.random() * 7;
         flit.push({ b, wR, wL, hx: Math.cos(a) * d, hz: Math.sin(a) * d, ph: Math.random() * 6.28, fq: 9 + Math.random() * 4 });
       }
-      systems.push({ extra: true, fn: (t) => {
+      systems.push({ extra: true, name: 'butterflies', fn: (t) => {
         for (let i = 0; i < flit.length; i++) {
           const k = flit[i];
           const x = k.hx + Math.sin(t * 0.5 + k.ph) * 2.4 + Math.sin(t * 1.7 + k.ph) * 0.5;
@@ -115,8 +195,8 @@
       } });
     }
 
-    // ---- mars: fine dust on the wind, and now and then a dust devil ----------
-    function marsDust(n) {
+    // ---- wind-borne particle drift: Mars dust, and blowing snow (W4) --------
+    function windDrift(n, name, colorHex, size, opacity, speedMul) {
       const g = new THREE.BufferGeometry();
       const arr = new Float32Array(n * 3);
       const spd = new Float32Array(n);
@@ -124,13 +204,16 @@
         arr[i * 3] = (Math.random() - 0.5) * 90;
         arr[i * 3 + 1] = 0.3 + Math.random() * 6.5;
         arr[i * 3 + 2] = (Math.random() - 0.5) * 90;
-        spd[i] = 1.6 + Math.random() * 2.2;
+        spd[i] = (1.6 + Math.random() * 2.2) * (speedMul || 1);
       }
       g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-      const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xd9a06a, size: 0.32, transparent: true, opacity: 0.35, depthWrite: false, sizeAttenuation: true }));
+      const mat = new THREE.PointsMaterial({ color: colorHex, size, transparent: true, opacity, depthWrite: false, sizeAttenuation: true });
+      const dot = roundDot();
+      if (dot) { mat.map = dot; mat.alphaTest = 0.02; } // R1: round sprites, not squares
+      const pts = new THREE.Points(g, mat);
       pts.frustumCulled = false; // points drift beyond the initial bounds
       baseGrp.add(pts);
-      systems.push({ extra: false, fn: (t, dt) => {
+      systems.push({ extra: false, name, fn: (t, dt) => {
         const p = g.attributes.position.array;
         for (let i = 0; i < n; i++) {
           p[i * 3] += spd[i] * dt;                     // wind blows +x
@@ -141,6 +224,9 @@
         g.attributes.position.needsUpdate = true;
       } });
     }
+    const marsDust = (n) => windDrift(n, 'dust', 0xd9a06a, 0.32, 0.35, 1);
+    // Blowing snow: the same drift, recoloured white and pushed harder.
+    const snow = (n) => windDrift(n, 'snow', 0xeaf2f8, 0.26, 0.5, 1.5);
     function dustDevil() {
       const cone = new THREE.Mesh(
         new THREE.ConeGeometry(2.4, 15, 9, 1, true),
@@ -148,7 +234,7 @@
       );
       cone.position.y = 7.5; cone.visible = false;
       extraGrp.add(cone);
-      systems.push({ extra: true, fn: (t, dt) => {
+      systems.push({ extra: true, name: 'devil', fn: (t, dt) => {
         // life cycle: fades in, wanders while spinning, fades out, rests
         const cyc = Math.sin(t * 0.07 + 1.3);
         const op = Math.max(0, cyc - 0.15) / 0.85 * 0.18;
@@ -159,6 +245,30 @@
         cone.position.x = 8 + Math.sin(t * 0.043) * 24;
         cone.position.z = -6 + Math.cos(t * 0.05) * 20;
         cone.rotation.z = 0.05 * Math.sin(t * 0.5);
+      } });
+    }
+    // Steam vents (W4): the dust devil recoloured and slowed into a plume that
+    // rises from a fixed fissure instead of wandering. Two vents per field.
+    function steamVents() {
+      const spots = [[13, -9], [-17, 11]];
+      const cones = [];
+      for (let i = 0; i < spots.length; i++) {
+        const cone = new THREE.Mesh(
+          new THREE.ConeGeometry(1.6, 12, 8, 1, true),
+          new THREE.MeshBasicMaterial({ color: 0xc6d0d8, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide }),
+        );
+        cone.position.set(spots[i][0], 6, spots[i][1]);
+        extraGrp.add(cone);
+        cones.push({ cone, ph: i * 2.4 });
+      }
+      systems.push({ extra: true, name: 'steam', fn: (t, dt) => {
+        for (let i = 0; i < cones.length; i++) {
+          const k = cones[i];
+          k.cone.rotation.y += dt * 1.4; // slow twist, not a vortex
+          k.cone.material.opacity = 0.08 + 0.05 * (0.5 + 0.5 * Math.sin(t * 0.6 + k.ph));
+          const s = 1 + 0.08 * Math.sin(t * 0.45 + k.ph);
+          k.cone.scale.set(s, 1 + 0.05 * Math.sin(t * 0.3 + k.ph), s);
+        }
       } });
     }
 
@@ -176,10 +286,13 @@
         spd[i] = 0.9 + Math.random() * 1.4;
       }
       g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-      const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xcfeef7, size: 0.34, transparent: true, opacity: 0.55, depthWrite: false, sizeAttenuation: true }));
+      const mat = new THREE.PointsMaterial({ color: 0xcfeef7, size: 0.34, transparent: true, opacity: 0.55, depthWrite: false, sizeAttenuation: true });
+      const dot = roundDot();
+      if (dot) { mat.map = dot; mat.alphaTest = 0.02; } // R1: round bubbles
+      const pts = new THREE.Points(g, mat);
       pts.frustumCulled = false;
       baseGrp.add(pts);
-      systems.push({ extra: false, fn: (t, dt) => {
+      systems.push({ extra: false, name: 'bubbles', fn: (t, dt) => {
         const p = g.attributes.position.array;
         for (let i = 0; i < n; i++) {
           p[i * 3 + 1] += spd[i] * dt;
@@ -203,7 +316,7 @@
           v: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).multiplyScalar(3),
         });
       }
-      systems.push({ extra: true, fn: (t, dt) => {
+      systems.push({ extra: true, name: 'fish', fn: (t, dt) => {
         // boids-lite: cohesion toward the school centre + a slowly circling
         // anchor, separation from close neighbours. No alignment (cheap on
         // purpose) -- the speed clamp keeps the motion fluid anyway.
@@ -246,7 +359,7 @@
         baseGrp.add(m);
         rocks.push({ m, r: 18 + Math.random() * 14, h: 6 + Math.random() * 7, w: (0.015 + Math.random() * 0.015) * (i % 2 ? 1 : -1), ph: Math.random() * 6.28, rx: 0.2 + Math.random() * 0.3, ry: 0.15 + Math.random() * 0.3 });
       }
-      systems.push({ extra: false, fn: (t) => {
+      systems.push({ extra: false, name: 'debris', fn: (t) => {
         for (let i = 0; i < rocks.length; i++) {
           const k = rocks[i];
           const ang = t * k.w + k.ph;
@@ -263,7 +376,7 @@
       sat.add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 1.1), bodyM));
       const pan = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.8), panelM); sat.add(pan);
       extraGrp.add(sat);
-      systems.push({ extra: true, fn: (t) => {
+      systems.push({ extra: true, name: 'satellite', fn: (t) => {
         const ang = t * 0.012 + 0.8;
         sat.position.set(Math.cos(ang) * 210, 95 + Math.sin(t * 0.009) * 25, Math.sin(ang) * 210);
         sat.rotation.y = t * 0.05;
@@ -294,7 +407,7 @@
       const WPS = [[8, 6], [-6, 13], [15, -4], [-19, 3], [3, -9], [-12, -17]];
       const st = { x: 8, z: 6, heading: 0, wp: 1, mode: 'walk', sitT: 0, sitLean: 0 };
       grp.position.set(st.x, 0, st.z);
-      systems.push({ extra: false, fn: (t, dt) => {
+      systems.push({ extra: false, name: 'cat', fn: (t, dt) => {
         const k = Math.min(1, dt * 4);
         if (st.mode === 'walk') {
           const tx = WPS[st.wp][0], tz = WPS[st.wp][1];
@@ -341,7 +454,7 @@
         pv.add(panel); extraGrp.add(pv);
         pivots.push({ pv, ph: i * 2.1 });
       });
-      systems.push({ extra: true, fn: (t) => {
+      systems.push({ extra: true, name: 'curtains', fn: (t) => {
         for (let i = 0; i < pivots.length; i++) {
           const k = pivots[i];
           k.pv.rotation.z = 0.045 * Math.sin(t * 0.6 + k.ph) + 0.02 * Math.sin(t * 1.7 + k.ph);
@@ -349,12 +462,28 @@
       } });
     }
 
-    if (worldId === 'earth') { birds(low ? 2 : 3); if (!low) butterflies(4); }
-    else if (worldId === 'mars') { marsDust(low ? 160 : 320); if (!low) dustDevil(); }
-    else if (worldId === 'underwater') { bubbles(low ? 24 : 44); if (!low) fishSchool(10); }
-    else if (worldId === 'space') { debris(low ? 2 : 3); if (!low) satellite(); }
-    else if (worldId === 'room') { cat(); if (!low) curtains(); }
-    else return null;
+    // Resolve this scene's life: the base world's defaults overridden by the
+    // site gating table (W4). Missing keys keep the base behaviour.
+    const life = Object.assign({}, BASE_LIFE[worldId] || {}, (sid && SITE_LIFE[sid]) || {});
+    if (worldId === 'earth' || worldId === 'city') {
+      if (life.gulls) birds(low ? 2 : 3, 0xd8dee6);       // R3: city gulls
+      if (life.birds) birds(low ? 2 : 3);
+      if (life.butterflies && !low) butterflies(4);
+      if (life.snow) snow(low ? 140 : 280);
+      if (life.steam && !low) steamVents();
+    } else if (worldId === 'mars') {
+      if (life.dust) marsDust(low ? 160 : 320);
+      if (life.devil && !low) dustDevil();
+    } else if (worldId === 'underwater') {
+      if (life.bubbles !== false) bubbles(low ? 24 : 44);
+      if (life.fish !== false && !low) fishSchool(10);
+    } else if (worldId === 'space') {
+      if (life.debris) debris(low ? 2 : 3);
+      if (life.satellite && !low) satellite();
+    } else if (worldId === 'room') {
+      if (life.cat) cat();
+      if (life.curtains && !low) curtains();
+    } else return null;
     if (!systems.length) return null;
 
     extraGrp.visible = !low;
@@ -371,6 +500,9 @@
           systems[i].fn(t, dt);
         }
       },
+      // What actually got built, for the harness (mount.dataset.ambient) and
+      // the W4 acceptance asserts (no butterflies on the Ross Ice Shelf).
+      flags: systems.map((s) => s.name),
       // Stop animating. The meshes stay in the scene ON PURPOSE: the viewport's
       // teardown traverse is the single owner of geometry/material disposal.
       dispose() { alive = false; systems.length = 0; },

@@ -23,8 +23,30 @@
   let worldId = null;
   let raf = 0;
   let last = null;
+  let simT = 0; // accumulated sim seconds; drives the traffic-light cycle
   const R = 30; // rover collision radius (cm), matched to the engine
   const ROBOT_COLORS = [0x5ce0d8, 0xe0b45c, 0xd35d7a, 0x7a5fc0];
+  // Mission sites where a roaming pastel fleet would break the fiction (W5):
+  // the Challenger Deep and Europa are silent, lifeless places.
+  const QUIET_SITES = {
+    mariana: 1,
+    europa: 1
+  };
+
+  // R4: the city junction's traffic-light cycle. One road flows while the
+  // other holds; a full cycle is 24 s (9 green, 2.5 amber, 0.5 all-red each
+  // way). Pure function of the sim clock so the 3D light heads, the 2.5D view
+  // and the car braking below all read the SAME state.
+  const LIGHT_CYCLE = 24,
+    LIGHT_GREEN = 9,
+    LIGHT_AMBER = 2.5;
+  function lightState(horiz) {
+    const t = (simT % LIGHT_CYCLE + LIGHT_CYCLE) % LIGHT_CYCLE;
+    const local = horiz ? t : (t + LIGHT_CYCLE / 2) % LIGHT_CYCLE;
+    if (local < LIGHT_GREEN) return 'green';
+    if (local < LIGHT_GREEN + LIGHT_AMBER) return 'amber';
+    return 'red';
+  }
 
   // lane(dir, axis, offset): a one-way lane. dir +1/-1 is travel direction along
   // the moving axis; offset is the fixed cross-axis position.
@@ -177,10 +199,10 @@
     } else if (id === 'room') {
       agents.push(ped(true, 1, -360, 40, 0, 0x6aa0d8, 1300));
       agents.push(ped(false, 1, 360, 32, 200, 0xc97f6a, 1100));
-    } else {
+    } else if (!QUIET_SITES[id]) {
       // Open terrain worlds were static. Give them a small autonomous fleet that
       // roams and reacts, so the world is alive and the player has machines to
-      // share it with.
+      // share it with. Quiet sites (Challenger Deep, Europa) stay empty (W5).
       addRobots(3, ROBOT_COLORS);
     }
     step(0); // place every agent on its lane immediately, before the first frame
@@ -194,6 +216,7 @@
     ZEBRA_X1 = 420;
   function step(dt) {
     if (dt > 0.1) dt = 0.1; // a long pause (tab hidden) must not teleport agents
+    simT += dt;
     const rov = window.KODRO_ROVER;
     // Which halves of the zebra have a pedestrian on them right now? Cars in
     // the matching lane must stop; the other lane only slows for the crossing.
@@ -243,12 +266,35 @@
             target = 0;
           }
         }
-      } else if (a.horiz && worldId === 'city') {
-        // approaching the zebra: distance from this car's nose to the zone edge
-        const ahead = a.dir > 0 ? ZEBRA_X0 - a.r - ax : ax - (ZEBRA_X1 + a.r);
-        if (ahead > 0 && ahead < 420) {
-          const pedInLane = a.lane < 0 ? zebraNeg : zebraPos;
-          if (pedInLane) target = Math.min(target, a.base * Math.max(0, (ahead - 50) / 370));else target = Math.min(target, a.base * (0.45 + 0.55 * (ahead / 420))); // caution slow-down
+      } else if (a.kind === 'car' && worldId === 'city') {
+        if (a.horiz) {
+          // approaching the zebra: distance from this car's nose to the zone edge
+          const ahead = a.dir > 0 ? ZEBRA_X0 - a.r - ax : ax - (ZEBRA_X1 + a.r);
+          if (ahead > 0 && ahead < 420) {
+            const pedInLane = a.lane < 0 ? zebraNeg : zebraPos;
+            if (pedInLane) target = Math.min(target, a.base * Math.max(0, (ahead - 50) / 370));else target = Math.min(target, a.base * (0.45 + 0.55 * (ahead / 420))); // caution slow-down
+          }
+        }
+        // R4: obey the junction lights. The junction box is |along| < 150 cm;
+        // a car still short of its stop line eases to a halt on red or amber
+        // (unless it is already too close to stop), using the same eased-vel
+        // machinery as the zebra. Cars already inside the box keep going.
+        const st = lightState(a.horiz);
+        if (st !== 'green') {
+          const along = a.horiz ? ax : ay;
+          const stopAt = 150 + a.r + 20;
+          const toLine = a.dir > 0 ? -stopAt - along : along - stopAt;
+          if (toLine > 0 && toLine < 420 && (st === 'red' || toLine > 60)) {
+            target = Math.min(target, a.base * Math.max(0, (toLine - 55) / 365));
+          }
+        }
+        // Car-following: never drive into the car queued ahead in this lane.
+        const meAlong = a.horiz ? ax : ay;
+        for (let j = 0; j < agents.length; j++) {
+          const o = agents[j];
+          if (o === a || o.kind !== 'car' || o.horiz !== a.horiz || o.lane !== a.lane || o.dir !== a.dir) continue;
+          const gapFwd = ((a.horiz ? o.x : o.y) - meAlong) * a.dir;
+          if (gapFwd > 0 && gapFwd < 320) target = Math.min(target, a.base * Math.max(0, (gapFwd - 215) / 105));
         }
       }
       const k = target < a.vel ? 6.5 : 1.8; // brake briskly, accelerate gently
@@ -308,7 +354,8 @@
     step,
     stop,
     list: () => agents,
-    world: () => worldId
+    world: () => worldId,
+    lightState
   };
 })();
 })();
@@ -3846,11 +3893,17 @@
  * viewport's existing teardown traverse disposes the geometry and materials.
  *
  * Per world (full tier):
- *   earth      -- circling birds (two-triangle wing flap) + drifting butterflies
+ *   earth      -- circling birds (flap-glide, banking) + drifting butterflies
+ *   city       -- gulls over the rooftops (birds only; street life is agents)
  *   mars       -- drifting fine dust + an occasional rotating dust devil
  *   underwater -- rising bubbles + a boids-lite fish school (cohesion+separation)
  *   space      -- slow-tumbling debris chunks + a distant glinting satellite
  *   room       -- a cat that wanders between waypoints and sits + swaying curtains
+ *
+ * Mission sites override the base world's life through SITE_LIFE (W4): a
+ * per-site gating table (no butterflies at minus 55 C Antarctica) plus two
+ * recolour variants reusing existing systems -- blowing snow (the dust drift,
+ * recoloured white) and steam vents (the dust devil, slowed and paled).
  *
  * Gates (non-negotiable):
  *   - the host does NOT build this at all under prefers-reduced-motion;
@@ -3860,17 +3913,80 @@
  *   - update() reuses preallocated vectors and arrays: no per-frame allocation.
  *
  *   window.KodroAmbient.build(THREE, scene, worldId, {quality, siteId})
- *     -> { update(t, dt), dispose() } | null
+ *     -> { update(t, dt), dispose(), flags: [system names] } | null
  */
 (function () {
+  // W4: per-site ambient-life gating. Keys override the base world's defaults;
+  // a missing key keeps the base behaviour. This is what stops butterflies
+  // flitting over the Ross Ice Shelf and puts steam vents on a lava field.
+  const SITE_LIFE = {
+    sahara: {
+      butterflies: false
+    },
+    india: {
+      butterflies: false
+    },
+    egypt: {
+      butterflies: false
+    },
+    kenya: {},
+    amazon: {},
+    japan: {},
+    antarctica: {
+      birds: false,
+      butterflies: false,
+      snow: true
+    },
+    nepal: {
+      butterflies: false,
+      snow: true
+    },
+    iceland: {
+      birds: false,
+      butterflies: false,
+      steam: true
+    },
+    reef: {},
+    mariana: {
+      fish: false
+    },
+    olympus: {},
+    tycho: {},
+    europa: {}
+  };
+  // What each base world runs when no site overrides it.
+  const BASE_LIFE = {
+    earth: {
+      birds: true,
+      butterflies: true
+    },
+    city: {
+      gulls: true
+    },
+    mars: {
+      dust: true,
+      devil: true
+    },
+    underwater: {
+      bubbles: true,
+      fish: true
+    },
+    space: {
+      debris: true,
+      satellite: true
+    },
+    room: {
+      cat: true,
+      curtains: true
+    }
+  };
   function build(THREE, scene, worldId, opts) {
     if (!THREE || !scene) return null;
     opts = opts || {};
     const sid = opts.siteId;
     // Indoor test bays (lab/warehouse/debug) resolve to the room base but are
-    // working spaces: no cat, no curtains. The city's life is the agent sim.
+    // working spaces: no cat, no curtains.
     if (sid === 'lab' || sid === 'warehouse' || sid === 'debug_grid') return null;
-    if (worldId === 'city') return null;
     const low = (opts.quality || 'high') === 'low';
 
     // Two layers: `base` always animates; `extra` is the richer set that a low
@@ -3880,11 +3996,40 @@
     const extraGrp = new THREE.Group();
     root.add(baseGrp);
     root.add(extraGrp);
-    const systems = []; // { fn(t, dt), extra: bool }
+    const systems = []; // { fn(t, dt), extra: bool, name: string }
     // Shared scratch vectors so update() never allocates.
     const V1 = new THREE.Vector3(),
       V2 = new THREE.Vector3(),
       V3 = new THREE.Vector3();
+
+    // R1: a 16x16 radial-gradient sprite so point particles render as ROUND
+    // dots (bubbles, dust, snow) instead of the square unmasked default.
+    // Built lazily per scene so the teardown traverse owns its disposal via
+    // the materials that reference it; null (headless) keeps the old squares.
+    let dotTex;
+    const roundDot = () => {
+      if (dotTex !== undefined) return dotTex;
+      dotTex = null;
+      try {
+        if (typeof document !== 'undefined' && document.createElement) {
+          const cv = document.createElement('canvas');
+          cv.width = cv.height = 16;
+          const c2 = cv.getContext('2d');
+          if (c2) {
+            const g = c2.createRadialGradient(8, 8, 0, 8, 8, 8);
+            g.addColorStop(0, 'rgba(255,255,255,1)');
+            g.addColorStop(0.55, 'rgba(255,255,255,0.7)');
+            g.addColorStop(1, 'rgba(255,255,255,0)');
+            c2.fillStyle = g;
+            c2.fillRect(0, 0, 16, 16);
+            dotTex = new THREE.CanvasTexture(cv);
+          }
+        }
+      } catch (e) {
+        dotTex = null;
+      }
+      return dotTex;
+    };
 
     // One triangle (three verts), the whole wing budget for a bird/butterfly.
     const triGeo = (chord, span, lift) => {
@@ -3893,24 +4038,30 @@
       return g;
     };
 
-    // ---- earth: birds circling high, butterflies drifting near the ground ----
-    function birds(n) {
+    // ---- birds: wandering orbits, banking into turns, flap-glide (R3) -------
+    function birds(n, colorHex) {
       const geo = triGeo(0.95, 1.6, 0.1);
       const mat = new THREE.MeshBasicMaterial({
-        color: 0x2c3038,
+        color: colorHex != null ? colorHex : 0x2c3038,
         side: THREE.DoubleSide
       });
       const flock = [];
       for (let i = 0; i < n; i++) {
         const b = new THREE.Group();
+        // Wings hang off an inner group so banking (roll about the flight
+        // axis, local +x) composes cleanly under the outer yaw.
+        const bank = new THREE.Group();
+        b.add(bank);
         const wR = new THREE.Mesh(geo, mat);
-        b.add(wR);
+        bank.add(wR);
         const wL = new THREE.Mesh(geo, mat);
         wL.scale.z = -1;
-        b.add(wL);
+        bank.add(wL);
+        b.scale.setScalar(0.8 + Math.random() * 0.5); // size scatter 0.8..1.3
         baseGrp.add(b);
         flock.push({
           b,
+          bank,
           wR,
           wL,
           cx: (Math.random() - 0.5) * 18,
@@ -3919,27 +4070,46 @@
           h: 12 + Math.random() * 7,
           w: (0.14 + Math.random() * 0.1) * (i % 2 ? 1 : -1),
           ph: Math.random() * 6.28,
-          fq: 6 + Math.random() * 2.5
+          fq: 6 + Math.random() * 2.5,
+          wob: 0.6 + Math.random() * 0.5,
+          glide: 0,
+          bankNow: 0
         });
       }
       systems.push({
         extra: false,
-        fn: t => {
+        name: colorHex != null ? 'gulls' : 'birds',
+        fn: (t, dt) => {
+          const k1 = Math.min(1, (dt || 0.016) * 3);
+          const k2 = Math.min(1, (dt || 0.016) * 2.5);
           for (let i = 0; i < flock.length; i++) {
             const k = flock[i];
             const ang = t * k.w + k.ph;
-            const x = k.cx + Math.cos(ang) * k.r,
-              z = k.cz + Math.sin(ang) * k.r;
+            // wandering orbit: the radius breathes on two incommensurate sines
+            // so no two laps trace the same circle
+            const rr = k.r * (1 + 0.16 * Math.sin(t * 0.171 * k.wob + k.ph) + 0.1 * Math.sin(t * 0.293 * k.wob + k.ph * 1.7));
+            const x = k.cx + Math.cos(ang) * rr,
+              z = k.cz + Math.sin(ang) * rr;
             k.b.position.set(x, k.h + Math.sin(t * 0.5 + k.ph) * 1.1, z);
             // face along the tangent of the circle (forward = local +x)
             const vx = -Math.sin(ang) * k.w,
               vz = Math.cos(ang) * k.w;
             k.b.rotation.y = Math.atan2(-vz, vx);
-            // flap with a slow amplitude swell so the bird glides between bursts
+            // bank INTO the turn: for this yaw convention local +z is the bird's
+            // right and the orbit centre sits to its left when w > 0, so roll
+            // negative (left wing down) when circling anticlockwise.
+            const bankT = -(k.w > 0 ? 1 : -1) * Math.min(0.42, k.w * k.w * rr * 2.2);
+            k.bankNow += (bankT - k.bankNow) * k1;
+            k.bank.rotation.x = k.bankNow;
+            // flap-glide state machine: flap while climbing, hold a shallow V
+            // while descending (vy is the derivative of the height sine)
+            const vy = 0.55 * Math.cos(t * 0.5 + k.ph);
+            k.glide += ((vy < -0.12 ? 1 : 0) - k.glide) * k2;
             const amp = 0.3 + 0.55 * (0.5 + 0.5 * Math.sin(t * 0.33 + k.ph * 2));
-            const f = Math.sin(t * k.fq + k.ph) * amp;
-            k.wR.rotation.x = -f;
-            k.wL.rotation.x = f;
+            const f = Math.sin(t * k.fq + k.ph) * amp * (1 - k.glide);
+            const vhold = 0.26 * k.glide; // shallow-V wing hold while gliding
+            k.wR.rotation.x = -f - vhold;
+            k.wL.rotation.x = f + vhold;
           }
         }
       });
@@ -3977,6 +4147,7 @@
       }
       systems.push({
         extra: true,
+        name: 'butterflies',
         fn: t => {
           for (let i = 0; i < flit.length; i++) {
             const k = flit[i];
@@ -3995,8 +4166,8 @@
       });
     }
 
-    // ---- mars: fine dust on the wind, and now and then a dust devil ----------
-    function marsDust(n) {
+    // ---- wind-borne particle drift: Mars dust, and blowing snow (W4) --------
+    function windDrift(n, name, colorHex, size, opacity, speedMul) {
       const g = new THREE.BufferGeometry();
       const arr = new Float32Array(n * 3);
       const spd = new Float32Array(n);
@@ -4004,21 +4175,28 @@
         arr[i * 3] = (Math.random() - 0.5) * 90;
         arr[i * 3 + 1] = 0.3 + Math.random() * 6.5;
         arr[i * 3 + 2] = (Math.random() - 0.5) * 90;
-        spd[i] = 1.6 + Math.random() * 2.2;
+        spd[i] = (1.6 + Math.random() * 2.2) * (speedMul || 1);
       }
       g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-      const pts = new THREE.Points(g, new THREE.PointsMaterial({
-        color: 0xd9a06a,
-        size: 0.32,
+      const mat = new THREE.PointsMaterial({
+        color: colorHex,
+        size,
         transparent: true,
-        opacity: 0.35,
+        opacity,
         depthWrite: false,
         sizeAttenuation: true
-      }));
+      });
+      const dot = roundDot();
+      if (dot) {
+        mat.map = dot;
+        mat.alphaTest = 0.02;
+      } // R1: round sprites, not squares
+      const pts = new THREE.Points(g, mat);
       pts.frustumCulled = false; // points drift beyond the initial bounds
       baseGrp.add(pts);
       systems.push({
         extra: false,
+        name,
         fn: (t, dt) => {
           const p = g.attributes.position.array;
           for (let i = 0; i < n; i++) {
@@ -4031,6 +4209,9 @@
         }
       });
     }
+    const marsDust = n => windDrift(n, 'dust', 0xd9a06a, 0.32, 0.35, 1);
+    // Blowing snow: the same drift, recoloured white and pushed harder.
+    const snow = n => windDrift(n, 'snow', 0xeaf2f8, 0.26, 0.5, 1.5);
     function dustDevil() {
       const cone = new THREE.Mesh(new THREE.ConeGeometry(2.4, 15, 9, 1, true), new THREE.MeshBasicMaterial({
         color: 0xc98a5a,
@@ -4044,6 +4225,7 @@
       extraGrp.add(cone);
       systems.push({
         extra: true,
+        name: 'devil',
         fn: (t, dt) => {
           // life cycle: fades in, wanders while spinning, fades out, rests
           const cyc = Math.sin(t * 0.07 + 1.3);
@@ -4055,6 +4237,40 @@
           cone.position.x = 8 + Math.sin(t * 0.043) * 24;
           cone.position.z = -6 + Math.cos(t * 0.05) * 20;
           cone.rotation.z = 0.05 * Math.sin(t * 0.5);
+        }
+      });
+    }
+    // Steam vents (W4): the dust devil recoloured and slowed into a plume that
+    // rises from a fixed fissure instead of wandering. Two vents per field.
+    function steamVents() {
+      const spots = [[13, -9], [-17, 11]];
+      const cones = [];
+      for (let i = 0; i < spots.length; i++) {
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(1.6, 12, 8, 1, true), new THREE.MeshBasicMaterial({
+          color: 0xc6d0d8,
+          transparent: true,
+          opacity: 0.1,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        }));
+        cone.position.set(spots[i][0], 6, spots[i][1]);
+        extraGrp.add(cone);
+        cones.push({
+          cone,
+          ph: i * 2.4
+        });
+      }
+      systems.push({
+        extra: true,
+        name: 'steam',
+        fn: (t, dt) => {
+          for (let i = 0; i < cones.length; i++) {
+            const k = cones[i];
+            k.cone.rotation.y += dt * 1.4; // slow twist, not a vortex
+            k.cone.material.opacity = 0.08 + 0.05 * (0.5 + 0.5 * Math.sin(t * 0.6 + k.ph));
+            const s = 1 + 0.08 * Math.sin(t * 0.45 + k.ph);
+            k.cone.scale.set(s, 1 + 0.05 * Math.sin(t * 0.3 + k.ph), s);
+          }
         }
       });
     }
@@ -4073,18 +4289,25 @@
         spd[i] = 0.9 + Math.random() * 1.4;
       }
       g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
-      const pts = new THREE.Points(g, new THREE.PointsMaterial({
+      const mat = new THREE.PointsMaterial({
         color: 0xcfeef7,
         size: 0.34,
         transparent: true,
         opacity: 0.55,
         depthWrite: false,
         sizeAttenuation: true
-      }));
+      });
+      const dot = roundDot();
+      if (dot) {
+        mat.map = dot;
+        mat.alphaTest = 0.02;
+      } // R1: round bubbles
+      const pts = new THREE.Points(g, mat);
       pts.frustumCulled = false;
       baseGrp.add(pts);
       systems.push({
         extra: false,
+        name: 'bubbles',
         fn: (t, dt) => {
           const p = g.attributes.position.array;
           for (let i = 0; i < n; i++) {
@@ -4119,6 +4342,7 @@
       }
       systems.push({
         extra: true,
+        name: 'fish',
         fn: (t, dt) => {
           // boids-lite: cohesion toward the school centre + a slowly circling
           // anchor, separation from close neighbours. No alignment (cheap on
@@ -4182,6 +4406,7 @@
       }
       systems.push({
         extra: false,
+        name: 'debris',
         fn: t => {
           for (let i = 0; i < rocks.length; i++) {
             const k = rocks[i];
@@ -4210,6 +4435,7 @@
       extraGrp.add(sat);
       systems.push({
         extra: true,
+        name: 'satellite',
         fn: t => {
           const ang = t * 0.012 + 0.8;
           sat.position.set(Math.cos(ang) * 210, 95 + Math.sin(t * 0.009) * 25, Math.sin(ang) * 210);
@@ -4273,6 +4499,7 @@
       grp.position.set(st.x, 0, st.z);
       systems.push({
         extra: false,
+        name: 'cat',
         fn: (t, dt) => {
           const k = Math.min(1, dt * 4);
           if (st.mode === 'walk') {
@@ -4346,6 +4573,7 @@
       });
       systems.push({
         extra: true,
+        name: 'curtains',
         fn: t => {
           for (let i = 0; i < pivots.length; i++) {
             const k = pivots[i];
@@ -4354,21 +4582,28 @@
         }
       });
     }
-    if (worldId === 'earth') {
-      birds(low ? 2 : 3);
-      if (!low) butterflies(4);
+
+    // Resolve this scene's life: the base world's defaults overridden by the
+    // site gating table (W4). Missing keys keep the base behaviour.
+    const life = Object.assign({}, BASE_LIFE[worldId] || {}, sid && SITE_LIFE[sid] || {});
+    if (worldId === 'earth' || worldId === 'city') {
+      if (life.gulls) birds(low ? 2 : 3, 0xd8dee6); // R3: city gulls
+      if (life.birds) birds(low ? 2 : 3);
+      if (life.butterflies && !low) butterflies(4);
+      if (life.snow) snow(low ? 140 : 280);
+      if (life.steam && !low) steamVents();
     } else if (worldId === 'mars') {
-      marsDust(low ? 160 : 320);
-      if (!low) dustDevil();
+      if (life.dust) marsDust(low ? 160 : 320);
+      if (life.devil && !low) dustDevil();
     } else if (worldId === 'underwater') {
-      bubbles(low ? 24 : 44);
-      if (!low) fishSchool(10);
+      if (life.bubbles !== false) bubbles(low ? 24 : 44);
+      if (life.fish !== false && !low) fishSchool(10);
     } else if (worldId === 'space') {
-      debris(low ? 2 : 3);
-      if (!low) satellite();
+      if (life.debris) debris(low ? 2 : 3);
+      if (life.satellite && !low) satellite();
     } else if (worldId === 'room') {
-      cat();
-      if (!low) curtains();
+      if (life.cat) cat();
+      if (life.curtains && !low) curtains();
     } else return null;
     if (!systems.length) return null;
     extraGrp.visible = !low;
@@ -4385,6 +4620,9 @@
           systems[i].fn(t, dt);
         }
       },
+      // What actually got built, for the harness (mount.dataset.ambient) and
+      // the W4 acceptance asserts (no butterflies on the Ross Ice Shelf).
+      flags: systems.map(s => s.name),
       // Stop animating. The meshes stay in the scene ON PURPOSE: the viewport's
       // teardown traverse is the single owner of geometry/material disposal.
       dispose() {
@@ -4627,6 +4865,31 @@
         scene.background = new THREE.Color(0x0a0c10);
         scene.fog = new THREE.Fog(0x0a0c10, 90, 320);
       }
+
+      // W1: per-site atmosphere. A mission site carries its own sky, fog, sun
+      // and hemisphere values (terrain.atmos, authored in terrains.jsx), and
+      // the site's env.light drives every light intensity through a
+      // playability floor -- so the Challenger Deep (light 0) and Europa
+      // (light 4) finally render dark, while the scene stays navigable
+      // instead of going pitch black. Base worlds keep their tuned defaults.
+      const atmos = terrain && terrain.atmos || null;
+      const _envLight = terrain && terrain.env && terrain.env.light != null ? terrain.env.light : 100;
+      const lightK = atmos ? 0.25 + 0.75 * Math.max(0, Math.min(100, _envLight)) / 100 : 1;
+      if (atmos) {
+        if (atmos.sky) scene.background = new THREE.Color(atmos.sky);
+        if (atmos.fog) {
+          const fogHex = new THREE.Color(atmos.fog).getHex();
+          if (scene.fog && scene.fog.isFogExp2) scene.fog = new THREE.FogExp2(fogHex, atmos.fogDensity || scene.fog.density);else scene.fog = new THREE.Fog(fogHex, atmos.fogNear || (scene.fog ? scene.fog.near : 60), atmos.fogFar || (scene.fog ? scene.fog.far : 220));
+        } else if (atmos.fogDensity && scene.fog && scene.fog.isFogExp2) {
+          scene.fog.density = atmos.fogDensity;
+        }
+        // Stamp the wiring for the QA harness: this scene applied a site row.
+        try {
+          mount.dataset.atmos = '1';
+        } catch (e) {
+          void e;
+        }
+      }
       const camera = new THREE.PerspectiveCamera(62, w / h, 0.1, 2000);
 
       // Lights. Indoors (room) is warm and soft; outdoors is daylight.
@@ -4635,10 +4898,12 @@
       const grndCol2 = indoor ? 0x3a2f28 : 0x404048;
       // Each world carries its own light mood: the Moon is dim and contrasty,
       // the abyss is dark and blue, Mars is dusty and half-lit, indoors is warm.
-      const hemiInt = id === 'space' ? 0.4 : id === 'underwater' ? 0.45 : indoor ? 0.85 : id === 'mars' ? 0.52 : 0.6;
+      const hemiBase = id === 'space' ? 0.4 : id === 'underwater' ? 0.45 : indoor ? 0.85 : id === 'mars' ? 0.52 : 0.6;
+      const hemiInt = (atmos && atmos.hemiInt != null ? atmos.hemiInt : hemiBase) * lightK;
       scene.add(new THREE.HemisphereLight(skyCol2, grndCol2, hemiInt));
-      const sunCol = indoor ? 0xffe9c4 : id === 'underwater' ? 0x6fb7c9 : id === 'mars' ? 0xffd9b0 : 0xfff4e2;
-      const sunInt = id === 'space' ? 0.9 : id === 'underwater' ? 0.6 : indoor ? 1.05 : id === 'mars' ? 1.05 : 1.4;
+      const sunCol = atmos && atmos.sun ? new THREE.Color(atmos.sun).getHex() : indoor ? 0xffe9c4 : id === 'underwater' ? 0x6fb7c9 : id === 'mars' ? 0xffd9b0 : 0xfff4e2;
+      const sunBase = id === 'space' ? 0.9 : id === 'underwater' ? 0.6 : indoor ? 1.05 : id === 'mars' ? 1.05 : 1.4;
+      const sunInt = (atmos && atmos.sunInt != null ? atmos.sunInt : sunBase) * lightK;
       const sun = new THREE.DirectionalLight(sunCol, sunInt);
       sun.position.set(indoor ? 18 : 40, indoor ? 38 : 80, indoor ? 22 : 30);
       sun.castShadow = true;
@@ -4654,7 +4919,7 @@
       if (sun.shadow.radius != null) sun.shadow.radius = 5;
       scene.add(sun);
       // A soft fill from the opposite side so shadowed faces are not black.
-      const fill = new THREE.DirectionalLight(0xbcd2ff, indoor ? 0.18 : 0.28);
+      const fill = new THREE.DirectionalLight(0xbcd2ff, (indoor ? 0.18 : 0.28) * lightK);
       fill.position.set(-30, 26, -22);
       scene.add(fill);
       // A second warm fill for indoor rooms so furniture and the robot are not
@@ -4680,13 +4945,20 @@
         skyTop.set(0x10141c);
         skyBot.set(0x06080c);
       }
+      // W1: a site atmosphere recolours the dome to match its sky and fog.
+      if (atmos) {
+        if (atmos.sky) skyTop.set(atmos.sky);
+        if (atmos.fog) skyBot.set(atmos.fog);
+      }
       const skyGeo = new THREE.SphereGeometry(900, 24, 12);
       const skyCol = [];
       const pos = skyGeo.attributes.position;
       // Horizon haze: a soft warm/cyan glow band near the horizon line (y~0,
       // t~0.5) so the sky has depth instead of a flat gradient. Earth/Mars get
       // a sunset-orange band; underwater gets a cyan-green glow; space is skipped.
-      const hazeCol = id === 'underwater' ? new THREE.Color(0x3adfc4) : id === 'earth' || id === 'mars' ? new THREE.Color(0xffa050) : null;
+      // A site row may override the haze colour or switch it off (haze: null).
+      const baseHaze = id === 'underwater' ? new THREE.Color(0x3adfc4) : id === 'earth' || id === 'mars' ? new THREE.Color(0xffa050) : null;
+      const hazeCol = atmos && 'haze' in atmos ? atmos.haze ? new THREE.Color(atmos.haze) : null : baseHaze;
       for (let i = 0; i < pos.count; i++) {
         const t = Math.max(0, Math.min(1, pos.getY(i) / 900 * 0.5 + 0.5));
         const c = skyBot.clone().lerp(skyTop, t);
@@ -4740,6 +5012,293 @@
         scene.add(new THREE.Points(sg, starMat));
       }
 
+      // ---- W2: skyline landforms. One data-driven helper places 1 to 6
+      // fog-tinted low-poly silhouettes (cone, ridge, pyramid, crater rim,
+      // shield, wedge) at 250 to 400 units, so a mission site has a horizon
+      // identity -- Fuji's cone, Giza's pyramids, Tycho's rim -- instead of a
+      // featureless void. fog:false with a colour pre-blended toward the fog
+      // keeps them readable beyond the fog far plane; every mesh is a scene
+      // child so the teardown traverse frees it. Under 2k triangles per site.
+      // Rows: k kind, a azimuth deg, d distance, w width, h height,
+      //       c colour, t fog-tint 0..1 (default 0.55), snow adds a snow cap.
+      const SKYLINES = {
+        japan: [{
+          k: 'cone',
+          a: 38,
+          d: 360,
+          w: 300,
+          h: 170,
+          c: '#4a4550',
+          snow: true
+        }, {
+          k: 'ridge',
+          a: 74,
+          d: 390,
+          w: 340,
+          h: 62,
+          c: '#4a4550'
+        }, {
+          k: 'ridge',
+          a: 6,
+          d: 390,
+          w: 300,
+          h: 50,
+          c: '#4a4550'
+        }],
+        egypt: [{
+          k: 'pyramid',
+          a: 205,
+          d: 310,
+          w: 170,
+          h: 100,
+          c: '#c9a86a',
+          t: 0.4
+        }, {
+          k: 'pyramid',
+          a: 226,
+          d: 350,
+          w: 130,
+          h: 76,
+          c: '#c9a86a',
+          t: 0.45
+        }, {
+          k: 'pyramid',
+          a: 187,
+          d: 372,
+          w: 100,
+          h: 58,
+          c: '#c9a86a',
+          t: 0.5
+        }],
+        nepal: [{
+          k: 'ridge',
+          a: 0,
+          d: 380,
+          w: 360,
+          h: 150,
+          c: '#e8eef4',
+          t: 0.3
+        }, {
+          k: 'ridge',
+          a: 55,
+          d: 395,
+          w: 320,
+          h: 190,
+          c: '#dfe8f0',
+          t: 0.3
+        }, {
+          k: 'ridge',
+          a: 118,
+          d: 385,
+          w: 340,
+          h: 165,
+          c: '#e8eef4',
+          t: 0.35
+        }, {
+          k: 'ridge',
+          a: 208,
+          d: 390,
+          w: 330,
+          h: 175,
+          c: '#dfe8f0',
+          t: 0.35
+        }, {
+          k: 'ridge',
+          a: 292,
+          d: 380,
+          w: 300,
+          h: 145,
+          c: '#e8eef4',
+          t: 0.3
+        }],
+        kenya: [{
+          k: 'wedge',
+          a: 320,
+          d: 380,
+          w: 420,
+          h: 55,
+          c: '#8a7a4e'
+        }],
+        antarctica: [{
+          k: 'wedge',
+          a: 150,
+          d: 370,
+          w: 460,
+          h: 40,
+          c: '#dfe9f2',
+          t: 0.35
+        }, {
+          k: 'ridge',
+          a: 245,
+          d: 390,
+          w: 220,
+          h: 90,
+          c: '#cdd9e4',
+          t: 0.35
+        }],
+        sahara: [{
+          k: 'ridge',
+          a: 100,
+          d: 340,
+          w: 320,
+          h: 42,
+          c: '#c9a05e'
+        }, {
+          k: 'ridge',
+          a: 150,
+          d: 385,
+          w: 380,
+          h: 55,
+          c: '#bd9354'
+        }],
+        india: [{
+          k: 'ridge',
+          a: 250,
+          d: 350,
+          w: 300,
+          h: 38,
+          c: '#c99a58'
+        }],
+        iceland: [{
+          k: 'shield',
+          a: 30,
+          d: 380,
+          w: 420,
+          h: 85,
+          c: '#3c4148'
+        }, {
+          k: 'ridge',
+          a: 330,
+          d: 360,
+          w: 260,
+          h: 55,
+          c: '#464b52'
+        }],
+        amazon: [{
+          k: 'ridge',
+          a: 65,
+          d: 300,
+          w: 420,
+          h: 60,
+          c: '#24401e',
+          t: 0.4
+        }, {
+          k: 'ridge',
+          a: 175,
+          d: 310,
+          w: 400,
+          h: 55,
+          c: '#28451f',
+          t: 0.4
+        }, {
+          k: 'ridge',
+          a: 285,
+          d: 305,
+          w: 410,
+          h: 58,
+          c: '#24401e',
+          t: 0.4
+        }],
+        olympus: [{
+          k: 'shield',
+          a: 45,
+          d: 395,
+          w: 760,
+          h: 130,
+          c: '#8a4630',
+          t: 0.45
+        }],
+        tycho: [{
+          k: 'craterrim',
+          d: 400,
+          h: 46,
+          c: '#5a5c66',
+          t: 0.25
+        }, {
+          k: 'cone',
+          a: 140,
+          d: 260,
+          w: 150,
+          h: 95,
+          c: '#6a6c76',
+          t: 0.2
+        }],
+        europa: [{
+          k: 'ridge',
+          a: 20,
+          d: 330,
+          w: 380,
+          h: 26,
+          c: '#7a5a50',
+          t: 0.3
+        }, {
+          k: 'ridge',
+          a: 200,
+          d: 350,
+          w: 420,
+          h: 30,
+          c: '#7a5a50',
+          t: 0.3
+        }]
+        // The reef's identity is the coral field itself; the Challenger Deep's
+        // identity is darkness. Neither gets a horizon landform on purpose.
+      };
+      try {
+        const skyRows = _sid && SKYLINES[_sid] || null;
+        if (skyRows && skyRows.length) {
+          const fogTint = new THREE.Color(scene.fog ? scene.fog.color : FOG[id] != null ? FOG[id] : FOG.earth);
+          const kinds = [];
+          skyRows.forEach(rw => {
+            const col = new THREE.Color(rw.c || groundColor).lerp(fogTint, rw.t != null ? rw.t : 0.55).multiplyScalar(lightK);
+            const lfM = new THREE.MeshBasicMaterial({
+              color: col,
+              fog: false
+            });
+            const aRad = (rw.a || 0) * Math.PI / 180;
+            let lf = null;
+            if (rw.k === 'cone') lf = new THREE.Mesh(new THREE.ConeGeometry(rw.w / 2, rw.h, 10), lfM);else if (rw.k === 'pyramid') {
+              lf = new THREE.Mesh(new THREE.ConeGeometry(rw.w * 0.7, rw.h, 4), lfM);
+              lf.rotation.y = Math.PI / 4;
+            } else if (rw.k === 'ridge') {
+              lf = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 4), lfM);
+              lf.scale.set(rw.w, rw.h, rw.w * 0.18);
+              lf.rotation.y = aRad + Math.PI / 2;
+            } else if (rw.k === 'shield') lf = new THREE.Mesh(new THREE.ConeGeometry(rw.w / 2, rw.h, 12), lfM);else if (rw.k === 'wedge') {
+              lf = new THREE.Mesh(new THREE.BoxGeometry(rw.w, rw.h, rw.h * 0.7), lfM);
+              lf.rotation.y = aRad + Math.PI / 2;
+            } else if (rw.k === 'craterrim') {
+              lf = new THREE.Mesh(new THREE.TorusGeometry(rw.d, rw.h, 6, 28), lfM);
+              lf.rotation.x = Math.PI / 2;
+            }
+            if (!lf) return;
+            if (rw.k === 'craterrim') lf.position.set(0, 0, 0); // the rim RINGS the play area
+            else lf.position.set(Math.cos(aRad) * rw.d, rw.h / 2, Math.sin(aRad) * rw.d);
+            if (rw.snow) {
+              // snow cap: a smaller cone whose apex coincides with the peak
+              const capCol = new THREE.Color('#eef4fa').lerp(fogTint, 0.3).multiplyScalar(lightK);
+              const cap = new THREE.Mesh(new THREE.ConeGeometry(rw.w * 0.17, rw.h * 0.36, 10), new THREE.MeshBasicMaterial({
+                color: capCol,
+                fog: false
+              }));
+              cap.position.y = rw.h * 0.32;
+              lf.add(cap);
+            }
+            lf.userData.kodroSkyline = rw.k;
+            kinds.push(rw.k);
+            scene.add(lf);
+          });
+          if (kinds.length) {
+            try {
+              mount.dataset.skyline = kinds.join(',');
+            } catch (e) {
+              void e;
+            }
+          }
+        }
+      } catch (e) {
+        if (window.console) console.warn('Viewport3D skyline failed:', e);
+      }
+
       // Ground.
       const groundMat = new THREE.MeshStandardMaterial({
         color: groundColor,
@@ -4750,14 +5309,17 @@
       // so light grazes real undulations instead of reading as a billiard-flat
       // plane. City and room keep a flat floor.
       const groundGeo = openWorld ? new THREE.PlaneGeometry(400, 400, 96, 96) : new THREE.PlaneGeometry(400, 400);
+      // R5: ONE displacement field shared by the ground mesh, the robot, the
+      // props, the agents, the trail, the FPV camera and the scenario markers.
+      // The plane is authored in XY before its -90deg X rotation, so plane
+      // (px, py) maps to world (px, -pz): groundY converts from world coords.
+      const dispAmp = openWorld ? id === 'underwater' ? 2.6 : id === 'space' ? 1.8 : 3.0 : 0;
+      const dispField = (px, py) => Math.sin(px * 0.05) * Math.cos(py * 0.045) * 0.6 + Math.sin(px * 0.013 + py * 0.017) * 0.3 + Math.sin((px + py) * 0.09) * 0.12;
+      const groundY = (wx, wz) => dispAmp ? dispField(wx, -wz) * dispAmp : 0;
       if (openWorld) {
-        const amp = id === 'underwater' ? 2.6 : id === 'space' ? 1.8 : 3.0;
         const pos = groundGeo.attributes.position;
         for (let i = 0; i < pos.count; i++) {
-          const x = pos.getX(i),
-            y = pos.getY(i); // plane is in XY before rotation
-          const h = Math.sin(x * 0.05) * Math.cos(y * 0.045) * 0.6 + Math.sin(x * 0.013 + y * 0.017) * 0.3 + Math.sin((x + y) * 0.09) * 0.12;
-          pos.setZ(i, h * amp);
+          pos.setZ(i, dispField(pos.getX(i), pos.getY(i)) * dispAmp);
         }
         groundGeo.computeVertexNormals();
       }
@@ -4929,6 +5491,47 @@
       // every frame so the world is alive, not a still set of props.
       const agents = [];
 
+      // R2: a soft radial-gradient blob shared by the robot's contact shadow,
+      // the prop AO discs and the agents' feet, so everything stays grounded
+      // even on Low tier where the shadow map is off. Black with an alpha
+      // falloff; the teardown traverse disposes it through its materials.
+      const shadowTex = typeof document !== 'undefined' && function () {
+        try {
+          const cv = document.createElement('canvas');
+          cv.width = cv.height = 64;
+          const c2 = cv.getContext('2d');
+          if (!c2) return null;
+          const grad = c2.createRadialGradient(32, 32, 2, 32, 32, 32);
+          grad.addColorStop(0, 'rgba(0,0,0,0.62)');
+          grad.addColorStop(0.55, 'rgba(0,0,0,0.34)');
+          grad.addColorStop(1, 'rgba(0,0,0,0)');
+          c2.fillStyle = grad;
+          c2.fillRect(0, 0, 64, 64);
+          return new THREE.CanvasTexture(cv);
+        } catch (e) {
+          return null;
+        }
+      }();
+      // Shared blob material for the moving agents' feet (one instance across
+      // every car/person/robot in the scene; dispose() is idempotent).
+      const blobMat = shadowTex ? new THREE.MeshBasicMaterial({
+        map: shadowTex,
+        transparent: true,
+        depthWrite: false
+      }) : new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.28,
+        depthWrite: false
+      });
+      const addBlob = (parent, w, d, y) => {
+        const b = new THREE.Mesh(new THREE.PlaneGeometry(w, d), blobMat);
+        b.rotation.x = -Math.PI / 2;
+        b.position.y = y;
+        b.castShadow = false;
+        parent.add(b);
+      };
+
       // Obstacles as 3D meshes (trees + rocks on Earth, rocks elsewhere).
       const siteRock = hexFromCss(terrain && terrain.obFill);
       const rockMat = new THREE.MeshStandardMaterial({
@@ -4964,19 +5567,246 @@
       const mkRock = (r, px, pz, v, rot) => {
         const geo = id === 'mars' ? new THREE.IcosahedronGeometry(r, 0) : id === 'space' ? new THREE.OctahedronGeometry(r, 0) : id === 'underwater' ? new THREE.DodecahedronGeometry(r, 1) : new THREE.DodecahedronGeometry(r, 0);
         const rock = new THREE.Mesh(geo, rockMat);
-        rock.position.set(px, r * 0.5, pz);
+        rock.position.set(px, groundY(px, pz) + r * 0.5, pz);
         rock.rotation.set(v * 3, rot || 0, v * 2);
         rock.scale.set(1 + v * 0.4, 0.7 + v * 0.5, 1 + (1 - v) * 0.4);
         rock.castShadow = true;
         rock.receiveShadow = true;
         scene.add(rock);
       };
+
+      // ---- W3: per-site prop kits. Replaces the "every Earth site gets the
+      // same mint tree" rule with a species palette per mission site: dunes on
+      // the Sahara, ice blocks on the Ross Ice Shelf, acacia on the Mara,
+      // basalt columns on the lava field, limestone blocks at Giza, pines on
+      // the foothills, fan corals on the reef, tube worms in the trench and
+      // pressure-ridge ice on Europa. All primitives, all scene children.
+      const PROP_KITS = {
+        sahara: 'dune',
+        india: 'dune',
+        antarctica: 'iceblock',
+        europa: 'iceblock',
+        kenya: 'acacia',
+        iceland: 'basalt',
+        egypt: 'limestone',
+        japan: 'pine',
+        nepal: 'pine',
+        amazon: 'canopy',
+        reef: 'coralfan',
+        mariana: 'tubeworm'
+      };
+      const kitMats = {};
+      const km = (key, params) => kitMats[key] || (kitMats[key] = new THREE.MeshStandardMaterial(params));
+      const kitLift = (hex, dl) => '#' + new THREE.Color(hex).offsetHSL(0, 0, dl).getHexString();
+      function kitProp(kind, o, r, px, pz) {
+        const gy = groundY(px, pz);
+        const g = new THREE.Group();
+        g.userData.kodroProp = kind;
+        if (kind === 'dune') {
+          // an elongated, wind-aligned dune ridge (smooth half-ellipsoid)
+          const dm = km('dune', {
+            color: kitLift(siteGround != null ? siteGround : 0xc9a05e, 0.06),
+            roughness: 1
+          });
+          const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), dm);
+          m.scale.set(2.3, 0.45, 1.0);
+          m.rotation.y = 0.5 + (o.v - 0.5) * 0.3; // one prevailing wind direction
+          m.castShadow = true;
+          m.receiveShadow = true;
+          g.add(m);
+        } else if (kind === 'iceblock') {
+          const im = km('ice', {
+            color: 0xdfe9f2,
+            roughness: 0.55,
+            flatShading: true
+          });
+          const n = 2 + (o.v * 2 | 0);
+          for (let k = 0; k < n; k++) {
+            const bw = r * (0.9 - k * 0.18);
+            const b = new THREE.Mesh(new THREE.BoxGeometry(bw * 1.6, bw * 0.7, bw), im);
+            b.position.set((k - (n - 1) / 2) * r * 0.5, bw * 0.3, (k % 2 ? 1 : -1) * r * 0.16);
+            b.rotation.y = o.rot * 0.02 + k * 0.6;
+            b.rotation.z = (o.v - 0.5) * 0.16;
+            b.castShadow = true;
+            b.receiveShadow = true;
+            g.add(b);
+          }
+        } else if (kind === 'acacia') {
+          const tm = km('acaciaTrunk', {
+            color: 0x5e4426,
+            roughness: 1
+          });
+          const cm = km('acaciaCanopy', {
+            color: 0x5f7a30,
+            roughness: 1,
+            flatShading: true
+          });
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.09, r * 0.16, r * 1.7, 6), tm);
+          trunk.position.y = r * 0.85;
+          trunk.rotation.z = 0.08;
+          trunk.castShadow = true;
+          g.add(trunk);
+          const canopy = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.3, r * 0.55, r * 0.45, 8), cm);
+          canopy.position.y = r * 1.85;
+          canopy.castShadow = true;
+          g.add(canopy); // the flat top IS the acacia
+        } else if (kind === 'basalt') {
+          const bm = km('basalt', {
+            color: 0x3f454e,
+            roughness: 0.95,
+            flatShading: true
+          });
+          const n = 4 + (o.v * 3 | 0);
+          for (let k = 0; k < n; k++) {
+            const a = k / n * Math.PI * 2 + o.v;
+            const hgt = r * (0.7 + k * 29 % 7 / 7);
+            const col = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.26, r * 0.26, hgt, 6), bm);
+            col.position.set(Math.cos(a) * r * 0.42, hgt / 2, Math.sin(a) * r * 0.42);
+            col.castShadow = true;
+            col.receiveShadow = true;
+            g.add(col);
+          }
+        } else if (kind === 'limestone') {
+          const lm = km('limestone', {
+            color: 0xd8c294,
+            roughness: 1,
+            flatShading: true
+          });
+          for (let k = 0; k < 3; k++) {
+            const bw = r * (1.15 - k * 0.3);
+            const b = new THREE.Mesh(new THREE.BoxGeometry(bw * 1.3, bw * 0.6, bw), lm);
+            b.position.set((k % 2 ? 1 : -1) * r * 0.18 * k, bw * 0.3 + k * r * 0.32, (k % 2 ? -1 : 1) * r * 0.1 * k);
+            b.rotation.y = o.rot * 0.01 + k * 0.28;
+            b.castShadow = true;
+            b.receiveShadow = true;
+            g.add(b);
+          }
+        } else if (kind === 'pine') {
+          const tm = km('pineTrunk', {
+            color: 0x4a3824,
+            roughness: 1
+          });
+          const pm = km('pine', {
+            color: 0x2c4a30,
+            roughness: 1,
+            flatShading: true
+          });
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.1, r * 0.16, r * 0.9, 6), tm);
+          trunk.position.y = r * 0.45;
+          trunk.castShadow = true;
+          g.add(trunk);
+          for (let k = 0; k < 3; k++) {
+            const cw = r * (1.0 - k * 0.26);
+            const tier = new THREE.Mesh(new THREE.ConeGeometry(cw, r * 0.9, 7), pm);
+            tier.position.y = r * (1.0 + k * 0.62);
+            tier.castShadow = true;
+            g.add(tier);
+          }
+        } else if (kind === 'canopy') {
+          // rainforest: a two-tier canopy tree at 2 to 3x the temperate height
+          const tm = km('canopyTrunk', {
+            color: 0x5a4326,
+            roughness: 1
+          });
+          const c1 = km('canopyHi', {
+            color: 0x2e5a24,
+            roughness: 1,
+            flatShading: true
+          });
+          const c2 = km('canopyLo', {
+            color: 0x3c6e2c,
+            roughness: 1,
+            flatShading: true
+          });
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.14, r * 0.2, r * 2.6, 6), tm);
+          trunk.position.y = r * 1.3;
+          trunk.castShadow = true;
+          g.add(trunk);
+          const hi = new THREE.Mesh(new THREE.IcosahedronGeometry(r * 1.2, 0), c1);
+          hi.position.y = r * 3.0;
+          hi.scale.y = 0.7;
+          hi.castShadow = true;
+          g.add(hi);
+          const lo = new THREE.Mesh(new THREE.IcosahedronGeometry(r * 0.85, 0), c2);
+          lo.position.set(r * 0.5, r * 2.1, r * 0.25);
+          lo.scale.y = 0.65;
+          lo.castShadow = true;
+          g.add(lo);
+        } else if (kind === 'coralfan') {
+          const fm = km('fan', {
+            color: 0xe08a96,
+            roughness: 0.8,
+            flatShading: true,
+            side: THREE.DoubleSide
+          });
+          const bm2 = km('brain', {
+            color: 0xd8a878,
+            roughness: 0.9
+          });
+          const fan = new THREE.Mesh(new THREE.SphereGeometry(r * 0.9, 10, 8), fm);
+          fan.scale.set(1, 1, 0.16);
+          fan.position.y = r * 0.7;
+          fan.rotation.y = o.rot * 0.02;
+          fan.castShadow = true;
+          g.add(fan);
+          const brain = new THREE.Mesh(new THREE.SphereGeometry(r * 0.5, 10, 8), bm2);
+          brain.scale.y = 0.7;
+          brain.position.set(r * 0.55, r * 0.3, r * 0.4);
+          brain.castShadow = true;
+          g.add(brain);
+        } else if (kind === 'tubeworm') {
+          // sediment mound + a cluster of tube worms with red plumes
+          const sm = km('sediment', {
+            color: 0x24404c,
+            roughness: 1
+          });
+          const wm2 = km('tube', {
+            color: 0x9aa8b0,
+            roughness: 0.7
+          });
+          const plm = km('plume', {
+            color: 0xd85a5a,
+            emissive: 0x7a1e1e,
+            emissiveIntensity: 0.35,
+            roughness: 0.6
+          });
+          const mound = new THREE.Mesh(new THREE.SphereGeometry(r * 0.8, 10, 8), sm);
+          mound.scale.y = 0.35;
+          mound.receiveShadow = true;
+          g.add(mound);
+          for (let k = 0; k < 5; k++) {
+            const a = k / 5 * Math.PI * 2 + o.v;
+            const hgt = r * (0.7 + k * 31 % 5 / 10);
+            const tube = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.05, r * 0.06, hgt, 5), wm2);
+            tube.position.set(Math.cos(a) * r * 0.32, hgt / 2 + r * 0.15, Math.sin(a) * r * 0.32);
+            tube.rotation.z = Math.cos(a) * 0.16;
+            tube.rotation.x = Math.sin(a) * 0.16;
+            g.add(tube);
+            const plume = new THREE.Mesh(new THREE.SphereGeometry(r * 0.09, 6, 5), plm);
+            plume.position.set(tube.position.x - Math.sin(tube.rotation.z) * hgt * 0.5, tube.position.y + hgt * 0.5, tube.position.z + Math.sin(tube.rotation.x) * hgt * 0.5);
+            g.add(plume);
+          }
+        } else {
+          return false;
+        }
+        g.position.set(px, gy, pz);
+        scene.add(g);
+        return true;
+      }
+      const propKit = _sid ? PROP_KITS[_sid] : null;
+      let kitCount = 0;
       const obstacles = terrain && terrain.obstacles || [];
       if (id !== 'city' && id !== 'room') obstacles.forEach(o => {
         const r = Math.max(0.6, o.r * SCALE);
         const px = o.x * SCALE,
           pz = -o.y * SCALE;
-        if (id === 'earth' && o.v >= 0.5) {
+        if (propKit && o.v >= 0.4) {
+          if (kitProp(propKit, o, r, px, pz)) {
+            kitCount++;
+            return;
+          }
+          mkRock(r, px, pz, o.v, o.rot);
+        } else if (!propKit && id === 'earth' && o.v >= 0.5) {
           // tree: trunk + canopy
           const tree = new THREE.Group();
           const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.18, r * 0.24, r * 1.4, 6), trunkMat);
@@ -4987,9 +5817,9 @@
           canopy.castShadow = true;
           tree.add(trunk);
           tree.add(canopy);
-          tree.position.set(px, 0, pz);
+          tree.position.set(px, groundY(px, pz), pz);
           scene.add(tree);
-        } else if (id === 'underwater' && o.v >= 0.45) {
+        } else if (!propKit && id === 'underwater' && o.v >= 0.45) {
           // coral: a small clump of upright branches
           const coral = new THREE.Group();
           const n = 3 + (o.v * 4 | 0);
@@ -5002,14 +5832,15 @@
             br.castShadow = true;
             coral.add(br);
           }
-          coral.position.set(px, 0, pz);
+          coral.position.set(px, groundY(px, pz), pz);
           scene.add(coral);
-        } else if (id === 'space' && o.v >= 0.5) {
+        } else if (id === 'space' && o.v >= 0.5 && !propKit) {
           // crater: a low rim sunk into the surface with a dark basin floor, so
           // it reads as a depression rather than a ring lying on top of the ground.
+          const gy = groundY(px, pz);
           const crater = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.2, 6, 16), rimMat);
           crater.rotation.x = Math.PI / 2;
-          crater.position.set(px, -r * 0.1, pz);
+          crater.position.set(px, gy - r * 0.1, pz);
           crater.receiveShadow = true;
           scene.add(crater);
           const basin = new THREE.Mesh(new THREE.CircleGeometry(r * 0.92, 18), new THREE.MeshStandardMaterial({
@@ -5017,12 +5848,59 @@
             roughness: 1
           }));
           basin.rotation.x = -Math.PI / 2;
-          basin.position.set(px, 0.02, pz);
+          basin.position.set(px, gy + 0.02, pz);
           scene.add(basin);
         } else {
           mkRock(r, px, pz, o.v, o.rot);
         }
       });
+      if (kitCount) {
+        try {
+          mount.dataset.propkit = propKit;
+        } catch (e) {
+          void e;
+        }
+      }
+
+      // R2: instanced AO discs under every standing prop so the Low tier
+      // (shadow map off) keeps its grounding. Slope-aligned at build time from
+      // the shared displacement field; zero per-frame cost.
+      try {
+        if (shadowTex && id !== 'city' && id !== 'room' && THREE.InstancedMesh && obstacles.length) {
+          const standing = obstacles.filter(o => o.v >= 0.32);
+          if (standing.length) {
+            const aoGeo = new THREE.CircleGeometry(1, 18);
+            const aoMat = new THREE.MeshBasicMaterial({
+              map: shadowTex,
+              transparent: true,
+              depthWrite: false,
+              opacity: 0.85
+            });
+            const aoInst = new THREE.InstancedMesh(aoGeo, aoMat, standing.length);
+            const m4 = new THREE.Matrix4(),
+              q4 = new THREE.Quaternion(),
+              v3 = new THREE.Vector3(),
+              s3 = new THREE.Vector3();
+            const up = new THREE.Vector3(0, 0, 1),
+              nrm = new THREE.Vector3();
+            standing.forEach((o, k) => {
+              const r = Math.max(0.6, o.r * SCALE) * 1.18;
+              const px = o.x * SCALE,
+                pz = -o.y * SCALE;
+              const gy = groundY(px, pz);
+              // face the local surface normal so the disc hugs a slope
+              nrm.set(-(groundY(px + 0.5, pz) - groundY(px - 0.5, pz)), 1, -(groundY(px, pz + 0.5) - groundY(px, pz - 0.5))).normalize();
+              q4.setFromUnitVectors(up, nrm);
+              m4.compose(v3.set(px + nrm.x * 0.04, gy + nrm.y * 0.04, pz + nrm.z * 0.04), q4, s3.set(r, r, r));
+              aoInst.setMatrixAt(k, m4);
+            });
+            aoInst.instanceMatrix.needsUpdate = true;
+            scene.add(aoInst);
+          }
+        }
+      } catch (e) {
+        if (window.console) console.warn('Viewport3D AO discs failed:', e);
+      }
 
       // ---- Proper 3D city and room scenes (meshes, not generic rocks). ----
       function makeWindowTex() {
@@ -5083,6 +5961,7 @@
           emissive: 0xff3322,
           emissiveIntensity: 0.8
         });
+        parent._tailM = tailM; // R4: the agent updater flares this on braking
         // lower hull, slightly narrower at the base for a tapered look
         const hull = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.62, 1.7), bodyM);
         hull.position.y = 0.62;
@@ -5180,6 +6059,7 @@
           tyres.push(tyre);
         });
         car._tyres = tyres; // spun by the agent updater at road speed
+        addBlob(car, 4.6, 2.4, 0.045); // R2: grounded even with shadows off
         return car;
       }
       // Shared limb/torso geometry and cloth materials across every pedestrian
@@ -5233,6 +6113,7 @@
         };
         p._legs = [limb(personShared.leg, personShared.legM, 1.25, -0.2, -0.55), limb(personShared.leg, personShared.legM, 1.25, 0.2, -0.55)];
         p._arms = [limb(personShared.arm, shirtM, 2.12, -0.56, -0.42), limb(personShared.arm, shirtM, 2.12, 0.56, -0.42)];
+        addBlob(p, 1.15, 1.15, 0.03); // R2: soft feet shadow on every tier
         return p;
       }
       // Gait pose shared by every world's pedestrian renderer: legs stride from
@@ -5293,6 +6174,7 @@
           wheels.push(w);
         });
         g._wheels = wheels;
+        addBlob(g, 2.3, 1.6, 0.04); // R2: grounded even with shadows off
         return g;
       }
       // Render every KodroAgents entity (cars, people, roaming robots) as a 3D
@@ -5311,11 +6193,15 @@
             update: (t, dts) => {
               const a = KA.list()[i];
               if (!a) return;
-              mesh.position.set(a.x * SCALE, 0, -a.y * SCALE);
+              const axx = a.x * SCALE,
+                azz = -a.y * SCALE;
+              mesh.position.set(axx, groundY(axx, azz), azz); // R5: agents ride the terrain
               mesh.rotation.y = Math.atan2(a.dy, a.dx);
               if (ag.kind === 'person' && mesh._legs) posePerson(mesh, a);else if (ag.kind === 'car' && mesh._tyres) {
                 spin += (a.speed || 0) * SCALE * 2 * (dts || 0); // v/r, r=0.5
                 for (let k = 0; k < mesh._tyres.length; k++) mesh._tyres[k].rotation.y = spin;
+                // R4: brake lights flare while the car is slowing or held
+                if (mesh._tailM) mesh._tailM.emissiveIntensity = a.vel != null && a.base && a.vel < a.base * 0.6 ? 1.9 : 0.8;
               }
               if (ag.kind === 'robot' && mesh._wheels) {
                 for (let k = 0; k < mesh._wheels.length; k++) mesh._wheels[k].rotation.y = a.leg;
@@ -5405,13 +6291,16 @@
         // own independent clone, so the base can be freed now (it is never rendered).
         if (winTex) winTex.dispose();
         // Traffic lights at the intersection: thin pole + 3 small spheres.
+        // R4: the heads CYCLE. Each pole reads the shared sim's light state
+        // (one per road axis) every frame, so the lamp the cars obey is the
+        // lamp the eye sees -- red holds traffic, green releases it.
         try {
           const poleM = new THREE.MeshStandardMaterial({
             color: 0x1a1d22,
             roughness: 0.6,
             metalness: 0.3
           });
-          [[ROADW / 2 + 2, 2], [-(ROADW / 2 + 2), -2]].forEach(p => {
+          [[ROADW / 2 + 2, 2, true], [-(ROADW / 2 + 2), -2, false]].forEach(p => {
             const tl = new THREE.Group();
             const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 5, 8), poleM);
             pole.position.y = 2.5;
@@ -5420,29 +6309,44 @@
             const box = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.2, 0.3), poleM);
             box.position.y = 5.6;
             tl.add(box);
-            const red = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), new THREE.MeshStandardMaterial({
+            const redM2 = new THREE.MeshStandardMaterial({
               color: 0xff3322,
               emissive: 0xff3322,
               emissiveIntensity: 0.9
-            }));
-            red.position.set(0, 6.0, 0.18);
-            tl.add(red);
-            const yel = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), new THREE.MeshStandardMaterial({
+            });
+            const yelM2 = new THREE.MeshStandardMaterial({
               color: 0xffaa22,
               emissive: 0xffaa22,
-              emissiveIntensity: 0.2
-            }));
-            yel.position.set(0, 5.6, 0.18);
-            tl.add(yel);
-            const grn = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), new THREE.MeshStandardMaterial({
+              emissiveIntensity: 0.08
+            });
+            const grnM2 = new THREE.MeshStandardMaterial({
               color: 0x33cc44,
               emissive: 0x33cc44,
-              emissiveIntensity: 0.2
-            }));
+              emissiveIntensity: 0.08
+            });
+            const red = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), redM2);
+            red.position.set(0, 6.0, 0.18);
+            tl.add(red);
+            const yel = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), yelM2);
+            yel.position.set(0, 5.6, 0.18);
+            tl.add(yel);
+            const grn = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), grnM2);
             grn.position.set(0, 5.2, 0.18);
             tl.add(grn);
             tl.position.set(p[0], 0, p[1]);
             scene.add(tl);
+            const horizAxis = p[2];
+            agents.push({
+              mesh: tl,
+              update: () => {
+                const KA2 = window.KodroAgents;
+                if (!KA2 || !KA2.lightState) return;
+                const st = KA2.lightState(horizAxis);
+                redM2.emissiveIntensity = st === 'red' ? 1.1 : 0.08;
+                yelM2.emissiveIntensity = st === 'amber' ? 1.1 : 0.08;
+                grnM2.emissiveIntensity = st === 'green' ? 1.0 : 0.08;
+              }
+            });
           });
         } catch (e) {
           if (window.console) console.warn('Viewport3D traffic lights failed:', e);
@@ -5855,17 +6759,7 @@
         if (window.KodroScenario && window.KodroScenario.defaultFor) {
           const scn = window.KodroScenario.defaultFor(id);
           if (scn && scn.goalPose) {
-            // Ground height at a world point, matching the displacement the
-            // open-terrain plane applies (plane XY pre-rotation: x = world x,
-            // y = -world z), so markers sit on the surface, not inside a swell.
-            const dispAmp = openWorld ? id === 'underwater' ? 2.6 : id === 'space' ? 1.8 : 3.0 : 0;
-            const groundYAt = (wx, wz) => {
-              if (!dispAmp) return 0;
-              const px = wx,
-                py = -wz;
-              const hh = Math.sin(px * 0.05) * Math.cos(py * 0.045) * 0.6 + Math.sin(px * 0.013 + py * 0.017) * 0.3 + Math.sin((px + py) * 0.09) * 0.12;
-              return hh * dispAmp;
-            };
+            // Markers sit on the shared groundY surface (R5), not inside a swell.
             const gp = scn.goalPose;
             const gx = gp.x * SCALE,
               gz = -gp.y * SCALE;
@@ -5898,7 +6792,7 @@
             }));
             beam.position.y = 4.5;
             beacon.add(beam);
-            beacon.position.set(gx, groundYAt(gx, gz), gz);
+            beacon.position.set(gx, groundY(gx, gz), gz);
             scene.add(beacon);
             if (scn.startPose) {
               const sp = scn.startPose;
@@ -5911,7 +6805,7 @@
                 side: THREE.DoubleSide
               }));
               pad.rotation.x = -Math.PI / 2;
-              pad.position.set(sx, groundYAt(sx, sz) + 0.14, sz);
+              pad.position.set(sx, groundY(sx, sz) + 0.14, sz);
               pad.userData.kodroGoal = true;
               scene.add(pad);
             }
@@ -5926,7 +6820,7 @@
                 side: THREE.DoubleSide
               }));
               ring.rotation.x = -Math.PI / 2;
-              ring.position.set(ox, groundYAt(ox, oz) + 0.12, oz);
+              ring.position.set(ox, groundY(ox, oz) + 0.12, oz);
               ring.userData.kodroGoal = true;
               scene.add(ring);
             });
@@ -6061,6 +6955,16 @@
       } catch (e) {
         if (window.console) console.warn('Viewport3D ambient life failed:', e);
         ambient = null;
+      }
+      // Stamp what the coherence infrastructure actually built onto the mount
+      // node, so the headless QA sweep can assert the W4/W5 gating from the
+      // DOM without a GPU read: which ambient systems run here, and how many
+      // live agents share the world (0 at a quiet site like the Challenger Deep).
+      try {
+        if (ambient && ambient.flags) mount.dataset.ambient = ambient.flags.join(',');
+        if (window.KodroAgents && window.KodroAgents.list) mount.dataset.agents = String(window.KodroAgents.list().length);
+      } catch (e) {
+        void e;
       }
 
       // The robot: built to match the kind the user designed in Robot Lab, so
@@ -6404,20 +7308,33 @@
       // up so the build and its sensor pods are legible (indoors stays a touch
       // smaller so it does not tower over the furniture).
       rov.scale.setScalar(id === 'room' ? 1.05 : 1.4);
-      // Fake contact shadow: a dark, semi-transparent flattened circle under the
-      // robot. Child of rov so it follows the robot; castShadow=false so it never
-      // pollutes the shadow map. Visible from the orbit camera for groundedness.
+      // Contact shadow (R2): a soft radial-gradient blob under the robot,
+      // scaled to the build's footprint, replacing the old hard-edged uniform
+      // disc. Child of rov so it follows the robot; castShadow=false so it
+      // never pollutes the shadow map. tick() compresses it slightly with the
+      // suspension so it participates in the motion instead of being a decal.
+      let contactShadow = null;
       try {
-        const shadowGeo = new THREE.CircleGeometry(2.0, 24);
-        const shadowMat = new THREE.MeshBasicMaterial({
+        const SHADOW_R = {
+          car: 2.4,
+          rover: 2.05,
+          home: 1.5,
+          arm: 1.7
+        };
+        const shadowGeo = new THREE.CircleGeometry(SHADOW_R[rType] || 2.0, 24);
+        const shadowMat = shadowTex ? new THREE.MeshBasicMaterial({
+          map: shadowTex,
+          transparent: true,
+          depthWrite: false
+        }) : new THREE.MeshBasicMaterial({
           color: 0x000000,
           transparent: true,
           opacity: 0.25,
           depthWrite: false
         });
-        const contactShadow = new THREE.Mesh(shadowGeo, shadowMat);
+        contactShadow = new THREE.Mesh(shadowGeo, shadowMat);
         contactShadow.rotation.x = -Math.PI / 2;
-        contactShadow.position.y = 0.02;
+        contactShadow.position.y = 0.04;
         contactShadow.castShadow = false;
         rov.add(contactShadow);
       } catch (e) {
@@ -6450,6 +7367,9 @@
         bodyRoll = 0,
         susp = 0,
         vsmooth = 0;
+      // R5: smoothed terrain-conformance angles (3-point wheel sample).
+      let terrPitch = 0,
+        terrRoll = 0;
       const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
       const camPos = new THREE.Vector3(0, 20, 30);
 
@@ -6599,7 +7519,11 @@
         cur.x += (tx - cur.x) * posLerp;
         cur.z += (tz - cur.z) * posLerp;
         curHeading = angLerp(curHeading, tr, posLerp);
-        rov.position.set(cur.x, 0, cur.z);
+        // R5: the robot rides the SAME displacement field the ground mesh was
+        // built from, so it climbs swells and settles into dips instead of
+        // hovering at y=0. Render-side only: the cm-space sim is untouched.
+        const gy = groundY(cur.x, cur.z);
+        rov.position.set(cur.x, gy, cur.z);
         // The engine advances by (sin h, -cos h); after the z-flip the 3D travel
         // direction is (sin h, cos h). The mesh is built forward = local +x, and
         // a Y-rotation of +x by theta gives (cos theta, -sin theta), so theta
@@ -6632,9 +7556,31 @@
         bodyRoll += (clamp(turn * 9 + turn * vsmooth * 22, -0.24, 0.24) * feel.roll - bodyRoll) * 0.16;
         // suspension: a small settle driven by acceleration, eased back to rest
         susp += (clamp(-accel * 1.6, -0.18, 0.18) * feel.susp - susp) * 0.22;
-        body.rotation.z = bodyPitch;
-        body.rotation.x = bodyRoll;
+        // R5: terrain conformance. Sample the shared displacement field along
+        // the wheel line (ahead/behind and right/left of the hull) and ease
+        // the body onto that slope, so climbing a swell reads as the chassis
+        // pitching up it rather than staying bolt upright through a hill.
+        // Forward is local +x = world (sin h, cos h); right is (-cos h, sin h).
+        if (dispAmp) {
+          const fx2 = Math.sin(curHeading),
+            fz2 = Math.cos(curHeading);
+          const hf = groundY(cur.x + fx2 * 1.4, cur.z + fz2 * 1.4),
+            hb = groundY(cur.x - fx2 * 1.4, cur.z - fz2 * 1.4);
+          const hr = groundY(cur.x - fz2 * 1.4, cur.z + fx2 * 1.4),
+            hl = groundY(cur.x + fz2 * 1.4, cur.z - fx2 * 1.4);
+          terrPitch += (clamp(Math.atan2(hf - hb, 2.8), -0.3, 0.3) - terrPitch) * 0.14;
+          terrRoll += (clamp(-Math.atan2(hr - hl, 2.8), -0.3, 0.3) - terrRoll) * 0.14;
+        }
+        body.rotation.z = bodyPitch + terrPitch;
+        body.rotation.x = bodyRoll + terrRoll;
         body.position.y = -Math.abs(susp) * 0.35;
+        // R2: the contact shadow participates in the motion -- suspension
+        // compression squeezes it slightly so it reads as carried weight,
+        // not a decal painted on the ground.
+        if (contactShadow) {
+          const csq = 1 - Math.abs(susp) * 0.5;
+          contactShadow.scale.set(csq, csq, 1);
+        }
         // front wheels steer toward the heading change
         if (steer.length) {
           const sa = clamp(turn * 26, -0.5, 0.5);
@@ -6654,7 +7600,7 @@
             trailN = MAXPTS - 1;
           }
           trailPos[trailN * 3] = cur.x;
-          trailPos[trailN * 3 + 1] = 0.3;
+          trailPos[trailN * 3 + 1] = gy + 0.3; // R5: the trail hugs the terrain
           trailPos[trailN * 3 + 2] = cur.z;
           trailN += 1;
           trailGeo.setDrawRange(0, trailN);
@@ -6705,9 +7651,11 @@
           const sp = vsmooth;
           const bobAmt = Math.min(1, sp * 6);
           const bob = Math.sin(now * 0.015 * (1 + sp * 12)) * 0.02 * bobAmt;
-          camPos.set(cur.x + fwd.x * 1.2, 2.4 + bob, cur.z + fwd.z * 1.2);
+          // R5: the driver's eye rides the terrain too, and looks at a point
+          // on the surface ahead, so FPV pitches naturally through the swells.
+          camPos.set(cur.x + fwd.x * 1.2, gy + 2.4 + bob, cur.z + fwd.z * 1.2);
           camera.position.copy(camPos);
-          camera.lookAt(cur.x + fwd.x * 20, 1.8 + bob, cur.z + fwd.z * 20);
+          camera.lookAt(cur.x + fwd.x * 20, groundY(cur.x + fwd.x * 20, cur.z + fwd.z * 20) + 1.8 + bob, cur.z + fwd.z * 20);
         } else {
           // Third person orbit, damped so it eases rather than jumps.
           // Frame-rate independent damping: the follow feels the same at 30 or
@@ -6716,9 +7664,11 @@
           const oy = Math.sin(elev) * dist + 4;
           const oz = Math.sin(azim) * Math.cos(elev) * dist;
           const camAlpha = reduce ? 1 : 1 - Math.pow(1 - 0.12, dt / 1000 * 60);
-          camPos.lerp(camTarget.set(cur.x + ox, oy, cur.z + oz), camAlpha);
+          // R5: orbit height and aim track the robot's terrain height (gy is a
+          // smooth field, so the camera glides over swells with the robot).
+          camPos.lerp(camTarget.set(cur.x + ox, gy + oy, cur.z + oz), camAlpha);
           camera.position.copy(camPos);
-          camera.lookAt(cur.x, 2, cur.z);
+          camera.lookAt(cur.x, gy + 2, cur.z);
         }
         // Fake depth of field: pull the fog near plane closer when the camera is
         // far from the robot, so distant scenery softens into haze for a

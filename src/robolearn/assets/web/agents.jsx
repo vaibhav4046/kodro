@@ -20,8 +20,25 @@
   let worldId = null;
   let raf = 0;
   let last = null;
+  let simT = 0; // accumulated sim seconds; drives the traffic-light cycle
   const R = 30; // rover collision radius (cm), matched to the engine
   const ROBOT_COLORS = [0x5ce0d8, 0xe0b45c, 0xd35d7a, 0x7a5fc0];
+  // Mission sites where a roaming pastel fleet would break the fiction (W5):
+  // the Challenger Deep and Europa are silent, lifeless places.
+  const QUIET_SITES = { mariana: 1, europa: 1 };
+
+  // R4: the city junction's traffic-light cycle. One road flows while the
+  // other holds; a full cycle is 24 s (9 green, 2.5 amber, 0.5 all-red each
+  // way). Pure function of the sim clock so the 3D light heads, the 2.5D view
+  // and the car braking below all read the SAME state.
+  const LIGHT_CYCLE = 24, LIGHT_GREEN = 9, LIGHT_AMBER = 2.5;
+  function lightState(horiz) {
+    const t = ((simT % LIGHT_CYCLE) + LIGHT_CYCLE) % LIGHT_CYCLE;
+    const local = horiz ? t : (t + LIGHT_CYCLE / 2) % LIGHT_CYCLE;
+    if (local < LIGHT_GREEN) return 'green';
+    if (local < LIGHT_GREEN + LIGHT_AMBER) return 'amber';
+    return 'red';
+  }
 
   // lane(dir, axis, offset): a one-way lane. dir +1/-1 is travel direction along
   // the moving axis; offset is the fixed cross-axis position.
@@ -114,10 +131,10 @@
     } else if (id === 'room') {
       agents.push(ped(true, 1, -360, 40, 0, 0x6aa0d8, 1300));
       agents.push(ped(false, 1, 360, 32, 200, 0xc97f6a, 1100));
-    } else {
+    } else if (!QUIET_SITES[id]) {
       // Open terrain worlds were static. Give them a small autonomous fleet that
       // roams and reacts, so the world is alive and the player has machines to
-      // share it with.
+      // share it with. Quiet sites (Challenger Deep, Europa) stay empty (W5).
       addRobots(3, ROBOT_COLORS);
     }
     step(0); // place every agent on its lane immediately, before the first frame
@@ -131,6 +148,7 @@
 
   function step(dt) {
     if (dt > 0.1) dt = 0.1; // a long pause (tab hidden) must not teleport agents
+    simT += dt;
     const rov = window.KODRO_ROVER;
     // Which halves of the zebra have a pedestrian on them right now? Cars in
     // the matching lane must stop; the other lane only slows for the crossing.
@@ -174,13 +192,36 @@
             target = 0;
           }
         }
-      } else if (a.horiz && worldId === 'city') {
-        // approaching the zebra: distance from this car's nose to the zone edge
-        const ahead = a.dir > 0 ? (ZEBRA_X0 - a.r) - ax : ax - (ZEBRA_X1 + a.r);
-        if (ahead > 0 && ahead < 420) {
-          const pedInLane = a.lane < 0 ? zebraNeg : zebraPos;
-          if (pedInLane) target = Math.min(target, a.base * Math.max(0, (ahead - 50) / 370));
-          else target = Math.min(target, a.base * (0.45 + 0.55 * (ahead / 420))); // caution slow-down
+      } else if (a.kind === 'car' && worldId === 'city') {
+        if (a.horiz) {
+          // approaching the zebra: distance from this car's nose to the zone edge
+          const ahead = a.dir > 0 ? (ZEBRA_X0 - a.r) - ax : ax - (ZEBRA_X1 + a.r);
+          if (ahead > 0 && ahead < 420) {
+            const pedInLane = a.lane < 0 ? zebraNeg : zebraPos;
+            if (pedInLane) target = Math.min(target, a.base * Math.max(0, (ahead - 50) / 370));
+            else target = Math.min(target, a.base * (0.45 + 0.55 * (ahead / 420))); // caution slow-down
+          }
+        }
+        // R4: obey the junction lights. The junction box is |along| < 150 cm;
+        // a car still short of its stop line eases to a halt on red or amber
+        // (unless it is already too close to stop), using the same eased-vel
+        // machinery as the zebra. Cars already inside the box keep going.
+        const st = lightState(a.horiz);
+        if (st !== 'green') {
+          const along = a.horiz ? ax : ay;
+          const stopAt = 150 + a.r + 20;
+          const toLine = a.dir > 0 ? (-stopAt - along) : (along - stopAt);
+          if (toLine > 0 && toLine < 420 && (st === 'red' || toLine > 60)) {
+            target = Math.min(target, a.base * Math.max(0, (toLine - 55) / 365));
+          }
+        }
+        // Car-following: never drive into the car queued ahead in this lane.
+        const meAlong = a.horiz ? ax : ay;
+        for (let j = 0; j < agents.length; j++) {
+          const o = agents[j];
+          if (o === a || o.kind !== 'car' || o.horiz !== a.horiz || o.lane !== a.lane || o.dir !== a.dir) continue;
+          const gapFwd = ((a.horiz ? o.x : o.y) - meAlong) * a.dir;
+          if (gapFwd > 0 && gapFwd < 320) target = Math.min(target, a.base * Math.max(0, (gapFwd - 215) / 105));
         }
       }
       const k = target < a.vel ? 6.5 : 1.8; // brake briskly, accelerate gently
@@ -225,5 +266,5 @@
     raf = 0;
   }
 
-  window.KodroAgents = { build, step, stop, list: () => agents, world: () => worldId };
+  window.KodroAgents = { build, step, stop, list: () => agents, world: () => worldId, lightState };
 })();
