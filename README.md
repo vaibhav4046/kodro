@@ -127,15 +127,52 @@ the offline capture script `scripts/build_screenshot_harness.cjs` plus
 headless Chrome; see [`HUMAN_TODO.md`](HUMAN_TODO.md) for how to
 regenerate them.
 
-## Build and run
+## Download and install
 
-From source:
+### Option 1: Windows executable (no Python needed)
+
+Download `RoboLearn.exe` from the
+[latest release](https://github.com/vaibhav4046/robolearn/releases/latest)
+and run it. It is a self contained windowed app (WebView2). Everything
+works immediately except the optional AI assistant, which needs a local
+model (next section).
+
+### Option 2: From source (Windows, macOS, Linux)
+
+Requires Python 3.12+ and Node.js (Node only if you want to rebuild the UI).
 
 ```bash
 git clone https://github.com/vaibhav4046/robolearn.git
 cd robolearn
 pip install -e ".[dev]"
 python -m robolearn.web   # modern web UI in a native window (pywebview)
+```
+
+### Optional: the local AI assistant (Ollama)
+
+The Vibe, Review and Ask panels use a local model through
+[Ollama](https://ollama.com/download). Without it the app still works
+fully; those panels fall back to a deterministic rule engine. To enable
+the assistant:
+
+1. Install Ollama for your OS from <https://ollama.com/download> and
+   start it (it serves on `localhost:11434`).
+2. Pull a small code model (3 to 4B runs on a normal laptop):
+
+   ```bash
+   ollama pull qwen2.5-coder:3b     # good default
+   # or: ollama pull gemma3:4b
+   ```
+
+3. Start Kodro. It auto detects whatever model Ollama has and shows it
+   in the Vibe panel; you can switch models there. Nothing ever leaves
+   your machine: the only network peer the app will talk to is
+   `localhost:11434`.
+
+### Optional: offline voice input
+
+```bash
+pip install faster-whisper   # any OS; falls back to Windows SAPI without it
 ```
 
 The web UI is pre compiled to a single `bundle.js`, so the desktop app
@@ -195,13 +232,19 @@ node scripts/qa_interpreter.mjs   # interpreter and kinematics functional QA
 python -m pytest                  # Python engine test suite
 ```
 
-- **Interpreter QA: 21 of 21 passing.** Every shipped example program
+- **Interpreter QA: 74 of 74 passing.** Every shipped example program
   terminates, moves, stays inside the arena box, never hits a wall and
   never throws. Command semantics (metres versus centimetres, turn,
-  speed clamp, guarded huge exponents, for and while, sensors) are all
+  speed clamp, guarded huge exponents, for and while, sensors), Python
+  parity edge cases (chained comparison, division by zero, banker's
+  rounding, range validation) and malformed input handling are all
   asserted.
-- **Python engine: 850 tests passing, 86 percent coverage**, gated at
-  `--cov-fail-under=85`.
+- **UI regression net.** `node scripts/qa_ui.mjs` drives the real
+  bundle in headless Chrome: six studio flows, five behaviour asserts
+  (the rover measurably moves, blocks insert real code, errors surface,
+  worlds are distinct) and a render check for every modal.
+- **Python engine: 876 tests passing**, coverage gated at
+  `--cov-fail-under=85` on every push.
 
 The honest marker assessment of the project to date is a strong A. An A
 star band depends on the empirical teacher and user study, which only a
