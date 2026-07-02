@@ -16,15 +16,15 @@
   };
 
   function card(title, rows, accent) {
-    return React.createElement('div', { style: { background: '#0f1726', border: '1.5px solid #233248', borderRadius: 14, padding: '14px 16px' } },
-      React.createElement('div', { style: { fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: accent || '#5ed6ff', marginBottom: 10 } }, title),
+    return React.createElement('div', { style: { background: 'var(--navy-2)', border: '1.5px solid var(--border)', borderRadius: 14, padding: '14px 16px' } },
+      React.createElement('div', { style: { fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: accent || 'var(--cyan)', marginBottom: 10 } }, title),
       React.createElement('div', { style: { display: 'grid', gap: 7 } }, rows)
     );
   }
   function row(label, value, color) {
     return React.createElement('div', { key: label, style: { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13, lineHeight: 1.4 } },
-      React.createElement('span', { style: { color: '#8da3c0' } }, label),
-      React.createElement('span', { style: { color: color || '#dce8f8', fontWeight: 600, textAlign: 'right' } }, value)
+      React.createElement('span', { style: { color: 'var(--fg-2)' } }, label),
+      React.createElement('span', { style: { color: color || 'var(--fg-1)', fontWeight: 600, textAlign: 'right' } }, value)
     );
   }
 
@@ -67,12 +67,12 @@
     const sensorRows = (robot.sensors && robot.sensors.length)
       ? robot.sensors.map(function (s) {
           return sensorHasCmd(s)
-            ? row(SENSOR_LABEL[s] || s, 'command ready', '#5ce0d8')
-            : row(SENSOR_LABEL[s] || s, 'fitted, no command', '#9fb4d2');
+            ? row(SENSOR_LABEL[s] || s, 'command ready', 'var(--cyan)')
+            : row(SENSOR_LABEL[s] || s, 'fitted, no command', 'var(--fg-2)');
         })
-      : [row('Sensors', 'none fitted', '#f5c451')];
+      : [row('Sensors', 'none fitted', 'var(--warning)')];
     sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'nominal'));
-    const sensors = card('Sensors', sensorRows, '#5ce0d8');
+    const sensors = card('Sensors', sensorRows, 'var(--cyan)');
 
     // Scenario score card. The single pass/fail verdict comes from the report
     // (scenario.run derives aggregate.passed from the scenario's own criteria);
@@ -81,13 +81,13 @@
     const aggPassed = agg ? (agg.passed != null ? agg.passed : (agg.successRate || 0) >= passRate) : false;
     const scoreRows = agg ? [
       row('Scenario', (last.scenario && last.scenario.name) || '-'),
-      row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', (aggPassed ? '#5ce0d8' : '#f5c451')),
+      row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', (aggPassed ? 'var(--cyan)' : 'var(--warning)')),
       row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')),
       row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'),
       row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'),
       row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-')),
-    ] : [row('Validation', 'no runs yet', '#f5c451'), row('Tip', 'Run "Validate across seeds"')];
-    const score = card('Scenario score', scoreRows, '#ffb86b');
+    ] : [row('Validation', 'no runs yet', 'var(--warning)'), row('Tip', 'Run "Validate across seeds"')];
+    const score = card('Scenario score', scoreRows, 'var(--warning)');
 
     // Environment card. Lighting is a 0-100 percentage (same number telemetry
     // shows), not a two-decimal float ("Lighting 92.00" read as broken). The
@@ -99,15 +99,15 @@
       row('Gravity', env.gravity != null ? env.gravity + ' m/s2' : '-'),
       row('Friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'),
       row('Moving agents', (window.KodroAgents && window.KodroAgents.list && window.KodroAgents.world && window.KodroAgents.world() === (terrain.siteId || terrain.id)) ? String(window.KodroAgents.list().length) : '0'),
-    ], '#9fb4d2');
+    ], 'var(--fg-2)');
 
     // Command registry card.
     const okCmds = avail.filter(function (c) { return c.available; });
     const noCmds = avail.filter(function (c) { return !c.available; });
     const cmdRows = [];
-    okCmds.forEach(function (c) { cmdRows.push(row(c.name + '()', 'available', '#5ce0d8')); });
-    noCmds.forEach(function (c) { cmdRows.push(row(c.name + '()', 'needs ' + (c.partLabel || c.requires), '#ff8f7a')); });
-    const registry = card('Command registry', cmdRows.length ? cmdRows : [row('Commands', 'base only')], '#c8a8ff');
+    okCmds.forEach(function (c) { cmdRows.push(row(c.name + '()', 'available', 'var(--cyan)')); });
+    noCmds.forEach(function (c) { cmdRows.push(row(c.name + '()', 'needs ' + (c.partLabel || c.requires), 'var(--danger)')); });
+    const registry = card('Command registry', cmdRows.length ? cmdRows : [row('Commands', 'base only')], 'var(--brass)');
 
     // SI4: fidelity disclosure card. This dashboard's stated purpose is
     // making the simulation's honesty visible, so the three tiers live here:
@@ -119,16 +119,16 @@
         React.createElement('div', { style: { marginBottom: 4 } },
           React.createElement('span', { style: { fontSize: 9, fontWeight: 800, letterSpacing: '0.07em', borderRadius: 4, padding: '2px 6px', background: bg, color: fg } }, label)
         ),
-        React.createElement('ul', { style: { margin: 0, paddingLeft: 16, fontSize: 11.5, lineHeight: 1.5, color: '#9fb4d2' } },
+        React.createElement('ul', { style: { margin: 0, paddingLeft: 16, fontSize: 11.5, lineHeight: 1.5, color: 'var(--fg-2)' } },
           items.map(function (it, i) { return React.createElement('li', { key: i }, it); })
         )
       );
     };
-    const fidelity = FID ? React.createElement('div', { style: { background: '#0f1726', border: '1.5px solid #233248', borderRadius: 14, padding: '14px 16px', gridColumn: '1 / -1' } },
-      React.createElement('div', { style: { fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5ce0d8', marginBottom: 10 } }, 'Fidelity disclosure'),
+    const fidelity = FID ? React.createElement('div', { style: { background: 'var(--navy-2)', border: '1.5px solid var(--border)', borderRadius: 14, padding: '14px 16px', gridColumn: '1 / -1' } },
+      React.createElement('div', { style: { fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--cyan)', marginBottom: 10 } }, 'Fidelity disclosure'),
       React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 } },
-        fidTier('HONOURED', '#5ce0d8', '#06121b', FID.honoured),
-        fidTier('APPROXIMATED', '#f5c451', '#06121b', FID.approximated),
+        fidTier('HONOURED', 'var(--cyan)', 'var(--void)', FID.honoured),
+        fidTier('APPROXIMATED', 'var(--warning)', 'var(--void)', FID.approximated),
         fidTier('NOT SIMULATED', '#c8685a', '#f5f0e4', FID.notSimulated)
       )
     ) : null;
@@ -136,12 +136,12 @@
     return React.createElement('div', { className: 'modal-backdrop', onClick: function () { return props.onClose && props.onClose(); } },
       React.createElement('div', { className: 'modal modal-wide', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Realism dashboard', style: { maxWidth: 860 }, onClick: function (e) { e.stopPropagation(); } },
         React.createElement('div', { className: 'modal-head' },
-          React.createElement('span', { className: 'eyebrow' }, '📊 Realism dashboard. The build drives the simulation'),
+          React.createElement('span', { className: 'eyebrow' }, window.KodroIcons ? window.KodroIcons.el('gauge') : null, 'Realism dashboard. The build drives the simulation'),
           React.createElement('button', { className: 'btn-mini', 'aria-label': 'Close', onClick: function () { return props.onClose && props.onClose(); } }, '✕')
         ),
         React.createElement('div', { style: { padding: 16 } },
-          React.createElement('p', { style: { color: '#8da3c0', fontSize: 13, margin: '0 0 14px' } },
-            'Robot: ', React.createElement('b', { style: { color: '#dce8f8' } }, robot.name || 'My Robot'),
+          React.createElement('p', { style: { color: 'var(--fg-2)', fontSize: 13, margin: '0 0 14px' } },
+            'Robot: ', React.createElement('b', { style: { color: 'var(--fg-1)' } }, robot.name || 'My Robot'),
             ' · type ', robot.type || '-', ' · board ', robot.board || '-'),
           React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 12 } },
             physics, sensors, score, environment, registry, fidelity

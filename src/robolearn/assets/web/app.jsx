@@ -19,6 +19,9 @@
   const LED_COLORS = window.KodroLedColors || {};
 
   // ---------------- icons ----------------
+  // Chrome icons come from the shared procedural sprite (icons.jsx, P7/A2);
+  // the four run-control glyphs below predate it and keep their exact shapes.
+  const KI = (name, cls) => (window.KodroIcons ? window.KodroIcons.el(name, cls) : null);
   const I = {
     play: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>,
     pause: <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>,
@@ -178,6 +181,22 @@
     // Visual theme. 'dark' is the default mission-control look; the rest are
     // full repaints driven by [data-theme] CSS variable swaps in styles.css.
     const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
+    // P7/A1 mode split: 'studio' is the professional validation tool; the
+    // Classroom toggle brings back pupils, lessons, the teacher dashboard,
+    // achievements/confetti and the novelty themes. One product, two registers,
+    // with the maker profile as the default identity.
+    const [mode, setMode] = useState(() => { try { return localStorage.getItem('kodro_mode') || 'studio'; } catch (e) { return 'studio'; } });
+    const classroom = mode === 'classroom';
+    useEffect(() => {
+      try { localStorage.setItem('kodro_mode', mode); } catch (e) { void e; }
+      if (mode !== 'classroom') {
+        // Leaving Classroom: the novelty themes and any loaded lesson are
+        // classroom furniture, so the studio returns to the core theme set
+        // and the plain example tabs (A5).
+        setTheme(t => (t === 'dark' || t === 'light' || t === 'contrast') ? t : 'dark');
+        setCurrentLessonId(null);
+      }
+    }, [mode]);
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     // Toast notifications: transient success/error/info messages pinned to the
@@ -185,10 +204,11 @@
     // the JS only needs to mount the toast and unmount it after the animation.
     const [toasts, setToasts] = useState([]);
     const toastIdRef = useRef(0);
-    function showToast(text, kind) {
+    function showToast(text, kind, action) {
       const id = ++toastIdRef.current;
-      setToasts(function (t) { return t.concat([{ id: id, text: text, kind: kind || 'info' }]); });
-      setTimeout(function () { setToasts(function (t) { return t.filter(function (to) { return to.id !== id; }); }); }, 2400);
+      setToasts(function (t) { return t.concat([{ id: id, text: text, kind: kind || 'info', action: action || null }]); });
+      // A toast carrying an action (e.g. Revert) needs time to be clicked.
+      setTimeout(function () { setToasts(function (t) { return t.filter(function (to) { return to.id !== id; }); }); }, action ? 7000 : 2400);
     }
     // Brief "Loading {world}..." overlay shown while the 3D scene rebuilds on a
     // world switch, so the viewport does not flash empty for a frame.
@@ -211,12 +231,130 @@
       try {
         if (!window.RoboLearn || !window.RoboLearn.isAvailable()) { setBuildErr('The robot builder needs the desktop app with local AI.'); }
         else {
-          const r = await window.RoboLearn.budgetBuild(usd, buildGoal);
+          // A6: an empty goal prices the ACTIVE Robot Lab build, so the
+          // hardware plan and the Lab describe one robot, not two products.
+          const r = await window.RoboLearn.budgetBuild(usd, buildGoal.trim() || specGoalText());
           if (r && r.ok) setBuildPlan(r);
           else setBuildErr((r && r.reason) || 'Could not build a plan.');
         }
       } catch (e) { setBuildErr(String(e)); }
       setBuildBusy(false);
+    }
+    // ---- P7/A7: project file (one .kodro document for the whole state) ----
+    const projectFileRef = useRef(null);
+    async function saveProjectClick() {
+      setSettingsOpen(false);
+      if (!window.KodroProject) return;
+      const doc = window.KodroProject.collect();
+      const json = JSON.stringify(doc, null, 2);
+      const fname = window.KodroProject.fileName(doc);
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.exportProject) {
+        const r = await window.RoboLearn.exportProject(json, fname);
+        showToast(r && r.ok ? 'Project saved: ' + r.path : 'Project save ' + ((r && r.reason) || 'failed'), r && r.ok ? 'ok' : 'err');
+        return;
+      }
+      const blob = new Blob([json], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      showToast('Project downloaded: ' + fname, 'ok');
+    }
+    function applyProjectText(text) {
+      if (!window.KodroProject) return;
+      const r = window.KodroProject.apply(text);
+      if (!r.ok) {
+        addConsole('Project open failed: ' + (r.errors || []).join(' '), 'err');
+        showToast('Not a Kodro project file', 'err');
+        return;
+      }
+      (r.warnings || []).forEach(w => addConsole('Project: ' + w, 'sys'));
+      addConsole('Project loaded. Restarting the studio with the saved state...', 'ok');
+      // The document was written straight into storage; a clean reload is the
+      // honest way to rehydrate every consumer (App, Lab, memory, viewport).
+      setTimeout(() => { try { location.reload(); } catch (e) { void e; } }, 400);
+    }
+    async function openProjectClick() {
+      setSettingsOpen(false);
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.importProject) {
+        try {
+          const r = await window.RoboLearn.importProject();
+          if (r && r.ok) applyProjectText(r.text);
+          else if (r && r.reason && r.reason !== 'cancelled') showToast('Project open: ' + r.reason, 'err');
+        } catch (e) { showToast('Project open failed: ' + e, 'err'); }
+        return;
+      }
+      if (projectFileRef.current) projectFileRef.current.click();
+    }
+    function onProjectFilePicked(e) {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      if (f.size > 2 * 1024 * 1024) { showToast('Project file is larger than 2 MB', 'err'); return; }
+      const rd = new FileReader();
+      rd.onload = () => applyProjectText(String(rd.result));
+      rd.readAsText(f);
+    }
+
+    // ---- P7/A8: run reports (structured per-run artefact + history) ----
+    const [runsOpen, setRunsOpen] = useState(false);
+    const [runsTick, setRunsTick] = useState(0);
+    const [cmpSel, setCmpSel] = useState([]);   // up to two run ids to compare
+    useEffect(() => {
+      const on = () => setRunsTick(n => (n + 1) & 1023);
+      window.addEventListener('kodro-runreport', on);
+      return () => window.removeEventListener('kodro-runreport', on);
+    }, []);
+    function recordRunReport(outcome, detail, verdictText) {
+      if (!window.KodroRunReports) return;
+      const rb = window.getKodroRobot ? window.getKodroRobot() : {};
+      let predicted = '';
+      try {
+        if (window.KodroDiagnostics) predicted = window.KodroDiagnostics.assess(robotSpec, rb, terrain).overall || '';
+      } catch (e) { void e; }
+      window.KodroRunReports.save({
+        world: terrain.siteId || terrain.id,
+        worldName: terrain.name || '',
+        robotName: (robotSpec && robotSpec.name) || (rb && rb.name) || '',
+        robotType: (robotSpec && robotSpec.type) || (rb && rb.type) || '',
+        massFactor: (rb && rb.massFactor) || 1,
+        speedFactor: (rb && rb.speedFactor) || 1,
+        outcome: outcome,
+        detail: detail || '',
+        commands: cmdCountRef.current,
+        distanceCm: odoRef.current,
+        batteryUsedPct: 100 - live.current.battery,
+        minProximityCm: isFinite(minProxRef.current) ? minProxRef.current : null,
+        wallMs: runStartRef.current ? (Date.now() - runStartRef.current) : null,
+        predicted: predicted,
+        verdict: verdictText || '',
+      });
+    }
+
+    // A6: merge of the two build features. The Build-real planner opens
+    // seeded with the current spec, and a generated plan's parts can be
+    // fitted straight back into the Robot Lab catalogue.
+    function specGoalText() {
+      const rb = window.getKodroRobot ? window.getKodroRobot() : null;
+      if (!rb) return '';
+      const parts = [].concat(rb.sensors || [], rb.actuators || []).join(', ');
+      return 'a ' + (rb.type || 'rover') + ' like my build "' + (rb.name || 'My Robot') + '"' + (parts ? ' with ' + parts : '');
+    }
+    function openBuildReal() {
+      setRobotLabOpen(false);
+      if (!buildGoal.trim()) setBuildGoal(specGoalText());
+      setBuildOpen(true);
+    }
+    function adoptPlanParts(plan) {
+      if (!plan || !plan.parts || !window.RobotLab || !window.RobotLab.buildFromText) return;
+      // The plan's part names route through the same catalogue mapper the
+      // onboarding agent uses, so only real, buildable parts get fitted.
+      const text = plan.parts.map(function (p) { return p.name + ' ' + (p.role || ''); }).join('; ');
+      const r = window.RobotLab.buildFromText(text);
+      setBuildOpen(false);
+      showToast('Plan parts fitted: ' + ((r && r.spec && r.spec.name) || 'build updated'), 'ok');
+      setRobotLabOpen(true);
     }
     // Click-away + Escape close the settings popover; focus moves into the
     // popover on open and is restored to the gear button on close, so a keyboard
@@ -462,13 +600,34 @@
     }
 
     // Typewriter: animate code into the active editor buffer like live typing.
+    // P7/A9: every programmatic write (AI apply, review apply, blocks insert,
+    // skill insert) snapshots the buffer it is about to overwrite and offers a
+    // one-click Revert toast, so applying a rewrite is never a destructive act.
     const typeRef = useRef(null);
+    const undoRef = useRef(null); // { lessonId, tab, code } - the pre-apply buffer
+    function snapshotForUndo(lessonId, tab) {
+      const prior = lessonId
+        ? (lessonBuffers[lessonId] !== undefined ? lessonBuffers[lessonId] : '')
+        : (programs[tab] !== undefined ? programs[tab] : '');
+      undoRef.current = { lessonId: lessonId || null, tab: tab, code: prior };
+      showToast('Editor updated', 'info', { label: 'Revert', onClick: revertLastApply });
+    }
+    function revertLastApply() {
+      const u = undoRef.current;
+      if (!u) return;
+      undoRef.current = null;
+      if (typeRef.current) { clearInterval(typeRef.current); typeRef.current = null; }
+      if (u.lessonId) setLessonBuffers(b => ({ ...b, [u.lessonId]: u.code }));
+      else setPrograms(p => ({ ...p, [u.tab]: u.code }));
+      addConsole('Reverted the last applied code. Your previous program is back.', 'sys');
+    }
     function typewriteCode(codeText) {
       if (typeRef.current) { clearInterval(typeRef.current); typeRef.current = null; }
       const lessonId = currentLessonIdRef.current;
       // Snapshot the target tab at invocation (like lessonId) so a tab switch
       // mid-animation cannot redirect the remaining typed code to another buffer.
       const tab = activeTab;
+      snapshotForUndo(lessonId, tab);
       const setCode = (v) => {
         if (lessonId) setLessonBuffers(b => ({ ...b, [lessonId]: v }));
         else setPrograms(p => ({ ...p, [tab]: v }));
@@ -481,6 +640,15 @@
         setCode(codeText.slice(0, i));
         if (i >= codeText.length) { clearInterval(typeRef.current); typeRef.current = null; }
       }, 12);
+    }
+    // Skill insert (Memory panel) writes the editor through the same
+    // snapshot-then-apply path, so it is revertable like every other apply.
+    function applyProgramText(codeText) {
+      const lessonId = currentLessonIdRef.current;
+      const tab = activeTab;
+      snapshotForUndo(lessonId, tab);
+      if (lessonId) setLessonBuffers(b => ({ ...b, [lessonId]: codeText }));
+      else setPrograms(p => ({ ...p, [tab]: codeText }));
     }
 
     // If the app ever unmounts, clear the typewriter interval and the say-bubble
@@ -548,14 +716,16 @@
         if (r.ok === false) { setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') }]); return; }
         // Persist the verdict in a panel that survives Reset (QA #3).
         setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null });
-        if (r.passed) { sfx('pass'); celebrate(); } else { sfx('fail'); }
+        // Confetti is a classroom register; the studio celebrates with the
+        // verdict chip and the pass tone only (A1).
+        if (r.passed) { sfx('pass'); if (classroom) celebrate(); } else { sfx('fail'); }
         const tag = r.passed ? 'ok' : 'err';
         setConsoleLines(l => {
           const lines = [...l, { type: tag, text: (r.passed ? '✓ PASS' : '✗ NOT YET') + '  Score: ' + r.score + '/100' }];
           if (!r.passed && Array.isArray(r.reasons)) r.reasons.forEach(reason => lines.push({ type: 'err', text: '  · ' + reason }));
-          if (r.hint && r.hint.message) lines.push({ type: 'sys', text: '💡 Hint: ' + r.hint.message });
-          if (Array.isArray(r.achievements)) r.achievements.forEach(a => lines.push({ type: 'ok', text: (a.icon || '🏅') + ' Achievement unlocked: ' + a.title }));
-          if (r.recommended && r.recommended.id) lines.push({ type: 'sys', text: '👉 Recommended next: ' + r.recommended.id + ' · ' + r.recommended.title });
+          if (r.hint && r.hint.message) lines.push({ type: 'sys', text: 'Hint: ' + r.hint.message });
+          if (Array.isArray(r.achievements)) r.achievements.forEach(a => lines.push({ type: 'ok', text: 'Achievement unlocked: ' + a.title }));
+          if (r.recommended && r.recommended.id) lines.push({ type: 'sys', text: 'Recommended next: ' + r.recommended.id + ' · ' + r.recommended.title });
           return lines;
         });
       } catch (err) {
@@ -809,10 +979,12 @@
         if (refl) addConsole('Reflection saved: ' + refl, 'sys');
       }
       // Coach: tie the outcome back to the design and recommend a fix.
+      let crashVerdict = '';
       if (window.KodroDiagnostics) {
         const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotBuild || {}, terrain), { outcome: 'crash', detail: what });
-        if (v) addConsole(v.text, v.tone);
+        if (v) { addConsole(v.text, v.tone); crashVerdict = v.text; }
       }
+      recordRunReport('crash', what, crashVerdict);
       haltProgram('error');
     }
 
@@ -856,10 +1028,12 @@
             const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'stalled', detail: 'underpowered drive', ts: Date.now() });
             if (refl) addConsole('Reflection saved: ' + refl, 'sys');
           }
+          let stallVerdict = '';
           if (window.KodroDiagnostics) {
             const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), { outcome: 'stalled' });
-            if (v) addConsole(v.text, v.tone);
+            if (v) { addConsole(v.text, v.tone); stallVerdict = v.text; }
           }
+          recordRunReport('stalled', 'underpowered drive', stallVerdict);
           haltProgram('error');
           return false;
         }
@@ -986,10 +1160,12 @@
           const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'flat', detail: 'battery', ts: Date.now() });
           if (refl) addConsole('Reflection saved: ' + refl, 'sys');
         }
+        let flatVerdict = '';
         if (window.KodroDiagnostics) {
           const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), { outcome: 'flat' });
-          if (v) addConsole(v.text, v.tone);
+          if (v) { addConsole(v.text, v.tone); flatVerdict = v.text; }
         }
+        recordRunReport('flat', 'battery', flatVerdict);
         haltProgram('error');
         return false;
       }
@@ -1197,6 +1373,9 @@
       const line = e && e.line;
       if (line) setActiveLine(line);
       addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
+      // A8: an error mid-mission is a run result; a compile-time typo that
+      // executed nothing is not.
+      if (cmdCountRef.current > 0) recordRunReport('error', msg, '');
       haltProgram('error');
     }
     function finishProgram() {
@@ -1227,6 +1406,7 @@
       // verdict reads the run's OWN stats (distance covered, closest approach,
       // commands executed) so it describes what actually happened, not just
       // the pre-run prediction (bugs D5).
+      let doneVerdict = '';
       if (window.KodroDiagnostics) {
         const robotNow = window.getKodroRobot ? window.getKodroRobot() : {};
         const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotNow, terrain), {
@@ -1235,8 +1415,10 @@
           distanceCm: Math.round(odoRef.current),
           minProximityCm: isFinite(minProxRef.current) ? Math.round(minProxRef.current) : null,
         });
-        if (v) addConsole(v.text, v.tone);
+        if (v) { addConsole(v.text, v.tone); doneVerdict = v.text; }
       }
+      // P7/A8: every completed run leaves a durable, structured report.
+      recordRunReport('done', '', doneVerdict);
       // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
       gradeWithBridge(code);
     }
@@ -1464,7 +1646,7 @@
     }, [terrainId]);
 
     // ---------- layout resizers ----------
-    const { editorW, teleW, consoleH, startDrag, nudge } = (window.KodroHooks && window.KodroHooks.useResizers) ? window.KodroHooks.useResizers() : { editorW: 404, teleW: 318, consoleH: 184, startDrag: function () {}, nudge: function () {} };
+    const { editorW, teleW, consoleH, startDrag, nudge, preset: layoutPreset } = (window.KodroHooks && window.KodroHooks.useResizers) ? window.KodroHooks.useResizers() : { editorW: 404, teleW: 318, consoleH: 184, startDrag: function () {}, nudge: function () {}, preset: function () {} };
 
     // interactive camera: drag the viewport to orbit (yaw + pitch), wheel to zoom
     function camDrag(e) {
@@ -1499,6 +1681,7 @@
     const onStepRef = useRef(onStep); onStepRef.current = onStep;
     const onResetRef = useRef(onReset); onResetRef.current = onReset;
     const onTerrainRef = useRef(onTerrain); onTerrainRef.current = onTerrain;
+    const saveProjectRef = useRef(saveProjectClick); saveProjectRef.current = saveProjectClick;
     const showHelpRef = useRef(showHelp); showHelpRef.current = showHelp;
     // "Any overlay open" drives Escape priority: close overlays before resetting
     // the rover. Includes the settings popover (its own Escape handler also
@@ -1542,6 +1725,8 @@
             if (id) { e.preventDefault(); onTerrainRef.current(id); }
             return;
           }
+          // Ctrl+S: save the project document (Ctrl+Shift+S is Step).
+          if (!e.shiftKey && !e.altKey && (e.key === 'S' || e.key === 's')) { e.preventDefault(); saveProjectRef.current(); return; }
           // Ctrl+B: toggle the block coding panel.
           if (!e.shiftKey && !e.altKey && (e.key === 'B' || e.key === 'b')) { e.preventDefault(); setBlocksOpen(function (o) { return !o; }); return; }
           // Ctrl+L: toggle Robot Lab.
@@ -1642,15 +1827,26 @@
               <span className="rc-meta">{chipType || ''}{chipType && chipMass ? ' · ' : ''}{chipMass ? chipMass + ' g' : ''}</span>
             )}
           </button>
-          <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab — design a custom robot" onClick={() => setRobotLabOpen(true)}>🛠<span className="icon-btn-label">Robot Lab</span></button>
-          <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills — what the system learned, and your skill library" onClick={() => setMemoryOpen(true)}>🧠<span className="icon-btn-label">Memory</span></button>
-          <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot — design one on a budget" onClick={() => setBuildOpen(true)}>🤖<span className="icon-btn-label">Build</span></button>
+          <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab — design a custom robot" onClick={() => setRobotLabOpen(true)}>{KI('lab')}<span className="icon-btn-label">Robot Lab</span></button>
+          <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills — what the system learned, and your skill library" onClick={() => setMemoryOpen(true)}>{KI('memory')}<span className="icon-btn-label">Memory</span></button>
+          <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot — design one on a budget" onClick={openBuildReal}>{KI('build')}<span className="icon-btn-label">Build</span></button>
           <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts — press question mark to see all shortcuts" onClick={() => setShowHelp(true)}>?<span className="icon-btn-label">Help</span></button>
+          <input ref={projectFileRef} type="file" accept=".kodro,.json,application/json" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} onChange={onProjectFilePicked} />
           <div className="settings-wrap">
-            <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings — theme, sound, readable text, and teacher tools" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>⚙<span className="icon-btn-label">Settings</span></button>
+            <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings — theme, sound, readable text, and teacher tools" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>{KI('gear')}<span className="icon-btn-label">Settings</span></button>
             {settingsOpen && (
               <div className="settings-pop" role="dialog" aria-label="Settings">
-                {pupils.length > 0 && (
+                {/* P7/A1: the Studio/Classroom split. Studio (default) is the
+                    professional tool; Classroom brings back pupils, lessons,
+                    the teacher dashboard and the novelty themes. */}
+                <label className="set-row">
+                  <span>Mode</span>
+                  <select className="lesson-select" value={mode} onChange={e => setMode(e.target.value)} aria-label="Studio or Classroom mode">
+                    <option value="studio">Studio</option>
+                    <option value="classroom">Classroom</option>
+                  </select>
+                </label>
+                {classroom && pupils.length > 0 && (
                   <label className="set-row">
                     <span>Pupil</span>
                     <select className="lesson-select" value={activePupilId || ''} onChange={onPupilChange} aria-label="Active pupil">
@@ -1665,13 +1861,13 @@
                     <option value="dark">Mission (dark)</option>
                     <option value="light">Daylight (light)</option>
                     <option value="contrast">High contrast (colour-blind safe)</option>
-                    <option value="matrix">Matrix</option>
-                    <option value="pixel">Pixel</option>
-                    <option value="game">Arcade</option>
-                    <option value="lego">Brick</option>
-                    <option value="chatgpt">Clean</option>
-                    <option value="abstract">Abstract</option>
-                    <option value="wiki">Wiki / Network</option>
+                    {classroom && <option value="matrix">Matrix</option>}
+                    {classroom && <option value="pixel">Pixel</option>}
+                    {classroom && <option value="game">Arcade</option>}
+                    {classroom && <option value="lego">Brick</option>}
+                    {classroom && <option value="chatgpt">Clean</option>}
+                    {classroom && <option value="abstract">Abstract</option>}
+                    {classroom && <option value="wiki">Wiki / Network</option>}
                   </select>
                 </label>
                 <button className="set-row set-btn" aria-pressed={!muted} onClick={toggleSound}>
@@ -1680,15 +1876,35 @@
                 <button className="set-row set-btn" aria-pressed={readable} onClick={() => setReadable(v => !v)}>
                   <span>Readable text</span><span className="set-val">{readable ? 'On' : 'Off'}</span>
                 </button>
+                {/* P7/A10: layout presets beside the persisted drag sizes. */}
+                <button className="set-row set-btn" onClick={() => layoutPreset('viewport')}>
+                  <span>Layout · Maximize viewport</span><span className="set-val">→</span>
+                </button>
+                <button className="set-row set-btn" onClick={() => layoutPreset('editor')}>
+                  <span>Layout · Focus editor</span><span className="set-val">→</span>
+                </button>
+                <button className="set-row set-btn" onClick={() => layoutPreset('reset')}>
+                  <span>Layout · Reset</span><span className="set-val">→</span>
+                </button>
+                <button className="set-row set-btn" onClick={saveProjectClick}>
+                  <span>Project · Save (.kodro)</span><span className="set-val">&rarr;</span>
+                </button>
+                <button className="set-row set-btn" onClick={openProjectClick}>
+                  <span>Project · Open…</span><span className="set-val">&rarr;</span>
+                </button>
                 <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); pickPhotoClick(); }}>
                   <span>Photo prop · place("photo")</span><span className="set-val">{photoUrl ? 'Loaded' : 'Pick…'}</span>
                 </button>
-                <button className="set-row set-btn" onClick={openTeacher}>
-                  <span>Teacher dashboard</span><span className="set-val">→</span>
-                </button>
-                <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); exportReportClick(); }}>
-                  <span>Export progress report</span><span className="set-val">→</span>
-                </button>
+                {classroom && (
+                  <button className="set-row set-btn" onClick={openTeacher}>
+                    <span>Teacher dashboard</span><span className="set-val">→</span>
+                  </button>
+                )}
+                {classroom && (
+                  <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); exportReportClick(); }}>
+                    <span>Export progress report</span><span className="set-val">→</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -1705,7 +1921,7 @@
                     <button key={k} type="button" className={'tab' + (!currentLessonId && activeTab === k ? ' active' : '')} aria-pressed={!currentLessonId && activeTab === k} onClick={() => { setCurrentLessonId(null); setActiveTab(k); }}>{EXAMPLES[k].label}</button>
                   ))}
                 </div>
-                {lessons.length > 0 && (
+                {classroom && lessons.length > 0 && (
                   <div className="lesson-picker">
                     <label htmlFor="lesson-select" className="eyebrow">Lesson</label>
                     <select
@@ -1722,14 +1938,14 @@
                   </div>
                 )}
                 <div className="panel-actions">
-                  <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>✨ Vibe</button>
-                  <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>🧩 Blocks</button>
-                  <button className="btn-mini" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)'} onClick={runReview}>🔎 Review</button>
-                  <button className="btn-mini" title="Validate this program across 5 randomised seeds" onClick={runValidation}>🎯 Validate</button>
-                  <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>📊 Realism</button>
-                  <button className="btn-mini" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}>▶ Demo</button>
-                  <button className="btn-mini" title={aiInfo.available ? 'Ask a question, answered from the lesson material' : 'Ask a question, answered from the lesson material (needs local Ollama)'} onClick={() => { setAskOpen(true); setAskData(null); }}>❓ Ask</button>
-                  <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>🐝 Swarm</button>
+                  <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>{KI('vibe')}Vibe</button>
+                  <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>{KI('blocks')}Blocks</button>
+                  <button className="btn-mini" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)'} onClick={runReview}>{KI('review')}Review</button>
+                  <button className="btn-mini" title="Validate this program across 5 randomised seeds" onClick={runValidation}>{KI('target')}Validate</button>
+                  <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>{KI('gauge')}Realism</button>
+                  <button className="btn-mini" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}>{KI('demo')}Demo</button>
+                  <button className="btn-mini" title={aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs local Ollama)'} onClick={() => { setAskOpen(true); setAskData(null); }}>{KI('ask')}Ask</button>
+                  <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>{KI('swarm')}Swarm</button>
                 </div>
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
@@ -1769,6 +1985,7 @@
                 );
               })()}
               {(() => {
+                if (!classroom) return null;  // lessons are classroom furniture (A1)
                 const lesson = lessons.find(l => l.id === currentLessonId);
                 if (!lesson) return null;
                 return (
@@ -1799,7 +2016,7 @@
                       </ul>
                     )}
                     {lessonVerdict && lessonVerdict.hint && lessonVerdict.hint.message && (
-                      <p className="lesson-hint">💡 {lessonVerdict.hint.message}</p>
+                      <p className="lesson-hint">{KI('bulb')} {lessonVerdict.hint.message}</p>
                     )}
                   </section>
                 );
@@ -1810,19 +2027,70 @@
             </div>
             <div className="console" style={{ height: consoleH, flex: 'none' }}>
               <div className="console-head">
-                <span className="eyebrow">Console</span>
+                <span className="eyebrow">{runsOpen ? 'Run reports' : 'Console'}</span>
                 <div className="ph-spacer" style={{ flex: 1 }}></div>
-                <button className="btn-mini" onClick={() => setConsoleLines([{ type: 'sys', text: 'Console cleared.' }])}>Clear</button>
+                <button className={'btn-mini' + (runsOpen ? ' active' : '')} title="Run reports. A structured record of every run; tick two to compare builds" aria-pressed={runsOpen} onClick={() => setRunsOpen(o => !o)}>Runs</button>
+                {!runsOpen && <button className="btn-mini" onClick={() => setConsoleLines([{ type: 'sys', text: 'Console cleared.' }])}>Clear</button>}
               </div>
-              <div className="console-out" ref={consoleEndRef} role="log" aria-live="polite" aria-label="Program output and lesson feedback">
+              {runsOpen && (() => {
+                // P7/A8: the docked run-report panel. Reads the store fresh on
+                // every kodro-runreport tick; two ticked runs render a
+                // side-by-side numeric compare.
+                void runsTick;
+                const runs = window.KodroRunReports ? window.KodroRunReports.list() : [];
+                const sel = cmpSel.map(id => runs.find(r => r.id === id)).filter(Boolean);
+                const toggleSel = (id) => setCmpSel(cs => cs.indexOf(id) >= 0 ? cs.filter(x => x !== id) : (cs.length >= 2 ? [cs[1], id] : cs.concat([id])));
+                const fmtTime = (ts) => { try { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); } catch (e) { return ''; } };
+                return (
+                  <div className="runs-panel" role="region" aria-label="Run reports">
+                    {sel.length === 2 && window.KodroRunReports && (
+                      <table className="runs-diff">
+                        <thead>
+                          <tr><th></th><th>{sel[0].robotName || 'A'} · {fmtTime(sel[0].ts)}</th><th>{sel[1].robotName || 'B'} · {fmtTime(sel[1].ts)}</th><th>delta</th></tr>
+                        </thead>
+                        <tbody>
+                          {window.KodroRunReports.diff(sel[0], sel[1]).map((d, i) => (
+                            <tr key={i}><td>{d.label}</td><td className="num">{d.a}</td><td className="num">{d.b}</td><td className="num">{d.delta != null ? (d.delta > 0 ? '+' : '') + d.delta : '-'}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    {runs.length === 0
+                      ? <p className="vibe-status" style={{ padding: '10px 12px' }}>No runs recorded yet. Press Run; every finished, crashed, stalled or flat-battery run leaves a report here.</p>
+                      : (
+                        <ul className="runs-list">
+                          {runs.map(r => (
+                            <li key={r.id} className={'run-entry run-' + r.outcome} data-run-entry={r.outcome}>
+                              <input type="checkbox" checked={cmpSel.indexOf(r.id) >= 0} onChange={() => toggleSel(r.id)} aria-label={'Select the ' + (r.robotName || 'robot') + ' run for compare'} />
+                              <span className={'run-outcome ro-' + r.outcome}>{(r.outcome || '?').toUpperCase()}</span>
+                              <span className="run-main">{r.robotName || 'Robot'} · {r.worldName || r.world}{r.detail ? ' · ' + r.detail : ''}</span>
+                              <span className="run-stats num">
+                                {r.distanceCm != null ? (r.distanceCm / 100).toFixed(1) + ' m' : '-'}
+                                {r.batteryUsedPct != null ? ' · ' + r.batteryUsedPct + '% batt' : ''}
+                                {r.minProximityCm != null && r.minProximityCm < 600 ? ' · ' + r.minProximityCm + ' cm closest' : ''}
+                              </span>
+                              <span className="run-pred" title="The design check's prediction before the run">{r.predicted ? 'predicted: ' + r.predicted : ''}</span>
+                              <span className="run-time num">{fmtTime(r.ts)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    <div className="runs-foot">
+                      <span className="vibe-hint" style={{ flex: 1 }}>Tick two runs to compare builds side by side.</span>
+                      <button className="btn-mini" onClick={() => { if (window.KodroRunReports) window.KodroRunReports.clear(); setCmpSel([]); }}>Clear history</button>
+                    </div>
+                  </div>
+                );
+              })()}
+              {!runsOpen && <div className="console-out" ref={consoleEndRef} role="log" aria-live="polite" aria-label="Program output and lesson feedback">
                 {consoleLines.map((l, i) => (
                   <div key={i} className={'cline ' + (l.type === 'err' ? 'err' : l.type === 'ok' ? 'ok' : l.type === 'sys' ? 'sys' : '')}>
                     {l.ts ? <span className="ts">{l.ts}</span> : null}
                     {l.text}
                   </div>
                 ))}
-              </div>
-              <div className="repl-row">
+              </div>}
+              {!runsOpen && <div className="repl-row">
                 <span className="repl-prompt" aria-hidden="true">&gt;&gt;&gt;</span>
                 <input
                   className="repl-input"
@@ -1838,7 +2106,7 @@
                     else if (e.key === 'Escape') { e.target.blur(); }
                   }}
                 />
-              </div>
+              </div>}
             </div>
           </div>
 
@@ -1861,8 +2129,8 @@
                   aria-label="Real-world mission site"
                   title="Drop the rover at a real place. Real gravity, traction and light"
                 >
-                  <option value="" disabled>🌍 Mission site…</option>
-                  {[['earth', '🌍 Earth'], ['underwater', '🌊 Underwater'], ['mars', '🔴 Mars'], ['space', '🌑 Space'], ['room', '🔬 Test bays']].map(([base, label]) => {
+                  <option value="" disabled>Mission site…</option>
+                  {[['earth', 'Earth'], ['underwater', 'Underwater'], ['mars', 'Mars'], ['space', 'Space'], ['room', 'Test bays']].map(([base, label]) => {
                     const ids = Object.keys(window.SITES).filter(id => window.SITES[id].base === base);
                     return ids.length === 0 ? null : (
                       <optgroup key={base} label={label}>
@@ -1876,7 +2144,7 @@
                 <button type="button" className={'terrain-btn' + (view3d ? ' active' : '')} aria-pressed={view3d} title="Real 3D view" onClick={() => { setView3d(true); setFocus3dKey(k => k + 1); }}>3D</button>
                 <button type="button" className={'terrain-btn' + (!view3d ? ' active' : '')} aria-pressed={!view3d} title="Flat 2.5D view" onClick={() => setView3d(false)}>2.5D</button>
                 {view3d && (
-                  <button type="button" className="terrain-btn" aria-pressed={fpv} title="Switch between orbit and first person" onClick={() => setFpv(f => !f)}>{fpv ? '👁 First person' : '🛰 Orbit'}</button>
+                  <button type="button" className="terrain-btn" aria-pressed={fpv} title="Switch between orbit and first person" onClick={() => setFpv(f => !f)}>{fpv ? KI('eye') : KI('orbit')}{fpv ? 'First person' : 'Orbit'}</button>
                 )}
                 {view3d && (
                   <select className="terrain-btn" value={quality} title="Render quality (Low keeps a basic laptop smooth, Cinematic maxes a screenshot)" aria-label="Render quality" style={{ cursor: 'pointer' }}
@@ -1955,10 +2223,10 @@
         {teacherOpen && <window.KodroPanels.TeacherModal onClose={() => setTeacherOpen(false)} teacherData={teacherData} />}
 
         {robotLabOpen && RobotLab && (
-          <RobotLab onClose={() => setRobotLabOpen(false)} />
+          <RobotLab onClose={() => setRobotLabOpen(false)} onBuildReal={openBuildReal} />
         )}
 
-        {memoryOpen && <window.KodroPanels.MemoryModal setMemoryOpen={setMemoryOpen} memTick={memTick} code={code} terrain={terrain} robotSpec={robotSpec} currentLessonId={currentLessonId} setLessonBuffers={setLessonBuffers} setPrograms={setPrograms} activeTab={activeTab} />}
+        {memoryOpen && <window.KodroPanels.MemoryModal setMemoryOpen={setMemoryOpen} memTick={memTick} code={code} terrain={terrain} robotSpec={robotSpec} currentLessonId={currentLessonId} setLessonBuffers={setLessonBuffers} setPrograms={setPrograms} activeTab={activeTab} applyCode={applyProgramText} />}
 
         {reviewOpen && <window.KodroPanels.ReviewModal reviewBusy={reviewBusy} setReviewOpen={setReviewOpen} reviewErr={reviewErr} reviewData={reviewData} applyReview={applyReview} />}
 
@@ -1970,12 +2238,25 @@
 
         {showHelp && <window.KodroPanels.HelpModal onClose={() => setShowHelp(false)} />}
 
-        {buildOpen && <window.KodroPanels.BuildModal onClose={() => setBuildOpen(false)} buildBudget={buildBudget} setBuildBudget={setBuildBudget} buildGoal={buildGoal} setBuildGoal={setBuildGoal} buildBusy={buildBusy} runBuild={runBuild} buildErr={buildErr} buildPlan={buildPlan} />}
+        {buildOpen && <window.KodroPanels.BuildModal onClose={() => setBuildOpen(false)} buildBudget={buildBudget} setBuildBudget={setBuildBudget} buildGoal={buildGoal} setBuildGoal={setBuildGoal} buildBusy={buildBusy} runBuild={runBuild} buildErr={buildErr} buildPlan={buildPlan} robotSpec={robotSpec} onAdoptParts={adoptPlanParts} />}
 
         {/* Toast notifications: success / error / info, bottom-right. */}
         <div className="toast-stack" role="status" aria-live="polite" aria-atomic="false">
           {toasts.map(function (t) {
-            return <div key={t.id} className={'toast toast-' + t.kind}>{t.text}</div>;
+            return (
+              <div key={t.id} className={'toast toast-' + t.kind}>
+                {t.text}
+                {t.action && (
+                  <button
+                    className="btn-mini toast-action"
+                    onClick={function () {
+                      try { t.action.onClick(); } catch (e) { void e; }
+                      setToasts(function (ts) { return ts.filter(function (to) { return to.id !== t.id; }); });
+                    }}
+                  >{t.action.label}</button>
+                )}
+              </div>
+            );
           })}
         </div>
 

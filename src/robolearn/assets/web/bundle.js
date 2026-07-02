@@ -796,6 +796,768 @@
 })();
 
 ;(function () {
+/* Kodro project file - the document model (PERFECTION_PLAN P7/A7).
+ *
+ * One JSON document (.kodro) that captures the whole working state the studio
+ * scatters across localStorage keys: the robot spec, every program buffer,
+ * the active world/tab, the render presets, the self-refinement memory, the
+ * scenario validation history and the run reports. Save it, wipe the machine,
+ * open it, and the studio is back where it was - the professional-app promise
+ * a pile of unversioned localStorage keys cannot make.
+ *
+ * Plain JS (no React, no JSX) so the QA harness can exercise the round trip
+ * in a bare VM with a localStorage shim. Exposes window.KodroProject:
+ *
+ *   collect()        -> document object (KPF v1) from the live storage
+ *   serialize()      -> pretty JSON string of collect()
+ *   validate(text)   -> { ok, doc, errors[], warnings[] }  (never throws)
+ *   apply(docOrText) -> { ok, warnings[] }  writes storage; caller reloads
+ *   fileName(doc)    -> suggested "<name>.kodro" file name
+ *
+ * Validation mirrors the KRS importer's defensiveness: unknown keys dropped,
+ * wrong-typed fields dropped with a named warning, oversize payloads rejected.
+ */
+(function () {
+  'use strict';
+
+  var VERSION = 1;
+  var MAX_TEXT = 2 * 1024 * 1024; // an entire project over 2 MB is not ours
+  var MAX_PROGRAM = 100 * 1024; // one program buffer over 100 KB is junk
+  var MAX_LIST = 60; // reflections / skills / reports cap
+
+  // The storage keys this document owns (single source for collect/apply).
+  var KEYS = {
+    world: 'or_terrain',
+    tab: 'or_tab',
+    programs: 'or_programs',
+    spec: 'kodro_robot_v2',
+    specV1: 'kodro_robot_v1',
+    tod: 'kodro_tod',
+    weather: 'kodro_weather',
+    quality: 'kodro_quality',
+    view3d: 'or_view3d',
+    mode: 'kodro_mode',
+    theme: 'or_theme',
+    reflections: 'kodro_reflections_v1',
+    skills: 'kodro_skills_v1',
+    scenarios: 'kodro_scenarios_v1',
+    runReports: 'kodro_run_reports_v1'
+  };
+  function store() {
+    // Injectable for the VM round-trip test; the browser uses localStorage.
+    return window.KODRO_PROJECT_STORE || window.localStorage;
+  }
+  function readJson(key, fallback) {
+    try {
+      var raw = store().getItem(key);
+      if (raw == null) return fallback;
+      return JSON.parse(raw);
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function readStr(key, fallback) {
+    try {
+      var raw = store().getItem(key);
+      return raw == null ? fallback : String(raw);
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function write(key, value) {
+    try {
+      store().setItem(key, value);
+    } catch (e) {
+      void e;
+    }
+  }
+  function collect() {
+    // The raw saved spec (v2 preferred, v1 fallback) - NOT the derived block;
+    // derivation is recomputed on open so a document can never smuggle stale
+    // physics past the validator.
+    var spec = readJson(KEYS.spec, null) || readJson(KEYS.specV1, null);
+    return {
+      kodroProject: VERSION,
+      savedAt: Date.now(),
+      world: readStr(KEYS.world, 'earth'),
+      tab: readStr(KEYS.tab, 'drive'),
+      tod: readStr(KEYS.tod, 'noon'),
+      weather: readStr(KEYS.weather, 'clear'),
+      quality: readStr(KEYS.quality, 'high'),
+      view3d: readStr(KEYS.view3d, '1'),
+      mode: readStr(KEYS.mode, 'studio'),
+      theme: readStr(KEYS.theme, 'dark'),
+      spec: spec,
+      programs: readJson(KEYS.programs, {}) || {},
+      memory: {
+        reflections: readJson(KEYS.reflections, []) || [],
+        skills: readJson(KEYS.skills, []) || []
+      },
+      scenarioReports: readJson(KEYS.scenarios, []) || [],
+      runReports: readJson(KEYS.runReports, []) || []
+    };
+  }
+  function serialize() {
+    return JSON.stringify(collect(), null, 2);
+  }
+  function fileName(doc) {
+    var name = doc && doc.spec && doc.spec.name || 'kodro-project';
+    var slug = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'kodro-project';
+    return slug + '.kodro';
+  }
+  function isPlainObject(v) {
+    return !!v && typeof v === 'object' && !Array.isArray(v);
+  }
+  function cleanList(list, warnings, label) {
+    if (!Array.isArray(list)) {
+      if (list !== undefined) warnings.push(label + ' is not a list; dropped.');
+      return [];
+    }
+    var out = list.filter(isPlainObject).slice(0, MAX_LIST);
+    if (out.length !== list.length) warnings.push(label + ': ' + (list.length - out.length) + ' malformed or overflow entries dropped.');
+    return out;
+  }
+  function validate(text) {
+    var errors = [];
+    var warnings = [];
+    if (typeof text !== 'string' || !text.trim()) {
+      return {
+        ok: false,
+        doc: null,
+        errors: ['Empty project file.'],
+        warnings: warnings
+      };
+    }
+    if (text.length > MAX_TEXT) {
+      return {
+        ok: false,
+        doc: null,
+        errors: ['Project file is larger than 2 MB.'],
+        warnings: warnings
+      };
+    }
+    var raw;
+    try {
+      raw = JSON.parse(text);
+    } catch (e) {
+      return {
+        ok: false,
+        doc: null,
+        errors: ['Not valid JSON: ' + (e && e.message ? e.message : e)],
+        warnings: warnings
+      };
+    }
+    if (!isPlainObject(raw)) {
+      return {
+        ok: false,
+        doc: null,
+        errors: ['Project file must be a JSON object.'],
+        warnings: warnings
+      };
+    }
+    if (raw.kodroProject !== VERSION) {
+      return {
+        ok: false,
+        doc: null,
+        errors: ['Not a Kodro project file (missing "kodroProject": 1).'],
+        warnings: warnings
+      };
+    }
+    var doc = {
+      kodroProject: VERSION,
+      savedAt: typeof raw.savedAt === 'number' ? raw.savedAt : 0
+    };
+
+    // Simple string fields: wrong type -> default + warning, never a crash.
+    var strField = function (key, dflt) {
+      var v = raw[key];
+      if (v === undefined) {
+        doc[key] = dflt;
+        return;
+      }
+      if (typeof v !== 'string' || v.length > 64) {
+        warnings.push('"' + key + '" is not a short string; reset to "' + dflt + '".');
+        doc[key] = dflt;
+        return;
+      }
+      doc[key] = v;
+    };
+    strField('world', 'earth');
+    strField('tab', 'drive');
+    strField('tod', 'noon');
+    strField('weather', 'clear');
+    strField('quality', 'high');
+    strField('view3d', '1');
+    strField('mode', 'studio');
+    strField('theme', 'dark');
+
+    // The robot spec: passed through the KRS/catalogue validator when it is
+    // available (browser), else structurally checked (VM round-trip test).
+    if (raw.spec === undefined || raw.spec === null) {
+      doc.spec = null;
+      warnings.push('No robot spec in the project; the current build is kept.');
+    } else if (!isPlainObject(raw.spec)) {
+      doc.spec = null;
+      errors.push('"spec" must be an object.');
+    } else {
+      doc.spec = raw.spec;
+    }
+
+    // Program buffers: a map of tab -> source string.
+    doc.programs = {};
+    if (raw.programs !== undefined) {
+      if (!isPlainObject(raw.programs)) {
+        errors.push('"programs" must be an object of tab -> source.');
+      } else {
+        Object.keys(raw.programs).forEach(function (k) {
+          var v = raw.programs[k];
+          if (typeof v !== 'string') {
+            warnings.push('program "' + k + '" is not text; dropped.');
+            return;
+          }
+          if (v.length > MAX_PROGRAM) {
+            warnings.push('program "' + k + '" exceeds 100 KB; dropped.');
+            return;
+          }
+          doc.programs[k] = v;
+        });
+      }
+    }
+    doc.memory = {
+      reflections: cleanList(raw.memory && raw.memory.reflections, warnings, 'memory.reflections'),
+      skills: cleanList(raw.memory && raw.memory.skills, warnings, 'memory.skills')
+    };
+    doc.scenarioReports = cleanList(raw.scenarioReports, warnings, 'scenarioReports');
+    doc.runReports = cleanList(raw.runReports, warnings, 'runReports');
+    return {
+      ok: errors.length === 0,
+      doc: errors.length === 0 ? doc : null,
+      errors: errors,
+      warnings: warnings
+    };
+  }
+  function apply(docOrText) {
+    var res;
+    if (typeof docOrText === 'string') {
+      res = validate(docOrText);
+      if (!res.ok) return {
+        ok: false,
+        warnings: res.warnings,
+        errors: res.errors
+      };
+    } else {
+      // An already-validated document (or a collect() result round-tripping).
+      res = validate(JSON.stringify(docOrText));
+      if (!res.ok) return {
+        ok: false,
+        warnings: res.warnings,
+        errors: res.errors
+      };
+    }
+    var doc = res.doc;
+    write(KEYS.world, doc.world);
+    write(KEYS.tab, doc.tab);
+    write(KEYS.tod, doc.tod);
+    write(KEYS.weather, doc.weather);
+    write(KEYS.quality, doc.quality);
+    write(KEYS.view3d, doc.view3d);
+    write(KEYS.mode, doc.mode);
+    write(KEYS.theme, doc.theme);
+    if (doc.spec) {
+      // A catalogue spec routes through the Lab's validate-then-save (parts
+      // are checked against the catalogue, unknown ids dropped). A measured
+      // (KRS) build is written raw: its physical block was validated by the
+      // schema on import and RobotLab.load() re-derives on read, so stale
+      // derived numbers can never be smuggled in through a project file.
+      if (!doc.spec.physical && window.RobotLab && window.RobotLab.applySpec) {
+        window.RobotLab.applySpec(doc.spec);
+      } else {
+        write(KEYS.spec, JSON.stringify(doc.spec));
+      }
+    }
+    write(KEYS.programs, JSON.stringify(doc.programs));
+    write(KEYS.reflections, JSON.stringify(doc.memory.reflections));
+    write(KEYS.skills, JSON.stringify(doc.memory.skills));
+    write(KEYS.scenarios, JSON.stringify(doc.scenarioReports));
+    write(KEYS.runReports, JSON.stringify(doc.runReports));
+    return {
+      ok: true,
+      warnings: res.warnings,
+      errors: []
+    };
+  }
+  window.KodroProject = {
+    VERSION: VERSION,
+    KEYS: KEYS,
+    collect: collect,
+    serialize: serialize,
+    validate: validate,
+    apply: apply,
+    fileName: fileName
+  };
+})();
+})();
+
+;(function () {
+/* Run reports - the per-run structured artefact (PERFECTION_PLAN P7/A8).
+ *
+ * Every terminal run outcome (finished, crashed, flat battery, stalled)
+ * produces one structured record: what robot, in which world, how far, how
+ * close it shaved an obstacle, what the battery cost, and how the outcome
+ * compared with the design check's pre-run prediction. Today's console lines
+ * are transient; this history is the durable evidence a skeptical builder
+ * can read back and compare across builds.
+ *
+ * Plain JS, localStorage-backed, capped. Exposes window.KodroRunReports:
+ *   save(entry)  -> the stored entry (stamped with an id)
+ *   list()       -> newest first
+ *   clear()
+ *   diff(a, b)   -> [{label, a, b, delta}] numeric comparison rows
+ */
+(function () {
+  'use strict';
+
+  var KEY = 'kodro_run_reports_v1';
+  var MAX = 40;
+  function store() {
+    return window.KODRO_PROJECT_STORE || window.localStorage;
+  }
+  function load() {
+    try {
+      var raw = store().getItem(KEY);
+      var v = raw ? JSON.parse(raw) : [];
+      return Array.isArray(v) ? v : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function persist(list) {
+    try {
+      store().setItem(KEY, JSON.stringify(list));
+    } catch (e) {
+      void e;
+    }
+  }
+  var seq = 0;
+  function save(entry) {
+    if (!entry || typeof entry !== 'object') return null;
+    var rec = {
+      id: Date.now() + '-' + ++seq,
+      ts: entry.ts || Date.now(),
+      world: String(entry.world || ''),
+      worldName: String(entry.worldName || ''),
+      robotName: String(entry.robotName || ''),
+      robotType: String(entry.robotType || ''),
+      massFactor: +entry.massFactor || 1,
+      speedFactor: +entry.speedFactor || 1,
+      outcome: String(entry.outcome || ''),
+      // done | crash | flat | stalled | error
+      detail: String(entry.detail || ''),
+      commands: entry.commands != null ? Math.round(+entry.commands) : null,
+      distanceCm: entry.distanceCm != null ? Math.round(+entry.distanceCm) : null,
+      batteryUsedPct: entry.batteryUsedPct != null ? Math.round(+entry.batteryUsedPct * 10) / 10 : null,
+      minProximityCm: entry.minProximityCm != null && isFinite(entry.minProximityCm) ? Math.round(+entry.minProximityCm) : null,
+      wallMs: entry.wallMs != null ? Math.round(+entry.wallMs) : null,
+      predicted: String(entry.predicted || ''),
+      // design-check overall before the run
+      verdict: String(entry.verdict || '') // the post-run coach line
+    };
+    var list = load();
+    list.unshift(rec);
+    if (list.length > MAX) list.length = MAX;
+    persist(list);
+    try {
+      window.dispatchEvent(new CustomEvent('kodro-runreport'));
+    } catch (e) {
+      void e;
+    }
+    return rec;
+  }
+  function list() {
+    return load();
+  }
+  function clear() {
+    persist([]);
+    try {
+      window.dispatchEvent(new CustomEvent('kodro-runreport'));
+    } catch (e) {
+      void e;
+    }
+  }
+
+  // Numeric side-by-side for the compare view: two runs, one row per metric.
+  function diff(a, b) {
+    if (!a || !b) return [];
+    var rows = [['Distance (cm)', a.distanceCm, b.distanceCm], ['Battery used (%)', a.batteryUsedPct, b.batteryUsedPct], ['Closest approach (cm)', a.minProximityCm, b.minProximityCm], ['Commands run', a.commands, b.commands], ['Wall time (s)', a.wallMs != null ? Math.round(a.wallMs / 100) / 10 : null, b.wallMs != null ? Math.round(b.wallMs / 100) / 10 : null]];
+    return rows.map(function (r) {
+      var av = r[1],
+        bv = r[2];
+      return {
+        label: r[0],
+        a: av != null ? av : '-',
+        b: bv != null ? bv : '-',
+        delta: av != null && bv != null ? Math.round((bv - av) * 10) / 10 : null
+      };
+    });
+  }
+  window.KodroRunReports = {
+    save: save,
+    list: list,
+    clear: clear,
+    diff: diff,
+    KEY: KEY,
+    MAX: MAX
+  };
+})();
+})();
+
+;(function () {
+function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
+/* Kodro procedural icon set (PERFECTION_PLAN P7/A2).
+ *
+ * One sprite module of monochrome, currentColor SVG icons in the same visual
+ * language as the brand mark (ORBIT_SVG) and the run-control glyphs in
+ * app.jsx: 24x24 viewBox, 1.7px rounded strokes, no fills except small solid
+ * nodes. These replace every emoji-as-icon in the chrome (mission bar, editor
+ * toolbar, modal titles, robot tiles, view toggle), because an emoji icon
+ * system reads as a toy and renders differently on every OS. Zero assets,
+ * zero fonts: each icon is a handful of primitives, built offline.
+ *
+ *   window.KodroIcons.el('lab')            -> React <svg> element
+ *   window.KodroIcons.el('lab', 'my-cls')  -> with an extra class
+ *   window.KodroIcons.has('lab')           -> registry check
+ *
+ * Icons render at text size via the .ki class (styles.css); surfaces that
+ * need a larger mark (robot tiles, the onboarding badge) size .ki locally.
+ */
+(function () {
+  const S = {
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.7,
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round'
+  };
+
+  // Each entry is a function returning the icon's inner primitives, so the
+  // shared <svg> wrapper below stays in one place.
+  const PATHS = {
+    // -- tools / chrome -------------------------------------------------------
+    lab: () => /*#__PURE__*/React.createElement("path", {
+      d: "M20.7 6.8a5 5 0 0 1-6.4 4.6L7 18.7a2.05 2.05 0 0 1-2.9-2.9l7.3-7.3a5 5 0 0 1 5.8-6.2L14.6 4.9l.6 2.6 2.6.6 2.6-2.6a5 5 0 0 1 .3 1.3z"
+    }),
+    memory: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M12 3 3.5 7.8 12 12.6l8.5-4.8L12 3z"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M3.5 12.2 12 17l8.5-4.8"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M3.5 16.4 12 21.2l8.5-4.8"
+    })),
+    build: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M12 2.8 4.2 7.2v9.6l7.8 4.4 7.8-4.4V7.2L12 2.8z"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M4.2 7.2 12 11.6l7.8-4.4"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M12 11.6v9.6"
+    })),
+    gear: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "3.1"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M12 2.6v2.9M12 18.5v2.9M2.6 12h2.9M18.5 12h2.9M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"
+    })),
+    vibe: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M11 3.5l1.7 4.8 4.8 1.7-4.8 1.7L11 16.5l-1.7-4.8L4.5 10l4.8-1.7L11 3.5z"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M18.3 14.6l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9.9-2.4z"
+    })),
+    blocks: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
+      x: "3.6",
+      y: "3.6",
+      width: "7",
+      height: "7",
+      rx: "1.2"
+    }), /*#__PURE__*/React.createElement("rect", {
+      x: "13.4",
+      y: "3.6",
+      width: "7",
+      height: "7",
+      rx: "1.2"
+    }), /*#__PURE__*/React.createElement("rect", {
+      x: "3.6",
+      y: "13.4",
+      width: "7",
+      height: "7",
+      rx: "1.2"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M16.9 13.6v6.6M13.6 16.9h6.6"
+    })),
+    review: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
+      cx: "10.5",
+      cy: "10.5",
+      r: "5.8"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M15 15l6 6"
+    })),
+    target: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "8.4"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "4.4"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "1.1",
+      fill: "currentColor",
+      stroke: "none"
+    })),
+    gauge: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M4.2 16.8a8.6 8.6 0 1 1 15.6 0"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M12 16.2l3.6-5.2"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "16.6",
+      r: "1.2",
+      fill: "currentColor",
+      stroke: "none"
+    })),
+    demo: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "8.8"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M10.2 8.6v6.8l5.6-3.4z",
+      fill: "currentColor",
+      stroke: "none"
+    })),
+    ask: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M4 6a2.4 2.4 0 0 1 2.4-2.4h11.2A2.4 2.4 0 0 1 20 6v7.4a2.4 2.4 0 0 1-2.4 2.4h-5.8L7.5 19.9v-4.1H6.4A2.4 2.4 0 0 1 4 13.4V6z"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M10.3 7.9a1.9 1.9 0 1 1 2.6 2.3c-.7.4-.9.8-.9 1.6"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "13.6",
+      r: "0.9",
+      fill: "currentColor",
+      stroke: "none"
+    })),
+    swarm: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
+      cx: "6.4",
+      cy: "7",
+      r: "2.1"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "17.6",
+      cy: "7",
+      r: "2.1"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "16.8",
+      r: "2.1"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M8.5 7h7M7.4 8.9l3.5 6M16.6 8.9l-3.5 6"
+    })),
+    globe: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "8.6"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M3.4 12h17.2"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M12 3.4c2.9 2.5 2.9 14.7 0 17.2M12 3.4c-2.9 2.5-2.9 14.7 0 17.2"
+    })),
+    eye: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M2.6 12S6.2 5.8 12 5.8 21.4 12 21.4 12 17.8 18.2 12 18.2 2.6 12 2.6 12z"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "2.7"
+    })),
+    orbit: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "8",
+      opacity: "0.35"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M5.6 18 A8.8 8.8 0 1 1 18 5.6"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "18",
+      cy: "5.6",
+      r: "2.1",
+      fill: "currentColor",
+      stroke: "none"
+    })),
+    camera: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
+      x: "3.2",
+      y: "7",
+      width: "17.6",
+      height: "12.6",
+      rx: "2"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "13.2",
+      r: "3.4"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M8.4 7l1.5-2.6h4.2L15.6 7"
+    })),
+    report: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M6.2 3h7.6l4 4v14H6.2V3z"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M13.8 3v4h4"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M9 12.4h6M9 16.2h6"
+    })),
+    save: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M12 3.2v10.2M8.2 9.6l3.8 3.8 3.8-3.8"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M4.2 15v3.6a2.2 2.2 0 0 0 2.2 2.2h11.2a2.2 2.2 0 0 0 2.2-2.2V15"
+    })),
+    open: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M3.4 8.4V6.2A1.8 1.8 0 0 1 5.2 4.4h4l2 2.2h7.6a1.8 1.8 0 0 1 1.8 1.8v1.4"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M2.8 9.8h18.4l-1.8 8.4a1.8 1.8 0 0 1-1.8 1.4H6.4a1.8 1.8 0 0 1-1.8-1.4L2.8 9.8z"
+    })),
+    undo: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M4.4 9.8h9a5.4 5.4 0 1 1 0 10.8H8.6"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M8.2 6 4.4 9.8l3.8 3.8"
+    })),
+    bulb: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M12 3a6 6 0 0 1 3.6 10.8c-.7.6-1.1 1.3-1.1 2.2h-5c0-.9-.4-1.6-1.1-2.2A6 6 0 0 1 12 3z"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M9.6 19h4.8M10.4 21.4h3.2"
+    })),
+    award: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "9",
+      r: "5.2"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M8.8 13.4 7 21l5-2.7L17 21l-1.8-7.6"
+    })),
+    next: () => /*#__PURE__*/React.createElement("path", {
+      d: "M4 12h15.2M13.4 6.2 19.2 12l-5.8 5.8"
+    }),
+    // -- robot archetypes -----------------------------------------------------
+    rover: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
+      x: "3.4",
+      y: "9.6",
+      width: "17.2",
+      height: "5.6",
+      rx: "1.4"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "7.6",
+      cy: "17.6",
+      r: "2.2"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "16.4",
+      cy: "17.6",
+      r: "2.2"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M8.4 9.6V6.4h3.2v3.2"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "10",
+      cy: "4.8",
+      r: "1",
+      fill: "currentColor",
+      stroke: "none"
+    })),
+    car: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M4 16.2v-2.6l1.3-4A2 2 0 0 1 7.2 8.2h9.6a2 2 0 0 1 1.9 1.4l1.3 4v2.6"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M4 13.6h16"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "7.6",
+      cy: "17.4",
+      r: "1.9"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "16.4",
+      cy: "17.4",
+      r: "1.9"
+    })),
+    home: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
+      x: "5",
+      y: "7.2",
+      width: "14",
+      height: "11",
+      rx: "2.4"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "9.6",
+      cy: "12.4",
+      r: "1.2",
+      fill: "currentColor",
+      stroke: "none"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "14.4",
+      cy: "12.4",
+      r: "1.2",
+      fill: "currentColor",
+      stroke: "none"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M12 7.2V4.2M9.8 15.4h4.4"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "3.2",
+      r: "1",
+      fill: "currentColor",
+      stroke: "none"
+    })),
+    arm: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M4.6 20.4h8.8M9 20.4v-3.6"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M9 16.8l3.4-7.2"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12.6",
+      cy: "9.2",
+      r: "1.5"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M14 9.7l4.4 2.1"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M18.4 11.8l2.4-1.4M18.4 11.8l1 2.6"
+    })),
+    custom: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M4.6 6.4h14.8M4.6 12h14.8M4.6 17.6h14.8"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "9.4",
+      cy: "6.4",
+      r: "1.9",
+      fill: "var(--void,#08090f)"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "15",
+      cy: "12",
+      r: "1.9",
+      fill: "var(--void,#08090f)"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "7.4",
+      cy: "17.6",
+      r: "1.9",
+      fill: "var(--void,#08090f)"
+    }))
+  };
+  function el(name, cls) {
+    const body = PATHS[name];
+    if (!body) return null;
+    return /*#__PURE__*/React.createElement("svg", _extends({
+      className: 'ki' + (cls ? ' ' + cls : ''),
+      viewBox: "0 0 24 24",
+      "aria-hidden": "true",
+      focusable: "false"
+    }, S), body());
+  }
+  window.KodroIcons = {
+    el: el,
+    has: function (name) {
+      return !!PATHS[name];
+    },
+    NAMES: Object.keys(PATHS)
+  };
+})();
+})();
+
+;(function () {
 /* Shared moving-agent simulation.
  *
  * One source of truth for the city's pedestrians and traffic, in the same
@@ -4050,9 +4812,10 @@
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 20
+            fontSize: 20,
+            color: '#06121b'
           }
-        }, "\uD83D\uDCF7")));
+        }, window.KodroIcons ? window.KodroIcons.el('camera') : null)));
         break;
       case 'drone':
         body = /*#__PURE__*/React.createElement("div", {
@@ -11789,7 +12552,7 @@ Object.assign(window, {
     rover: {
       id: 'rover',
       name: 'Rover',
-      emoji: '🛻',
+      icon: 'rover',
       blurb: 'A wheeled explorer for rough ground. The all rounder.',
       base: {
         board: 'esp32',
@@ -11800,7 +12563,7 @@ Object.assign(window, {
     car: {
       id: 'car',
       name: 'Self-driving car',
-      emoji: '🚗',
+      icon: 'car',
       blurb: 'A road vehicle. Validate it among pedestrians and traffic.',
       base: {
         board: 'esp32',
@@ -11811,7 +12574,7 @@ Object.assign(window, {
     home: {
       id: 'home',
       name: 'Personal robot',
-      emoji: '🤖',
+      icon: 'home',
       blurb: 'A helper that shares space with people indoors.',
       base: {
         board: 'pico',
@@ -11822,7 +12585,7 @@ Object.assign(window, {
     arm: {
       id: 'arm',
       name: 'Robotic arm',
-      emoji: '🦾',
+      icon: 'arm',
       blurb: 'A fixed manipulator. Reach, grab and place.',
       base: {
         board: 'uno',
@@ -11833,7 +12596,7 @@ Object.assign(window, {
     custom: {
       id: 'custom',
       name: 'Custom build',
-      emoji: '🔧',
+      icon: 'custom',
       blurb: 'Start bare and fit exactly the parts you want.',
       base: {
         board: 'esp32',
@@ -11877,7 +12640,7 @@ Object.assign(window, {
 
   // Colour + word for a design-check status, shared by the verdict UI.
   function diagColor(s) {
-    return s === 'fail' ? '#ff6b5e' : s === 'warn' ? '#f5c451' : '#5ce0d8';
+    return s === 'fail' ? 'var(--danger)' : s === 'warn' ? 'var(--warning)' : 'var(--cyan)';
   }
   function diagWord(s) {
     return s === 'fail' ? "WON'T COPE" : s === 'warn' ? 'WATCH' : 'READY';
@@ -12308,7 +13071,7 @@ Object.assign(window, {
       className: 'modal-head'
     }, React.createElement('span', {
       className: 'eyebrow'
-    }, '🛠 Robot Lab. Design a robot, then run it in the world'), React.createElement('button', {
+    }, window.KodroIcons ? window.KodroIcons.el('lab') : null, 'Robot Lab. Design a robot, then run it in the world'), React.createElement('button', {
       className: 'btn-mini',
       'aria-label': 'Close',
       onClick: () => props.onClose && props.onClose()
@@ -12331,8 +13094,9 @@ Object.assign(window, {
         onClick: () => pickType(id),
         'aria-pressed': spec.type === id
       }, React.createElement('span', {
-        className: 'rl-type-emoji'
-      }, ty.emoji), React.createElement('span', {
+        className: 'rl-type-ic',
+        'aria-hidden': 'true'
+      }, window.KodroIcons ? window.KodroIcons.el(ty.icon) : null), React.createElement('span', {
         className: 'rl-type-name'
       }, ty.name));
     })), React.createElement('p', {
@@ -12435,7 +13199,7 @@ Object.assign(window, {
     }, importIssues.errors.length > 0 ? React.createElement('div', null, React.createElement('div', {
       className: 'rl-label',
       style: {
-        color: '#ff8f7a'
+        color: 'var(--danger)'
       }
     }, 'Import rejected - fix these fields'), React.createElement('ul', {
       className: 'rl-issues rl-issues-err'
@@ -12456,8 +13220,8 @@ Object.assign(window, {
     report && React.createElement('div', {
       className: 'rl-section',
       style: {
-        background: '#0e1622',
-        border: '1.5px solid ' + diagColor(report.overall) + '55',
+        background: 'var(--navy-2)',
+        border: '1.5px solid color-mix(in srgb, ' + diagColor(report.overall) + ' 33%, transparent)',
         borderRadius: 14,
         padding: 16
       }
@@ -12478,7 +13242,7 @@ Object.assign(window, {
         fontSize: 11,
         fontWeight: 800,
         letterSpacing: '0.06em',
-        color: '#06121b',
+        color: 'var(--void)',
         background: diagColor(report.overall),
         borderRadius: 6,
         padding: '3px 9px'
@@ -12516,12 +13280,12 @@ Object.assign(window, {
       }), React.createElement('span', {
         style: {
           fontWeight: 650,
-          color: '#dce8f8',
+          color: 'var(--fg-1)',
           flex: '0 0 96px'
         }
       }, dim.label), React.createElement('span', {
         style: {
-          color: '#9fb4d2'
+          color: 'var(--fg-2)'
         }
       }, dim.reason + (dim.fix ? '  Fix: ' + dim.fix : '')));
     }))),
@@ -12555,7 +13319,16 @@ Object.assign(window, {
       className: 'btn-mini',
       title: 'Save the verification report: your robot as simulated, predictions plus measured evidence',
       onClick: onReportClick
-    }, 'Verification report'), React.createElement('input', {
+    }, 'Verification report'),
+    // A6: price THIS build as real hardware (opens the budget planner
+    // seeded with the active spec), merging the two build features.
+    props.onBuildReal ? React.createElement('button', {
+      className: 'btn-mini',
+      title: 'Price this build as real hardware within a budget',
+      onClick: function () {
+        props.onBuildReal();
+      }
+    }, 'Build real') : null, React.createElement('input', {
       ref: fileRef,
       type: 'file',
       accept: '.json,application/json',
@@ -13602,8 +14375,8 @@ Object.assign(window, {
   function card(title, rows, accent) {
     return React.createElement('div', {
       style: {
-        background: '#0f1726',
-        border: '1.5px solid #233248',
+        background: 'var(--navy-2)',
+        border: '1.5px solid var(--border)',
         borderRadius: 14,
         padding: '14px 16px'
       }
@@ -13613,7 +14386,7 @@ Object.assign(window, {
         fontWeight: 800,
         letterSpacing: '0.06em',
         textTransform: 'uppercase',
-        color: accent || '#5ed6ff',
+        color: accent || 'var(--cyan)',
         marginBottom: 10
       }
     }, title), React.createElement('div', {
@@ -13635,11 +14408,11 @@ Object.assign(window, {
       }
     }, React.createElement('span', {
       style: {
-        color: '#8da3c0'
+        color: 'var(--fg-2)'
       }
     }, label), React.createElement('span', {
       style: {
-        color: color || '#dce8f8',
+        color: color || 'var(--fg-1)',
         fontWeight: 600,
         textAlign: 'right'
       }
@@ -13684,24 +14457,24 @@ Object.assign(window, {
       });
     };
     const sensorRows = robot.sensors && robot.sensors.length ? robot.sensors.map(function (s) {
-      return sensorHasCmd(s) ? row(SENSOR_LABEL[s] || s, 'command ready', '#5ce0d8') : row(SENSOR_LABEL[s] || s, 'fitted, no command', '#9fb4d2');
-    }) : [row('Sensors', 'none fitted', '#f5c451')];
+      return sensorHasCmd(s) ? row(SENSOR_LABEL[s] || s, 'command ready', 'var(--cyan)') : row(SENSOR_LABEL[s] || s, 'fitted, no command', 'var(--fg-2)');
+    }) : [row('Sensors', 'none fitted', 'var(--warning)')];
     sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'nominal'));
-    const sensors = card('Sensors', sensorRows, '#5ce0d8');
+    const sensors = card('Sensors', sensorRows, 'var(--cyan)');
 
     // Scenario score card. The single pass/fail verdict comes from the report
     // (scenario.run derives aggregate.passed from the scenario's own criteria);
     // fall back to the shared PASS_RATE for reports saved before that field.
     const passRate = window.KodroScenario && window.KodroScenario.PASS_RATE || 0.6;
     const aggPassed = agg ? agg.passed != null ? agg.passed : (agg.successRate || 0) >= passRate : false;
-    const scoreRows = agg ? [row('Scenario', last.scenario && last.scenario.name || '-'), row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', aggPassed ? '#5ce0d8' : '#f5c451'), row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')), row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'), row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'), row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-'))] : [row('Validation', 'no runs yet', '#f5c451'), row('Tip', 'Run "Validate across seeds"')];
-    const score = card('Scenario score', scoreRows, '#ffb86b');
+    const scoreRows = agg ? [row('Scenario', last.scenario && last.scenario.name || '-'), row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', aggPassed ? 'var(--cyan)' : 'var(--warning)'), row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')), row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'), row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'), row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-'))] : [row('Validation', 'no runs yet', 'var(--warning)'), row('Tip', 'Run "Validate across seeds"')];
+    const score = card('Scenario score', scoreRows, 'var(--warning)');
 
     // Environment card. Lighting is a 0-100 percentage (same number telemetry
     // shows), not a two-decimal float ("Lighting 92.00" read as broken). The
     // agents row gates on the SITE id when a mission site is active, matching
     // how the agent sim is keyed everywhere else (world-coherence BUG-4).
-    const environment = card('Environment', [row('Preset', terrain.name || terrain.id || '-'), row('Lighting', env.light != null ? Math.round(env.light) + '%' : '-'), row('Gravity', env.gravity != null ? env.gravity + ' m/s2' : '-'), row('Friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'), row('Moving agents', window.KodroAgents && window.KodroAgents.list && window.KodroAgents.world && window.KodroAgents.world() === (terrain.siteId || terrain.id) ? String(window.KodroAgents.list().length) : '0')], '#9fb4d2');
+    const environment = card('Environment', [row('Preset', terrain.name || terrain.id || '-'), row('Lighting', env.light != null ? Math.round(env.light) + '%' : '-'), row('Gravity', env.gravity != null ? env.gravity + ' m/s2' : '-'), row('Friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'), row('Moving agents', window.KodroAgents && window.KodroAgents.list && window.KodroAgents.world && window.KodroAgents.world() === (terrain.siteId || terrain.id) ? String(window.KodroAgents.list().length) : '0')], 'var(--fg-2)');
 
     // Command registry card.
     const okCmds = avail.filter(function (c) {
@@ -13712,12 +14485,12 @@ Object.assign(window, {
     });
     const cmdRows = [];
     okCmds.forEach(function (c) {
-      cmdRows.push(row(c.name + '()', 'available', '#5ce0d8'));
+      cmdRows.push(row(c.name + '()', 'available', 'var(--cyan)'));
     });
     noCmds.forEach(function (c) {
-      cmdRows.push(row(c.name + '()', 'needs ' + (c.partLabel || c.requires), '#ff8f7a'));
+      cmdRows.push(row(c.name + '()', 'needs ' + (c.partLabel || c.requires), 'var(--danger)'));
     });
-    const registry = card('Command registry', cmdRows.length ? cmdRows : [row('Commands', 'base only')], '#c8a8ff');
+    const registry = card('Command registry', cmdRows.length ? cmdRows : [row('Commands', 'base only')], 'var(--brass)');
 
     // SI4: fidelity disclosure card. This dashboard's stated purpose is
     // making the simulation's honesty visible, so the three tiers live here:
@@ -13750,7 +14523,7 @@ Object.assign(window, {
           paddingLeft: 16,
           fontSize: 11.5,
           lineHeight: 1.5,
-          color: '#9fb4d2'
+          color: 'var(--fg-2)'
         }
       }, items.map(function (it, i) {
         return React.createElement('li', {
@@ -13760,8 +14533,8 @@ Object.assign(window, {
     };
     const fidelity = FID ? React.createElement('div', {
       style: {
-        background: '#0f1726',
-        border: '1.5px solid #233248',
+        background: 'var(--navy-2)',
+        border: '1.5px solid var(--border)',
         borderRadius: 14,
         padding: '14px 16px',
         gridColumn: '1 / -1'
@@ -13772,7 +14545,7 @@ Object.assign(window, {
         fontWeight: 800,
         letterSpacing: '0.06em',
         textTransform: 'uppercase',
-        color: '#5ce0d8',
+        color: 'var(--cyan)',
         marginBottom: 10
       }
     }, 'Fidelity disclosure'), React.createElement('div', {
@@ -13781,7 +14554,7 @@ Object.assign(window, {
         gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))',
         gap: 12
       }
-    }, fidTier('HONOURED', '#5ce0d8', '#06121b', FID.honoured), fidTier('APPROXIMATED', '#f5c451', '#06121b', FID.approximated), fidTier('NOT SIMULATED', '#c8685a', '#f5f0e4', FID.notSimulated))) : null;
+    }, fidTier('HONOURED', 'var(--cyan)', 'var(--void)', FID.honoured), fidTier('APPROXIMATED', 'var(--warning)', 'var(--void)', FID.approximated), fidTier('NOT SIMULATED', '#c8685a', '#f5f0e4', FID.notSimulated))) : null;
     return React.createElement('div', {
       className: 'modal-backdrop',
       onClick: function () {
@@ -13802,7 +14575,7 @@ Object.assign(window, {
       className: 'modal-head'
     }, React.createElement('span', {
       className: 'eyebrow'
-    }, '📊 Realism dashboard. The build drives the simulation'), React.createElement('button', {
+    }, window.KodroIcons ? window.KodroIcons.el('gauge') : null, 'Realism dashboard. The build drives the simulation'), React.createElement('button', {
       className: 'btn-mini',
       'aria-label': 'Close',
       onClick: function () {
@@ -13814,13 +14587,13 @@ Object.assign(window, {
       }
     }, React.createElement('p', {
       style: {
-        color: '#8da3c0',
+        color: 'var(--fg-2)',
         fontSize: 13,
         margin: '0 0 14px'
       }
     }, 'Robot: ', React.createElement('b', {
       style: {
-        color: '#dce8f8'
+        color: 'var(--fg-1)'
       }
     }, robot.name || 'My Robot'), ' · type ', robot.type || '-', ' · board ', robot.board || '-'), React.createElement('div', {
       style: {
@@ -13993,7 +14766,7 @@ Object.assign(window, {
     const step = STEPS[i];
     const res = results[i];
     const toneColor = function (t) {
-      return t === 'err' ? '#ff8f7a' : t === 'warn' ? '#f5c451' : '#5ce0d8';
+      return t === 'err' ? 'var(--danger)' : t === 'warn' ? 'var(--warning)' : 'var(--cyan)';
     };
     function doRun() {
       let out;
@@ -14026,11 +14799,11 @@ Object.assign(window, {
     }, React.createElement('div', {
       style: {
         width: 'min(640px,100%)',
-        background: '#0d1422',
-        border: '1.5px solid #233248',
+        background: 'var(--navy)',
+        border: '1.5px solid var(--border)',
         borderRadius: 18,
         padding: 26,
-        color: '#e8edf7',
+        color: 'var(--fg-1)',
         boxShadow: '0 30px 80px -30px #000'
       },
       onClick: function (e) {
@@ -14049,12 +14822,12 @@ Object.assign(window, {
         fontWeight: 800,
         letterSpacing: '0.08em',
         textTransform: 'uppercase',
-        color: '#5ed6ff'
+        color: 'var(--cyan)'
       }
     }, 'Kodro Realism Demo'), React.createElement('span', {
       style: {
         fontSize: 12,
-        color: '#6f86a6'
+        color: 'var(--fg-3)'
       }
     }, 'Step ' + (i + 1) + ' of ' + STEPS.length)), React.createElement('h2', {
       style: {
@@ -14065,7 +14838,7 @@ Object.assign(window, {
       }
     }, step.title), React.createElement('p', {
       style: {
-        color: '#9fb4d2',
+        color: 'var(--fg-2)',
         fontSize: 14,
         lineHeight: 1.55,
         margin: '0 0 16px'
@@ -14078,8 +14851,8 @@ Object.assign(window, {
         fontWeight: 650,
         borderRadius: 11,
         padding: '11px 22px',
-        background: '#5ed6ff',
-        color: '#06121b',
+        background: 'var(--cyan)',
+        color: 'var(--void)',
         fontSize: 14
       },
       onClick: doRun
@@ -14087,12 +14860,12 @@ Object.assign(window, {
       style: {
         marginTop: 16,
         padding: '13px 15px',
-        background: '#0f1726',
-        border: '1.5px solid ' + toneColor(res.tone) + '55',
+        background: 'var(--navy-2)',
+        border: '1.5px solid color-mix(in srgb, ' + toneColor(res.tone) + ' 33%, transparent)',
         borderRadius: 12,
         fontSize: 13.5,
         lineHeight: 1.5,
-        color: '#dce8f8'
+        color: 'var(--fg-1)'
       }
     }, res.text), React.createElement('div', {
       style: {
@@ -14104,9 +14877,9 @@ Object.assign(window, {
     }, React.createElement('button', {
       style: {
         appearance: 'none',
-        border: '1px solid #283a55',
+        border: '1px solid var(--border)',
         background: 'transparent',
-        color: '#9fb4d2',
+        color: 'var(--fg-2)',
         cursor: 'pointer',
         borderRadius: 11,
         padding: '10px 18px',
@@ -14123,9 +14896,9 @@ Object.assign(window, {
     }, i > 0 && React.createElement('button', {
       style: {
         appearance: 'none',
-        border: '1px solid #283a55',
+        border: '1px solid var(--border)',
         background: 'transparent',
-        color: '#9fb4d2',
+        color: 'var(--fg-2)',
         cursor: 'pointer',
         borderRadius: 11,
         padding: '10px 18px',
@@ -14139,8 +14912,8 @@ Object.assign(window, {
       style: {
         appearance: 'none',
         border: 0,
-        background: res ? '#5ed6ff' : '#1b2738',
-        color: res ? '#06121b' : '#5d728f',
+        background: res ? 'var(--cyan)' : 'var(--navy-3)',
+        color: res ? 'var(--void)' : 'var(--fg-3)',
         cursor: res ? 'pointer' : 'not-allowed',
         borderRadius: 11,
         padding: '10px 20px',
@@ -14158,8 +14931,8 @@ Object.assign(window, {
       style: {
         appearance: 'none',
         border: 0,
-        background: '#5ed6ff',
-        color: '#06121b',
+        background: 'var(--cyan)',
+        color: 'var(--void)',
         cursor: 'pointer',
         borderRadius: 11,
         padding: '10px 20px',
@@ -14392,7 +15165,7 @@ Object.assign(window, {
   .konb-tile:hover{ transform:translateY(-2px); border-color:rgba(92,224,216,.4); box-shadow:0 16px 34px -22px rgba(0,0,0,.8); }
   .konb-tile[aria-pressed="true"]{ border-color:var(--cyan); box-shadow:inset 0 0 0 1px var(--cyan), 0 14px 34px -20px rgba(92,224,216,.5); }
   .konb-tile .t-top{ display:flex; align-items:center; justify-content:space-between; }
-  .konb-emoji{ font-size:26px; line-height:1; }
+  .konb-emoji{ line-height:0; color:var(--cyan); }
   .konb-tile .t-check{ font-family:var(--font-mono); font-size:11px; color:var(--cyan); opacity:0; transition:opacity 140ms var(--ease); }
   .konb-tile[aria-pressed="true"] .t-check{ opacity:1; }
   .konb-tname{ font-family:var(--font-display); font-size:19px; font-weight:600; margin:11px 0 3px; line-height:1.05; }
@@ -14437,6 +15210,19 @@ Object.assign(window, {
     .konb-agent-row .konb-btn.primary{ flex:1; justify-content:center; }
     .konb-orbit{ max-width:200px; }
     .konb-rec{ flex-direction:column; align-items:flex-start; text-align:left; }
+  }
+
+  /* Short laptop screens (A16): compress the hero rhythm so the primary CTA
+     sits above the fold at 1280x800 instead of below it. */
+  @media (max-height:820px){
+    .konb-shell{ padding:18px clamp(20px,5vw,64px) 24px; }
+    .konb-body{ padding:12px 0 4px; }
+    .konb-h1{ font-size:clamp(36px,6.8vw,72px); margin-top:12px; }
+    .konb-lead{ margin-top:14px; }
+    .konb-caps{ margin-top:16px; }
+    .konb-steps{ margin-top:18px; }
+    .konb-actions{ margin-top:16px; }
+    .konb-orbit{ max-width:290px; }
   }
 
   /* Visible keyboard focus on every control (AA). */
@@ -14658,7 +15444,7 @@ Object.assign(window, {
       }, /*#__PURE__*/React.createElement("span", {
         className: "konb-emoji",
         "aria-hidden": "true"
-      }, t.emoji), /*#__PURE__*/React.createElement("span", {
+      }, window.KodroIcons ? window.KodroIcons.el(t.icon) : null), /*#__PURE__*/React.createElement("span", {
         className: "t-check",
         "aria-hidden": "true"
       }, "SELECTED")), /*#__PURE__*/React.createElement("div", {
@@ -14688,7 +15474,7 @@ Object.assign(window, {
       "aria-labelledby": "konb-h2-rec"
     }, /*#__PURE__*/React.createElement("span", {
       className: "konb-eyebrow"
-    }, "Step two"), /*#__PURE__*/React.createElement("h2", {
+    }, "Step three"), /*#__PURE__*/React.createElement("h2", {
       className: "konb-h2",
       id: "konb-h2-rec"
     }, "Where it gets tested first"), /*#__PURE__*/React.createElement("p", {
@@ -14698,7 +15484,7 @@ Object.assign(window, {
     }, /*#__PURE__*/React.createElement("div", {
       className: "rec-badge",
       "aria-hidden": "true"
-    }, TYPES[type] && TYPES[type].emoji || "🤖"), /*#__PURE__*/React.createElement("div", {
+    }, window.KodroIcons ? window.KodroIcons.el(TYPES[type] && TYPES[type].icon || "home") : null), /*#__PURE__*/React.createElement("div", {
       className: "rec-meta"
     }, /*#__PURE__*/React.createElement("div", {
       className: "rec-label"
@@ -15359,9 +16145,60 @@ Object.assign(window, {
   }
   function useResizers() {
     // ---------- layout resizers ----------
-    const [editorW, setEditorW] = useState(404);
-    const [teleW, setTeleW] = useState(318);
-    const [consoleH, setConsoleH] = useState(184);
+    // P7/A10: panel sizes persist across sessions (one JSON key), and three
+    // presets give one-click layouts. Bounds match the drag/nudge clamps.
+    const LAYOUT_KEY = 'kodro_layout_v1';
+    const DEFAULTS = {
+      editorW: 404,
+      teleW: 318,
+      consoleH: 184
+    };
+    function loadLayout() {
+      try {
+        const raw = localStorage.getItem(LAYOUT_KEY);
+        if (!raw) return DEFAULTS;
+        const v = JSON.parse(raw);
+        return {
+          editorW: Math.max(280, Math.min(640, +v.editorW || DEFAULTS.editorW)),
+          teleW: Math.max(240, Math.min(460, +v.teleW || DEFAULTS.teleW)),
+          consoleH: Math.max(90, Math.min(420, +v.consoleH || DEFAULTS.consoleH))
+        };
+      } catch (e) {
+        return DEFAULTS;
+      }
+    }
+    const initial = loadLayout();
+    const [editorW, setEditorW] = useState(initial.editorW);
+    const [teleW, setTeleW] = useState(initial.teleW);
+    const [consoleH, setConsoleH] = useState(initial.consoleH);
+    useEffect(() => {
+      try {
+        localStorage.setItem(LAYOUT_KEY, JSON.stringify({
+          editorW: editorW,
+          teleW: teleW,
+          consoleH: consoleH
+        }));
+      } catch (e) {
+        void e;
+      }
+    }, [editorW, teleW, consoleH]);
+    // Named layouts: maximize the 3D viewport, focus the editor, or return to
+    // the defaults. Values stay inside the same clamps the drag path uses.
+    function preset(name) {
+      if (name === 'viewport') {
+        setEditorW(280);
+        setTeleW(240);
+        setConsoleH(110);
+      } else if (name === 'editor') {
+        setEditorW(640);
+        setTeleW(240);
+        setConsoleH(260);
+      } else {
+        setEditorW(DEFAULTS.editorW);
+        setTeleW(DEFAULTS.teleW);
+        setConsoleH(DEFAULTS.consoleH);
+      }
+    }
     function startDrag(kind, e) {
       e.preventDefault();
       const sx = e.clientX,
@@ -15393,7 +16230,8 @@ Object.assign(window, {
       teleW,
       consoleH,
       startDrag,
-      nudge
+      nudge,
+      preset
     };
   }
   function useBlocks(opts) {
@@ -16051,6 +16889,9 @@ say("Survey done")`
  */
 (function () {
   const React = window.React;
+  // Shared procedural icon sprite (P7/A2): every modal title carries a
+  // monochrome SVG mark instead of an emoji.
+  const KI = (name, cls) => window.KodroIcons ? window.KodroIcons.el(name, cls) : null;
 
   // ---- Keyboard shortcuts (Help) ----
   // Pure static content; only needs a close handler.
@@ -16094,7 +16935,7 @@ say("Survey done")`
       className: "shortcut-group-title"
     }, "Panels"), /*#__PURE__*/React.createElement("dl", {
       className: "shortcut-list"
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "B")), /*#__PURE__*/React.createElement("dd", null, "Toggle block coding panel")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "L")), /*#__PURE__*/React.createElement("dd", null, "Toggle Robot Lab")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "M")), /*#__PURE__*/React.createElement("dd", null, "Toggle Memory panel")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "/")), /*#__PURE__*/React.createElement("dd", null, "Toggle this help")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "?")), /*#__PURE__*/React.createElement("dd", null, "Toggle this help")))), /*#__PURE__*/React.createElement("section", {
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "B")), /*#__PURE__*/React.createElement("dd", null, "Toggle block coding panel")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "L")), /*#__PURE__*/React.createElement("dd", null, "Toggle Robot Lab")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "M")), /*#__PURE__*/React.createElement("dd", null, "Toggle Memory panel")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "S")), /*#__PURE__*/React.createElement("dd", null, "Save the project (.kodro)")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "/")), /*#__PURE__*/React.createElement("dd", null, "Toggle this help")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "?")), /*#__PURE__*/React.createElement("dd", null, "Toggle this help")))), /*#__PURE__*/React.createElement("section", {
       className: "shortcut-group"
     }, /*#__PURE__*/React.createElement("h3", {
       className: "shortcut-group-title"
@@ -16116,7 +16957,9 @@ say("Survey done")`
     buildBusy,
     runBuild,
     buildErr,
-    buildPlan
+    buildPlan,
+    robotSpec,
+    onAdoptParts
   }) {
     return /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
@@ -16131,7 +16974,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83E\uDD16 Build a real robot. What your budget can buy"), /*#__PURE__*/React.createElement("button", {
+    }, KI('build'), "Build a real robot. What your budget can buy"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: onClose
@@ -16139,7 +16982,10 @@ say("Survey done")`
       className: "build-body"
     }, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "Type a budget and the local AI plans a real rover you can build and program, mapping what you learned here onto real hardware. Nothing is ordered; this runs offline."), /*#__PURE__*/React.createElement("div", {
+    }, "Type a budget and the local AI plans a real robot you can build and program, mapping your simulated work onto real hardware. Nothing is ordered; this runs offline."), robotSpec && /*#__PURE__*/React.createElement("p", {
+      className: "build-active",
+      "data-build-active": "1"
+    }, "Pricing the active build: ", /*#__PURE__*/React.createElement("b", null, robotSpec.name || 'My Robot'), ' · ', robotSpec.type || 'rover', ' · ', [].concat(robotSpec.sensors || [], robotSpec.actuators || []).join(', ') || 'no parts fitted'), /*#__PURE__*/React.createElement("div", {
       className: "build-input"
     }, /*#__PURE__*/React.createElement("label", null, "Budget (US$)", /*#__PURE__*/React.createElement("input", {
       type: "number",
@@ -16214,7 +17060,15 @@ say("Survey done")`
       key: i
     }, /*#__PURE__*/React.createElement("dt", null, m.robolearn), /*#__PURE__*/React.createElement("dd", null, m.hardware))))))), buildPlan.fallback && /*#__PURE__*/React.createElement("p", {
       className: "build-note"
-    }, "A standard plan is shown because the model could not tailor one within this budget.")))));
+    }, "A standard plan is shown because the model could not tailor one within this budget."), onAdoptParts && /*#__PURE__*/React.createElement("div", {
+      className: "vibe-code-actions",
+      style: {
+        marginTop: 10
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      onClick: () => onAdoptParts(buildPlan)
+    }, "Fit these parts in the Robot Lab"))))));
   }
 
   // ---- Agent swarm ----
@@ -16237,7 +17091,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83D\uDC1D Agent swarm. Your one program, run by a fleet at once"), /*#__PURE__*/React.createElement("button", {
+    }, KI('swarm'), "Agent swarm. Your one program, run by a fleet at once"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setSwarmOpen(false)
@@ -16246,7 +17100,7 @@ say("Survey done")`
     }, swarmBusy && /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
     }, "Launching the swarm\u2026"), swarmData && swarmData.paths && (() => {
-      const COLORS = ['#5ce0d8', '#e0b45c', '#7cc49b', '#c8685a', '#a78bfa', '#f0808a', '#62b6ff', '#b6e36a'];
+      const COLORS = ['var(--cyan)', '#e0b45c', '#7cc49b', '#c8685a', '#a78bfa', '#f0808a', '#62b6ff', '#b6e36a'];
       const pts = swarmData.paths.flat();
       let minX = Infinity,
         maxX = -Infinity,
@@ -16327,7 +17181,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83D\uDCCA Teacher dashboard. Class concept strength"), /*#__PURE__*/React.createElement("button", {
+    }, KI('report'), "Teacher dashboard. Class concept strength"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: onClose
@@ -16411,7 +17265,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83D\uDD0E Code review. A second AI agent checks your work"), /*#__PURE__*/React.createElement("button", {
+    }, KI('review'), "Code review. A second AI agent checks your work"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setReviewOpen(false)
@@ -16430,7 +17284,7 @@ say("Survey done")`
       key: i
     }, it))) : /*#__PURE__*/React.createElement("p", {
       className: "review-clean"
-    }, "No problems spotted. Nice work."), reviewData.revised && reviewData.code && /*#__PURE__*/React.createElement("div", {
+    }, "No problems spotted."), reviewData.revised && reviewData.code && /*#__PURE__*/React.createElement("div", {
       className: "review-rewrite"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
@@ -16469,7 +17323,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\u2753 Ask. Answered from the lesson material, not made up"), /*#__PURE__*/React.createElement("button", {
+    }, KI('ask'), "Ask. Answered from the built-in material, not made up"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setAskOpen(false)
@@ -16522,7 +17376,8 @@ say("Survey done")`
     currentLessonId,
     setLessonBuffers,
     setPrograms,
-    activeTab
+    activeTab,
+    applyCode
   }) {
     // Export downloads the reflections + skills as a JSON backup; Import
     // restores one. Both call the store's own exportData/importData, which
@@ -16586,7 +17441,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83E\uDDE0 Memory. The system refines from what it has seen, offline"), /*#__PURE__*/React.createElement("span", {
+    }, KI('memory'), "Memory. The system refines from what it has seen, offline"), /*#__PURE__*/React.createElement("span", {
       className: "mem-io"
     }, /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
@@ -16665,7 +17520,7 @@ say("Survey done")`
       onClick: () => {
         const cd = window.KodroMemory.useSkill(s.name);
         if (cd != null) {
-          if (currentLessonId) setLessonBuffers(b => ({
+          if (applyCode) applyCode(cd);else if (currentLessonId) setLessonBuffers(b => ({
             ...b,
             [currentLessonId]: cd
           }));else setPrograms(p => ({
@@ -16726,7 +17581,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\u2728 Vibe coding. Describe it, the AI writes it"), /*#__PURE__*/React.createElement("button", {
+    }, KI('vibe'), "Vibe coding. Describe it, the AI writes it"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => {
@@ -16749,15 +17604,15 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("span", {
       style: {
         fontSize: 12.5,
-        color: '#9fb4d2'
+        color: 'var(--fg-2)'
       }
     }, "Use model"), /*#__PURE__*/React.createElement("select", {
       value: aiInfo.override || aiInfo.model || '',
       onChange: e => pickModel(e.target.value),
       style: {
-        background: '#0e1622',
-        color: '#dce8f8',
-        border: '1px solid #2a3a52',
+        background: 'var(--navy-2)',
+        color: 'var(--fg-1)',
+        border: '1px solid var(--border)',
         borderRadius: 8,
         padding: '5px 8px',
         fontSize: 12.5
@@ -16866,7 +17721,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83E\uDDE9 Blocks. Click blocks to build, then turn them into Python"), /*#__PURE__*/React.createElement("button", {
+    }, KI('blocks'), "Blocks. Click blocks to build, then turn them into Python"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setBlocksOpen(false)
@@ -16896,7 +17751,7 @@ say("Survey done")`
       "aria-label": "Your program"
     }, blocks.length === 0 && /*#__PURE__*/React.createElement("p", {
       className: "vibe-hint"
-    }, "Click blocks above. They stack here like Scratch."), blocks.map((b, i) => /*#__PURE__*/React.createElement("div", {
+    }, "Click blocks above. They stack in order to form the program."), blocks.map((b, i) => /*#__PURE__*/React.createElement("div", {
       key: i,
       className: "block-row",
       style: {
@@ -16959,7 +17814,7 @@ say("Survey done")`
       style: {
         flex: 1
       }
-    }, "Turns into real Python. Watch it type itself into the editor."), /*#__PURE__*/React.createElement("button", {
+    }, "Compiles to real Python in the editor. Nothing runs until you press Run."), /*#__PURE__*/React.createElement("button", {
       className: "ctrl ctrl-run",
       disabled: !blocks.length,
       onClick: insertBlocksCode
@@ -17004,6 +17859,9 @@ say("Survey done")`
   const LED_COLORS = window.KodroLedColors || {};
 
   // ---------------- icons ----------------
+  // Chrome icons come from the shared procedural sprite (icons.jsx, P7/A2);
+  // the four run-control glyphs below predate it and keep their exact shapes.
+  const KI = (name, cls) => window.KodroIcons ? window.KodroIcons.el(name, cls) : null;
   const I = {
     play: /*#__PURE__*/React.createElement("svg", {
       viewBox: "0 0 24 24",
@@ -17268,6 +18126,32 @@ say("Survey done")`
     // Visual theme. 'dark' is the default mission-control look; the rest are
     // full repaints driven by [data-theme] CSS variable swaps in styles.css.
     const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
+    // P7/A1 mode split: 'studio' is the professional validation tool; the
+    // Classroom toggle brings back pupils, lessons, the teacher dashboard,
+    // achievements/confetti and the novelty themes. One product, two registers,
+    // with the maker profile as the default identity.
+    const [mode, setMode] = useState(() => {
+      try {
+        return localStorage.getItem('kodro_mode') || 'studio';
+      } catch (e) {
+        return 'studio';
+      }
+    });
+    const classroom = mode === 'classroom';
+    useEffect(() => {
+      try {
+        localStorage.setItem('kodro_mode', mode);
+      } catch (e) {
+        void e;
+      }
+      if (mode !== 'classroom') {
+        // Leaving Classroom: the novelty themes and any loaded lesson are
+        // classroom furniture, so the studio returns to the core theme set
+        // and the plain example tabs (A5).
+        setTheme(t => t === 'dark' || t === 'light' || t === 'contrast' ? t : 'dark');
+        setCurrentLessonId(null);
+      }
+    }, [mode]);
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     // Toast notifications: transient success/error/info messages pinned to the
@@ -17275,22 +18159,24 @@ say("Survey done")`
     // the JS only needs to mount the toast and unmount it after the animation.
     const [toasts, setToasts] = useState([]);
     const toastIdRef = useRef(0);
-    function showToast(text, kind) {
+    function showToast(text, kind, action) {
       const id = ++toastIdRef.current;
       setToasts(function (t) {
         return t.concat([{
           id: id,
           text: text,
-          kind: kind || 'info'
+          kind: kind || 'info',
+          action: action || null
         }]);
       });
+      // A toast carrying an action (e.g. Revert) needs time to be clicked.
       setTimeout(function () {
         setToasts(function (t) {
           return t.filter(function (to) {
             return to.id !== id;
           });
         });
-      }, 2400);
+      }, action ? 7000 : 2400);
     }
     // Brief "Loading {world}..." overlay shown while the 3D scene rebuilds on a
     // world switch, so the viewport does not flash empty for a frame.
@@ -17321,13 +18207,149 @@ say("Survey done")`
         if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
           setBuildErr('The robot builder needs the desktop app with local AI.');
         } else {
-          const r = await window.RoboLearn.budgetBuild(usd, buildGoal);
+          // A6: an empty goal prices the ACTIVE Robot Lab build, so the
+          // hardware plan and the Lab describe one robot, not two products.
+          const r = await window.RoboLearn.budgetBuild(usd, buildGoal.trim() || specGoalText());
           if (r && r.ok) setBuildPlan(r);else setBuildErr(r && r.reason || 'Could not build a plan.');
         }
       } catch (e) {
         setBuildErr(String(e));
       }
       setBuildBusy(false);
+    }
+    // ---- P7/A7: project file (one .kodro document for the whole state) ----
+    const projectFileRef = useRef(null);
+    async function saveProjectClick() {
+      setSettingsOpen(false);
+      if (!window.KodroProject) return;
+      const doc = window.KodroProject.collect();
+      const json = JSON.stringify(doc, null, 2);
+      const fname = window.KodroProject.fileName(doc);
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.exportProject) {
+        const r = await window.RoboLearn.exportProject(json, fname);
+        showToast(r && r.ok ? 'Project saved: ' + r.path : 'Project save ' + (r && r.reason || 'failed'), r && r.ok ? 'ok' : 'err');
+        return;
+      }
+      const blob = new Blob([json], {
+        type: 'application/json'
+      });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      showToast('Project downloaded: ' + fname, 'ok');
+    }
+    function applyProjectText(text) {
+      if (!window.KodroProject) return;
+      const r = window.KodroProject.apply(text);
+      if (!r.ok) {
+        addConsole('Project open failed: ' + (r.errors || []).join(' '), 'err');
+        showToast('Not a Kodro project file', 'err');
+        return;
+      }
+      (r.warnings || []).forEach(w => addConsole('Project: ' + w, 'sys'));
+      addConsole('Project loaded. Restarting the studio with the saved state...', 'ok');
+      // The document was written straight into storage; a clean reload is the
+      // honest way to rehydrate every consumer (App, Lab, memory, viewport).
+      setTimeout(() => {
+        try {
+          location.reload();
+        } catch (e) {
+          void e;
+        }
+      }, 400);
+    }
+    async function openProjectClick() {
+      setSettingsOpen(false);
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.importProject) {
+        try {
+          const r = await window.RoboLearn.importProject();
+          if (r && r.ok) applyProjectText(r.text);else if (r && r.reason && r.reason !== 'cancelled') showToast('Project open: ' + r.reason, 'err');
+        } catch (e) {
+          showToast('Project open failed: ' + e, 'err');
+        }
+        return;
+      }
+      if (projectFileRef.current) projectFileRef.current.click();
+    }
+    function onProjectFilePicked(e) {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      if (f.size > 2 * 1024 * 1024) {
+        showToast('Project file is larger than 2 MB', 'err');
+        return;
+      }
+      const rd = new FileReader();
+      rd.onload = () => applyProjectText(String(rd.result));
+      rd.readAsText(f);
+    }
+
+    // ---- P7/A8: run reports (structured per-run artefact + history) ----
+    const [runsOpen, setRunsOpen] = useState(false);
+    const [runsTick, setRunsTick] = useState(0);
+    const [cmpSel, setCmpSel] = useState([]); // up to two run ids to compare
+    useEffect(() => {
+      const on = () => setRunsTick(n => n + 1 & 1023);
+      window.addEventListener('kodro-runreport', on);
+      return () => window.removeEventListener('kodro-runreport', on);
+    }, []);
+    function recordRunReport(outcome, detail, verdictText) {
+      if (!window.KodroRunReports) return;
+      const rb = window.getKodroRobot ? window.getKodroRobot() : {};
+      let predicted = '';
+      try {
+        if (window.KodroDiagnostics) predicted = window.KodroDiagnostics.assess(robotSpec, rb, terrain).overall || '';
+      } catch (e) {
+        void e;
+      }
+      window.KodroRunReports.save({
+        world: terrain.siteId || terrain.id,
+        worldName: terrain.name || '',
+        robotName: robotSpec && robotSpec.name || rb && rb.name || '',
+        robotType: robotSpec && robotSpec.type || rb && rb.type || '',
+        massFactor: rb && rb.massFactor || 1,
+        speedFactor: rb && rb.speedFactor || 1,
+        outcome: outcome,
+        detail: detail || '',
+        commands: cmdCountRef.current,
+        distanceCm: odoRef.current,
+        batteryUsedPct: 100 - live.current.battery,
+        minProximityCm: isFinite(minProxRef.current) ? minProxRef.current : null,
+        wallMs: runStartRef.current ? Date.now() - runStartRef.current : null,
+        predicted: predicted,
+        verdict: verdictText || ''
+      });
+    }
+
+    // A6: merge of the two build features. The Build-real planner opens
+    // seeded with the current spec, and a generated plan's parts can be
+    // fitted straight back into the Robot Lab catalogue.
+    function specGoalText() {
+      const rb = window.getKodroRobot ? window.getKodroRobot() : null;
+      if (!rb) return '';
+      const parts = [].concat(rb.sensors || [], rb.actuators || []).join(', ');
+      return 'a ' + (rb.type || 'rover') + ' like my build "' + (rb.name || 'My Robot') + '"' + (parts ? ' with ' + parts : '');
+    }
+    function openBuildReal() {
+      setRobotLabOpen(false);
+      if (!buildGoal.trim()) setBuildGoal(specGoalText());
+      setBuildOpen(true);
+    }
+    function adoptPlanParts(plan) {
+      if (!plan || !plan.parts || !window.RobotLab || !window.RobotLab.buildFromText) return;
+      // The plan's part names route through the same catalogue mapper the
+      // onboarding agent uses, so only real, buildable parts get fitted.
+      const text = plan.parts.map(function (p) {
+        return p.name + ' ' + (p.role || '');
+      }).join('; ');
+      const r = window.RobotLab.buildFromText(text);
+      setBuildOpen(false);
+      showToast('Plan parts fitted: ' + (r && r.spec && r.spec.name || 'build updated'), 'ok');
+      setRobotLabOpen(true);
     }
     // Click-away + Escape close the settings popover; focus moves into the
     // popover on open and is restored to the gear button on close, so a keyboard
@@ -17696,7 +18718,40 @@ say("Survey done")`
     }
 
     // Typewriter: animate code into the active editor buffer like live typing.
+    // P7/A9: every programmatic write (AI apply, review apply, blocks insert,
+    // skill insert) snapshots the buffer it is about to overwrite and offers a
+    // one-click Revert toast, so applying a rewrite is never a destructive act.
     const typeRef = useRef(null);
+    const undoRef = useRef(null); // { lessonId, tab, code } - the pre-apply buffer
+    function snapshotForUndo(lessonId, tab) {
+      const prior = lessonId ? lessonBuffers[lessonId] !== undefined ? lessonBuffers[lessonId] : '' : programs[tab] !== undefined ? programs[tab] : '';
+      undoRef.current = {
+        lessonId: lessonId || null,
+        tab: tab,
+        code: prior
+      };
+      showToast('Editor updated', 'info', {
+        label: 'Revert',
+        onClick: revertLastApply
+      });
+    }
+    function revertLastApply() {
+      const u = undoRef.current;
+      if (!u) return;
+      undoRef.current = null;
+      if (typeRef.current) {
+        clearInterval(typeRef.current);
+        typeRef.current = null;
+      }
+      if (u.lessonId) setLessonBuffers(b => ({
+        ...b,
+        [u.lessonId]: u.code
+      }));else setPrograms(p => ({
+        ...p,
+        [u.tab]: u.code
+      }));
+      addConsole('Reverted the last applied code. Your previous program is back.', 'sys');
+    }
     function typewriteCode(codeText) {
       if (typeRef.current) {
         clearInterval(typeRef.current);
@@ -17706,6 +18761,7 @@ say("Survey done")`
       // Snapshot the target tab at invocation (like lessonId) so a tab switch
       // mid-animation cannot redirect the remaining typed code to another buffer.
       const tab = activeTab;
+      snapshotForUndo(lessonId, tab);
       const setCode = v => {
         if (lessonId) setLessonBuffers(b => ({
           ...b,
@@ -17729,6 +18785,20 @@ say("Survey done")`
           typeRef.current = null;
         }
       }, 12);
+    }
+    // Skill insert (Memory panel) writes the editor through the same
+    // snapshot-then-apply path, so it is revertable like every other apply.
+    function applyProgramText(codeText) {
+      const lessonId = currentLessonIdRef.current;
+      const tab = activeTab;
+      snapshotForUndo(lessonId, tab);
+      if (lessonId) setLessonBuffers(b => ({
+        ...b,
+        [lessonId]: codeText
+      }));else setPrograms(p => ({
+        ...p,
+        [tab]: codeText
+      }));
     }
 
     // If the app ever unmounts, clear the typewriter interval and the say-bubble
@@ -17843,9 +18913,11 @@ say("Survey done")`
           reasons: r.reasons || [],
           hint: r.hint || null
         });
+        // Confetti is a classroom register; the studio celebrates with the
+        // verdict chip and the pass tone only (A1).
         if (r.passed) {
           sfx('pass');
-          celebrate();
+          if (classroom) celebrate();
         } else {
           sfx('fail');
         }
@@ -17861,15 +18933,15 @@ say("Survey done")`
           }));
           if (r.hint && r.hint.message) lines.push({
             type: 'sys',
-            text: '💡 Hint: ' + r.hint.message
+            text: 'Hint: ' + r.hint.message
           });
           if (Array.isArray(r.achievements)) r.achievements.forEach(a => lines.push({
             type: 'ok',
-            text: (a.icon || '🏅') + ' Achievement unlocked: ' + a.title
+            text: 'Achievement unlocked: ' + a.title
           }));
           if (r.recommended && r.recommended.id) lines.push({
             type: 'sys',
-            text: '👉 Recommended next: ' + r.recommended.id + ' · ' + r.recommended.title
+            text: 'Recommended next: ' + r.recommended.id + ' · ' + r.recommended.title
           });
           return lines;
         });
@@ -18227,13 +19299,18 @@ say("Survey done")`
         if (refl) addConsole('Reflection saved: ' + refl, 'sys');
       }
       // Coach: tie the outcome back to the design and recommend a fix.
+      let crashVerdict = '';
       if (window.KodroDiagnostics) {
         const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotBuild || {}, terrain), {
           outcome: 'crash',
           detail: what
         });
-        if (v) addConsole(v.text, v.tone);
+        if (v) {
+          addConsole(v.text, v.tone);
+          crashVerdict = v.text;
+        }
       }
+      recordRunReport('crash', what, crashVerdict);
       haltProgram('error');
     }
     async function animateMove(ev) {
@@ -18285,12 +19362,17 @@ say("Survey done")`
             });
             if (refl) addConsole('Reflection saved: ' + refl, 'sys');
           }
+          let stallVerdict = '';
           if (window.KodroDiagnostics) {
             const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), {
               outcome: 'stalled'
             });
-            if (v) addConsole(v.text, v.tone);
+            if (v) {
+              addConsole(v.text, v.tone);
+              stallVerdict = v.text;
+            }
           }
+          recordRunReport('stalled', 'underpowered drive', stallVerdict);
           haltProgram('error');
           return false;
         }
@@ -18444,12 +19526,17 @@ say("Survey done")`
           });
           if (refl) addConsole('Reflection saved: ' + refl, 'sys');
         }
+        let flatVerdict = '';
         if (window.KodroDiagnostics) {
           const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), {
             outcome: 'flat'
           });
-          if (v) addConsole(v.text, v.tone);
+          if (v) {
+            addConsole(v.text, v.tone);
+            flatVerdict = v.text;
+          }
         }
+        recordRunReport('flat', 'battery', flatVerdict);
         haltProgram('error');
         return false;
       }
@@ -18732,6 +19819,9 @@ say("Survey done")`
       const line = e && e.line;
       if (line) setActiveLine(line);
       addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
+      // A8: an error mid-mission is a run result; a compile-time typo that
+      // executed nothing is not.
+      if (cmdCountRef.current > 0) recordRunReport('error', msg, '');
       haltProgram('error');
     }
     function finishProgram() {
@@ -18774,6 +19864,7 @@ say("Survey done")`
       // verdict reads the run's OWN stats (distance covered, closest approach,
       // commands executed) so it describes what actually happened, not just
       // the pre-run prediction (bugs D5).
+      let doneVerdict = '';
       if (window.KodroDiagnostics) {
         const robotNow = window.getKodroRobot ? window.getKodroRobot() : {};
         const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotNow, terrain), {
@@ -18782,8 +19873,13 @@ say("Survey done")`
           distanceCm: Math.round(odoRef.current),
           minProximityCm: isFinite(minProxRef.current) ? Math.round(minProxRef.current) : null
         });
-        if (v) addConsole(v.text, v.tone);
+        if (v) {
+          addConsole(v.text, v.tone);
+          doneVerdict = v.text;
+        }
       }
+      // P7/A8: every completed run leaves a durable, structured report.
+      recordRunReport('done', '', doneVerdict);
       // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
       gradeWithBridge(code);
     }
@@ -19063,13 +20159,15 @@ say("Survey done")`
       teleW,
       consoleH,
       startDrag,
-      nudge
+      nudge,
+      preset: layoutPreset
     } = window.KodroHooks && window.KodroHooks.useResizers ? window.KodroHooks.useResizers() : {
       editorW: 404,
       teleW: 318,
       consoleH: 184,
       startDrag: function () {},
-      nudge: function () {}
+      nudge: function () {},
+      preset: function () {}
     };
 
     // interactive camera: drag the viewport to orbit (yaw + pitch), wheel to zoom
@@ -19118,6 +20216,8 @@ say("Survey done")`
     onResetRef.current = onReset;
     const onTerrainRef = useRef(onTerrain);
     onTerrainRef.current = onTerrain;
+    const saveProjectRef = useRef(saveProjectClick);
+    saveProjectRef.current = saveProjectClick;
     const showHelpRef = useRef(showHelp);
     showHelpRef.current = showHelp;
     // "Any overlay open" drives Escape priority: close overlays before resetting
@@ -19195,6 +20295,12 @@ say("Survey done")`
               e.preventDefault();
               onTerrainRef.current(id);
             }
+            return;
+          }
+          // Ctrl+S: save the project document (Ctrl+Shift+S is Step).
+          if (!e.shiftKey && !e.altKey && (e.key === 'S' || e.key === 's')) {
+            e.preventDefault();
+            saveProjectRef.current();
             return;
           }
           // Ctrl+B: toggle the block coding panel.
@@ -19394,21 +20500,21 @@ say("Survey done")`
       title: "Robot Lab. Design a custom robot",
       "aria-label": "Robot Lab \u2014 design a custom robot",
       onClick: () => setRobotLabOpen(true)
-    }, "\uD83D\uDEE0", /*#__PURE__*/React.createElement("span", {
+    }, KI('lab'), /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
     }, "Robot Lab")), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
       title: "Memory. What the system learned, and your skill library",
       "aria-label": "Memory and skills \u2014 what the system learned, and your skill library",
       onClick: () => setMemoryOpen(true)
-    }, "\uD83E\uDDE0", /*#__PURE__*/React.createElement("span", {
+    }, KI('memory'), /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
     }, "Memory")), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
       title: "Build a real robot on a budget",
       "aria-label": "Build a real robot \u2014 design one on a budget",
-      onClick: () => setBuildOpen(true)
-    }, "\uD83E\uDD16", /*#__PURE__*/React.createElement("span", {
+      onClick: openBuildReal
+    }, KI('build'), /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
     }, "Build")), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
@@ -19417,7 +20523,17 @@ say("Survey done")`
       onClick: () => setShowHelp(true)
     }, "?", /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
-    }, "Help")), /*#__PURE__*/React.createElement("div", {
+    }, "Help")), /*#__PURE__*/React.createElement("input", {
+      ref: projectFileRef,
+      type: "file",
+      accept: ".kodro,.json,application/json",
+      style: {
+        display: 'none'
+      },
+      "aria-hidden": "true",
+      tabIndex: -1,
+      onChange: onProjectFilePicked
+    }), /*#__PURE__*/React.createElement("div", {
       className: "settings-wrap"
     }, /*#__PURE__*/React.createElement("button", {
       ref: settingsBtnRef,
@@ -19427,13 +20543,24 @@ say("Survey done")`
       "aria-haspopup": "dialog",
       "aria-expanded": settingsOpen,
       onClick: () => setSettingsOpen(o => !o)
-    }, "\u2699", /*#__PURE__*/React.createElement("span", {
+    }, KI('gear'), /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
     }, "Settings")), settingsOpen && /*#__PURE__*/React.createElement("div", {
       className: "settings-pop",
       role: "dialog",
       "aria-label": "Settings"
-    }, pupils.length > 0 && /*#__PURE__*/React.createElement("label", {
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "set-row"
+    }, /*#__PURE__*/React.createElement("span", null, "Mode"), /*#__PURE__*/React.createElement("select", {
+      className: "lesson-select",
+      value: mode,
+      onChange: e => setMode(e.target.value),
+      "aria-label": "Studio or Classroom mode"
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "studio"
+    }, "Studio"), /*#__PURE__*/React.createElement("option", {
+      value: "classroom"
+    }, "Classroom"))), classroom && pupils.length > 0 && /*#__PURE__*/React.createElement("label", {
       className: "set-row"
     }, /*#__PURE__*/React.createElement("span", null, "Pupil"), /*#__PURE__*/React.createElement("select", {
       className: "lesson-select",
@@ -19458,19 +20585,19 @@ say("Survey done")`
       value: "light"
     }, "Daylight (light)"), /*#__PURE__*/React.createElement("option", {
       value: "contrast"
-    }, "High contrast (colour-blind safe)"), /*#__PURE__*/React.createElement("option", {
+    }, "High contrast (colour-blind safe)"), classroom && /*#__PURE__*/React.createElement("option", {
       value: "matrix"
-    }, "Matrix"), /*#__PURE__*/React.createElement("option", {
+    }, "Matrix"), classroom && /*#__PURE__*/React.createElement("option", {
       value: "pixel"
-    }, "Pixel"), /*#__PURE__*/React.createElement("option", {
+    }, "Pixel"), classroom && /*#__PURE__*/React.createElement("option", {
       value: "game"
-    }, "Arcade"), /*#__PURE__*/React.createElement("option", {
+    }, "Arcade"), classroom && /*#__PURE__*/React.createElement("option", {
       value: "lego"
-    }, "Brick"), /*#__PURE__*/React.createElement("option", {
+    }, "Brick"), classroom && /*#__PURE__*/React.createElement("option", {
       value: "chatgpt"
-    }, "Clean"), /*#__PURE__*/React.createElement("option", {
+    }, "Clean"), classroom && /*#__PURE__*/React.createElement("option", {
       value: "abstract"
-    }, "Abstract"), /*#__PURE__*/React.createElement("option", {
+    }, "Abstract"), classroom && /*#__PURE__*/React.createElement("option", {
       value: "wiki"
     }, "Wiki / Network"))), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
@@ -19486,18 +20613,43 @@ say("Survey done")`
       className: "set-val"
     }, readable ? 'On' : 'Off')), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
+      onClick: () => layoutPreset('viewport')
+    }, /*#__PURE__*/React.createElement("span", null, "Layout \xB7 Maximize viewport"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      onClick: () => layoutPreset('editor')
+    }, /*#__PURE__*/React.createElement("span", null, "Layout \xB7 Focus editor"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      onClick: () => layoutPreset('reset')
+    }, /*#__PURE__*/React.createElement("span", null, "Layout \xB7 Reset"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      onClick: saveProjectClick
+    }, /*#__PURE__*/React.createElement("span", null, "Project \xB7 Save (.kodro)"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      onClick: openProjectClick
+    }, /*#__PURE__*/React.createElement("span", null, "Project \xB7 Open\u2026"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
       onClick: () => {
         setSettingsOpen(false);
         pickPhotoClick();
       }
     }, /*#__PURE__*/React.createElement("span", null, "Photo prop \xB7 place(\"photo\")"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
-    }, photoUrl ? 'Loaded' : 'Pick…')), /*#__PURE__*/React.createElement("button", {
+    }, photoUrl ? 'Loaded' : 'Pick…')), classroom && /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
       onClick: openTeacher
     }, /*#__PURE__*/React.createElement("span", null, "Teacher dashboard"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
-    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+    }, "\u2192")), classroom && /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
       onClick: () => {
         setSettingsOpen(false);
@@ -19538,7 +20690,7 @@ say("Survey done")`
         setCurrentLessonId(null);
         setActiveTab(k);
       }
-    }, EXAMPLES[k].label))), lessons.length > 0 && /*#__PURE__*/React.createElement("div", {
+    }, EXAMPLES[k].label))), classroom && lessons.length > 0 && /*#__PURE__*/React.createElement("div", {
       className: "lesson-picker"
     }, /*#__PURE__*/React.createElement("label", {
       htmlFor: "lesson-select",
@@ -19560,38 +20712,38 @@ say("Survey done")`
       className: "btn-mini btn-vibe",
       title: aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)',
       onClick: () => setVibeOpen(true)
-    }, "\u2728 Vibe"), /*#__PURE__*/React.createElement("button", {
+    }, KI('vibe'), "Vibe"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Build the program from blocks",
       onClick: () => setBlocksOpen(true)
-    }, "\uD83E\uDDE9 Blocks"), /*#__PURE__*/React.createElement("button", {
+    }, KI('blocks'), "Blocks"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)',
       onClick: runReview
-    }, "\uD83D\uDD0E Review"), /*#__PURE__*/React.createElement("button", {
+    }, KI('review'), "Review"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Validate this program across 5 randomised seeds",
       onClick: runValidation
-    }, "\uD83C\uDFAF Validate"), /*#__PURE__*/React.createElement("button", {
+    }, KI('target'), "Validate"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Realism dashboard: how the build drives the simulation",
       onClick: () => setRealismOpen(true)
-    }, "\uD83D\uDCCA Realism"), /*#__PURE__*/React.createElement("button", {
+    }, KI('gauge'), "Realism"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Guided 2 to 3 minute realism demo",
       onClick: () => setDemoOpen(true)
-    }, "\u25B6 Demo"), /*#__PURE__*/React.createElement("button", {
+    }, KI('demo'), "Demo"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      title: aiInfo.available ? 'Ask a question, answered from the lesson material' : 'Ask a question, answered from the lesson material (needs local Ollama)',
+      title: aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs local Ollama)',
       onClick: () => {
         setAskOpen(true);
         setAskData(null);
       }
-    }, "\u2753 Ask"), /*#__PURE__*/React.createElement("button", {
+    }, KI('ask'), "Ask"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Run your program on a swarm of rovers at once",
       onClick: runSwarm
-    }, "\uD83D\uDC1D Swarm"))), /*#__PURE__*/React.createElement(window.Editor, {
+    }, KI('swarm'), "Swarm"))), /*#__PURE__*/React.createElement(window.Editor, {
       code: code,
       onChange: onCodeChange,
       activeLine: activeLine,
@@ -19622,6 +20774,7 @@ say("Survey done")`
         className: "sep"
       }, " \xB7 sensors return values: "), SENSOR_HINTS.map(hint));
     })(), (() => {
+      if (!classroom) return null; // lessons are classroom furniture (A1)
       const lesson = lessons.find(l => l.id === currentLessonId);
       if (!lesson) return null;
       return /*#__PURE__*/React.createElement("section", {
@@ -19653,7 +20806,7 @@ say("Survey done")`
         key: i
       }, r))), lessonVerdict && lessonVerdict.hint && lessonVerdict.hint.message && /*#__PURE__*/React.createElement("p", {
         className: "lesson-hint"
-      }, "\uD83D\uDCA1 ", lessonVerdict.hint.message));
+      }, KI('bulb'), " ", lessonVerdict.hint.message));
     })()), /*#__PURE__*/React.createElement("div", {
       className: "resizer-row",
       role: "separator",
@@ -19695,18 +20848,94 @@ say("Survey done")`
       className: "console-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "Console"), /*#__PURE__*/React.createElement("div", {
+    }, runsOpen ? 'Run reports' : 'Console'), /*#__PURE__*/React.createElement("div", {
       className: "ph-spacer",
       style: {
         flex: 1
       }
     }), /*#__PURE__*/React.createElement("button", {
+      className: 'btn-mini' + (runsOpen ? ' active' : ''),
+      title: "Run reports. A structured record of every run; tick two to compare builds",
+      "aria-pressed": runsOpen,
+      onClick: () => setRunsOpen(o => !o)
+    }, "Runs"), !runsOpen && /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       onClick: () => setConsoleLines([{
         type: 'sys',
         text: 'Console cleared.'
       }])
-    }, "Clear")), /*#__PURE__*/React.createElement("div", {
+    }, "Clear")), runsOpen && (() => {
+      // P7/A8: the docked run-report panel. Reads the store fresh on
+      // every kodro-runreport tick; two ticked runs render a
+      // side-by-side numeric compare.
+      void runsTick;
+      const runs = window.KodroRunReports ? window.KodroRunReports.list() : [];
+      const sel = cmpSel.map(id => runs.find(r => r.id === id)).filter(Boolean);
+      const toggleSel = id => setCmpSel(cs => cs.indexOf(id) >= 0 ? cs.filter(x => x !== id) : cs.length >= 2 ? [cs[1], id] : cs.concat([id]));
+      const fmtTime = ts => {
+        try {
+          const d = new Date(ts);
+          return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+        } catch (e) {
+          return '';
+        }
+      };
+      return /*#__PURE__*/React.createElement("div", {
+        className: "runs-panel",
+        role: "region",
+        "aria-label": "Run reports"
+      }, sel.length === 2 && window.KodroRunReports && /*#__PURE__*/React.createElement("table", {
+        className: "runs-diff"
+      }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null), /*#__PURE__*/React.createElement("th", null, sel[0].robotName || 'A', " \xB7 ", fmtTime(sel[0].ts)), /*#__PURE__*/React.createElement("th", null, sel[1].robotName || 'B', " \xB7 ", fmtTime(sel[1].ts)), /*#__PURE__*/React.createElement("th", null, "delta"))), /*#__PURE__*/React.createElement("tbody", null, window.KodroRunReports.diff(sel[0], sel[1]).map((d, i) => /*#__PURE__*/React.createElement("tr", {
+        key: i
+      }, /*#__PURE__*/React.createElement("td", null, d.label), /*#__PURE__*/React.createElement("td", {
+        className: "num"
+      }, d.a), /*#__PURE__*/React.createElement("td", {
+        className: "num"
+      }, d.b), /*#__PURE__*/React.createElement("td", {
+        className: "num"
+      }, d.delta != null ? (d.delta > 0 ? '+' : '') + d.delta : '-'))))), runs.length === 0 ? /*#__PURE__*/React.createElement("p", {
+        className: "vibe-status",
+        style: {
+          padding: '10px 12px'
+        }
+      }, "No runs recorded yet. Press Run; every finished, crashed, stalled or flat-battery run leaves a report here.") : /*#__PURE__*/React.createElement("ul", {
+        className: "runs-list"
+      }, runs.map(r => /*#__PURE__*/React.createElement("li", {
+        key: r.id,
+        className: 'run-entry run-' + r.outcome,
+        "data-run-entry": r.outcome
+      }, /*#__PURE__*/React.createElement("input", {
+        type: "checkbox",
+        checked: cmpSel.indexOf(r.id) >= 0,
+        onChange: () => toggleSel(r.id),
+        "aria-label": 'Select the ' + (r.robotName || 'robot') + ' run for compare'
+      }), /*#__PURE__*/React.createElement("span", {
+        className: 'run-outcome ro-' + r.outcome
+      }, (r.outcome || '?').toUpperCase()), /*#__PURE__*/React.createElement("span", {
+        className: "run-main"
+      }, r.robotName || 'Robot', " \xB7 ", r.worldName || r.world, r.detail ? ' · ' + r.detail : ''), /*#__PURE__*/React.createElement("span", {
+        className: "run-stats num"
+      }, r.distanceCm != null ? (r.distanceCm / 100).toFixed(1) + ' m' : '-', r.batteryUsedPct != null ? ' · ' + r.batteryUsedPct + '% batt' : '', r.minProximityCm != null && r.minProximityCm < 600 ? ' · ' + r.minProximityCm + ' cm closest' : ''), /*#__PURE__*/React.createElement("span", {
+        className: "run-pred",
+        title: "The design check's prediction before the run"
+      }, r.predicted ? 'predicted: ' + r.predicted : ''), /*#__PURE__*/React.createElement("span", {
+        className: "run-time num"
+      }, fmtTime(r.ts))))), /*#__PURE__*/React.createElement("div", {
+        className: "runs-foot"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "vibe-hint",
+        style: {
+          flex: 1
+        }
+      }, "Tick two runs to compare builds side by side."), /*#__PURE__*/React.createElement("button", {
+        className: "btn-mini",
+        onClick: () => {
+          if (window.KodroRunReports) window.KodroRunReports.clear();
+          setCmpSel([]);
+        }
+      }, "Clear history")));
+    })(), !runsOpen && /*#__PURE__*/React.createElement("div", {
       className: "console-out",
       ref: consoleEndRef,
       role: "log",
@@ -19717,7 +20946,7 @@ say("Survey done")`
       className: 'cline ' + (l.type === 'err' ? 'err' : l.type === 'ok' ? 'ok' : l.type === 'sys' ? 'sys' : '')
     }, l.ts ? /*#__PURE__*/React.createElement("span", {
       className: "ts"
-    }, l.ts) : null, l.text))), /*#__PURE__*/React.createElement("div", {
+    }, l.ts) : null, l.text))), !runsOpen && /*#__PURE__*/React.createElement("div", {
       className: "repl-row"
     }, /*#__PURE__*/React.createElement("span", {
       className: "repl-prompt",
@@ -19796,7 +21025,7 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("option", {
       value: "",
       disabled: true
-    }, "\uD83C\uDF0D Mission site\u2026"), [['earth', '🌍 Earth'], ['underwater', '🌊 Underwater'], ['mars', '🔴 Mars'], ['space', '🌑 Space'], ['room', '🔬 Test bays']].map(([base, label]) => {
+    }, "Mission site\u2026"), [['earth', 'Earth'], ['underwater', 'Underwater'], ['mars', 'Mars'], ['space', 'Space'], ['room', 'Test bays']].map(([base, label]) => {
       const ids = Object.keys(window.SITES).filter(id => window.SITES[id].base === base);
       return ids.length === 0 ? null : /*#__PURE__*/React.createElement("optgroup", {
         key: base,
@@ -19828,7 +21057,7 @@ say("Survey done")`
       "aria-pressed": fpv,
       title: "Switch between orbit and first person",
       onClick: () => setFpv(f => !f)
-    }, fpv ? '👁 First person' : '🛰 Orbit'), view3d && /*#__PURE__*/React.createElement("select", {
+    }, fpv ? KI('eye') : KI('orbit'), fpv ? 'First person' : 'Orbit'), view3d && /*#__PURE__*/React.createElement("select", {
       className: "terrain-btn",
       value: quality,
       title: "Render quality (Low keeps a basic laptop smooth, Cinematic maxes a screenshot)",
@@ -20055,7 +21284,8 @@ say("Survey done")`
       onClose: () => setTeacherOpen(false),
       teacherData: teacherData
     }), robotLabOpen && RobotLab && /*#__PURE__*/React.createElement(RobotLab, {
-      onClose: () => setRobotLabOpen(false)
+      onClose: () => setRobotLabOpen(false),
+      onBuildReal: openBuildReal
     }), memoryOpen && /*#__PURE__*/React.createElement(window.KodroPanels.MemoryModal, {
       setMemoryOpen: setMemoryOpen,
       memTick: memTick,
@@ -20065,7 +21295,8 @@ say("Survey done")`
       currentLessonId: currentLessonId,
       setLessonBuffers: setLessonBuffers,
       setPrograms: setPrograms,
-      activeTab: activeTab
+      activeTab: activeTab,
+      applyCode: applyProgramText
     }), reviewOpen && /*#__PURE__*/React.createElement(window.KodroPanels.ReviewModal, {
       reviewBusy: reviewBusy,
       setReviewOpen: setReviewOpen,
@@ -20118,7 +21349,9 @@ say("Survey done")`
       buildBusy: buildBusy,
       runBuild: runBuild,
       buildErr: buildErr,
-      buildPlan: buildPlan
+      buildPlan: buildPlan,
+      robotSpec: robotSpec,
+      onAdoptParts: adoptPlanParts
     }), /*#__PURE__*/React.createElement("div", {
       className: "toast-stack",
       role: "status",
@@ -20128,7 +21361,21 @@ say("Survey done")`
       return /*#__PURE__*/React.createElement("div", {
         key: t.id,
         className: 'toast toast-' + t.kind
-      }, t.text);
+      }, t.text, t.action && /*#__PURE__*/React.createElement("button", {
+        className: "btn-mini toast-action",
+        onClick: function () {
+          try {
+            t.action.onClick();
+          } catch (e) {
+            void e;
+          }
+          setToasts(function (ts) {
+            return ts.filter(function (to) {
+              return to.id !== t.id;
+            });
+          });
+        }
+      }, t.action.label));
     })), !onboarded && window.KodroOnboarding && /*#__PURE__*/React.createElement(window.KodroOnboarding, {
       onClose: () => {
         setOnboarded(true);

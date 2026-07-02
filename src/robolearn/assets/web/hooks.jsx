@@ -72,9 +72,36 @@
 
   function useResizers() {
     // ---------- layout resizers ----------
-    const [editorW, setEditorW] = useState(404);
-    const [teleW, setTeleW] = useState(318);
-    const [consoleH, setConsoleH] = useState(184);
+    // P7/A10: panel sizes persist across sessions (one JSON key), and three
+    // presets give one-click layouts. Bounds match the drag/nudge clamps.
+    const LAYOUT_KEY = 'kodro_layout_v1';
+    const DEFAULTS = { editorW: 404, teleW: 318, consoleH: 184 };
+    function loadLayout() {
+      try {
+        const raw = localStorage.getItem(LAYOUT_KEY);
+        if (!raw) return DEFAULTS;
+        const v = JSON.parse(raw);
+        return {
+          editorW: Math.max(280, Math.min(640, +v.editorW || DEFAULTS.editorW)),
+          teleW: Math.max(240, Math.min(460, +v.teleW || DEFAULTS.teleW)),
+          consoleH: Math.max(90, Math.min(420, +v.consoleH || DEFAULTS.consoleH)),
+        };
+      } catch (e) { return DEFAULTS; }
+    }
+    const initial = loadLayout();
+    const [editorW, setEditorW] = useState(initial.editorW);
+    const [teleW, setTeleW] = useState(initial.teleW);
+    const [consoleH, setConsoleH] = useState(initial.consoleH);
+    useEffect(() => {
+      try { localStorage.setItem(LAYOUT_KEY, JSON.stringify({ editorW: editorW, teleW: teleW, consoleH: consoleH })); } catch (e) { void e; }
+    }, [editorW, teleW, consoleH]);
+    // Named layouts: maximize the 3D viewport, focus the editor, or return to
+    // the defaults. Values stay inside the same clamps the drag path uses.
+    function preset(name) {
+      if (name === 'viewport') { setEditorW(280); setTeleW(240); setConsoleH(110); }
+      else if (name === 'editor') { setEditorW(640); setTeleW(240); setConsoleH(260); }
+      else { setEditorW(DEFAULTS.editorW); setTeleW(DEFAULTS.teleW); setConsoleH(DEFAULTS.consoleH); }
+    }
     function startDrag(kind, e) {
       e.preventDefault();
       const sx = e.clientX, sy = e.clientY;
@@ -95,7 +122,7 @@
       else if (kind === 'tele') setTeleW(w => Math.max(240, Math.min(460, w + d)));
       else if (kind === 'console') setConsoleH(h => Math.max(90, Math.min(420, h + d)));
     }
-    return { editorW, teleW, consoleH, startDrag, nudge };
+    return { editorW, teleW, consoleH, startDrag, nudge, preset };
   }
 
   function useBlocks(opts) {

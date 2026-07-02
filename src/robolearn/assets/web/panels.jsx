@@ -15,6 +15,9 @@
  */
 (function () {
   const React = window.React;
+  // Shared procedural icon sprite (P7/A2): every modal title carries a
+  // monochrome SVG mark instead of an emoji.
+  const KI = (name, cls) => (window.KodroIcons ? window.KodroIcons.el(name, cls) : null);
 
   // ---- Keyboard shortcuts (Help) ----
   // Pure static content; only needs a close handler.
@@ -50,6 +53,7 @@
                 <div><dt><kbd>Ctrl</kbd>+<kbd>B</kbd></dt><dd>Toggle block coding panel</dd></div>
                 <div><dt><kbd>Ctrl</kbd>+<kbd>L</kbd></dt><dd>Toggle Robot Lab</dd></div>
                 <div><dt><kbd>Ctrl</kbd>+<kbd>M</kbd></dt><dd>Toggle Memory panel</dd></div>
+                <div><dt><kbd>Ctrl</kbd>+<kbd>S</kbd></dt><dd>Save the project (.kodro)</dd></div>
                 <div><dt><kbd>Ctrl</kbd>+<kbd>/</kbd></dt><dd>Toggle this help</dd></div>
                 <div><dt><kbd>?</kbd></dt><dd>Toggle this help</dd></div>
               </dl>
@@ -74,16 +78,23 @@
 
   // ---- Build a real robot ----
   // Renders window.RoverSchematic (loaded earlier in ORDER), same as inline.
-  function BuildModal({ onClose, buildBudget, setBuildBudget, buildGoal, setBuildGoal, buildBusy, runBuild, buildErr, buildPlan }) {
+  function BuildModal({ onClose, buildBudget, setBuildBudget, buildGoal, setBuildGoal, buildBusy, runBuild, buildErr, buildPlan, robotSpec, onAdoptParts }) {
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Build a real robot" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">🤖 Build a real robot. What your budget can buy</span>
+            <span className="eyebrow">{KI('build')}Build a real robot. What your budget can buy</span>
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
           <div className="build-body">
-            <p className="vibe-status">Type a budget and the local AI plans a real rover you can build and program, mapping what you learned here onto real hardware. Nothing is ordered; this runs offline.</p>
+            <p className="vibe-status">Type a budget and the local AI plans a real robot you can build and program, mapping your simulated work onto real hardware. Nothing is ordered; this runs offline.</p>
+            {robotSpec && (
+              <p className="build-active" data-build-active="1">
+                Pricing the active build: <b>{robotSpec.name || 'My Robot'}</b>
+                {' · '}{robotSpec.type || 'rover'}
+                {' · '}{[].concat(robotSpec.sensors || [], robotSpec.actuators || []).join(', ') || 'no parts fitted'}
+              </p>
+            )}
             <div className="build-input">
               <label>Budget (US$)
                 <input type="number" min="1" max="100000" value={buildBudget} onChange={e => setBuildBudget(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') runBuild(); }} />
@@ -131,6 +142,11 @@
                   </div>
                 </div>
                 {buildPlan.fallback && <p className="build-note">A standard plan is shown because the model could not tailor one within this budget.</p>}
+                {onAdoptParts && (
+                  <div className="vibe-code-actions" style={{ marginTop: 10 }}>
+                    <button className="ctrl ctrl-run" onClick={() => onAdoptParts(buildPlan)}>Fit these parts in the Robot Lab</button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -146,13 +162,13 @@
       <div className="modal-backdrop" onClick={() => !swarmBusy && setSwarmOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="Agent swarm" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">🐝 Agent swarm. Your one program, run by a fleet at once</span>
+            <span className="eyebrow">{KI('swarm')}Agent swarm. Your one program, run by a fleet at once</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setSwarmOpen(false)}>✕</button>
           </div>
           <div className="swarm-body">
             {swarmBusy && <p className="vibe-status">Launching the swarm…</p>}
             {swarmData && swarmData.paths && (() => {
-              const COLORS = ['#5ce0d8', '#e0b45c', '#7cc49b', '#c8685a', '#a78bfa', '#f0808a', '#62b6ff', '#b6e36a'];
+              const COLORS = ['var(--cyan)', '#e0b45c', '#7cc49b', '#c8685a', '#a78bfa', '#f0808a', '#62b6ff', '#b6e36a'];
               const pts = swarmData.paths.flat();
               let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
               pts.forEach(([x, y]) => { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; });
@@ -193,7 +209,7 @@
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Teacher dashboard" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">📊 Teacher dashboard. Class concept strength</span>
+            <span className="eyebrow">{KI('report')}Teacher dashboard. Class concept strength</span>
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
           <div className="teacher-body">
@@ -256,7 +272,7 @@
       <div className="modal-backdrop" onClick={() => !reviewBusy && setReviewOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="AI code review" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">🔎 Code review. A second AI agent checks your work</span>
+            <span className="eyebrow">{KI('review')}Code review. A second AI agent checks your work</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setReviewOpen(false)}>✕</button>
           </div>
           <div className="review-body">
@@ -270,7 +286,7 @@
                     {reviewData.issues.map((it, i) => <li key={i}>{it}</li>)}
                   </ul>
                 ) : (
-                  <p className="review-clean">No problems spotted. Nice work.</p>
+                  <p className="review-clean">No problems spotted.</p>
                 )}
                 {reviewData.revised && reviewData.code && (
                   <div className="review-rewrite">
@@ -296,7 +312,7 @@
       <div className="modal-backdrop" onClick={() => !askBusy && setAskOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="Ask a question" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">❓ Ask. Answered from the lesson material, not made up</span>
+            <span className="eyebrow">{KI('ask')}Ask. Answered from the built-in material, not made up</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setAskOpen(false)}>✕</button>
           </div>
           <div className="ask-body">
@@ -331,7 +347,7 @@
 
   // ---- Memory and skills ----
   // Reads window.KodroMemory directly (loaded earlier in ORDER), same as inline.
-  function MemoryModal({ setMemoryOpen, memTick, code, terrain, robotSpec, currentLessonId, setLessonBuffers, setPrograms, activeTab }) {
+  function MemoryModal({ setMemoryOpen, memTick, code, terrain, robotSpec, currentLessonId, setLessonBuffers, setPrograms, activeTab, applyCode }) {
     // Export downloads the reflections + skills as a JSON backup; Import
     // restores one. Both call the store's own exportData/importData, which
     // shipped as dead code until now (product-coherence P5 via D7).
@@ -368,7 +384,7 @@
       <div className="modal-backdrop" onClick={() => setMemoryOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Memory and skills" data-tick={memTick} onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">🧠 Memory. The system refines from what it has seen, offline</span>
+            <span className="eyebrow">{KI('memory')}Memory. The system refines from what it has seen, offline</span>
             <span className="mem-io">
               <button className="btn-mini" data-mem-export title="Download reflections and skills as a JSON backup" onClick={exportMemory}>Export</button>
               <label className="btn-mini mem-import" title="Restore reflections and skills from a JSON backup">
@@ -402,7 +418,7 @@
                         <span className="mem-skill-name">{s.name}</span>
                         <span className="mem-skill-ctx">{(s.world || '') + ' · used ' + (s.uses || 0) + '×'}</span>
                         <span className="mem-skill-act">
-                          <button className="btn-mini" onClick={() => { const cd = window.KodroMemory.useSkill(s.name); if (cd != null) { if (currentLessonId) setLessonBuffers(b => ({ ...b, [currentLessonId]: cd })); else setPrograms(p => ({ ...p, [activeTab]: cd })); setMemoryOpen(false); } }}>Insert</button>
+                          <button className="btn-mini" onClick={() => { const cd = window.KodroMemory.useSkill(s.name); if (cd != null) { if (applyCode) applyCode(cd); else if (currentLessonId) setLessonBuffers(b => ({ ...b, [currentLessonId]: cd })); else setPrograms(p => ({ ...p, [activeTab]: cd })); setMemoryOpen(false); } }}>Insert</button>
                           <button className="btn-mini" onClick={() => window.KodroMemory.removeSkill(s.name)}>✕</button>
                         </span>
                       </li>
@@ -431,7 +447,7 @@
       <div className="modal-backdrop" onClick={() => !vibeBusy && setVibeOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">✨ Vibe coding. Describe it, the AI writes it</span>
+            <span className="eyebrow">{KI('vibe')}Vibe coding. Describe it, the AI writes it</span>
             <button className="btn-mini" aria-label="Close" onClick={() => { vibeCancelRef.current = true; setVibeBusy(false); setVibeOpen(false); }}>✕</button>
           </div>
           {aiInfo.available ? (
@@ -440,9 +456,9 @@
               {ctxChip}
               {aiInfo.models && aiInfo.models.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 12.5, color: '#9fb4d2' }}>Use model</span>
+                  <span style={{ fontSize: 12.5, color: 'var(--fg-2)' }}>Use model</span>
                   <select value={aiInfo.override || aiInfo.model || ''} onChange={e => pickModel(e.target.value)}
-                    style={{ background: '#0e1622', color: '#dce8f8', border: '1px solid #2a3a52', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
+                    style={{ background: 'var(--navy-2)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
                     {aiInfo.models.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                   {aiInfo.override && <button className="btn-mini" onClick={() => pickModel('')} title="Return to automatic model selection">Auto</button>}
@@ -508,7 +524,7 @@
       <div className="modal-backdrop" onClick={() => setBlocksOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Block coding" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">🧩 Blocks. Click blocks to build, then turn them into Python</span>
+            <span className="eyebrow">{KI('blocks')}Blocks. Click blocks to build, then turn them into Python</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setBlocksOpen(false)}>✕</button>
           </div>
           <div className="blocks-palette">
@@ -527,7 +543,7 @@
             <button className="block-chip block-end" onClick={endBlock} disabled={blockIndent === 0}>↤ end block</button>
           </div>
           <div className="blocks-program" aria-label="Your program">
-            {blocks.length === 0 && <p className="vibe-hint">Click blocks above. They stack here like Scratch.</p>}
+            {blocks.length === 0 && <p className="vibe-hint">Click blocks above. They stack in order to form the program.</p>}
             {blocks.map((b, i) => (
               <div key={i} className="block-row" style={{ marginLeft: (b.indent * 22) + 'px', borderLeftColor: b.color }}>
                 <span>{b.label}</span>
@@ -560,7 +576,7 @@
           </div>
           <div className="vibe-actions">
             <button className="btn-mini" disabled={!blocks.length} onClick={() => { setBlocks([]); setBlockIndent(0); }}>Clear</button>
-            <span className="vibe-hint" style={{ flex: 1 }}>Turns into real Python. Watch it type itself into the editor.</span>
+            <span className="vibe-hint" style={{ flex: 1 }}>Compiles to real Python in the editor. Nothing runs until you press Run.</span>
             <button className="ctrl ctrl-run" disabled={!blocks.length} onClick={insertBlocksCode}>Insert code →</button>
           </div>
         </div>

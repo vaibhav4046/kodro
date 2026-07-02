@@ -124,6 +124,8 @@ fs.writeFileSync(path.join(WEB, 'studio_harness.html'), STUDIO);
 //   cap.html?seedmem=1        seed one fixture reflection into localStorage so
 //                             memory-driven UI (Vibe context chip) is testable
 //   cap.html?tab=encore       open a named example tab (writes or_tab)
+//   cap.html?mode=classroom   set the Studio/Classroom mode before mount (A1)
+//   cap.html?reverttest=1     blocks-insert then click the Revert toast (A9)
 //   cap.html?importspec=1     import the fixture KRS robot spec through the
 //                             REAL validate-then-save path (SI1) before any
 //                             open= driver fires, so the Robot Lab shows the
@@ -150,6 +152,7 @@ const CAP = `<!DOCTYPE html>
         var qq = q.get('q'); if (qq) localStorage.setItem('kodro_quality', qq);
         var td = q.get('tod'); if (td) localStorage.setItem('kodro_tod', td);
         var wx = q.get('weather'); if (wx) localStorage.setItem('kodro_weather', wx);
+        var md = q.get('mode'); if (md) localStorage.setItem('kodro_mode', md);
         var vw = q.get('view');
         if (vw === '2d') localStorage.setItem('or_view3d', '0');
         else if (vw === '3d') localStorage.setItem('or_view3d', '1');
@@ -161,7 +164,7 @@ const CAP = `<!DOCTYPE html>
           }]));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest') };
     })();
   </script>
   <div id="root"></div>
@@ -327,7 +330,7 @@ const CAP = `<!DOCTYPE html>
           // Icon-bar aria-labels gained a " — <suffix>"; match on the prefix.
           if (C.panel === 'lab') must(clickAriaStartsWith('Robot Lab'), 'panel=lab (aria "Robot Lab")');
           else if (C.panel === 'memory') must(clickAriaStartsWith('Memory and skills'), 'panel=memory (aria "Memory and skills")');
-          // The Blocks toolbar button reads "🧩 Blocks", so an uppercase
+          // The Blocks toolbar button reads "Blocks" (SVG icon + label), so an uppercase
           // text match misses it; open it by its unambiguous title instead.
           else if (C.panel === 'blocks') must(clickTitle('Build the program from blocks'), 'panel=blocks (title "Build the program from blocks")');
         }, 1000);
@@ -350,6 +353,27 @@ const CAP = `<!DOCTYPE html>
             if ((btns[i].textContent || '').indexOf('Insert code') >= 0) { btns[i].click(); return; }
           }
         }, 1700);
+      }
+      if (!C.onb && C.reverttest) {
+        // A9 driver: insert code via the Blocks path (which snapshots the
+        // buffer it overwrites), then click the Revert toast action. The DOM
+        // dump should show the ORIGINAL starter program back in the editor.
+        setTimeout(function () { clickTitle('Build the program from blocks'); }, 900);
+        setTimeout(function () {
+          var chip = document.querySelector('.block-chip:not([disabled])');
+          if (chip) chip.click();
+        }, 1300);
+        setTimeout(function () {
+          var btns = [].slice.call(document.querySelectorAll('.ctrl-run, button'));
+          for (var i = 0; i < btns.length; i++) {
+            if ((btns[i].textContent || '').indexOf('Insert code') >= 0) { btns[i].click(); return; }
+          }
+        }, 1700);
+        setTimeout(function () {
+          var rb = document.querySelector('.toast-action');
+          must(!!rb, 'Revert toast action (.toast-action)');
+          if (rb) rb.click();
+        }, 3200);
       }
       if (!C.onb && C.code) {
         // Program driver: type a program into the editor, then click Run. The
@@ -381,7 +405,7 @@ const CAP = `<!DOCTYPE html>
           validate: function () { return clickTitleStartsWith('Validate this program across 5 randomised seeds'); },
           realism: function () { return clickTitleStartsWith('Realism dashboard'); },
           demo: function () { return clickTitleStartsWith('Guided 2 to 3 minute realism demo'); },
-          ask: function () { return clickTitleStartsWith('Ask a question, answered from the lesson material'); },
+          ask: function () { return clickTitleStartsWith('Ask a question'); },
           // Icon-bar buttons: match the aria-label PREFIX (the label text before
           // the " — <suffix>" the buttons gained). See app.jsx icon-bar markup.
           robotlab: function () { return clickAriaStartsWith('Robot Lab'); },

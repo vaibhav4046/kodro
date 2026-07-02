@@ -6,7 +6,7 @@
  * moves when it should, stays in the arena, never throws. No browser, no rAF,
  * so the automation throttle that zeroes rafFired cannot mask anything here.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const SRC = readFileSync(new URL('../src/robolearn/assets/web/interpreter.js', import.meta.url), 'utf8');
 const MM_SRC = readFileSync(new URL('../src/robolearn/assets/web/motion-model.js', import.meta.url), 'utf8');
@@ -504,6 +504,23 @@ for (const f of WEB_FILES) {
   if (/orbital rover/i.test(src)) branded.push(f);
 }
 check('no "Orbital Rover" brand string in web sources', branded.length === 0, branded.join(', ') || 'clean');
+
+console.log('\n== ICON HYGIENE (PERFECTION_PLAN P7/A2) ==');
+// The chrome's icon system is the procedural SVG sprite (icons.jsx), never
+// emoji. Scan every shipped UI source for emoji-block codepoints; a small
+// allowlist keeps the deliberate typographic glyphs that are not emoji
+// (check/cross marks, plain arrows, the end-block return arrow, wide plus).
+const EMOJI_ALLOW = new Set(['✓', '✕', '✗', '←', '↑', '→', '↓', '↤', '＋']);
+const EMOJI_RE = /[←-⇿⌀-⏿☀-➿⬀-⯿️\u{1F000}-\u{1FAFF}]/gu;
+const CHROME_FILES = readdirSync(new URL('../src/robolearn/assets/web/', import.meta.url))
+  .filter((f) => (f.endsWith('.jsx') || f.endsWith('.js')) && f !== 'bundle.js' && f !== 'harness_bundle.js');
+const emojiHits = [];
+for (const f of CHROME_FILES) {
+  const src = readFileSync(new URL('../src/robolearn/assets/web/' + f, import.meta.url), 'utf8');
+  const hits = (src.match(EMOJI_RE) || []).filter((ch) => !EMOJI_ALLOW.has(ch));
+  if (hits.length) emojiHits.push(f + ' (' + Array.from(new Set(hits)).join(' ') + ')');
+}
+check('zero emoji glyphs in UI chrome source (SVG icon sprite only)', emojiHits.length === 0, emojiHits.join('; ') || 'clean');
 
 console.log('\n== RESULT: ' + pass + ' passed, ' + fail + ' failed ==');
 if (fail) { console.log('FAILURES:'); fails.forEach(f => console.log('  - ' + f)); process.exit(1); }

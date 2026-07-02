@@ -190,7 +190,7 @@
   .konb-tile:hover{ transform:translateY(-2px); border-color:rgba(92,224,216,.4); box-shadow:0 16px 34px -22px rgba(0,0,0,.8); }
   .konb-tile[aria-pressed="true"]{ border-color:var(--cyan); box-shadow:inset 0 0 0 1px var(--cyan), 0 14px 34px -20px rgba(92,224,216,.5); }
   .konb-tile .t-top{ display:flex; align-items:center; justify-content:space-between; }
-  .konb-emoji{ font-size:26px; line-height:1; }
+  .konb-emoji{ line-height:0; color:var(--cyan); }
   .konb-tile .t-check{ font-family:var(--font-mono); font-size:11px; color:var(--cyan); opacity:0; transition:opacity 140ms var(--ease); }
   .konb-tile[aria-pressed="true"] .t-check{ opacity:1; }
   .konb-tname{ font-family:var(--font-display); font-size:19px; font-weight:600; margin:11px 0 3px; line-height:1.05; }
@@ -235,6 +235,19 @@
     .konb-agent-row .konb-btn.primary{ flex:1; justify-content:center; }
     .konb-orbit{ max-width:200px; }
     .konb-rec{ flex-direction:column; align-items:flex-start; text-align:left; }
+  }
+
+  /* Short laptop screens (A16): compress the hero rhythm so the primary CTA
+     sits above the fold at 1280x800 instead of below it. */
+  @media (max-height:820px){
+    .konb-shell{ padding:18px clamp(20px,5vw,64px) 24px; }
+    .konb-body{ padding:12px 0 4px; }
+    .konb-h1{ font-size:clamp(36px,6.8vw,72px); margin-top:12px; }
+    .konb-lead{ margin-top:14px; }
+    .konb-caps{ margin-top:16px; }
+    .konb-steps{ margin-top:18px; }
+    .konb-actions{ margin-top:16px; }
+    .konb-orbit{ max-width:290px; }
   }
 
   /* Visible keyboard focus on every control (AA). */
@@ -400,7 +413,7 @@
                         onClick={() => { setType(id); setBuilt(null); setAgentText(""); }}
                       >
                         <div className="t-top">
-                          <span className="konb-emoji" aria-hidden="true">{t.emoji}</span>
+                          <span className="konb-emoji" aria-hidden="true">{window.KodroIcons ? window.KodroIcons.el(t.icon) : null}</span>
                           <span className="t-check" aria-hidden="true">SELECTED</span>
                         </div>
                         <div className="konb-tname">{t.name}</div>
@@ -421,11 +434,11 @@
 
             {step === 2 && (
               <section className="konb-panel" aria-labelledby="konb-h2-rec">
-                <span className="konb-eyebrow">Step two</span>
+                <span className="konb-eyebrow">Step three</span>
                 <h2 className="konb-h2" id="konb-h2-rec">Where it gets tested first</h2>
                 <p className="konb-sub">The assistant picks a world that suits your robot. Test it there, then try the others from inside the studio.</p>
                 <div className="konb-rec">
-                  <div className="rec-badge" aria-hidden="true">{(TYPES[type] && TYPES[type].emoji) || "🤖"}</div>
+                  <div className="rec-badge" aria-hidden="true">{window.KodroIcons ? window.KodroIcons.el((TYPES[type] && TYPES[type].icon) || "home") : null}</div>
                   <div className="rec-meta">
                     <div className="rec-label">Recommended world</div>
                     <div className="konb-world">{worldName}</div>

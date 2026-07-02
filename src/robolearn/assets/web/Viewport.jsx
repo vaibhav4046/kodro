@@ -97,7 +97,7 @@
             <div style={{ position: 'absolute', left: 0, top: 0, width: 52, height: 52, background: '#f5f0e4', borderRadius: 4, padding: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
               {photoUrl
                 ? <img src={photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 2 }} />
-                : <div style={{ width: '100%', height: '100%', borderRadius: 2, background: 'linear-gradient(135deg,#5ce0d8,#1a6f6a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📷</div>}
+                : <div style={{ width: '100%', height: '100%', borderRadius: 2, background: 'linear-gradient(135deg,#5ce0d8,#1a6f6a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#06121b' }}>{window.KodroIcons ? window.KodroIcons.el('camera') : null}</div>}
             </div>
           </div>
         );

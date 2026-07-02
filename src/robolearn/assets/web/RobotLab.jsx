@@ -49,27 +49,27 @@
 
   const TYPES = {
     rover: {
-      id: 'rover', name: 'Rover', emoji: '🛻',
+      id: 'rover', name: 'Rover', icon: 'rover',
       blurb: 'A wheeled explorer for rough ground. The all rounder.',
       base: { board: 'esp32', sensors: ['ultrasonic', 'imu'], actuators: ['motors4'] },
     },
     car: {
-      id: 'car', name: 'Self-driving car', emoji: '🚗',
+      id: 'car', name: 'Self-driving car', icon: 'car',
       blurb: 'A road vehicle. Validate it among pedestrians and traffic.',
       base: { board: 'esp32', sensors: ['ultrasonic', 'camera', 'gps'], actuators: ['motors2', 'servos'] },
     },
     home: {
-      id: 'home', name: 'Personal robot', emoji: '🤖',
+      id: 'home', name: 'Personal robot', icon: 'home',
       blurb: 'A helper that shares space with people indoors.',
       base: { board: 'pico', sensors: ['ultrasonic', 'bumper', 'camera'], actuators: ['motors2', 'gripper'] },
     },
     arm: {
-      id: 'arm', name: 'Robotic arm', emoji: '🦾',
+      id: 'arm', name: 'Robotic arm', icon: 'arm',
       blurb: 'A fixed manipulator. Reach, grab and place.',
       base: { board: 'uno', sensors: ['camera'], actuators: ['gripper'] },
     },
     custom: {
-      id: 'custom', name: 'Custom build', emoji: '🔧',
+      id: 'custom', name: 'Custom build', icon: 'custom',
       blurb: 'Start bare and fit exactly the parts you want.',
       base: { board: 'esp32', sensors: [], actuators: ['motors2'] },
     },
@@ -89,7 +89,7 @@
   const CHASSIS_MASS = 380; // grams, frame + battery + wiring, before parts
 
   // Colour + word for a design-check status, shared by the verdict UI.
-  function diagColor(s) { return s === 'fail' ? '#ff6b5e' : s === 'warn' ? '#f5c451' : '#5ce0d8'; }
+  function diagColor(s) { return s === 'fail' ? 'var(--danger)' : s === 'warn' ? 'var(--warning)' : 'var(--cyan)'; }
   function diagWord(s) { return s === 'fail' ? "WON'T COPE" : s === 'warn' ? 'WATCH' : 'READY'; }
 
   function defaultSpec() {
@@ -381,7 +381,7 @@
       React.createElement('div', { className: 'modal-backdrop', onClick: () => props.onClose && props.onClose() },
         React.createElement('div', { className: 'modal modal-wide rl-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Robot Lab', onClick: e => e.stopPropagation() },
           React.createElement('div', { className: 'modal-head' },
-            React.createElement('span', { className: 'eyebrow' }, '🛠 Robot Lab. Design a robot, then run it in the world'),
+            React.createElement('span', { className: 'eyebrow' }, window.KodroIcons ? window.KodroIcons.el('lab') : null, 'Robot Lab. Design a robot, then run it in the world'),
             React.createElement('button', { className: 'btn-mini', 'aria-label': 'Close', onClick: () => props.onClose && props.onClose() }, '✕')
           ),
           React.createElement('div', { className: 'rl-body' },
@@ -396,7 +396,7 @@
                     className: 'rl-type' + (spec.type === id ? ' rl-type-on' : ''),
                     onClick: () => pickType(id), 'aria-pressed': spec.type === id,
                   },
-                    React.createElement('span', { className: 'rl-type-emoji' }, ty.emoji),
+                    React.createElement('span', { className: 'rl-type-ic', 'aria-hidden': 'true' }, window.KodroIcons ? window.KodroIcons.el(ty.icon) : null),
                     React.createElement('span', { className: 'rl-type-name' }, ty.name)
                   );
                 })
@@ -476,7 +476,7 @@
             // ---- SI1: per-field import diff (clamps are visible, never silent)
             importIssues && (importIssues.errors.length > 0 || importIssues.warnings.length > 0) ? React.createElement('div', { className: 'rl-import-report', role: 'status' },
               importIssues.errors.length > 0 ? React.createElement('div', null,
-                React.createElement('div', { className: 'rl-label', style: { color: '#ff8f7a' } }, 'Import rejected - fix these fields'),
+                React.createElement('div', { className: 'rl-label', style: { color: 'var(--danger)' } }, 'Import rejected - fix these fields'),
                 React.createElement('ul', { className: 'rl-issues rl-issues-err' }, importIssues.errors.map(function (e2, i) { return React.createElement('li', { key: i }, e2); }))
               ) : React.createElement('div', null,
                 React.createElement('div', { className: 'rl-label' }, 'Imported with adjustments'),
@@ -484,18 +484,18 @@
               )
             ) : null,
             // ---- predictive design check: will this build cope, and why
-            report && React.createElement('div', { className: 'rl-section', style: { background: '#0e1622', border: '1.5px solid ' + diagColor(report.overall) + '55', borderRadius: 14, padding: 16 } },
+            report && React.createElement('div', { className: 'rl-section', style: { background: 'var(--navy-2)', border: '1.5px solid color-mix(in srgb, ' + diagColor(report.overall) + ' 33%, transparent)', borderRadius: 14, padding: 16 } },
               React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 } },
                 React.createElement('span', { className: 'rl-label', style: { margin: 0 } }, 'Design check'),
-                React.createElement('span', { style: { fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: '#06121b', background: diagColor(report.overall), borderRadius: 6, padding: '3px 9px' } }, diagWord(report.overall))
+                React.createElement('span', { style: { fontSize: 11, fontWeight: 800, letterSpacing: '0.06em', color: 'var(--void)', background: diagColor(report.overall), borderRadius: 6, padding: '3px 9px' } }, diagWord(report.overall))
               ),
               React.createElement('p', { className: 'rl-blurb', style: { margin: '2px 0 10px' } }, report.summary),
               React.createElement('div', { style: { display: 'grid', gap: 7 } },
                 report.dimensions.map(function (dim) {
                   return React.createElement('div', { key: dim.key, style: { display: 'flex', gap: 9, alignItems: 'flex-start', fontSize: 12.5, lineHeight: 1.45 } },
                     React.createElement('span', { 'aria-hidden': 'true', style: { width: 8, height: 8, borderRadius: '50%', background: diagColor(dim.status), marginTop: 4, flex: '0 0 auto' } }),
-                    React.createElement('span', { style: { fontWeight: 650, color: '#dce8f8', flex: '0 0 96px' } }, dim.label),
-                    React.createElement('span', { style: { color: '#9fb4d2' } }, dim.reason + (dim.fix ? '  Fix: ' + dim.fix : ''))
+                    React.createElement('span', { style: { fontWeight: 650, color: 'var(--fg-1)', flex: '0 0 96px' } }, dim.label),
+                    React.createElement('span', { style: { color: 'var(--fg-2)' } }, dim.reason + (dim.fix ? '  Fix: ' + dim.fix : ''))
                   );
                 })
               )
@@ -513,6 +513,9 @@
             React.createElement('button', { className: 'btn-mini', 'data-spec-import': 'button', title: 'Import a KRS robot spec (JSON): real motor, battery, body and sensor numbers drive the sim', onClick: onImportClick }, 'Import spec'),
             React.createElement('button', { className: 'btn-mini', title: 'Export this build as a KRS spec plus its derived numbers', onClick: onExportClick }, 'Export spec'),
             React.createElement('button', { className: 'btn-mini', title: 'Save the verification report: your robot as simulated, predictions plus measured evidence', onClick: onReportClick }, 'Verification report'),
+            // A6: price THIS build as real hardware (opens the budget planner
+            // seeded with the active spec), merging the two build features.
+            props.onBuildReal ? React.createElement('button', { className: 'btn-mini', title: 'Price this build as real hardware within a budget', onClick: function () { props.onBuildReal(); } }, 'Build real') : null,
             React.createElement('input', { ref: fileRef, type: 'file', accept: '.json,application/json', style: { display: 'none' }, 'aria-hidden': 'true', tabIndex: -1, onChange: onFilePicked }),
             React.createElement('button', { className: 'ctrl ctrl-run', onClick: onSave }, '✓ Build & test in ' + rec.label)
           )

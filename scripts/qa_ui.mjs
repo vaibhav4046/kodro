@@ -620,6 +620,66 @@ function checkMemoryExport(chrome) {
   return { pass: false, reason: 'no Export control in the open Memory panel' };
 }
 
+// STUDIO MODE (A1) — the default profile is the professional studio: the
+// Settings popover must carry the Mode control but NONE of the classroom
+// furniture (teacher dashboard, progress-report export, novelty themes).
+function checkStudioMode(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&open=settings`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_studio_mode', url, { vtime: 8000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/class="settings-pop"/.test(dom)) {
+    return { pass: false, reason: 'Settings popover never opened, so the mode claim would be vacuous' };
+  }
+  const hasModeControl = /aria-label="Studio or Classroom mode"/.test(dom);
+  const classroomStrings = ['Teacher dashboard', 'Export progress report', '>Matrix<', '>Arcade<', '>Brick<'].filter((s) => dom.indexOf(s) >= 0);
+  if (hasModeControl && classroomStrings.length === 0) {
+    return { pass: true, reason: 'studio mode: Mode control present, zero classroom strings (teacher/report/novelty themes hidden)' };
+  }
+  if (!hasModeControl) return { pass: false, reason: 'Mode control missing from the Settings popover' };
+  return { pass: false, reason: `classroom strings leak into studio mode: ${classroomStrings.join(', ')}` };
+}
+
+// CLASSROOM MODE (A1/A5) — flipping the toggle brings the classroom register
+// back: teacher dashboard row and the novelty theme options reappear.
+function checkClassroomMode(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&open=settings`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_classroom_mode', url, { vtime: 8000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/class="settings-pop"/.test(dom)) {
+    return { pass: false, reason: 'Settings popover never opened, so the classroom claim would be vacuous' };
+  }
+  const teacher = /Teacher dashboard/.test(dom);
+  const themes = />Matrix</.test(dom) && />Arcade</.test(dom);
+  if (teacher && themes) {
+    return { pass: true, reason: 'classroom mode restores the teacher dashboard row and the novelty themes' };
+  }
+  return { pass: false, reason: `classroom mode incomplete (teacher row: ${teacher}, novelty themes: ${themes})` };
+}
+
+// UNDO / REVERT (A9) — a programmatic editor write (blocks insert) snapshots
+// the buffer and offers a Revert toast; clicking it must restore the ORIGINAL
+// starter program. The driver (reverttest=1) inserts then clicks Revert.
+function checkRevertApply(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&reverttest=1`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_revert', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error (or missing Revert toast target): ${consoleError.slice(0, 120)}` };
+  const taMatch = /<textarea[^>]*class="code-ta"[^>]*>([\s\S]*?)<\/textarea>/i.exec(dom);
+  const editorText = taMatch ? taMatch[1] : '';
+  if (/# Welcome to Kodro\./.test(editorText)) {
+    return { pass: true, reason: 'Revert restored the pre-apply starter program after a blocks insert' };
+  }
+  if (/move_forward\(/.test(editorText)) {
+    return { pass: false, reason: 'editor still holds the inserted blocks code (Revert did not restore the prior buffer)' };
+  }
+  return { pass: false, reason: 'editor content unrecognised after revert (neither starter nor inserted code found)' };
+}
+
 // SPEC IMPORT (SI1) — drive the fixture KRS spec through the REAL
 // validate-then-save path (cap.html?importspec=1), open the Robot Lab, and
 // assert the Measured build banner renders with the imported numbers. This
@@ -921,6 +981,21 @@ function cleanup() {
   const goalMarker = checkGoalMarker(chrome);
   behaviour.push(goalMarker.pass);
   console.log(`${goalMarker.pass ? 'PASS' : 'FAIL'}  ${'goal-marker'.padEnd(20)} ${goalMarker.reason}`);
+  gap();
+
+  const studioMode = checkStudioMode(chrome);
+  behaviour.push(studioMode.pass);
+  console.log(`${studioMode.pass ? 'PASS' : 'FAIL'}  ${'studio-mode'.padEnd(20)} ${studioMode.reason}`);
+  gap();
+
+  const classroomMode = checkClassroomMode(chrome);
+  behaviour.push(classroomMode.pass);
+  console.log(`${classroomMode.pass ? 'PASS' : 'FAIL'}  ${'classroom-mode'.padEnd(20)} ${classroomMode.reason}`);
+  gap();
+
+  const revertApply = checkRevertApply(chrome);
+  behaviour.push(revertApply.pass);
+  console.log(`${revertApply.pass ? 'PASS' : 'FAIL'}  ${'revert-apply'.padEnd(20)} ${revertApply.reason}`);
   gap();
 
   const specImport = checkSpecImport(chrome);
