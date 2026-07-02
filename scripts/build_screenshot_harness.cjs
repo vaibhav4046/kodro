@@ -144,6 +144,19 @@ const CAP = `<!DOCTYPE html>
         return false;
       }
       function clickAria(label) { var el = document.querySelector('[aria-label="' + label + '"]'); if (el) { el.click(); return true; } return false; }
+      // The icon-bar buttons now carry a descriptive aria-label SUFFIX
+      // (e.g. "Robot Lab — design a custom robot"), so an exact [aria-label="..."]
+      // selector misses them. Match on an aria-label PREFIX instead, scanning real
+      // elements, so the open=<name> driver opens those modals against the current
+      // markup. The dialog roots keep their clean aria-labels (see panels.jsx /
+      // RobotLab.jsx), so a button-prefix match cannot collide with a dialog.
+      function clickAriaStartsWith(prefix) {
+        var els = [].slice.call(document.querySelectorAll('[aria-label]'));
+        for (var i = 0; i < els.length; i++) {
+          if ((els[i].getAttribute('aria-label') || '').indexOf(prefix) === 0) { els[i].click(); return true; }
+        }
+        return false;
+      }
       function clickTitle(title) { var el = document.querySelector('[title="' + title + '"]'); if (el) { el.click(); return true; } return false; }
       // Some toolbar titles get a "(needs local Ollama)" suffix appended when no
       // model is running, so an exact [title="..."] selector misses them. Match
@@ -195,8 +208,9 @@ const CAP = `<!DOCTYPE html>
       }
       if (!C.onb && C.panel) {
         setTimeout(function () {
-          if (C.panel === 'lab') clickAria('Robot Lab');
-          else if (C.panel === 'memory') clickAria('Memory and skills');
+          // Icon-bar aria-labels gained a " — <suffix>"; match on the prefix.
+          if (C.panel === 'lab') clickAriaStartsWith('Robot Lab');
+          else if (C.panel === 'memory') clickAriaStartsWith('Memory and skills');
           // The Blocks toolbar button reads "🧩 Blocks", so an uppercase
           // text match misses it; open it by its unambiguous title instead.
           else if (C.panel === 'blocks') clickTitle('Build the program from blocks');
@@ -236,9 +250,11 @@ const CAP = `<!DOCTYPE html>
         // Modal-coverage driver (gated behind open=<name> so a normal load is
         // unaffected). On load, click the toolbar button that opens the named
         // modal/popover so the UI harness can assert each one renders. Triggers
-        // are taken from app.jsx: btn-vibe class for Vibe; aria-labels for the
-        // icon buttons (Voice agent / Robot Lab / Memory / Build / Keyboard
-        // shortcuts / Settings); and title text for the editor-toolbar buttons
+        // are taken from app.jsx: btn-vibe class for Vibe; aria-label PREFIXES for
+        // the icon buttons (Voice agent / Robot Lab / Memory / Build / Keyboard
+        // shortcuts / Settings — each button's aria-label gained a " — <suffix>",
+        // so we match the label prefix, not the whole string); and title text for
+        // the editor-toolbar buttons
         // (Blocks / Review / Validate / Realism / Demo / Ask), matched on a title
         // PREFIX because the AI buttons gain a "(needs local Ollama)" suffix when
         // no model is running. Opening a modal does NOT need Ollama — the modal
@@ -251,12 +267,14 @@ const CAP = `<!DOCTYPE html>
           realism: function () { return clickTitleStartsWith('Realism dashboard'); },
           demo: function () { return clickTitleStartsWith('Guided 2 to 3 minute realism demo'); },
           ask: function () { return clickTitleStartsWith('Ask a question, answered from the lesson material'); },
-          voiceagent: function () { return clickAria('Voice agent'); },
-          robotlab: function () { return clickAria('Robot Lab'); },
-          memory: function () { return clickAria('Memory and skills'); },
-          build: function () { return clickAria('Build a real robot'); },
-          help: function () { return clickAria('Keyboard shortcuts'); },
-          settings: function () { return clickAria('Settings'); }
+          // Icon-bar buttons: match the aria-label PREFIX (the label text before
+          // the " — <suffix>" the buttons gained). See app.jsx icon-bar markup.
+          voiceagent: function () { return clickAriaStartsWith('Voice agent'); },
+          robotlab: function () { return clickAriaStartsWith('Robot Lab'); },
+          memory: function () { return clickAriaStartsWith('Memory and skills'); },
+          build: function () { return clickAriaStartsWith('Build a real robot'); },
+          help: function () { return clickAriaStartsWith('Keyboard shortcuts'); },
+          settings: function () { return clickAriaStartsWith('Settings'); }
         };
         // Wait for the studio toolbar to mount, then fire the opener. A second
         // attempt covers a slow first paint without affecting a modal that is

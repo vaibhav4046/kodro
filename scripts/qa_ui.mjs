@@ -15,7 +15,7 @@
  * fake pass — where a marker can't be reliably located it falls back to the most
  * specific real signal it CAN verify and labels the result honestly):
  *   1. RUN DETERMINISM  studio-earth-run -> the telemetry odometer reads the
- *      EXACT deterministic distance (11.2m ±0.3), not merely > 0. A green
+ *      EXACT deterministic distance (3.4m ±0.3), not merely > 0. A green
  *      screenshot proves the studio painted; this proves the simulation ran AND
  *      ran the same way it always does — catching run-pump drift (a dropped or
  *      doubled advance, a physics tweak), not just a parked rover.
@@ -77,13 +77,15 @@ const FIRST_SPAWN_TIMEOUT_MS = 90_000;
 const BEHAVIOUR_FLOW = 'studio-earth-run';
 
 // RUN DETERMINISM: the default starter program on world=earth/robot=rover at
-// q=high drives a fixed distance every time. Captured by running the behaviour
-// flow 3x (all read 11.2m) before this assert was written. We assert equality
-// within a small tolerance — tight enough to catch run-pump drift (a dropped
-// step, a doubled advance, a physics tweak), loose enough to absorb a sub-decimetre
+// q=high drives a fixed distance every time. After the default program changed,
+// its stable single-run odometer is 3.4m: captured by driving the earth run flow
+// at virtual-time 9000/16000/22000ms — all three read 3.4m with status IDLE (the
+// run has fully completed, not caught mid-drive). We assert equality within a
+// small tolerance — tight enough to catch run-pump drift (a dropped step, a
+// doubled advance, a physics tweak), loose enough to absorb a sub-decimetre
 // rounding wobble. If a future run ever proves NON-deterministic, drop back to
 // the >0 check and say so in the label rather than asserting a value that drifts.
-const EXPECTED_ODOMETER_M = 11.2;
+const EXPECTED_ODOMETER_M = 3.4;
 const ODOMETER_TOLERANCE_M = 0.3;
 
 // First Chrome we can find. The Git-Bash-style path in the task maps to this
@@ -221,7 +223,7 @@ function dumpDom(chrome, tag, url, opts = {}) {
 }
 
 // Pull every odometer-style reading out of the dumped DOM. Telemetry.jsx renders
-// the odometer as:  <span class="g-val">17.6<span class="g-unit">m</span></span>
+// the odometer as:  <span class="g-val">3.4<span class="g-unit">m</span></span>
 // from `{(odometer/100).toFixed(1)}` + a bare "m" unit span. The Odometer gauge
 // is the only one whose unit is a bare "m", so anchoring on g-val + g-unit="m"
 // is specific to it. Returns the first > 0 value, else 0 if a 0.0 was seen, else
