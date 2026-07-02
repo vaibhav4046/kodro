@@ -61,6 +61,9 @@
     opts = opts || {};
     const body = {
       model: model, prompt: prompt, stream: false,
+      // keep_alive holds the model in RAM between requests; without it Ollama
+      // unloads after ~5 min idle and the next reply pays a 10 to 30s reload.
+      keep_alive: '30m',
       options: { temperature: opts.temperature != null ? opts.temperature : 0.3, num_predict: opts.num_predict || 400 },
     };
     if (opts.system) body.system = opts.system;
@@ -166,7 +169,7 @@
       try {
         const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: model, prompt: prompt, system: sys, stream: true, options: { temperature: 0.3, num_predict: 400 } }),
+          body: JSON.stringify({ model: model, prompt: prompt, system: sys, stream: true, keep_alive: '30m', options: { temperature: 0.3, num_predict: 400 } }),
         });
         if (!r.ok || !r.body) throw new Error('generate ' + (r && r.status));
         const reader = r.body.getReader();
@@ -219,12 +222,29 @@
     return { ok: true, done: false, text: job.text };
   }
 
+  // Fire-and-forget model warm-up: an empty generate makes Ollama load the
+  // model into RAM at app start, so the FIRST real request does not pay the
+  // 10 to 30s cold load. Once per model per session; failures are ignored.
+  const warmed = {};
+  function warm(model) {
+    if (!model || warmed[model]) return;
+    warmed[model] = true;
+    try {
+      fetch(localOnly(OLLAMA + '/api/generate'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: model, prompt: '', stream: false, keep_alive: '30m', options: { num_predict: 1 } }),
+      }).catch(function () {});
+    } catch (e) { void e; }
+  }
+
   async function status() {
     const b = bridge();
     if (b && b.aiStatus) return b.aiStatus();
     try {
       const ms = await tags();
-      return { available: ms.length > 0, model: pick(ms), models: ms, override: override, source: 'browser' };
+      const chosen = pick(ms);
+      if (chosen) warm(chosen);
+      return { available: ms.length > 0, model: chosen, models: ms, override: override, source: 'browser' };
     } catch (e) { return { available: false, model: null, models: [], override: override, source: 'browser' }; }
   }
 
