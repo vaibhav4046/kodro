@@ -498,23 +498,64 @@
       function mkCar(col) {
         const car = new THREE.Group();
         carBody(car, col);
-        carWheels(car, null);
+        const tyres = [];
+        carWheels(car, (wheel, tyre) => { tyres.push(tyre); });
+        car._tyres = tyres; // spun by the agent updater at road speed
         return car;
       }
+      // Shared limb/torso geometry and cloth materials across every pedestrian
+      // in the scene (only the shirt colour is unique), so ten people cost the
+      // geometry of one. Built lazily; the teardown traverse disposes them
+      // (dispose() is idempotent, so shared use is safe).
+      const personShared = {};
       function mkPerson(shirt) {
         const p = new THREE.Group();
-        const legM = new THREE.MeshStandardMaterial({ color: 0x2f3646, roughness: 0.9 });
-        const shirtM = new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.85 });
-        const skinM = new THREE.MeshStandardMaterial({ color: 0xe8c9a8, roughness: 0.7 });
         const Cap = THREE.CapsuleGeometry ? THREE.CapsuleGeometry : null;
-        const torso = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.42, 0.8, 4, 8) : new THREE.CylinderGeometry(0.42, 0.42, 1.4, 8), shirtM); torso.position.y = 1.7; torso.castShadow = true;
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 14, 12), skinM); head.position.y = 2.5; head.castShadow = true;
-        const lLeg = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.18, 0.7, 3, 6) : new THREE.CylinderGeometry(0.18, 0.18, 1.0, 6), legM); lLeg.position.set(-0.2, 0.85, 0);
-        const rLeg = new THREE.Mesh(Cap ? new THREE.CapsuleGeometry(0.18, 0.7, 3, 6) : new THREE.CylinderGeometry(0.18, 0.18, 1.0, 6), legM); rLeg.position.set(0.2, 0.85, 0);
-        p.add(torso); p.add(head); p.add(lLeg); p.add(rLeg);
-        p._legs = [lLeg, rLeg];
+        if (!personShared.torso) {
+          personShared.torso = Cap ? new THREE.CapsuleGeometry(0.42, 0.8, 4, 8) : new THREE.CylinderGeometry(0.42, 0.42, 1.4, 8);
+          personShared.head = new THREE.SphereGeometry(0.36, 14, 12);
+          personShared.leg = Cap ? new THREE.CapsuleGeometry(0.16, 0.75, 3, 6) : new THREE.CylinderGeometry(0.16, 0.16, 1.05, 6);
+          personShared.arm = Cap ? new THREE.CapsuleGeometry(0.12, 0.6, 3, 6) : new THREE.CylinderGeometry(0.12, 0.12, 0.85, 6);
+          personShared.legM = new THREE.MeshStandardMaterial({ color: 0x2f3646, roughness: 0.9 });
+          personShared.skinM = new THREE.MeshStandardMaterial({ color: 0xe8c9a8, roughness: 0.7 });
+        }
+        const shirtM = new THREE.MeshStandardMaterial({ color: shirt, roughness: 0.85 });
+        const torso = new THREE.Mesh(personShared.torso, shirtM); torso.position.y = 1.7; torso.castShadow = true;
+        const head = new THREE.Mesh(personShared.head, personShared.skinM); head.position.y = 2.5; head.castShadow = true;
+        p.add(torso); p.add(head);
+        // Limbs pivot at the hip/shoulder (a group at the joint, the mesh hung
+        // below it) so a swing reads as a stride, not a scissor about the shin.
+        // Forward is local +x, so legs sit ACROSS the walk axis (z) and swing
+        // fore-aft via rotation.z -- they were one-behind-the-other swinging
+        // sideways before, which is exactly why the walk looked wrong.
+        const limb = (geo, mat, y, z, drop) => {
+          const g = new THREE.Group(); g.position.set(0, y, z);
+          const m = new THREE.Mesh(geo, mat); m.position.y = drop; m.castShadow = true;
+          g.add(m); p.add(g); return g;
+        };
+        p._legs = [limb(personShared.leg, personShared.legM, 1.25, -0.2, -0.55), limb(personShared.leg, personShared.legM, 1.25, 0.2, -0.55)];
+        p._arms = [limb(personShared.arm, shirtM, 2.12, -0.56, -0.42), limb(personShared.arm, shirtM, 2.12, 0.56, -0.42)];
         return p;
       }
+      // Gait pose shared by every world's pedestrian renderer: legs stride from
+      // the sim's phase, arms counter-swing, the body bobs at step frequency.
+      // Amplitudes drop to zero under prefers-reduced-motion (live variable).
+      const posePerson = (mesh, a) => {
+        const g = reduce ? 0 : (a.leg || 0);
+        mesh._legs[0].rotation.z = g * 0.55;
+        mesh._legs[1].rotation.z = -g * 0.55;
+        mesh._arms[0].rotation.z = -g * 0.38;
+        mesh._arms[1].rotation.z = g * 0.38;
+        mesh.position.y = Math.abs(g) * 0.075;
+      };
+      // Loop-wrap fade: the sim sets fade 0..1 near a lane's wrap ends, so the
+      // teleport happens while the agent is invisible instead of on camera.
+      const applyFade = (mesh, a) => {
+        const f = (a.fade == null) ? 1 : a.fade;
+        mesh.visible = f > 0.02;
+        if (f < 1) mesh.scale.setScalar(Math.max(f, 0.001));
+        else if (mesh.scale.x !== 1) mesh.scale.setScalar(1);
+      };
       // A small autonomous robot for the roaming fleet: a coloured rover body on
       // four wheels with a glowing eye, so the other machines read as robots.
       function mkRobotAgent(col) {
@@ -544,12 +585,18 @@
           else if (ag.kind === 'robot') mesh = mkRobotAgent(ag.color != null ? ag.color : 0x5ce0d8);
           else mesh = mkPerson(ag.color != null ? ag.color : 0x5aa0d8);
           scene.add(mesh);
-          agents.push({ mesh, update: () => {
+          let spin = 0; // accumulated tyre roll for cars (per-agent closure)
+          agents.push({ mesh, update: (t, dts) => {
             const a = KA.list()[i]; if (!a) return;
             mesh.position.set(a.x * SCALE, 0, -a.y * SCALE);
             mesh.rotation.y = Math.atan2(a.dy, a.dx);
-            if (ag.kind === 'person' && mesh._legs) { mesh._legs[0].rotation.x = a.leg * 0.5; mesh._legs[1].rotation.x = -a.leg * 0.5; }
+            if (ag.kind === 'person' && mesh._legs) posePerson(mesh, a);
+            else if (ag.kind === 'car' && mesh._tyres) {
+              spin += (a.speed || 0) * SCALE * 2 * (dts || 0); // v/r, r=0.5
+              for (let k = 0; k < mesh._tyres.length; k++) mesh._tyres[k].rotation.y = spin;
+            }
             if (ag.kind === 'robot' && mesh._wheels) { for (let k = 0; k < mesh._wheels.length; k++) mesh._wheels[k].rotation.y = a.leg; }
+            else applyFade(mesh, a); // lane agents melt out at the loop wrap
           } });
         });
       }
@@ -707,7 +754,8 @@
               const a = KAr.list()[i]; if (!a) return;
               pr.position.set(a.x * SCALE, 0, -a.y * SCALE);
               pr.rotation.y = Math.atan2(a.dy, a.dx);
-              if (pr._legs) { pr._legs[0].rotation.x = a.leg * 0.5; pr._legs[1].rotation.x = -a.leg * 0.5; }
+              if (pr._legs) posePerson(pr, a);
+              applyFade(pr, a);
             } });
           });
         }
@@ -774,7 +822,8 @@
               const a = KAr.list()[i]; if (!a) return;
               pr.position.set(a.x * SCALE, 0, -a.y * SCALE);
               pr.rotation.y = Math.atan2(a.dy, a.dx);
-              if (pr._legs) { pr._legs[0].rotation.x = a.leg * 0.5; pr._legs[1].rotation.x = -a.leg * 0.5; }
+              if (pr._legs) posePerson(pr, a);
+              applyFade(pr, a);
             } });
           });
         }
@@ -828,6 +877,18 @@
           }
         } catch (e) { if (window.console) console.warn('Viewport3D base camp failed:', e); }
       }
+
+      // Per-world ambient life (birds, dust devils, fish, debris, a cat) from
+      // the KodroAmbient module: quality-capped, never built under reduced
+      // motion, and added as scene children only, so the teardown traverse
+      // below disposes everything it created. A build failure downgrades to a
+      // still world rather than breaking the scene.
+      let ambient = null;
+      try {
+        if (!reduce && window.KodroAmbient && window.KodroAmbient.build) {
+          ambient = window.KodroAmbient.build(THREE, scene, id, { quality: Q, siteId: _siteId });
+        }
+      } catch (e) { if (window.console) console.warn('Viewport3D ambient life failed:', e); ambient = null; }
 
       // The robot: built to match the kind the user designed in Robot Lab, so
       // a rover, a car, a home companion or an arm each look like themselves.
@@ -1173,8 +1234,16 @@
           trailGeo.attributes.position.needsUpdate = true;
         }
 
-        // Drive the live city agents (pedestrians, traffic).
-        if (agents.length) { const tsec = now / 1000; for (let i = 0; i < agents.length; i++) agents[i].update(tsec); }
+        // Drive the live agents (pedestrians, traffic, roaming robots) and the
+        // per-world ambient life, all off this ONE clock. dt is clamped so a
+        // stray long frame cannot fling the integrators; a throwing ambient
+        // update disables itself instead of error-looping every frame.
+        const dts = Math.min(0.1, dt / 1000);
+        if (agents.length) { const tsec = now / 1000; for (let i = 0; i < agents.length; i++) agents[i].update(tsec, dts); }
+        if (ambient && !reduce) {
+          try { ambient.update(now / 1000, dts); }
+          catch (e) { if (window.console) console.warn('KodroAmbient update failed; ambient life stopped:', e); ambient = null; }
+        }
 
         // Sync the cinematic toggle from the host app each frame.
         cinematic = !!window.KODRO_CINEMATIC;
@@ -1256,6 +1325,9 @@
           else if (reduceMql.removeListener) reduceMql.removeListener(onReduceChange);
         }
         window.cancelAnimationFrame(raf);
+        // Stop the ambient systems; their meshes stay in the scene so the
+        // traverse below (the single owner of disposal) frees GPU resources.
+        if (ambient) { try { ambient.dispose(); } catch (e) { void e; } ambient = null; }
         if (post) { try { post.dispose(); } catch (e) { void e; } post = null; }
         window.removeEventListener('resize', onResize);
         window.removeEventListener('pointerup', onUp);

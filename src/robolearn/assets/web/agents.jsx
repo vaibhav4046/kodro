@@ -25,11 +25,16 @@
 
   // lane(dir, axis, offset): a one-way lane. dir +1/-1 is travel direction along
   // the moving axis; offset is the fixed cross-axis position.
+  // `vel` is the eased actual speed (agents accelerate and brake, they do not
+  // step-change); `fade` is 0..1 near the loop-wrap ends so the renderer can
+  // hide the teleport; `stride` varies the walk cadence per pedestrian.
   function car(horiz, dir, lane, speed, s0, color) {
-    return { kind: 'car', horiz, dir, lane, speed, s: s0, span: 3400, r: 96, color, x: 0, y: 0, dx: dir, dy: 0, leg: 0, base: speed };
+    return { kind: 'car', horiz, dir, lane, speed, s: s0, span: 3400, r: 96, color, x: 0, y: 0, dx: dir, dy: 0, leg: 0, base: speed, vel: speed, fade: 1 };
   }
   function ped(horiz, dir, lane, speed, s0, color, span) {
-    return { kind: 'person', horiz, dir, lane, speed, s: s0, span: span || 2800, r: 44, color, x: 0, y: 0, dx: dir, dy: 0, leg: 0, base: speed };
+    const v = speed * (0.88 + Math.random() * 0.3); // no two walk the same pace
+    return { kind: 'person', horiz, dir, lane, speed: v, s: s0, span: span || 2800, r: 44, color, x: 0, y: 0, dx: dir, dy: 0, leg: 0, base: v, vel: v, fade: 1,
+      stride: 0.05 + Math.random() * 0.03, nextIdle: 4 + Math.random() * 9, idleFor: 0 };
   }
   // An autonomous robot: roams to random goals, steers around the player rover
   // and the other robots, and turns back at the arena edge. Distinct from the
@@ -119,9 +124,25 @@
     start();
   }
 
+  // The zebra crossing sits east of the junction on the horizontal road
+  // (x 200..420 cm, matching the painted bars in the 3D city). Cars slow for
+  // it and stop when a crossing pedestrian is on their half of the carriageway.
+  const ZEBRA_X0 = 200, ZEBRA_X1 = 420;
+
   function step(dt) {
     if (dt > 0.1) dt = 0.1; // a long pause (tab hidden) must not teleport agents
     const rov = window.KODRO_ROVER;
+    // Which halves of the zebra have a pedestrian on them right now? Cars in
+    // the matching lane must stop; the other lane only slows for the crossing.
+    let zebraNeg = false, zebraPos = false;
+    if (worldId === 'city') {
+      for (let i = 0; i < agents.length; i++) {
+        const p = agents[i];
+        if (p.kind !== 'person' || p.horiz || p.lane < 300) continue;
+        if (p.y > -165 && p.y < 40) zebraNeg = true;
+        if (p.y > -40 && p.y < 165) zebraPos = true;
+      }
+    }
     for (let i = 0; i < agents.length; i++) {
       const a = agents[i];
       if (a.kind === 'robot') { steerRobot(a, dt, rov, agents); continue; }
@@ -138,13 +159,47 @@
         const lat = a.horiz ? Math.abs(rely - 0) : Math.abs(relx - 0); // cross-track
         if (fwd > 0 && fwd < 240 && lat < a.r + R + 24) brake = Math.max(0, (fwd - 60) / 180);
       }
-      a.s += a.base * brake * dt;
+      // desired speed this frame; the eased `vel` below chases it, so cars
+      // pull away gently from stops and brake smoothly, never step-change
+      let target = a.base * brake;
+      if (a.kind === 'person') {
+        if (a.idleFor > 0) {
+          a.idleFor -= dt; target = 0; // paused: look around, then carry on
+        } else {
+          a.nextIdle -= dt;
+          // only begin a pause on the pavement, never in the carriageway
+          if (a.nextIdle <= 0 && Math.abs(ax) > 220 && Math.abs(ay) > 220) {
+            a.idleFor = 1 + Math.random() * 2;
+            a.nextIdle = 6 + Math.random() * 9;
+            target = 0;
+          }
+        }
+      } else if (a.horiz && worldId === 'city') {
+        // approaching the zebra: distance from this car's nose to the zone edge
+        const ahead = a.dir > 0 ? (ZEBRA_X0 - a.r) - ax : ax - (ZEBRA_X1 + a.r);
+        if (ahead > 0 && ahead < 420) {
+          const pedInLane = a.lane < 0 ? zebraNeg : zebraPos;
+          if (pedInLane) target = Math.min(target, a.base * Math.max(0, (ahead - 50) / 370));
+          else target = Math.min(target, a.base * (0.45 + 0.55 * (ahead / 420))); // caution slow-down
+        }
+      }
+      const k = target < a.vel ? 6.5 : 1.8; // brake briskly, accelerate gently
+      a.vel += (target - a.vel) * Math.min(1, dt * k);
+      if (a.vel < 0.8 && target === 0) a.vel = 0; // settle instead of creeping
+      a.s += a.vel * dt;
       const hs = (((a.s % a.span) + a.span) % a.span) - a.span / 2;
       const al = a.dir * hs;
       if (a.horiz) { a.x = al; a.y = a.lane; a.dx = a.dir; a.dy = 0; }
       else { a.x = a.lane; a.y = al; a.dx = 0; a.dy = a.dir; }
-      a.speed = a.base * brake;
-      a.leg = Math.sin(a.s * 0.06) * brake; // legs slow and stop when braking
+      a.speed = a.vel;
+      // legs swing with the actual pace and settle when stopping; per-agent
+      // stride length so the crowd does not march in lockstep
+      a.leg = Math.sin(a.s * (a.stride || 0.06)) * (a.base > 0 ? a.vel / a.base : 0);
+      // fade to nothing just before the loop wrap so the renderer never shows
+      // the teleport (agents melt into the distance and re-emerge instead)
+      const fz = Math.min(200, a.span * 0.1);
+      const edge = a.span / 2 - Math.abs(hs);
+      a.fade = edge < fz ? Math.max(0, edge / fz) : 1;
     }
   }
 

@@ -14,7 +14,7 @@ const path = require('path');
 const vm = require('vm');
 
 const WEB = path.join(__dirname, '..', 'src', 'robolearn', 'assets', 'web');
-const ORDER = ['agents', 'memory', 'terrains', 'Rover', 'Viewport', 'textures', 'post', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'selftest', 'RobotLab', 'scenario', 'realism', 'demo', 'onboarding', 'ai-web', 'hooks', 'app-data', 'panels', 'app'];
+const ORDER = ['agents', 'memory', 'terrains', 'Rover', 'Viewport', 'textures', 'post', 'ambient', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'selftest', 'RobotLab', 'scenario', 'realism', 'demo', 'onboarding', 'ai-web', 'hooks', 'app-data', 'panels', 'app'];
 const HEADER = '/* AUTO-GENERATED from the .jsx sources by scripts/build_web.cjs. Do not edit. */\n';
 
 function build() {
