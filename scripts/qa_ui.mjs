@@ -620,6 +620,64 @@ function checkMemoryExport(chrome) {
   return { pass: false, reason: 'no Export control in the open Memory panel' };
 }
 
+// SPEC IMPORT (SI1) — drive the fixture KRS spec through the REAL
+// validate-then-save path (cap.html?importspec=1), open the Robot Lab, and
+// assert the Measured build banner renders with the imported numbers. This
+// is the core product mission: the imported spec visibly drives the Lab.
+function checkSpecImport(chrome) {
+  const url = `${BASE}?world=earth&q=low&importspec=1&open=robotlab`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_spec_import', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error during spec import: ${consoleError.slice(0, 120)}` };
+  if (!/rl-modal/.test(dom)) {
+    return { pass: false, reason: 'Robot Lab never opened, so the import claim would be vacuous' };
+  }
+  const banner = /data-spec-import="measured"/.test(dom);
+  const speed = /1\.02 m\/s/.test(dom);
+  const badge = /class="fid-badge fid-honoured"/.test(dom);
+  if (banner && speed && badge) {
+    return { pass: true, reason: 'imported KRS spec shows the Measured build banner (1.02 m/s motor-derived top speed, HONOURED badge)' };
+  }
+  const missing = [!banner && 'no Measured banner', !speed && 'derived top speed missing', !badge && 'no fidelity badge'].filter(Boolean).join('; ');
+  return { pass: false, reason: `spec import did not surface: ${missing}` };
+}
+
+// FIDELITY DISCLOSURE (SI4) — the Realism dashboard carries the three-tier
+// honesty card (HONOURED / APPROXIMATED / NOT SIMULATED).
+function checkFidelityCard(chrome) {
+  const url = `${BASE}?world=earth&q=low&open=realism`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_fidelity', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/aria-label="Realism dashboard"/.test(dom)) {
+    return { pass: false, reason: 'Realism dashboard never opened, so the fidelity claim would be vacuous' };
+  }
+  if (/Fidelity disclosure/.test(dom) && /NOT SIMULATED/.test(dom) && /APPROXIMATED/.test(dom)) {
+    return { pass: true, reason: 'Realism dashboard lists all three fidelity tiers (SI4 disclosure card)' };
+  }
+  return { pass: false, reason: 'fidelity disclosure card missing from the Realism dashboard' };
+}
+
+// ENCORE TAB (S1) — open the 8th example tab and Run it: the tab must be
+// active and the show must actually start (its Act I console line prints).
+function checkEncoreRuns(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&tab=encore&run=1`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_encore', url, { vtime: 20000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error during encore run: ${consoleError.slice(0, 120)}` };
+  const tabActive = /class="tab active"[^>]*>encore\.py|>encore\.py<\/button>/.test(dom) && /encore\.py/.test(dom);
+  const started = /ACT I - walk-on square/.test(dom);
+  if (tabActive && started) {
+    return { pass: true, reason: 'encore.py tab opened and the show ran (Act I console line printed)' };
+  }
+  if (!/encore\.py/.test(dom)) return { pass: false, reason: 'encore.py tab is not in the tab row' };
+  if (!started) return { pass: false, reason: 'encore tab present but the show never started (no Act I line)' };
+  return { pass: false, reason: 'encore tab did not activate' };
+}
+
 // LAYOUT — the studio must not overflow horizontally at common laptop sizes.
 // cap.html?layout=1 appends a hidden #layout-probe div carrying the REAL
 // measured scrollWidth/innerWidth (recorded in-page after panels settle), so
@@ -863,6 +921,21 @@ function cleanup() {
   const goalMarker = checkGoalMarker(chrome);
   behaviour.push(goalMarker.pass);
   console.log(`${goalMarker.pass ? 'PASS' : 'FAIL'}  ${'goal-marker'.padEnd(20)} ${goalMarker.reason}`);
+  gap();
+
+  const specImport = checkSpecImport(chrome);
+  behaviour.push(specImport.pass);
+  console.log(`${specImport.pass ? 'PASS' : 'FAIL'}  ${'spec-import'.padEnd(20)} ${specImport.reason}`);
+  gap();
+
+  const fidelity = checkFidelityCard(chrome);
+  behaviour.push(fidelity.pass);
+  console.log(`${fidelity.pass ? 'PASS' : 'FAIL'}  ${'fidelity-card'.padEnd(20)} ${fidelity.reason}`);
+  gap();
+
+  const encore = checkEncoreRuns(chrome);
+  behaviour.push(encore.pass);
+  console.log(`${encore.pass ? 'PASS' : 'FAIL'}  ${'encore-run'.padEnd(20)} ${encore.reason}`);
   gap();
 
   // Layout: the studio must fit common laptop widths with zero horizontal

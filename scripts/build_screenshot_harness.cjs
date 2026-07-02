@@ -18,7 +18,9 @@ const vm = require('vm');
 
 const WEB = path.join(__dirname, '..', 'src', 'robolearn', 'assets', 'web');
 // Same load order as build_web.cjs, minus 'app' (so nothing auto-mounts).
-const ORDER = ['agents', 'memory', 'terrains', 'Rover', 'Viewport', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'selftest', 'RobotLab', 'onboarding'];
+// motion-model.js / specschema.js are plain JS (no JSX) but RobotLab and
+// diagnostics read them, so they load first here too.
+const ORDER = ['motion-model.js', 'specschema.js', 'agents', 'memory', 'terrains', 'Rover', 'Viewport', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'selftest', 'RobotLab', 'onboarding'];
 
 const ctx = { console };
 ctx.self = ctx; ctx.window = ctx; ctx.global = ctx;
@@ -27,8 +29,9 @@ vm.runInContext(fs.readFileSync(path.join(WEB, 'vendor', 'babel.min.js'), 'utf8'
 
 let out = '/* AUTO-GENERATED screenshot harness bundle. Dev-only, do not ship. */\n';
 for (const name of ORDER) {
-  const src = fs.readFileSync(path.join(WEB, name + '.jsx'), 'utf8').replace(/\r\n/g, '\n');
-  const code = ctx.Babel.transform(src, { presets: ['react'], filename: name + '.jsx' }).code;
+  const file = name.endsWith('.js') ? name : name + '.jsx';
+  const src = fs.readFileSync(path.join(WEB, file), 'utf8').replace(/\r\n/g, '\n');
+  const code = ctx.Babel.transform(src, { presets: ['react'], filename: file }).code;
   out += '\n;(function () {\n' + code + '\n})();\n';
 }
 fs.writeFileSync(path.join(WEB, 'harness_bundle.js'), out);
@@ -120,6 +123,11 @@ fs.writeFileSync(path.join(WEB, 'studio_harness.html'), STUDIO);
 //                             assert the page does not overflow horizontally
 //   cap.html?seedmem=1        seed one fixture reflection into localStorage so
 //                             memory-driven UI (Vibe context chip) is testable
+//   cap.html?tab=encore       open a named example tab (writes or_tab)
+//   cap.html?importspec=1     import the fixture KRS robot spec through the
+//                             REAL validate-then-save path (SI1) before any
+//                             open= driver fires, so the Robot Lab shows the
+//                             Measured build banner
 // Every driver logs a console.error (picked up by the UI harness console
 // filter) when its click target is missing, so a renamed button FAILS the
 // harness instead of silently capturing the wrong state.
@@ -138,6 +146,7 @@ const CAP = `<!DOCTYPE html>
         if (onb) localStorage.removeItem('or_onboarded');
         else localStorage.setItem('or_onboarded', '1');
         var w = q.get('world'); if (w) localStorage.setItem('or_terrain', w);
+        var tb = q.get('tab'); if (tb) localStorage.setItem('or_tab', tb);
         var qq = q.get('q'); if (qq) localStorage.setItem('kodro_quality', qq);
         var td = q.get('tod'); if (td) localStorage.setItem('kodro_tod', td);
         var wx = q.get('weather'); if (wx) localStorage.setItem('kodro_weather', wx);
@@ -152,7 +161,7 @@ const CAP = `<!DOCTYPE html>
           }]));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec') };
     })();
   </script>
   <div id="root"></div>
@@ -242,6 +251,30 @@ const CAP = `<!DOCTYPE html>
         // When a repl= line is also being driven, wait for it to finish first so
         // the capture proves the run happened AFTER the terminal line.
         setTimeout(function () { must(clickRun(), 'Run button (.ctrl)'); }, C.repl ? 3200 : 1400);
+      }
+      if (!C.onb && C.importspec) {
+        // SI1 driver: push the fixture KRS spec through the REAL
+        // validate-then-save path (the same function the Import button calls
+        // after reading the picked file). Fires before any open= driver so
+        // an open=robotlab capture shows the Measured build banner.
+        var KRS_FIXTURE = {
+          kodroSpec: 1, name: 'Reference Rover', type: 'rover', board: 'esp32',
+          massKg: 1.2, bodyCm: { lengthCm: 25, widthCm: 18, heightCm: 12 },
+          drive: { kind: 'differential', wheelRadiusCm: 3.25, wheelbaseCm: 14, motorCount: 2,
+            motor: { noLoadRpm: 300, stallTorqueNm: 0.35, nominalV: 6 } },
+          battery: { mAh: 2200, voltage: 7.4, usableFraction: 0.8 },
+          sensors: [{ kind: 'ultrasonic', posCm: { x: 10, y: 0 }, yawDeg: 0, rangeCm: 400, fovDeg: 15 }, { kind: 'imu' }],
+          actuators: ['motors2'],
+          declared: { maxSpeedMps: 1.0, runtimeMin: 180 }
+        };
+        setTimeout(function () {
+          if (!window.RobotLab || !window.RobotLab.importSpecText) {
+            must(false, 'importspec (RobotLab.importSpecText)');
+            return;
+          }
+          var r = window.RobotLab.importSpecText(JSON.stringify(KRS_FIXTURE));
+          if (!r || !r.ok) { try { console.error('[cap-driver] ERROR: spec import failed: ' + ((r && r.errors) || []).join('; ')); } catch (e) { void e; } }
+        }, 700);
       }
       if (!C.onb && C.site) {
         // Mission-site driver: change the real site <select> like a user, which

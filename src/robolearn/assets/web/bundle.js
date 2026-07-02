@@ -1,6 +1,801 @@
 /* AUTO-GENERATED from the .jsx sources by scripts/build_web.cjs. Do not edit. */
 
 ;(function () {
+/* ============================================================================
+   KODRO - shared motion model (PERFECTION_PLAN E-P1)
+
+   THE single source of truth for the physics constants and the pure motion
+   formulas the whole product uses. Before this module existed, four
+   hand-rolled replicas simulated the same robot (app.jsx, engine/rover.py,
+   scenario.jsx, selftest.jsx) and they disagreed: battery costs differed
+   roughly 11x per metre between the JS tick and the Python engine. Now:
+
+     - app.jsx animateMove/animateTurn call these functions on the hot path,
+     - scenario.jsx and selftest.jsx read the same constants and drains,
+     - engine/motion_model.py mirrors MODEL and the formulas exactly, and
+       tests/unit/test_motion_model_conformance.py (E-C4) fails the build if
+       the two constant tables ever drift (hash of the canonical JSON), while
+       tests/unit/test_golden_traces.py (E-P2) fails it if the ENGINES drift.
+
+   Catalogue mode (a Robot Lab parts build) uses the cat* path and is
+   byte-identical to the pre-refactor behaviour. Physical mode (an imported
+   KRS spec with real motor/battery numbers, P4/SI2) uses the phys* functions:
+   closed-form top speed (E-A1), energy-true battery (E-A2), geometric turns
+   (E-A4) and stall verdicts (E-A5).
+
+   Plain JS, no JSX, no React. Exposes window.KodroMotion.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  // ---- constants (mirrored by engine/motion_model.py; keep FLAT so the
+  // canonical JSON is trivially comparable across languages) ----------------
+  var MODEL = {
+    modelId: 'kodro-motion-v1',
+    // arena + body
+    arenaHalfExtentCm: 1500,
+    roverRadiusCm: 30,
+    // calibration anchor: at set_speed(100), speedFactor 1, traction 1 the
+    // ground speed is 3.125 m/s (derived from the 0.32 ms-per-cm tick).
+    baseSpeedCmPerS: 312.5,
+    msPerCm: 0.32,
+    minSpeedUnits: 8,
+    // catalogue battery model (constant-power ledger, APPROXIMATED)
+    drainPctPerCm: 0.011,
+    drainPctPerDeg: 0.004,
+    drainPctPerCollision: 1,
+    // catalogue turn timing
+    turnMsPer180Deg: 650,
+    turnMassBase: 0.78,
+    turnMassSlope: 0.5,
+    turnMassCap: 1.5,
+    // catalogue derivation bounds (RobotLab.derive)
+    massBaselineG: 900,
+    catMassFactorLo: 0.6,
+    catMassFactorHi: 1.8,
+    catSpeedFactorLo: 0.7,
+    catSpeedFactorHi: 1.45,
+    // mobility bands (shared by catalogue and physical modes)
+    mobilityStallBand: 0.45,
+    mobilityWarnBand: 0.75,
+    mobilityStallMul: 0.35,
+    mobilityWarnMul: 0.7,
+    mobilityNoDriveMul: 0.22,
+    // environment
+    gravityEarthMps2: 9.81,
+    sensorRangeCm: 600,
+    obstacleAheadCm: 50,
+    // physical (KRS) model constants: E-A1/E-A2 closed forms.
+    // rollingResistance is the EFFECTIVE rolling + gearbox drag coefficient
+    // for small geared wheels (far above the tyre-only ~0.015), calibrated so
+    // a typical 2S/2200mAh hobby rover lands in its datasheet runtime band.
+    rollingResistance: 0.12,
+    drivetrainEfficiency: 0.55,
+    idleDrawW: 1.5,
+    brakeMu: 0.7,
+    physMassFactorLo: 0.4,
+    physMassFactorHi: 2.5,
+    physSpeedFactorLo: 0.3,
+    physSpeedFactorHi: 2
+  };
+
+  // Canonical JSON of the constant table: keys sorted, no whitespace. The
+  // Python twin emits the identical string; E-C4 hashes both and fails CI on
+  // any drift, so a constant can never again change on one side only.
+  function canonicalJson() {
+    var keys = Object.keys(MODEL).sort();
+    var parts = [];
+    for (var i = 0; i < keys.length; i++) {
+      parts.push(JSON.stringify(keys[i]) + ':' + JSON.stringify(MODEL[keys[i]]));
+    }
+    return '{' + parts.join(',') + '}';
+  }
+
+  // ---- catalogue-mode formulas (byte-identical to the pre-E-P1 inlines) ----
+  function gravityFactor(gravityMps2) {
+    return 0.5 + 0.5 * ((gravityMps2 || MODEL.gravityEarthMps2) / MODEL.gravityEarthMps2);
+  }
+  // Drive-to-weight headroom on a surface (diagnostics + the live tick agree).
+  function mobilityScore(speedFactor, massFactor, traction) {
+    return speedFactor * traction / massFactor;
+  }
+  function mobilityMultiplier(hasDrive, mob) {
+    return !hasDrive ? MODEL.mobilityNoDriveMul : mob < MODEL.mobilityStallBand ? MODEL.mobilityStallMul : mob < MODEL.mobilityWarnBand ? MODEL.mobilityWarnMul : 1;
+  }
+  function effectiveSpeedUnits(speed, speedFactor, mobMul) {
+    return Math.max(MODEL.minSpeedUnits, speed) * speedFactor * mobMul;
+  }
+  function moveDurationMs(distanceCm, speedUnits, traction, speedMul) {
+    return distanceCm / speedUnits * 1000 * MODEL.msPerCm / (traction * (speedMul || 1));
+  }
+  function moveDrainPct(distanceCm, gravityMps2, massFactor, traction) {
+    return distanceCm * MODEL.drainPctPerCm * gravityFactor(gravityMps2) * massFactor / traction;
+  }
+  function turnDurationMs(deg, massFactor, speedMul) {
+    return Math.abs(deg) / 180 * MODEL.turnMsPer180Deg * (MODEL.turnMassBase + MODEL.turnMassSlope * Math.min(MODEL.turnMassCap, massFactor)) / (speedMul || 1);
+  }
+  function turnDrainPct(deg) {
+    return Math.abs(deg) * MODEL.drainPctPerDeg;
+  }
+  function clamp(v, lo, hi) {
+    return Math.min(hi, Math.max(lo, v));
+  }
+
+  // ---- physical-mode closed forms (E-A1/E-A2/E-A4; consumed by SI2) --------
+  // Free (no-load) top speed from the motor and wheel: v = rpm/60 * 2*pi*r.
+  function physTopSpeedCmPerS(noLoadRpm, wheelRadiusCm) {
+    return noLoadRpm / 60 * 2 * Math.PI * wheelRadiusCm;
+  }
+  function physSpeedFactor(vCmPerS) {
+    return clamp(vCmPerS / MODEL.baseSpeedCmPerS, MODEL.physSpeedFactorLo, MODEL.physSpeedFactorHi);
+  }
+  function physMassFactor(massKg) {
+    return clamp(massKg * 1000 / MODEL.massBaselineG, MODEL.physMassFactorLo, MODEL.physMassFactorHi);
+  }
+  // Tractive force at stall: F = n * tau / r (gear ratio 1 in v1).
+  function physStallForceN(stallTorqueNm, motorCount, wheelRadiusCm) {
+    return motorCount * stallTorqueNm / (wheelRadiusCm / 100);
+  }
+  // Force-ratio mobility fed into the SAME three bands the catalogue uses:
+  // drive force times grip over weight. Below the stall band the physical
+  // build HALTS with a torque verdict (E-A5) instead of the catalogue crawl.
+  function physMobility(stallForceN, massKg, traction, gravityMps2) {
+    return stallForceN * traction / (massKg * (gravityMps2 || MODEL.gravityEarthMps2));
+  }
+  // First-order acceleration: a = (F_stall - Crr*m*g)/m, floored so a
+  // barely-mobile build still ramps rather than dividing the trapezoid by 0.
+  function physAccelCmPerS2(stallForceN, massKg, gravityMps2) {
+    var g = gravityMps2 || MODEL.gravityEarthMps2;
+    var a = (stallForceN - MODEL.rollingResistance * massKg * g) / massKg;
+    return Math.max(1, a * 100);
+  }
+  function physEnergyWh(mAh, voltage, usableFraction) {
+    return mAh / 1000 * voltage * usableFraction;
+  }
+  // Energy-true battery (E-A2): P = F_drive*v/eta + P_idle, so the percent
+  // drained per cm depends on the speed actually driven. F_drive is the
+  // steady-state rolling load, worsened on low-traction ground.
+  function physDrainPctPerCm(massKg, energyWh, vCmPerS, gravityMps2, traction) {
+    var g = gravityMps2 || MODEL.gravityEarthMps2;
+    var vMps = Math.max(0.01, vCmPerS / 100);
+    var fDrive = MODEL.rollingResistance * massKg * g / (traction || 1);
+    var watts = fDrive * vMps / MODEL.drivetrainEfficiency + MODEL.idleDrawW;
+    var joulesPerCm = watts * (0.01 / vMps);
+    return 100 * joulesPerCm / (3600 * energyWh);
+  }
+  // Runtime at cruise: minutes until the usable energy is gone at speed v.
+  function physRuntimeMin(massKg, energyWh, vCmPerS, gravityMps2, traction) {
+    var g = gravityMps2 || MODEL.gravityEarthMps2;
+    var vMps = Math.max(0.01, vCmPerS / 100);
+    var fDrive = MODEL.rollingResistance * massKg * g / (traction || 1);
+    var watts = fDrive * vMps / MODEL.drivetrainEfficiency + MODEL.idleDrawW;
+    return energyWh * 3600 / watts / 60;
+  }
+  // Geometric differential-drive turn (E-A4): omega = 2*v_wheel/track.
+  function physTurnDurationMs(deg, vCmPerS, trackCm, speedMul) {
+    var omega = 2 * vCmPerS / Math.max(1, trackCm); // rad/s
+    return Math.abs(deg) * Math.PI / 180 / Math.max(0.01, omega) * 1000 / (speedMul || 1);
+  }
+  // Ackermann minimum turn radius (report-only in v1): R = wheelbase/tan(steer).
+  function physTurnRadiusCm(wheelbaseCm, maxSteerDeg) {
+    var t = Math.tan(maxSteerDeg * Math.PI / 180);
+    return t > 1e-6 ? wheelbaseCm / t : Infinity;
+  }
+  // Braking distance from speed v: d = v^2 / (2*mu*g)  (SI3 verification).
+  function physStoppingDistanceCm(vCmPerS, traction, gravityMps2) {
+    var g = gravityMps2 || MODEL.gravityEarthMps2;
+    var vMps = vCmPerS / 100;
+    var mu = MODEL.brakeMu * (traction || 1);
+    return vMps * vMps / (2 * mu * g) * 100;
+  }
+  // Max climbable slope (reported-only badge): the lesser of the force limit
+  // sin(theta) = (F - Crr*m*g)/(m*g) and the wheel-grip limit tan(theta) = mu
+  // (torque numbers alone imply absurd grades; grip is the real ceiling).
+  function physMaxSlopeDeg(stallForceN, massKg, gravityMps2, traction) {
+    var g = gravityMps2 || MODEL.gravityEarthMps2;
+    var s = (stallForceN - MODEL.rollingResistance * massKg * g) / (massKg * g);
+    var forceDeg = Math.asin(clamp(s, 0, 1)) * 180 / Math.PI;
+    var gripDeg = Math.atan(MODEL.brakeMu * (traction || 1)) * 180 / Math.PI;
+    return Math.min(forceDeg, gripDeg);
+  }
+  // Stall verdict inputs (E-A5): the torque this terrain needs vs what the
+  // build has, so the refusal can say "needs X N*m, has Y N*m".
+  function physStallVerdict(stallForceN, massKg, traction, gravityMps2, motorCount, wheelRadiusCm) {
+    var g = gravityMps2 || MODEL.gravityEarthMps2;
+    var mob = physMobility(stallForceN, massKg, traction, g);
+    var neededForceN = MODEL.mobilityStallBand * massKg * g / (traction || 1);
+    var neededNm = neededForceN * (wheelRadiusCm / 100) / Math.max(1, motorCount);
+    var hasNm = stallForceN * (wheelRadiusCm / 100) / Math.max(1, motorCount);
+    return {
+      stalled: mob < MODEL.mobilityStallBand,
+      mobility: mob,
+      neededNm: neededNm,
+      hasNm: hasNm
+    };
+  }
+  // Sensor mount pose (SI2, HONOURED): the ray origin offset by the sensor's
+  // forward/left position and its yaw, in the sim's compass frame (heading 0
+  // is up/-y, clockwise positive). z is ignored and disclosed.
+  function sensorPose(x, y, headingDeg, fwdCm, leftCm, yawDeg) {
+    var a = headingDeg * Math.PI / 180;
+    var fx = Math.sin(a),
+      fy = -Math.cos(a); // forward
+    var lx = -Math.cos(a),
+      ly = -Math.sin(a); // left
+    return {
+      x: x + fwdCm * fx + leftCm * lx,
+      y: y + fwdCm * fy + leftCm * ly,
+      heading: headingDeg + (yawDeg || 0)
+    };
+  }
+  window.KodroMotion = {
+    MODEL: MODEL,
+    canonicalJson: canonicalJson,
+    gravityFactor: gravityFactor,
+    mobilityScore: mobilityScore,
+    mobilityMultiplier: mobilityMultiplier,
+    effectiveSpeedUnits: effectiveSpeedUnits,
+    moveDurationMs: moveDurationMs,
+    moveDrainPct: moveDrainPct,
+    turnDurationMs: turnDurationMs,
+    turnDrainPct: turnDrainPct,
+    physTopSpeedCmPerS: physTopSpeedCmPerS,
+    physSpeedFactor: physSpeedFactor,
+    physMassFactor: physMassFactor,
+    physStallForceN: physStallForceN,
+    physMobility: physMobility,
+    physAccelCmPerS2: physAccelCmPerS2,
+    physEnergyWh: physEnergyWh,
+    physDrainPctPerCm: physDrainPctPerCm,
+    physRuntimeMin: physRuntimeMin,
+    physTurnDurationMs: physTurnDurationMs,
+    physTurnRadiusCm: physTurnRadiusCm,
+    physStoppingDistanceCm: physStoppingDistanceCm,
+    physMaxSlopeDeg: physMaxSlopeDeg,
+    physStallVerdict: physStallVerdict,
+    sensorPose: sensorPose
+  };
+})();
+})();
+
+;(function () {
+/* ============================================================================
+   KODRO - KRS v1 robot spec schema + validator (PERFECTION_PLAN SI0)
+
+   The Kodro Robot Spec is the JSON a skeptical builder writes about their
+   REAL robot (SI units, wide-but-sane ranges) and imports into the Robot
+   Lab. The physical fields drive the simulation through the shared motion
+   model (motion-model.js): measured top speed, energy-true battery,
+   geometric turns, real sensor mount geometry.
+
+   Validation is hand-rolled (no jsonschema dependency, mirrors the
+   defensiveness of app.py _parse_build_plan): unknown keys are dropped with
+   a warning, a value outside its range but within 2x of the bound is
+   clamped WITH a warning, and a value beyond 2x is rejected with an error
+   naming the field. All physical fields are optional: a plain catalogue
+   save (v1) imports unchanged.
+
+     window.KodroSpecSchema.validate(textOrObject) -> {ok, spec, warnings, errors}
+     window.KodroSpecSchema.deriveFromPhysical(spec, catalogueDerived) -> phys block
+     window.KodroSpecSchema.exportKrs(spec, derived) -> pretty JSON string
+     window.KodroSpecSchema.FIDELITY -> the three-tier disclosure table (SI4)
+
+   Plain JS, no JSX, no React. Loaded after motion-model.js.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  var SCHEMA_VERSION = 1;
+  var MAX_SENSORS = 16;
+  var TYPES = ['rover', 'car', 'home', 'arm', 'custom'];
+  var BOARDS = ['esp32', 'microbit', 'pico', 'uno', 'custom'];
+  var DRIVE_KINDS = ['differential', 'ackermann', 'none'];
+  var SENSOR_KINDS = ['ultrasonic', 'line', 'imu', 'camera', 'gps', 'bumper'];
+  var ACTUATOR_IDS = ['motors2', 'motors4', 'servos', 'gripper'];
+
+  // ---- numeric ranges (SI units; wide but sane). [lo, hi]; a value within
+  // [lo/2, hi*2] clamps with a warning, beyond that rejects with an error.
+  var RANGES = {
+    'massKg': [0.05, 50],
+    'bodyCm.lengthCm': [5, 200],
+    'bodyCm.widthCm': [5, 200],
+    'bodyCm.heightCm': [5, 200],
+    'drive.wheelRadiusCm': [0.5, 20],
+    'drive.wheelbaseCm': [2, 150],
+    'drive.motorCount': [1, 8],
+    'drive.motor.noLoadRpm': [10, 2000],
+    'drive.motor.stallTorqueNm': [0.01, 5.0],
+    'drive.motor.nominalV': [1.5, 48],
+    'drive.maxSteerDeg': [5, 60],
+    'battery.mAh': [100, 20000],
+    'battery.voltage': [3, 48],
+    'battery.usableFraction': [0.5, 1.0],
+    'board.massG': [1, 500],
+    'sensor.posCm.x': [-100, 100],
+    'sensor.posCm.y': [-100, 100],
+    'sensor.posCm.z': [-100, 100],
+    'sensor.yawDeg': [-180, 180],
+    'sensor.rangeCm': [5, 2000],
+    'sensor.fovDeg': [1, 360],
+    'declared.maxSpeedMps': [0.05, 10],
+    'declared.runtimeMin': [1, 2000]
+  };
+
+  // ---- SI4: three-tier fidelity disclosure, one honest line per claim ------
+  var FIDELITY = {
+    honoured: ['Commanded distances and turn angles (endpoint-exact)', 'Top speed calibrated from motor rpm and wheel radius', 'Sensor mount position, yaw and range (z ignored, disclosed)', 'Collision circle sized from the body footprint', 'Command availability gated on fitted parts', 'Battery as a hard budget: the robot halts at zero'],
+    approximated: ['Acceleration and braking: first-order trapezoid, not F=ma integration', 'Turn time from mass or track geometry, not wheel torque curves', 'Traction: three coarse bands per surface', 'Constant-power battery drain (no voltage sag or thermal derating)', 'Scenario validation spread from seeded randomisation'],
+    notSimulated: ['Slopes and terrain height (worlds are flat planes)', 'Wheel-level slip and per-motor torque curves', 'Suspension and 3D contact (body motion is cosmetic)', 'Voltage sag, thermal limits, per-motor current transients', 'IMU acceleration content (returns level readings)', 'Camera, GPS, bumper, line and gripper command semantics']
+  };
+
+  // Per-stat badge tier used by the Robot Lab readout and the report annex.
+  var STAT_TIER = {
+    mass: 'honoured',
+    topSpeed: 'honoured',
+    sensorMount: 'honoured',
+    collisionRadius: 'honoured',
+    commands: 'honoured',
+    battery: 'approximated',
+    acceleration: 'approximated',
+    turnTime: 'approximated',
+    traction: 'approximated',
+    slope: 'notSimulated'
+  };
+  function isObj(v) {
+    return v !== null && typeof v === 'object' && !Array.isArray(v);
+  }
+
+  // Validate one number against its RANGES row. Returns the usable value or
+  // null (error already recorded). Clamps with a warning inside the 2x
+  // envelope; rejects with a named-field error beyond it.
+  function num(field, value, warnings, errors) {
+    var r = RANGES[field];
+    var n = Number(value);
+    if (!isFinite(n)) {
+      errors.push(field + ': "' + value + '" is not a number.');
+      return null;
+    }
+    var lo = r[0],
+      hi = r[1];
+    if (n >= lo && n <= hi) return n;
+    if (n >= lo / 2 && n <= hi * 2) {
+      var c = Math.min(hi, Math.max(lo, n));
+      warnings.push(field + ': ' + n + ' is outside the supported range ' + lo + ' to ' + hi + '; clamped to ' + c + '.');
+      return c;
+    }
+    errors.push(field + ': ' + n + ' is more than 2x outside the supported range ' + lo + ' to ' + hi + '. Fix the value and re-import.');
+    return null;
+  }
+  function pickKnown(obj, known, where, warnings) {
+    var out = {};
+    var dropped = [];
+    Object.keys(obj || {}).forEach(function (k) {
+      if (known.indexOf(k) >= 0) out[k] = obj[k];else dropped.push(k);
+    });
+    if (dropped.length) warnings.push(where + ': dropped unknown field' + (dropped.length > 1 ? 's' : '') + ' ' + dropped.join(', ') + '.');
+    return out;
+  }
+
+  // ---- main validator ------------------------------------------------------
+  // Accepts a JSON string or an already-parsed object. Returns
+  // { ok, spec, warnings, errors } where spec is the normalised INTERNAL
+  // shape RobotLab persists: catalogue fields + an optional .physical block.
+  function validate(textOrObject) {
+    var warnings = [],
+      errors = [];
+    var raw = textOrObject;
+    if (typeof raw === 'string') {
+      if (raw.length > 262144) {
+        return {
+          ok: false,
+          spec: null,
+          warnings: [],
+          errors: ['Spec file is larger than 256 KB.']
+        };
+      }
+      try {
+        raw = JSON.parse(raw);
+      } catch (e) {
+        return {
+          ok: false,
+          spec: null,
+          warnings: [],
+          errors: ['Not valid JSON: ' + (e && e.message || e)]
+        };
+      }
+    }
+    if (!isObj(raw)) return {
+      ok: false,
+      spec: null,
+      warnings: [],
+      errors: ['A KRS spec must be a JSON object.']
+    };
+    var top = pickKnown(raw, ['kodroSpec', 'name', 'type', 'board', 'bodyCm', 'massKg', 'drive', 'battery', 'sensors', 'actuators', 'declared', 'derived'], 'spec', warnings);
+    if (top.kodroSpec !== undefined && Number(top.kodroSpec) !== SCHEMA_VERSION) {
+      warnings.push('kodroSpec: version ' + top.kodroSpec + ' read as version ' + SCHEMA_VERSION + '.');
+    }
+    if (top.derived !== undefined) {
+      warnings.push('derived: ignored on import (it is recomputed from the spec).');
+    }
+
+    // name: 1..28 chars, trimmed.
+    var name = String(top.name != null ? top.name : 'Imported robot').trim();
+    if (name.length < 1) {
+      name = 'Imported robot';
+      warnings.push('name: empty, defaulted to "Imported robot".');
+    }
+    if (name.length > 28) {
+      warnings.push('name: longer than 28 characters, truncated.');
+      name = name.slice(0, 28);
+    }
+    var type = String(top.type || 'custom');
+    if (TYPES.indexOf(type) < 0) {
+      warnings.push('type: "' + type + '" is not a known archetype; read as "custom".');
+      type = 'custom';
+    }
+
+    // board: catalogue id, or an object { id: 'custom', massG } for a custom one.
+    var board = 'esp32',
+      boardMassG = null;
+    if (isObj(top.board)) {
+      var b = pickKnown(top.board, ['id', 'massG'], 'board', warnings);
+      board = BOARDS.indexOf(String(b.id)) >= 0 ? String(b.id) : 'custom';
+      if (b.massG !== undefined) boardMassG = num('board.massG', b.massG, warnings, errors);
+    } else if (top.board !== undefined) {
+      board = String(top.board);
+      if (BOARDS.indexOf(board) < 0) {
+        warnings.push('board: "' + board + '" is not in the catalogue; read as "custom".');
+        board = 'custom';
+      }
+    }
+    if (board === 'custom' && boardMassG === null) boardMassG = 10;
+
+    // ---- physical block (ALL optional) ----
+    var physical = null;
+    function phys() {
+      if (!physical) physical = {};
+      return physical;
+    }
+    if (top.massKg !== undefined) {
+      var mk = num('massKg', top.massKg, warnings, errors);
+      if (mk !== null) phys().massKg = mk;
+    }
+    if (top.bodyCm !== undefined) {
+      if (!isObj(top.bodyCm)) errors.push('bodyCm: must be an object like {"lengthCm": 25, "widthCm": 18, "heightCm": 12}.');else {
+        var bc = pickKnown(top.bodyCm, ['lengthCm', 'widthCm', 'heightCm'], 'bodyCm', warnings);
+        var body = {};
+        ['lengthCm', 'widthCm', 'heightCm'].forEach(function (k) {
+          if (bc[k] !== undefined) {
+            var v = num('bodyCm.' + k, bc[k], warnings, errors);
+            if (v !== null) body[k] = v;
+          }
+        });
+        if (body.lengthCm !== undefined && body.widthCm !== undefined) phys().bodyCm = body;else if (Object.keys(body).length) warnings.push('bodyCm: needs at least lengthCm and widthCm to size the collision circle; ignored.');
+      }
+    }
+    if (top.drive !== undefined) {
+      if (!isObj(top.drive)) errors.push('drive: must be an object.');else {
+        var dr = pickKnown(top.drive, ['kind', 'wheelRadiusCm', 'wheelbaseCm', 'motorCount', 'motor', 'maxSteerDeg'], 'drive', warnings);
+        var drive = {};
+        drive.kind = DRIVE_KINDS.indexOf(String(dr.kind)) >= 0 ? String(dr.kind) : 'differential';
+        if (dr.kind !== undefined && DRIVE_KINDS.indexOf(String(dr.kind)) < 0) {
+          warnings.push('drive.kind: "' + dr.kind + '" is not differential/ackermann/none; read as "differential".');
+        }
+        if (dr.wheelRadiusCm !== undefined) {
+          var wr = num('drive.wheelRadiusCm', dr.wheelRadiusCm, warnings, errors);
+          if (wr !== null) drive.wheelRadiusCm = wr;
+        }
+        if (dr.wheelbaseCm !== undefined) {
+          var wb = num('drive.wheelbaseCm', dr.wheelbaseCm, warnings, errors);
+          if (wb !== null) drive.wheelbaseCm = wb;
+        }
+        if (dr.motorCount !== undefined) {
+          var mc = num('drive.motorCount', dr.motorCount, warnings, errors);
+          if (mc !== null) drive.motorCount = Math.round(mc);
+        }
+        if (dr.maxSteerDeg !== undefined) {
+          var ms = num('drive.maxSteerDeg', dr.maxSteerDeg, warnings, errors);
+          if (ms !== null) drive.maxSteerDeg = ms;
+        }
+        if (isObj(dr.motor)) {
+          var mo = pickKnown(dr.motor, ['noLoadRpm', 'stallTorqueNm', 'nominalV'], 'drive.motor', warnings);
+          var motor = {};
+          if (mo.noLoadRpm !== undefined) {
+            var rpm = num('drive.motor.noLoadRpm', mo.noLoadRpm, warnings, errors);
+            if (rpm !== null) motor.noLoadRpm = rpm;
+          }
+          if (mo.stallTorqueNm !== undefined) {
+            var st = num('drive.motor.stallTorqueNm', mo.stallTorqueNm, warnings, errors);
+            if (st !== null) motor.stallTorqueNm = st;
+          }
+          if (mo.nominalV !== undefined) {
+            var nv = num('drive.motor.nominalV', mo.nominalV, warnings, errors);
+            if (nv !== null) motor.nominalV = nv;
+          }
+          if (Object.keys(motor).length) drive.motor = motor;
+        } else if (dr.motor !== undefined) {
+          errors.push('drive.motor: must be an object like {"noLoadRpm": 200, "stallTorqueNm": 0.35, "nominalV": 6}.');
+        }
+        // Cross-field checks.
+        if (drive.kind === 'ackermann' && drive.maxSteerDeg === undefined) {
+          warnings.push('drive: ackermann steering with no maxSteerDeg; the turn-radius report will be skipped.');
+        }
+        if (drive.motor && drive.wheelRadiusCm === undefined) {
+          warnings.push('drive: motor specified without wheelRadiusCm, so top speed cannot be derived from it.');
+        }
+        phys().drive = drive;
+      }
+    }
+    if (top.battery !== undefined) {
+      if (!isObj(top.battery)) errors.push('battery: must be an object like {"mAh": 2200, "voltage": 7.4, "usableFraction": 0.8}.');else {
+        var ba = pickKnown(top.battery, ['mAh', 'voltage', 'usableFraction'], 'battery', warnings);
+        var batt = {};
+        if (ba.mAh !== undefined) {
+          var mah = num('battery.mAh', ba.mAh, warnings, errors);
+          if (mah !== null) batt.mAh = mah;
+        }
+        if (ba.voltage !== undefined) {
+          var vv = num('battery.voltage', ba.voltage, warnings, errors);
+          if (vv !== null) batt.voltage = vv;
+        }
+        batt.usableFraction = 0.8;
+        if (ba.usableFraction !== undefined) {
+          var uf = num('battery.usableFraction', ba.usableFraction, warnings, errors);
+          if (uf !== null) batt.usableFraction = uf;
+        }
+        if (batt.mAh !== undefined && batt.voltage !== undefined) phys().battery = batt;else if (ba.mAh !== undefined || ba.voltage !== undefined) warnings.push('battery: needs both mAh and voltage to derive runtime; ignored.');
+      }
+    }
+    // sensors: KRS physical entries (kind + geometry). The catalogue sensor
+    // ids for command gating are derived from the kinds.
+    var physSensors = [];
+    var catalogueSensors = [];
+    if (Array.isArray(top.sensors)) {
+      if (top.sensors.length > MAX_SENSORS) {
+        warnings.push('sensors: more than ' + MAX_SENSORS + ' entries; extra ones dropped.');
+      }
+      top.sensors.slice(0, MAX_SENSORS).forEach(function (entry, i) {
+        if (typeof entry === 'string') {
+          // Plain catalogue id (v1 saves): no geometry.
+          if (SENSOR_KINDS.indexOf(entry) >= 0) catalogueSensors.push(entry);else warnings.push('sensors[' + i + ']: unknown sensor "' + entry + '" dropped.');
+          return;
+        }
+        if (!isObj(entry)) {
+          warnings.push('sensors[' + i + ']: not an object or catalogue id; dropped.');
+          return;
+        }
+        var se = pickKnown(entry, ['kind', 'posCm', 'yawDeg', 'rangeCm', 'fovDeg'], 'sensors[' + i + ']', warnings);
+        var kind = String(se.kind || '');
+        if (SENSOR_KINDS.indexOf(kind) < 0) {
+          warnings.push('sensors[' + i + ']: unknown kind "' + kind + '" dropped.');
+          return;
+        }
+        var s = {
+          kind: kind
+        };
+        if (isObj(se.posCm)) {
+          var pc = pickKnown(se.posCm, ['x', 'y', 'z'], 'sensors[' + i + '].posCm', warnings);
+          s.posCm = {};
+          ['x', 'y', 'z'].forEach(function (ax) {
+            if (pc[ax] !== undefined) {
+              var pv = num('sensor.posCm.' + ax, pc[ax], warnings, errors);
+              if (pv !== null) s.posCm[ax] = pv;
+            }
+          });
+          if (s.posCm.z !== undefined) warnings.push('sensors[' + i + ']: posCm.z is recorded but IGNORED by the 2D ray model (disclosed).');
+        }
+        if (se.yawDeg !== undefined) {
+          var yd = num('sensor.yawDeg', se.yawDeg, warnings, errors);
+          if (yd !== null) s.yawDeg = yd;
+        }
+        if (se.rangeCm !== undefined) {
+          var rc = num('sensor.rangeCm', se.rangeCm, warnings, errors);
+          if (rc !== null) s.rangeCm = rc;
+        }
+        if (se.fovDeg !== undefined) {
+          var fd = num('sensor.fovDeg', se.fovDeg, warnings, errors);
+          if (fd !== null) s.fovDeg = fd;
+        }
+        physSensors.push(s);
+        if (catalogueSensors.indexOf(kind) < 0) catalogueSensors.push(kind);
+      });
+    } else if (top.sensors !== undefined) {
+      errors.push('sensors: must be an array of sensor objects or catalogue ids.');
+    }
+    if (physSensors.length) phys().sensors = physSensors;
+    var actuators = [];
+    if (Array.isArray(top.actuators)) {
+      top.actuators.forEach(function (a, i) {
+        if (ACTUATOR_IDS.indexOf(String(a)) >= 0) actuators.push(String(a));else warnings.push('actuators[' + i + ']: unknown actuator "' + a + '" dropped.');
+      });
+    } else if (top.actuators !== undefined) {
+      errors.push('actuators: must be an array of catalogue actuator ids.');
+    }
+    // A physical drive implies drive actuators for command gating.
+    if (physical && physical.drive && physical.drive.kind !== 'none' && actuators.length === 0) {
+      actuators.push(physical.drive.kind === 'ackermann' ? 'servos' : 'motors2');
+      warnings.push('actuators: none listed; drive.kind "' + physical.drive.kind + '" implies a drive set for command gating.');
+    }
+    if (top.declared !== undefined) {
+      if (!isObj(top.declared)) errors.push('declared: must be an object like {"maxSpeedMps": 1.2, "runtimeMin": 90}.');else {
+        var de = pickKnown(top.declared, ['maxSpeedMps', 'runtimeMin'], 'declared', warnings);
+        var decl = {};
+        if (de.maxSpeedMps !== undefined) {
+          var dm = num('declared.maxSpeedMps', de.maxSpeedMps, warnings, errors);
+          if (dm !== null) decl.maxSpeedMps = dm;
+        }
+        if (de.runtimeMin !== undefined) {
+          var dn = num('declared.runtimeMin', de.runtimeMin, warnings, errors);
+          if (dn !== null) decl.runtimeMin = dn;
+        }
+        if (Object.keys(decl).length) phys().declared = decl;
+      }
+    }
+    if (errors.length) return {
+      ok: false,
+      spec: null,
+      warnings: warnings,
+      errors: errors
+    };
+    var spec = {
+      kodroSpec: SCHEMA_VERSION,
+      type: type,
+      name: name,
+      board: board,
+      sensors: catalogueSensors,
+      actuators: actuators
+    };
+    if (boardMassG !== null && board === 'custom') spec.boardMassG = boardMassG;
+    if (physical) spec.physical = physical;
+    return {
+      ok: true,
+      spec: spec,
+      warnings: warnings,
+      errors: []
+    };
+  }
+
+  // ---- SI2: derive the sim numbers from the physical block -----------------
+  // Returns the `phys` block getKodroRobot() carries, or null when the spec
+  // has no physical fields (catalogue mode stays byte-identical). `cat` is
+  // the catalogue-derived numbers used as fallbacks for missing fields.
+  function deriveFromPhysical(spec, cat) {
+    var p = spec && spec.physical;
+    if (!p) return null;
+    var KM = window.KodroMotion;
+    var M = KM.MODEL;
+    var out = {
+      badges: {},
+      warnings: []
+    };
+    var massKg = p.massKg !== undefined ? p.massKg : cat && cat.mass ? cat.mass / 1000 : 0.9;
+    out.massKg = massKg;
+    out.massFactor = KM.physMassFactor(massKg);
+
+    // Collision circle from the body footprint (HONOURED, circle disclosed).
+    if (p.bodyCm && p.bodyCm.lengthCm !== undefined && p.bodyCm.widthCm !== undefined) {
+      out.collisionRadiusCm = Math.round(Math.hypot(p.bodyCm.lengthCm, p.bodyCm.widthCm) / 2 * 10) / 10;
+      out.badges.collisionRadius = 'honoured';
+    }
+
+    // Top speed chain (E-A1, HONOURED when rpm + wheel radius are given).
+    var drive = p.drive || {};
+    var motor = drive.motor || {};
+    if (motor.noLoadRpm !== undefined && drive.wheelRadiusCm !== undefined) {
+      out.vMaxCmPerS = KM.physTopSpeedCmPerS(motor.noLoadRpm, drive.wheelRadiusCm);
+      out.speedFactor = KM.physSpeedFactor(out.vMaxCmPerS);
+      var capped = KM.MODEL.baseSpeedCmPerS * out.speedFactor;
+      if (Math.abs(capped - out.vMaxCmPerS) > 0.5) {
+        out.warnings.push('Top speed ' + (out.vMaxCmPerS / 100).toFixed(2) + ' m/s exceeds the simulable band; simulated at ' + (capped / 100).toFixed(2) + ' m/s.');
+        out.vMaxSimCmPerS = capped;
+      } else {
+        out.vMaxSimCmPerS = out.vMaxCmPerS;
+      }
+      out.badges.topSpeed = 'honoured';
+    }
+    // Tractive force, mobility, acceleration, slope (E-A1/E-A5).
+    if (motor.stallTorqueNm !== undefined && drive.wheelRadiusCm !== undefined) {
+      var n = drive.motorCount !== undefined ? drive.motorCount : 2;
+      out.motorCount = n;
+      out.wheelRadiusCm = drive.wheelRadiusCm;
+      out.stallForceN = KM.physStallForceN(motor.stallTorqueNm, n, drive.wheelRadiusCm);
+      out.accelCmPerS2 = KM.physAccelCmPerS2(out.stallForceN, massKg, M.gravityEarthMps2);
+      out.maxSlopeDeg = Math.round(KM.physMaxSlopeDeg(out.stallForceN, massKg, M.gravityEarthMps2) * 10) / 10;
+      out.badges.acceleration = 'approximated';
+      out.badges.slope = 'notSimulated';
+    }
+    // Energy-true battery (E-A2).
+    if (p.battery) {
+      out.energyWh = KM.physEnergyWh(p.battery.mAh, p.battery.voltage, p.battery.usableFraction);
+      var vNom = out.vMaxSimCmPerS || (cat && cat.speedFactor ? M.baseSpeedCmPerS * cat.speedFactor : M.baseSpeedCmPerS);
+      out.drainPctPerCmNominal = KM.physDrainPctPerCm(massKg, out.energyWh, vNom, M.gravityEarthMps2, 1);
+      out.runtimeMin = Math.round(KM.physRuntimeMin(massKg, out.energyWh, vNom, M.gravityEarthMps2, 1));
+      out.badges.battery = 'approximated';
+    }
+    // Turn geometry (E-A4) and ackermann turn radius (report-only in v1).
+    if (drive.wheelbaseCm !== undefined) {
+      out.trackCm = drive.wheelbaseCm;
+      out.badges.turnTime = 'approximated';
+      if (drive.kind === 'ackermann' && drive.maxSteerDeg !== undefined) {
+        out.turnRadiusCm = Math.round(KM.physTurnRadiusCm(drive.wheelbaseCm, drive.maxSteerDeg));
+        out.warnings.push('Ackermann minimum turn radius ' + (out.turnRadiusCm / 100).toFixed(2) + ' m is REPORT-ONLY in v1: the sim still turns in place or on its fixed display arc.');
+      }
+    }
+    // Sensor mount geometry (HONOURED; first ultrasonic drives the ray).
+    var us = (p.sensors || []).filter(function (s) {
+      return s.kind === 'ultrasonic';
+    })[0];
+    if (us) {
+      out.sensor = {
+        fwdCm: us.posCm && us.posCm.x || 0,
+        leftCm: us.posCm && us.posCm.y || 0,
+        yawDeg: us.yawDeg || 0,
+        rangeCm: us.rangeCm !== undefined ? us.rangeCm : M.sensorRangeCm
+      };
+      out.badges.sensorMount = 'honoured';
+    }
+    // Declared cross-check: over 20 percent discrepancy is flagged (SI2).
+    var decl = p.declared || {};
+    if (decl.maxSpeedMps !== undefined && out.vMaxCmPerS !== undefined) {
+      var relV = Math.abs(decl.maxSpeedMps * 100 - out.vMaxCmPerS) / Math.max(1, out.vMaxCmPerS);
+      if (relV > 0.2) {
+        out.warnings.push('Declared top speed ' + decl.maxSpeedMps + ' m/s disagrees with the motor-derived ' + (out.vMaxCmPerS / 100).toFixed(2) + ' m/s by ' + Math.round(relV * 100) + ' percent. The derived value is simulated.');
+      }
+    }
+    if (decl.runtimeMin !== undefined && out.runtimeMin !== undefined) {
+      var relR = Math.abs(decl.runtimeMin - out.runtimeMin) / Math.max(1, out.runtimeMin);
+      if (relR > 0.2) {
+        out.warnings.push('Declared runtime ' + decl.runtimeMin + ' min disagrees with the battery-derived ' + out.runtimeMin + ' min by ' + Math.round(relR * 100) + ' percent. The derived value is simulated.');
+      }
+    }
+    return out;
+  }
+
+  // ---- export: the validated spec plus the derived block (SI1) -------------
+  function exportKrs(spec, derived) {
+    var out = {
+      kodroSpec: SCHEMA_VERSION,
+      name: spec.name,
+      type: spec.type,
+      board: spec.board,
+      sensors: spec.physical && spec.physical.sensors ? spec.physical.sensors : spec.sensors || [],
+      actuators: spec.actuators || []
+    };
+    ['massKg', 'bodyCm', 'drive', 'battery', 'declared'].forEach(function (k) {
+      if (spec.physical && spec.physical[k] !== undefined) out[k] = spec.physical[k];
+    });
+    out.derived = {
+      note: 'Computed by Kodro from the fields above; ignored on re-import.',
+      massG: derived && derived.mass,
+      massFactor: derived && derived.massFactor,
+      speedFactor: derived && derived.speedFactor,
+      runtimeMin: derived && derived.runtimeMin
+    };
+    if (derived && derived.phys) {
+      var ph = derived.phys;
+      out.derived.topSpeedMps = ph.vMaxCmPerS !== undefined ? Math.round(ph.vMaxCmPerS) / 100 : undefined;
+      out.derived.collisionRadiusCm = ph.collisionRadiusCm;
+      out.derived.stallForceN = ph.stallForceN !== undefined ? Math.round(ph.stallForceN * 100) / 100 : undefined;
+      out.derived.energyWh = ph.energyWh !== undefined ? Math.round(ph.energyWh * 100) / 100 : undefined;
+      out.derived.maxSlopeDeg = ph.maxSlopeDeg;
+      out.derived.turnRadiusCm = ph.turnRadiusCm;
+    }
+    return JSON.stringify(out, null, 2);
+  }
+  window.KodroSpecSchema = {
+    SCHEMA_VERSION: SCHEMA_VERSION,
+    RANGES: RANGES,
+    FIDELITY: FIDELITY,
+    STAT_TIER: STAT_TIER,
+    SENSOR_KINDS: SENSOR_KINDS,
+    validate: validate,
+    deriveFromPhysical: deriveFromPhysical,
+    exportKrs: exportKrs
+  };
+})();
+})();
+
+;(function () {
 /* Shared moving-agent simulation.
  *
  * One source of truth for the city's pedestrians and traffic, in the same
@@ -8376,16 +9171,26 @@
         });
         if (rType !== 'arm') {
           if (fitted.indexOf('ultrasonic') >= 0) {
+            // SI2: an imported KRS spec mounts the pod WHERE the builder put
+            // it - forward/left offset plus yaw, scaled from cm into body
+            // units (the front face fx stands for the 30 cm body radius). A
+            // catalogue build keeps the default front-face mount exactly.
+            const spPose = window.getKodroRobot && window.getKodroRobot().phys && window.getKodroRobot().phys.sensor || null;
+            const CM2U = fx / 30;
+            const pod = new THREE.Group();
             [0.2, -0.2].forEach(z => {
               const e = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.13, 16), darkM);
               e.rotation.z = Math.PI / 2;
-              e.position.set(fx, sy, z);
-              body.add(e);
+              e.position.set(0, 0, z);
+              pod.add(e);
               const r = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), accMat);
-              r.position.set(fx + 0.08, sy, z);
+              r.position.set(0.08, 0, z);
               r.rotation.y = Math.PI / 2;
-              body.add(r);
+              pod.add(r);
             });
+            pod.position.set(spPose ? spPose.fwdCm * CM2U : fx, sy, spPose ? -spPose.leftCm * CM2U : 0);
+            if (spPose && spPose.yawDeg) pod.rotation.y = -spPose.yawDeg * Math.PI / 180;
+            body.add(pod);
           }
           if (fitted.indexOf('camera') >= 0) {
             const cam = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.34), darkM);
@@ -10369,8 +11174,9 @@ Object.assign(window, {
  * Each dimension is { key, label, status: 'pass'|'warn'|'fail', reason, fix, margin }.
  */
 (function () {
-  const SENSOR_RANGE = 600; // cm the ultrasonic can see ahead (matches the sim ray)
-
+  // Default ultrasonic range from the SHARED motion model (E-P1); an imported
+  // spec's real sensor range overrides it per-build inside assess().
+  const SENSOR_RANGE = window.KodroMotion && window.KodroMotion.MODEL.sensorRangeCm || 600;
   function has(list, id) {
     return (list || []).indexOf(id) >= 0;
   }
@@ -10382,10 +11188,11 @@ Object.assign(window, {
     return Math.round(120 * speedFactor * speedFactor * massFactor);
   }
 
-  // Mobility headroom on a surface: drive torque times grip, divided by how
-  // heavy the build is. Below ~0.45 it cannot reliably get moving here.
+  // Mobility headroom on a surface: delegates to the shared motion model
+  // (E-P1) so the design check and the live tick can never disagree about
+  // what stalls. Below ~0.45 it cannot reliably get moving here.
   function mobilityScore(speedFactor, massFactor, traction) {
-    return speedFactor * traction / massFactor;
+    return window.KodroMotion ? window.KodroMotion.mobilityScore(speedFactor, massFactor, traction) : speedFactor * traction / massFactor;
   }
   function assess(spec, derived, terrain) {
     spec = spec || {};
@@ -10444,8 +11251,13 @@ Object.assign(window, {
     }
 
     // 2. OBSTACLE SENSING -- can it perceive and avoid hazards in time?
+    // An imported spec's REAL sensor range replaces the 600 cm default, and
+    // a physical build's braking distance comes from v^2/(2*mu*g) instead of
+    // the catalogue proxy (SI2).
+    const phys = derived.phys;
+    const SENSOR_RANGE_BUILD = phys && phys.sensor && phys.sensor.rangeCm || SENSOR_RANGE;
     const hasRange = has(sensors, 'ultrasonic');
-    const stop = stoppingDistance(speedFactor, massFactor);
+    const stop = phys && phys.vMaxSimCmPerS !== undefined && window.KodroMotion ? Math.round(window.KodroMotion.physStoppingDistanceCm(phys.vMaxSimCmPerS, traction, gravity)) : stoppingDistance(speedFactor, massFactor);
     if (!hasRange) {
       dims.push({
         key: 'sensing',
@@ -10455,13 +11267,13 @@ Object.assign(window, {
         reason: 'No range sensor fitted, so the robot drives blind. distance() reads clear no matter what is ahead, and it will run into obstacles.',
         fix: 'Fit an Ultrasonic range sensor so it can see and avoid what is in front.'
       });
-    } else if (stop > SENSOR_RANGE * 0.6) {
+    } else if (stop > SENSOR_RANGE_BUILD * 0.6) {
       dims.push({
         key: 'sensing',
         label: 'Obstacle sensing',
         status: 'warn',
-        margin: +(SENSOR_RANGE / stop).toFixed(2),
-        reason: 'Stopping distance is about ' + stop + ' cm at top speed, which is tight against the ' + SENSOR_RANGE + ' cm the sensor sees. A late obstacle can be hit before it halts.',
+        margin: +(SENSOR_RANGE_BUILD / stop).toFixed(2),
+        reason: 'Stopping distance is about ' + stop + ' cm at top speed, which is tight against the ' + SENSOR_RANGE_BUILD + ' cm the sensor sees. A late obstacle can be hit before it halts.',
         fix: 'Cap speed with set_speed below 60, or lighten the build so it stops sooner.'
       });
     } else {
@@ -10469,8 +11281,8 @@ Object.assign(window, {
         key: 'sensing',
         label: 'Obstacle sensing',
         status: 'pass',
-        margin: +(SENSOR_RANGE / Math.max(1, stop)).toFixed(2),
-        reason: 'Range sensor fitted and it stops in about ' + stop + ' cm, well inside its ' + SENSOR_RANGE + ' cm view.',
+        margin: +(SENSOR_RANGE_BUILD / Math.max(1, stop)).toFixed(2),
+        reason: 'Range sensor fitted and it stops in about ' + stop + ' cm, well inside its ' + SENSOR_RANGE_BUILD + ' cm view.',
         fix: ''
       });
     }
@@ -10602,7 +11414,7 @@ Object.assign(window, {
         stoppingCm: stop,
         mobility: +mob.toFixed(2),
         enduranceMin: effMin,
-        sensorRange: SENSOR_RANGE,
+        sensorRange: SENSOR_RANGE_BUILD,
         blind: !hasRange
       }
     };
@@ -10699,8 +11511,9 @@ Object.assign(window, {
  *   }
  */
 (function () {
-  const WALL = 1500; // arena half-extent in cm, matches the engine
-
+  // Arena half-extent from the SHARED motion model (E-P1): the fourth
+  // hand-rolled replica now reads the same constant as everything else.
+  const WALL = window.KodroMotion && window.KodroMotion.MODEL.arenaHalfExtentCm || 1500;
   function rayToWall(x, y, headingDeg) {
     const a = headingDeg * Math.PI / 180;
     const dx = Math.sin(a),
@@ -10863,7 +11676,10 @@ Object.assign(window, {
  *   window.getKodroRobot()   -- the saved spec + derived sim factors
  */
 (function () {
-  const STORE = 'kodro_robot_v1';
+  // v2 store carries the optional KRS physical block (SI0); a v1 save (plain
+  // catalogue spec) is read unchanged through the migration in load().
+  const STORE = 'kodro_robot_v2';
+  const STORE_V1 = 'kodro_robot_v1';
 
   // ---- parts catalogue. mass is grams; "enables" lists the Python the part unlocks.
   const BOARDS = {
@@ -11089,7 +11905,7 @@ Object.assign(window, {
 
   // ---- derive the numbers the simulation cares about from a spec.
   function derive(spec) {
-    let mass = CHASSIS_MASS + (BOARDS[spec.board] ? BOARDS[spec.board].mass : 10);
+    let mass = CHASSIS_MASS + (BOARDS[spec.board] ? BOARDS[spec.board].mass : spec.boardMassG || 10);
     (spec.sensors || []).forEach(s => {
       if (SENSORS[s]) mass += SENSORS[s].mass;
     });
@@ -11101,9 +11917,12 @@ Object.assign(window, {
       }
     });
     if (speed === 0) speed = 0.8; // no drive parts: it barely crawls
-    const baseline = 900; // grams ~ a typical small rover
-    const massFactor = Math.min(1.8, Math.max(0.6, mass / baseline));
-    const speedFactor = Math.min(1.45, Math.max(0.7, speed));
+    // Catalogue bounds live in the SHARED motion model (E-P1) so the sim, the
+    // Lab and the Python twin read the same numbers; values are unchanged.
+    const M = window.KodroMotion && window.KodroMotion.MODEL || {};
+    const baseline = M.massBaselineG || 900; // grams ~ a typical small rover
+    const massFactor = Math.min(M.catMassFactorHi || 1.8, Math.max(M.catMassFactorLo || 0.6, mass / baseline));
+    const speedFactor = Math.min(M.catSpeedFactorHi || 1.45, Math.max(M.catSpeedFactorLo || 0.7, speed));
     // crude runtime estimate: lighter + fewer parts last longer on one charge
     const runtimeMin = Math.round(60 / massFactor);
     const cmds = [];
@@ -11113,24 +11932,43 @@ Object.assign(window, {
     (spec.actuators || []).forEach(a => {
       if (ACTUATORS[a] && ACTUATORS[a].cmd) cmds.push(ACTUATORS[a].cmd);
     });
-    return {
+    const out = {
       mass,
       massFactor,
       speedFactor,
       runtimeMin,
       commands: cmds
     };
+    // SI2: an imported KRS spec's physical block overrides the catalogue
+    // proxies with measured numbers (top speed from rpm and wheel radius,
+    // energy-true battery, real mass). Catalogue builds return exactly the
+    // block above - byte-identical to the pre-SI2 behaviour.
+    if (spec.physical && window.KodroSpecSchema) {
+      const ph = window.KodroSpecSchema.deriveFromPhysical(spec, out);
+      if (ph) {
+        out.phys = ph;
+        if (ph.massKg !== undefined) out.mass = Math.round(ph.massKg * 1000);
+        if (ph.massFactor !== undefined) out.massFactor = ph.massFactor;
+        if (ph.speedFactor !== undefined) out.speedFactor = ph.speedFactor;
+        if (ph.runtimeMin !== undefined) out.runtimeMin = ph.runtimeMin;
+      }
+    }
+    return out;
   }
   function load() {
     try {
-      const raw = localStorage.getItem(STORE);
+      // v2 first; fall back to a v1 save (same catalogue shape, no physical
+      // block) so an existing build survives the upgrade untouched.
+      const raw = localStorage.getItem(STORE) || localStorage.getItem(STORE_V1);
       if (raw) {
         const s = JSON.parse(raw);
         // Floor: a saved build with no sensors cannot run the obstacle-avoidance
         // demos and confuses first-time users ("ultrasonic needed"). Give every
         // build at least an ultrasonic + IMU so it can sense and the default
         // autopilot just works on first Run; it stays editable in the Robot Lab.
-        if (s && (!Array.isArray(s.sensors) || s.sensors.length === 0)) s.sensors = ['ultrasonic', 'imu'];
+        // An imported KRS build is exempt: its sensor list is a deliberate
+        // measurement, and faking parts onto it would betray the import.
+        if (s && !s.physical && (!Array.isArray(s.sensors) || s.sensors.length === 0)) s.sensors = ['ultrasonic', 'imu'];
         return s;
       }
     } catch (e) {
@@ -11284,6 +12122,25 @@ Object.assign(window, {
       return t;
     }
   };
+
+  // SI4: per-stat fidelity badge. Tier names come from the schema module so
+  // the Lab, the Realism dashboard and the report annex say the same words.
+  const TIER_LABEL = {
+    honoured: 'HONOURED',
+    approximated: 'APPROXIMATED',
+    notSimulated: 'NOT SIMULATED'
+  };
+  const TIER_TITLE = {
+    honoured: 'Honoured exactly by the simulation',
+    approximated: 'Approximated: first-order model, honest error bars',
+    notSimulated: 'Not simulated: reported only, never driven'
+  };
+  function Badge(tier) {
+    return React.createElement('span', {
+      className: 'fid-badge fid-' + tier,
+      title: TIER_TITLE[tier]
+    }, TIER_LABEL[tier]);
+  }
   function Chip(props) {
     const on = props.on;
     return React.createElement('button', {
@@ -11299,6 +12156,10 @@ Object.assign(window, {
   }
   function RobotLab(props) {
     const [spec, setSpec] = React.useState(load);
+    // SI1: import feedback. {errors:[], warnings:[]} after an Import spec, so
+    // a clamped field is a VISIBLE per-field diff, never a silent fix-up.
+    const [importIssues, setImportIssues] = React.useState(null);
+    const fileRef = React.useRef(null);
     const d = derive(spec);
     const t = TYPES[spec.type] || TYPES.rover;
     const rec = WORLD_FOR[spec.type] || WORLD_FOR.rover;
@@ -11308,6 +12169,7 @@ Object.assign(window, {
     const report = window.KodroDiagnostics && dTerrain ? window.KodroDiagnostics.assess(spec, d, dTerrain) : null;
     function pickType(id) {
       setSpec(specFromType(id, null));
+      setImportIssues(null);
     }
     function toggle(kind, id) {
       setSpec(s => {
@@ -11322,6 +12184,116 @@ Object.assign(window, {
     function onSave() {
       save(spec);
       if (props.onClose) props.onClose();
+    }
+
+    // ---- SI1: KRS import/export -----------------------------------------
+    function applyImportText(text) {
+      const r = window.KodroSpecSchema ? window.KodroSpecSchema.validate(text) : {
+        ok: false,
+        errors: ['Spec schema unavailable.'],
+        warnings: []
+      };
+      setImportIssues({
+        errors: r.errors || [],
+        warnings: r.warnings || []
+      });
+      if (r.ok) setSpec(r.spec);
+      return r;
+    }
+    async function onImportClick() {
+      // Desktop: native file dialog through the bridge (pick_photo pattern);
+      // browser preview: the hidden file input below.
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.importRobotSpec) {
+        try {
+          const r = await window.RoboLearn.importRobotSpec();
+          if (r && r.ok) applyImportText(r.text);else if (r && r.reason && r.reason !== 'cancelled') setImportIssues({
+            errors: [r.reason],
+            warnings: []
+          });
+        } catch (e) {
+          setImportIssues({
+            errors: [String(e)],
+            warnings: []
+          });
+        }
+        return;
+      }
+      if (fileRef.current) fileRef.current.click();
+    }
+    function onFilePicked(e) {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      if (f.size > 262144) {
+        setImportIssues({
+          errors: ['Spec file is larger than 256 KB.'],
+          warnings: []
+        });
+        return;
+      }
+      const rd = new FileReader();
+      rd.onload = function () {
+        applyImportText(String(rd.result));
+      };
+      rd.readAsText(f);
+    }
+    function specFileName(suffix) {
+      return ((spec.name || 'robot').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'robot') + suffix;
+    }
+    function downloadText(text, fname, mime) {
+      const blob = new Blob([text], {
+        type: mime
+      });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      a.click();
+      setTimeout(function () {
+        URL.revokeObjectURL(a.href);
+      }, 2000);
+    }
+    function toast(text, kind) {
+      try {
+        window.dispatchEvent(new CustomEvent('kodro-toast', {
+          detail: {
+            text: text,
+            kind: kind || 'info'
+          }
+        }));
+      } catch (e) {
+        void e;
+      }
+    }
+    async function onExportClick() {
+      if (!window.KodroSpecSchema) return;
+      const json = window.KodroSpecSchema.exportKrs(spec, Object.assign({}, d, {
+        phys: d.phys
+      }));
+      const fname = specFileName('.kodro.json');
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.exportRobotSpec) {
+        const r = await window.RoboLearn.exportRobotSpec(json, fname);
+        toast(r && r.ok ? 'Spec saved: ' + r.path : 'Spec export ' + (r && r.reason || 'failed'), r && r.ok ? 'ok' : 'info');
+        return;
+      }
+      downloadText(json, fname, 'application/json');
+      toast('Spec downloaded: ' + fname, 'ok');
+    }
+    // SI3: generate and save the "your robot as simulated" report.
+    async function onReportClick() {
+      if (!window.KodroVerify) return;
+      const robotNow = Object.assign({}, spec, d, {
+        phys: d.phys
+      });
+      const rep = window.KodroVerify.report(robotNow, dTerrain);
+      const html = window.KodroVerify.toHtml(rep);
+      const fname = specFileName('-verification.html');
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.saveVerificationReport) {
+        const r = await window.RoboLearn.saveVerificationReport(html, fname);
+        toast(r && r.ok ? 'Verification report saved: ' + r.path : 'Report ' + (r && r.reason || 'failed'), r && r.ok ? 'ok' : 'info');
+        return;
+      }
+      downloadText(html, fname, 'text/html');
+      toast('Verification report downloaded: ' + fname, 'ok');
     }
     return React.createElement('div', {
       className: 'modal-backdrop',
@@ -11424,18 +12396,62 @@ Object.assign(window, {
       sub: ACTUATORS[id].enables || (ACTUATORS[id].speed || 1) + '× speed',
       onClick: () => toggle('actuators', id)
     })))),
-    // ---- live spec readout
+    // ---- live spec readout (every stat carries its SI4 fidelity badge)
     React.createElement('div', {
       className: 'rl-spec'
     }, React.createElement('div', {
       className: 'rl-stat'
-    }, React.createElement('b', null, d.mass + ' g'), React.createElement('span', null, 'total mass')), React.createElement('div', {
+    }, React.createElement('b', null, d.mass + ' g'), React.createElement('span', null, 'total mass ', Badge('honoured'))), React.createElement('div', {
       className: 'rl-stat'
-    }, React.createElement('b', null, '~' + d.runtimeMin + ' min'), React.createElement('span', null, 'battery / charge')), React.createElement('div', {
+    }, React.createElement('b', null, '~' + d.runtimeMin + ' min'), React.createElement('span', null, 'battery / charge ', Badge('approximated'))), React.createElement('div', {
       className: 'rl-stat'
-    }, React.createElement('b', null, d.speedFactor.toFixed(2) + '×'), React.createElement('span', null, 'top speed')), React.createElement('div', {
+    }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : d.speedFactor.toFixed(2) + '×'), React.createElement('span', null, 'top speed ', Badge('honoured'))), React.createElement('div', {
       className: 'rl-stat rl-stat-wide'
-    }, React.createElement('b', null, d.commands.length ? d.commands.map(c => c + '()').join('  ') : 'move()  turn()  only'), React.createElement('span', null, 'commands this build supports'))),
+    }, React.createElement('b', null, d.commands.length ? d.commands.map(c => c + '()').join('  ') : 'move()  turn()  only'), React.createElement('span', null, 'commands this build supports ', Badge('honoured')))),
+    // ---- SI1: measured-build banner for an imported KRS spec
+    spec.physical && d.phys && React.createElement('div', {
+      className: 'rl-measured',
+      'data-spec-import': 'measured'
+    }, React.createElement('div', {
+      className: 'rl-measured-head'
+    }, React.createElement('span', {
+      className: 'rl-label',
+      style: {
+        margin: 0
+      }
+    }, 'Measured build - imported spec drives the sim'), Badge('honoured')), React.createElement('div', {
+      className: 'rl-measured-grid'
+    }, React.createElement('span', null, 'Mass ', React.createElement('b', null, d.phys.massKg !== undefined ? d.phys.massKg + ' kg' : '-')), React.createElement('span', null, 'Top speed ', React.createElement('b', null, d.phys.vMaxCmPerS !== undefined ? (d.phys.vMaxCmPerS / 100).toFixed(2) + ' m/s' : 'catalogue')), React.createElement('span', null, 'Runtime ', React.createElement('b', null, d.phys.runtimeMin !== undefined ? '~' + d.phys.runtimeMin + ' min' : 'catalogue')), React.createElement('span', null, 'Body ', React.createElement('b', null, d.phys.collisionRadiusCm !== undefined ? Math.round(d.phys.collisionRadiusCm * 2) + ' cm circle' : '60 cm default')), React.createElement('span', null, 'Sensor ', React.createElement('b', null, d.phys.sensor ? '+' + d.phys.sensor.fwdCm + ' cm fwd, ' + d.phys.sensor.rangeCm + ' cm range' : 'none imported')), d.phys.maxSlopeDeg !== undefined ? React.createElement('span', null, 'Max slope ', React.createElement('b', null, d.phys.maxSlopeDeg + '°'), ' ', Badge('notSimulated')) : null), d.phys.warnings && d.phys.warnings.length ? React.createElement('ul', {
+      className: 'rl-issues rl-issues-warn'
+    }, d.phys.warnings.map(function (w, i) {
+      return React.createElement('li', {
+        key: i
+      }, w);
+    })) : null),
+    // ---- SI1: per-field import diff (clamps are visible, never silent)
+    importIssues && (importIssues.errors.length > 0 || importIssues.warnings.length > 0) ? React.createElement('div', {
+      className: 'rl-import-report',
+      role: 'status'
+    }, importIssues.errors.length > 0 ? React.createElement('div', null, React.createElement('div', {
+      className: 'rl-label',
+      style: {
+        color: '#ff8f7a'
+      }
+    }, 'Import rejected - fix these fields'), React.createElement('ul', {
+      className: 'rl-issues rl-issues-err'
+    }, importIssues.errors.map(function (e2, i) {
+      return React.createElement('li', {
+        key: i
+      }, e2);
+    }))) : React.createElement('div', null, React.createElement('div', {
+      className: 'rl-label'
+    }, 'Imported with adjustments'), React.createElement('ul', {
+      className: 'rl-issues rl-issues-warn'
+    }, importIssues.warnings.map(function (w, i) {
+      return React.createElement('li', {
+        key: i
+      }, w);
+    })))) : null,
     // ---- predictive design check: will this build cope, and why
     report && React.createElement('div', {
       className: 'rl-section',
@@ -11520,8 +12536,36 @@ Object.assign(window, {
       className: 'rl-foot'
     }, React.createElement('button', {
       className: 'btn-mini',
-      onClick: () => setSpec(specFromType(spec.type, spec.name))
-    }, 'Reset parts'), React.createElement('button', {
+      onClick: () => {
+        setSpec(specFromType(spec.type, spec.name));
+        setImportIssues(null);
+      }
+    }, 'Reset parts'),
+    // SI1: import a real robot's KRS JSON / export this build's spec.
+    React.createElement('button', {
+      className: 'btn-mini',
+      'data-spec-import': 'button',
+      title: 'Import a KRS robot spec (JSON): real motor, battery, body and sensor numbers drive the sim',
+      onClick: onImportClick
+    }, 'Import spec'), React.createElement('button', {
+      className: 'btn-mini',
+      title: 'Export this build as a KRS spec plus its derived numbers',
+      onClick: onExportClick
+    }, 'Export spec'), React.createElement('button', {
+      className: 'btn-mini',
+      title: 'Save the verification report: your robot as simulated, predictions plus measured evidence',
+      onClick: onReportClick
+    }, 'Verification report'), React.createElement('input', {
+      ref: fileRef,
+      type: 'file',
+      accept: '.json,application/json',
+      style: {
+        display: 'none'
+      },
+      'aria-hidden': 'true',
+      tabIndex: -1,
+      onChange: onFilePicked
+    }), React.createElement('button', {
       className: 'ctrl ctrl-run',
       onClick: onSave
     }, '✓ Build & test in ' + rec.label))));
@@ -11624,6 +12668,19 @@ Object.assign(window, {
       world: WORLD_FOR[spec.type] || {}
     };
   };
+  // SI1: apply a KRS spec from raw JSON text - the SAME validate-then-save
+  // path the Lab's Import button drives after reading the file, exposed so
+  // the QA harness (and the demo) can exercise import end to end without a
+  // native file dialog. Returns the validator result.
+  RobotLab.importSpecText = function (text) {
+    const r = window.KodroSpecSchema ? window.KodroSpecSchema.validate(text) : {
+      ok: false,
+      errors: ['Spec schema unavailable.'],
+      warnings: []
+    };
+    if (r.ok) save(r.spec);
+    return r;
+  };
   window.KodroRobotFromText = robotFromText;
   window.RobotLab = RobotLab;
 })();
@@ -11651,7 +12708,9 @@ Object.assign(window, {
  *     successCriteria:{ reachGoal, maxCollisions }, randomizationConfig }
  */
 (function () {
-  const WALL = 1500; // arena half-extent in cm, matches the engine and self-test
+  // Arena half-extent from the SHARED motion model (E-P1): one constant, not
+  // a third hand-rolled copy. Fallback keeps headless loads working.
+  const WALL = window.KodroMotion && window.KodroMotion.MODEL.arenaHalfExtentCm || 1500;
   const STEP_CAP = 200000;
   // Single source of truth for "did this design pass the spread". A majority of
   // randomised seeds must reach the goal, and mean collisions must stay within
@@ -11798,7 +12857,16 @@ Object.assign(window, {
         switch (name) {
           case 'distance':
             {
-              let d = rayDistance(s.x, s.y, s.heading, obstacles);
+              // SI2: honour an imported sensor's mount pose and range, exactly
+              // like the live host, so a program validates the way it runs.
+              let d;
+              const sp = robot && robot.phys && robot.phys.sensor;
+              if (sp && window.KodroMotion) {
+                const pose = window.KodroMotion.sensorPose(s.x, s.y, s.heading, sp.fwdCm, sp.leftCm, sp.yawDeg);
+                d = Math.min(sp.rangeCm, rayDistance(pose.x, pose.y, pose.heading, obstacles));
+              } else {
+                d = rayDistance(s.x, s.y, s.heading, obstacles);
+              }
               if (noiseCm) {
                 d += (rng() * 2 - 1) * noiseCm;
                 if (d < 0) {
@@ -11895,7 +12963,9 @@ Object.assign(window, {
             s.x = nx;
             s.y = ny;
           }
-          s.battery = Math.max(0, s.battery - Math.abs(dist) * 0.011 * massFac / friction);
+          // Shared drain ledger (E-P1); an imported pack uses its energy-true
+          // per-cm figure (E-A2), scaled by this seed's mass randomisation.
+          s.battery = Math.max(0, s.battery - (robot && robot.phys && robot.phys.energyWh !== undefined ? Math.abs(dist) * robot.phys.drainPctPerCmNominal * massMul : window.KodroMotion.moveDrainPct(Math.abs(dist), window.KodroMotion.MODEL.gravityEarthMps2, massFac, friction)));
           noteClearance();
           if (!reachedGoal && Math.hypot(s.x - goal.x, s.y - goal.y) <= goal.r) {
             reachedGoal = true;
@@ -12312,6 +13382,204 @@ Object.assign(window, {
 
 ;(function () {
 /*
+ * Per-robot verification report: "your robot as simulated" (PERFECTION_PLAN SI3).
+ *
+ * Pure functions that turn the active build (spec + derived numbers) into a
+ * closed-form prediction sheet, join it with the MEASURED evidence the app
+ * already collects (the last live run's odometer/wall-clock, the last
+ * multi-seed validation report), and render both as a standalone HTML file a
+ * skeptical builder can keep. Nothing here computes new simulation state;
+ * every number is either a motion-model closed form or a recorded result,
+ * and every claim carries its SI4 fidelity tier.
+ *
+ *   window.KodroVerify.report(robot, terrain) -> { rows, empirical, design, fidelity }
+ *   window.KodroVerify.toHtml(report)         -> HTML string (Blob/bridge save)
+ *
+ * Plain JS (no React) so the headless QA can exercise it under Node.
+ */
+(function () {
+  'use strict';
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // One prediction row: label, value, fidelity tier, how it was derived.
+  function row(label, value, tier, how) {
+    return {
+      label: label,
+      value: value,
+      tier: tier,
+      how: how
+    };
+  }
+  function report(robot, terrain) {
+    var KM = window.KodroMotion;
+    var M = KM.MODEL;
+    var phys = robot && robot.phys;
+    var speedFac = robot && robot.speedFactor || 1;
+    var massFac = robot && robot.massFactor || 1;
+    var traction = terrain && terrain.traction || 1;
+    var gravity = terrain && terrain.env && terrain.env.gravity || M.gravityEarthMps2;
+    var rows = [];
+    // Top speed: physical -> motor-derived (HONOURED); catalogue -> the
+    // calibrated 3.125 m/s anchor scaled by the parts factor.
+    var vCmPerS = phys && phys.vMaxSimCmPerS !== undefined ? phys.vMaxSimCmPerS : M.baseSpeedCmPerS * speedFac;
+    rows.push(row('Top speed', (vCmPerS / 100).toFixed(2) + ' m/s', phys && phys.vMaxSimCmPerS !== undefined ? 'honoured' : 'approximated', phys && phys.vMaxSimCmPerS !== undefined ? 'v = rpm/60 * 2*pi*r from the imported motor' : 'catalogue speed factor times the 3.125 m/s anchor'));
+    // 0-to-top time (physical only; catalogue ramp is a display trapezoid).
+    if (phys && phys.accelCmPerS2 !== undefined) {
+      rows.push(row('0 to top speed', (vCmPerS / phys.accelCmPerS2).toFixed(2) + ' s', 'approximated', 'a = (F_stall - Crr*m*g)/m, first order'));
+    }
+    // Stopping distance: v^2/(2*mu*g) replaces the old proxy.
+    var stopCm = KM.physStoppingDistanceCm(vCmPerS, traction, gravity);
+    rows.push(row('Stopping distance', (stopCm / 100).toFixed(2) + ' m', 'approximated', 'd = v^2 / (2*mu*g), mu = ' + (M.brakeMu * traction).toFixed(2)));
+    // Turn radius: ackermann geometry when specified, else turns in place.
+    if (phys && phys.turnRadiusCm !== undefined) {
+      rows.push(row('Minimum turn radius', (phys.turnRadiusCm / 100).toFixed(2) + ' m', 'notSimulated', 'R = wheelbase/tan(maxSteer); REPORT-ONLY in v1, the sim does not drive this arc'));
+    } else {
+      rows.push(row('Turn', 'turns in place (differential drive)', phys && phys.trackCm !== undefined ? 'honoured' : 'approximated', phys && phys.trackCm !== undefined ? 'omega = 2*v_wheel/track' : 'display timing scaled by mass'));
+    }
+    // Runtime and range.
+    var runtimeMin = robot && robot.runtimeMin || 60;
+    rows.push(row('Runtime', '~' + runtimeMin + ' min', phys && phys.energyWh !== undefined ? 'approximated' : 'approximated', phys && phys.energyWh !== undefined ? 'E = mAh*V*usable; P = F*v/eta + idle (constant-power, no sag)' : 'catalogue estimate from mass'));
+    rows.push(row('Range on one charge', (vCmPerS / 100 * runtimeMin * 60 / 1000).toFixed(2) + ' km', 'approximated', 'top speed times runtime; real missions turn and idle'));
+    // Battery per metre, the number the empirical block cross-checks.
+    var drainPerM = phys && phys.energyWh !== undefined ? phys.drainPctPerCmNominal * 100 : KM.moveDrainPct(100, gravity, massFac, traction);
+    rows.push(row('Battery per metre', drainPerM.toFixed(3) + ' %', 'approximated', phys && phys.energyWh !== undefined ? 'energy-true model at cruise speed' : 'shared constant-power ledger'));
+    // Max slope is REPORTED only: worlds are flat planes (disclosed).
+    if (phys && phys.maxSlopeDeg !== undefined) {
+      rows.push(row('Max slope', phys.maxSlopeDeg + ' deg', 'notSimulated', 'force and grip limits; the sim worlds are flat, so this is never driven'));
+    }
+    // Collision circle + sensor coverage.
+    rows.push(row('Collision body', (phys && phys.collisionRadiusCm || M.roverRadiusCm) * 2 + ' cm circle', phys && phys.collisionRadiusCm ? 'honoured' : 'approximated', phys && phys.collisionRadiusCm ? 'hypot(length, width) from the imported body (still a circle, disclosed)' : 'default 60 cm circle'));
+    var sensors = robot && robot.sensors || [];
+    var sensorLine = sensors.length ? sensors.join(', ') : 'none fitted';
+    if (phys && phys.sensor) {
+      sensorLine += ' | ultrasonic at +' + phys.sensor.fwdCm + ' cm fwd, ' + phys.sensor.yawDeg + ' deg yaw, ' + phys.sensor.rangeCm + ' cm range';
+    }
+    rows.push(row('Sensor coverage', sensorLine, phys && phys.sensor ? 'honoured' : 'approximated', 'mount pose and range drive the distance() ray; z ignored'));
+
+    // ---- empirical block: measured evidence already recorded -------------
+    var empirical = {
+      lastRun: null,
+      validation: null,
+      agreement: null
+    };
+    var lastRun = window.KODRO_LAST_RUN;
+    if (lastRun && lastRun.distanceCm > 0 && lastRun.wallMs > 400) {
+      var measuredMps = lastRun.distanceCm / 100 / (lastRun.wallMs / 1000);
+      empirical.lastRun = {
+        distanceM: Math.round(lastRun.distanceCm) / 100,
+        seconds: Math.round(lastRun.wallMs / 100) / 10,
+        measuredMps: Math.round(measuredMps * 100) / 100,
+        speedMul: lastRun.speedMul || 1
+      };
+      // Agreement check: measured mean speed vs derived top speed. Mean
+      // speed is legitimately below top (ramps, turns, waits), so the
+      // honest statement is a ratio, not a pass/fail.
+      empirical.agreement = {
+        derivedTopMps: Math.round(vCmPerS) / 100,
+        ratio: Math.round(measuredMps / (vCmPerS / 100) * 100) / 100
+      };
+    }
+    var reports = window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports() || [];
+    var last = reports[0];
+    if (last && last.aggregate) {
+      empirical.validation = {
+        scenario: last.scenario && last.scenario.name,
+        successRate: Math.round((last.aggregate.successRate || 0) * 100),
+        meanCollisions: last.aggregate.meanCollisions,
+        meanBatteryUsed: last.aggregate.meanBattery,
+        seeds: last.aggregate.seeds
+      };
+    }
+
+    // ---- design check block ----------------------------------------------
+    var design = null;
+    if (window.KodroDiagnostics && terrain) {
+      var rep = window.KodroDiagnostics.assess(robot, robot, terrain);
+      design = {
+        overall: rep.overall,
+        summary: rep.summary,
+        dimensions: rep.dimensions
+      };
+    }
+    return {
+      name: robot && robot.name || 'Robot',
+      type: robot && robot.type || '-',
+      world: terrain && terrain.name || '-',
+      generated: new Date().toISOString(),
+      measured: !!phys,
+      rows: rows,
+      empirical: empirical,
+      design: design,
+      fidelity: window.KodroSpecSchema && window.KodroSpecSchema.FIDELITY || null
+    };
+  }
+  var TIER_LABEL = {
+    honoured: 'HONOURED',
+    approximated: 'APPROXIMATED',
+    notSimulated: 'NOT SIMULATED'
+  };
+  var TIER_COLOR = {
+    honoured: '#1d8a7d',
+    approximated: '#a97a1c',
+    notSimulated: '#a5453a'
+  };
+  function toHtml(r) {
+    var h = [];
+    h.push('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Kodro verification: ' + esc(r.name) + '</title>');
+    h.push('<style>body{font-family:system-ui,Segoe UI,Roboto,sans-serif;color:#1c2430;max-width:820px;margin:32px auto;padding:0 20px;line-height:1.5}h1{font-size:22px}h2{font-size:15px;letter-spacing:0.06em;text-transform:uppercase;color:#44536b;margin-top:28px}table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #dbe2ec;padding:7px 8px;font-size:13.5px;text-align:left;vertical-align:top}.badge{font-size:10px;font-weight:800;letter-spacing:0.06em;border-radius:4px;padding:2px 7px;color:#fff;white-space:nowrap}.how{color:#68758c;font-size:12px}.muted{color:#68758c}</style></head><body>');
+    h.push('<h1>' + esc(r.name) + ' - as simulated by Kodro</h1>');
+    h.push('<p class="muted">Type ' + esc(r.type) + ' | world ' + esc(r.world) + ' | generated ' + esc(r.generated) + (r.measured ? ' | measured build (imported KRS spec)' : ' | catalogue build') + '</p>');
+    h.push('<h2>Predicted performance</h2><table><tr><th>Quantity</th><th>Value</th><th>Fidelity</th><th>Derivation</th></tr>');
+    r.rows.forEach(function (rw) {
+      h.push('<tr><td>' + esc(rw.label) + '</td><td><b>' + esc(rw.value) + '</b></td><td><span class="badge" style="background:' + TIER_COLOR[rw.tier] + '">' + TIER_LABEL[rw.tier] + '</span></td><td class="how">' + esc(rw.how) + '</td></tr>');
+    });
+    h.push('</table>');
+    h.push('<h2>Measured evidence</h2>');
+    if (r.empirical.lastRun) {
+      var lr = r.empirical.lastRun;
+      h.push('<p>Last live run: <b>' + lr.distanceM + ' m</b> in <b>' + lr.seconds + ' s</b> = mean <b>' + lr.measuredMps + ' m/s</b> (sim speed ' + lr.speedMul + 'x). Derived top speed ' + r.empirical.agreement.derivedTopMps + ' m/s; the mean ran at ' + Math.round(r.empirical.agreement.ratio * 100) + ' percent of it (ramps, turns and waits keep the mean below the top).</p>');
+    } else {
+      h.push('<p class="muted">No live run recorded yet. Press Run in the studio, then regenerate this report for the measured block.</p>');
+    }
+    if (r.empirical.validation) {
+      var va = r.empirical.validation;
+      h.push('<p>Last validation ("' + esc(va.scenario || '-') + '", ' + va.seeds + ' randomised seeds): success ' + va.successRate + ' percent, mean collisions ' + va.meanCollisions + ', mean battery used ' + va.meanBatteryUsed + ' percent.</p>');
+    } else {
+      h.push('<p class="muted">No multi-seed validation recorded yet. Press Validate in the studio for the spread.</p>');
+    }
+    if (r.design) {
+      h.push('<h2>Design check (' + esc(r.design.overall).toUpperCase() + ')</h2><p>' + esc(r.design.summary) + '</p><ul>');
+      r.design.dimensions.forEach(function (d) {
+        h.push('<li><b>' + esc(d.label) + '</b> (' + esc(d.status) + '): ' + esc(d.reason) + '</li>');
+      });
+      h.push('</ul>');
+    }
+    if (r.fidelity) {
+      h.push('<h2>Fidelity annex: what these numbers are</h2>');
+      [['honoured', 'Honoured exactly'], ['approximated', 'Approximated (first order)'], ['notSimulated', 'Not simulated (reported or absent)']].forEach(function (pair) {
+        h.push('<p><span class="badge" style="background:' + TIER_COLOR[pair[0]] + '">' + TIER_LABEL[pair[0]] + '</span> ' + esc(pair[1]) + '</p><ul>');
+        r.fidelity[pair[0]].forEach(function (item) {
+          h.push('<li>' + esc(item) + '</li>');
+        });
+        h.push('</ul>');
+      });
+    }
+    h.push('<p class="muted">Kodro is a first-order proving ground, not a certification tool: expect real hardware to land within honest error bars of these numbers, and treat every NOT SIMULATED row as exactly that.</p>');
+    h.push('</body></html>');
+    return h.join('');
+  }
+  window.KodroVerify = {
+    report: report,
+    toHtml: toHtml
+  };
+})();
+})();
+
+;(function () {
+/*
  * Realism dashboard.
  *
  * A read-only debug panel that makes the simulation's honesty visible: it shows
@@ -12450,6 +13718,70 @@ Object.assign(window, {
       cmdRows.push(row(c.name + '()', 'needs ' + (c.partLabel || c.requires), '#ff8f7a'));
     });
     const registry = card('Command registry', cmdRows.length ? cmdRows : [row('Commands', 'base only')], '#c8a8ff');
+
+    // SI4: fidelity disclosure card. This dashboard's stated purpose is
+    // making the simulation's honesty visible, so the three tiers live here:
+    // what the sim honours exactly, what it approximates, what it does not
+    // simulate at all. The same table feeds the Lab badges and the report.
+    const FID = window.KodroSpecSchema && window.KodroSpecSchema.FIDELITY || null;
+    const fidTier = function (label, bg, fg, items) {
+      return React.createElement('div', {
+        key: label,
+        style: {
+          marginBottom: 8
+        }
+      }, React.createElement('div', {
+        style: {
+          marginBottom: 4
+        }
+      }, React.createElement('span', {
+        style: {
+          fontSize: 9,
+          fontWeight: 800,
+          letterSpacing: '0.07em',
+          borderRadius: 4,
+          padding: '2px 6px',
+          background: bg,
+          color: fg
+        }
+      }, label)), React.createElement('ul', {
+        style: {
+          margin: 0,
+          paddingLeft: 16,
+          fontSize: 11.5,
+          lineHeight: 1.5,
+          color: '#9fb4d2'
+        }
+      }, items.map(function (it, i) {
+        return React.createElement('li', {
+          key: i
+        }, it);
+      })));
+    };
+    const fidelity = FID ? React.createElement('div', {
+      style: {
+        background: '#0f1726',
+        border: '1.5px solid #233248',
+        borderRadius: 14,
+        padding: '14px 16px',
+        gridColumn: '1 / -1'
+      }
+    }, React.createElement('div', {
+      style: {
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        color: '#5ce0d8',
+        marginBottom: 10
+      }
+    }, 'Fidelity disclosure'), React.createElement('div', {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))',
+        gap: 12
+      }
+    }, fidTier('HONOURED', '#5ce0d8', '#06121b', FID.honoured), fidTier('APPROXIMATED', '#f5c451', '#06121b', FID.approximated), fidTier('NOT SIMULATED', '#c8685a', '#f5f0e4', FID.notSimulated))) : null;
     return React.createElement('div', {
       className: 'modal-backdrop',
       onClick: function () {
@@ -12496,7 +13828,7 @@ Object.assign(window, {
         gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))',
         gap: 12
       }
-    }, physics, sensors, score, environment, registry))));
+    }, physics, sensors, score, environment, registry, fidelity))));
   }
   window.KodroRealism = KodroRealism;
 })();
@@ -14369,6 +15701,164 @@ while trips < 30:
 
 print("Finished after", trips, "moves.")`
     },
+    encore: {
+      label: 'encore.py',
+      code: `# ENCORE - a five-act robot performance.
+# The flagship showcase: functions, loops, nested loops, counters,
+# pen geometry and an honest battery report, all on the base command
+# set so it runs on EVERY build. Press Run and enjoy the show.
+#
+#   Act I    Walk-on: a strut square with a spotlight spin per corner
+#   Act II   Drumline: beeps, shimmies and a light chase
+#   Act III  Petal sweep: four out-and-back petals around centre stage
+#   Act IV   Star turn: the pen draws a five-point star (turn 144)
+#   Act V    Finale: bow, applause lights, and the honest numbers
+
+set_speed(70)
+pen_up()
+start_charge = battery()
+metres_total = 0
+turns_total = 0
+
+# ---------- the performance library ----------
+
+def flash(flash_col):
+    led(flash_col)
+    wait(0.12)
+    led("off")
+    wait(0.08)
+
+def drumroll(drum_n):
+    drum_i = 0
+    while drum_i < drum_n:
+        beep(1)
+        wait(0.1)
+        drum_i = drum_i + 1
+
+def strut(strut_m):
+    # A confident straight walk, pen down so the stage keeps the mark.
+    pen_down()
+    move_forward(strut_m)
+    pen_up()
+    metres_total = metres_total + strut_m
+
+def shimmy(shim_deg):
+    # Wiggle in place: left, right past centre, and back to the line.
+    turn_left(shim_deg)
+    turn_right(2 * shim_deg)
+    turn_left(shim_deg)
+    turns_total = turns_total + 4 * shim_deg
+
+def corner_pose(pose_col):
+    # Hit the corner mark, light up, one full spotlight spin.
+    led(pose_col)
+    beep(1)
+    turn_right(360)
+    turns_total = turns_total + 360
+
+def bow():
+    turn_left(25)
+    wait(0.2)
+    turn_right(50)
+    wait(0.2)
+    turn_left(25)
+    turns_total = turns_total + 100
+
+# ---------- ACT I : the walk-on ----------
+
+say("Act I: the walk-on")
+print("ACT I - walk-on square, one spotlight spin per corner")
+drumroll(3)
+act1_corner = 0
+while act1_corner < 4:
+    strut(2)
+    if act1_corner == 0:
+        corner_pose("cyan")
+    elif act1_corner == 1:
+        corner_pose("amber")
+    elif act1_corner == 2:
+        corner_pose("green")
+    else:
+        corner_pose("white")
+    turn_right(90)
+    turns_total = turns_total + 90
+    act1_corner = act1_corner + 1
+led("off")
+print("  square closed, back on the start mark")
+
+# ---------- ACT II : drumline ----------
+
+say("Act II: drumline")
+print("ACT II - drumline: beat patterns and a light chase")
+for drum_bar in range(3):
+    drumroll(2 + drum_bar)
+    shimmy(20 + 10 * drum_bar)
+    flash("cyan")
+    flash("amber")
+print("  three bars played, heading true")
+
+# ---------- ACT III : petal sweep ----------
+
+say("Act III: petal sweep")
+print("ACT III - four petals out and back around centre stage")
+for petal in range(4):
+    if petal == 0 or petal == 2:
+        led("cyan")
+    else:
+        led("amber")
+    strut(2)
+    turn_right(180)
+    turns_total = turns_total + 180
+    strut(2)
+    turn_right(180)
+    turns_total = turns_total + 180
+    beep(1)
+    turn_right(90)
+    turns_total = turns_total + 90
+led("off")
+print("  petals swept:", 4, "- centre stage regained")
+
+# ---------- ACT IV : star turn ----------
+
+say("Act IV: star turn")
+print("ACT IV - the pen draws a five-point star (turn 144)")
+drumroll(4)
+led("white")
+pen_down()
+for star_point in range(5):
+    move_forward(1.6)
+    metres_total = metres_total + 1.6
+    turn_right(144)
+    turns_total = turns_total + 144
+    beep(1)
+pen_up()
+led("green")
+print("  star closed: 5 points, 144 degrees each, pure turtle geometry")
+
+# ---------- ACT V : finale ----------
+
+say("Act V: finale")
+print("ACT V - finale")
+shimmy(30)
+bow()
+for applause in range(3):
+    flash("green")
+    flash("cyan")
+drumroll(5)
+say("That is the encore!")
+
+# ---------- the honest numbers ----------
+
+used_charge = start_charge - battery()
+print("--- ENCORE DEBRIEF ---")
+print("Distance strutted:", metres_total, "m")
+print("Degrees performed:", turns_total)
+print("Battery used:", used_charge, "% - remaining:", battery(), "%")
+if battery() > 40:
+    print("Verdict: the show could run again tonight.")
+else:
+    print("Verdict: one show a charge - recharge before the next curtain.")`
+    },
     survey: {
       label: 'survey.py',
       code: `# Sensors + conditionals: profile the environment.
@@ -15503,7 +16993,7 @@ say("Survey done")`
   const TERRAINS = window.TERRAINS;
   const WALL = TERRAINS.WALL;
   const RobotLab = window.RobotLab;
-  const R = 30; // rover collision radius (cm)
+  const R_DEFAULT = 30; // rover collision radius (cm) for catalogue builds
   // Live check (re-evaluated per move) so toggling the OS setting takes effect.
   const PREFERS_REDUCED_MOTION = () => typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
 
@@ -16408,6 +17898,8 @@ say("Survey done")`
     });
     const genRef = useRef(null);
     const sayTimer = useRef(null);
+    // Wall-clock start of the current editor run (SI3 measured-speed block).
+    const runStartRef = useRef(0);
     const consoleEndRef = useRef(null);
     useEffect(() => {
       if (consoleEndRef.current) consoleEndRef.current.scrollTop = consoleEndRef.current.scrollHeight;
@@ -16538,6 +18030,10 @@ say("Survey done")`
     }
 
     // ---------- geometry / sensors ----------
+    // SI2: the collision circle honours an imported spec's body footprint
+    // (R = hypot(length, width)/2, still a circle, disclosed); a catalogue
+    // build keeps the exact 30 cm the sim has always used.
+    const R = robotSpec && robotSpec.phys && robotSpec.phys.collisionRadiusCm || R_DEFAULT;
     function collisionAt(x, y) {
       if (Math.abs(x) > WALL - R || Math.abs(y) > WALL - R) return {
         type: 'wall'
@@ -16602,6 +18098,17 @@ say("Survey done")`
       }
       return Math.max(0, best);
     }
+    // SI2: an imported spec's ultrasonic mounts WHERE the builder put it: the
+    // ray starts at the mount offset, points along the mount yaw, and reads
+    // at most the sensor's real range (HONOURED; z ignored and disclosed). A
+    // catalogue build keeps the body-centre ray and the 600 cm view exactly.
+    function sensorRayDistance(st) {
+      const rb = window.KODRO_ROBOT;
+      const sp = rb && rb.phys && rb.phys.sensor;
+      if (!sp || !window.KodroMotion) return rayDistance(st.x, st.y, st.heading);
+      const pose = window.KodroMotion.sensorPose(st.x, st.y, st.heading, sp.fwdCm, sp.leftCm, sp.yawDeg);
+      return Math.min(sp.rangeCm, rayDistance(pose.x, pose.y, pose.heading));
+    }
     const host = {
       sensor(name, args) {
         const s = live.current;
@@ -16617,7 +18124,7 @@ say("Survey done")`
         switch (name) {
           case 'distance':
             {
-              const d = Math.round(rayDistance(s.x, s.y, s.heading));
+              const d = Math.round(sensorRayDistance(s));
               setSensorDist(d);
               return d;
             }
@@ -16741,22 +18248,59 @@ say("Survey done")`
       // The robot designed in Robot Lab drives the sim: a heavier build drains
       // the battery faster, and a stronger motor set raises the top speed.
       const robot = window.getKodroRobot ? window.getKodroRobot() : null;
+      const KM = window.KodroMotion;
+      // SI2: an imported KRS spec carries a physical block (robot.phys) whose
+      // measured numbers drive the tick; a catalogue parts build has no such
+      // block and takes the byte-identical pre-SI2 path through the shared
+      // motion model (E-P1: same constants, same formulas, one source).
+      const physR = robot && robot.phys;
       const massFac = robot && robot.massFactor ? robot.massFactor : 1;
       const speedFac = robot && robot.speedFactor ? robot.speedFactor : 1;
       // Mobility: too much weight for the grip its motors get on this surface
       // makes the robot crawl or stall, so an underpowered design visibly
       // struggles instead of gliding along regardless of what was built.
+      // Physical builds use the real tractive-force ratio (stall torque over
+      // weight, E-A1); catalogue builds keep the proxy score.
       const hasDrive = robot && robot.actuators && robot.actuators.some(function (a) {
         return a === 'motors2' || a === 'motors4' || a === 'servos';
       });
-      const mob = window.KodroDiagnostics ? window.KodroDiagnostics.mobilityScore(speedFac, massFac, terrain.traction) : 1;
-      const mobMul = !hasDrive ? 0.22 : mob < 0.45 ? 0.35 : mob < 0.75 ? 0.7 : 1;
-      const sp = Math.max(8, s.speed) * speedFac * mobMul;
-      // 0.32s per (cm/speed); lower-traction terrain drives a little slower.
-      const dur = total / sp * 1000 * 0.32 / (terrain.traction * speedMulRef.current);
-      // Real physics: heavier worlds drain the battery faster, lighter worlds
-      // less (Moon ~0.58x Earth) -- pupils can measure the difference.
-      const gFac = 0.5 + 0.5 * ((terrain.env.gravity || 9.81) / 9.81);
+      const mob = physR && physR.stallForceN !== undefined ? KM.physMobility(physR.stallForceN, physR.massKg, terrain.traction, terrain.env.gravity) : window.KodroDiagnostics ? window.KodroDiagnostics.mobilityScore(speedFac, massFac, terrain.traction) : 1;
+      // E-A5: a physically-specified build that cannot move here HALTS with a
+      // torque verdict instead of the catalogue 0.35x crawl - a stall is a
+      // result, not an animation style.
+      if (hasDrive && physR && physR.stallForceN !== undefined && KM) {
+        const sv = KM.physStallVerdict(physR.stallForceN, physR.massKg, terrain.traction, terrain.env.gravity, physR.motorCount || 2, physR.wheelRadiusCm || 3);
+        if (sv.stalled) {
+          s.moving = false;
+          sync();
+          addConsole('Stalled: this build cannot move on ' + terrain.name + '. It needs about ' + sv.neededNm.toFixed(2) + ' N*m per motor here and has ' + sv.hasNm.toFixed(2) + ' N*m. Robot halted.', 'err');
+          showToast('Drive stalled', 'err');
+          if (window.KodroMemory) {
+            const refl = window.KodroMemory.record({
+              world: terrain.id,
+              robotType: robotSpec && robotSpec.type || '',
+              outcome: 'stalled',
+              detail: 'underpowered drive',
+              ts: Date.now()
+            });
+            if (refl) addConsole('Reflection saved: ' + refl, 'sys');
+          }
+          if (window.KodroDiagnostics) {
+            const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), {
+              outcome: 'stalled'
+            });
+            if (v) addConsole(v.text, v.tone);
+          }
+          haltProgram('error');
+          return false;
+        }
+      }
+      const mobMul = KM.mobilityMultiplier(hasDrive, mob);
+      // Speed: the catalogue chain keeps the calibrated 3.125 m/s anchor
+      // (0.32 ms per cm per speed unit); a physical build honours its
+      // motor-derived top speed at set_speed(100) exactly (E-A1, HONOURED).
+      const physV = physR && physR.vMaxSimCmPerS !== undefined ? physR.vMaxSimCmPerS * (Math.max(8, s.speed) / 100) * mobMul * terrain.traction : null;
+      const dur = physV !== null ? total / physV * 1000 / speedMulRef.current : KM.moveDurationMs(total, KM.effectiveSpeedUnits(s.speed, speedFac, mobMul), terrain.traction, speedMulRef.current);
       s.moving = true;
       // new trail segment if pen down
       if (s.penDown) {
@@ -16767,8 +18311,16 @@ say("Survey done")`
         setTrail([...trailRef.current]);
       }
       // Battery drains smoothly across the move (was a no-op: subtracted 0).
+      // Catalogue: the shared constant-power ledger (heavier worlds drain
+      // faster, Moon ~0.58x Earth). Physical: the energy-true model (E-A2),
+      // P = F*v/eta + idle, drawn against the pack's real watt-hours.
       const b0 = s.battery;
-      const drainFull = total * 0.011 * gFac * massFac / terrain.traction;
+      let drainFull;
+      if (physR && physR.energyWh !== undefined) {
+        drainFull = physV !== null ? total * KM.physDrainPctPerCm(physR.massKg, physR.energyWh, physV, terrain.env.gravity, terrain.traction) : total * physR.drainPctPerCmNominal;
+      } else {
+        drainFull = KM.moveDrainPct(total, terrain.env.gravity, massFac, terrain.traction);
+      }
       let crashed = false,
         flat = false;
       // ---- physical acceleration, inertia and braking ----------------------
@@ -16780,8 +18332,19 @@ say("Survey done")`
       // and the headless interpreter QA, which uses its own kinematics, is too.
       const inertia = Math.min(0.92, Math.max(0.12, (massFac - 0.6) / 1.4));
       const carried = Math.min(1, Math.max(0, s.vel || 0));
-      let accelFrac = (0.18 + 0.30 * inertia) * (1 - 0.85 * carried);
-      let brakeFrac = 0.16 + 0.34 * inertia;
+      let accelFrac, brakeFrac;
+      if (physR && physR.accelCmPerS2 !== undefined && physV !== null) {
+        // E-A1: real ramp time t = v/a from the motor's closed-form
+        // acceleration a = (F_stall - Crr*m*g)/m, replacing the inertia
+        // heuristic. The endpoint stays exact; only the shape changes.
+        const dur0 = total / physV * 1000; // unscaled ms (sim-speed invariant)
+        const rampMs = physV / physR.accelCmPerS2 * 1000;
+        accelFrac = Math.min(0.45, rampMs / Math.max(1, dur0)) * (1 - 0.85 * carried);
+        brakeFrac = Math.min(0.45, rampMs / Math.max(1, dur0));
+      } else {
+        accelFrac = (0.18 + 0.30 * inertia) * (1 - 0.85 * carried);
+        brakeFrac = 0.16 + 0.34 * inertia;
+      }
       if (accelFrac + brakeFrac > 0.95) {
         const k = 0.95 / (accelFrac + brakeFrac);
         accelFrac *= k;
@@ -16832,7 +18395,7 @@ say("Survey done")`
         s.y = ny;
         s.battery = Math.max(0, b0 - drainFull * cf);
         pushTrailPoint();
-        const dNow = rayDistance(s.x, s.y, s.heading);
+        const dNow = sensorRayDistance(s);
         if (dNow < minProxRef.current) minProxRef.current = dNow;
         setSensorDist(Math.round(dNow));
         sync();
@@ -16854,8 +18417,10 @@ say("Survey done")`
       }
       // Settle battery on the distance actually travelled (handles a crash
       // that stopped the move early), relative to the pre-move level b0.
+      // drainFull already encodes the per-cm model (catalogue or physical),
+      // so the settle is simply its travelled fraction.
       const travelled = Math.hypot(s.x - x0, s.y - y0);
-      s.battery = Math.max(0, b0 - travelled * 0.011 * gFac * massFac / terrain.traction);
+      s.battery = Math.max(0, b0 - (total > 0 ? drainFull * (travelled / total) : 0));
       odoRef.current += travelled;
       setOdo(odoRef.current);
       s.moving = false;
@@ -16899,10 +18464,15 @@ say("Survey done")`
       // its mass around, so the turn takes a little longer and eases in and out
       // rather than snapping. The final heading is still exact (set below).
       const turnRobot = window.getKodroRobot ? window.getKodroRobot() : null;
+      const KMt = window.KodroMotion;
+      const physT = turnRobot && turnRobot.phys;
       const turnMass = turnRobot && turnRobot.massFactor ? turnRobot.massFactor : 1;
       const sndType = turnRobot && turnRobot.type || robotSpec && robotSpec.type || 'rover';
       s.vel = 0;
-      const dur = Math.abs(ev.deg) / 180 * 650 * (0.78 + 0.5 * Math.min(1.5, turnMass)) / speedMulRef.current;
+      // E-A4: a physical build turns on its real geometry, omega = 2*v_w/track,
+      // so turn TIME follows the wheelbase and wheel speed; a catalogue build
+      // keeps the mass-scaled display timing. Final heading stays exact.
+      const dur = physT && physT.trackCm !== undefined && physT.vMaxSimCmPerS !== undefined ? KMt.physTurnDurationMs(ev.deg, physT.vMaxSimCmPerS * (Math.max(8, s.speed) / 100), physT.trackCm, speedMulRef.current) : KMt.turnDurationMs(ev.deg, turnMass, speedMulRef.current);
       s.moving = true;
       // R9: a car cannot pivot in place -- it drives a kinematic bicycle arc.
       // Heading eases to EXACTLY h0+deg; the position follows the arc with a
@@ -16915,7 +18485,7 @@ say("Survey done")`
           motorSfx(sndType, 0.35);
           const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
           s.heading = h0 + ev.deg * e;
-          setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading)));
+          setSensorDist(Math.round(sensorRayDistance(s)));
           sync();
           return false;
         });
@@ -16926,7 +18496,9 @@ say("Survey done")`
         } // superseded by Reset/restart
         s.heading = h0 + ev.deg;
         s.moving = false;
-        s.battery = Math.max(0, s.battery - Math.abs(ev.deg) * 0.004);
+        // Pivot turn drain: shared per-degree ledger, or (physical, E-A2) the
+        // energy cost of the wheels sweeping their half-track arcs.
+        s.battery = Math.max(0, s.battery - (physT && physT.energyWh !== undefined && physT.trackCm !== undefined ? Math.abs(ev.deg) * Math.PI / 180 * (physT.trackCm / 2) * physT.drainPctPerCmNominal : KMt.turnDrainPct(ev.deg)));
         sync();
         return true;
       }
@@ -16962,7 +18534,7 @@ say("Survey done")`
         s.y = ny;
         s.heading = h0 + ev.deg * e;
         pushTrailPoint();
-        const dNow = rayDistance(s.x, s.y, s.heading);
+        const dNow = sensorRayDistance(s);
         if (dNow < minProxRef.current) minProxRef.current = dNow;
         setSensorDist(Math.round(dNow));
         sync();
@@ -16989,8 +18561,9 @@ say("Survey done")`
       s.x = arcCx - TURN_R * Math.cos(hfr) * sgn;
       s.y = arcCy - TURN_R * Math.sin(hfr) * sgn;
       s.moving = false;
-      const gFacT = 0.5 + 0.5 * ((terrain.env.gravity || 9.81) / 9.81);
-      s.battery = Math.max(0, s.battery - Math.abs(ev.deg) * 0.004 - arcTravelled * 0.011 * gFacT * turnMass / terrain.traction);
+      // Arc turn drains the steering cost plus the ground actually covered
+      // (shared ledger; or the physical energy model when a pack is specified).
+      s.battery = Math.max(0, s.battery - (physT && physT.energyWh !== undefined ? arcTravelled * physT.drainPctPerCmNominal : KMt.turnDrainPct(ev.deg) + KMt.moveDrainPct(arcTravelled, terrain.env.gravity, turnMass, terrain.traction)));
       sync();
       return true;
     }
@@ -17082,6 +18655,18 @@ say("Survey done")`
             showSay(ev.text);
             await delay(stepMode ? 0 : 200 / speedMulRef.current);
             break;
+          case 'beep':
+            {
+              // S3: beep() plays the synthesised beep it always claimed to be
+              // (SFX.beep existed unused); repeats are spaced so 3 beeps read
+              // as 3 beeps, and the wait respects sim speed like say().
+              const n = Math.round(ev.times != null ? ev.times : 1);
+              for (let bi = 0; bi < n; bi++) {
+                sfx('beep');
+                await delay(stepMode ? 0 : 160 / speedMulRef.current);
+              }
+              break;
+            }
           case 'place':
             {
               const px = ev.x !== undefined ? ev.x : live.current.x;
@@ -17118,7 +18703,7 @@ say("Survey done")`
               sfx('scan');
               live.current.scanning = true;
               sync();
-              addConsole('Scanning. Nearest obstacle ' + Math.round(rayDistance(live.current.x, live.current.y, live.current.heading)) + ' cm ahead.', 'sys');
+              addConsole('Scanning. Nearest obstacle ' + Math.round(sensorRayDistance(live.current)) + ' cm ahead.', 'sys');
               await delay(1000 / speedMulRef.current);
               live.current.scanning = false;
               sync();
@@ -17159,6 +18744,20 @@ say("Survey done")`
         replRef.current = false;
         return;
       } // terminal line: stay quiet
+      // SI3: record the run's measured facts (distance over wall time) so the
+      // verification report's empirical block can cross-check the derived
+      // top speed against something that actually happened.
+      try {
+        window.KODRO_LAST_RUN = {
+          distanceCm: odoRef.current,
+          wallMs: runStartRef.current ? Date.now() - runStartRef.current : 0,
+          battery: live.current.battery,
+          speedMul: speedMulRef.current,
+          ts: Date.now()
+        };
+      } catch (err) {
+        void err;
+      }
       addConsole('Program finished.', 'ok');
       showToast('Program complete', 'ok');
       // Self-refinement: a clean finish is a result worth remembering.
@@ -17328,6 +18927,7 @@ say("Survey done")`
           if (!compileFresh()) return;
           ctrl.current.abort = false;
           ctrl.current.running = true;
+          runStartRef.current = Date.now(); // SI3: measured-speed anchor
           setRunState('running');
           addConsole('Deployed on ' + terrain.name + '.', 'sys');
           pumpLoop(myToken);

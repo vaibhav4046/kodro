@@ -8,6 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **KRS v1 spec import/export (the core mission)** - the Robot Lab gains
+  Import spec / Export spec / Verification report. A builder's real robot
+  spec (SI units JSON: mass, body, motors, wheels, battery, sensor mounts,
+  declared figures) is validated by a hand-rolled schema (unknown keys
+  dropped with warnings, in-envelope values clamped visibly, wild values
+  rejected with named-field errors) and then DRIVES the simulation:
+  motor-derived top speed (v = rpm/60 x 2 pi r, honoured at set_speed(100)),
+  energy-true battery drain from the pack's watt-hours, geometric turn
+  timing from the track, the collision circle from the body footprint, and
+  the distance() ray from the real sensor mount pose and range. Catalogue
+  parts builds are byte-identical to before.
+- **Fidelity disclosure (HONOURED / APPROXIMATED / NOT SIMULATED)** - every
+  Robot Lab stat carries a badge, the Realism dashboard gains a three-tier
+  disclosure card, and the new verification report ("your robot as
+  simulated") states each prediction's tier, its derivation, and the
+  measured evidence (last run's mean speed, last validation spread).
+- **One shared motion model** - `assets/web/motion-model.js` +
+  `engine/motion_model.py` replace the four hand-rolled kinematics replicas.
+  A canonical-JSON hash gate and a golden-trace corpus (JS vs Python) fail
+  the build on any drift. The Python engine adopts the calibrated constants
+  (1.1 %/m, 0.004 %/deg - the old 11x/12.5x battery divergence is closed),
+  drains on distance actually travelled, and registers REAL collisions
+  (obstacle sweeps and wall contact), so the no_collisions lesson criterion
+  finally grades what happened.
+- **Encore showcase** - an eighth example tab: a five-act, 150-line robot
+  performance (helper functions, drumline, petal sweep, a pen-drawn
+  five-point star, an honest battery debrief) that runs on every build and
+  ends back on its start mark. beep() is a real synthesised sound event now
+  (clamped 0..16 like the Python API), not console spam; the example tab
+  row scrolls instead of truncating.
+
 - **Grounded Ask (offline)** — an "❓ Ask" button answers a how-do-I question
   strictly from retrieved lesson material (pure offline IDF retrieval over the
   lesson intros, glossaries and a rover-interface reference in

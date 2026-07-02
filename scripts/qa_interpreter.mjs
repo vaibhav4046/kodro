@@ -9,13 +9,16 @@
 import { readFileSync } from 'node:fs';
 
 const SRC = readFileSync(new URL('../src/robolearn/assets/web/interpreter.js', import.meta.url), 'utf8');
+const MM_SRC = readFileSync(new URL('../src/robolearn/assets/web/motion-model.js', import.meta.url), 'utf8');
 
-// --- load the IIFE with a window shim -------------------------------------
+// --- load the IIFEs with a window shim ------------------------------------
 const win = {};
 new Function('window', SRC)(win);
+new Function('window', MM_SRC)(win);
 const { compile } = win.RoverLang;
+const KM = win.KodroMotion;
 
-const WALL = 1500;            // arena half-extent in cm, matches the engine
+const WALL = KM.MODEL.arenaHalfExtentCm; // arena half-extent (shared model, E-P1)
 // Ray to the arena box along the heading, mirroring app.jsx rayDistance.
 function rayToWall(x, y, headingDeg) {
   const a = headingDeg * Math.PI / 180;
@@ -61,20 +64,26 @@ function run(src) {
       moves++;
       const a = s.heading * Math.PI / 180;
       const dirx = Math.sin(a) * ev.dir, diry = -Math.cos(a) * ev.dir;
+      const x0 = s.x, y0 = s.y;
       const nx = s.x + dirx * ev.distance, ny = s.y + diry * ev.distance;
       if (Math.abs(nx) > WALL || Math.abs(ny) > WALL) {
         crashed = true;                 // would hit wall: clamp at boundary
         s.x = Math.max(-WALL, Math.min(WALL, nx));
         s.y = Math.max(-WALL, Math.min(WALL, ny));
       } else { s.x = nx; s.y = ny; }
+      // Battery via the SHARED motion model (E-P1) at nominal Earth
+      // conditions (massFactor 1, traction 1), on the distance actually
+      // covered - so battery()-reading programs (Encore) trace honestly.
+      s.battery = Math.max(0, s.battery - KM.moveDrainPct(Math.hypot(s.x - x0, s.y - y0), KM.MODEL.gravityEarthMps2, 1, 1));
       maxR = Math.max(maxR, Math.hypot(s.x, s.y));
     } else if (ev.type === 'turn') {
       turns++; s.heading += ev.deg;
+      s.battery = Math.max(0, s.battery - KM.turnDrainPct(ev.deg));
     } else if (ev.type === 'speed') {
       s.speed = Math.max(0, Math.min(100, ev.value));
     }
   }
-  return { steps, moves, turns, crashed, finalX: Math.round(s.x), finalY: Math.round(s.y), heading: Math.round(((s.heading % 360) + 360) % 360), speed: Math.round(s.speed), maxR: Math.round(maxR) };
+  return { steps, moves, turns, crashed, finalX: Math.round(s.x), finalY: Math.round(s.y), heading: Math.round(((s.heading % 360) + 360) % 360), speed: Math.round(s.speed), maxR: Math.round(maxR), battery: s.battery };
 }
 
 // One linear move from origin at heading 0, return |displacement| in cm.
@@ -228,6 +237,118 @@ check('1.2.3 raises invalid number literal', (runThrows('print(1.2.3)') || '').i
 check('for-else accurate diagnostic', (runThrows('for i in range(3):\n    print(i)\nelse:\n    print("x")') || '').includes('loop-else is not supported'), runThrows('for i in range(3):\n    print(i)\nelse:\n    print("x")'));
 check('while-else accurate diagnostic', (runThrows('while False:\n    print(1)\nelse:\n    print(2)') || '').includes('loop-else is not supported'), runThrows('while False:\n    print(1)\nelse:\n    print(2)'));
 
+console.log('\n== GOLDEN TRACES (E-P2: shared motion model pins) ==');
+// Pinned end-state values through the SHARED motion model. Deliberately
+// perturbing any constant (drain, arena, turn cost) fails these exact
+// numbers; the Python twin pins the same values in test_golden_traces.py.
+{
+  const sq = run('for i in range(4):\n    move_forward(3)\n    turn_right(90)');
+  check('golden square: returns to origin', Math.hypot(sq.finalX, sq.finalY) < 1, '(' + sq.finalX + ',' + sq.finalY + ')');
+  check('golden square: battery 85.36 (12m + 360deg on shared constants)',
+    Math.abs(sq.battery - 85.36) < 1e-9, sq.battery + '%');
+  const line = run('set_speed(80)\nmove_forward(2)');
+  check('golden 2m line: battery 97.8', Math.abs(line.battery - 97.8) < 1e-9, line.battery + '%');
+  const turns = run('turn_left(45)\nturn_right(135)');
+  check('golden turns: battery 99.28, heading 90', Math.abs(turns.battery - 99.28) < 1e-9 && turns.heading === 90,
+    turns.battery + '% @' + turns.heading + 'deg');
+  check('model anchor: 3.125 m/s at set_speed(100)', KM.MODEL.baseSpeedCmPerS === 312.5, KM.MODEL.baseSpeedCmPerS + ' cm/s');
+  check('model duration: 100cm at speed 100 takes 320ms',
+    KM.moveDurationMs(100, KM.effectiveSpeedUnits(100, 1, 1), 1, 1) === 320,
+    KM.moveDurationMs(100, KM.effectiveSpeedUnits(100, 1, 1), 1, 1) + 'ms');
+  // E-A5: an underpowered physical build STALLS with a named torque gap
+  // ("needs X N*m, has Y N*m") instead of the catalogue crawl multiplier.
+  const weak = KM.physStallVerdict(KM.physStallForceN(0.02, 1, 5), 5, 1, 9.81, 1, 5);
+  check('stall verdict: 0.02 N*m motor under 5 kg stalls with a torque gap',
+    weak.stalled && weak.neededNm > weak.hasNm && weak.hasNm > 0,
+    'needs ' + weak.neededNm.toFixed(2) + ' N*m, has ' + weak.hasNm.toFixed(2));
+  const strong = KM.physStallVerdict(KM.physStallForceN(0.35, 2, 3.25), 1.2, 1, 9.81, 2, 3.25);
+  check('stall verdict: the reference rover does NOT stall on nominal ground',
+    !strong.stalled, 'mobility ' + strong.mobility.toFixed(2));
+}
+
+console.log('\n== KRS SPEC SCHEMA (SI0) + PHYSICAL MAPPING (SI2) ==');
+{
+  const SS_SRC = readFileSync(new URL('../src/robolearn/assets/web/specschema.js', import.meta.url), 'utf8');
+  new Function('window', SS_SRC)(win);
+  const SS = win.KodroSpecSchema;
+  const REF = JSON.parse(readFileSync(new URL('../tests/fixtures/krs_reference_rover.json', import.meta.url), 'utf8'));
+
+  // Valid spec round-trips: validate -> export -> validate again, physical
+  // fields intact and no errors either way.
+  const v1 = SS.validate(JSON.stringify(REF));
+  check('reference KRS validates clean', v1.ok && v1.errors.length === 0, v1.errors.join('; '));
+  check('reference KRS keeps its physical block',
+    !!(v1.spec.physical && v1.spec.physical.massKg === 1.2 && v1.spec.physical.drive.motor.noLoadRpm === 300),
+    JSON.stringify(v1.spec.physical || {}).slice(0, 60));
+  const exported = SS.exportKrs(v1.spec, { mass: 1200, massFactor: 1.33, speedFactor: 0.33, runtimeMin: 180 });
+  const v2 = SS.validate(exported);
+  check('exported KRS re-validates (round-trip)', v2.ok && v2.spec.physical.massKg === 1.2,
+    v2.errors.join('; ') || 'ok');
+  check('export ignores the derived block on re-import',
+    v2.warnings.some((w) => w.indexOf('derived') >= 0), v2.warnings.join(' | ').slice(0, 80));
+
+  // Clamp-with-warning inside the 2x envelope; reject beyond it, naming the field.
+  const warned = SS.validate(JSON.stringify(Object.assign({}, REF, { massKg: 80 }))); // hi 50, 2x = 100
+  check('massKg 80 clamps to 50 with a warning', warned.ok
+    && warned.spec.physical.massKg === 50
+    && warned.warnings.some((w) => w.indexOf('massKg') >= 0), warned.warnings.join(' | ').slice(0, 80));
+  const rejected = SS.validate(JSON.stringify(Object.assign({}, REF, { massKg: 500 }))); // > 2x hi
+  check('massKg 500 rejects with a named-field error', !rejected.ok
+    && rejected.errors.some((e) => e.indexOf('massKg') >= 0), rejected.errors.join(' | ').slice(0, 80));
+
+  // v1 catalogue save (plain parts spec, no physical fields) imports unchanged.
+  const v1Save = { name: 'My Rover', type: 'rover', board: 'esp32', sensors: ['ultrasonic', 'imu'], actuators: ['motors4'] };
+  const mig = SS.validate(JSON.stringify(v1Save));
+  check('v1 catalogue save migrates unchanged (no physical block)', mig.ok
+    && !mig.spec.physical && mig.spec.sensors.join(',') === 'ultrasonic,imu'
+    && mig.spec.actuators.join(',') === 'motors4', JSON.stringify(mig.spec).slice(0, 80));
+
+  // Unknown keys are dropped with a warning, never imported silently.
+  const junk = SS.validate(JSON.stringify(Object.assign({}, REF, { turboBoost: 9000 })));
+  check('unknown keys dropped with a warning', junk.ok
+    && junk.warnings.some((w) => w.indexOf('turboBoost') >= 0), junk.warnings.join(' | ').slice(0, 80));
+
+  // SI2 golden: the reference spec's derived top speed matches the closed
+  // form v = rpm/60 * 2*pi*r within tolerance, and lands inside the
+  // simulable band so it is HONOURED (not clamped).
+  const ph = SS.deriveFromPhysical(v1.spec, { mass: 1200, massFactor: 1.33, speedFactor: 1.25, runtimeMin: 45 });
+  const vExpect = (300 / 60) * 2 * Math.PI * 3.25; // 102.1 cm/s
+  check('derived top speed matches closed form (1.02 m/s)', Math.abs(ph.vMaxCmPerS - vExpect) < 1e-9, ph.vMaxCmPerS.toFixed(2) + ' cm/s');
+  check('top speed inside the simulable band (HONOURED, not clamped)',
+    Math.abs(ph.vMaxSimCmPerS - ph.vMaxCmPerS) < 0.5, 'sim ' + ph.vMaxSimCmPerS.toFixed(2));
+  check('physical mass drives massFactor (1.2 kg -> 1.33)', Math.abs(ph.massFactor - 1200 / 900) < 1e-9, String(ph.massFactor));
+  check('energy-true runtime derived from the pack', ph.runtimeMin > 60 && ph.runtimeMin < 600, ph.runtimeMin + ' min');
+  check('sensor mount honoured (fwd 10cm, range 400cm)',
+    ph.sensor && ph.sensor.fwdCm === 10 && ph.sensor.rangeCm === 400, JSON.stringify(ph.sensor));
+  check('collision radius from body footprint (hypot(25,18)/2)',
+    Math.abs(ph.collisionRadiusCm - Math.round(Math.hypot(25, 18) / 2 * 10) / 10) < 1e-9, ph.collisionRadiusCm + ' cm');
+  check('declared-vs-derived within 20 percent (no discrepancy flag)',
+    !ph.warnings.some((w) => w.indexOf('disagrees') >= 0), ph.warnings.join(' | ').slice(0, 80));
+
+  // SI3: the verification report for the fixture spec. The derived block
+  // must carry the motor-derived top speed; with a recorded run present the
+  // measured block must state the mean speed AND its ratio to the derived
+  // top ("your robot as simulated", cross-checked against evidence).
+  const VF_SRC = readFileSync(new URL('../src/robolearn/assets/web/verify.jsx', import.meta.url), 'utf8');
+  new Function('window', VF_SRC)(win);
+  win.KODRO_LAST_RUN = { distanceCm: 340, wallMs: 4000, battery: 96, speedMul: 1 };
+  const robotNow = Object.assign({}, v1.spec, {
+    massFactor: ph.massFactor, speedFactor: ph.speedFactor, runtimeMin: ph.runtimeMin, phys: ph,
+  });
+  const rep = win.KodroVerify.report(robotNow, { name: 'Open terrain', traction: 1, env: { gravity: 9.81 } });
+  const html = win.KodroVerify.toHtml(rep);
+  check('verification report states the derived top speed (1.02 m/s)',
+    html.indexOf('1.02 m/s') >= 0, '');
+  check('verification report measured block: 3.4 m in 4 s = 0.85 m/s mean',
+    html.indexOf('0.85 m/s') >= 0 && html.indexOf('3.4 m') >= 0, '');
+  check('verification report cross-checks measured vs derived (ratio stated)',
+    !!(rep.empirical.agreement && Math.abs(rep.empirical.agreement.ratio - 0.85 / 1.02) < 0.01),
+    rep.empirical.agreement ? 'ratio ' + rep.empirical.agreement.ratio : 'no agreement block');
+  check('verification report carries all three fidelity tiers',
+    html.indexOf('HONOURED') >= 0 && html.indexOf('APPROXIMATED') >= 0 && html.indexOf('NOT SIMULATED') >= 0, '');
+  delete win.KODRO_LAST_RUN;
+}
+
 console.log('\n== SHIPPED EXAMPLE PROGRAMS ==');
 // Load the REAL EXAMPLES object the same way interpreter.js is loaded: app-data.jsx
 // is a plain IIFE that exposes window.KodroExamples (no JSX, no React in the data
@@ -263,7 +384,43 @@ for (const key of exampleKeys) {
   }
   check(label, ok, info);
 }
-check('found example programs (>= 7)', exampleKeys.length >= 7, exampleKeys.length + ' found');
+check('found example programs (>= 8, incl. the Encore showcase)', exampleKeys.length >= 8, exampleKeys.length + ' found');
+
+// S1: the Encore flagship pins its own behaviour: it must end back on the
+// start mark (the choreography is closed turtle geometry), spend a real but
+// survivable share of the pack, and actually perform (moves + turns + beeps).
+{
+  const enc = EXAMPLES.encore && EXAMPLES.encore.code;
+  check('encore tab ships', typeof enc === 'string' && enc.length > 2000, enc ? enc.length + ' chars' : 'missing');
+  if (typeof enc === 'string') {
+    const t = run(enc);
+    check('encore ends back on the start mark', Math.hypot(t.finalX, t.finalY) < 1,
+      '(' + t.finalX + ',' + t.finalY + ')');
+    check('encore battery lands in the showcase band (30-70% remaining)',
+      t.battery >= 30 && t.battery <= 70, t.battery.toFixed(1) + '% remaining');
+    check('encore performs (>= 15 moves, >= 30 turns)', t.moves >= 15 && t.turns >= 30,
+      t.moves + ' moves, ' + t.turns + ' turns');
+    // The beep event (S3): Encore's drumline must yield real beep events.
+    let beeps = 0;
+    for (const ev of compile(enc).run({ sensor: () => 100 })) { if (ev.type === 'beep') beeps++; }
+    check('encore drumline yields real beep events (S3)', beeps >= 10, beeps + ' beeps');
+  }
+}
+
+console.log('\n== BEEP EVENT (S3) ==');
+// beep() emits a real beep event (wired to SFX in the studio), never the old
+// "beep" console spam; the times argument clamps 0..16 like the Python API.
+{
+  const evs = [...compile('beep(3)').run({ sensor: () => 0 })];
+  const b = evs.find((e) => e.type === 'beep');
+  check('beep(3) yields a beep event, not a print', !!b && !evs.some((e) => e.type === 'print'),
+    JSON.stringify(evs[0]));
+  check('beep(3) carries times=3', !!b && b.times === 3, b && String(b.times));
+  const b99 = [...compile('beep(99)').run({ sensor: () => 0 })].find((e) => e.type === 'beep');
+  check('beep(99) clamps to 16 (Python API clamp)', !!b99 && b99.times === 16, b99 && String(b99.times));
+  const b0 = [...compile('beep()').run({ sensor: () => 0 })].find((e) => e.type === 'beep');
+  check('beep() defaults to one beep', !!b0 && b0.times === 1, b0 && String(b0.times));
+}
 // ONE dialect (product-coherence D4): every shipped example uses the bare
 // metre-based API. rover.* remains a runtime compatibility alias, but no
 // first-party program may teach it.

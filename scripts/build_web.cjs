@@ -14,7 +14,11 @@ const path = require('path');
 const vm = require('vm');
 
 const WEB = path.join(__dirname, '..', 'src', 'robolearn', 'assets', 'web');
-const ORDER = ['agents', 'memory', 'terrains', 'Rover', 'Viewport', 'textures', 'post', 'worldfx', 'ambient', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'selftest', 'RobotLab', 'scenario', 'realism', 'demo', 'onboarding', 'ai-web', 'hooks', 'app-data', 'panels', 'app'];
+// Entries ending in '.js' are plain-JS modules (no JSX) bundled verbatim in
+// order; everything else is '<name>.jsx'. motion-model.js (the shared physics
+// model, E-P1) and specschema.js (the KRS import schema, SI0) must load
+// before the modules that call them (diagnostics/selftest/RobotLab/scenario/app).
+const ORDER = ['motion-model.js', 'specschema.js', 'agents', 'memory', 'terrains', 'Rover', 'Viewport', 'textures', 'post', 'worldfx', 'ambient', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'selftest', 'RobotLab', 'scenario', 'verify', 'realism', 'demo', 'onboarding', 'ai-web', 'hooks', 'app-data', 'panels', 'app'];
 const HEADER = '/* AUTO-GENERATED from the .jsx sources by scripts/build_web.cjs. Do not edit. */\n';
 
 function build() {
@@ -32,8 +36,9 @@ function build() {
     // regardless of how git checked the .jsx out (Babel otherwise preserves
     // CRLF inside template literals, which broke the freshness check on
     // Windows CI).
-    const src = fs.readFileSync(path.join(WEB, name + '.jsx'), 'utf8').replace(/\r\n/g, '\n');
-    const code = ctx.Babel.transform(src, { presets: ['react'], filename: name + '.jsx' }).code;
+    const file = name.endsWith('.js') ? name : name + '.jsx';
+    const src = fs.readFileSync(path.join(WEB, file), 'utf8').replace(/\r\n/g, '\n');
+    const code = ctx.Babel.transform(src, { presets: ['react'], filename: file }).code;
     out += '\n;(function () {\n' + code + '\n})();\n';
   }
   return out.replace(/\r\n/g, '\n');
