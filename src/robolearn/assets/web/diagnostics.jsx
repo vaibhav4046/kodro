@@ -108,10 +108,14 @@
 
     // 5. TASK FIT -- does the build match what its type is for?
     const type = spec.type;
+    // Fix texts name REAL effects of fitting the part (mass, reach, sensing),
+    // never a command: grab() and see() are not in the interpreter, and a
+    // design check that recommends a command the robot cannot run undermines
+    // the whole honesty story (product-coherence D6).
     if (type === 'arm' && !has(actuators, 'gripper')) {
       dims.push({ key: 'task', label: 'Task fit', status: 'fail', margin: 0,
         reason: 'A manipulator arm with no gripper cannot grab or place anything, which is its whole job.',
-        fix: 'Fit a Gripper arm so grab() works.' });
+        fix: 'Fit a Gripper arm so the build can actually hold and place objects.' });
     } else if (type === 'home' && !has(sensors, 'bumper') && !hasRange) {
       dims.push({ key: 'task', label: 'Task fit', status: 'warn', margin: 0.5,
         reason: 'An indoor robot with no bumper or range sensor cannot tell it is about to touch a person or furniture.',
@@ -119,7 +123,7 @@
     } else if (type === 'car' && !has(sensors, 'camera')) {
       dims.push({ key: 'task', label: 'Task fit', status: 'warn', margin: 0.6,
         reason: 'A road vehicle with no camera cannot read markings, signs or a crossing.',
-        fix: 'Add a Camera so see() works in traffic.' });
+        fix: 'Add a Camera so the build carries the vision hardware a road robot needs.' });
     } else {
       dims.push({ key: 'task', label: 'Task fit', status: 'pass', margin: 1,
         reason: 'The fitted parts match what a ' + (type || 'robot') + ' needs for this world.', fix: '' });
@@ -149,6 +153,10 @@
 
   // After a run, turn the design report plus what actually happened into one
   // honest verdict line: did the design hold up, and if not, why and what next.
+  // `run` may carry real run stats from the host (bugs D5):
+  //   commands        events the program actually executed (0 = nothing ran)
+  //   distanceCm      odometer distance covered this run
+  //   minProximityCm  closest approach to an obstacle during the run
   function afterRun(report, run) {
     run = run || {};
     const outcome = run.outcome; // 'done' | 'crash' | 'flat' | 'stalled'
@@ -164,9 +172,21 @@
     if (outcome === 'stalled') {
       return { tone: 'err', text: 'It stalled: the surface gave its motors too little grip for the weight. Fit 4 DC motors or shed mass.' };
     }
-    // done
+    // done -- but only claim the design was tested if something actually ran.
+    // A blank program "finishing" proves nothing about the build (bugs D5).
+    if (run.commands === 0) {
+      return { tone: 'sys', text: 'Nothing ran: the program produced no commands, so this run says nothing about the design.' };
+    }
+    // A finish that shaved an obstacle is not a healthy margin: report the
+    // measured closest approach instead of a blanket all-clear.
+    const prox = run.minProximityCm;
     if (report && report.overall === 'pass') {
-      return { tone: 'sys', text: 'Mission complete and the design held up. Margins looked healthy.' };
+      if (prox != null && prox < 30) {
+        return { tone: 'sys', text: 'Mission complete, but the closest approach was ' + Math.round(prox) + ' cm - one sensor misread from a collision. Add clearance before calling this design safe.' };
+      }
+      const measured = (run.distanceCm != null ? ' Covered ' + (run.distanceCm / 100).toFixed(1) + ' m' : '')
+        + (prox != null && prox < 600 ? ', closest approach ' + Math.round(prox) + ' cm.' : (run.distanceCm != null ? '.' : ''));
+      return { tone: 'sys', text: 'Mission complete and the design held up.' + (measured || ' Margins looked healthy.') };
     }
     if (report && report.overall === 'warn') {
       return { tone: 'sys', text: 'Mission complete, but watch the flagged points: ' + (report.topFix || 'see the design check.') };

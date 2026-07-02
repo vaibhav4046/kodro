@@ -1,5 +1,5 @@
 /* ============================================================================
-   ORBITAL ROVER — Telemetry rail
+   KODRO — Telemetry rail
    Live instrument cluster: compass, speed, proximity, battery, odometer, and
    the terrain environment readout (gravity, temperature, pressure, light).
    Exposes window.Telemetry
@@ -49,12 +49,23 @@
     );
   }
 
-  function Telemetry({ rover, terrain, sensorDist, odometer }) {
+  function Telemetry({ rover, terrain, sensorDist, odometer, robot, runState }) {
     const accent = terrain.accent;
     const env = terrain.env;
     const battery = rover.battery;
     const batColor = battery > 50 ? 'var(--success)' : battery > 20 ? 'var(--warning)' : 'var(--danger)';
     const dist = sensorDist == null ? 600 : sensorDist;
+    // Honest instrumentation: the proximity cluster only reads when the build
+    // actually carries the range sensor the reading comes from. A build
+    // without an ultrasonic shows a NO RANGE SENSOR state instead of a
+    // confident number from hardware that is not fitted (product-coherence D3).
+    const hasRange = !window.KodroCommands || window.KodroCommands.check(robot || null, 'distance').ok;
+    // Shared status vocabulary (app-data.jsx): the mission bar renders the
+    // same labels, so the two surfaces can never contradict each other.
+    const statusWord = ((window.KodroStatusLabels || {})[runState] || (rover.moving ? 'Running' : 'Standby')).toUpperCase();
+    const statusColor = runState === 'error' ? 'var(--danger)'
+      : (runState === 'running' || rover.moving) ? accent
+      : runState === 'done' ? 'var(--success)' : 'var(--fg-3)';
     const distState = dist < 80 ? 'danger' : dist < 200 ? 'warn' : '';
     const distColor = dist < 80 ? 'var(--danger)' : dist < 200 ? 'var(--warning)' : accent;
     // A text cue for proximity so the state is not signalled by colour alone
@@ -88,15 +99,24 @@
         </div>
 
         <div className="tele-section">
-          <span className="eyebrow">Proximity · Front Lidar</span>
-          <div className={'dist-readout ' + distState} aria-label={distWord + ', ' + (dist >= 600 ? '600 plus' : dist.toFixed(0)) + ' centimetres to obstacle'}>
-            <span className="dr-val">{dist >= 600 ? '600+' : dist.toFixed(0)}</span>
-            <span className="dr-unit">cm to obstacle</span>
-            {distState ? <span className="dr-state" style={{ color: distColor, fontWeight: 600, marginLeft: 8 }}>{distWord}</span> : null}
-          </div>
-          <div className="bar-track">
-            <div className="bar-fill" style={{ width: Math.min(100, (dist / 600) * 100) + '%', background: distColor }}></div>
-          </div>
+          <span className="eyebrow">{hasRange ? 'Proximity · Ultrasonic range' : 'Proximity'}</span>
+          {hasRange ? (
+            <>
+              <div className={'dist-readout ' + distState} aria-label={distWord + ', ' + (dist >= 600 ? '600 plus' : dist.toFixed(0)) + ' centimetres to obstacle'}>
+                <span className="dr-val">{dist >= 600 ? '600+' : dist.toFixed(0)}</span>
+                <span className="dr-unit">cm to obstacle</span>
+                {distState ? <span className="dr-state" style={{ color: distColor, fontWeight: 600, marginLeft: 8 }}>{distWord}</span> : null}
+              </div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ width: Math.min(100, (dist / 600) * 100) + '%', background: distColor }}></div>
+              </div>
+            </>
+          ) : (
+            <div className="dist-readout no-range" aria-label="No range sensor fitted; proximity readings unavailable">
+              <span className="dr-val" style={{ fontSize: 15, color: 'var(--warning)' }}>NO RANGE SENSOR</span>
+              <span className="dr-unit">fit an Ultrasonic in the Robot Lab to read distance</span>
+            </div>
+          )}
         </div>
 
         <div className="tele-section">
@@ -112,8 +132,8 @@
             </div>
             <div className="gauge">
               <span className="g-label">Status</span>
-              <span className="g-val" style={{ fontSize: 13, color: rover.moving ? accent : 'var(--fg-3)', paddingTop: 4 }}>
-                {rover.moving ? 'DRIVING' : 'IDLE'}
+              <span className="g-val" style={{ fontSize: 13, color: statusColor, paddingTop: 4 }}>
+                {statusWord}
               </span>
             </div>
           </div>

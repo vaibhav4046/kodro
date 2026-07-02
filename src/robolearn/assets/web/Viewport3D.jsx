@@ -152,6 +152,10 @@
       // inherited the room's warm cream sky and the grey props washed out into a
       // void. Give each its own backdrop + fog so the walls and props read.
       const _sid = terrain && terrain.siteId;
+      // Scene-rebuild marker: stamp WHICH world/site this scene was built for
+      // on the mount node, so the UI harness can assert that a mission-site
+      // switch really rebuilt the scene (F1) instead of trusting the label.
+      try { mount.dataset.world = id + (_sid ? ':' + _sid : ''); } catch (e) { void e; }
       if (_sid === 'lab') { scene.background = new THREE.Color(0xaeb6c2); scene.fog = new THREE.Fog(0xaeb6c2, 70, 240); }
       else if (_sid === 'warehouse') { scene.background = new THREE.Color(0x383b42); scene.fog = new THREE.Fog(0x383b42, 50, 200); }
       else if (_sid === 'debug_grid') { scene.background = new THREE.Color(0x0a0c10); scene.fog = new THREE.Fog(0x0a0c10, 90, 320); }
@@ -828,9 +832,86 @@
           });
         }
       }
+      // ---- Scenario markers: the mission Validate grades, drawn in the world.
+      // The active world's validation scenario (goal beacon, start pad, and the
+      // scenario's obstacle outlines) renders as procedural primitives so the
+      // Validate button grades a mission the user can SEE, instead of scoring
+      // an invisible goal (product-coherence D1). Everything is a scene child,
+      // so the teardown traverse disposes it with the rest of the world.
+      try {
+        if (window.KodroScenario && window.KodroScenario.defaultFor) {
+          const scn = window.KodroScenario.defaultFor(id);
+          if (scn && scn.goalPose) {
+            // Ground height at a world point, matching the displacement the
+            // open-terrain plane applies (plane XY pre-rotation: x = world x,
+            // y = -world z), so markers sit on the surface, not inside a swell.
+            const dispAmp = openWorld ? (id === 'underwater' ? 2.6 : id === 'space' ? 1.8 : 3.0) : 0;
+            const groundYAt = (wx, wz) => {
+              if (!dispAmp) return 0;
+              const px = wx, py = -wz;
+              const hh = Math.sin(px * 0.05) * Math.cos(py * 0.045) * 0.6
+                       + Math.sin(px * 0.013 + py * 0.017) * 0.3
+                       + Math.sin((px + py) * 0.09) * 0.12;
+              return hh * dispAmp;
+            };
+            const gp = scn.goalPose;
+            const gx = gp.x * SCALE, gz = -gp.y * SCALE;
+            const gr = Math.max(1.2, (gp.r || 120) * SCALE);
+            const beacon = new THREE.Group();
+            beacon.userData.kodroGoal = true;
+            const ringMatG = new THREE.MeshBasicMaterial({ color: 0x5ce0d8, transparent: true, opacity: 0.85 });
+            const ringG = new THREE.Mesh(new THREE.TorusGeometry(gr, 0.09, 8, 48), ringMatG);
+            ringG.rotation.x = -Math.PI / 2; ringG.position.y = 0.16;
+            beacon.add(ringG);
+            const ringInner = new THREE.Mesh(new THREE.TorusGeometry(gr * 0.55, 0.05, 8, 40), new THREE.MeshBasicMaterial({ color: 0x5ce0d8, transparent: true, opacity: 0.4 }));
+            ringInner.rotation.x = -Math.PI / 2; ringInner.position.y = 0.14;
+            beacon.add(ringInner);
+            const beam = new THREE.Mesh(
+              new THREE.CylinderGeometry(gr * 0.16, gr * 0.28, 9, 16, 1, true),
+              new THREE.MeshBasicMaterial({ color: 0x5ce0d8, transparent: true, opacity: 0.14, depthWrite: false, side: THREE.DoubleSide })
+            );
+            beam.position.y = 4.5;
+            beacon.add(beam);
+            beacon.position.set(gx, groundYAt(gx, gz), gz);
+            scene.add(beacon);
+            if (scn.startPose) {
+              const sp = scn.startPose;
+              const sx = sp.x * SCALE, sz = -sp.y * SCALE;
+              const pad = new THREE.Mesh(
+                new THREE.RingGeometry(0.9, 1.25, 32),
+                new THREE.MeshBasicMaterial({ color: 0xe0b45c, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+              );
+              pad.rotation.x = -Math.PI / 2;
+              pad.position.set(sx, groundYAt(sx, sz) + 0.14, sz);
+              pad.userData.kodroGoal = true;
+              scene.add(pad);
+            }
+            (scn.obstacles || []).forEach((o) => {
+              const orad = Math.max(0.8, o.r * SCALE);
+              const ox = o.x * SCALE, oz = -o.y * SCALE;
+              const ring = new THREE.Mesh(
+                new THREE.RingGeometry(orad * 0.93, orad, 40),
+                new THREE.MeshBasicMaterial({ color: 0xffb86b, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
+              );
+              ring.rotation.x = -Math.PI / 2;
+              ring.position.set(ox, groundYAt(ox, oz) + 0.12, oz);
+              ring.userData.kodroGoal = true;
+              scene.add(ring);
+            });
+            // Marker for the UI harness: the goal beacon exists in this scene.
+            try { mount.dataset.goal = '1'; } catch (e) { void e; }
+          }
+        }
+      } catch (e) { if (window.console) console.warn('scenario markers failed:', e); }
+
       // Make sure the shared agent sim is built for THIS world before we render
       // its meshes (the viewport effect can run before App's build effect).
-      if (window.KodroAgents && window.KodroAgents.world() !== id) window.KodroAgents.build(id);
+      // One id everywhere: the agent world key is the SITE id when a site is
+      // active (matching App's build(terrainId)), never the base id, so the
+      // collision test, the sensors and the realism dashboard all agree on
+      // which agents exist (world-coherence BUG-4).
+      const _agentWorld = _sid || id;
+      if (window.KodroAgents && window.KodroAgents.world() !== _agentWorld) window.KodroAgents.build(_agentWorld);
       const _siteId = terrain && terrain.siteId;
       if (_siteId === 'lab' || _siteId === 'warehouse' || _siteId === 'debug_grid') buildIndoor(_siteId);
       else if (id === 'city') buildCity();
@@ -1355,7 +1436,10 @@
         });
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       };
-    }, [terrain && terrain.id, robotType]);
+      // siteId is a dep: a mission-site switch on the SAME base world (earth ->
+      // sahara) must tear down and rebuild the scene, or the site's obstacle
+      // field and palette silently never appear (world-coherence BUG-1).
+    }, [terrain && terrain.id, terrain && terrain.siteId, robotType]);
 
     // Move keyboard focus to the canvas when the user explicitly opens the 3D
     // view (focusKey bumps on that click only). focusKey starts at 0 so the

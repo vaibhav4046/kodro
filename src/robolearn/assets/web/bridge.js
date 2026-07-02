@@ -29,18 +29,18 @@
   const call = async (name, ...args) => {
     const ready = await waitForPywebview();
     if (!ready) {
-      console.warn("[RoboLearn] pywebview API not ready; returning null for", name);
+      console.warn("[Kodro bridge] pywebview API not ready; returning null for", name);
       return null;
     }
     const fn = window.pywebview.api[name];
     if (typeof fn !== "function") {
-      console.warn("[RoboLearn] no such API:", name);
+      console.warn("[Kodro bridge] no such API:", name);
       return null;
     }
     try {
       return await fn(...args);
     } catch (err) {
-      console.error("[RoboLearn] API call failed:", name, err);
+      console.error("[Kodro bridge] API call failed:", name, err);
       return null;
     }
   };

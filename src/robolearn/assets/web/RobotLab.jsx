@@ -149,6 +149,24 @@
   // Make sure a default exists from first load so the sim never sees undefined.
   window.getKodroRobot();
 
+  // Resolve a possibly-PARTIAL robot event detail into a full spec + derived
+  // numbers. RobotLab.save dispatches complete specs, but other dispatchers
+  // (the capture harness sends { type } only) must not leave the studio with
+  // a half-spec whose missing sensor list reads as "no parts fitted". An
+  // EXPLICIT sensors/actuators array is honoured as-is (a fixture may be
+  // deliberately bare); absent fields fall back to the archetype's default
+  // build, exactly what picking that archetype in the Lab would give.
+  window.resolveKodroRobot = function (detail) {
+    const d = detail || {};
+    if (Array.isArray(d.sensors) && Array.isArray(d.actuators) && d.massFactor) return d; // already full
+    const base = specFromType(d.type || 'rover', d.name);
+    const spec = Object.assign({}, base, d);
+    if (!Array.isArray(spec.sensors)) spec.sensors = base.sensors;
+    if (!Array.isArray(spec.actuators)) spec.actuators = base.actuators;
+    const rec = WORLD_FOR[spec.type] || {};
+    return Object.assign({}, spec, derive(spec), { world: d.world || rec.id });
+  };
+
   // ---- canonical command registry. ONE source of truth for which commands a
   // build supports, read by the interpreter host, the assistant and the UI, so
   // no panel invents a command the robot cannot actually run. Keys are the

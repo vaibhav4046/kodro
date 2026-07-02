@@ -1,5 +1,5 @@
 /* ============================================================================
-   ORBITAL ROVER — terrains
+   KODRO — terrains
    Each terrain defines: accent color, telemetry environment (gravity, temp,
    pressure, light), a static backdrop layer, a camera-tracked ground layer,
    ambient particles, and a deterministic obstacle field used by the live
@@ -872,7 +872,11 @@
 
   function TerrainGround({ terrain, children, showGrid }) {
     const g = terrain.groundBg || groundBg(terrain.id);
-    const isEarth = terrain.id === 'earth';
+    // Only the temperate BASE Earth gets the farmland/river map layer. An
+    // Earth SITE (Sahara, Antarctica, Nepal...) resolves to id 'earth' too,
+    // and painting fields and a river on the Ross Ice Shelf was the bug
+    // (world-coherence BUG-2), so a siteId excludes the layer.
+    const isEarth = terrain.id === 'earth' && !terrain.siteId;
     return (
       <div className="ground" style={{
         position: 'absolute', left: -GROUND / 2, top: -GROUND / 2, width: GROUND, height: GROUND,

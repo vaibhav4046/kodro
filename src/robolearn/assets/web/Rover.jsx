@@ -1,5 +1,5 @@
 /* ============================================================================
-   ORBITAL ROVER — Rover render
+   KODRO — Rover render
    Top-down 4-wheel rover drawn in SVG. Points "up" (north) at heading 0.
    Wheels animate when moving; a headlight cone and status LED respond to state.
    Exposes window.Rover

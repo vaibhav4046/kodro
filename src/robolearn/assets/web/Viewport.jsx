@@ -1,5 +1,5 @@
 /* ============================================================================
-   ORBITAL ROVER — Viewport (3D diorama)
+   KODRO — Viewport (3D diorama)
    A tilted, camera-tracked world: ground + perspective grid + standing
    obstacles + trail + a lifted rover that casts a shadow, kicks up dust while
    driving, and emits scan ripples. HUD stays in screen space.

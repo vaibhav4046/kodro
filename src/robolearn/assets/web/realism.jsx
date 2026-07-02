@@ -31,7 +31,12 @@
   function KodroRealism(props) {
     const robot = (window.getKodroRobot && window.getKodroRobot()) || {};
     const terrains = window.TERRAINS || {};
-    const terrain = (robot.world && terrains[robot.world]) || terrains[Object.keys(terrains)[0]] || { name: '-', env: {}, traction: 1, id: '-' };
+    // The dashboard describes the world ON SCREEN (passed live from App), not
+    // the robot's recommended world -- describing a world the user is not
+    // looking at was product-coherence D2. The recommendation lookup stays as
+    // a fallback for host pages that do not pass a terrain.
+    const terrain = props.terrain
+      || (robot.world && terrains[robot.world]) || terrains[Object.keys(terrains)[0]] || { name: '-', env: {}, traction: 1, id: '-' };
     const env = terrain.env || {};
     const massFac = robot.massFactor || 1;
     const speedFac = robot.speedFactor || 1;
@@ -84,13 +89,16 @@
     ] : [row('Validation', 'no runs yet', '#f5c451'), row('Tip', 'Run "Validate across seeds"')];
     const score = card('Scenario score', scoreRows, '#ffb86b');
 
-    // Environment card.
+    // Environment card. Lighting is a 0-100 percentage (same number telemetry
+    // shows), not a two-decimal float ("Lighting 92.00" read as broken). The
+    // agents row gates on the SITE id when a mission site is active, matching
+    // how the agent sim is keyed everywhere else (world-coherence BUG-4).
     const environment = card('Environment', [
       row('Preset', terrain.name || terrain.id || '-'),
-      row('Lighting', env.light != null ? env.light.toFixed(2) : '-'),
+      row('Lighting', env.light != null ? Math.round(env.light) + '%' : '-'),
       row('Gravity', env.gravity != null ? env.gravity + ' m/s2' : '-'),
       row('Friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'),
-      row('Moving agents', (window.KodroAgents && window.KodroAgents.list && window.KodroAgents.world && window.KodroAgents.world() === terrain.id) ? String(window.KodroAgents.list().length) : '0'),
+      row('Moving agents', (window.KodroAgents && window.KodroAgents.list && window.KodroAgents.world && window.KodroAgents.world() === (terrain.siteId || terrain.id)) ? String(window.KodroAgents.list().length) : '0'),
     ], '#9fb4d2');
 
     // Command registry card.

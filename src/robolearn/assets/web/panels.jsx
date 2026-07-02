@@ -371,11 +371,50 @@
   // ---- Memory and skills ----
   // Reads window.KodroMemory directly (loaded earlier in ORDER), same as inline.
   function MemoryModal({ setMemoryOpen, memTick, code, terrain, robotSpec, currentLessonId, setLessonBuffers, setPrograms, activeTab }) {
+    // Export downloads the reflections + skills as a JSON backup; Import
+    // restores one. Both call the store's own exportData/importData, which
+    // shipped as dead code until now (product-coherence P5 via D7).
+    function exportMemory() {
+      try {
+        const json = window.KodroMemory.exportData();
+        const blob = new Blob([json], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'kodro-memory.json';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      } catch (e) { void e; }
+    }
+    function importMemory(e) {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        let n = 0;
+        try { n = window.KodroMemory.importData(String(rd.result)); } catch (err) { void err; }
+        try {
+          window.dispatchEvent(new CustomEvent('kodro-toast', {
+            detail: n
+              ? { text: 'Memory restored from backup', kind: 'info' }
+              : { text: 'Import failed: not a Kodro memory backup', kind: 'err' },
+          }));
+        } catch (err) { void err; }
+      };
+      rd.readAsText(f);
+    }
     return (
       <div className="modal-backdrop" onClick={() => setMemoryOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Memory and skills" data-tick={memTick} onClick={e => e.stopPropagation()}>
           <div className="modal-head">
             <span className="eyebrow">🧠 Memory. The system refines from what it has seen, offline</span>
+            <span className="mem-io">
+              <button className="btn-mini" data-mem-export title="Download reflections and skills as a JSON backup" onClick={exportMemory}>Export</button>
+              <label className="btn-mini mem-import" title="Restore reflections and skills from a JSON backup">
+                Import
+                <input type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={importMemory} aria-label="Import memory backup file" />
+              </label>
+            </span>
             <button className="btn-mini" aria-label="Close" onClick={() => setMemoryOpen(false)}>✕</button>
           </div>
           <div className="mem-body">
@@ -417,7 +456,16 @@
   }
 
   // ---- Vibe coding (Code with AI) ----
-  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, micBusy, vibeMic, vibePrompt, setVibePrompt, vibeSend }) {
+  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, micBusy, vibeMic, vibePrompt, setVibePrompt, vibeSend, vibeContext }) {
+    // The reflection the assistant is fed from past runs in this world,
+    // rendered as a VISIBLE chip instead of an invisible prompt injection
+    // (product-coherence D7: the memory loop must be seen to be believed).
+    const ctxChip = (vibeContext && vibeContext.reflection) ? (
+      <div className="vibe-ctx" title="Learned from your past runs in this world; it is fed into the assistant's context">
+        <span className="vibe-ctx-tag">Memory context{vibeContext.world ? ' · ' + vibeContext.world : ''}</span>
+        <span className="vibe-ctx-text">{vibeContext.reflection}</span>
+      </div>
+    ) : null;
     return (
       <div className="modal-backdrop" onClick={() => !vibeBusy && setVibeOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
@@ -428,6 +476,7 @@
           {aiInfo.available ? (
             <div className="vibe-body">
               <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
+              {ctxChip}
               {aiInfo.models && aiInfo.models.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 12.5, color: '#9fb4d2' }}>Use model</span>
@@ -480,6 +529,7 @@
           ) : (
             <div className="vibe-body">
               <p className="vibe-status">AI is offline. Vibe coding uses a <b>local</b> model (no cloud, no account):</p>
+              {ctxChip}
               <ol className="vibe-steps">
                 <li>Install Ollama from ollama.com (free, offline after install)</li>
                 <li>Run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>

@@ -1,5 +1,5 @@
 /* ============================================================================
-   ORBITAL ROVER — styles
+   KODRO — styles
    Built on the Orbital Quill token system, retuned as a mission-control IDE.
    ========================================================================== */
 @import url('vendor/fonts.css');
@@ -51,18 +51,31 @@ body {
 /* ===================== App shell ===================== */
 .app {
   display:grid;
-  grid-template-rows:56px 1fr;
+  /* auto (not a fixed 56px) so the mission bar may wrap to a second row on a
+     narrow laptop instead of clipping its right-hand buttons offscreen. */
+  grid-template-rows:auto 1fr;
   height:100vh;
   background:var(--void);
 }
 
 /* --- Mission bar --- */
 .missionbar {
-  display:flex; align-items:center; gap:20px;
-  padding:0 18px;
+  display:flex; align-items:center; gap:8px 20px;
+  min-width:0; flex-wrap:wrap;
+  min-height:56px;
+  padding:6px 18px;
   background:linear-gradient(180deg,var(--navy-2),var(--navy));
   border-bottom:0.5px solid var(--border);
   position:relative; z-index:30;
+}
+/* Narrow laptop band (1100 to ~1360px): the full bar's min-content width ran
+   to ~1336px, pushing Settings offscreen with scrollbars hidden (bugs D1).
+   Dropping the icon-button text labels (their aria-labels keep the meaning)
+   and tightening gaps lets the whole bar fit on one row at 1280x800. */
+@media (max-width: 1360px) {
+  .missionbar { gap:8px 12px; }
+  .missionbar .icon-btn-label { display:none; }
+  .missionbar .icon-btn { min-width:32px; justify-content:center; }
 }
 .brand { display:flex; align-items:center; gap:11px; }
 .brand-mark { width:30px; height:30px; color:var(--cyan); flex:none; }
@@ -136,7 +149,11 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 /* --- Body grid --- */
 .workspace {
   display:grid;
-  grid-template-columns:var(--editor-w,400px) 1fr var(--tele-w,316px);
+  /* Five tracks: editor | resizer | viewport | resizer | telemetry. The 5px
+     resizer tracks used to be injected at runtime from app.jsx, which left
+     this rule and the injected one to drift apart; the single source now
+     lives here (the runtime injection was removed with it). */
+  grid-template-columns:var(--editor-w,404px) 5px 1fr 5px var(--tele-w,318px);
   min-height:0;
   background:var(--void);
 }
@@ -875,9 +892,42 @@ kbd {
 }
 .icon-btn:hover { color:var(--fg-1); border-color:var(--fg-3); background:rgba(245,240,228,0.04); }
 .icon-btn-label { font-size:11px; margin-left:4px; white-space:nowrap; }
+/* Current-robot chip: the built robot's identity in the mission bar; one
+   click opens the Robot Lab (product-coherence D3). */
+.robot-chip {
+  display:inline-flex; flex-direction:column; align-items:flex-start; justify-content:center;
+  gap:1px; height:34px; padding:0 10px; max-width:190px; flex:none;
+  background:transparent; border:1px solid var(--border); border-radius:5px;
+  color:var(--fg-1); cursor:pointer; text-align:left;
+  transition:all 140ms var(--ease);
+}
+.robot-chip:hover { border-color:var(--cyan); background:rgba(92,224,216,0.06); }
+.robot-chip .rc-name {
+  font-family:var(--font-body); font-size:12px; font-weight:600; line-height:1.1;
+  max-width:170px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.robot-chip .rc-meta {
+  font-family:var(--font-mono); font-size:9px; letter-spacing:0.08em;
+  text-transform:uppercase; color:var(--fg-3); line-height:1.1; white-space:nowrap;
+}
+
+/* A command the current build cannot run: greyed in the api-hint, with the
+   reason in its tooltip (availability-driven hint, product-coherence D5). */
+.api-hint .cmd-off {
+  color:var(--fg-4) !important;
+  text-decoration:line-through;
+  text-decoration-color:rgba(245,240,228,0.35);
+}
+
+/* Proximity cluster without a fitted range sensor (honest telemetry). */
+.dist-readout.no-range { display:flex; flex-direction:column; gap:2px; }
+
 .settings-wrap { position:relative; }
 .settings-pop {
   position:absolute; top:38px; right:0; z-index:90; width:248px;
+  /* Cap to the viewport and scroll internally so the popover can never run
+     past the bottom edge on a short (800px) laptop screen (bugs D1). */
+  max-height:calc(100vh - 80px); overflow-y:auto;
   background:linear-gradient(180deg,var(--navy-2),var(--navy));
   border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow-menu);
   padding:6px; display:flex; flex-direction:column; gap:2px;
@@ -901,6 +951,24 @@ kbd {
 .api-hint b { font-weight:500; color:var(--fg-2); }
 .api-hint .sep { color:var(--fg-4); }
 @media (prefers-reduced-motion: reduce) { .settings-pop { animation:none; } }
+
+/* Memory context chip in the Vibe panel: the reflection fed to the assistant,
+   made visible (the memory loop must be seen to be believed). */
+.vibe-ctx {
+  display:flex; flex-direction:column; gap:3px;
+  margin:2px 0 10px; padding:8px 10px;
+  background:rgba(92,224,216,0.06); border:1px solid rgba(92,224,216,0.25);
+  border-left:3px solid var(--cyan); border-radius:6px;
+}
+.vibe-ctx-tag {
+  font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.14em;
+  text-transform:uppercase; color:var(--cyan);
+}
+.vibe-ctx-text { font-size:12.5px; color:var(--fg-2); line-height:1.45; }
+
+/* Memory panel export/import cluster (head row, before the close button). */
+.mem-io { display:inline-flex; gap:4px; margin-right:6px; }
+.mem-io .mem-import { display:inline-flex; align-items:center; cursor:pointer; }
 
 /* Vibe chat thread (Claude/ChatGPT-style assistant inside the modal). */
 .vibe-thread {

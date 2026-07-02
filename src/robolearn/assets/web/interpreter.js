@@ -1,5 +1,5 @@
 /* ============================================================================
-   ORBITAL ROVER — Python-subset interpreter
+   KODRO — Python-subset interpreter
    A small tree-walking interpreter that supports enough Python to teach
    standard programming constructs: variables, arithmetic, comparisons,
    booleans, for/while loops, if/elif/else, range(), print(), and a `rover`
@@ -55,7 +55,10 @@
     read_distance: 'distance', read_heading: 'heading', read_battery: 'battery',
     read_colour: 'ground'
   };
-  const OBSTACLE_AHEAD_CM = 40;
+  // obstacle_ahead() threshold matches the Python engine's default of 0.5 m
+  // (rover_api.obstacle_ahead threshold_m=0.5), so a program branching on it
+  // takes the SAME branch in the browser sim and under the grader.
+  const OBSTACLE_AHEAD_CM = 50;
   const AT_BASE_CM = 20;
 
   // =========================================================================
@@ -131,7 +134,21 @@
     }
     if ((m = header.match(/^def\s+([A-Za-z_]\w*)\s*\((.*)\)$/))) {
       const params = m[2].trim() ? m[2].split(',').map(s => s.trim()) : [];
+      // Each parameter must be a simple name: "def go(x y):" or "def go(1a):"
+      // used to be swallowed silently (a parameter literally named "x y"),
+      // and other malformed defs surfaced as unrelated block errors. Name the
+      // real problem: the parameter list (bugs D7).
+      for (const p of params) {
+        if (!/^[A-Za-z_]\w*$/.test(p)) {
+          throw new RoverError('def ' + m[1] + '(...) has an invalid parameter list: each parameter must be a simple name, separated by commas.', line);
+        }
+      }
       return { kind: 'def', name: m[1], params: params, body: body, line: line };
+    }
+    if (/^def\b/.test(header)) {
+      // A def header that did not match the shape above (unbalanced parens,
+      // missing name): report it as a def problem, not "unsupported statement".
+      throw new RoverError('Invalid def: expected "def name(parameters):" with a valid parameter list.', line);
     }
     throw new RoverError('Unsupported statement: "' + header + '".', line);
   }
@@ -185,6 +202,11 @@
     if (eq >= 0) {
       const target = text.slice(0, eq).trim();
       if (!/^[A-Za-z_]\w*$/.test(target)) {
+        // An accented or non-Latin target is an attempted identifier: name
+        // the actual ASCII rule instead of the generic message (bugs D8).
+        if (/[^\x00-\x7F]/.test(target)) {
+          throw new RoverError('Cannot assign to "' + target + '": names must use ASCII letters (a to z, A to Z), digits and underscores.', line);
+        }
         throw new RoverError('Can only assign to a simple variable name.', line);
       }
       return { kind: 'assign', target: target, expr: parseExpr(text.slice(eq + 1), line), line: line };
@@ -262,6 +284,12 @@
       const two = src.substr(i, 2);
       if (['==', '!=', '<=', '>=', '//', '**'].indexOf(two) >= 0) { toks.push({ t: 'op', v: two }); i += 2; continue; }
       if ('+-*/%<>().,[]'.indexOf(c) >= 0) { toks.push({ t: 'op', v: c }); i++; continue; }
+      // A non-ASCII letter (cafe with an accent, a Greek variable) is almost
+      // always an attempted identifier: name the actual rule instead of a bare
+      // "unexpected character" (bugs D8).
+      if (/[^\x00-\x7F]/.test(c)) {
+        throw new RoverError('Unexpected character "' + c + '": names must use ASCII letters (a to z, A to Z), digits and underscores.', line);
+      }
       throw new RoverError('Unexpected character "' + c + '".', line);
     }
     return toks;

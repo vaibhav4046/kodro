@@ -291,10 +291,41 @@
       successCriteria: { reachGoal: true, maxCollisions: 1 },
       randomizationConfig: { friction: [0.6, 0.95], massTol: 0.15, sensorNoise: 22, obstacleJitter: 90, lighting: [0.4, 1.0] },
     },
+    mars_ridge: {
+      scenarioId: 'mars_ridge', name: 'Cross the boulder field to the ridge marker', environmentPreset: 'mars',
+      startPose: { x: 0, y: 1100, heading: 0 }, goalPose: { x: -150, y: -1150, r: 150 },
+      obstacles: [{ x: -80, y: 350, r: 150 }, { x: 220, y: -300, r: 140 }, { x: -250, y: -700, r: 130 }],
+      terrainMaterial: 'regolith', seed: 23,
+      successCriteria: { reachGoal: true, maxCollisions: 1 },
+      randomizationConfig: { friction: [0.6, 0.9], massTol: 0.15, sensorNoise: 20, obstacleJitter: 80, lighting: [0.3, 0.8] },
+    },
+    reef_survey: {
+      scenarioId: 'reef_survey', name: 'Thread the coral heads to the survey buoy', environmentPreset: 'underwater',
+      startPose: { x: 0, y: 1100, heading: 0 }, goalPose: { x: 250, y: -1100, r: 150 },
+      obstacles: [{ x: 60, y: 350, r: 140 }, { x: -220, y: -250, r: 150 }, { x: 180, y: -700, r: 120 }],
+      terrainMaterial: 'sediment', seed: 29,
+      successCriteria: { reachGoal: true, maxCollisions: 1 },
+      randomizationConfig: { friction: [0.5, 0.8], massTol: 0.12, sensorNoise: 25, obstacleJitter: 70, lighting: [0.1, 0.6] },
+    },
+    crater_line: {
+      scenarioId: 'crater_line', name: 'Reach the far crater rim beacon', environmentPreset: 'space',
+      startPose: { x: 0, y: 1150, heading: 0 }, goalPose: { x: -200, y: -1150, r: 160 },
+      obstacles: [{ x: 120, y: 300, r: 150 }, { x: -180, y: -350, r: 140 }],
+      terrainMaterial: 'regolith', seed: 31,
+      successCriteria: { reachGoal: true, maxCollisions: 1 },
+      randomizationConfig: { friction: [0.9, 1.2], massTol: 0.1, sensorNoise: 15, obstacleJitter: 90, lighting: [0.6, 1.0] },
+    },
   };
+  // Every base world has its OWN scenario (product-coherence D1: no more
+  // silently grading an Earth mission while Mars is on screen). A mission
+  // site validates on its base world's scenario; an unknown id falls back to
+  // the Earth traverse, which the caller labels.
   function defaultFor(worldId) {
     if (worldId === 'room') return PRESETS.room_reach;
     if (worldId === 'city') return PRESETS.city_cross;
+    if (worldId === 'mars') return PRESETS.mars_ridge;
+    if (worldId === 'underwater') return PRESETS.reef_survey;
+    if (worldId === 'space') return PRESETS.crater_line;
     return PRESETS.terrain_traverse;
   }
 

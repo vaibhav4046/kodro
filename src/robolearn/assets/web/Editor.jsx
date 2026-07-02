@@ -1,5 +1,5 @@
 /* ============================================================================
-   ORBITAL ROVER — Code editor
+   KODRO — Code editor
    Transparent textarea over a syntax-highlighted <pre>, with a line-number
    gutter and an active-line marker driven by the interpreter.
    Exposes window.Editor

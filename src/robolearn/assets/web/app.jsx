@@ -1,5 +1,5 @@
 /* ============================================================================
-   ORBITAL ROVER — App (runtime + UI wiring)
+   KODRO — App (runtime + UI wiring)
    ========================================================================== */
 (function () {
   const { useState, useRef, useEffect, useCallback } = React;
@@ -87,6 +87,11 @@
     const odoRef = useRef(0);
     const [odo, setOdo] = useState(0);
     const [sensorDist, setSensorDist] = useState(600);
+    // Per-run stats for the post-run verdict (bugs D5): closest approach the
+    // range sensor saw during the run, and how many real commands the program
+    // actually executed. Both reset with the rover so each run reports itself.
+    const minProxRef = useRef(Infinity);
+    const cmdCountRef = useRef(0);
 
     // RoboLearn bridge: lessons (from Python), currently-loaded lesson id,
     // pupil + verdict + hint after a graded Run. The React app stays
@@ -242,9 +247,16 @@
     const [robotSpec, setRobotSpec] = useState(() => (window.getKodroRobot ? window.getKodroRobot() : null));
     useEffect(() => {
       const onRobot = (e) => {
-        setRobotSpec(e.detail);
+        // Resolve a partial detail (a dispatcher may send { type } only)
+        // through the archetype defaults, and keep the runtime accessor
+        // (window.KODRO_ROBOT, read by the sensor gate) in lockstep with the
+        // UI's robotSpec -- ONE build drives both, or telemetry could claim
+        // "no range sensor" while distance() happily reads (D3 coherence).
+        const full = (window.resolveKodroRobot ? window.resolveKodroRobot(e.detail) : e.detail) || e.detail;
+        setRobotSpec(full);
+        try { window.KODRO_ROBOT = full; } catch (err) { void err; }
         // Drop the new robot into the world the assistant recommends for it.
-        const w = e.detail && e.detail.world;
+        const w = full && full.world;
         if (w && window.TERRAINS && window.TERRAINS[w]) {
           setTerrainId(w);
           try { localStorage.setItem('or_terrain', w); } catch (err) { void err; }
@@ -254,7 +266,7 @@
         // refusal. Move off it to the base-command 'starter' so the first Run
         // after picking, say, a camera-only arm still works.
         try {
-          const canRange = !window.KodroCommands || window.KodroCommands.check(e.detail, 'distance').ok;
+          const canRange = !window.KodroCommands || window.KodroCommands.check(full, 'distance').ok;
           if (!canRange) setActiveTab((t) => (t === 'autopilot' || t === 'avoid') ? 'drive' : t);
         } catch (err) { void err; }
       };
@@ -303,9 +315,11 @@
     // scenario that fits this robot, persist the report, and open the dashboard.
     function runValidation() {
       if (!window.KodroScenario) { addConsole('Validation unavailable.', 'err'); return; }
-      const robot = (window.getKodroRobot && window.getKodroRobot()) || {};
-      const scn = window.KodroScenario.defaultFor(robot.world || (terrain && terrain.id));
-      addConsole('Validating across 5 randomised seeds in "' + scn.name + '" (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
+      // Validate the world ON SCREEN, not the robot's recommended world: the
+      // verdict must be about what the user is looking at (product-coherence
+      // D1). A mission site validates on its base world's scenario.
+      const scn = window.KodroScenario.defaultFor(terrain && terrain.id);
+      addConsole('Validating across 5 randomised seeds in "' + scn.name + '" on ' + (terrain.name || terrain.id) + ' (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
       const rep = window.KodroScenario.run(code, scn, 5);
       const a = rep.aggregate;
       // A compile error in the program is a code mistake, not a 0% behaviour
@@ -316,6 +330,12 @@
         return;
       }
       addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', (a.passed ? 'ok' : 'warn'));
+      // "0%" without context reads as a broken product when the program simply
+      // never drove to the goal. Say exactly what 0% measures, and point at
+      // the marker the viewport now draws (product-coherence D1).
+      if ((a.successRate || 0) === 0) {
+        addConsole('0% success means the program never reached the goal marker (the cyan beacon ring drawn in the viewport). It is a mission result, not a crash count.', 'sys');
+      }
       setRealismOpen(true);
     }
     // Chat thread: [{role:'user'|'ai', kind:'text'|'code', text}]
@@ -663,8 +683,10 @@
         if (Math.hypot(o.x - x, o.y - y) < o.r + R) return { type: 'obstacle', o };
       }
       // Moving agents (pedestrians and traffic) are real obstacles too: the
-      // robot must avoid them, not just the parked cars and buildings.
-      if (window.KodroAgents && window.KodroAgents.world() === terrain.id) {
+      // robot must avoid them, not just the parked cars and buildings. The
+      // agent sim is keyed by the SITE id when a mission site is active
+      // (App builds it with terrainId), so gate on the same id.
+      if (window.KodroAgents && window.KodroAgents.world() === (terrain.siteId || terrain.id)) {
         for (const a of window.KodroAgents.list()) {
           if (Math.hypot(a.x - x, a.y - y) < a.r + R) return { type: a.kind === 'person' ? 'pedestrian' : a.kind === 'robot' ? 'robot' : 'vehicle', o: a };
         }
@@ -692,8 +714,9 @@
         const t = tca - Math.sqrt(rr - d2);
         if (t > 0) best = Math.min(best, t);
       }
-      // the sensor also picks up moving agents in the robot's path
-      if (window.KodroAgents && window.KodroAgents.world() === terrain.id) {
+      // the sensor also picks up moving agents in the robot's path (same
+      // site-aware world key as the collision test above)
+      if (window.KodroAgents && window.KodroAgents.world() === (terrain.siteId || terrain.id)) {
         for (const o of window.KodroAgents.list()) {
           const ox = o.x - x, oy = o.y - y;
           const tca = ox * dx + oy * dy;
@@ -853,7 +876,9 @@
         s.x = nx; s.y = ny;
         s.battery = Math.max(0, b0 - drainFull * cf);
         pushTrailPoint();
-        setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading)));
+        const dNow = rayDistance(s.x, s.y, s.heading);
+        if (dNow < minProxRef.current) minProxRef.current = dNow;
+        setSensorDist(Math.round(dNow));
         sync();
         if (outOfCharge) { flat = true; return true; } // halted at battery zero
         return false;
@@ -958,6 +983,10 @@
         catch (e) { handleRuntimeError(e); return false; }
         if (res.done) { finishProgram(); return false; }
         const ev = res.value;
+        // Everything except a bookkeeping 'step' is a real command the program
+        // executed; the count feeds the post-run verdict so an empty program
+        // cannot claim "the design held up" (bugs D5).
+        if (ev.type !== 'step') cmdCountRef.current++;
         if (ev.line) setActiveLine(ev.line);
         switch (ev.type) {
           case 'step': await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
@@ -1015,6 +1044,18 @@
 
     function handleRuntimeError(e) {
       const msg = (e && e.message) ? e.message : String(e);
+      // A live-terminal (REPL) error is a one-line affair: report it in the
+      // console, but do NOT highlight an editor line ("Line 1" of a terminal
+      // one-liner is not a line of the user's program) and do NOT flip the
+      // studio into the Halted state -- the editor program never ran, let
+      // alone failed (bugs D6). replRef is cleared here AND in haltProgram/
+      // resetRover so the flag can never leak into the next editor run.
+      if (replRef.current) {
+        replRef.current = false;
+        addConsole(msg, 'err');
+        haltProgram('idle');
+        return;
+      }
       const line = e && e.line;
       if (line) setActiveLine(line);
       addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
@@ -1032,10 +1073,18 @@
       if (window.KodroMemory) {
         window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'done', detail: 'finished without a collision', ts: Date.now() });
       }
-      // Coach: confirm the design held up, or name what to still watch.
+      // Coach: confirm the design held up, or name what to still watch. The
+      // verdict reads the run's OWN stats (distance covered, closest approach,
+      // commands executed) so it describes what actually happened, not just
+      // the pre-run prediction (bugs D5).
       if (window.KodroDiagnostics) {
         const robotNow = window.getKodroRobot ? window.getKodroRobot() : {};
-        const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotNow, terrain), { outcome: 'done' });
+        const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotNow, terrain), {
+          outcome: 'done',
+          commands: cmdCountRef.current,
+          distanceCm: Math.round(odoRef.current),
+          minProximityCm: isFinite(minProxRef.current) ? Math.round(minProxRef.current) : null,
+        });
         if (v) addConsole(v.text, v.tone);
       }
       // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
@@ -1068,6 +1117,10 @@
     function haltProgram(state) {
       ctrl.current.running = false; ctrl.current.abort = false;
       genRef.current = null;
+      // The REPL flag must not outlive the run that set it: a leaked true
+      // makes the NEXT editor run finish silently (no "Program finished.",
+      // no toast, no memory record, no verdict, no grading) -- bugs D2.
+      replRef.current = false;
       live.current.moving = false; sync();
       setRunState(state || 'idle');
     }
@@ -1077,6 +1130,14 @@
       try {
         const interp = window.RoverLang.compile(code);
         genRef.current = interp.run(host);
+        // Deprecated-dialect lint (product-coherence D4): rover.forward(100)
+        // still runs as a centimetre-based compatibility alias, but the
+        // canonical API is the bare metre-based dialect every shipped example
+        // and the grader use. Say so once per run, at compile time, so mixed
+        // programs stop reading as two different products.
+        if (/\brover\s*\./.test(code)) {
+          addConsole('Note: rover.forward(100) is the legacy centimetre dialect. It still runs, but new code should use the bare metre API, e.g. move_forward(1).', 'sys');
+        }
         return true;
       } catch (e) {
         handleRuntimeError(e);
@@ -1100,11 +1161,14 @@
       trailRef.current = []; setTrail([]);
       setProps([]);
       odoRef.current = 0; setOdo(0);
+      minProxRef.current = Infinity;
+      cmdCountRef.current = 0;
       setSensorDist(600);
       setActiveLine(0);
       setSay('');
       sync();
       genRef.current = null;
+      replRef.current = false;  // a Reset always exits terminal mode (bugs D2)
       ctrl.current.abortTimer = setTimeout(() => { ctrl.current.abort = false; ctrl.current.abortTimer = null; }, 30);
       if (clearConsole) setConsoleLines([{ type: 'sys', text: 'Reset. Rover at origin.' }]);
     }
@@ -1203,9 +1267,20 @@
       // old TERRAINS[id].name threw a TypeError that killed the render.
       const t = (window.resolveSite ? window.resolveSite(id) : null) || TERRAINS[id] || TERRAINS.earth;
       setConsoleLines([{ type: 'sys', text: 'Switched to ' + (t.name || id) + '.' + (t.coord ? ' ' + t.coord : '') }]);
-      // The 3D viewport rebuilds on a terrain change (keyed by terrain.id) and
-      // can flash an empty canvas for a frame while it spins up. Cover that with
-      // a 200ms "Loading..." cue so the transition reads as intentional.
+      // Memory made visible: if a saved skill was built for THIS world, say so
+      // on entry -- the skill library exists but was invisible unless the user
+      // happened to open the Memory panel (product-coherence D7). Exact world
+      // matches only, so the toast never fires on a loose fallback.
+      try {
+        if (window.KodroMemory && window.KodroMemory.findSkill) {
+          const sk = window.KodroMemory.findSkill(t.id, robotSpec && robotSpec.type);
+          if (sk && sk.world === t.id) showToast('Saved skill "' + sk.name + '" fits this world. Open Memory to reuse it.', 'info');
+        }
+      } catch (err) { void err; }
+      // The 3D viewport rebuilds on any terrain OR mission-site change (keyed
+      // by siteId || id, so a site switch on the same base world remounts too)
+      // and can flash an empty canvas for a frame while it spins up. Cover that
+      // with a 200ms "Loading..." cue so the transition reads as intentional.
       setWorldLoading({ name: t.name || id });
       setTimeout(() => setWorldLoading(null), 200);
     }
@@ -1362,7 +1437,11 @@
       return () => { document.removeEventListener('keydown', onKey, true); if (prev && prev.focus) prev.focus(); };
     }, [anyModalOpen]);
 
-    const statusLabel = { idle: 'Standby', running: 'Running', paused: 'Paused', done: 'Complete', error: 'Halted' }[runState];
+    // Shared vocabulary (app-data.jsx): telemetry renders the SAME labels.
+    const statusLabel = (window.KodroStatusLabels || { idle: 'Standby', running: 'Running', paused: 'Paused', done: 'Complete', error: 'Halted' })[runState];
+    const chipName = (robotSpec && robotSpec.name) || 'Robot';
+    const chipType = (robotSpec && robotSpec.type) || null;
+    const chipMass = (robotSpec && robotSpec.mass) || null;
 
     return (
       <div className="app">
@@ -1398,6 +1477,20 @@
             <span>{statusLabel}</span>
           </div>
           <div className="bar-divider"></div>
+          {/* Current-robot chip: the designed robot has a visible identity in
+              the studio chrome (name, type, mass), and one click opens the
+              Robot Lab to change it (product-coherence D3). */}
+          <button
+            className="robot-chip"
+            title="Current robot build. Click to open the Robot Lab"
+            aria-label={'Current robot: ' + chipName + (chipType ? ', type ' + chipType : '') + (chipMass ? ', mass ' + chipMass + ' grams' : '') + '. Open Robot Lab'}
+            onClick={() => setRobotLabOpen(true)}
+          >
+            <span className="rc-name">{chipName}</span>
+            {(chipType || chipMass) && (
+              <span className="rc-meta">{chipType || ''}{chipType && chipMass ? ' · ' : ''}{chipMass ? chipMass + ' g' : ''}</span>
+            )}
+          </button>
           <button className="icon-btn voice-agent-btn" title="Talk to Kodro. Speak a command or ask a question" aria-label="Voice agent — speak a command or ask a question" onClick={() => { setVaOpen(true); setVaData(null); runVoiceAgent(); }}>🎙<span className="icon-btn-label">Voice</span></button>
           <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab — design a custom robot" onClick={() => setRobotLabOpen(true)}>🛠<span className="icon-btn-label">Robot Lab</span></button>
           <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills — what the system learned, and your skill library" onClick={() => setMemoryOpen(true)}>🧠<span className="icon-btn-label">Memory</span></button>
@@ -1494,10 +1587,41 @@
                 </div>
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
-              <div className="api-hint">
-                <b>move_forward(m)</b> · <b>move_backward(m)</b> · <b>turn_left(°)</b> · <b>turn_right(°)</b> · <b>set_speed(0–100)</b> · <b>pen_down/up()</b> · <b>scan()</b> · <b>led("cyan")</b> · <b>say("…")</b> · <b>collect_sample()</b> · <b>place("flag")</b>
-                <span className="sep"> · sensors return values: </span><b>distance()</b> · <b>heading()</b> · <b>battery()</b> · <b>obstacle_ahead()</b> · <b>gravity()</b> · <b>temperature()</b>
-              </div>
+              {(() => {
+                // The hint strip is driven by the SAME availability source the
+                // blocks palette and the runtime gate use (KodroCommands), so
+                // it can never advertise a command this build refuses: a
+                // command whose part is missing renders greyed out with the
+                // reason in its tooltip (product-coherence D5). The old static
+                // strip also advertised the collect_sample()/drop_sample()
+                // print stubs; only real, runnable commands are listed now.
+                const gateOk = (g) => !g || !window.KodroCommands || window.KodroCommands.check(robotSpec, g).ok;
+                const ACTION_HINTS = [
+                  ['move_forward(m)', null], ['move_backward(m)', null], ['turn_left(°)', null], ['turn_right(°)', null],
+                  ['set_speed(0–100)', null], ['pen_down/up()', null], ['wait(s)', null], ['scan()', 'scan'],
+                  ['led("cyan")', null], ['say("…")', null], ['place("flag")', null],
+                ];
+                const SENSOR_HINTS = [
+                  ['distance()', 'distance'], ['heading()', 'heading'], ['battery()', null],
+                  ['obstacle_ahead()', 'distance'], ['gravity()', null], ['temperature()', null],
+                ];
+                const hint = ([label, g], i) => {
+                  const ok = gateOk(g);
+                  return (
+                    <React.Fragment key={label}>
+                      {i > 0 ? ' · ' : null}
+                      <b className={ok ? undefined : 'cmd-off'} title={ok ? undefined : 'Not available on this build. Fit the missing part in the Robot Lab.'}>{label}</b>
+                    </React.Fragment>
+                  );
+                };
+                return (
+                  <div className="api-hint">
+                    {ACTION_HINTS.map(hint)}
+                    <span className="sep"> · sensors return values: </span>
+                    {SENSOR_HINTS.map(hint)}
+                  </div>
+                );
+              })()}
               {(() => {
                 const lesson = lessons.find(l => l.id === currentLessonId);
                 if (!lesson) return null;
@@ -1631,7 +1755,7 @@
               </span>
             </div>
             {view3d
-              ? <window.Viewport3D key={'vp3d-' + (terrain && terrain.id) + '-' + (robotSpec && robotSpec.type) + (quality === 'cinematic' ? '-cine' : '-std')} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the 2.5D view.', 'sys'); }} />
+              ? <window.Viewport3D key={'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + (quality === 'cinematic' ? '-cine' : '-std')} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the 2.5D view.', 'sys'); }} />
               : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
             {worldLoading && (
               <div className="world-loading" role="status" aria-live="polite" aria-label={'Loading ' + worldLoading.name}>
@@ -1650,10 +1774,12 @@
             <div className="panel-head">
               <span className="eyebrow">Telemetry</span>
               <div className="ph-spacer" style={{ flex: 1 }}></div>
-              <span className="num" style={{ fontSize: 10, color: 'var(--fg-3)', letterSpacing: '0.1em' }}>OQ-ROVER-04</span>
+              {/* The panel is captioned with the robot the user actually
+                  built, not a hard-coded callsign (product-coherence D3). */}
+              <span className="num" style={{ fontSize: 10, color: 'var(--fg-3)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{chipName}</span>
               <button type="button" className="tele-toggle" aria-expanded={!teleCollapsed} aria-label={teleCollapsed ? 'Expand telemetry panel' : 'Collapse telemetry panel'} onClick={() => setTeleCollapsed(c => !c)}>{teleCollapsed ? '▸' : '▾'}</button>
             </div>
-            <window.Telemetry rover={rover} terrain={terrain} sensorDist={sensorDist} odometer={odo} />
+            <window.Telemetry rover={rover} terrain={terrain} sensorDist={sensorDist} odometer={odo} robot={robotSpec} runState={runState} />
           </div>
         </main>
 
@@ -1685,9 +1811,9 @@
 
         {reviewOpen && <window.KodroPanels.ReviewModal reviewBusy={reviewBusy} setReviewOpen={setReviewOpen} reviewErr={reviewErr} reviewData={reviewData} applyReview={applyReview} />}
 
-        {realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, { onClose: () => setRealismOpen(false) })}
+        {realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, { onClose: () => setRealismOpen(false), terrain: terrain })}
         {demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, { onClose: () => setDemoOpen(false) })}
-        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} micBusy={micBusy} vibeMic={vibeMic} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} />}
+        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} micBusy={micBusy} vibeMic={vibeMic} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} />}
 
         {blocksOpen && <window.KodroPanels.BlocksModal setBlocksOpen={setBlocksOpen} BLOCK_DEFS={BLOCK_DEFS} robotSpec={robotSpec} addBlock={addBlock} endBlock={endBlock} blockIndent={blockIndent} setBlockIndent={setBlockIndent} blocks={blocks} setBlocks={setBlocks} moveBlock={moveBlock} removeBlock={removeBlock} insertBlocksCode={insertBlocksCode} />}
 
@@ -1720,10 +1846,10 @@
   // via currentColor so it inherits whatever colour .brand-mark sets (theme-safe).
   const ORBIT_SVG = window.KodroOrbitSvg || '';
 
-  // adjust grid columns to include resizer tracks
-  const style = document.createElement('style');
-  style.textContent = '.workspace{grid-template-columns:var(--editor-w) 5px 1fr 5px var(--tele-w);}';
-  document.head.appendChild(style);
+  // The 5-track .workspace grid (editor | resizer | viewport | resizer |
+  // telemetry) lives in styles.css next to the rest of the layout; the old
+  // runtime <style> injection that duplicated it was a maintenance landmine
+  // (two competing sources for the same rule) and is gone.
 
   ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 })();

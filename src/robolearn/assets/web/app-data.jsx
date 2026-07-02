@@ -60,104 +60,104 @@ print("Base camp built: 1 beacon, 4 crates, 3 flags, 2 crew, 1 tree, 1 rock")`
     autopilot: {
       label: 'autopilot.py',
       code: `# AUTOPILOT - the rover drives itself, like a self-driving car.
-# Every step it reads its lidar. It ONLY moves forward when the way
-# is clear, so it can never hit a boulder OR the arena wall. When
+# Every step it reads its range sensor. It ONLY moves forward when the
+# way is clear, so it can never hit a boulder OR the arena wall. When
 # something looms it scans, probes left + right, and steers toward
 # the side with more room. Pure sense-think-act. Press Run and watch.
-rover.set_speed(72)
-rover.pen_down()
-rover.led("cyan")
-rover.say("Autopilot engaged")
+set_speed(72)
+pen_down()
+led("cyan")
+say("Autopilot engaged")
 
 legs = 0
 dodges = 0
 scans = 0
 steps = 0
 
-# Self-drive: it only moves forward when the lidar says the way is clear,
-# so it can never hit a boulder OR the arena wall. Whenever something looms
-# it scans, probes left + right, and steers toward the side with more room -
-# so it roams the whole field, dodging as it goes. Always terminates.
+# Self-drive: it only moves forward when the range sensor says the way is
+# clear, so it can never hit a boulder OR the arena wall. Whenever something
+# looms it scans, probes left + right, and steers toward the side with more
+# room - so it roams the whole field, dodging as it goes. Always terminates.
 while legs < 60 and steps < 220:
     steps = steps + 1
-    ahead = rover.distance()
+    ahead = distance()
 
     if ahead < 150:
         # Boulder or wall ahead: scan, sense both sides, steer clear.
-        rover.led("amber")
-        rover.scan()
+        led("amber")
+        scan()
         scans = scans + 1
-        rover.turn_left(60)
-        left = rover.distance()
-        rover.turn_right(120)
-        right = rover.distance()
+        turn_left(60)
+        left = distance()
+        turn_right(120)
+        right = distance()
         if left > right:
-            rover.turn_left(150)
+            turn_left(150)
         else:
-            rover.turn_left(25)
+            turn_left(25)
         dodges = dodges + 1
-        rover.led("cyan")
+        led("cyan")
     else:
-        rover.forward(40)
+        move_forward(0.4)
         legs = legs + 1
 
-rover.led("green")
-rover.say("Area mapped")
+led("green")
+say("Area mapped")
 print("Legs driven:", legs)
 print("Boulders dodged:", dodges)
-print("Lidar scans:", scans)`
+print("Range scans:", scans)`
     },
     drive: {
       label: 'starter.py',
       code: `# Welcome to Kodro.
 # Edit freely, then press Run. The API is listed below.
-rover.set_speed(60)
-rover.pen_down()
+set_speed(60)
+pen_down()
 
-rover.forward(200)
-rover.turn_left(90)
-rover.forward(140)
-rover.say("Hello, terrain")`
+move_forward(2)
+turn_left(90)
+move_forward(1.4)
+say("Hello, terrain")`
     },
     square: {
       label: 'square.py',
-      code: `# A for-loop draws a square. Change the 4 or the 300.
-rover.pen_down()
-rover.set_speed(75)
+      code: `# A for-loop draws a square. Change the 4 or the 3.
+pen_down()
+set_speed(75)
 
 for side in range(4):
-    rover.forward(300)
-    rover.turn_right(90)
+    move_forward(3)
+    turn_right(90)
 
 print("Square complete.")`
     },
     spiral: {
       label: 'spiral.py',
       code: `# Variables + loops make an expanding spiral.
-rover.pen_down()
-rover.set_speed(85)
+pen_down()
+set_speed(85)
 
-step = 40
+step = 0.4
 for i in range(20):
-    rover.forward(step)
-    rover.turn_right(42)
-    step = step + 20
+    move_forward(step)
+    turn_right(42)
+    step = step + 0.2
 
 print("Drew", i + 1, "segments.")`
     },
     avoid: {
       label: 'avoid.py',
-      code: `# Obstacle avoidance: read the lidar, branch with if/else.
-rover.set_speed(80)
-rover.pen_down()
+      code: `# Obstacle avoidance: read the range sensor, branch with if/else.
+set_speed(80)
+pen_down()
 
 trips = 0
 while trips < 30:
-    front = rover.distance()
+    front = distance()
     if front < 150:
-        rover.turn_right(55)
+        turn_right(55)
     else:
-        rover.forward(80)
+        move_forward(0.8)
     trips = trips + 1
 
 print("Finished after", trips, "moves.")`
@@ -165,11 +165,11 @@ print("Finished after", trips, "moves.")`
     survey: {
       label: 'survey.py',
       code: `# Sensors + conditionals: profile the environment.
-rover.led("amber")
-rover.scan()
+led("amber")
+scan()
 
-g = rover.gravity()
-t = rover.temperature()
+g = gravity()
+t = temperature()
 print("Gravity:", g, "m/s^2")
 print("Temperature:", t, "C")
 
@@ -178,13 +178,20 @@ if g < 4:
 else:
     print("Standard footing.")
 
-rover.led("green")
-rover.forward(240)
-rover.say("Survey done")`
+led("green")
+move_forward(2.4)
+say("Survey done")`
     }
   };
 
   const LED_COLORS = { red: '#d06a6a', amber: '#e0b45c', green: '#7cc49b', cyan: '#5ce0d8', blue: '#aeb8e8', white: '#f5f0e4', off: null };
+
+  // ---------------- shared run-status vocabulary ----------------
+  // ONE label per run state, rendered by BOTH the mission bar and the
+  // telemetry rail, so the two surfaces can never contradict each other
+  // (the old telemetry DRIVING/IDLE pair read "IDLE" beside a mission bar
+  // saying "Halted" after a crash -- product-coherence D11).
+  const STATUS_LABELS = { idle: 'Standby', running: 'Running', paused: 'Paused', done: 'Complete', error: 'Halted' };
 
   // ---------------- Scratch-style block palette ----------------
   // Pure data: each entry's `code` is a stateless code-generator that only reads
@@ -223,6 +230,7 @@ rover.say("Survey done")`
   if (typeof window !== 'undefined') {
     window.KodroExamples = EXAMPLES;
     window.KodroLedColors = LED_COLORS;
+    window.KodroStatusLabels = STATUS_LABELS;
     window.KodroBlockDefs = BLOCK_DEFS;
     window.KodroTweakDefaults = TWEAK_DEFAULTS;
     window.KodroOrbitSvg = ORBIT_SVG;
