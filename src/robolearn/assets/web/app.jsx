@@ -6,7 +6,7 @@
   const TERRAINS = window.TERRAINS;
   const WALL = TERRAINS.WALL;
   const RobotLab = window.RobotLab;
-  const R = 30; // rover collision radius (cm)
+  const R_DEFAULT = 30; // rover collision radius (cm) for catalogue builds
   // Live check (re-evaluated per move) so toggling the OS setting takes effect.
   const PREFERS_REDUCED_MOTION = () =>
     typeof window !== 'undefined' && window.matchMedia
@@ -573,6 +573,8 @@
     const ctrl = useRef({ running: false, abort: false, advancing: false, token: 0, startTimer: null, abortTimer: null });
     const genRef = useRef(null);
     const sayTimer = useRef(null);
+    // Wall-clock start of the current editor run (SI3 measured-speed block).
+    const runStartRef = useRef(0);
 
     const consoleEndRef = useRef(null);
     useEffect(() => { if (consoleEndRef.current) consoleEndRef.current.scrollTop = consoleEndRef.current.scrollHeight; }, [consoleLines]);
@@ -647,6 +649,10 @@
     }
 
     // ---------- geometry / sensors ----------
+    // SI2: the collision circle honours an imported spec's body footprint
+    // (R = hypot(length, width)/2, still a circle, disclosed); a catalogue
+    // build keeps the exact 30 cm the sim has always used.
+    const R = (robotSpec && robotSpec.phys && robotSpec.phys.collisionRadiusCm) || R_DEFAULT;
     function collisionAt(x, y) {
       if (Math.abs(x) > WALL - R || Math.abs(y) > WALL - R) return { type: 'wall' };
       for (const o of terrain.obstacles) {
@@ -700,6 +706,17 @@
       }
       return Math.max(0, best);
     }
+    // SI2: an imported spec's ultrasonic mounts WHERE the builder put it: the
+    // ray starts at the mount offset, points along the mount yaw, and reads
+    // at most the sensor's real range (HONOURED; z ignored and disclosed). A
+    // catalogue build keeps the body-centre ray and the 600 cm view exactly.
+    function sensorRayDistance(st) {
+      const rb = window.KODRO_ROBOT;
+      const sp = rb && rb.phys && rb.phys.sensor;
+      if (!sp || !window.KodroMotion) return rayDistance(st.x, st.y, st.heading);
+      const pose = window.KodroMotion.sensorPose(st.x, st.y, st.heading, sp.fwdCm, sp.leftCm, sp.yawDeg);
+      return Math.min(sp.rangeCm, rayDistance(pose.x, pose.y, pose.heading));
+    }
     const host = {
       sensor(name, args) {
         const s = live.current;
@@ -714,7 +731,7 @@
         }
         switch (name) {
           case 'distance': {
-            const d = Math.round(rayDistance(s.x, s.y, s.heading));
+            const d = Math.round(sensorRayDistance(s));
             setSensorDist(d); return d;
           }
           case 'heading': return Math.round(((s.heading % 360) + 360) % 360);
@@ -809,26 +826,70 @@
       // The robot designed in Robot Lab drives the sim: a heavier build drains
       // the battery faster, and a stronger motor set raises the top speed.
       const robot = window.getKodroRobot ? window.getKodroRobot() : null;
+      const KM = window.KodroMotion;
+      // SI2: an imported KRS spec carries a physical block (robot.phys) whose
+      // measured numbers drive the tick; a catalogue parts build has no such
+      // block and takes the byte-identical pre-SI2 path through the shared
+      // motion model (E-P1: same constants, same formulas, one source).
+      const physR = robot && robot.phys;
       const massFac = robot && robot.massFactor ? robot.massFactor : 1;
       const speedFac = robot && robot.speedFactor ? robot.speedFactor : 1;
       // Mobility: too much weight for the grip its motors get on this surface
       // makes the robot crawl or stall, so an underpowered design visibly
       // struggles instead of gliding along regardless of what was built.
+      // Physical builds use the real tractive-force ratio (stall torque over
+      // weight, E-A1); catalogue builds keep the proxy score.
       const hasDrive = robot && robot.actuators && robot.actuators.some(function (a) { return a === 'motors2' || a === 'motors4' || a === 'servos'; });
-      const mob = window.KodroDiagnostics ? window.KodroDiagnostics.mobilityScore(speedFac, massFac, terrain.traction) : 1;
-      const mobMul = !hasDrive ? 0.22 : mob < 0.45 ? 0.35 : mob < 0.75 ? 0.7 : 1;
-      const sp = Math.max(8, s.speed) * speedFac * mobMul;
-      // 0.32s per (cm/speed); lower-traction terrain drives a little slower.
-      const dur = (total / sp) * 1000 * 0.32 / (terrain.traction * speedMulRef.current);
-      // Real physics: heavier worlds drain the battery faster, lighter worlds
-      // less (Moon ~0.58x Earth) -- pupils can measure the difference.
-      const gFac = 0.5 + 0.5 * ((terrain.env.gravity || 9.81) / 9.81);
+      const mob = physR && physR.stallForceN !== undefined
+        ? KM.physMobility(physR.stallForceN, physR.massKg, terrain.traction, terrain.env.gravity)
+        : (window.KodroDiagnostics ? window.KodroDiagnostics.mobilityScore(speedFac, massFac, terrain.traction) : 1);
+      // E-A5: a physically-specified build that cannot move here HALTS with a
+      // torque verdict instead of the catalogue 0.35x crawl - a stall is a
+      // result, not an animation style.
+      if (hasDrive && physR && physR.stallForceN !== undefined && KM) {
+        const sv = KM.physStallVerdict(physR.stallForceN, physR.massKg, terrain.traction, terrain.env.gravity, physR.motorCount || 2, physR.wheelRadiusCm || 3);
+        if (sv.stalled) {
+          s.moving = false; sync();
+          addConsole('Stalled: this build cannot move on ' + terrain.name + '. It needs about ' + sv.neededNm.toFixed(2) + ' N*m per motor here and has ' + sv.hasNm.toFixed(2) + ' N*m. Robot halted.', 'err');
+          showToast('Drive stalled', 'err');
+          if (window.KodroMemory) {
+            const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'stalled', detail: 'underpowered drive', ts: Date.now() });
+            if (refl) addConsole('Reflection saved: ' + refl, 'sys');
+          }
+          if (window.KodroDiagnostics) {
+            const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), { outcome: 'stalled' });
+            if (v) addConsole(v.text, v.tone);
+          }
+          haltProgram('error');
+          return false;
+        }
+      }
+      const mobMul = KM.mobilityMultiplier(hasDrive, mob);
+      // Speed: the catalogue chain keeps the calibrated 3.125 m/s anchor
+      // (0.32 ms per cm per speed unit); a physical build honours its
+      // motor-derived top speed at set_speed(100) exactly (E-A1, HONOURED).
+      const physV = physR && physR.vMaxSimCmPerS !== undefined
+        ? physR.vMaxSimCmPerS * (Math.max(8, s.speed) / 100) * mobMul * terrain.traction
+        : null;
+      const dur = physV !== null
+        ? (total / physV) * 1000 / speedMulRef.current
+        : KM.moveDurationMs(total, KM.effectiveSpeedUnits(s.speed, speedFac, mobMul), terrain.traction, speedMulRef.current);
       s.moving = true;
       // new trail segment if pen down
       if (s.penDown) { trailRef.current.push([{ x: x0, y: y0 }]); setTrail([...trailRef.current]); }
       // Battery drains smoothly across the move (was a no-op: subtracted 0).
+      // Catalogue: the shared constant-power ledger (heavier worlds drain
+      // faster, Moon ~0.58x Earth). Physical: the energy-true model (E-A2),
+      // P = F*v/eta + idle, drawn against the pack's real watt-hours.
       const b0 = s.battery;
-      const drainFull = total * 0.011 * gFac * massFac / terrain.traction;
+      let drainFull;
+      if (physR && physR.energyWh !== undefined) {
+        drainFull = physV !== null
+          ? total * KM.physDrainPctPerCm(physR.massKg, physR.energyWh, physV, terrain.env.gravity, terrain.traction)
+          : total * physR.drainPctPerCmNominal;
+      } else {
+        drainFull = KM.moveDrainPct(total, terrain.env.gravity, massFac, terrain.traction);
+      }
       let crashed = false, flat = false;
       // ---- physical acceleration, inertia and braking ----------------------
       // The robot does not snap to top speed and stop dead. It ramps up, holds
@@ -839,8 +900,19 @@
       // and the headless interpreter QA, which uses its own kinematics, is too.
       const inertia = Math.min(0.92, Math.max(0.12, (massFac - 0.6) / 1.4));
       const carried = Math.min(1, Math.max(0, s.vel || 0));
-      let accelFrac = (0.18 + 0.30 * inertia) * (1 - 0.85 * carried);
-      let brakeFrac = 0.16 + 0.34 * inertia;
+      let accelFrac, brakeFrac;
+      if (physR && physR.accelCmPerS2 !== undefined && physV !== null) {
+        // E-A1: real ramp time t = v/a from the motor's closed-form
+        // acceleration a = (F_stall - Crr*m*g)/m, replacing the inertia
+        // heuristic. The endpoint stays exact; only the shape changes.
+        const dur0 = (total / physV) * 1000; // unscaled ms (sim-speed invariant)
+        const rampMs = (physV / physR.accelCmPerS2) * 1000;
+        accelFrac = Math.min(0.45, rampMs / Math.max(1, dur0)) * (1 - 0.85 * carried);
+        brakeFrac = Math.min(0.45, rampMs / Math.max(1, dur0));
+      } else {
+        accelFrac = (0.18 + 0.30 * inertia) * (1 - 0.85 * carried);
+        brakeFrac = 0.16 + 0.34 * inertia;
+      }
       if (accelFrac + brakeFrac > 0.95) { const k = 0.95 / (accelFrac + brakeFrac); accelFrac *= k; brakeFrac *= k; }
       const cruiseFrac = Math.max(0, 1 - accelFrac - brakeFrac);
       const profileArea = 0.5 * accelFrac + cruiseFrac + 0.5 * brakeFrac;
@@ -881,7 +953,7 @@
         s.x = nx; s.y = ny;
         s.battery = Math.max(0, b0 - drainFull * cf);
         pushTrailPoint();
-        const dNow = rayDistance(s.x, s.y, s.heading);
+        const dNow = sensorRayDistance(s);
         if (dNow < minProxRef.current) minProxRef.current = dNow;
         setSensorDist(Math.round(dNow));
         sync();
@@ -896,8 +968,10 @@
       if (ctrl.current.token !== myToken) { s.moving = false; s.vel = 0; return false; }
       // Settle battery on the distance actually travelled (handles a crash
       // that stopped the move early), relative to the pre-move level b0.
+      // drainFull already encodes the per-cm model (catalogue or physical),
+      // so the settle is simply its travelled fraction.
       const travelled = Math.hypot(s.x - x0, s.y - y0);
-      s.battery = Math.max(0, b0 - travelled * 0.011 * gFac * massFac / terrain.traction);
+      s.battery = Math.max(0, b0 - (total > 0 ? drainFull * (travelled / total) : 0));
       odoRef.current += travelled; setOdo(odoRef.current);
       s.moving = false; sync();
       if (crashed) {
@@ -931,10 +1005,17 @@
       // its mass around, so the turn takes a little longer and eases in and out
       // rather than snapping. The final heading is still exact (set below).
       const turnRobot = window.getKodroRobot ? window.getKodroRobot() : null;
+      const KMt = window.KodroMotion;
+      const physT = turnRobot && turnRobot.phys;
       const turnMass = turnRobot && turnRobot.massFactor ? turnRobot.massFactor : 1;
       const sndType = (turnRobot && turnRobot.type) || (robotSpec && robotSpec.type) || 'rover';
       s.vel = 0;
-      const dur = (Math.abs(ev.deg) / 180) * 650 * (0.78 + 0.5 * Math.min(1.5, turnMass)) / speedMulRef.current;
+      // E-A4: a physical build turns on its real geometry, omega = 2*v_w/track,
+      // so turn TIME follows the wheelbase and wheel speed; a catalogue build
+      // keeps the mass-scaled display timing. Final heading stays exact.
+      const dur = (physT && physT.trackCm !== undefined && physT.vMaxSimCmPerS !== undefined)
+        ? KMt.physTurnDurationMs(ev.deg, physT.vMaxSimCmPerS * (Math.max(8, s.speed) / 100), physT.trackCm, speedMulRef.current)
+        : KMt.turnDurationMs(ev.deg, turnMass, speedMulRef.current);
       s.moving = true;
       // R9: a car cannot pivot in place -- it drives a kinematic bicycle arc.
       // Heading eases to EXACTLY h0+deg; the position follows the arc with a
@@ -943,11 +1024,15 @@
       // other drive type keeps the skid-steer pivot.
       const arcCar = sndType === 'car' && Math.abs(ev.deg) > 0.01;
       if (!arcCar) {
-        await frames(dur, (p) => { motorSfx(sndType, 0.35); const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; s.heading = h0 + ev.deg * e; setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading))); sync(); return false; });
+        await frames(dur, (p) => { motorSfx(sndType, 0.35); const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; s.heading = h0 + ev.deg * e; setSensorDist(Math.round(sensorRayDistance(s))); sync(); return false; });
         motorRest();
         if (ctrl.current.token !== myToken) { s.moving = false; return false; }  // superseded by Reset/restart
         s.heading = h0 + ev.deg; s.moving = false;
-        s.battery = Math.max(0, s.battery - Math.abs(ev.deg) * 0.004);
+        // Pivot turn drain: shared per-degree ledger, or (physical, E-A2) the
+        // energy cost of the wheels sweeping their half-track arcs.
+        s.battery = Math.max(0, s.battery - ((physT && physT.energyWh !== undefined && physT.trackCm !== undefined)
+          ? (Math.abs(ev.deg) * Math.PI / 180) * (physT.trackCm / 2) * physT.drainPctPerCmNominal
+          : KMt.turnDrainPct(ev.deg)));
         sync();
         return true;
       }
@@ -971,7 +1056,7 @@
         if (hit) { crashed = hit; return true; }
         s.x = nx; s.y = ny; s.heading = h0 + ev.deg * e;
         pushTrailPoint();
-        const dNow = rayDistance(s.x, s.y, s.heading);
+        const dNow = sensorRayDistance(s);
         if (dNow < minProxRef.current) minProxRef.current = dNow;
         setSensorDist(Math.round(dNow));
         sync();
@@ -993,8 +1078,11 @@
       s.x = arcCx - TURN_R * Math.cos(hfr) * sgn;
       s.y = arcCy - TURN_R * Math.sin(hfr) * sgn;
       s.moving = false;
-      const gFacT = 0.5 + 0.5 * ((terrain.env.gravity || 9.81) / 9.81);
-      s.battery = Math.max(0, s.battery - Math.abs(ev.deg) * 0.004 - arcTravelled * 0.011 * gFacT * turnMass / terrain.traction);
+      // Arc turn drains the steering cost plus the ground actually covered
+      // (shared ledger; or the physical energy model when a pack is specified).
+      s.battery = Math.max(0, s.battery - ((physT && physT.energyWh !== undefined)
+        ? arcTravelled * physT.drainPctPerCmNominal
+        : KMt.turnDrainPct(ev.deg) + KMt.moveDrainPct(arcTravelled, terrain.env.gravity, turnMass, terrain.traction)));
       sync();
       return true;
     }
@@ -1048,6 +1136,17 @@
             // Visual program output only: a speech bubble plus a console line.
             sfx('say');
             showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
+          case 'beep': {
+            // S3: beep() plays the synthesised beep it always claimed to be
+            // (SFX.beep existed unused); repeats are spaced so 3 beeps read
+            // as 3 beeps, and the wait respects sim speed like say().
+            const n = Math.round(ev.times != null ? ev.times : 1);
+            for (let bi = 0; bi < n; bi++) {
+              sfx('beep');
+              await delay(stepMode ? 0 : 160 / speedMulRef.current);
+            }
+            break;
+          }
           case 'place': {
             const px = ev.x !== undefined ? ev.x : live.current.x;
             const py = ev.y !== undefined ? ev.y : live.current.y;
@@ -1069,7 +1168,7 @@
             }
             sfx('scan');
             live.current.scanning = true; sync();
-            addConsole('Scanning. Nearest obstacle ' + Math.round(rayDistance(live.current.x, live.current.y, live.current.heading)) + ' cm ahead.', 'sys');
+            addConsole('Scanning. Nearest obstacle ' + Math.round(sensorRayDistance(live.current)) + ' cm ahead.', 'sys');
             await delay(1000 / speedMulRef.current);
             live.current.scanning = false; sync();
             break;
@@ -1106,6 +1205,18 @@
       live.current.moving = false; sync();
       setRunState('done');
       if (replRef.current) { replRef.current = false; return; }  // terminal line: stay quiet
+      // SI3: record the run's measured facts (distance over wall time) so the
+      // verification report's empirical block can cross-check the derived
+      // top speed against something that actually happened.
+      try {
+        window.KODRO_LAST_RUN = {
+          distanceCm: odoRef.current,
+          wallMs: runStartRef.current ? (Date.now() - runStartRef.current) : 0,
+          battery: live.current.battery,
+          speedMul: speedMulRef.current,
+          ts: Date.now(),
+        };
+      } catch (err) { void err; }
       addConsole('Program finished.', 'ok');
       showToast('Program complete', 'ok');
       // Self-refinement: a clean finish is a result worth remembering.
@@ -1249,6 +1360,7 @@
           if (ctrl.current.token !== myToken) return;  // a Reset landed first
           if (!compileFresh()) return;
           ctrl.current.abort = false; ctrl.current.running = true;
+          runStartRef.current = Date.now();  // SI3: measured-speed anchor
           setRunState('running');
           addConsole('Deployed on ' + terrain.name + '.', 'sys');
           pumpLoop(myToken);

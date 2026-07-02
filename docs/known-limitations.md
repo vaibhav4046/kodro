@@ -123,3 +123,37 @@ mitigates this for motion but not for arena boundary behaviour.
 
 We are working toward a single shared arena definition so the two
 engines agree on the world size.
+
+## The shared motion model and what the KRS import honours (M2)
+
+Milestone 2 replaced the four hand-rolled kinematic replicas (the JS tick,
+the Python engine, the scenario validator and the self-test) with ONE
+shared motion model: `assets/web/motion-model.js` and its Python twin
+`engine/motion_model.py`. The two constant tables are hash-gated in CI
+(`test_motion_model_conformance.py`) and the engines are behaviour-gated by
+a golden-trace corpus (`test_golden_traces.py`), which closed the old 11x
+per-metre / 12.5x per-degree battery divergence. The Python engine now also
+registers real collisions (obstacle sweeps and wall contact), so the
+`no_collisions` lesson criterion grades what actually happened.
+
+An imported KRS spec (Robot Lab, Import spec) drives the simulation through
+three disclosed tiers, surfaced as badges in the Lab, the Realism dashboard
+and the verification report:
+
+- HONOURED: commanded distances and angles, motor-derived top speed
+  (v = rpm/60 x 2 pi r), sensor mount pose and range (z ignored), the
+  collision circle from the body footprint, command availability, and the
+  battery as a hard budget.
+- APPROXIMATED: first-order acceleration/braking (a trapezoid, not F=ma
+  integration), turn timing from track geometry, three traction bands, and
+  the constant-power battery model (no voltage sag, no thermal derating).
+- NOT SIMULATED: slopes (the max-slope figure is reported, never driven),
+  wheel-level slip and torque curves, suspension/3D contact, per-motor
+  current transients, IMU acceleration content, and the camera/GPS/bumper/
+  line/gripper command semantics above.
+
+The Ackermann minimum turn radius (wheelbase/tan(steer)) is REPORT-ONLY in
+v1: the sim still turns in place (or on its fixed display arc for the car
+type). Slow builds below 0.94 m/s and fast builds above 6.25 m/s are
+simulated at the band edge with a named warning, because the studio's
+readable speed range is calibrated around the 3.125 m/s anchor.

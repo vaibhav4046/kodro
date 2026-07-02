@@ -1528,10 +1528,20 @@
         const darkM = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.7, metalness: 0.3 });
         if (rType !== 'arm') {
           if (fitted.indexOf('ultrasonic') >= 0) {
+            // SI2: an imported KRS spec mounts the pod WHERE the builder put
+            // it - forward/left offset plus yaw, scaled from cm into body
+            // units (the front face fx stands for the 30 cm body radius). A
+            // catalogue build keeps the default front-face mount exactly.
+            const spPose = (window.getKodroRobot && window.getKodroRobot().phys && window.getKodroRobot().phys.sensor) || null;
+            const CM2U = fx / 30;
+            const pod = new THREE.Group();
             [0.2, -0.2].forEach((z) => {
-              const e = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.13, 16), darkM); e.rotation.z = Math.PI / 2; e.position.set(fx, sy, z); body.add(e);
-              const r = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), accMat); r.position.set(fx + 0.08, sy, z); r.rotation.y = Math.PI / 2; body.add(r);
+              const e = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.13, 16), darkM); e.rotation.z = Math.PI / 2; e.position.set(0, 0, z); pod.add(e);
+              const r = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), accMat); r.position.set(0.08, 0, z); r.rotation.y = Math.PI / 2; pod.add(r);
             });
+            pod.position.set(spPose ? spPose.fwdCm * CM2U : fx, sy, spPose ? -spPose.leftCm * CM2U : 0);
+            if (spPose && spPose.yawDeg) pod.rotation.y = -spPose.yawDeg * Math.PI / 180;
+            body.add(pod);
           }
           if (fitted.indexOf('camera') >= 0) {
             const cam = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.34), darkM); cam.position.set(fx - 0.05, sy + 0.4, 0); body.add(cam);

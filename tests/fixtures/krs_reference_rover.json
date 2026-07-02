@@ -1,0 +1,22 @@
+{
+  "kodroSpec": 1,
+  "name": "Reference Rover",
+  "type": "rover",
+  "board": "esp32",
+  "massKg": 1.2,
+  "bodyCm": { "lengthCm": 25, "widthCm": 18, "heightCm": 12 },
+  "drive": {
+    "kind": "differential",
+    "wheelRadiusCm": 3.25,
+    "wheelbaseCm": 14,
+    "motorCount": 2,
+    "motor": { "noLoadRpm": 300, "stallTorqueNm": 0.35, "nominalV": 6 }
+  },
+  "battery": { "mAh": 2200, "voltage": 7.4, "usableFraction": 0.8 },
+  "sensors": [
+    { "kind": "ultrasonic", "posCm": { "x": 10, "y": 0, "z": 6 }, "yawDeg": 0, "rangeCm": 400, "fovDeg": 15 },
+    { "kind": "imu" }
+  ],
+  "actuators": ["motors2"],
+  "declared": { "maxSpeedMps": 1.0, "runtimeMin": 180 }
+}

@@ -1154,6 +1154,87 @@ class BridgeAPI:
         except Exception as exc:  # pragma: no cover - host dialog dependent
             return {"ok": False, "reason": str(exc)}
 
+    # --- KRS spec import/export (PERFECTION_PLAN SI1) -----------------------
+
+    #: Hard cap on an imported spec file: a KRS JSON is a few KB; anything
+    #: larger is not a spec (mirrors pick_photo's size guard).
+    _SPEC_MAX_BYTES = 262_144
+
+    def import_robot_spec(self) -> dict[str, Any]:
+        """Open a file dialog for a KRS JSON spec and return its text.
+
+        Validation happens in JS (specschema.js is the single validator for
+        both the desktop and browser paths); this method only reads the file
+        so the UI never needs filesystem access.
+        """
+        try:
+            window = webview.windows[0] if webview.windows else None
+            if window is None:
+                return {"ok": False, "reason": "no window"}
+            picked = window.create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=("Robot spec (*.json)",),
+            )
+            if not picked:
+                return {"ok": False, "reason": "cancelled"}
+            first = picked[0] if isinstance(picked, (list, tuple)) else picked
+            path = Path(str(first))
+            if path.stat().st_size > self._SPEC_MAX_BYTES:
+                return {"ok": False, "reason": "Spec file is larger than 256 KB."}
+            return {"ok": True, "text": path.read_text(encoding="utf-8"), "name": path.name}
+        except Exception as exc:  # pragma: no cover - host dialog dependent
+            return {"ok": False, "reason": str(exc)}
+
+    def export_robot_spec(
+        self, json_text: str, suggested_name: str = "robot.kodro.json"
+    ) -> dict[str, Any]:
+        """Save the validated KRS spec (plus derived block) via a save dialog."""
+        return self._save_text_dialog(
+            str(json_text or ""),
+            str(suggested_name or "robot.kodro.json"),
+            ("Robot spec (*.json)",),
+            self._SPEC_MAX_BYTES,
+        )
+
+    def save_verification_report(
+        self, html_text: str, suggested_name: str = "kodro-verification.html"
+    ) -> dict[str, Any]:
+        """Save the per-robot verification report ("your robot as simulated")."""
+        return self._save_text_dialog(
+            str(html_text or ""),
+            str(suggested_name or "kodro-verification.html"),
+            ("HTML report (*.html)",),
+            2_000_000,
+        )
+
+    @staticmethod
+    def _save_text_dialog(
+        text: str, suggested_name: str, file_types: tuple[str, ...], max_bytes: int
+    ) -> dict[str, Any]:
+        """Shared SAVE_DIALOG writer for small text artefacts (spec, report)."""
+        if not text.strip():
+            return {"ok": False, "reason": "nothing to save"}
+        if len(text.encode("utf-8")) > max_bytes:
+            return {"ok": False, "reason": "content too large"}
+        try:
+            window = webview.windows[0] if webview.windows else None
+            if window is None:
+                return {"ok": False, "reason": "no window"}
+            picked = window.create_file_dialog(
+                webview.SAVE_DIALOG,
+                save_filename=suggested_name,
+                file_types=file_types,
+            )
+            if not picked:
+                return {"ok": False, "reason": "cancelled"}
+            first = picked[0] if isinstance(picked, (list, tuple)) else picked
+            path = Path(str(first))
+            path.write_text(text, encoding="utf-8")
+            return {"ok": True, "path": str(path)}
+        except Exception as exc:  # pragma: no cover - host dialog dependent
+            return {"ok": False, "reason": str(exc)}
+
     # --- private helpers --------------------------------------------------
 
     def _find_lesson(self, lesson_id: str) -> Lesson | None:

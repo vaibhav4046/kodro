@@ -13,7 +13,10 @@
  *   window.getKodroRobot()   -- the saved spec + derived sim factors
  */
 (function () {
-  const STORE = 'kodro_robot_v1';
+  // v2 store carries the optional KRS physical block (SI0); a v1 save (plain
+  // catalogue spec) is read unchanged through the migration in load().
+  const STORE = 'kodro_robot_v2';
+  const STORE_V1 = 'kodro_robot_v1';
 
   // ---- parts catalogue. mass is grams; "enables" lists the Python the part unlocks.
   const BOARDS = {
@@ -101,32 +104,54 @@
 
   // ---- derive the numbers the simulation cares about from a spec.
   function derive(spec) {
-    let mass = CHASSIS_MASS + (BOARDS[spec.board] ? BOARDS[spec.board].mass : 10);
+    let mass = CHASSIS_MASS + (BOARDS[spec.board] ? BOARDS[spec.board].mass : (spec.boardMassG || 10));
     (spec.sensors || []).forEach(s => { if (SENSORS[s]) mass += SENSORS[s].mass; });
     let speed = 0;
     (spec.actuators || []).forEach(a => { if (ACTUATORS[a]) { mass += ACTUATORS[a].mass; speed = Math.max(speed, ACTUATORS[a].speed || 0); } });
     if (speed === 0) speed = 0.8; // no drive parts: it barely crawls
-    const baseline = 900; // grams ~ a typical small rover
-    const massFactor = Math.min(1.8, Math.max(0.6, mass / baseline));
-    const speedFactor = Math.min(1.45, Math.max(0.7, speed));
+    // Catalogue bounds live in the SHARED motion model (E-P1) so the sim, the
+    // Lab and the Python twin read the same numbers; values are unchanged.
+    const M = (window.KodroMotion && window.KodroMotion.MODEL) || {};
+    const baseline = M.massBaselineG || 900; // grams ~ a typical small rover
+    const massFactor = Math.min(M.catMassFactorHi || 1.8, Math.max(M.catMassFactorLo || 0.6, mass / baseline));
+    const speedFactor = Math.min(M.catSpeedFactorHi || 1.45, Math.max(M.catSpeedFactorLo || 0.7, speed));
     // crude runtime estimate: lighter + fewer parts last longer on one charge
     const runtimeMin = Math.round(60 / massFactor);
     const cmds = [];
     (spec.sensors || []).forEach(s => { if (SENSORS[s] && SENSORS[s].cmd) cmds.push(SENSORS[s].cmd); });
     (spec.actuators || []).forEach(a => { if (ACTUATORS[a] && ACTUATORS[a].cmd) cmds.push(ACTUATORS[a].cmd); });
-    return { mass, massFactor, speedFactor, runtimeMin, commands: cmds };
+    const out = { mass, massFactor, speedFactor, runtimeMin, commands: cmds };
+    // SI2: an imported KRS spec's physical block overrides the catalogue
+    // proxies with measured numbers (top speed from rpm and wheel radius,
+    // energy-true battery, real mass). Catalogue builds return exactly the
+    // block above - byte-identical to the pre-SI2 behaviour.
+    if (spec.physical && window.KodroSpecSchema) {
+      const ph = window.KodroSpecSchema.deriveFromPhysical(spec, out);
+      if (ph) {
+        out.phys = ph;
+        if (ph.massKg !== undefined) out.mass = Math.round(ph.massKg * 1000);
+        if (ph.massFactor !== undefined) out.massFactor = ph.massFactor;
+        if (ph.speedFactor !== undefined) out.speedFactor = ph.speedFactor;
+        if (ph.runtimeMin !== undefined) out.runtimeMin = ph.runtimeMin;
+      }
+    }
+    return out;
   }
 
   function load() {
     try {
-      const raw = localStorage.getItem(STORE);
+      // v2 first; fall back to a v1 save (same catalogue shape, no physical
+      // block) so an existing build survives the upgrade untouched.
+      const raw = localStorage.getItem(STORE) || localStorage.getItem(STORE_V1);
       if (raw) {
         const s = JSON.parse(raw);
         // Floor: a saved build with no sensors cannot run the obstacle-avoidance
         // demos and confuses first-time users ("ultrasonic needed"). Give every
         // build at least an ultrasonic + IMU so it can sense and the default
         // autopilot just works on first Run; it stays editable in the Robot Lab.
-        if (s && (!Array.isArray(s.sensors) || s.sensors.length === 0)) s.sensors = ['ultrasonic', 'imu'];
+        // An imported KRS build is exempt: its sensor list is a deliberate
+        // measurement, and faking parts onto it would betray the import.
+        if (s && !s.physical && (!Array.isArray(s.sensors) || s.sensors.length === 0)) s.sensors = ['ultrasonic', 'imu'];
         return s;
       }
     } catch (e) { void e; }
@@ -227,6 +252,18 @@
     },
   };
 
+  // SI4: per-stat fidelity badge. Tier names come from the schema module so
+  // the Lab, the Realism dashboard and the report annex say the same words.
+  const TIER_LABEL = { honoured: 'HONOURED', approximated: 'APPROXIMATED', notSimulated: 'NOT SIMULATED' };
+  const TIER_TITLE = {
+    honoured: 'Honoured exactly by the simulation',
+    approximated: 'Approximated: first-order model, honest error bars',
+    notSimulated: 'Not simulated: reported only, never driven',
+  };
+  function Badge(tier) {
+    return React.createElement('span', { className: 'fid-badge fid-' + tier, title: TIER_TITLE[tier] }, TIER_LABEL[tier]);
+  }
+
   function Chip(props) {
     const on = props.on;
     return (
@@ -244,6 +281,10 @@
 
   function RobotLab(props) {
     const [spec, setSpec] = React.useState(load);
+    // SI1: import feedback. {errors:[], warnings:[]} after an Import spec, so
+    // a clamped field is a VISIBLE per-field diff, never a silent fix-up.
+    const [importIssues, setImportIssues] = React.useState(null);
+    const fileRef = React.useRef(null);
     const d = derive(spec);
     const t = TYPES[spec.type] || TYPES.rover;
     const rec = WORLD_FOR[spec.type] || WORLD_FOR.rover;
@@ -252,7 +293,7 @@
     const dTerrain = (window.TERRAINS && window.TERRAINS[rec.id]) || null;
     const report = (window.KodroDiagnostics && dTerrain) ? window.KodroDiagnostics.assess(spec, d, dTerrain) : null;
 
-    function pickType(id) { setSpec(specFromType(id, null)); }
+    function pickType(id) { setSpec(specFromType(id, null)); setImportIssues(null); }
     function toggle(kind, id) {
       setSpec(s => {
         const list = (s[kind] || []).slice();
@@ -262,6 +303,79 @@
       });
     }
     function onSave() { save(spec); if (props.onClose) props.onClose(); }
+
+    // ---- SI1: KRS import/export -----------------------------------------
+    function applyImportText(text) {
+      const r = window.KodroSpecSchema
+        ? window.KodroSpecSchema.validate(text)
+        : { ok: false, errors: ['Spec schema unavailable.'], warnings: [] };
+      setImportIssues({ errors: r.errors || [], warnings: r.warnings || [] });
+      if (r.ok) setSpec(r.spec);
+      return r;
+    }
+    async function onImportClick() {
+      // Desktop: native file dialog through the bridge (pick_photo pattern);
+      // browser preview: the hidden file input below.
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.importRobotSpec) {
+        try {
+          const r = await window.RoboLearn.importRobotSpec();
+          if (r && r.ok) applyImportText(r.text);
+          else if (r && r.reason && r.reason !== 'cancelled') setImportIssues({ errors: [r.reason], warnings: [] });
+        } catch (e) { setImportIssues({ errors: [String(e)], warnings: [] }); }
+        return;
+      }
+      if (fileRef.current) fileRef.current.click();
+    }
+    function onFilePicked(e) {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      if (f.size > 262144) { setImportIssues({ errors: ['Spec file is larger than 256 KB.'], warnings: [] }); return; }
+      const rd = new FileReader();
+      rd.onload = function () { applyImportText(String(rd.result)); };
+      rd.readAsText(f);
+    }
+    function specFileName(suffix) {
+      return ((spec.name || 'robot').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'robot') + suffix;
+    }
+    function downloadText(text, fname, mime) {
+      const blob = new Blob([text], { type: mime });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fname;
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    }
+    function toast(text, kind) {
+      try { window.dispatchEvent(new CustomEvent('kodro-toast', { detail: { text: text, kind: kind || 'info' } })); } catch (e) { void e; }
+    }
+    async function onExportClick() {
+      if (!window.KodroSpecSchema) return;
+      const json = window.KodroSpecSchema.exportKrs(spec, Object.assign({}, d, { phys: d.phys }));
+      const fname = specFileName('.kodro.json');
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.exportRobotSpec) {
+        const r = await window.RoboLearn.exportRobotSpec(json, fname);
+        toast(r && r.ok ? 'Spec saved: ' + r.path : 'Spec export ' + ((r && r.reason) || 'failed'), r && r.ok ? 'ok' : 'info');
+        return;
+      }
+      downloadText(json, fname, 'application/json');
+      toast('Spec downloaded: ' + fname, 'ok');
+    }
+    // SI3: generate and save the "your robot as simulated" report.
+    async function onReportClick() {
+      if (!window.KodroVerify) return;
+      const robotNow = Object.assign({}, spec, d, { phys: d.phys });
+      const rep = window.KodroVerify.report(robotNow, dTerrain);
+      const html = window.KodroVerify.toHtml(rep);
+      const fname = specFileName('-verification.html');
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.saveVerificationReport) {
+        const r = await window.RoboLearn.saveVerificationReport(html, fname);
+        toast(r && r.ok ? 'Verification report saved: ' + r.path : 'Report ' + ((r && r.reason) || 'failed'), r && r.ok ? 'ok' : 'info');
+        return;
+      }
+      downloadText(html, fname, 'text/html');
+      toast('Verification report downloaded: ' + fname, 'ok');
+    }
 
     return (
       React.createElement('div', { className: 'modal-backdrop', onClick: () => props.onClose && props.onClose() },
@@ -331,16 +445,44 @@
                 }))
               )
             ),
-            // ---- live spec readout
+            // ---- live spec readout (every stat carries its SI4 fidelity badge)
             React.createElement('div', { className: 'rl-spec' },
-              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.mass + ' g'), React.createElement('span', null, 'total mass')),
-              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, '~' + d.runtimeMin + ' min'), React.createElement('span', null, 'battery / charge')),
-              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.speedFactor.toFixed(2) + '×'), React.createElement('span', null, 'top speed')),
+              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.mass + ' g'), React.createElement('span', null, 'total mass ', Badge('honoured'))),
+              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, '~' + d.runtimeMin + ' min'), React.createElement('span', null, 'battery / charge ', Badge('approximated'))),
+              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : d.speedFactor.toFixed(2) + '×'), React.createElement('span', null, 'top speed ', Badge('honoured'))),
               React.createElement('div', { className: 'rl-stat rl-stat-wide' },
                 React.createElement('b', null, d.commands.length ? d.commands.map(c => c + '()').join('  ') : 'move()  turn()  only'),
-                React.createElement('span', null, 'commands this build supports')
+                React.createElement('span', null, 'commands this build supports ', Badge('honoured'))
               )
             ),
+            // ---- SI1: measured-build banner for an imported KRS spec
+            spec.physical && d.phys && React.createElement('div', { className: 'rl-measured', 'data-spec-import': 'measured' },
+              React.createElement('div', { className: 'rl-measured-head' },
+                React.createElement('span', { className: 'rl-label', style: { margin: 0 } }, 'Measured build - imported spec drives the sim'),
+                Badge('honoured')
+              ),
+              React.createElement('div', { className: 'rl-measured-grid' },
+                React.createElement('span', null, 'Mass ', React.createElement('b', null, d.phys.massKg !== undefined ? d.phys.massKg + ' kg' : '-')),
+                React.createElement('span', null, 'Top speed ', React.createElement('b', null, d.phys.vMaxCmPerS !== undefined ? (d.phys.vMaxCmPerS / 100).toFixed(2) + ' m/s' : 'catalogue')),
+                React.createElement('span', null, 'Runtime ', React.createElement('b', null, d.phys.runtimeMin !== undefined ? '~' + d.phys.runtimeMin + ' min' : 'catalogue')),
+                React.createElement('span', null, 'Body ', React.createElement('b', null, d.phys.collisionRadiusCm !== undefined ? Math.round(d.phys.collisionRadiusCm * 2) + ' cm circle' : '60 cm default')),
+                React.createElement('span', null, 'Sensor ', React.createElement('b', null, d.phys.sensor ? '+' + d.phys.sensor.fwdCm + ' cm fwd, ' + d.phys.sensor.rangeCm + ' cm range' : 'none imported')),
+                d.phys.maxSlopeDeg !== undefined ? React.createElement('span', null, 'Max slope ', React.createElement('b', null, d.phys.maxSlopeDeg + '°'), ' ', Badge('notSimulated')) : null
+              ),
+              (d.phys.warnings && d.phys.warnings.length) ? React.createElement('ul', { className: 'rl-issues rl-issues-warn' },
+                d.phys.warnings.map(function (w, i) { return React.createElement('li', { key: i }, w); })
+              ) : null
+            ),
+            // ---- SI1: per-field import diff (clamps are visible, never silent)
+            importIssues && (importIssues.errors.length > 0 || importIssues.warnings.length > 0) ? React.createElement('div', { className: 'rl-import-report', role: 'status' },
+              importIssues.errors.length > 0 ? React.createElement('div', null,
+                React.createElement('div', { className: 'rl-label', style: { color: '#ff8f7a' } }, 'Import rejected - fix these fields'),
+                React.createElement('ul', { className: 'rl-issues rl-issues-err' }, importIssues.errors.map(function (e2, i) { return React.createElement('li', { key: i }, e2); }))
+              ) : React.createElement('div', null,
+                React.createElement('div', { className: 'rl-label' }, 'Imported with adjustments'),
+                React.createElement('ul', { className: 'rl-issues rl-issues-warn' }, importIssues.warnings.map(function (w, i) { return React.createElement('li', { key: i }, w); }))
+              )
+            ) : null,
             // ---- predictive design check: will this build cope, and why
             report && React.createElement('div', { className: 'rl-section', style: { background: '#0e1622', border: '1.5px solid ' + diagColor(report.overall) + '55', borderRadius: 14, padding: 16 } },
               React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 } },
@@ -366,7 +508,12 @@
             )
           ),
           React.createElement('div', { className: 'rl-foot' },
-            React.createElement('button', { className: 'btn-mini', onClick: () => setSpec(specFromType(spec.type, spec.name)) }, 'Reset parts'),
+            React.createElement('button', { className: 'btn-mini', onClick: () => { setSpec(specFromType(spec.type, spec.name)); setImportIssues(null); } }, 'Reset parts'),
+            // SI1: import a real robot's KRS JSON / export this build's spec.
+            React.createElement('button', { className: 'btn-mini', 'data-spec-import': 'button', title: 'Import a KRS robot spec (JSON): real motor, battery, body and sensor numbers drive the sim', onClick: onImportClick }, 'Import spec'),
+            React.createElement('button', { className: 'btn-mini', title: 'Export this build as a KRS spec plus its derived numbers', onClick: onExportClick }, 'Export spec'),
+            React.createElement('button', { className: 'btn-mini', title: 'Save the verification report: your robot as simulated, predictions plus measured evidence', onClick: onReportClick }, 'Verification report'),
+            React.createElement('input', { ref: fileRef, type: 'file', accept: '.json,application/json', style: { display: 'none' }, 'aria-hidden': 'true', tabIndex: -1, onChange: onFilePicked }),
             React.createElement('button', { className: 'ctrl ctrl-run', onClick: onSave }, '✓ Build & test in ' + rec.label)
           )
         )
@@ -440,6 +587,17 @@
     const spec = robotFromText(text);
     save(spec);
     return { spec: spec, derived: derive(spec), world: (WORLD_FOR[spec.type] || {}) };
+  };
+  // SI1: apply a KRS spec from raw JSON text - the SAME validate-then-save
+  // path the Lab's Import button drives after reading the file, exposed so
+  // the QA harness (and the demo) can exercise import end to end without a
+  // native file dialog. Returns the validator result.
+  RobotLab.importSpecText = function (text) {
+    const r = window.KodroSpecSchema
+      ? window.KodroSpecSchema.validate(text)
+      : { ok: false, errors: ['Spec schema unavailable.'], warnings: [] };
+    if (r.ok) save(r.spec);
+    return r;
   };
   window.KodroRobotFromText = robotFromText;
 

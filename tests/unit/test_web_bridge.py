@@ -310,3 +310,35 @@ def test_ai_model_preference_prefers_qwen_then_gemma(api: BridgeAPI) -> None:
 
 def test_ai_chat_rejects_empty_history(api: BridgeAPI) -> None:
     assert api.ai_chat([])["ok"] is False
+
+
+# --- KRS spec import/export bridge (PERFECTION_PLAN SI1) -------------------
+
+
+def test_import_robot_spec_without_window_degrades(api: BridgeAPI) -> None:
+    """Headless (no pywebview window): a clean refusal, never a crash."""
+    result = api.import_robot_spec()
+    assert result["ok"] is False
+    assert result["reason"]
+
+
+def test_export_robot_spec_rejects_empty_payload(api: BridgeAPI) -> None:
+    result = api.export_robot_spec("")
+    assert result == {"ok": False, "reason": "nothing to save"}
+
+
+def test_export_robot_spec_without_window_degrades(api: BridgeAPI) -> None:
+    result = api.export_robot_spec('{"kodroSpec": 1}')
+    assert result["ok"] is False
+    assert result["reason"] == "no window"
+
+
+def test_export_robot_spec_rejects_oversize_payload(api: BridgeAPI) -> None:
+    result = api.export_robot_spec("x" * 300_000)
+    assert result == {"ok": False, "reason": "content too large"}
+
+
+def test_save_verification_report_without_window_degrades(api: BridgeAPI) -> None:
+    result = api.save_verification_report("<html>report</html>")
+    assert result["ok"] is False
+    assert result["reason"] == "no window"

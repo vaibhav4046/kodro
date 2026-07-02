@@ -109,6 +109,30 @@
     noCmds.forEach(function (c) { cmdRows.push(row(c.name + '()', 'needs ' + (c.partLabel || c.requires), '#ff8f7a')); });
     const registry = card('Command registry', cmdRows.length ? cmdRows : [row('Commands', 'base only')], '#c8a8ff');
 
+    // SI4: fidelity disclosure card. This dashboard's stated purpose is
+    // making the simulation's honesty visible, so the three tiers live here:
+    // what the sim honours exactly, what it approximates, what it does not
+    // simulate at all. The same table feeds the Lab badges and the report.
+    const FID = (window.KodroSpecSchema && window.KodroSpecSchema.FIDELITY) || null;
+    const fidTier = function (label, bg, fg, items) {
+      return React.createElement('div', { key: label, style: { marginBottom: 8 } },
+        React.createElement('div', { style: { marginBottom: 4 } },
+          React.createElement('span', { style: { fontSize: 9, fontWeight: 800, letterSpacing: '0.07em', borderRadius: 4, padding: '2px 6px', background: bg, color: fg } }, label)
+        ),
+        React.createElement('ul', { style: { margin: 0, paddingLeft: 16, fontSize: 11.5, lineHeight: 1.5, color: '#9fb4d2' } },
+          items.map(function (it, i) { return React.createElement('li', { key: i }, it); })
+        )
+      );
+    };
+    const fidelity = FID ? React.createElement('div', { style: { background: '#0f1726', border: '1.5px solid #233248', borderRadius: 14, padding: '14px 16px', gridColumn: '1 / -1' } },
+      React.createElement('div', { style: { fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#5ce0d8', marginBottom: 10 } }, 'Fidelity disclosure'),
+      React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 } },
+        fidTier('HONOURED', '#5ce0d8', '#06121b', FID.honoured),
+        fidTier('APPROXIMATED', '#f5c451', '#06121b', FID.approximated),
+        fidTier('NOT SIMULATED', '#c8685a', '#f5f0e4', FID.notSimulated)
+      )
+    ) : null;
+
     return React.createElement('div', { className: 'modal-backdrop', onClick: function () { return props.onClose && props.onClose(); } },
       React.createElement('div', { className: 'modal modal-wide', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Realism dashboard', style: { maxWidth: 860 }, onClick: function (e) { e.stopPropagation(); } },
         React.createElement('div', { className: 'modal-head' },
@@ -120,7 +144,7 @@
             'Robot: ', React.createElement('b', { style: { color: '#dce8f8' } }, robot.name || 'My Robot'),
             ' · type ', robot.type || '-', ' · board ', robot.board || '-'),
           React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 12 } },
-            physics, sensors, score, environment, registry
+            physics, sensors, score, environment, registry, fidelity
           )
         )
       )
