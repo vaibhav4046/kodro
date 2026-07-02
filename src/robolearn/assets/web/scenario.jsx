@@ -159,6 +159,18 @@
         if (res.done) break;
         if (++steps > STEP_CAP) { runError = 'did not terminate'; break; }
         const ev = res.value;
+        // Arm honesty (A13, bugs D4): a fixed-base arm cannot drive, so a
+        // move/turn is refused here in the grader too - the SAME KodroCommands
+        // source of truth the live run reads - so a pedestal build cannot pass
+        // a driving scenario it never physically performed. A rover/car/home
+        // build has a drive actuator and sails through unchanged.
+        if ((ev.type === 'move' || ev.type === 'turn') && window.KodroCommands) {
+          const cmdName = ev.type === 'move'
+            ? (ev.dir < 0 ? 'move_backward' : 'move_forward')
+            : (ev.deg < 0 ? 'turn_left' : 'turn_right');
+          const g = window.KodroCommands.driveCheck(robot, cmdName);
+          if (!g.ok) { commandErrors++; runError = g.reason; break; }
+        }
         if (ev.type === 'move') {
           moves++;
           const a = s.heading * Math.PI / 180;

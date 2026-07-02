@@ -720,8 +720,9 @@ function checkFidelityCard(chrome) {
   return { pass: false, reason: 'fidelity disclosure card missing from the Realism dashboard' };
 }
 
-// ENCORE TAB (S1) — open the 8th example tab and Run it: the tab must be
-// active and the show must actually start (its Act I console line prints).
+// ENCORE TAB (S1): open the Encore showcase example tab and Run it (one of
+// ten example tabs, alongside the Searchlight and Gauntlet showcases). The tab
+// must be active and the show must actually start (its Act I console prints).
 function checkEncoreRuns(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&tab=encore&run=1`;
   const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_encore', url, { vtime: 20000 });

@@ -320,6 +320,410 @@ if battery() > 40:
 else:
     print("Verdict: one show a charge - recharge before the next curtain.")`
     },
+    searchlight: {
+      label: 'searchlight.py',
+      code: `# SEARCHLIGHT - a battery-managed survey and rescue mission.
+#
+# This is the product mission in one program: a robot given real work to do,
+# doing it honestly. It runs a systems check, patrols the perimeter of the
+# search area without ever touching a wall (every drive is guarded by the
+# range sensor), then works a fan of survey spokes out from base - driving
+# out, scanning and flagging, and driving straight back - so it always knows
+# the way home. It watches its own battery and abandons the remaining spokes
+# when the charge runs low, holding a reserve to finish. Nothing is faked: the
+# distances, the scans, the battery and the return are all real.
+#
+#   Phase 0   Systems check: power, sensors, lights
+#   Phase 1   Perimeter patrol: a guarded square sweep, back to base
+#   Phase 2   Spoke survey: out-and-back legs with scan stations + flags
+#   Phase 3   Battery watch: stop launching spokes when charge falls low
+#   Phase 4   Return + stand down: square up and report
+#   Phase 5   Debrief: the honest numbers
+#
+# Note on style: the helpers below drive the robot, so they are always called
+# as statements (never "x = safe_forward(...)"). A motion helper used as a
+# value would have its movement ignored, so the mission talks to itself
+# through the module-level flags last_moved and lane_out instead.
+
+set_speed(72)
+pen_up()
+
+# Mission counters and the flags the motion helpers write back through.
+start_charge = battery()
+spokes_done = 0
+stations = 0
+flags = 0
+holds = 0
+metres = 0
+last_moved = 0
+lane_out = 0
+
+# ---------- the mission library ----------
+
+def report(report_msg):
+    # A status line the operator sees, spoken and printed together.
+    say(report_msg)
+    print(report_msg)
+
+def signal(signal_col, signal_beeps):
+    led(signal_col)
+    beep(signal_beeps)
+
+def safe_forward(safe_m):
+    # Drive forward ONLY when the range sensor says there is room, so the robot
+    # can never hit the arena wall or an obstacle. Writes last_moved with the
+    # metres actually driven (0 if it had to hold), keeping the odometer honest.
+    ahead = distance()
+    if ahead < safe_m * 100 + 45:
+        holds = holds + 1
+        last_moved = 0
+    else:
+        move_forward(safe_m)
+        metres = metres + safe_m
+        last_moved = safe_m
+
+def station(station_col):
+    # A survey station: face-scan, drop a flag, log the find.
+    signal(station_col, 2)
+    scan()
+    place("flag")
+    led("cyan")
+    stations = stations + 1
+    flags = flags + 1
+
+def survey_out(out_m, out_steps):
+    # Drive OUT along a spoke, pausing at a scan station, until the lane is
+    # blocked or the step budget is spent. Writes lane_out with the metres
+    # actually driven out, so the return leg can retrace the same distance.
+    lane_out = 0
+    out_i = 0
+    while out_i < out_steps:
+        safe_forward(out_m)
+        if last_moved == 0:
+            out_i = 999
+        else:
+            lane_out = lane_out + last_moved
+            if out_i == 1:
+                station("amber")
+            out_i = out_i + 1
+
+def drive_back(back_m):
+    # Turn about and retrace a measured distance back toward base, guarded.
+    turn_right(180)
+    back_i = 0
+    while back_i < 20 and back_m > 0.05:
+        hop = 1.0
+        if back_m < hop:
+            hop = back_m
+        safe_forward(hop)
+        if last_moved == 0:
+            back_i = 999
+        else:
+            back_m = back_m - hop
+            back_i = back_i + 1
+
+# ---------- Phase 0 : systems check ----------
+
+report("Phase 0: systems check")
+led("white")
+beep(1)
+print("  power at", start_charge, "%")
+scan()
+print("  range sensor online:", distance(), "cm to the nearest wall")
+print("  heading reference:", heading(), "degrees")
+led("green")
+
+# ---------- Phase 1 : perimeter patrol ----------
+
+report("Phase 1: perimeter patrol of the search area")
+led("cyan")
+patrol_side = 0
+while patrol_side < 4:
+    side_step = 0
+    while side_step < 3:
+        safe_forward(1.6)
+        if last_moved == 0:
+            signal("amber", 1)
+            side_step = 99
+        else:
+            side_step = side_step + 1
+    turn_right(90)
+    patrol_side = patrol_side + 1
+print("  perimeter swept, corners turned:", patrol_side)
+
+# ---------- Phase 2 + 3 : spoke survey with battery watch ----------
+
+report("Phase 2: spoke survey out from base")
+led("cyan")
+# Six spokes fan out at 60 degrees. Each drives out, scans and flags, then
+# retraces its own measured distance home - so the robot never loses base.
+spoke = 0
+while spoke < 6:
+    charge = battery()
+    # Phase 3: honest endurance. A survey spoke costs the best part of a fifth
+    # of the pack, so once the charge drops below 28 percent the mission stops
+    # launching new spokes and holds the reserve rather than risk stranding
+    # itself. The mission judges its own endurance, not a fixed loop count.
+    if charge < 28:
+        report("Battery low at " + str(charge) + " percent - standing down, reserve held")
+        spoke = 99
+    else:
+        print("  spoke", spoke + 1, "of 6 - charge", charge, "%")
+        survey_out(1.3, 5)
+        station("green")
+        drive_back(lane_out)
+        spokes_done = spokes_done + 1
+        # Rotate to the next spoke bearing for the fan.
+        turn_right(60)
+        spoke = spoke + 1
+if spoke != 99:
+    print("  full survey fan completed")
+
+# ---------- Phase 4 : return and stand down ----------
+
+report("Phase 4: return to base and stand down")
+led("amber")
+# Square the heading back to the reference bearing, gently.
+face = heading()
+if face != 0:
+    turn_left(face)
+signal("green", 2)
+print("  standing on the base mark, heading squared to 0")
+
+# ---------- Phase 5 : debrief ----------
+
+report("Phase 5: mission debrief")
+used = start_charge - battery()
+print("--- SEARCHLIGHT DEBRIEF ---")
+print("Distance surveyed:", metres, "m")
+print("Survey spokes:", spokes_done, " scan stations:", stations, " flags dropped:", flags)
+print("Obstacle holds:", holds)
+print("Battery used:", used, "% - remaining:", battery(), "%")
+if battery() > 20:
+    print("Verdict: mission complete with reserve to spare.")
+elif battery() > 10:
+    print("Verdict: mission complete, returned on the last of the charge.")
+else:
+    print("Verdict: mission cut short by battery - survey a smaller grid next time.")
+led("green")
+say("Searchlight mission complete")`
+    },
+    gauntlet: {
+      label: 'gauntlet.py',
+      code: `# GAUNTLET - a capability reference that draws its proof.
+#
+# Where Encore performs and Searchlight works a mission, Gauntlet is the
+# language flexing: functions and recursion, loops and nested loops, math with
+# banker's rounding and chained comparisons, lists built by concatenation, and
+# a run of pen geometry - nested polygons, a star mandala and a spirograph
+# rosette - that a turtle can draw with turns alone, no trigonometry needed.
+# Every figure is a closed path centred on the start mark, so the pen returns
+# home and the robot never wanders toward a wall. LED colour and drive speed
+# change between chapters so the reference is a show as well as a checklist.
+#
+#   Chapter 1   Command roll-call
+#   Chapter 2   Math gym: rounding, chains, min/max/abs/sqrt
+#   Chapter 3   Control-flow gym: loops, nesting, recursion
+#   Chapter 4   List workout: build, sum and scan a list
+#   Chapter 5   Nested polygons: triangle through hexagon, shared centre
+#   Chapter 6   Star mandala: five-point stars rotated around the centre
+#   Chapter 7   Spirograph rosette: many small loops fanned full circle
+#   Chapter 8   Curtain: honest totals
+
+set_speed(70)
+pen_up()
+shapes = 0
+vertices = 0
+
+# ---------- the drawing + reporting library ----------
+
+def banner(banner_msg):
+    say(banner_msg)
+    print(banner_msg)
+
+def polygon(poly_sides, poly_m, poly_col):
+    # Draw a regular polygon as a closed turtle path: exterior angle is
+    # 360 / sides, so the pen comes back to where it started, heading intact.
+    led(poly_col)
+    pen_down()
+    poly_turn = 360 / poly_sides
+    poly_i = 0
+    while poly_i < poly_sides:
+        move_forward(poly_m)
+        turn_right(poly_turn)
+        poly_i = poly_i + 1
+    pen_up()
+    shapes = shapes + 1
+    vertices = vertices + poly_sides
+
+def star5(star_m, star_col):
+    # A five-point star: turn 144 at each point closes the pentagram exactly.
+    led(star_col)
+    pen_down()
+    star_i = 0
+    while star_i < 5:
+        move_forward(star_m)
+        turn_right(144)
+        star_i = star_i + 1
+    pen_up()
+    shapes = shapes + 1
+    vertices = vertices + 5
+
+def countdown(n):
+    # Recursion for its own sake, and to prove the call stack works: count
+    # down to lift-off, one frame per level.
+    if n <= 0:
+        print("  lift-off")
+    else:
+        print("  T minus", n)
+        beep(1)
+        countdown(n - 1)
+
+# ---------- Chapter 1 : command roll-call ----------
+
+banner("Chapter 1: command roll-call")
+led("white")
+beep(1)
+scan()
+print("  drive: move_forward / move_backward / turn_left / turn_right / set_speed")
+print("  pen:   pen_down / pen_up      lights: led      sound: beep / say")
+print("  sense: distance / heading / battery on this build")
+
+# ---------- Chapter 2 : math gym ----------
+
+banner("Chapter 2: math gym")
+# Banker's rounding: halves go to the even neighbour, so 0.5 -> 0, 2.5 -> 2.
+print("  round(0.5) =", round(0.5), " round(2.5) =", round(2.5), " round(3.5) =", round(3.5))
+print("  round(0.125, 2) =", round(0.125, 2))
+# Chained comparisons read the Python way: one band test, not two.
+h = 180
+if 90 < h < 270:
+    print("  90 < 180 < 270 is True (chained comparison)")
+print("  abs(-7) =", abs(-7), " max(3, 9, 4) =", max(3, 9, 4), " min(3, 9, 4) =", min(3, 9, 4))
+print("  sqrt(144) =", sqrt(144), " 17 // 5 =", 17 // 5, " 17 % 5 =", 17 % 5)
+print("  2 ** 10 =", 2 ** 10)
+
+# ---------- Chapter 3 : control-flow gym ----------
+
+banner("Chapter 3: control-flow gym")
+# A for-loop with range, a nested loop, break and continue, then recursion.
+total = 0
+for i in range(6):
+    total = total + i
+print("  sum of range(6) =", total)
+grid = 0
+for row in range(3):
+    for col in range(3):
+        if row == col:
+            continue
+        grid = grid + 1
+print("  off-diagonal cells in a 3x3 grid =", grid)
+first_big = -1
+for k in range(20):
+    if k * k > 40:
+        first_big = k
+        break
+print("  first k with k*k > 40 is", first_big)
+countdown(3)
+
+# ---------- Chapter 4 : list workout ----------
+
+banner("Chapter 4: list workout")
+# Lists grow by concatenation (xs = xs + [v]); then sum and scan them.
+xs = []
+for n in range(1, 6):
+    xs = xs + [n * n]
+print("  squares 1..5 =", xs)
+list_sum = 0
+biggest = 0
+for v in xs:
+    list_sum = list_sum + v
+    if v > biggest:
+        biggest = v
+print("  sum =", list_sum, " biggest =", biggest, " count =", len(xs))
+
+# ---------- Chapter 5 : nested polygons ----------
+
+banner("Chapter 5: nested polygons on a shared centre")
+set_speed(78)
+# Triangle, square, pentagon, hexagon - each a closed path from the centre.
+sides = 3
+while sides <= 6:
+    if sides == 3:
+        polygon(sides, 1.2, "cyan")
+    elif sides == 4:
+        polygon(sides, 1.0, "amber")
+    elif sides == 5:
+        polygon(sides, 0.9, "green")
+    else:
+        polygon(sides, 0.8, "white")
+    # Rotate a little between figures so they fan rather than overlap exactly.
+    turn_right(15)
+    sides = sides + 1
+led("off")
+print("  polygons drawn: triangle, square, pentagon, hexagon")
+
+# ---------- Chapter 6 : star mandala ----------
+
+banner("Chapter 6: star mandala")
+# Battery checkpoint: the mandala is an optional flourish. If the charge has
+# fallen below 40 percent, skip it and keep the reserve for the summary rather
+# than risk halting mid-figure. On a full pack it always runs.
+if battery() < 40:
+    print("  battery low - skipping the optional mandala")
+else:
+    set_speed(84)
+    # Four five-point stars, each rotated 90 degrees, make a mandala ring.
+    mandala = 0
+    while mandala < 4:
+        star5(0.8, "cyan")
+        turn_right(90)
+        mandala = mandala + 1
+    led("off")
+    print("  mandala closed:", mandala, "stars at 90 degrees apart")
+
+# ---------- Chapter 7 : spirograph rosette ----------
+
+banner("Chapter 7: spirograph rosette")
+# Battery checkpoint again: the rosette is the most expensive figure (many
+# small squares, many turns), so skip it under 25 percent and go straight to
+# the summary. This is the reference respecting its own power budget.
+if battery() < 25:
+    print("  battery low - skipping the optional rosette")
+else:
+    set_speed(90)
+    led("amber")
+    pen_down()
+    # A rosette: many small squares, each nudged a few degrees round, so the
+    # pen sweeps a full circle of petals and returns to the centre bearing.
+    petals = 8
+    petal_turn = 360 / petals
+    petal = 0
+    while petal < petals:
+        square_side = 0
+        while square_side < 4:
+            move_forward(0.5)
+            turn_right(90)
+            square_side = square_side + 1
+        turn_right(petal_turn)
+        petal = petal + 1
+    pen_up()
+    led("green")
+    shapes = shapes + 1
+    vertices = vertices + petals * 4
+    print("  rosette swept:", petals, "petals over a full turn")
+
+# ---------- Chapter 8 : curtain ----------
+
+banner("Chapter 8: the reference is complete")
+beep(2)
+print("--- GAUNTLET SUMMARY ---")
+print("Figures drawn:", shapes, " total vertices turned:", vertices)
+print("Surface exercised: functions, recursion, loops, nesting, lists, math, pen geometry, LED, speed.")
+print("Battery remaining:", battery(), "%")
+led("cyan")
+say("Gauntlet reference complete")`
+    },
     survey: {
       label: 'survey.py',
       code: `# Sensors + conditionals: profile the environment.

@@ -384,7 +384,7 @@ for (const key of exampleKeys) {
   }
   check(label, ok, info);
 }
-check('found example programs (>= 8, incl. the Encore showcase)', exampleKeys.length >= 8, exampleKeys.length + ' found');
+check('found example programs (>= 10, incl. Encore/Searchlight/Gauntlet)', exampleKeys.length >= 10, exampleKeys.length + ' found');
 
 // S1: the Encore flagship pins its own behaviour: it must end back on the
 // start mark (the choreography is closed turtle geometry), spend a real but
@@ -405,6 +405,99 @@ check('found example programs (>= 8, incl. the Encore showcase)', exampleKeys.le
     for (const ev of compile(enc).run({ sensor: () => 100 })) { if (ev.type === 'beep') beeps++; }
     check('encore drumline yields real beep events (S3)', beeps >= 10, beeps + ' beeps');
   }
+}
+
+// S4: Searchlight is the product MISSION - a sensor-guarded, battery-managed
+// survey that returns to base. It must run clean, guard every move so it never
+// hits a wall (the run()'s distance sensor reads the wall, so a guarded
+// program stays inside), return to the start mark, and end battery-BOUND in
+// the 10-25% band (the debrief's honest ending), having really moved and
+// really scanned/flagged (place events).
+{
+  const sl = EXAMPLES.searchlight && EXAMPLES.searchlight.code;
+  check('searchlight tab ships', typeof sl === 'string' && sl.length > 2000, sl ? sl.length + ' chars' : 'missing');
+  if (typeof sl === 'string') {
+    const t = run(sl);
+    check('searchlight runs clean, never hits a wall', !t.crashed && t.maxR <= WALL, 'maxR=' + t.maxR + ' crashed=' + t.crashed);
+    check('searchlight returns to base (near the start mark)', Math.hypot(t.finalX, t.finalY) < 5,
+      '(' + t.finalX + ',' + t.finalY + ')');
+    check('searchlight ends battery-bound in the 10-25% band', t.battery >= 10 && t.battery <= 25,
+      t.battery.toFixed(1) + '% remaining');
+    check('searchlight actually surveys (>= 30 moves)', t.moves >= 30, t.moves + ' moves');
+    // Scan stations drop flags: place events prove the survey did real work.
+    // A clear-lane host (distance = full range, battery high) lets every
+    // guarded move through so the survey reaches its scan stations.
+    let places = 0;
+    for (const ev of compile(sl).run({ sensor: (n) => n === 'distance' ? 1500 : (n === 'battery' ? 100 : 0) })) {
+      if (ev.type === 'place') places++;
+    }
+    check('searchlight drops flag markers at scan stations', places >= 4, places + ' flags placed');
+  }
+}
+
+// S5: Gauntlet is the CAPABILITY reference - complex pen geometry plus the
+// full language surface. It must run clean, draw its figures inside the arena,
+// return the pen to the start mark, complete on a full pack with reserve (its
+// battery checkpoints keep it from halting mid-figure), and prove the surface
+// with the right printed outputs (banker's rounding, a recursion trace, a
+// list built by concatenation).
+{
+  const gl = EXAMPLES.gauntlet && EXAMPLES.gauntlet.code;
+  check('gauntlet tab ships', typeof gl === 'string' && gl.length > 2000, gl ? gl.length + ' chars' : 'missing');
+  if (typeof gl === 'string') {
+    const t = run(gl);
+    check('gauntlet runs clean, geometry stays inside the arena', !t.crashed && t.maxR <= WALL,
+      'maxR=' + t.maxR + ' crashed=' + t.crashed);
+    check('gauntlet returns the pen to the start mark', Math.hypot(t.finalX, t.finalY) < 5,
+      '(' + t.finalX + ',' + t.finalY + ')');
+    check('gauntlet completes on a full pack with reserve (> 8% left)', t.battery > 8,
+      t.battery.toFixed(1) + '% remaining');
+    check('gauntlet draws its figures (>= 40 moves, >= 60 turns)', t.moves >= 40 && t.turns >= 60,
+      t.moves + ' moves, ' + t.turns + ' turns');
+    const out = printsOf(gl);
+    const joined = out.join('\n');
+    check('gauntlet math gym prints banker rounding (0.5->0, 2.5->2, 3.5->4)',
+      /round\(0\.5\) = 0.*round\(2\.5\) = 2.*round\(3\.5\) = 4/.test(joined), '');
+    check('gauntlet control-flow gym prints the recursion lift-off', joined.indexOf('lift-off') >= 0, '');
+    check('gauntlet list workout prints the squares list [1, 4, 9, 16, 25]',
+      joined.indexOf('[1, 4, 9, 16, 25]') >= 0, '');
+  }
+}
+
+console.log('\n== ARM HONESTY (PERFECTION_PLAN P7/A13, bugs D4) ==');
+// A fixed-base arm cannot drive: KodroCommands.driveCheck (the ONE source of
+// truth the live run and the grader both read) must refuse the four
+// locomotion verbs for an arm build while a rover sails through. Load the
+// KodroCommands registry from RobotLab.jsx with a React/window shim so the
+// module body runs and registers window.KodroCommands.
+{
+  const RL_SRC = readFileSync(new URL('../src/robolearn/assets/web/RobotLab.jsx', import.meta.url), 'utf8');
+  const shimReact = {
+    createElement: () => null, Fragment: 'Fragment',
+    useState: (v) => [typeof v === 'function' ? v() : v, () => {}],
+    useRef: () => ({ current: null }), useEffect: () => {},
+  };
+  const shimLs = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+  new Function('window', 'React', 'localStorage', 'document', RL_SRC)(win, shimReact, shimLs, { createElement: () => ({}) });
+  const KC = win.KodroCommands;
+  const arm = { type: 'arm', sensors: ['camera'], actuators: ['gripper'] };
+  const rover = { type: 'rover', sensors: ['ultrasonic', 'imu'], actuators: ['motors4'] };
+  check('KodroCommands.driveCheck exists', KC && typeof KC.driveCheck === 'function', '');
+  check('arm refuses move_forward', KC.driveCheck(arm, 'move_forward').ok === false,
+    KC.driveCheck(arm, 'move_forward').reason || '');
+  check('arm refusal names the fixed-base arm',
+    /fixed-base arm/i.test(KC.driveCheck(arm, 'move_forward').reason || ''),
+    KC.driveCheck(arm, 'move_forward').reason || '');
+  check('arm refuses all four locomotion verbs',
+    ['move_forward', 'move_backward', 'turn_left', 'turn_right'].every((c) => !KC.driveCheck(arm, c).ok), '');
+  check('rover drives (move_forward + turn_left ok)',
+    KC.driveCheck(rover, 'move_forward').ok && KC.driveCheck(rover, 'turn_left').ok, '');
+  check('set_speed is not a drive verb (allowed on an arm)', KC.driveCheck(arm, 'set_speed').ok === true, '');
+  check('arm availability marks the four verbs unavailable',
+    ['move_forward', 'move_backward', 'turn_left', 'turn_right']
+      .every((c) => !KC.availability(arm).find((e) => e.name === c).available), '');
+  check('rover availability keeps move_forward available',
+    KC.availability(rover).find((e) => e.name === 'move_forward').available === true, '');
 }
 
 console.log('\n== BEEP EVENT (S3) ==');

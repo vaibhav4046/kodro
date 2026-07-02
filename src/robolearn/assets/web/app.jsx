@@ -1298,8 +1298,26 @@
         switch (ev.type) {
           case 'step': await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
           case 'print': addConsole(ev.text, 'out'); await delay(stepMode ? 0 : 90 / speedMulRef.current); break;
-          case 'move': sfx('move'); return await animateMove(ev);
-          case 'turn': sfx('turn'); return await animateTurn(ev);
+          case 'move': case 'turn': {
+            // Arm honesty (A13, bugs D4): a fixed-base arm has no drive, so a
+            // move/turn must be refused with a readable coach line instead of
+            // sliding its pedestal across the room. The gate lives in
+            // KodroCommands (the one source of truth the grader reads too), so
+            // the arm is honest on the visible run AND cannot pass a driving
+            // lesson it never performed. A rover/car/home build has a drive
+            // actuator, so driveCheck returns ok and the byte-identical
+            // animation path below runs exactly as before.
+            const driveRobot = window.getKodroRobot ? window.getKodroRobot() : null;
+            if (window.KodroCommands) {
+              const cmdName = ev.type === 'move'
+                ? (ev.dir < 0 ? 'move_backward' : 'move_forward')
+                : (ev.deg < 0 ? 'turn_left' : 'turn_right');
+              const g = window.KodroCommands.driveCheck(driveRobot, cmdName);
+              if (!g.ok) { const err = new Error(g.reason); err.line = ev.line; handleRuntimeError(err); return false; }
+            }
+            if (ev.type === 'move') { sfx('move'); return await animateMove(ev); }
+            sfx('turn'); return await animateTurn(ev);
+          }
           case 'speed': live.current.speed = Math.max(0, Math.min(100, ev.value)); sync(); break;
           case 'wait': live.current.vel = 0; await delay(ev.seconds * 1000 / speedMulRef.current); break;
           case 'pen':

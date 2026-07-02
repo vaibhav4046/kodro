@@ -198,6 +198,15 @@
   // runtime command names (including the lesson aliases the interpreter emits);
   // each maps to the part that must be fitted for the command to be available.
   const BASE_COMMANDS = ['move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'stop'];
+  // The commands that translate the robot's BASE across the arena. A fixed-base
+  // arm (a pedestal manipulator) has no drive, so it must refuse these rather
+  // than silently sliding its pedestal around (A13, bugs D4). Kept separate
+  // from BASE_COMMANDS so set_speed()/stop() stay available on an arm (they are
+  // harmless no-ops) and only the four locomotion verbs are gated.
+  const DRIVE_COMMANDS = { move_forward: 1, move_backward: 1, turn_left: 1, turn_right: 1 };
+  // The drive actuators that make a build mobile. An arm archetype fits only a
+  // gripper, so it has none of these and cannot drive.
+  const DRIVE_ACTUATORS = ['motors2', 'motors4', 'servos'];
   // Only commands the interpreter actually implements are gated, keyed by the
   // internal name host.sensor receives (after the lesson-alias mapping). The
   // camera/gps/bumper/line/gripper commands are not implemented, so they are
@@ -229,10 +238,42 @@
         reason: 'This robot has no ' + partLabel(part) + ', so ' + cmdName + '() is not available. Fit a ' + partLabel(part) + ' in the Robot Lab to use it.',
       };
     },
+    // Drive honesty (A13, bugs D4): a fixed-base arm cannot translate its
+    // pedestal, so the four locomotion verbs are refused for an arm build
+    // rather than quietly driving 3.4 m across the room. Returns {ok:true} for
+    // any command that is not a drive verb, or for a build that actually has a
+    // drive actuator fitted; else {ok:false, reason}. This is the SAME source
+    // of truth the visible run and the grader both read, so an arm is honest on
+    // screen and cannot pass a driving lesson it never physically performed.
+    driveCheck: function (robot, cmdName) {
+      if (!DRIVE_COMMANDS[cmdName]) return { ok: true };
+      if (!robot) return { ok: true }; // no build context (headless QA): do not gate
+      const fitted = fittedParts(robot) || [];
+      const hasDrive = DRIVE_ACTUATORS.some(function (a) { return fitted.indexOf(a) >= 0; });
+      if (hasDrive) return { ok: true };
+      if (robot.type === 'arm') {
+        return {
+          ok: false, type: 'arm',
+          reason: 'This is a fixed-base arm; it cannot drive. It works in place. ' + cmdName + '() is not available on a pedestal manipulator.',
+        };
+      }
+      // A non-arm build that somehow has no drive part still cannot move; say
+      // so plainly instead of animating a slide with no motor behind it.
+      return {
+        ok: false, type: robot.type || '',
+        reason: 'This build has no drive actuator, so ' + cmdName + '() cannot move it. Fit motors or servos in the Robot Lab to drive.',
+      };
+    },
     // The full availability list for the UI cards and the assistant grounding:
     // every base command plus one entry per part-gated command, with reasons.
     availability: function (robot) {
-      const out = BASE_COMMANDS.map(function (c) { return { name: c, available: true, requires: null }; });
+      const out = BASE_COMMANDS.map(function (c) {
+        // A fixed-base arm cannot run the four locomotion verbs; mark them
+        // unavailable here too so the UI cards, the block palette and the
+        // assistant grounding all agree with what the run will actually do.
+        const dr = window.KodroCommands.driveCheck(robot, c);
+        return { name: c, available: dr.ok, requires: dr.ok ? null : 'drive', reason: dr.ok ? null : dr.reason };
+      });
       Object.keys(PART_COMMAND).forEach(function (part) {
         const cmd = PART_COMMAND[part];
         const r = window.KodroCommands.check(robot, cmd);
@@ -241,11 +282,13 @@
       return out;
     },
     // A short grounding line for the assistant: the commands it may use and the
-    // ones it must refuse because the part is not fitted.
+    // ones it must refuse because the part or drive is not fitted.
     groundingText: function (robot) {
       const a = window.KodroCommands.availability(robot);
       const ok = a.filter(function (c) { return c.available; }).map(function (c) { return c.name + '()'; });
-      const no = a.filter(function (c) { return !c.available; }).map(function (c) { return c.name + '() (needs ' + c.partLabel + ')'; });
+      const no = a.filter(function (c) { return !c.available; }).map(function (c) {
+        return c.name + '() (needs ' + (c.partLabel || (c.requires === 'drive' ? 'a drive; this is a fixed-base build' : 'a missing part')) + ')';
+      });
       let t = 'Commands this build supports: ' + ok.join(', ') + '.';
       if (no.length) t += ' Not available, do not use and refuse if asked: ' + no.join(', ') + '.';
       return t;
