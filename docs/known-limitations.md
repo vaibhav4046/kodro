@@ -92,8 +92,8 @@ and a single command registry (`KodroCommands` in `RobotLab.jsx`) is the
 source of truth for which commands the build supports. The commands that
 are actually implemented in the interpreter, the ultrasonic range read
 `distance()` and the IMU read `heading()` (with its `tilt` reading), are
-gated end to end: the text editor, the blocks palette, the voice route
-and the grounded assistant all refuse the call with a readable message
+gated end to end: the text editor, the blocks palette and the grounded
+assistant all refuse the call with a readable message
 when the part is not fitted, rather than faking a reading, and the
 assistant is handed the same registry so it refuses too.
 
@@ -123,16 +123,3 @@ mitigates this for motion but not for arena boundary behaviour.
 
 We are working toward a single shared arena definition so the two
 engines agree on the world size.
-
-## Voice is Windows-only without faster-whisper
-
-The voice button has two paths. With `faster-whisper` installed it
-transcribes speech on any OS using a local model, fully offline.
-Without `faster-whisper` the path falls back to the Windows SAPI speech
-recognizer, which is Windows only and depends on the OS language pack.
-On macOS or Linux without `faster-whisper`, voice input is not
-available. The deterministic phrase parser that turns a transcript into
-a rover line works everywhere once it has text.
-
-We are working toward making `faster-whisper` the default path on all
-platforms and documenting the install.

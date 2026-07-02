@@ -155,7 +155,6 @@ const MODALS = [
   { name: 'realism',    marker: /aria-label="Realism dashboard"/,    note: 'Realism dashboard modal' },
   { name: 'demo',       marker: /Kodro Realism Demo/,                note: 'Guided Demo modal (no aria-label; eyebrow text)' },
   { name: 'ask',        marker: /aria-label="Ask a question"/,       note: 'Ask (lesson Q&A) modal' },
-  { name: 'voiceagent', marker: /aria-label="Talk to Kodro"/,        note: 'Voice agent (Talk to Kodro) modal' },
   { name: 'robotlab',   marker: /aria-label="Robot Lab"[^>]*role="dialog"|class="[^"]*rl-modal[^"]*"/, note: 'Robot Lab modal' },
   { name: 'memory',     marker: /aria-label="Memory and skills"[^>]*data-tick|class="modal modal-wide"[^>]*aria-label="Memory and skills"|aria-label="Memory and skills"[^>]*role="dialog"|role="dialog"[^>]*aria-label="Memory and skills"/, note: 'Memory and skills modal' },
   { name: 'build',      marker: /aria-label="Build a real robot"[^>]*role="dialog"|role="dialog"[^>]*aria-label="Build a real robot"/, note: 'Build a real robot modal' },

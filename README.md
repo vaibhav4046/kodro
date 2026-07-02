@@ -46,8 +46,8 @@ set honest expectations up front:
     |           |             |            |
   Robot Lab   code /        a 3D world   localStorage
   boards,     blocks /      picked for   reflections
-  sensors,    voice, with   the robot:   and saved
-  actuators   a grounded    city, room,  skills feed
+  sensors,    with a        the robot:   and saved
+  actuators   grounded      city, room,  skills feed
   and type    local AI      or terrain   the next run
 ```
 
@@ -81,11 +81,6 @@ What actually ships in this repository, verified against the test suite:
   a blocks editor that emits the same Python, and an optional local AI
   assistant (Ollama on `localhost`, a small 3 to 4B open model) with a
   deterministic rule based fallback when Ollama is absent.
-- **Voice input.** A voice button turns a spoken phrase ("go forward
-  three", "turn left ninety") into a real rover line in the editor via
-  a deterministic parser. With `faster-whisper` installed it works on
-  any OS; without it the path falls back to the Windows SAPI speech
-  recognizer.
 - **Realistic worlds.** A City with looping one way traffic and
   pedestrians that brake for your robot, a furnished Room, and
   planetary terrains. Built in code with Three.js (core only), an
@@ -168,12 +163,6 @@ the assistant:
    in the Vibe panel; you can switch models there. Nothing ever leaves
    your machine: the only network peer the app will talk to is
    `localhost:11434`.
-
-### Optional: offline voice input
-
-```bash
-pip install faster-whisper   # any OS; falls back to Windows SAPI without it
-```
 
 The web UI is pre compiled to a single `bundle.js`, so the desktop app
 loads plain JavaScript with no build server and no network. To rebuild

@@ -106,7 +106,7 @@ fs.writeFileSync(path.join(WEB, 'studio_harness.html'), STUDIO);
 //   cap.html?panel=memory     studio with the Memory panel open
 //   cap.html?open=vibe        studio with a named modal/popover opened. Names:
 //                             vibe blocks review validate realism demo ask
-//                             voiceagent robotlab memory build help settings
+//                             robotlab memory build help settings
 //   cap.html?view=2d          force the flat 2.5D viewport (view=3d forces 3D)
 //   cap.html?repl=<line>      type one line into the live terminal and Enter it
 //   cap.html?code=-           the '-' sentinel types an EMPTY program (blank-run
@@ -329,7 +329,7 @@ const CAP = `<!DOCTYPE html>
         // unaffected). On load, click the toolbar button that opens the named
         // modal/popover so the UI harness can assert each one renders. Triggers
         // are taken from app.jsx: btn-vibe class for Vibe; aria-label PREFIXES for
-        // the icon buttons (Voice agent / Robot Lab / Memory / Build / Keyboard
+        // the icon buttons (Robot Lab / Memory / Build / Keyboard
         // shortcuts / Settings — each button's aria-label gained a " — <suffix>",
         // so we match the label prefix, not the whole string); and title text for
         // the editor-toolbar buttons
@@ -347,7 +347,6 @@ const CAP = `<!DOCTYPE html>
           ask: function () { return clickTitleStartsWith('Ask a question, answered from the lesson material'); },
           // Icon-bar buttons: match the aria-label PREFIX (the label text before
           // the " — <suffix>" the buttons gained). See app.jsx icon-bar markup.
-          voiceagent: function () { return clickAriaStartsWith('Voice agent'); },
           robotlab: function () { return clickAriaStartsWith('Robot Lab'); },
           memory: function () { return clickAriaStartsWith('Memory and skills'); },
           build: function () { return clickAriaStartsWith('Build a real robot'); },

@@ -174,7 +174,6 @@
   }
   .konb-agent-input::placeholder{ color:var(--fg-3); }
   .konb-agent-input:focus{ border-color:var(--cyan); box-shadow:0 0 0 3px rgba(92,224,216,.18); }
-  .konb-agent-mic{ min-width:46px; padding:0 14px; font-size:16px; }
   .konb-agent-err{ color:var(--mars); font-size:13px; line-height:1.45; margin:10px 0 0; }
   .konb-agent-or{ display:flex; align-items:center; gap:12px; font-family:var(--font-mono); font-size:10.5px;
     letter-spacing:.18em; text-transform:uppercase; color:var(--fg-3); margin:20px 0 4px; }
@@ -230,10 +229,9 @@
     .konb-actions{ flex-direction:column; align-items:stretch; }
     /* Full-width is for the step-nav buttons only, not the agent-row controls. */
     .konb-actions .konb-btn{ width:100%; justify-content:center; }
-    /* Phone agent-row: input on its own line, mic + Build share the next line. */
+    /* Phone agent-row: input on its own line, Build on the next line. */
     .konb-agent-row{ flex-wrap:wrap; }
     .konb-agent-input{ flex:1 1 100%; }
-    .konb-agent-mic{ flex:1; min-width:0; }
     .konb-agent-row .konb-btn.primary{ flex:1; justify-content:center; }
     .konb-orbit{ max-width:200px; }
     .konb-rec{ flex-direction:column; align-items:flex-start; text-align:left; }
@@ -271,7 +269,6 @@
     // result so step 2 can show the exact parts the agent fitted.
     const [agentText, setAgentText] = useState("");
     const [built, setBuilt] = useState(null);
-    const [agentBusy, setAgentBusy] = useState(false);
     const [agentErr, setAgentErr] = useState("");
 
     useEffect(() => {
@@ -305,8 +302,8 @@
       onClose();
     }
 
-    // Build a robot from a free-text (or spoken) description, validated through
-    // the parts catalogue, then jump to the world recommendation for it.
+    // Build a robot from a free-text description, validated through the
+    // parts catalogue, then jump to the world recommendation for it.
     function buildFromAgent(text) {
       const q = (text != null ? text : agentText).trim();
       if (!q) return;
@@ -323,22 +320,6 @@
       setType(res.spec.type);
       setStep(2);
     }
-    function agentVoice() {
-      if (agentBusy || !window.RoboLearn || !window.RoboLearn.isAvailable || !window.RoboLearn.isAvailable()) return;
-      const listen = window.RoboLearn.listen || window.RoboLearn.voiceCommand;
-      if (!listen) return;
-      setAgentBusy(true); setAgentErr("");
-      Promise.resolve(listen(6)).then(function (r) {
-        const txt = r && (r.text || r.transcript || (typeof r === "string" ? r : ""));
-        if (txt && txt.trim()) { setAgentText(txt); buildFromAgent(txt); }
-        // Do not fail silently: an empty/failed capture tells the user to retry
-        // or type, rather than leaving the button looking stuck.
-        else { setAgentErr((r && r.reason) || "Did not catch that. Try again, or type your robot below."); }
-      }).catch(function (e) {
-        setAgentErr((e && e.message) || "Voice input failed. Try again, or type your robot below.");
-      }).then(function () { setAgentBusy(false); });
-    }
-
     return (
       <div className="konb-root" role="dialog" aria-modal="true" aria-label="Welcome to Kodro">
         <div className="konb-shell">
@@ -401,9 +382,6 @@
                       onChange={(e) => setAgentText(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") buildFromAgent(); }}
                     />
-                    {window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() && (
-                      <button className="konb-btn ghost konb-agent-mic" type="button" aria-label={agentBusy ? "Voice input busy" : "Describe your robot by voice"} title="Describe by voice" disabled={agentBusy} onClick={agentVoice}>{agentBusy ? "…" : "🎤"}</button>
-                    )}
                     <button className="konb-btn primary" type="button" disabled={!agentText.trim()} onClick={() => buildFromAgent()}>Build it</button>
                   </div>
                   {agentErr && <p className="konb-agent-err" role="alert">{agentErr}</p>}

@@ -10869,7 +10869,6 @@ Object.assign(window, {
   }
   .konb-agent-input::placeholder{ color:var(--fg-3); }
   .konb-agent-input:focus{ border-color:var(--cyan); box-shadow:0 0 0 3px rgba(92,224,216,.18); }
-  .konb-agent-mic{ min-width:46px; padding:0 14px; font-size:16px; }
   .konb-agent-err{ color:var(--mars); font-size:13px; line-height:1.45; margin:10px 0 0; }
   .konb-agent-or{ display:flex; align-items:center; gap:12px; font-family:var(--font-mono); font-size:10.5px;
     letter-spacing:.18em; text-transform:uppercase; color:var(--fg-3); margin:20px 0 4px; }
@@ -10925,10 +10924,9 @@ Object.assign(window, {
     .konb-actions{ flex-direction:column; align-items:stretch; }
     /* Full-width is for the step-nav buttons only, not the agent-row controls. */
     .konb-actions .konb-btn{ width:100%; justify-content:center; }
-    /* Phone agent-row: input on its own line, mic + Build share the next line. */
+    /* Phone agent-row: input on its own line, Build on the next line. */
     .konb-agent-row{ flex-wrap:wrap; }
     .konb-agent-input{ flex:1 1 100%; }
-    .konb-agent-mic{ flex:1; min-width:0; }
     .konb-agent-row .konb-btn.primary{ flex:1; justify-content:center; }
     .konb-orbit{ max-width:200px; }
     .konb-rec{ flex-direction:column; align-items:flex-start; text-align:left; }
@@ -10971,7 +10969,6 @@ Object.assign(window, {
     // result so step 2 can show the exact parts the agent fitted.
     const [agentText, setAgentText] = useState("");
     const [built, setBuilt] = useState(null);
-    const [agentBusy, setAgentBusy] = useState(false);
     const [agentErr, setAgentErr] = useState("");
     useEffect(() => {
       const tag = "kodro-onb-style";
@@ -11006,8 +11003,8 @@ Object.assign(window, {
       onClose();
     }
 
-    // Build a robot from a free-text (or spoken) description, validated through
-    // the parts catalogue, then jump to the world recommendation for it.
+    // Build a robot from a free-text description, validated through the
+    // parts catalogue, then jump to the world recommendation for it.
     function buildFromAgent(text) {
       const q = (text != null ? text : agentText).trim();
       if (!q) return;
@@ -11023,29 +11020,6 @@ Object.assign(window, {
       setBuilt(res);
       setType(res.spec.type);
       setStep(2);
-    }
-    function agentVoice() {
-      if (agentBusy || !window.RoboLearn || !window.RoboLearn.isAvailable || !window.RoboLearn.isAvailable()) return;
-      const listen = window.RoboLearn.listen || window.RoboLearn.voiceCommand;
-      if (!listen) return;
-      setAgentBusy(true);
-      setAgentErr("");
-      Promise.resolve(listen(6)).then(function (r) {
-        const txt = r && (r.text || r.transcript || (typeof r === "string" ? r : ""));
-        if (txt && txt.trim()) {
-          setAgentText(txt);
-          buildFromAgent(txt);
-        }
-        // Do not fail silently: an empty/failed capture tells the user to retry
-        // or type, rather than leaving the button looking stuck.
-        else {
-          setAgentErr(r && r.reason || "Did not catch that. Try again, or type your robot below.");
-        }
-      }).catch(function (e) {
-        setAgentErr(e && e.message || "Voice input failed. Try again, or type your robot below.");
-      }).then(function () {
-        setAgentBusy(false);
-      });
     }
     return /*#__PURE__*/React.createElement("div", {
       className: "konb-root",
@@ -11144,14 +11118,7 @@ Object.assign(window, {
       onKeyDown: e => {
         if (e.key === "Enter") buildFromAgent();
       }
-    }), window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() && /*#__PURE__*/React.createElement("button", {
-      className: "konb-btn ghost konb-agent-mic",
-      type: "button",
-      "aria-label": agentBusy ? "Voice input busy" : "Describe your robot by voice",
-      title: "Describe by voice",
-      disabled: agentBusy,
-      onClick: agentVoice
-    }, agentBusy ? "…" : "🎤"), /*#__PURE__*/React.createElement("button", {
+    }), /*#__PURE__*/React.createElement("button", {
       className: "konb-btn primary",
       type: "button",
       disabled: !agentText.trim(),
@@ -11779,11 +11746,6 @@ Object.assign(window, {
       return false;
     }
   }
-
-  // Voice output removed by owner decision: the studio never speaks aloud.
-  // say() remains a visual command (speech bubble + console line); this no-op
-  // keeps every existing KodroAI.speak call site harmless.
-  function speak() {}
   if (typeof window !== 'undefined') {
     window.KodroAI = {
       status: status,
@@ -11793,7 +11755,6 @@ Object.assign(window, {
       reviewCode: reviewCode,
       ask: ask,
       available: available,
-      speak: speak,
       pick: pick
     };
   }
@@ -12885,71 +12846,6 @@ say("Survey done")`
     }, "Start a local model (Ollama) for a written answer; the lesson material above is shown offline.")))));
   }
 
-  // ---- Voice agent (Talk to Kodro) ----
-  function VoiceAgentModal({
-    vaBusy,
-    setVaOpen,
-    vaData,
-    runVoiceAgent
-  }) {
-    return /*#__PURE__*/React.createElement("div", {
-      className: "modal-backdrop",
-      onClick: () => !vaBusy && setVaOpen(false)
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal va-modal",
-      role: "dialog",
-      "aria-modal": "true",
-      "aria-label": "Talk to Kodro",
-      onClick: e => e.stopPropagation()
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "\uD83C\uDF99 Talk to Kodro. Say a command, or ask a question"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
-      onClick: () => setVaOpen(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "va-body"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: 'va-wave' + (vaBusy ? ' live' : ''),
-      "aria-hidden": "true"
-    }, Array.from({
-      length: 28
-    }).map((_, i) => /*#__PURE__*/React.createElement("span", {
-      key: i,
-      style: {
-        ['--i']: i
-      }
-    }))), /*#__PURE__*/React.createElement("p", {
-      className: "va-status"
-    }, vaBusy ? 'Listening…' : vaData ? null : 'Tap the microphone in the bar to talk.'), vaData && vaData.text && /*#__PURE__*/React.createElement("p", {
-      className: "va-heard"
-    }, "\u201C", vaData.text, "\u201D"), vaData && vaData.ok === false && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-error",
-      role: "alert"
-    }, vaData.reason), vaData && vaData.ok && vaData.mode === 'command' && /*#__PURE__*/React.createElement("p", {
-      className: "va-result"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "va-tag"
-    }, "added to your code"), /*#__PURE__*/React.createElement("code", null, vaData.code)), vaData && vaData.ok && vaData.mode === 'answer' && /*#__PURE__*/React.createElement("div", {
-      className: "ask-answer"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "ask-text"
-    }, vaData.answer), vaData.sources && vaData.sources.length > 0 && /*#__PURE__*/React.createElement("div", {
-      className: "ask-sources"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
-    }, "From the lessons"), vaData.sources.map((s, i) => /*#__PURE__*/React.createElement("div", {
-      key: i,
-      className: "ask-src"
-    }, /*#__PURE__*/React.createElement("b", null, "[", i + 1, "] ", s.source), /*#__PURE__*/React.createElement("span", null, s.text))))), /*#__PURE__*/React.createElement("button", {
-      className: "ctrl ctrl-run",
-      disabled: vaBusy,
-      onClick: runVoiceAgent
-    }, vaBusy ? 'Listening…' : '🎙 Talk again'))));
-  }
-
   // ---- Memory and skills ----
   // Reads window.KodroMemory directly (loaded earlier in ORDER), same as inline.
   function MemoryModal({
@@ -13136,8 +13032,6 @@ say("Survey done")`
     vibeLive,
     vibeEndRef,
     vibeError,
-    micBusy,
-    vibeMic,
     vibePrompt,
     setVibePrompt,
     vibeSend,
@@ -13250,13 +13144,7 @@ say("Survey done")`
       role: "alert"
     }, vibeError), /*#__PURE__*/React.createElement("div", {
       className: "vibe-inputrow"
-    }, /*#__PURE__*/React.createElement("button", {
-      className: "icon-btn",
-      title: "Speak your request (offline)",
-      "aria-label": "Voice input",
-      disabled: micBusy,
-      onClick: vibeMic
-    }, micBusy ? '…' : '🎤'), /*#__PURE__*/React.createElement("textarea", {
+    }, /*#__PURE__*/React.createElement("textarea", {
       className: "vibe-input",
       rows: 2,
       placeholder: "Say what the rover should do. The AI may ask you a question back",
@@ -13419,7 +13307,6 @@ say("Survey done")`
     TeacherModal,
     ReviewModal,
     AskModal,
-    VoiceAgentModal,
     MemoryModal,
     VibeModal,
     BlocksModal
@@ -13927,15 +13814,6 @@ say("Survey done")`
     }
     // Chat thread: [{role:'user'|'ai', kind:'text'|'code', text}]
     const [vibeMsgs, setVibeMsgs] = useState([]);
-    const [micBusy, setMicBusy] = useState(false);
-    const [voiceGender, setVoiceGender] = useState(() => localStorage.getItem('or_voice') || 'female');
-    useEffect(() => {
-      try {
-        localStorage.setItem('or_voice', voiceGender);
-      } catch (e) {
-        void e;
-      }
-    }, [voiceGender]);
     const vibeEndRef = useRef(null);
     useEffect(() => {
       if (vibeEndRef.current) vibeEndRef.current.scrollIntoView({
@@ -14021,7 +13899,6 @@ say("Survey done")`
             kind: 'text',
             text: r.text
           }]);
-          if (!muted) window.KodroAI.speak(r.text, voiceGender);
         } else if (r && r.ok && r.type === 'code') {
           setVibeMsgs(m => [...m, {
             role: 'ai',
@@ -14054,62 +13931,6 @@ say("Survey done")`
     }
 
     // runReview / applyReview moved to window.KodroHooks.useReview (hooks.jsx).
-
-    // Wave voice agent: speak to drive the rover or ask a grounded question.
-    const [vaOpen, setVaOpen] = useState(false);
-    const [vaBusy, setVaBusy] = useState(false);
-    const [vaData, setVaData] = useState(null);
-    async function runVoiceAgent() {
-      if (vaBusy) return;
-      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
-        setVaData({
-          ok: false,
-          reason: 'Voice needs the desktop app.'
-        });
-        return;
-      }
-      setVaBusy(true);
-      setVaData(null);
-      try {
-        const r = await window.RoboLearn.voiceAgent(6);
-        setVaData(r || {
-          ok: false,
-          reason: 'No response.'
-        });
-        if (r && r.ok && r.mode === 'command' && r.code) {
-          onCodeChange((code && !code.endsWith('\n') ? code + '\n' : code) + r.code + '\n');
-          addConsole('Heard "' + r.text + '" → added ' + r.code, 'ok');
-        }
-      } catch (e) {
-        setVaData({
-          ok: false,
-          reason: String(e)
-        });
-      }
-      setVaBusy(false);
-    }
-    const [voiceBusy, setVoiceBusy] = useState(false);
-    async function runVoiceCommand() {
-      if (voiceBusy) return;
-      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
-        addConsole('Voice needs the desktop app.', 'err');
-        return;
-      }
-      setVoiceBusy(true);
-      addConsole('Listening… say a command like "go forward three" or "turn left ninety".', 'sys');
-      try {
-        const r = await window.RoboLearn.voiceCommand(6);
-        if (r && r.ok && r.code) {
-          onCodeChange((code && !code.endsWith('\n') ? code + '\n' : code) + r.code + '\n');
-          addConsole('Heard "' + r.text + '" → added ' + r.code, 'ok');
-        } else {
-          addConsole(r && r.reason || 'Voice command not understood.', 'err');
-        }
-      } catch (e) {
-        addConsole('Voice: ' + e, 'err');
-      }
-      setVoiceBusy(false);
-    }
 
     // Agent swarm: run the program on a fleet of rovers, draw their trails.
     const [swarmOpen, setSwarmOpen] = useState(false);
@@ -14173,22 +13994,6 @@ say("Survey done")`
           pupils: []
         });
       }
-    }
-    async function vibeMic() {
-      if (micBusy) return;
-      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
-        setVibeError('Voice needs the desktop app.');
-        return;
-      }
-      setMicBusy(true);
-      setVibeError(null);
-      try {
-        const r = await window.RoboLearn.listen(6);
-        if (r && r.ok) setVibePrompt(p => (p ? p + ' ' : '') + r.text);else setVibeError(r && r.reason || 'Voice input failed.');
-      } catch (e) {
-        setVibeError(String(e));
-      }
-      setMicBusy(false);
     }
 
     // Typewriter: animate code into the active editor buffer like live typing.
@@ -14566,7 +14371,7 @@ say("Survey done")`
         // Single source of truth (RobotLab.KodroCommands): a sensor command is
         // only available if the part it needs is fitted. A missing part is a
         // readable refusal, not a faked reading, so removing a sensor genuinely
-        // removes its command from text, blocks and voice alike.
+        // removes its command from text and blocks alike.
         const rb = window.getKodroRobot ? window.getKodroRobot() : null;
         if (window.KodroCommands) {
           const g = window.KodroCommands.check(rb, name);
@@ -14946,12 +14751,8 @@ say("Survey done")`
             sync();
             break;
           case 'say':
+            // Visual program output only: a speech bubble plus a console line.
             sfx('say');
-            // Rover speaks aloud with the OS's offline TTS voice (Windows
-            // SAPI via the bridge); silent in browser preview or when muted.
-            if (window.KodroAI && (!window.RLSound || !window.RLSound.isMuted())) {
-              window.KodroAI.speak(ev.text, voiceGender);
-            }
             showSay(ev.text);
             await delay(stepMode ? 0 : 200 / speedMulRef.current);
             break;
@@ -15398,7 +15199,7 @@ say("Survey done")`
     // fires; the duplicate close is harmless) but excludes FPV, which has a
     // dedicated Escape handler for motion-sensitive exit.
     const anyOverlayOpenRef = useRef(false);
-    anyOverlayOpenRef.current = !!(swarmOpen || vaOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || settingsOpen);
+    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || settingsOpen);
     const fpvRef = useRef(fpv);
     fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
@@ -15407,7 +15208,6 @@ say("Survey done")`
       const typingIn = el => el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable);
       const closeAllOverlays = () => {
         setSwarmOpen(false);
-        setVaOpen(false);
         setAskOpen(false);
         setTeacherOpen(false);
         setRobotLabOpen(false);
@@ -15534,7 +15334,7 @@ say("Survey done")`
     // assistive tech that focus is confined to the dialog, so honour it: when one
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
-    const anyModalOpen = swarmOpen || vaOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen;
+    const anyModalOpen = swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen;
     useEffect(() => {
       if (!anyModalOpen) return undefined;
       const modal = Array.prototype.slice.call(document.querySelectorAll('.modal[aria-modal="true"]')).pop();
@@ -15664,17 +15464,6 @@ say("Survey done")`
     }, chipName), (chipType || chipMass) && /*#__PURE__*/React.createElement("span", {
       className: "rc-meta"
     }, chipType || '', chipType && chipMass ? ' · ' : '', chipMass ? chipMass + ' g' : '')), /*#__PURE__*/React.createElement("button", {
-      className: "icon-btn voice-agent-btn",
-      title: "Talk to Kodro. Speak a command or ask a question",
-      "aria-label": "Voice agent \u2014 speak a command or ask a question",
-      onClick: () => {
-        setVaOpen(true);
-        setVaData(null);
-        runVoiceAgent();
-      }
-    }, "\uD83C\uDF99", /*#__PURE__*/React.createElement("span", {
-      className: "icon-btn-label"
-    }, "Voice")), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
       title: "Robot Lab. Design a custom robot",
       "aria-label": "Robot Lab \u2014 design a custom robot",
@@ -15770,12 +15559,6 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("span", null, "Readable text"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
     }, readable ? 'On' : 'Off')), /*#__PURE__*/React.createElement("button", {
-      className: "set-row set-btn",
-      "aria-pressed": voiceGender === 'female',
-      onClick: () => setVoiceGender(v => v === 'female' ? 'male' : 'female')
-    }, /*#__PURE__*/React.createElement("span", null, "Voice"), /*#__PURE__*/React.createElement("span", {
-      className: "set-val"
-    }, voiceGender === 'female' ? 'Female' : 'Male')), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
       onClick: () => {
         setSettingsOpen(false);
@@ -15880,11 +15663,6 @@ say("Survey done")`
       }
     }, "\u2753 Ask"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      title: "Speak a command. Works offline, no AI model needed",
-      disabled: voiceBusy,
-      onClick: runVoiceCommand
-    }, voiceBusy ? '🎙…' : '🎙 Voice'), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
       title: "Run your program on a swarm of rovers at once",
       onClick: runSwarm
     }, "\uD83D\uDC1D Swarm"))), /*#__PURE__*/React.createElement(window.Editor, {
@@ -15936,17 +15714,7 @@ say("Survey done")`
         className: 'lesson-verdict ' + (lessonVerdict.passed ? 'pass' : 'fail')
       }, /*#__PURE__*/React.createElement("span", {
         "aria-hidden": "true"
-      }, lessonVerdict.passed ? '✓' : '✗'), " ", lessonVerdict.passed ? 'Complete' : 'Not yet', " \xB7 ", lessonVerdict.score, "/100"), /*#__PURE__*/React.createElement("button", {
-        className: "read-aloud",
-        type: "button",
-        title: "Read this lesson aloud",
-        "aria-label": "Read this lesson aloud",
-        onClick: () => {
-          const gloss = lesson.glossary ? Object.keys(lesson.glossary).map(t => t + ': ' + lesson.glossary[t]).join('. ') : '';
-          const text = (lesson.intro || '').trim() + (gloss ? '. ' + gloss : '');
-          if (text && window.KodroAI) window.KodroAI.speak(text, voiceGender, -2);
-        }
-      }, "\uD83D\uDD0A Read aloud")), lesson.intro ? /*#__PURE__*/React.createElement("p", {
+      }, lessonVerdict.passed ? '✓' : '✗'), " ", lessonVerdict.passed ? 'Complete' : 'Not yet', " \xB7 ", lessonVerdict.score, "/100")), lesson.intro ? /*#__PURE__*/React.createElement("p", {
         className: "lesson-intro"
       }, lesson.intro.trim()) : null, lesson.glossary && Object.keys(lesson.glossary).length > 0 && /*#__PURE__*/React.createElement("dl", {
         className: "lesson-glossary"
@@ -16316,11 +16084,6 @@ say("Survey done")`
       swarmBusy: swarmBusy,
       setSwarmOpen: setSwarmOpen,
       swarmData: swarmData
-    }), vaOpen && /*#__PURE__*/React.createElement(window.KodroPanels.VoiceAgentModal, {
-      vaBusy: vaBusy,
-      setVaOpen: setVaOpen,
-      vaData: vaData,
-      runVoiceAgent: runVoiceAgent
     }), askOpen && /*#__PURE__*/React.createElement(window.KodroPanels.AskModal, {
       askBusy: askBusy,
       setAskOpen: setAskOpen,
@@ -16367,8 +16130,6 @@ say("Survey done")`
       vibeLive: vibeLive,
       vibeEndRef: vibeEndRef,
       vibeError: vibeError,
-      micBusy: micBusy,
-      vibeMic: vibeMic,
       vibePrompt: vibePrompt,
       setVibePrompt: setVibePrompt,
       vibeSend: vibeSend,

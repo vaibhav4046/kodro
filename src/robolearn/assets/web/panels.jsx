@@ -329,45 +329,6 @@
     );
   }
 
-  // ---- Voice agent (Talk to Kodro) ----
-  function VoiceAgentModal({ vaBusy, setVaOpen, vaData, runVoiceAgent }) {
-    return (
-      <div className="modal-backdrop" onClick={() => !vaBusy && setVaOpen(false)}>
-        <div className="modal va-modal" role="dialog" aria-modal="true" aria-label="Talk to Kodro" onClick={e => e.stopPropagation()}>
-          <div className="modal-head">
-            <span className="eyebrow">🎙 Talk to Kodro. Say a command, or ask a question</span>
-            <button className="btn-mini" aria-label="Close" onClick={() => setVaOpen(false)}>✕</button>
-          </div>
-          <div className="va-body">
-            <div className={'va-wave' + (vaBusy ? ' live' : '')} aria-hidden="true">
-              {Array.from({ length: 28 }).map((_, i) => <span key={i} style={{ ['--i']: i }}></span>)}
-            </div>
-            <p className="va-status">{vaBusy ? 'Listening…' : (vaData ? null : 'Tap the microphone in the bar to talk.')}</p>
-            {vaData && vaData.text && <p className="va-heard">“{vaData.text}”</p>}
-            {vaData && vaData.ok === false && <p className="vibe-error" role="alert">{vaData.reason}</p>}
-            {vaData && vaData.ok && vaData.mode === 'command' && (
-              <p className="va-result"><span className="va-tag">added to your code</span><code>{vaData.code}</code></p>
-            )}
-            {vaData && vaData.ok && vaData.mode === 'answer' && (
-              <div className="ask-answer">
-                <p className="ask-text">{vaData.answer}</p>
-                {vaData.sources && vaData.sources.length > 0 && (
-                  <div className="ask-sources">
-                    <span className="eyebrow">From the lessons</span>
-                    {vaData.sources.map((s, i) => (
-                      <div key={i} className="ask-src"><b>[{i + 1}] {s.source}</b><span>{s.text}</span></div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            <button className="ctrl ctrl-run" disabled={vaBusy} onClick={runVoiceAgent}>{vaBusy ? 'Listening…' : '🎙 Talk again'}</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // ---- Memory and skills ----
   // Reads window.KodroMemory directly (loaded earlier in ORDER), same as inline.
   function MemoryModal({ setMemoryOpen, memTick, code, terrain, robotSpec, currentLessonId, setLessonBuffers, setPrograms, activeTab }) {
@@ -456,7 +417,7 @@
   }
 
   // ---- Vibe coding (Code with AI) ----
-  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, micBusy, vibeMic, vibePrompt, setVibePrompt, vibeSend, vibeContext }) {
+  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeContext }) {
     // The reflection the assistant is fed from past runs in this world,
     // rendered as a VISIBLE chip instead of an invisible prompt injection
     // (product-coherence D7: the memory loop must be seen to be believed).
@@ -511,7 +472,6 @@
               </div>
               {vibeError && <p className="vibe-error" role="alert">{vibeError}</p>}
               <div className="vibe-inputrow">
-                <button className="icon-btn" title="Speak your request (offline)" aria-label="Voice input" disabled={micBusy} onClick={vibeMic}>{micBusy ? '…' : '🎤'}</button>
                 <textarea
                   className="vibe-input"
                   rows={2}
@@ -615,7 +575,6 @@
     TeacherModal,
     ReviewModal,
     AskModal,
-    VoiceAgentModal,
     MemoryModal,
     VibeModal,
     BlocksModal,

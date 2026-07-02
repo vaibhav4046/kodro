@@ -99,12 +99,6 @@ class BridgeAPI:
         # Pre-load the local model so the FIRST vibe request doesn't pay the
         # multi-second model-load cost; keep_alive holds it warm after.
         threading.Thread(target=self._warm_ai, daemon=True).start()
-        # Warm the offline speech recogniser too, so the first voice command is
-        # not stuck behind an 8 second model load.
-        with contextlib.suppress(Exception):
-            from robolearn.ai import whisper_stt
-
-            whisper_stt.preload()
 
     def _warm_ai(self) -> None:
         """Load the preferred local model into Ollama's memory (best-effort)."""
@@ -1124,22 +1118,6 @@ class BridgeAPI:
         result["done"] = True
         return result
 
-    def speak(self, text: str, voice: str = "female", rate: int = 0) -> dict[str, Any]:
-        """Speak ``text`` aloud with the OS's offline TTS voice (fire-and-forget).
-
-        ``rate`` is the SAPI speaking rate (-10 slowest to 10 fastest); the
-        read-aloud control passes a slightly slower rate so a lesson intro is
-        easier to follow. The cap is generous enough for a lesson paragraph.
-        """
-        snippet = (text or "").strip()[:600]
-        if not snippet:
-            return {"ok": False, "reason": "nothing to say"}
-        try:
-            _speak_async(snippet, voice=voice, rate=int(rate))
-            return {"ok": True}
-        except Exception as exc:  # pragma: no cover - depends on host TTS
-            return {"ok": False, "reason": str(exc)}
-
     def pick_photo(self) -> dict[str, Any]:
         """Let the pupil choose a LOCAL image; returns it as a data URL.
 
@@ -1175,115 +1153,6 @@ class BridgeAPI:
             return {"ok": True, "dataUrl": f"data:{mime};base64,{data}", "name": path.name}
         except Exception as exc:  # pragma: no cover - host dialog dependent
             return {"ok": False, "reason": str(exc)}
-
-    def voice_agent(self, timeout_s: float = 6.0) -> dict[str, Any]:
-        """One spoken turn for the wave voice agent: act, or answer.
-
-        Listens once, then routes the phrase. If it is a known rover command
-        ("go forward three") it returns the code line to drop into the
-        editor; otherwise it is treated as a question and answered by the
-        grounded Ask path, which stays inside the lesson material. Both
-        branches are offline; the command branch needs no model at all.
-        """
-        from robolearn.ai.voice_commands import parse_voice_command
-
-        heard = self.listen(timeout_s)
-        if not heard.get("ok"):
-            return heard
-        text = str(heard.get("text", ""))
-        line = parse_voice_command(text)
-        if line is not None:
-            return {"ok": True, "mode": "command", "text": text, "code": line}
-        ask = self.ai_ask(text)
-        if ask.get("ok"):
-            return {
-                "ok": True,
-                "mode": "answer",
-                "text": text,
-                "answer": ask.get("answer", ""),
-                "sources": ask.get("sources", []),
-                "grounded": ask.get("grounded", False),
-                "noModel": ask.get("noModel", False),
-            }
-        return {
-            "ok": True,
-            "mode": "answer",
-            "text": text,
-            "answer": ask.get("reason", ""),
-            "sources": [],
-        }
-
-    def voice_command(self, timeout_s: float = 6.0) -> dict[str, Any]:
-        """Dictate one phrase and turn it into a rover instruction, offline.
-
-        Combines the offline speech recogniser with the deterministic
-        voice-to-rover parser, so a pupil can speak "go forward three" and
-        get ``move_forward(3)`` to drop into the editor, with no local model
-        and no network. Returns the heard text alongside the code line, or a
-        friendly reason when the phrase was not understood.
-        """
-        from robolearn.ai.voice_commands import parse_voice_command
-
-        heard = self.listen(timeout_s)
-        if not heard.get("ok"):
-            return heard
-        text = str(heard.get("text", ""))
-        line = parse_voice_command(text)
-        if line is None:
-            return {
-                "ok": False,
-                "text": text,
-                "reason": f'Heard "{text}", but that is not a command I know yet.',
-            }
-        return {"ok": True, "text": text, "code": line}
-
-    def listen(self, timeout_s: float = 6.0) -> dict[str, Any]:
-        """Dictate one phrase with Windows' built-in offline speech recogniser.
-
-        Uses System.Speech (SAPI) through PowerShell -- no extra dependency,
-        no cloud. Returns ``{"ok": True, "text": ...}`` or a friendly reason.
-        Blocking (pywebview runs API calls off the UI thread), capped at
-        ``timeout_s`` seconds of listening.
-        """
-        # Prefer the offline faster-whisper recogniser (Silero VAD + Whisper):
-        # accurate, cross-platform, no cloud. Fall back to Windows System.Speech
-        # only when the local speech stack is not installed.
-        try:
-            from robolearn.ai import whisper_stt
-
-            if whisper_stt.available():
-                return whisper_stt.record_and_transcribe(timeout_s)
-        except Exception:  # pragma: no cover - import/runtime guard
-            pass
-        platform: str = sys.platform
-        if not platform.startswith("win"):
-            return {"ok": False, "reason": "Voice input is available on Windows only."}
-        import subprocess
-
-        seconds = max(2, min(int(timeout_s), 15))
-        script = (
-            "Add-Type -AssemblyName System.Speech; "
-            "$r = New-Object System.Speech.Recognition.SpeechRecognitionEngine; "
-            "$r.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar)); "
-            "$r.SetInputToDefaultAudioDevice(); "
-            f"$res = $r.Recognize([TimeSpan]::FromSeconds({seconds})); "
-            "if ($res) { [Console]::Out.Write($res.Text) }"
-        )
-        try:
-            proc = subprocess.run(
-                ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                capture_output=True,
-                text=True,
-                timeout=seconds + 10,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                check=False,
-            )
-        except Exception as exc:  # pragma: no cover - depends on host audio
-            return {"ok": False, "reason": f"Voice input failed: {exc}"}
-        heard = (proc.stdout or "").strip()
-        if not heard:
-            return {"ok": False, "reason": "Didn't catch that - try speaking again."}
-        return {"ok": True, "text": heard}
 
     # --- private helpers --------------------------------------------------
 
@@ -1499,52 +1368,6 @@ def _ensure_entrypoint(code: str) -> str:
     return code
 
 
-def _speak_async(text: str, voice: str = "female", rate: int = 0) -> None:
-    """Speak ``text`` with the OS's built-in offline TTS, without blocking.
-
-    On Windows this uses SAPI through PowerShell (no extra dependency, fully
-    offline). Elsewhere it is a silent no-op -- voice is a Windows-app perk;
-    the simulator itself never depends on it. ``voice`` selects the gender
-    hint ("female" default -- e.g. Microsoft Zira -- or "male"); ``rate`` is
-    the SAPI speaking rate from -10 (slowest) to 10 (fastest), which matters
-    for younger and English-as-an-additional-language readers.
-    """
-    # Read through a variable so mypy (which narrows sys.platform per-OS and
-    # runs on Linux/macOS in CI) doesn't mark the Windows body unreachable.
-    platform: str = sys.platform
-    if not platform.startswith("win"):
-        return
-    import subprocess
-    import threading
-
-    # SAPI rejects no markup here; text is passed as a single argument to
-    # PowerShell -EncodedCommand-free form with quoting hardened by replacing
-    # quotes (the snippet is a short slice of lesson or say() text).
-    safe = text.replace("'", " ").replace('"', " ")
-    gender = "Male" if str(voice).lower().startswith("m") else "Female"
-    safe_rate = max(-10, min(10, int(rate)))
-    script = (
-        "Add-Type -AssemblyName System.Speech; "
-        "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
-        "try { $s.SelectVoiceByHints([System.Speech.Synthesis.VoiceGender]::"
-        f"{gender}) }} catch {{}}; "
-        f"$s.Rate = {safe_rate}; "
-        f"$s.Speak('{safe}')"
-    )
-
-    def run() -> None:
-        with contextlib.suppress(Exception):
-            subprocess.run(
-                ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-                capture_output=True,
-                timeout=30,
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-                check=False,
-            )
-
-    threading.Thread(target=run, daemon=True).start()
-
-
 def _startup_failure_message(exc: BaseException) -> str:
     """Human-readable guidance for a pywebview start failure."""
     return (
@@ -1562,7 +1385,9 @@ def _report_startup_failure(exc: BaseException) -> None:
     """Show a friendly native dialog instead of a silent crash / raw traceback."""
     message = _startup_failure_message(exc)
     LOG.error("web UI failed to start: %s", exc)
-    platform: str = sys.platform  # via a variable: see _speak_async
+    # Read through a variable so mypy (which narrows sys.platform per-OS and
+    # runs on Linux/macOS in CI) doesn't mark the Windows body unreachable.
+    platform: str = sys.platform
     if platform.startswith("win"):
         with contextlib.suppress(Exception):
             import ctypes

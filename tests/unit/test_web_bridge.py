@@ -144,35 +144,6 @@ def test_swarm_run_rejects_empty_code(api: BridgeAPI) -> None:
     assert out["ok"] is False
 
 
-def test_voice_agent_routes_a_command_to_code(
-    api: BridgeAPI, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A spoken rover command becomes a code line, not a question."""
-    monkeypatch.setattr(
-        api, "listen", lambda timeout_s=6.0: {"ok": True, "text": "go forward three"}
-    )
-    out = api.voice_agent()
-    assert out["ok"] is True
-    assert out["mode"] == "command"
-    assert out["code"] == "move_forward(3)"
-
-
-def test_voice_agent_routes_a_question_to_grounded_ask(
-    api: BridgeAPI, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A spoken question is answered from lesson material, even with no model."""
-    import robolearn.ai.ollama_client as oc
-
-    monkeypatch.setattr(oc.OllamaClient, "available", lambda self: False)
-    monkeypatch.setattr(
-        api, "listen", lambda timeout_s=6.0: {"ok": True, "text": "how do I check for a wall"}
-    )
-    out = api.voice_agent()
-    assert out["ok"] is True
-    assert out["mode"] == "answer"
-    assert out["sources"], "a grounded voice answer must expose its sources"
-
-
 def test_ai_ask_rejects_an_empty_question(api: BridgeAPI) -> None:
     out = api.ai_ask("   ")
     assert out["ok"] is False
@@ -329,12 +300,6 @@ def test_strip_code_fences() -> None:
     assert _strip_code_fences(bare) == "turn_left(90)\n"
 
 
-def test_speak_rejects_empty_and_caps_length(api: BridgeAPI) -> None:
-    assert api.speak("")["ok"] is False
-    # A long string must not raise; it is truncated to 200 chars internally.
-    assert api.speak("hello " * 100)["ok"] in (True, False)
-
-
 def test_ai_model_preference_prefers_qwen_then_gemma(api: BridgeAPI) -> None:
     pick = api._pick_ai_model(["llama3.2:3b", "gemma3:4b", "qwen2.5-coder:3b"])
     assert pick == "qwen2.5-coder:3b"
@@ -345,16 +310,3 @@ def test_ai_model_preference_prefers_qwen_then_gemma(api: BridgeAPI) -> None:
 
 def test_ai_chat_rejects_empty_history(api: BridgeAPI) -> None:
     assert api.ai_chat([])["ok"] is False
-
-
-def test_listen_returns_friendly_shape(api: BridgeAPI) -> None:
-    """listen() never raises; returns ok+text or ok=False+reason (audio-dependent)."""
-    r = api.listen(2)
-    assert isinstance(r, dict) and "ok" in r
-    assert r["ok"] is True or "reason" in r
-
-
-def test_speak_accepts_voice_gender(api: BridgeAPI) -> None:
-    assert api.speak("hello", voice="female")["ok"] is True
-    assert api.speak("hello", voice="male")["ok"] is True
-    assert api.speak("", voice="female")["ok"] is False

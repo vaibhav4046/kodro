@@ -313,12 +313,7 @@
     try { const ms = await tags(); return ms.length > 0; } catch (e) { return false; }
   }
 
-  // Voice output removed by owner decision: the studio never speaks aloud.
-  // say() remains a visual command (speech bubble + console line); this no-op
-  // keeps every existing KodroAI.speak call site harmless.
-  function speak() {}
-
   if (typeof window !== 'undefined') {
-    window.KodroAI = { status: status, setModel: setModel, chatStart: chatStart, chatPoll: chatPoll, reviewCode: reviewCode, ask: ask, available: available, speak: speak, pick: pick };
+    window.KodroAI = { status: status, setModel: setModel, chatStart: chatStart, chatPoll: chatPoll, reviewCode: reviewCode, ask: ask, available: available, pick: pick };
   }
 })();
