@@ -77,13 +77,15 @@ jobs:
       # once on the full Linux run (xvfb runs every test). Windows/macOS skip
       # a handful of GUI event-loop tests that hang headlessly, so they run
       # with --no-cov: they verify cross-platform behaviour, not coverage.
+      # -rf prints a short summary line naming every failed test, so a flake
+      # in a long run is identifiable from the log tail without scrolling.
       - name: Pytest (Linux with xvfb)
         if: runner.os == 'Linux'
-        run: xvfb-run -a pytest --timeout=120 --timeout-method=thread
+        run: xvfb-run -a pytest -rf --timeout=120 --timeout-method=thread
 
       - name: Pytest (Windows / macOS)
         if: runner.os != 'Linux'
-        run: pytest --timeout=120 --timeout-method=thread --no-cov
+        run: pytest -rf --timeout=120 --timeout-method=thread --no-cov
 
       - name: Upload coverage to artifact
         if: matrix.os == 'ubuntu-latest'

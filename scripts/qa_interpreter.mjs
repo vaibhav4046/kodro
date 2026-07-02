@@ -264,6 +264,89 @@ for (const key of exampleKeys) {
   check(label, ok, info);
 }
 check('found example programs (>= 7)', exampleKeys.length >= 7, exampleKeys.length + ' found');
+// ONE dialect (product-coherence D4): every shipped example uses the bare
+// metre-based API. rover.* remains a runtime compatibility alias, but no
+// first-party program may teach it.
+const legacyDialect = exampleKeys.filter((k) => /\brover\s*\./.test(EXAMPLES[k].code || ''));
+check('every shipped example uses the canonical bare dialect',
+  legacyDialect.length === 0, legacyDialect.length ? 'legacy rover.* in: ' + legacyDialect.join(', ') : 'all bare');
+
+console.log('\n== INTERPRETER DIAGNOSTICS (bugs D7/D8) ==');
+// A malformed def must name the real problem (the parameter list), and a
+// non-ASCII identifier must name the actual rule, not a bare "unexpected
+// character". Both messages are pinned so they cannot silently regress.
+check('def with bad params names the parameter list',
+  (runThrows('def go(x y):\n    pass\ngo(1)') || '').includes('invalid parameter list'),
+  runThrows('def go(x y):\n    pass\ngo(1)'));
+check('broken def header gets a def-shaped diagnostic',
+  (runThrows('def go(:\n    pass') || '').includes('Invalid def'),
+  runThrows('def go(:\n    pass'));
+check('unicode identifier rejection names the ASCII rule',
+  (runThrows('café = 1') || '').includes('ASCII'),
+  runThrows('café = 1'));
+
+console.log('\n== DESIGN-CHECK COMMAND HONESTY (product-coherence D6) ==');
+// Every command the design check's user-facing strings mention must exist in
+// the interpreter. grab()/see() were recommended fixes for commands that do
+// not exist; this scan fails if any phantom command creeps back in.
+// Strip full-line comments first: an apostrophe inside a comment would let
+// the string matcher pair comment text into a phantom "string".
+const DIAG = readFileSync(new URL('../src/robolearn/assets/web/diagnostics.jsx', import.meta.url), 'utf8')
+  .split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
+const KNOWN_COMMANDS = new Set([
+  'move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'stop', 'wait', 'sleep',
+  'pen_down', 'pen_up', 'scan', 'led', 'say', 'beep', 'log', 'print', 'place', 'clear_props',
+  'distance', 'heading', 'battery', 'speed', 'tilt', 'temperature', 'gravity', 'light', 'ground', 'x', 'y',
+  'read_distance', 'read_heading', 'read_battery', 'read_colour',
+  'obstacle_ahead', 'sample_detected', 'at_base', 'collect_sample', 'drop_sample',
+]);
+const diagStrings = DIAG.match(/'(?:[^'\\]|\\.)*'/g) || [];
+const phantomCmds = [];
+for (const s of diagStrings) {
+  for (const mm of s.matchAll(/\b([a-z_][a-z0-9_]*)\(\)/g)) {
+    if (!KNOWN_COMMANDS.has(mm[1])) phantomCmds.push(mm[1] + '()');
+  }
+}
+check('diagnostics name only commands the interpreter implements',
+  phantomCmds.length === 0, phantomCmds.length ? 'phantom: ' + phantomCmds.join(', ') : 'none');
+
+console.log('\n== BROWSER AI FACADE (bugs D3: review must surface its notes) ==');
+// ai-web.jsx is plain JS despite the extension. Evaluate it against the same
+// window that already holds RoverLang, with fetch/localStorage mocked, so the
+// browser review path can be exercised fully offline with a canned model
+// reply. Asserts the review carries at least one issue note alongside a
+// rewrite (the old facade always reported "No problems spotted").
+const AIWEB = readFileSync(new URL('../src/robolearn/assets/web/ai-web.jsx', import.meta.url), 'utf8');
+const lsStub = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+async function mockFetch(url) {
+  const u = String(url);
+  if (u.includes('/api/tags')) return { ok: true, json: async () => ({ models: [{ name: 'test-coder' }] }) };
+  if (u.includes('/api/generate')) {
+    return { ok: true, json: async () => ({ response: '```python\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n```\nTightened the repeated moves into one loop.' }) };
+  }
+  throw new Error('unexpected fetch ' + u);
+}
+new Function('window', 'fetch', 'localStorage', AIWEB)(win, mockFetch, lsStub);
+const review = await win.KodroAI.reviewCode('move_forward(2)\nturn_right(90)\nmove_forward(2)\nturn_right(90)\n');
+check('browser review returns ok with a rewrite', !!(review && review.ok && review.revised),
+  review ? (review.reason || 'revised=' + review.revised) : 'no result');
+check('browser review carries at least one issue note',
+  !!(review && Array.isArray(review.issues) && review.issues.length >= 1),
+  review && review.issues ? review.issues.join(' | ').slice(0, 90) : 'no issues array');
+
+console.log('\n== BRAND STRING HYGIENE (product-coherence D13) ==');
+// User-visible strings say Kodro. Exempt by design: the window.RoboLearn API
+// object name (pywebview registers it) and or_*/kodro_* storage keys.
+const BRIDGE_SRC = readFileSync(new URL('../src/robolearn/assets/web/bridge.js', import.meta.url), 'utf8');
+check('bridge console lines carry no legacy brand',
+  !/console\.(warn|error|log)\([^)]*RoboLearn/.test(BRIDGE_SRC), '');
+const WEB_FILES = ['app.jsx', 'app-data.jsx', 'styles.css', 'Telemetry.jsx', 'terrains.jsx', 'Viewport.jsx', 'Viewport3D.jsx', 'Editor.jsx', 'Rover.jsx', 'panels.jsx', 'interpreter.js', 'bridge.js'];
+const branded = [];
+for (const f of WEB_FILES) {
+  const src = readFileSync(new URL('../src/robolearn/assets/web/' + f, import.meta.url), 'utf8');
+  if (/orbital rover/i.test(src)) branded.push(f);
+}
+check('no "Orbital Rover" brand string in web sources', branded.length === 0, branded.join(', ') || 'clean');
 
 console.log('\n== RESULT: ' + pass + ' passed, ' + fail + ' failed ==');
 if (fail) { console.log('FAILURES:'); fails.forEach(f => console.log('  - ' + f)); process.exit(1); }

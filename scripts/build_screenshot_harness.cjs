@@ -107,6 +107,20 @@ fs.writeFileSync(path.join(WEB, 'studio_harness.html'), STUDIO);
 //   cap.html?open=vibe        studio with a named modal/popover opened. Names:
 //                             vibe blocks review validate realism demo ask
 //                             voiceagent robotlab memory build help settings
+//   cap.html?view=2d          force the flat 2.5D viewport (view=3d forces 3D)
+//   cap.html?repl=<line>      type one line into the live terminal and Enter it
+//   cap.html?code=-           the '-' sentinel types an EMPTY program (blank-run
+//                             coverage); any other value types that program
+//   cap.html?site=<id>        after load, switch to a mission site through the
+//                             real site <select> (drives onTerrain like a user)
+//   cap.html?layout=1         append a hidden #layout-probe div carrying
+//                             data-scroll-w / data-inner-w so a DOM dump can
+//                             assert the page does not overflow horizontally
+//   cap.html?seedmem=1        seed one fixture reflection into localStorage so
+//                             memory-driven UI (Vibe context chip) is testable
+// Every driver logs a console.error (picked up by the UI harness console
+// filter) when its click target is missing, so a renamed button FAILS the
+// harness instead of silently capturing the wrong state.
 // Combine with Chrome --virtual-time-budget so timed clicks and WebGL settle.
 const CAP = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8" />
@@ -123,8 +137,18 @@ const CAP = `<!DOCTYPE html>
         else localStorage.setItem('or_onboarded', '1');
         var w = q.get('world'); if (w) localStorage.setItem('or_terrain', w);
         var qq = q.get('q'); if (qq) localStorage.setItem('kodro_quality', qq);
+        var vw = q.get('view');
+        if (vw === '2d') localStorage.setItem('or_view3d', '0');
+        else if (vw === '3d') localStorage.setItem('or_view3d', '1');
+        if (q.get('seedmem')) {
+          // One fixture reflection so memory-driven UI renders deterministically.
+          localStorage.setItem('kodro_reflections_v1', JSON.stringify([{
+            ts: 1, world: (q.get('world') || 'earth'), robotType: 'rover', outcome: 'crash',
+            detail: 'a boulder', reflection: 'Collided with a boulder. Add a distance() check before moving forward.'
+          }]));
+        }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout') };
     })();
   </script>
   <div id="root"></div>
@@ -179,12 +203,67 @@ const CAP = `<!DOCTYPE html>
         inp.dispatchEvent(new Event('input', { bubbles: true }));
         return true;
       }
+      // Driver self-check: a missing click target is a HARNESS failure, not a
+      // silent no-op. console.error carries the word "error" so the UI smoke's
+      // console filter (FAIL regex) flags the flow instead of passing a capture
+      // of the wrong state.
+      function must(okVal, what) {
+        if (!okVal) { try { console.error('[cap-driver] ERROR: click target missing: ' + what); } catch (e) { void e; } }
+        return okVal;
+      }
+      function clickRun() {
+        var b = [].slice.call(document.querySelectorAll('.ctrl'));
+        for (var i = 0; i < b.length; i++) { if ((b[i].textContent || '').indexOf('Run') >= 0) { b[i].click(); return true; } }
+        return false;
+      }
       if (!C.onb && C.robot) {
         setTimeout(function () { try { window.dispatchEvent(new CustomEvent('kodro-robot', { detail: { type: C.robot, world: C.world || undefined } })); } catch (e) { void e; } }, 500);
       }
+      if (!C.onb && C.repl) {
+        // Live-terminal driver: type one line into the REPL input the way a user
+        // would (native setter + input event so React sees it), then press
+        // Enter. Runs BEFORE any run=1 click (which is pushed later below) so a
+        // REPL error can be followed by an editor Run in one capture.
+        setTimeout(function () {
+          var inp = document.querySelector('.repl-input');
+          if (!must(!!inp, 'repl input (.repl-input)')) return;
+          var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+          setter.call(inp, C.repl);
+          inp.dispatchEvent(new Event('input', { bubbles: true }));
+          inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        }, 1100);
+      }
       if (!C.onb && C.run) {
         // Click Run so a capture can show the rover mid-drive (trail + heading).
-        setTimeout(function () { var b = [].slice.call(document.querySelectorAll('.ctrl')); for (var i = 0; i < b.length; i++) { if ((b[i].textContent || '').indexOf('Run') >= 0) { b[i].click(); return; } } }, 1400);
+        // When a repl= line is also being driven, wait for it to finish first so
+        // the capture proves the run happened AFTER the terminal line.
+        setTimeout(function () { must(clickRun(), 'Run button (.ctrl)'); }, C.repl ? 3200 : 1400);
+      }
+      if (!C.onb && C.site) {
+        // Mission-site driver: change the real site <select> like a user, which
+        // routes through onTerrain and must rebuild the 3D scene (F1).
+        setTimeout(function () {
+          var sel = document.querySelector('.site-select');
+          if (!must(!!sel, 'mission site select (.site-select)')) return;
+          var setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+          setter.call(sel, C.site);
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }, 1600);
+      }
+      if (C.layout) {
+        // Layout probe: record the real overflow numbers late (after fonts and
+        // panels settle) so a DOM dump can assert scrollWidth <= innerWidth.
+        setTimeout(function () {
+          try {
+            var d = document.createElement('div');
+            d.id = 'layout-probe';
+            var sw = Math.max(document.documentElement.scrollWidth, document.body ? document.body.scrollWidth : 0);
+            d.setAttribute('data-scroll-w', String(sw));
+            d.setAttribute('data-inner-w', String(window.innerWidth));
+            d.style.display = 'none';
+            document.body.appendChild(d);
+          } catch (e) { void e; }
+        }, 2600);
       }
       if (!C.onb && C.vibe) {
         // Drive the Vibe panel end-to-end like a user: open it, type the prompt
@@ -209,11 +288,11 @@ const CAP = `<!DOCTYPE html>
       if (!C.onb && C.panel) {
         setTimeout(function () {
           // Icon-bar aria-labels gained a " — <suffix>"; match on the prefix.
-          if (C.panel === 'lab') clickAriaStartsWith('Robot Lab');
-          else if (C.panel === 'memory') clickAriaStartsWith('Memory and skills');
+          if (C.panel === 'lab') must(clickAriaStartsWith('Robot Lab'), 'panel=lab (aria "Robot Lab")');
+          else if (C.panel === 'memory') must(clickAriaStartsWith('Memory and skills'), 'panel=memory (aria "Memory and skills")');
           // The Blocks toolbar button reads "🧩 Blocks", so an uppercase
           // text match misses it; open it by its unambiguous title instead.
-          else if (C.panel === 'blocks') clickTitle('Build the program from blocks');
+          else if (C.panel === 'blocks') must(clickTitle('Build the program from blocks'), 'panel=blocks (title "Build the program from blocks")');
         }, 1000);
       }
       if (!C.onb && C.blockstest) {
@@ -236,15 +315,14 @@ const CAP = `<!DOCTYPE html>
         }, 1700);
       }
       if (!C.onb && C.code) {
-        // Error-path driver: type a deliberately broken program into the editor,
-        // then click Run. The interpreter raises and the studio prints a
-        // "cline err" line in the console-out region. Used by the UI harness to
-        // assert the error path actually surfaces an error, not a silent no-op.
-        setTimeout(function () { setTextarea('.code-ta', C.code); }, 900);
-        setTimeout(function () {
-          var b = [].slice.call(document.querySelectorAll('.ctrl'));
-          for (var i = 0; i < b.length; i++) { if ((b[i].textContent || '').indexOf('Run') >= 0) { b[i].click(); return; } }
-        }, 1400);
+        // Program driver: type a program into the editor, then click Run. The
+        // '-' sentinel types an EMPTY program (URLSearchParams cannot carry a
+        // truly empty value the driver can distinguish from an absent param),
+        // covering the blank-run path. Broken programs cover the error path:
+        // the interpreter raises and the studio prints a "cline err" line.
+        var codeVal = C.code === '-' ? '' : C.code;
+        setTimeout(function () { must(setTextarea('.code-ta', codeVal), 'editor textarea (.code-ta)'); }, 900);
+        setTimeout(function () { must(clickRun(), 'Run button (.ctrl)'); }, 1400);
       }
       if (!C.onb && C.open) {
         // Modal-coverage driver (gated behind open=<name> so a normal load is
@@ -279,17 +357,20 @@ const CAP = `<!DOCTYPE html>
         // Wait for the studio toolbar to mount, then fire the opener. A second
         // attempt covers a slow first paint without affecting a modal that is
         // already open (the openers are idempotent toggles or no-ops on a hit).
+        // If the RETRY still cannot find its target, the self-check fires.
         var opener = OPENERS[String(C.open).toLowerCase()];
         if (opener) {
           setTimeout(function () { try { opener(); } catch (e) { void e; } }, 1000);
-          setTimeout(function () { try { if (!document.querySelector('[role="dialog"]')) opener(); } catch (e) { void e; } }, 1600);
+          setTimeout(function () { try { if (!document.querySelector('[role="dialog"]')) must(opener(), 'open=' + C.open); } catch (e) { void e; } }, 1600);
+        } else {
+          must(false, 'open=' + C.open + ' (unknown opener name)');
         }
       }
       if (C.onb) {
-        if (C.step >= 1) setTimeout(function () { clickText('Get started'); }, 300);
+        if (C.step >= 1) setTimeout(function () { must(clickText('Start building'), 'onboarding CTA "Start building"'); }, 300);
         if (C.step >= 2) {
-          setTimeout(function () { var t = document.querySelector('.konb-tile'); if (t) t.click(); }, 700);
-          setTimeout(function () { clickText('Continue'); }, 1000);
+          setTimeout(function () { var t = document.querySelector('.konb-tile'); must(!!t, 'onboarding robot tile (.konb-tile)'); if (t) t.click(); }, 700);
+          setTimeout(function () { must(clickText('Continue'), 'onboarding "Continue"'); }, 1000);
         }
       }
     })();

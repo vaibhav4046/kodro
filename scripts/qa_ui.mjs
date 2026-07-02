@@ -119,7 +119,8 @@ const FLOWS = [
 
 // A deliberately broken program: an undefined name. The interpreter raises and
 // the studio prints a "cline err" console line. Used by the error-path assert.
-const BROKEN_PROGRAM = 'rover.forward(nope_undefined_var)';
+// Canonical bare dialect (F7): the shipped surface no longer teaches rover.*.
+const BROKEN_PROGRAM = 'move_forward(nope_undefined_var)';
 
 // WORLD IDENTITY: drive Run in three distinct worlds and assert each one's own
 // name shows up. On Run the studio prints "Deployed on <name>." and lights the
@@ -197,7 +198,7 @@ function dumpDom(chrome, tag, url, opts = {}) {
   const log = path.join(TMP, `log_${tag}.txt`);
   const args = [
     '--headless=new',
-    '--window-size=1280,800',
+    `--window-size=${opts.size || '1280,800'}`,
     '--use-angle=swiftshader',
     '--enable-unsafe-swiftshader',
     '--no-sandbox',
@@ -253,11 +254,12 @@ function checkRoverMoved(chrome, flow) {
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)', value: null };
 
   const odo = readOdometer(dom);
-  const driving = /DRIVING/.test(dom);
+  // Shared status vocabulary (F11): telemetry prints RUNNING while driving.
+  const driving = /RUNNING/.test(dom);
 
   if (odo !== null && odo > 0) {
     const delta = Math.abs(odo - EXPECTED_ODOMETER_M);
-    const tag = driving ? ', status DRIVING' : '';
+    const tag = driving ? ', status RUNNING' : '';
     if (delta <= ODOMETER_TOLERANCE_M) {
       return { pass: true, reason: `rover moved deterministically (odometer ${odo.toFixed(1)}m == ${EXPECTED_ODOMETER_M}m ±${ODOMETER_TOLERANCE_M}${tag})`, value: odo };
     }
@@ -272,13 +274,13 @@ function checkRoverMoved(chrome, flow) {
 
   // FALLBACK: odometer span not locatable (markup drift). Don't fake a pass —
   // assert the weaker-but-real signal and LABEL it as the fallback.
-  const haveTelemetry = /Odometer/.test(dom) && /(DRIVING|IDLE)/.test(dom);
+  const haveTelemetry = /Odometer/.test(dom) && /(RUNNING|STANDBY|PAUSED|COMPLETE|HALTED)/.test(dom);
   if (haveTelemetry && driving && !consoleError) {
-    return { pass: true, reason: 'rover moved (FALLBACK: odometer value not parseable, telemetry mounted + status=DRIVING; exact-value check skipped)', value: null };
+    return { pass: true, reason: 'rover moved (FALLBACK: odometer value not parseable, telemetry mounted + status=RUNNING; exact-value check skipped)', value: null };
   }
   const why = consoleError ? `console error during run: ${consoleError.slice(0, 120)}`
     : !haveTelemetry ? 'telemetry panel/odometer not found in DOM'
-    : 'odometer not > 0 and status not DRIVING';
+    : 'odometer not > 0 and status not RUNNING';
   return { pass: false, reason: `could not confirm rover moved (${why})`, value: odo };
 }
 
@@ -404,6 +406,242 @@ function checkModalRenders(chrome, modal) {
   return { pass: false, reason: `${modal.note} did NOT open (no matching root and no dialog in the DOM)` };
 }
 
+// REPL RECOVERY (F4) — run a live-terminal line that errors at runtime
+// (print(1/0)), THEN run the editor program. The leaked replRef flag used to
+// swallow the next run's "Program finished." line (plus its toast, memory
+// record, verdict and grading), so this asserts BOTH the REPL error surfaced
+// AND the following editor run still announced its completion.
+function checkReplRecovery(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&repl=${encodeURIComponent('print(1/0)')}&run=1`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_repl_recovery', url);
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const errShown = /division by zero/.test(dom);
+  const finished = /Program finished\./.test(dom);
+  if (errShown && finished) {
+    return { pass: true, reason: 'REPL error surfaced AND the next editor run still printed "Program finished."' };
+  }
+  if (!errShown) return { pass: false, reason: 'REPL error line ("division by zero") never surfaced in the console' };
+  return { pass: false, reason: 'run after a REPL error SWALLOWED its "Program finished." line (replRef leak)' };
+}
+
+// REPL ERRORS STAY IN THE TERMINAL (F5) — a live-terminal error must not mark
+// the editor: no Halted status pill and no active-line highlight, because the
+// editor program never ran. Asserts the error IS in the console (so the check
+// cannot pass on a page where the REPL never fired) and both editor markers
+// are absent.
+function checkReplNoHalt(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&repl=${encodeURIComponent('print(1/0)')}`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_repl_nohalt', url, { vtime: 8000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/division by zero/.test(dom)) {
+    return { pass: false, reason: 'REPL error never surfaced, so the no-halt claim would be vacuous' };
+  }
+  const halted = /aria-label="Status: Halted"/.test(dom);
+  const lineMarked = /class="gl active"/.test(dom);
+  if (!halted && !lineMarked) {
+    return { pass: true, reason: 'REPL error surfaced with no Halted pill and no editor line highlight' };
+  }
+  return { pass: false, reason: `REPL error marked the editor (${halted ? 'Halted pill shown' : ''}${halted && lineMarked ? ' + ' : ''}${lineMarked ? 'active line highlighted' : ''})` };
+}
+
+// SITE SWITCH REBUILDS THE SCENE (F1) — load base Earth, then switch to the
+// Japan mission site through the real site <select> (cap.html?site=japan).
+// Viewport3D stamps data-world="<base>:<site>" on its mount when it BUILDS a
+// scene, so this asserts the switch actually tore down and rebuilt the 3D
+// scene for the site, not just relabelled the chrome (world-coherence BUG-1).
+function checkSiteSwitch(chrome) {
+  const url = `${BASE}?world=earth&site=japan&q=low`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_site_switch', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error during site switch: ${consoleError.slice(0, 120)}` };
+  if (/data-world="earth:japan"/.test(dom)) {
+    return { pass: true, reason: 'scene rebuilt for the site (marker data-world="earth:japan" present)' };
+  }
+  if (/data-world="earth"/.test(dom)) {
+    return { pass: false, reason: 'scene did NOT rebuild after the site switch (marker still base "earth")' };
+  }
+  return { pass: false, reason: 'no scene-build marker in the DOM (3D viewport missing or marker drifted)' };
+}
+
+// REALISM READS THE LIVE WORLD (F9) — open the Realism dashboard while the
+// UNDERWATER world is on screen and assert the Environment card names it
+// ("Abyssal"). Before the fix the card described the robot's RECOMMENDED
+// world (Earth for the default rover) regardless of what was on screen.
+function checkRealismLiveWorld(chrome) {
+  const url = `${BASE}?world=underwater&robot=rover&q=low&open=realism`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_realism_world', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/aria-label="Realism dashboard"/.test(dom)) {
+    return { pass: false, reason: 'Realism dashboard never opened, so the live-world claim would be vacuous' };
+  }
+  if (/Abyssal/.test(dom)) {
+    return { pass: true, reason: 'Environment card names the on-screen world (Abyssal / underwater preset)' };
+  }
+  return { pass: false, reason: 'Realism dashboard does NOT name the on-screen underwater world (still describing the recommended world?)' };
+}
+
+// AGENTS AT A SITE (F3) — open the Realism dashboard at an outdoor mission
+// site (Sahara) and assert the Moving agents row is NONZERO. The agent sim is
+// keyed by the site id; the old gate compared it against the base id, so the
+// row read 0 while roaming robots were live and collidable.
+function checkAgentsAtSite(chrome) {
+  const url = `${BASE}?world=sahara&q=low&open=realism`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_site_agents', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/aria-label="Realism dashboard"/.test(dom)) {
+    return { pass: false, reason: 'Realism dashboard never opened, so the agents claim would be vacuous' };
+  }
+  const m = /Moving agents<\/span><span[^>]*>(\d+)/.exec(dom);
+  if (!m) return { pass: false, reason: 'Moving agents row not found in the dashboard' };
+  const n = parseInt(m[1], 10);
+  if (n > 0) return { pass: true, reason: `Realism reports ${n} moving agents at the Sahara site (site-keyed gate agrees)` };
+  return { pass: false, reason: 'Moving agents reads 0 at an outdoor site (agent world gate still base-id keyed)' };
+}
+
+// BUILD HONESTY (F10 + F12) — dispatch a fixture build with NO sensors fitted
+// (cap.html?robot=custom sends a minimal spec) and assert the chrome tells the
+// truth about it: telemetry shows a NO RANGE SENSOR state instead of a lidar
+// number, and the api-hint greys distance() out instead of advertising it.
+function checkBuildHonesty(chrome) {
+  const url = `${BASE}?world=earth&robot=custom&q=low`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_build_honesty', url, { vtime: 8000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const noRange = /NO RANGE SENSOR/.test(dom);
+  const distOff = /<b class="cmd-off"[^>]*>distance\(\)<\/b>/.test(dom);
+  const baseOn = /<b>move_forward\(m\)<\/b>/.test(dom);
+  if (noRange && distOff && baseOn) {
+    return { pass: true, reason: 'sensorless build: telemetry shows NO RANGE SENSOR, hint greys distance(), base commands stay live' };
+  }
+  const missing = [!noRange && 'telemetry still shows a range readout', !distOff && 'distance() not greyed in the hint', !baseOn && 'base commands wrongly greyed'].filter(Boolean).join('; ');
+  return { pass: false, reason: `build honesty failed: ${missing}` };
+}
+
+// ONE STATUS VOCABULARY (F11) — crash the rover (drive 15 m straight into the
+// field/wall) and assert the mission bar AND the telemetry rail agree on the
+// SAME label, "Halted". The old pair could read Halted beside IDLE.
+function checkStatusAgree(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&code=${encodeURIComponent('move_forward(15)')}`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_status_agree', url, { vtime: 20000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/Collision with|Robot halted/.test(dom)) {
+    return { pass: false, reason: 'the crash program never crashed, so the status-agree claim would be vacuous' };
+  }
+  const barHalted = /aria-label="Status: Halted"/.test(dom);
+  const teleHalted = />HALTED</.test(dom);
+  if (barHalted && teleHalted) {
+    return { pass: true, reason: 'after a crash both surfaces show the same label (mission bar "Halted", telemetry "HALTED")' };
+  }
+  return { pass: false, reason: `status surfaces disagree after crash (mission bar Halted: ${barHalted}, telemetry HALTED: ${teleHalted})` };
+}
+
+// VISIBLE GOAL (F8) — the validation scenario's goal beacon must exist in the
+// live 3D scene (Viewport3D stamps data-goal="1" on its mount when it builds
+// the beacon), so Validate grades a mission the user can see.
+function checkGoalMarker(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_goal_marker', url, { vtime: 8000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (/data-goal="1"/.test(dom)) {
+    return { pass: true, reason: 'goal beacon built into the live scene (data-goal marker present)' };
+  }
+  return { pass: false, reason: 'no goal beacon in the live scene (data-goal marker missing)' };
+}
+
+// NOTHING-RAN VERDICT (F14) — run an EMPTY program (cap.html?code=- types an
+// empty editor buffer) and assert the post-run verdict says nothing ran,
+// instead of the old "the design held up" claim from a run that proved
+// nothing (bugs D5).
+function checkNothingRan(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&code=-`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_nothing_ran', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/Program finished\./.test(dom)) {
+    return { pass: false, reason: 'the empty program never ran to completion, so the verdict claim would be vacuous' };
+  }
+  if (/Nothing ran: the program produced no commands/.test(dom)) {
+    return { pass: true, reason: 'empty program yields the honest "Nothing ran" verdict' };
+  }
+  if (/design held up|Margins looked healthy/.test(dom)) {
+    return { pass: false, reason: 'empty program still claims "the design held up" (verdict ignores run stats)' };
+  }
+  return { pass: false, reason: 'no "Nothing ran" verdict found after an empty-program run' };
+}
+
+// MEMORY MADE VISIBLE (F17a) — seed one fixture reflection (cap.html?seedmem=1)
+// and open the Vibe panel: the reflection the assistant is fed must render as
+// a visible context chip, not an invisible prompt injection.
+function checkVibeMemoryChip(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&seedmem=1&open=vibe`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_vibe_ctx', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/aria-label="Code with AI"/.test(dom)) {
+    return { pass: false, reason: 'Vibe panel never opened, so the chip claim would be vacuous' };
+  }
+  if (/class="vibe-ctx"/.test(dom) && /Collided with a boulder/.test(dom)) {
+    return { pass: true, reason: 'Vibe shows the seeded reflection as a visible Memory context chip' };
+  }
+  return { pass: false, reason: 'no Memory context chip in the Vibe panel despite a seeded reflection' };
+}
+
+// MEMORY EXPORT WIRED (F17b) — the Memory panel carries a real Export control
+// bound to the store's exportData (dead code until wired). The download itself
+// cannot be observed from a DOM dump, so this pins the control's presence via
+// its data marker inside the OPEN memory dialog.
+function checkMemoryExport(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&open=memory`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_mem_export', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/role="dialog"[^>]*aria-label="Memory and skills"|aria-label="Memory and skills"[^>]*role="dialog"/.test(dom)) {
+    return { pass: false, reason: 'Memory panel never opened, so the export claim would be vacuous' };
+  }
+  if (/data-mem-export/.test(dom)) {
+    return { pass: true, reason: 'Memory panel carries the wired Export control (and its Import twin)' };
+  }
+  return { pass: false, reason: 'no Export control in the open Memory panel' };
+}
+
+// LAYOUT — the studio must not overflow horizontally at common laptop sizes.
+// cap.html?layout=1 appends a hidden #layout-probe div carrying the REAL
+// measured scrollWidth/innerWidth (recorded in-page after panels settle), so
+// this is a true layout assert, not a guess from markup. The 1280x800 clip
+// (Settings button 56px offscreen with scrollbars hidden) is the regression
+// this pins.
+function checkLayout(chrome, w, h) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&layout=1`;
+  const { dom, consoleError, error } = dumpDom(chrome, `layout_${w}x${h}`, url, { size: `${w},${h}`, vtime: 8000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error at ${w}x${h}: ${consoleError.slice(0, 120)}` };
+  const m = /id="layout-probe"[^>]*data-scroll-w="(\d+)"[^>]*data-inner-w="(\d+)"/.exec(dom);
+  if (!m) return { pass: false, reason: `layout probe missing from DOM at ${w}x${h} (driver did not run)` };
+  const scrollW = parseInt(m[1], 10), innerW = parseInt(m[2], 10);
+  if (scrollW <= innerW) {
+    return { pass: true, reason: `no horizontal overflow at ${w}x${h} (scrollWidth ${scrollW} <= innerWidth ${innerW})` };
+  }
+  return { pass: false, reason: `page OVERFLOWS at ${w}x${h}: scrollWidth ${scrollW} > innerWidth ${innerW} (${scrollW - innerW}px clipped)` };
+}
+
 // VALIDATE has no modal: its button runs 5 seeds and prints a "Validation:"
 // console line. Assert that console marker is in the DOM, with the same
 // console-error guard. Labelled as a console (not dialog) assert in MODALS.
@@ -413,10 +651,19 @@ function checkValidateRuns(chrome, v) {
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error running validate: ${consoleError.slice(0, 120)}` };
-  if (v.marker.test(dom)) {
-    return { pass: true, reason: `${v.note} — "Validation:" result line printed to the console` };
+  if (!v.marker.test(dom)) {
+    return { pass: false, reason: `${v.note} — no "Validation:" console line after clicking Validate` };
   }
-  return { pass: false, reason: `${v.note} — no "Validation:" console line after clicking Validate` };
+  // F8: the run must be ABOUT the on-screen world (the announcement names it),
+  // and a 0% result must carry the goal-marker explanation instead of a bare
+  // number the default starter always "fails".
+  if (!/on Earth \(friction/.test(dom)) {
+    return { pass: false, reason: `${v.note} — validation ran but did not name the on-screen world (Earth)` };
+  }
+  if (/success 0%/.test(dom) && !/never reached the goal marker/.test(dom)) {
+    return { pass: false, reason: `${v.note} — 0% result printed without the goal-marker explanation` };
+  }
+  return { pass: true, reason: `${v.note} — validated the on-screen world; 0% carries its explanation` };
 }
 
 // Run one flow in headless Chrome. Returns { pass, reason, bytes }.
@@ -561,6 +808,70 @@ function cleanup() {
     const wi = checkWorldIdentity(chrome, w.world, w.expect);
     behaviour.push(wi.pass);
     console.log(`${wi.pass ? 'PASS' : 'FAIL'}  ${('world-' + w.world).padEnd(20)} ${wi.reason}`);
+    gap();
+  }
+
+  const siteSwitch = checkSiteSwitch(chrome);
+  behaviour.push(siteSwitch.pass);
+  console.log(`${siteSwitch.pass ? 'PASS' : 'FAIL'}  ${'site-switch'.padEnd(20)} ${siteSwitch.reason}`);
+  gap();
+
+  const replRec = checkReplRecovery(chrome);
+  behaviour.push(replRec.pass);
+  console.log(`${replRec.pass ? 'PASS' : 'FAIL'}  ${'repl-recovery'.padEnd(20)} ${replRec.reason}`);
+  gap();
+
+  const replHalt = checkReplNoHalt(chrome);
+  behaviour.push(replHalt.pass);
+  console.log(`${replHalt.pass ? 'PASS' : 'FAIL'}  ${'repl-no-halt'.padEnd(20)} ${replHalt.reason}`);
+  gap();
+
+  const realismWorld = checkRealismLiveWorld(chrome);
+  behaviour.push(realismWorld.pass);
+  console.log(`${realismWorld.pass ? 'PASS' : 'FAIL'}  ${'realism-live-world'.padEnd(20)} ${realismWorld.reason}`);
+  gap();
+
+  const siteAgents = checkAgentsAtSite(chrome);
+  behaviour.push(siteAgents.pass);
+  console.log(`${siteAgents.pass ? 'PASS' : 'FAIL'}  ${'agents-at-site'.padEnd(20)} ${siteAgents.reason}`);
+  gap();
+
+  const honesty = checkBuildHonesty(chrome);
+  behaviour.push(honesty.pass);
+  console.log(`${honesty.pass ? 'PASS' : 'FAIL'}  ${'build-honesty'.padEnd(20)} ${honesty.reason}`);
+  gap();
+
+  const statusAgree = checkStatusAgree(chrome);
+  behaviour.push(statusAgree.pass);
+  console.log(`${statusAgree.pass ? 'PASS' : 'FAIL'}  ${'status-agree'.padEnd(20)} ${statusAgree.reason}`);
+  gap();
+
+  const nothingRan = checkNothingRan(chrome);
+  behaviour.push(nothingRan.pass);
+  console.log(`${nothingRan.pass ? 'PASS' : 'FAIL'}  ${'nothing-ran'.padEnd(20)} ${nothingRan.reason}`);
+  gap();
+
+  const vibeChip = checkVibeMemoryChip(chrome);
+  behaviour.push(vibeChip.pass);
+  console.log(`${vibeChip.pass ? 'PASS' : 'FAIL'}  ${'vibe-memory-chip'.padEnd(20)} ${vibeChip.reason}`);
+  gap();
+
+  const memExport = checkMemoryExport(chrome);
+  behaviour.push(memExport.pass);
+  console.log(`${memExport.pass ? 'PASS' : 'FAIL'}  ${'memory-export'.padEnd(20)} ${memExport.reason}`);
+  gap();
+
+  const goalMarker = checkGoalMarker(chrome);
+  behaviour.push(goalMarker.pass);
+  console.log(`${goalMarker.pass ? 'PASS' : 'FAIL'}  ${'goal-marker'.padEnd(20)} ${goalMarker.reason}`);
+  gap();
+
+  // Layout: the studio must fit common laptop widths with zero horizontal
+  // overflow (bugs D1: 1280x800 clipped the Settings button offscreen).
+  for (const [w, h] of [[1280, 800], [1366, 768]]) {
+    const lr = checkLayout(chrome, w, h);
+    behaviour.push(lr.pass);
+    console.log(`${lr.pass ? 'PASS' : 'FAIL'}  ${('layout-' + w + 'x' + h).padEnd(20)} ${lr.reason}`);
     gap();
   }
 
