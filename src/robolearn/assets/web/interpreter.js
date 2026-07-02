@@ -723,7 +723,14 @@
               }
               if (v in LESSON_MOTION) { yield motionEvent(LESSON_MOTION[v], expr.args.map(evalExpr), line); return; }
               if (v in LESSON_SENSOR) { host.sensor(LESSON_SENSOR[v], expr.args.map(evalExpr)); yield { type: 'step', line: line }; return; }
-              if (v === 'beep') { yield { type: 'print', line: line, text: 'beep' }; return; }
+              if (v === 'beep') {
+                // S3: beep() is a real, audible event now, not console spam.
+                // times clamps 0..16, mirroring the Python API's beep clamp
+                // (rover_api._MAX_BEEP_TIMES); QA hosts ignore the new type.
+                const bt = expr.args.length ? evalExpr(expr.args[0]) : 1;
+                yield { type: 'beep', times: clampNum(bt, 0, 16, 1), line: line };
+                return;
+              }
               if (v === 'log') { const a = expr.args.map(evalExpr); yield { type: 'print', line: line, text: a.map(pyStr).join(' ') }; return; }
               if (v === 'collect_sample') { yield { type: 'print', line: line, text: 'Sample collected.' }; return; }
               if (v === 'drop_sample') { yield { type: 'print', line: line, text: 'Sample dropped.' }; return; }

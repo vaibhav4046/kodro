@@ -62,11 +62,17 @@ def _drive(source: str) -> dict:
 
 
 def test_lesson_starter_bare_verbs_run() -> None:
-    """The exact lesson-01 starter executes with no NameError."""
+    """The exact lesson-01 starter executes with no NameError.
+
+    beep() is a real sound event since PERFECTION_PLAN S3 (its acceptance
+    test: "beep yields a beep event, not a print"), so the old "beep"
+    console spam must NOT appear; the beep event itself is pinned by
+    scripts/qa_interpreter.mjs.
+    """
     r = _drive('move_forward(2)\nbeep(1)\nlog("hello rover")')
     assert r["error"] is None
     assert r["moves"] == 1
-    assert "beep" in r["prints"]
+    assert "beep" not in r["prints"]
     assert "hello rover" in r["prints"]
 
 

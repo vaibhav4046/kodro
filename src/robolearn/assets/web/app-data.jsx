@@ -162,6 +162,164 @@ while trips < 30:
 
 print("Finished after", trips, "moves.")`
     },
+    encore: {
+      label: 'encore.py',
+      code: `# ENCORE - a five-act robot performance.
+# The flagship showcase: functions, loops, nested loops, counters,
+# pen geometry and an honest battery report, all on the base command
+# set so it runs on EVERY build. Press Run and enjoy the show.
+#
+#   Act I    Walk-on: a strut square with a spotlight spin per corner
+#   Act II   Drumline: beeps, shimmies and a light chase
+#   Act III  Petal sweep: four out-and-back petals around centre stage
+#   Act IV   Star turn: the pen draws a five-point star (turn 144)
+#   Act V    Finale: bow, applause lights, and the honest numbers
+
+set_speed(70)
+pen_up()
+start_charge = battery()
+metres_total = 0
+turns_total = 0
+
+# ---------- the performance library ----------
+
+def flash(flash_col):
+    led(flash_col)
+    wait(0.12)
+    led("off")
+    wait(0.08)
+
+def drumroll(drum_n):
+    drum_i = 0
+    while drum_i < drum_n:
+        beep(1)
+        wait(0.1)
+        drum_i = drum_i + 1
+
+def strut(strut_m):
+    # A confident straight walk, pen down so the stage keeps the mark.
+    pen_down()
+    move_forward(strut_m)
+    pen_up()
+    metres_total = metres_total + strut_m
+
+def shimmy(shim_deg):
+    # Wiggle in place: left, right past centre, and back to the line.
+    turn_left(shim_deg)
+    turn_right(2 * shim_deg)
+    turn_left(shim_deg)
+    turns_total = turns_total + 4 * shim_deg
+
+def corner_pose(pose_col):
+    # Hit the corner mark, light up, one full spotlight spin.
+    led(pose_col)
+    beep(1)
+    turn_right(360)
+    turns_total = turns_total + 360
+
+def bow():
+    turn_left(25)
+    wait(0.2)
+    turn_right(50)
+    wait(0.2)
+    turn_left(25)
+    turns_total = turns_total + 100
+
+# ---------- ACT I : the walk-on ----------
+
+say("Act I: the walk-on")
+print("ACT I - walk-on square, one spotlight spin per corner")
+drumroll(3)
+act1_corner = 0
+while act1_corner < 4:
+    strut(2)
+    if act1_corner == 0:
+        corner_pose("cyan")
+    elif act1_corner == 1:
+        corner_pose("amber")
+    elif act1_corner == 2:
+        corner_pose("green")
+    else:
+        corner_pose("white")
+    turn_right(90)
+    turns_total = turns_total + 90
+    act1_corner = act1_corner + 1
+led("off")
+print("  square closed, back on the start mark")
+
+# ---------- ACT II : drumline ----------
+
+say("Act II: drumline")
+print("ACT II - drumline: beat patterns and a light chase")
+for drum_bar in range(3):
+    drumroll(2 + drum_bar)
+    shimmy(20 + 10 * drum_bar)
+    flash("cyan")
+    flash("amber")
+print("  three bars played, heading true")
+
+# ---------- ACT III : petal sweep ----------
+
+say("Act III: petal sweep")
+print("ACT III - four petals out and back around centre stage")
+for petal in range(4):
+    if petal == 0 or petal == 2:
+        led("cyan")
+    else:
+        led("amber")
+    strut(2)
+    turn_right(180)
+    turns_total = turns_total + 180
+    strut(2)
+    turn_right(180)
+    turns_total = turns_total + 180
+    beep(1)
+    turn_right(90)
+    turns_total = turns_total + 90
+led("off")
+print("  petals swept:", 4, "- centre stage regained")
+
+# ---------- ACT IV : star turn ----------
+
+say("Act IV: star turn")
+print("ACT IV - the pen draws a five-point star (turn 144)")
+drumroll(4)
+led("white")
+pen_down()
+for star_point in range(5):
+    move_forward(1.6)
+    metres_total = metres_total + 1.6
+    turn_right(144)
+    turns_total = turns_total + 144
+    beep(1)
+pen_up()
+led("green")
+print("  star closed: 5 points, 144 degrees each, pure turtle geometry")
+
+# ---------- ACT V : finale ----------
+
+say("Act V: finale")
+print("ACT V - finale")
+shimmy(30)
+bow()
+for applause in range(3):
+    flash("green")
+    flash("cyan")
+drumroll(5)
+say("That is the encore!")
+
+# ---------- the honest numbers ----------
+
+used_charge = start_charge - battery()
+print("--- ENCORE DEBRIEF ---")
+print("Distance strutted:", metres_total, "m")
+print("Degrees performed:", turns_total)
+print("Battery used:", used_charge, "% - remaining:", battery(), "%")
+if battery() > 40:
+    print("Verdict: the show could run again tonight.")
+else:
+    print("Verdict: one show a charge - recharge before the next curtain.")`
+    },
     survey: {
       label: 'survey.py',
       code: `# Sensors + conditionals: profile the environment.
