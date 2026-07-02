@@ -84,9 +84,12 @@
   }
   function stripFences(t) { return t.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim(); }
 
-  // The robot API is BARE functions, not object methods. The small local model
-  // tends to emit rover.move_forward()/rover.right() which do not exist and
-  // NameError at run time, so the prompt is explicit and the output is gated.
+  // The CANONICAL robot API is bare, metre-based function calls. rover.*(...)
+  // still runs as a deprecated centimetre-based compatibility alias, but the
+  // model must not use it: mixing the two dialects in one program is a 100x
+  // unit trap. The prompt is explicit, the output is gated, and normalizeApi
+  // below converts stray rover.forward(cm) into the equivalent bare METRE
+  // call (value included) so a rewrite never silently changes distances.
   const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. A turn is 90 degrees for a right angle, 180 to face back. A beep is beep(1). A wait is wait(1) for one second. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.\n\nExamples of correct code:\n# Example 1: move forward 3m, turn right 90, then move 2m\nmove_forward(3)\nturn_right(90)\nmove_forward(2)\n\n# Example 2: draw a square of side 2m\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n\n# Example 3: drive forward until close to a wall\nwhile distance() > 40:\n    move_forward(1)';
 
   // The fine-tuned model strongly prefers object-method style (rover.move_forward,
@@ -107,6 +110,15 @@
     out = out.replace(PROSE_RE, function (line) {
       if (PY_KW.test(line) || CALL.test(line)) return line;
       return '';
+    });
+    // rover.forward(100) is CENTIMETRES; move_forward(1) is METRES. Convert
+    // literal distances during the rewrite so "tidying" cannot silently turn
+    // a 1 m drive into a clamped 40 m one (bugs D9: a ~100x behaviour change).
+    // Non-literal args fall through to the plain rename below; models emit
+    // literals in practice, and the validator gate still runs the result.
+    out = out.replace(/\b(?:rover|robot|bot)\.(forward|backward)\s*\(\s*([0-9]+(?:\.[0-9]+)?)\s*\)/g, function (m, name, num) {
+      var metres = Math.round((parseFloat(num) / 100) * 1000) / 1000;
+      return (name === 'forward' ? 'move_forward' : 'move_backward') + '(' + metres + ')';
     });
     // rover.robot.bot.method(...) -> method(...)
     out = out.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, function (m, name) {
@@ -269,7 +281,15 @@
       const out = await genOnce(model, 'Review and tidy this rover program:\n\n' + src, { system: sys, num_predict: 500 });
       const code = normalizeApi(extractCode(out));
       const notes = stripFences(out.replace(/```[\s\S]*?```/g, '')).trim();
-      return { ok: true, revised: !!code && code !== src.trim(), code: code, notes: notes || 'Reviewed.', model: model };
+      const revised = !!code && code !== src.trim();
+      // The review panel renders `issues`; the desktop bridge fills it from
+      // Python but this facade never did, so a browser review ALWAYS said
+      // "No problems spotted" while presenting a rewrite (bugs D3). Surface
+      // the model's own notes as the issue lines, and never pair a rewrite
+      // with an all-clear.
+      const issues = notes ? notes.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean) : [];
+      if (!issues.length && revised) issues.push('The reviewer suggests a tidied rewrite - read the diff below before applying.');
+      return { ok: true, revised: revised, code: code, notes: notes || 'Reviewed.', issues: issues, model: model };
     } catch (e) { return { ok: false, reason: 'Review failed: ' + ((e && e.message) || e) }; }
   }
 
@@ -293,20 +313,10 @@
     try { const ms = await tags(); return ms.length > 0; } catch (e) { return false; }
   }
 
-  // Speak through the desktop bridge if present, else the browser's built-in
-  // speech synthesis, so spoken replies work in browser mode too. Best-effort.
-  function speak(text, gender, rate) {
-    const b = bridge();
-    if (b && b.speak) { try { return b.speak(text, gender, rate); } catch (e) { void e; } return; }
-    try {
-      if (typeof window !== 'undefined' && window.speechSynthesis && text) {
-        const u = new window.SpeechSynthesisUtterance(String(text));
-        if (rate) u.rate = 1 + (rate / 10);
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(u);
-      }
-    } catch (e) { void e; }
-  }
+  // Voice output removed by owner decision: the studio never speaks aloud.
+  // say() remains a visual command (speech bubble + console line); this no-op
+  // keeps every existing KodroAI.speak call site harmless.
+  function speak() {}
 
   if (typeof window !== 'undefined') {
     window.KodroAI = { status: status, setModel: setModel, chatStart: chatStart, chatPoll: chatPoll, reviewCode: reviewCode, ask: ask, available: available, speak: speak, pick: pick };

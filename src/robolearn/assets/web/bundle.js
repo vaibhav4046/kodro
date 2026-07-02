@@ -620,7 +620,7 @@
 
 ;(function () {
 /* ============================================================================
-   ORBITAL ROVER — terrains
+   KODRO — terrains
    Each terrain defines: accent color, telemetry environment (gravity, temp,
    pressure, light), a static backdrop layer, a camera-tracked ground layer,
    ambient particles, and a deterministic obstacle field used by the live
@@ -2485,7 +2485,11 @@
     showGrid
   }) {
     const g = terrain.groundBg || groundBg(terrain.id);
-    const isEarth = terrain.id === 'earth';
+    // Only the temperate BASE Earth gets the farmland/river map layer. An
+    // Earth SITE (Sahara, Antarctica, Nepal...) resolves to id 'earth' too,
+    // and painting fields and a river on the Ross Ice Shelf was the bug
+    // (world-coherence BUG-2), so a siteId excludes the layer.
+    const isEarth = terrain.id === 'earth' && !terrain.siteId;
     return /*#__PURE__*/React.createElement("div", {
       className: "ground",
       style: {
@@ -2541,7 +2545,7 @@
 
 ;(function () {
 /* ============================================================================
-   ORBITAL ROVER — Rover render
+   KODRO — Rover render
    Top-down 4-wheel rover drawn in SVG. Points "up" (north) at heading 0.
    Wheels animate when moving; a headlight cone and status LED respond to state.
    Exposes window.Rover
@@ -2783,7 +2787,7 @@
 
 ;(function () {
 /* ============================================================================
-   ORBITAL ROVER — Viewport (3D diorama)
+   KODRO — Viewport (3D diorama)
    A tilted, camera-tracked world: ground + perspective grid + standing
    obstacles + trail + a lifted rover that casts a shadow, kicks up dust while
    driving, and emits scan ripples. HUD stays in screen space.
@@ -4605,6 +4609,14 @@
       // inherited the room's warm cream sky and the grey props washed out into a
       // void. Give each its own backdrop + fog so the walls and props read.
       const _sid = terrain && terrain.siteId;
+      // Scene-rebuild marker: stamp WHICH world/site this scene was built for
+      // on the mount node, so the UI harness can assert that a mission-site
+      // switch really rebuilt the scene (F1) instead of trusting the label.
+      try {
+        mount.dataset.world = id + (_sid ? ':' + _sid : '');
+      } catch (e) {
+        void e;
+      }
       if (_sid === 'lab') {
         scene.background = new THREE.Color(0xaeb6c2);
         scene.fog = new THREE.Fog(0xaeb6c2, 70, 240);
@@ -5833,9 +5845,111 @@
           });
         }
       }
+      // ---- Scenario markers: the mission Validate grades, drawn in the world.
+      // The active world's validation scenario (goal beacon, start pad, and the
+      // scenario's obstacle outlines) renders as procedural primitives so the
+      // Validate button grades a mission the user can SEE, instead of scoring
+      // an invisible goal (product-coherence D1). Everything is a scene child,
+      // so the teardown traverse disposes it with the rest of the world.
+      try {
+        if (window.KodroScenario && window.KodroScenario.defaultFor) {
+          const scn = window.KodroScenario.defaultFor(id);
+          if (scn && scn.goalPose) {
+            // Ground height at a world point, matching the displacement the
+            // open-terrain plane applies (plane XY pre-rotation: x = world x,
+            // y = -world z), so markers sit on the surface, not inside a swell.
+            const dispAmp = openWorld ? id === 'underwater' ? 2.6 : id === 'space' ? 1.8 : 3.0 : 0;
+            const groundYAt = (wx, wz) => {
+              if (!dispAmp) return 0;
+              const px = wx,
+                py = -wz;
+              const hh = Math.sin(px * 0.05) * Math.cos(py * 0.045) * 0.6 + Math.sin(px * 0.013 + py * 0.017) * 0.3 + Math.sin((px + py) * 0.09) * 0.12;
+              return hh * dispAmp;
+            };
+            const gp = scn.goalPose;
+            const gx = gp.x * SCALE,
+              gz = -gp.y * SCALE;
+            const gr = Math.max(1.2, (gp.r || 120) * SCALE);
+            const beacon = new THREE.Group();
+            beacon.userData.kodroGoal = true;
+            const ringMatG = new THREE.MeshBasicMaterial({
+              color: 0x5ce0d8,
+              transparent: true,
+              opacity: 0.85
+            });
+            const ringG = new THREE.Mesh(new THREE.TorusGeometry(gr, 0.09, 8, 48), ringMatG);
+            ringG.rotation.x = -Math.PI / 2;
+            ringG.position.y = 0.16;
+            beacon.add(ringG);
+            const ringInner = new THREE.Mesh(new THREE.TorusGeometry(gr * 0.55, 0.05, 8, 40), new THREE.MeshBasicMaterial({
+              color: 0x5ce0d8,
+              transparent: true,
+              opacity: 0.4
+            }));
+            ringInner.rotation.x = -Math.PI / 2;
+            ringInner.position.y = 0.14;
+            beacon.add(ringInner);
+            const beam = new THREE.Mesh(new THREE.CylinderGeometry(gr * 0.16, gr * 0.28, 9, 16, 1, true), new THREE.MeshBasicMaterial({
+              color: 0x5ce0d8,
+              transparent: true,
+              opacity: 0.14,
+              depthWrite: false,
+              side: THREE.DoubleSide
+            }));
+            beam.position.y = 4.5;
+            beacon.add(beam);
+            beacon.position.set(gx, groundYAt(gx, gz), gz);
+            scene.add(beacon);
+            if (scn.startPose) {
+              const sp = scn.startPose;
+              const sx = sp.x * SCALE,
+                sz = -sp.y * SCALE;
+              const pad = new THREE.Mesh(new THREE.RingGeometry(0.9, 1.25, 32), new THREE.MeshBasicMaterial({
+                color: 0xe0b45c,
+                transparent: true,
+                opacity: 0.55,
+                side: THREE.DoubleSide
+              }));
+              pad.rotation.x = -Math.PI / 2;
+              pad.position.set(sx, groundYAt(sx, sz) + 0.14, sz);
+              pad.userData.kodroGoal = true;
+              scene.add(pad);
+            }
+            (scn.obstacles || []).forEach(o => {
+              const orad = Math.max(0.8, o.r * SCALE);
+              const ox = o.x * SCALE,
+                oz = -o.y * SCALE;
+              const ring = new THREE.Mesh(new THREE.RingGeometry(orad * 0.93, orad, 40), new THREE.MeshBasicMaterial({
+                color: 0xffb86b,
+                transparent: true,
+                opacity: 0.35,
+                side: THREE.DoubleSide
+              }));
+              ring.rotation.x = -Math.PI / 2;
+              ring.position.set(ox, groundYAt(ox, oz) + 0.12, oz);
+              ring.userData.kodroGoal = true;
+              scene.add(ring);
+            });
+            // Marker for the UI harness: the goal beacon exists in this scene.
+            try {
+              mount.dataset.goal = '1';
+            } catch (e) {
+              void e;
+            }
+          }
+        }
+      } catch (e) {
+        if (window.console) console.warn('scenario markers failed:', e);
+      }
+
       // Make sure the shared agent sim is built for THIS world before we render
       // its meshes (the viewport effect can run before App's build effect).
-      if (window.KodroAgents && window.KodroAgents.world() !== id) window.KodroAgents.build(id);
+      // One id everywhere: the agent world key is the SITE id when a site is
+      // active (matching App's build(terrainId)), never the base id, so the
+      // collision test, the sensors and the realism dashboard all agree on
+      // which agents exist (world-coherence BUG-4).
+      const _agentWorld = _sid || id;
+      if (window.KodroAgents && window.KodroAgents.world() !== _agentWorld) window.KodroAgents.build(_agentWorld);
       const _siteId = terrain && terrain.siteId;
       if (_siteId === 'lab' || _siteId === 'warehouse' || _siteId === 'debug_grid') buildIndoor(_siteId);else if (id === 'city') buildCity();else if (id === 'room') buildRoom();else {
         renderAgents(); // open terrain worlds: render the roaming robot fleet
@@ -6710,7 +6824,10 @@
         });
         if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
       };
-    }, [terrain && terrain.id, robotType]);
+      // siteId is a dep: a mission-site switch on the SAME base world (earth ->
+      // sahara) must tear down and rebuild the scene, or the site's obstacle
+      // field and palette silently never appear (world-coherence BUG-1).
+    }, [terrain && terrain.id, terrain && terrain.siteId, robotType]);
 
     // Move keyboard focus to the canvas when the user explicitly opens the 3D
     // view (focusKey bumps on that click only). focusKey starts at 0 so the
@@ -6749,7 +6866,7 @@
 
 ;(function () {
 /* ============================================================================
-   ORBITAL ROVER — Code editor
+   KODRO — Code editor
    Transparent textarea over a syntax-highlighted <pre>, with a line-number
    gutter and an active-line marker driven by the interpreter.
    Exposes window.Editor
@@ -6965,7 +7082,7 @@
 
 ;(function () {
 /* ============================================================================
-   ORBITAL ROVER — Telemetry rail
+   KODRO — Telemetry rail
    Live instrument cluster: compass, speed, proximity, battery, odometer, and
    the terrain environment readout (gravity, temperature, pressure, light).
    Exposes window.Telemetry
@@ -7067,13 +7184,24 @@
     rover,
     terrain,
     sensorDist,
-    odometer
+    odometer,
+    robot,
+    runState
   }) {
     const accent = terrain.accent;
     const env = terrain.env;
     const battery = rover.battery;
     const batColor = battery > 50 ? 'var(--success)' : battery > 20 ? 'var(--warning)' : 'var(--danger)';
     const dist = sensorDist == null ? 600 : sensorDist;
+    // Honest instrumentation: the proximity cluster only reads when the build
+    // actually carries the range sensor the reading comes from. A build
+    // without an ultrasonic shows a NO RANGE SENSOR state instead of a
+    // confident number from hardware that is not fitted (product-coherence D3).
+    const hasRange = !window.KodroCommands || window.KodroCommands.check(robot || null, 'distance').ok;
+    // Shared status vocabulary (app-data.jsx): the mission bar renders the
+    // same labels, so the two surfaces can never contradict each other.
+    const statusWord = ((window.KodroStatusLabels || {})[runState] || (rover.moving ? 'Running' : 'Standby')).toUpperCase();
+    const statusColor = runState === 'error' ? 'var(--danger)' : runState === 'running' || rover.moving ? accent : runState === 'done' ? 'var(--success)' : 'var(--fg-3)';
     const distState = dist < 80 ? 'danger' : dist < 200 ? 'warn' : '';
     const distColor = dist < 80 ? 'var(--danger)' : dist < 200 ? 'var(--warning)' : accent;
     // A text cue for proximity so the state is not signalled by colour alone
@@ -7133,7 +7261,7 @@
       className: "tele-section"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "Proximity \xB7 Front Lidar"), /*#__PURE__*/React.createElement("div", {
+    }, hasRange ? 'Proximity · Ultrasonic range' : 'Proximity'), hasRange ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       className: 'dist-readout ' + distState,
       "aria-label": distWord + ', ' + (dist >= 600 ? '600 plus' : dist.toFixed(0)) + ' centimetres to obstacle'
     }, /*#__PURE__*/React.createElement("span", {
@@ -7155,7 +7283,18 @@
         width: Math.min(100, dist / 600 * 100) + '%',
         background: distColor
       }
-    }))), /*#__PURE__*/React.createElement("div", {
+    }))) : /*#__PURE__*/React.createElement("div", {
+      className: "dist-readout no-range",
+      "aria-label": "No range sensor fitted; proximity readings unavailable"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "dr-val",
+      style: {
+        fontSize: 15,
+        color: 'var(--warning)'
+      }
+    }, "NO RANGE SENSOR"), /*#__PURE__*/React.createElement("span", {
+      className: "dr-unit"
+    }, "fit an Ultrasonic in the Robot Lab to read distance"))), /*#__PURE__*/React.createElement("div", {
       className: "tele-section"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
@@ -7192,10 +7331,10 @@
       className: "g-val",
       style: {
         fontSize: 13,
-        color: rover.moving ? accent : 'var(--fg-3)',
+        color: statusColor,
         paddingTop: 4
       }
-    }, rover.moving ? 'DRIVING' : 'IDLE')))), /*#__PURE__*/React.createElement("div", {
+    }, statusWord)))), /*#__PURE__*/React.createElement("div", {
       className: "tele-section",
       style: {
         borderBottom: 'none'
@@ -8216,6 +8355,10 @@ Object.assign(window, {
 
     // 5. TASK FIT -- does the build match what its type is for?
     const type = spec.type;
+    // Fix texts name REAL effects of fitting the part (mass, reach, sensing),
+    // never a command: grab() and see() are not in the interpreter, and a
+    // design check that recommends a command the robot cannot run undermines
+    // the whole honesty story (product-coherence D6).
     if (type === 'arm' && !has(actuators, 'gripper')) {
       dims.push({
         key: 'task',
@@ -8223,7 +8366,7 @@ Object.assign(window, {
         status: 'fail',
         margin: 0,
         reason: 'A manipulator arm with no gripper cannot grab or place anything, which is its whole job.',
-        fix: 'Fit a Gripper arm so grab() works.'
+        fix: 'Fit a Gripper arm so the build can actually hold and place objects.'
       });
     } else if (type === 'home' && !has(sensors, 'bumper') && !hasRange) {
       dims.push({
@@ -8241,7 +8384,7 @@ Object.assign(window, {
         status: 'warn',
         margin: 0.6,
         reason: 'A road vehicle with no camera cannot read markings, signs or a crossing.',
-        fix: 'Add a Camera so see() works in traffic.'
+        fix: 'Add a Camera so the build carries the vision hardware a road robot needs.'
       });
     } else {
       dims.push({
@@ -8292,6 +8435,10 @@ Object.assign(window, {
 
   // After a run, turn the design report plus what actually happened into one
   // honest verdict line: did the design hold up, and if not, why and what next.
+  // `run` may carry real run stats from the host (bugs D5):
+  //   commands        events the program actually executed (0 = nothing ran)
+  //   distanceCm      odometer distance covered this run
+  //   minProximityCm  closest approach to an obstacle during the run
   function afterRun(report, run) {
     run = run || {};
     const outcome = run.outcome; // 'done' | 'crash' | 'flat' | 'stalled'
@@ -8319,11 +8466,28 @@ Object.assign(window, {
         text: 'It stalled: the surface gave its motors too little grip for the weight. Fit 4 DC motors or shed mass.'
       };
     }
-    // done
-    if (report && report.overall === 'pass') {
+    // done -- but only claim the design was tested if something actually ran.
+    // A blank program "finishing" proves nothing about the build (bugs D5).
+    if (run.commands === 0) {
       return {
         tone: 'sys',
-        text: 'Mission complete and the design held up. Margins looked healthy.'
+        text: 'Nothing ran: the program produced no commands, so this run says nothing about the design.'
+      };
+    }
+    // A finish that shaved an obstacle is not a healthy margin: report the
+    // measured closest approach instead of a blanket all-clear.
+    const prox = run.minProximityCm;
+    if (report && report.overall === 'pass') {
+      if (prox != null && prox < 30) {
+        return {
+          tone: 'sys',
+          text: 'Mission complete, but the closest approach was ' + Math.round(prox) + ' cm - one sensor misread from a collision. Add clearance before calling this design safe.'
+        };
+      }
+      const measured = (run.distanceCm != null ? ' Covered ' + (run.distanceCm / 100).toFixed(1) + ' m' : '') + (prox != null && prox < 600 ? ', closest approach ' + Math.round(prox) + ' cm.' : run.distanceCm != null ? '.' : '');
+      return {
+        tone: 'sys',
+        text: 'Mission complete and the design held up.' + (measured || ' Margins looked healthy.')
       };
     }
     if (report && report.overall === 'warn') {
@@ -8831,6 +8995,26 @@ Object.assign(window, {
   };
   // Make sure a default exists from first load so the sim never sees undefined.
   window.getKodroRobot();
+
+  // Resolve a possibly-PARTIAL robot event detail into a full spec + derived
+  // numbers. RobotLab.save dispatches complete specs, but other dispatchers
+  // (the capture harness sends { type } only) must not leave the studio with
+  // a half-spec whose missing sensor list reads as "no parts fitted". An
+  // EXPLICIT sensors/actuators array is honoured as-is (a fixture may be
+  // deliberately bare); absent fields fall back to the archetype's default
+  // build, exactly what picking that archetype in the Lab would give.
+  window.resolveKodroRobot = function (detail) {
+    const d = detail || {};
+    if (Array.isArray(d.sensors) && Array.isArray(d.actuators) && d.massFactor) return d; // already full
+    const base = specFromType(d.type || 'rover', d.name);
+    const spec = Object.assign({}, base, d);
+    if (!Array.isArray(spec.sensors)) spec.sensors = base.sensors;
+    if (!Array.isArray(spec.actuators)) spec.actuators = base.actuators;
+    const rec = WORLD_FOR[spec.type] || {};
+    return Object.assign({}, spec, derive(spec), {
+      world: d.world || rec.id
+    });
+  };
 
   // ---- canonical command registry. ONE source of truth for which commands a
   // build supports, read by the interpreter host, the assistant and the UI, so
@@ -9808,11 +9992,137 @@ Object.assign(window, {
         obstacleJitter: 90,
         lighting: [0.4, 1.0]
       }
+    },
+    mars_ridge: {
+      scenarioId: 'mars_ridge',
+      name: 'Cross the boulder field to the ridge marker',
+      environmentPreset: 'mars',
+      startPose: {
+        x: 0,
+        y: 1100,
+        heading: 0
+      },
+      goalPose: {
+        x: -150,
+        y: -1150,
+        r: 150
+      },
+      obstacles: [{
+        x: -80,
+        y: 350,
+        r: 150
+      }, {
+        x: 220,
+        y: -300,
+        r: 140
+      }, {
+        x: -250,
+        y: -700,
+        r: 130
+      }],
+      terrainMaterial: 'regolith',
+      seed: 23,
+      successCriteria: {
+        reachGoal: true,
+        maxCollisions: 1
+      },
+      randomizationConfig: {
+        friction: [0.6, 0.9],
+        massTol: 0.15,
+        sensorNoise: 20,
+        obstacleJitter: 80,
+        lighting: [0.3, 0.8]
+      }
+    },
+    reef_survey: {
+      scenarioId: 'reef_survey',
+      name: 'Thread the coral heads to the survey buoy',
+      environmentPreset: 'underwater',
+      startPose: {
+        x: 0,
+        y: 1100,
+        heading: 0
+      },
+      goalPose: {
+        x: 250,
+        y: -1100,
+        r: 150
+      },
+      obstacles: [{
+        x: 60,
+        y: 350,
+        r: 140
+      }, {
+        x: -220,
+        y: -250,
+        r: 150
+      }, {
+        x: 180,
+        y: -700,
+        r: 120
+      }],
+      terrainMaterial: 'sediment',
+      seed: 29,
+      successCriteria: {
+        reachGoal: true,
+        maxCollisions: 1
+      },
+      randomizationConfig: {
+        friction: [0.5, 0.8],
+        massTol: 0.12,
+        sensorNoise: 25,
+        obstacleJitter: 70,
+        lighting: [0.1, 0.6]
+      }
+    },
+    crater_line: {
+      scenarioId: 'crater_line',
+      name: 'Reach the far crater rim beacon',
+      environmentPreset: 'space',
+      startPose: {
+        x: 0,
+        y: 1150,
+        heading: 0
+      },
+      goalPose: {
+        x: -200,
+        y: -1150,
+        r: 160
+      },
+      obstacles: [{
+        x: 120,
+        y: 300,
+        r: 150
+      }, {
+        x: -180,
+        y: -350,
+        r: 140
+      }],
+      terrainMaterial: 'regolith',
+      seed: 31,
+      successCriteria: {
+        reachGoal: true,
+        maxCollisions: 1
+      },
+      randomizationConfig: {
+        friction: [0.9, 1.2],
+        massTol: 0.1,
+        sensorNoise: 15,
+        obstacleJitter: 90,
+        lighting: [0.6, 1.0]
+      }
     }
   };
+  // Every base world has its OWN scenario (product-coherence D1: no more
+  // silently grading an Earth mission while Mars is on screen). A mission
+  // site validates on its base world's scenario; an unknown id falls back to
+  // the Earth traverse, which the caller labels.
   function defaultFor(worldId) {
     if (worldId === 'room') return PRESETS.room_reach;
     if (worldId === 'city') return PRESETS.city_cross;
+    if (worldId === 'mars') return PRESETS.mars_ridge;
+    if (worldId === 'underwater') return PRESETS.reef_survey;
+    if (worldId === 'space') return PRESETS.crater_line;
     return PRESETS.terrain_traverse;
   }
   window.KodroScenario = {
@@ -9895,7 +10205,11 @@ Object.assign(window, {
   function KodroRealism(props) {
     const robot = window.getKodroRobot && window.getKodroRobot() || {};
     const terrains = window.TERRAINS || {};
-    const terrain = robot.world && terrains[robot.world] || terrains[Object.keys(terrains)[0]] || {
+    // The dashboard describes the world ON SCREEN (passed live from App), not
+    // the robot's recommended world -- describing a world the user is not
+    // looking at was product-coherence D2. The recommendation lookup stays as
+    // a fallback for host pages that do not pass a terrain.
+    const terrain = props.terrain || robot.world && terrains[robot.world] || terrains[Object.keys(terrains)[0]] || {
       name: '-',
       env: {},
       traction: 1,
@@ -9940,8 +10254,11 @@ Object.assign(window, {
     const scoreRows = agg ? [row('Scenario', last.scenario && last.scenario.name || '-'), row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', aggPassed ? '#5ce0d8' : '#f5c451'), row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')), row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'), row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'), row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-'))] : [row('Validation', 'no runs yet', '#f5c451'), row('Tip', 'Run "Validate across seeds"')];
     const score = card('Scenario score', scoreRows, '#ffb86b');
 
-    // Environment card.
-    const environment = card('Environment', [row('Preset', terrain.name || terrain.id || '-'), row('Lighting', env.light != null ? env.light.toFixed(2) : '-'), row('Gravity', env.gravity != null ? env.gravity + ' m/s2' : '-'), row('Friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'), row('Moving agents', window.KodroAgents && window.KodroAgents.list && window.KodroAgents.world && window.KodroAgents.world() === terrain.id ? String(window.KodroAgents.list().length) : '0')], '#9fb4d2');
+    // Environment card. Lighting is a 0-100 percentage (same number telemetry
+    // shows), not a two-decimal float ("Lighting 92.00" read as broken). The
+    // agents row gates on the SITE id when a mission site is active, matching
+    // how the agent sim is keyed everywhere else (world-coherence BUG-4).
+    const environment = card('Environment', [row('Preset', terrain.name || terrain.id || '-'), row('Lighting', env.light != null ? Math.round(env.light) + '%' : '-'), row('Gravity', env.gravity != null ? env.gravity + ' m/s2' : '-'), row('Friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'), row('Moving agents', window.KodroAgents && window.KodroAgents.list && window.KodroAgents.world && window.KodroAgents.world() === (terrain.siteId || terrain.id) ? String(window.KodroAgents.list().length) : '0')], '#9fb4d2');
 
     // Command registry card.
     const okCmds = avail.filter(function (c) {
@@ -11048,9 +11365,12 @@ Object.assign(window, {
     return t.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
   }
 
-  // The robot API is BARE functions, not object methods. The small local model
-  // tends to emit rover.move_forward()/rover.right() which do not exist and
-  // NameError at run time, so the prompt is explicit and the output is gated.
+  // The CANONICAL robot API is bare, metre-based function calls. rover.*(...)
+  // still runs as a deprecated centimetre-based compatibility alias, but the
+  // model must not use it: mixing the two dialects in one program is a 100x
+  // unit trap. The prompt is explicit, the output is gated, and normalizeApi
+  // below converts stray rover.forward(cm) into the equivalent bare METRE
+  // call (value included) so a rewrite never silently changes distances.
   const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. A turn is 90 degrees for a right angle, 180 to face back. A beep is beep(1). A wait is wait(1) for one second. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.\n\nExamples of correct code:\n# Example 1: move forward 3m, turn right 90, then move 2m\nmove_forward(3)\nturn_right(90)\nmove_forward(2)\n\n# Example 2: draw a square of side 2m\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n\n# Example 3: drive forward until close to a wall\nwhile distance() > 40:\n    move_forward(1)';
 
   // The fine-tuned model strongly prefers object-method style (rover.move_forward,
@@ -11082,6 +11402,15 @@ Object.assign(window, {
     out = out.replace(PROSE_RE, function (line) {
       if (PY_KW.test(line) || CALL.test(line)) return line;
       return '';
+    });
+    // rover.forward(100) is CENTIMETRES; move_forward(1) is METRES. Convert
+    // literal distances during the rewrite so "tidying" cannot silently turn
+    // a 1 m drive into a clamped 40 m one (bugs D9: a ~100x behaviour change).
+    // Non-literal args fall through to the plain rename below; models emit
+    // literals in practice, and the validator gate still runs the result.
+    out = out.replace(/\b(?:rover|robot|bot)\.(forward|backward)\s*\(\s*([0-9]+(?:\.[0-9]+)?)\s*\)/g, function (m, name, num) {
+      var metres = Math.round(parseFloat(num) / 100 * 1000) / 1000;
+      return (name === 'forward' ? 'move_forward' : 'move_backward') + '(' + metres + ')';
     });
     // rover.robot.bot.method(...) -> method(...)
     out = out.replace(/\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(/g, function (m, name) {
@@ -11379,11 +11708,22 @@ Object.assign(window, {
       });
       const code = normalizeApi(extractCode(out));
       const notes = stripFences(out.replace(/```[\s\S]*?```/g, '')).trim();
+      const revised = !!code && code !== src.trim();
+      // The review panel renders `issues`; the desktop bridge fills it from
+      // Python but this facade never did, so a browser review ALWAYS said
+      // "No problems spotted" while presenting a rewrite (bugs D3). Surface
+      // the model's own notes as the issue lines, and never pair a rewrite
+      // with an all-clear.
+      const issues = notes ? notes.split(/\r?\n/).map(function (s) {
+        return s.trim();
+      }).filter(Boolean) : [];
+      if (!issues.length && revised) issues.push('The reviewer suggests a tidied rewrite - read the diff below before applying.');
       return {
         ok: true,
-        revised: !!code && code !== src.trim(),
+        revised: revised,
         code: code,
         notes: notes || 'Reviewed.',
+        issues: issues,
         model: model
       };
     } catch (e) {
@@ -11440,29 +11780,10 @@ Object.assign(window, {
     }
   }
 
-  // Speak through the desktop bridge if present, else the browser's built-in
-  // speech synthesis, so spoken replies work in browser mode too. Best-effort.
-  function speak(text, gender, rate) {
-    const b = bridge();
-    if (b && b.speak) {
-      try {
-        return b.speak(text, gender, rate);
-      } catch (e) {
-        void e;
-      }
-      return;
-    }
-    try {
-      if (typeof window !== 'undefined' && window.speechSynthesis && text) {
-        const u = new window.SpeechSynthesisUtterance(String(text));
-        if (rate) u.rate = 1 + rate / 10;
-        window.speechSynthesis.cancel();
-        window.speechSynthesis.speak(u);
-      }
-    } catch (e) {
-      void e;
-    }
-  }
+  // Voice output removed by owner decision: the studio never speaks aloud.
+  // say() remains a visual command (speech bubble + console line); this no-op
+  // keeps every existing KodroAI.speak call site harmless.
+  function speak() {}
   if (typeof window !== 'undefined') {
     window.KodroAI = {
       status: status,
@@ -11810,104 +12131,104 @@ print("Base camp built: 1 beacon, 4 crates, 3 flags, 2 crew, 1 tree, 1 rock")`
     autopilot: {
       label: 'autopilot.py',
       code: `# AUTOPILOT - the rover drives itself, like a self-driving car.
-# Every step it reads its lidar. It ONLY moves forward when the way
-# is clear, so it can never hit a boulder OR the arena wall. When
+# Every step it reads its range sensor. It ONLY moves forward when the
+# way is clear, so it can never hit a boulder OR the arena wall. When
 # something looms it scans, probes left + right, and steers toward
 # the side with more room. Pure sense-think-act. Press Run and watch.
-rover.set_speed(72)
-rover.pen_down()
-rover.led("cyan")
-rover.say("Autopilot engaged")
+set_speed(72)
+pen_down()
+led("cyan")
+say("Autopilot engaged")
 
 legs = 0
 dodges = 0
 scans = 0
 steps = 0
 
-# Self-drive: it only moves forward when the lidar says the way is clear,
-# so it can never hit a boulder OR the arena wall. Whenever something looms
-# it scans, probes left + right, and steers toward the side with more room -
-# so it roams the whole field, dodging as it goes. Always terminates.
+# Self-drive: it only moves forward when the range sensor says the way is
+# clear, so it can never hit a boulder OR the arena wall. Whenever something
+# looms it scans, probes left + right, and steers toward the side with more
+# room - so it roams the whole field, dodging as it goes. Always terminates.
 while legs < 60 and steps < 220:
     steps = steps + 1
-    ahead = rover.distance()
+    ahead = distance()
 
     if ahead < 150:
         # Boulder or wall ahead: scan, sense both sides, steer clear.
-        rover.led("amber")
-        rover.scan()
+        led("amber")
+        scan()
         scans = scans + 1
-        rover.turn_left(60)
-        left = rover.distance()
-        rover.turn_right(120)
-        right = rover.distance()
+        turn_left(60)
+        left = distance()
+        turn_right(120)
+        right = distance()
         if left > right:
-            rover.turn_left(150)
+            turn_left(150)
         else:
-            rover.turn_left(25)
+            turn_left(25)
         dodges = dodges + 1
-        rover.led("cyan")
+        led("cyan")
     else:
-        rover.forward(40)
+        move_forward(0.4)
         legs = legs + 1
 
-rover.led("green")
-rover.say("Area mapped")
+led("green")
+say("Area mapped")
 print("Legs driven:", legs)
 print("Boulders dodged:", dodges)
-print("Lidar scans:", scans)`
+print("Range scans:", scans)`
     },
     drive: {
       label: 'starter.py',
       code: `# Welcome to Kodro.
 # Edit freely, then press Run. The API is listed below.
-rover.set_speed(60)
-rover.pen_down()
+set_speed(60)
+pen_down()
 
-rover.forward(200)
-rover.turn_left(90)
-rover.forward(140)
-rover.say("Hello, terrain")`
+move_forward(2)
+turn_left(90)
+move_forward(1.4)
+say("Hello, terrain")`
     },
     square: {
       label: 'square.py',
-      code: `# A for-loop draws a square. Change the 4 or the 300.
-rover.pen_down()
-rover.set_speed(75)
+      code: `# A for-loop draws a square. Change the 4 or the 3.
+pen_down()
+set_speed(75)
 
 for side in range(4):
-    rover.forward(300)
-    rover.turn_right(90)
+    move_forward(3)
+    turn_right(90)
 
 print("Square complete.")`
     },
     spiral: {
       label: 'spiral.py',
       code: `# Variables + loops make an expanding spiral.
-rover.pen_down()
-rover.set_speed(85)
+pen_down()
+set_speed(85)
 
-step = 40
+step = 0.4
 for i in range(20):
-    rover.forward(step)
-    rover.turn_right(42)
-    step = step + 20
+    move_forward(step)
+    turn_right(42)
+    step = step + 0.2
 
 print("Drew", i + 1, "segments.")`
     },
     avoid: {
       label: 'avoid.py',
-      code: `# Obstacle avoidance: read the lidar, branch with if/else.
-rover.set_speed(80)
-rover.pen_down()
+      code: `# Obstacle avoidance: read the range sensor, branch with if/else.
+set_speed(80)
+pen_down()
 
 trips = 0
 while trips < 30:
-    front = rover.distance()
+    front = distance()
     if front < 150:
-        rover.turn_right(55)
+        turn_right(55)
     else:
-        rover.forward(80)
+        move_forward(0.8)
     trips = trips + 1
 
 print("Finished after", trips, "moves.")`
@@ -11915,11 +12236,11 @@ print("Finished after", trips, "moves.")`
     survey: {
       label: 'survey.py',
       code: `# Sensors + conditionals: profile the environment.
-rover.led("amber")
-rover.scan()
+led("amber")
+scan()
 
-g = rover.gravity()
-t = rover.temperature()
+g = gravity()
+t = temperature()
 print("Gravity:", g, "m/s^2")
 print("Temperature:", t, "C")
 
@@ -11928,9 +12249,9 @@ if g < 4:
 else:
     print("Standard footing.")
 
-rover.led("green")
-rover.forward(240)
-rover.say("Survey done")`
+led("green")
+move_forward(2.4)
+say("Survey done")`
     }
   };
   const LED_COLORS = {
@@ -11941,6 +12262,19 @@ rover.say("Survey done")`
     blue: '#aeb8e8',
     white: '#f5f0e4',
     off: null
+  };
+
+  // ---------------- shared run-status vocabulary ----------------
+  // ONE label per run state, rendered by BOTH the mission bar and the
+  // telemetry rail, so the two surfaces can never contradict each other
+  // (the old telemetry DRIVING/IDLE pair read "IDLE" beside a mission bar
+  // saying "Halted" after a crash -- product-coherence D11).
+  const STATUS_LABELS = {
+    idle: 'Standby',
+    running: 'Running',
+    paused: 'Paused',
+    done: 'Complete',
+    error: 'Halted'
   };
 
   // ---------------- Scratch-style block palette ----------------
@@ -12065,6 +12399,7 @@ rover.say("Survey done")`
   if (typeof window !== 'undefined') {
     window.KodroExamples = EXAMPLES;
     window.KodroLedColors = LED_COLORS;
+    window.KodroStatusLabels = STATUS_LABELS;
     window.KodroBlockDefs = BLOCK_DEFS;
     window.KodroTweakDefaults = TWEAK_DEFAULTS;
     window.KodroOrbitSvg = ORBIT_SVG;
@@ -12628,6 +12963,54 @@ rover.say("Survey done")`
     setPrograms,
     activeTab
   }) {
+    // Export downloads the reflections + skills as a JSON backup; Import
+    // restores one. Both call the store's own exportData/importData, which
+    // shipped as dead code until now (product-coherence P5 via D7).
+    function exportMemory() {
+      try {
+        const json = window.KodroMemory.exportData();
+        const blob = new Blob([json], {
+          type: 'application/json'
+        });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'kodro-memory.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      } catch (e) {
+        void e;
+      }
+    }
+    function importMemory(e) {
+      const f = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        let n = 0;
+        try {
+          n = window.KodroMemory.importData(String(rd.result));
+        } catch (err) {
+          void err;
+        }
+        try {
+          window.dispatchEvent(new CustomEvent('kodro-toast', {
+            detail: n ? {
+              text: 'Memory restored from backup',
+              kind: 'info'
+            } : {
+              text: 'Import failed: not a Kodro memory backup',
+              kind: 'err'
+            }
+          }));
+        } catch (err) {
+          void err;
+        }
+      };
+      rd.readAsText(f);
+    }
     return /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => setMemoryOpen(false)
@@ -12642,7 +13025,25 @@ rover.say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "\uD83E\uDDE0 Memory. The system refines from what it has seen, offline"), /*#__PURE__*/React.createElement("button", {
+    }, "\uD83E\uDDE0 Memory. The system refines from what it has seen, offline"), /*#__PURE__*/React.createElement("span", {
+      className: "mem-io"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "data-mem-export": true,
+      title: "Download reflections and skills as a JSON backup",
+      onClick: exportMemory
+    }, "Export"), /*#__PURE__*/React.createElement("label", {
+      className: "btn-mini mem-import",
+      title: "Restore reflections and skills from a JSON backup"
+    }, "Import", /*#__PURE__*/React.createElement("input", {
+      type: "file",
+      accept: ".json,application/json",
+      style: {
+        display: 'none'
+      },
+      onChange: importMemory,
+      "aria-label": "Import memory backup file"
+    }))), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setMemoryOpen(false)
@@ -12739,8 +13140,20 @@ rover.say("Survey done")`
     vibeMic,
     vibePrompt,
     setVibePrompt,
-    vibeSend
+    vibeSend,
+    vibeContext
   }) {
+    // The reflection the assistant is fed from past runs in this world,
+    // rendered as a VISIBLE chip instead of an invisible prompt injection
+    // (product-coherence D7: the memory loop must be seen to be believed).
+    const ctxChip = vibeContext && vibeContext.reflection ? /*#__PURE__*/React.createElement("div", {
+      className: "vibe-ctx",
+      title: "Learned from your past runs in this world; it is fed into the assistant's context"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "vibe-ctx-tag"
+    }, "Memory context", vibeContext.world ? ' · ' + vibeContext.world : ''), /*#__PURE__*/React.createElement("span", {
+      className: "vibe-ctx-text"
+    }, vibeContext.reflection)) : null;
     return /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => !vibeBusy && setVibeOpen(false)
@@ -12766,7 +13179,7 @@ rover.say("Survey done")`
       className: "vibe-body"
     }, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it."), aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
+    }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it."), ctxChip, aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -12867,7 +13280,7 @@ rover.say("Survey done")`
       className: "vibe-body"
     }, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "AI is offline. Vibe coding uses a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account):"), /*#__PURE__*/React.createElement("ol", {
+    }, "AI is offline. Vibe coding uses a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account):"), ctxChip, /*#__PURE__*/React.createElement("ol", {
       className: "vibe-steps"
     }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. This panel lights up automatically")))));
   }
@@ -13016,7 +13429,7 @@ rover.say("Survey done")`
 
 ;(function () {
 /* ============================================================================
-   ORBITAL ROVER — App (runtime + UI wiring)
+   KODRO — App (runtime + UI wiring)
    ========================================================================== */
 (function () {
   const {
@@ -13180,6 +13593,11 @@ rover.say("Survey done")`
     const odoRef = useRef(0);
     const [odo, setOdo] = useState(0);
     const [sensorDist, setSensorDist] = useState(600);
+    // Per-run stats for the post-run verdict (bugs D5): closest approach the
+    // range sensor saw during the run, and how many real commands the program
+    // actually executed. Both reset with the rover so each run reports itself.
+    const minProxRef = useRef(Infinity);
+    const cmdCountRef = useRef(0);
 
     // RoboLearn bridge: lessons (from Python), currently-loaded lesson id,
     // pupil + verdict + hint after a graded Run. The React app stays
@@ -13382,9 +13800,20 @@ rover.say("Survey done")`
     const [robotSpec, setRobotSpec] = useState(() => window.getKodroRobot ? window.getKodroRobot() : null);
     useEffect(() => {
       const onRobot = e => {
-        setRobotSpec(e.detail);
+        // Resolve a partial detail (a dispatcher may send { type } only)
+        // through the archetype defaults, and keep the runtime accessor
+        // (window.KODRO_ROBOT, read by the sensor gate) in lockstep with the
+        // UI's robotSpec -- ONE build drives both, or telemetry could claim
+        // "no range sensor" while distance() happily reads (D3 coherence).
+        const full = (window.resolveKodroRobot ? window.resolveKodroRobot(e.detail) : e.detail) || e.detail;
+        setRobotSpec(full);
+        try {
+          window.KODRO_ROBOT = full;
+        } catch (err) {
+          void err;
+        }
         // Drop the new robot into the world the assistant recommends for it.
-        const w = e.detail && e.detail.world;
+        const w = full && full.world;
         if (w && window.TERRAINS && window.TERRAINS[w]) {
           setTerrainId(w);
           try {
@@ -13398,7 +13827,7 @@ rover.say("Survey done")`
         // refusal. Move off it to the base-command 'starter' so the first Run
         // after picking, say, a camera-only arm still works.
         try {
-          const canRange = !window.KodroCommands || window.KodroCommands.check(e.detail, 'distance').ok;
+          const canRange = !window.KodroCommands || window.KodroCommands.check(full, 'distance').ok;
           if (!canRange) setActiveTab(t => t === 'autopilot' || t === 'avoid' ? 'drive' : t);
         } catch (err) {
           void err;
@@ -13473,9 +13902,11 @@ rover.say("Survey done")`
         addConsole('Validation unavailable.', 'err');
         return;
       }
-      const robot = window.getKodroRobot && window.getKodroRobot() || {};
-      const scn = window.KodroScenario.defaultFor(robot.world || terrain && terrain.id);
-      addConsole('Validating across 5 randomised seeds in "' + scn.name + '" (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
+      // Validate the world ON SCREEN, not the robot's recommended world: the
+      // verdict must be about what the user is looking at (product-coherence
+      // D1). A mission site validates on its base world's scenario.
+      const scn = window.KodroScenario.defaultFor(terrain && terrain.id);
+      addConsole('Validating across 5 randomised seeds in "' + scn.name + '" on ' + (terrain.name || terrain.id) + ' (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
       const rep = window.KodroScenario.run(code, scn, 5);
       const a = rep.aggregate;
       // A compile error in the program is a code mistake, not a 0% behaviour
@@ -13486,6 +13917,12 @@ rover.say("Survey done")`
         return;
       }
       addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', a.passed ? 'ok' : 'warn');
+      // "0%" without context reads as a broken product when the program simply
+      // never drove to the goal. Say exactly what 0% measures, and point at
+      // the marker the viewport now draws (product-coherence D1).
+      if ((a.successRate || 0) === 0) {
+        addConsole('0% success means the program never reached the goal marker (the cyan beacon ring drawn in the viewport). It is a mission result, not a crash count.', 'sys');
+      }
       setRealismOpen(true);
     }
     // Chat thread: [{role:'user'|'ai', kind:'text'|'code', text}]
@@ -14070,8 +14507,10 @@ rover.say("Survey done")`
         };
       }
       // Moving agents (pedestrians and traffic) are real obstacles too: the
-      // robot must avoid them, not just the parked cars and buildings.
-      if (window.KodroAgents && window.KodroAgents.world() === terrain.id) {
+      // robot must avoid them, not just the parked cars and buildings. The
+      // agent sim is keyed by the SITE id when a mission site is active
+      // (App builds it with terrainId), so gate on the same id.
+      if (window.KodroAgents && window.KodroAgents.world() === (terrain.siteId || terrain.id)) {
         for (const a of window.KodroAgents.list()) {
           if (Math.hypot(a.x - x, a.y - y) < a.r + R) return {
             type: a.kind === 'person' ? 'pedestrian' : a.kind === 'robot' ? 'robot' : 'vehicle',
@@ -14104,8 +14543,9 @@ rover.say("Survey done")`
         const t = tca - Math.sqrt(rr - d2);
         if (t > 0) best = Math.min(best, t);
       }
-      // the sensor also picks up moving agents in the robot's path
-      if (window.KodroAgents && window.KodroAgents.world() === terrain.id) {
+      // the sensor also picks up moving agents in the robot's path (same
+      // site-aware world key as the collision test above)
+      if (window.KodroAgents && window.KodroAgents.world() === (terrain.siteId || terrain.id)) {
         for (const o of window.KodroAgents.list()) {
           const ox = o.x - x,
             oy = o.y - y;
@@ -14312,7 +14752,9 @@ rover.say("Survey done")`
         s.y = ny;
         s.battery = Math.max(0, b0 - drainFull * cf);
         pushTrailPoint();
-        setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading)));
+        const dNow = rayDistance(s.x, s.y, s.heading);
+        if (dNow < minProxRef.current) minProxRef.current = dNow;
+        setSensorDist(Math.round(dNow));
         sync();
         if (outOfCharge) {
           flat = true;
@@ -14457,6 +14899,10 @@ rover.say("Survey done")`
           return false;
         }
         const ev = res.value;
+        // Everything except a bookkeeping 'step' is a real command the program
+        // executed; the count feeds the post-run verdict so an empty program
+        // cannot claim "the design held up" (bugs D5).
+        if (ev.type !== 'step') cmdCountRef.current++;
         if (ev.line) setActiveLine(ev.line);
         switch (ev.type) {
           case 'step':
@@ -14559,6 +15005,18 @@ rover.say("Survey done")`
     }
     function handleRuntimeError(e) {
       const msg = e && e.message ? e.message : String(e);
+      // A live-terminal (REPL) error is a one-line affair: report it in the
+      // console, but do NOT highlight an editor line ("Line 1" of a terminal
+      // one-liner is not a line of the user's program) and do NOT flip the
+      // studio into the Halted state -- the editor program never ran, let
+      // alone failed (bugs D6). replRef is cleared here AND in haltProgram/
+      // resetRover so the flag can never leak into the next editor run.
+      if (replRef.current) {
+        replRef.current = false;
+        addConsole(msg, 'err');
+        haltProgram('idle');
+        return;
+      }
       const line = e && e.line;
       if (line) setActiveLine(line);
       addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
@@ -14586,11 +15044,17 @@ rover.say("Survey done")`
           ts: Date.now()
         });
       }
-      // Coach: confirm the design held up, or name what to still watch.
+      // Coach: confirm the design held up, or name what to still watch. The
+      // verdict reads the run's OWN stats (distance covered, closest approach,
+      // commands executed) so it describes what actually happened, not just
+      // the pre-run prediction (bugs D5).
       if (window.KodroDiagnostics) {
         const robotNow = window.getKodroRobot ? window.getKodroRobot() : {};
         const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotNow, terrain), {
-          outcome: 'done'
+          outcome: 'done',
+          commands: cmdCountRef.current,
+          distanceCm: Math.round(odoRef.current),
+          minProximityCm: isFinite(minProxRef.current) ? Math.round(minProxRef.current) : null
         });
         if (v) addConsole(v.text, v.tone);
       }
@@ -14630,6 +15094,10 @@ rover.say("Survey done")`
       ctrl.current.running = false;
       ctrl.current.abort = false;
       genRef.current = null;
+      // The REPL flag must not outlive the run that set it: a leaked true
+      // makes the NEXT editor run finish silently (no "Program finished.",
+      // no toast, no memory record, no verdict, no grading) -- bugs D2.
+      replRef.current = false;
       live.current.moving = false;
       sync();
       setRunState(state || 'idle');
@@ -14640,6 +15108,14 @@ rover.say("Survey done")`
       try {
         const interp = window.RoverLang.compile(code);
         genRef.current = interp.run(host);
+        // Deprecated-dialect lint (product-coherence D4): rover.forward(100)
+        // still runs as a centimetre-based compatibility alias, but the
+        // canonical API is the bare metre-based dialect every shipped example
+        // and the grader use. Say so once per run, at compile time, so mixed
+        // programs stop reading as two different products.
+        if (/\brover\s*\./.test(code)) {
+          addConsole('Note: rover.forward(100) is the legacy centimetre dialect. It still runs, but new code should use the bare metre API, e.g. move_forward(1).', 'sys');
+        }
         return true;
       } catch (e) {
         handleRuntimeError(e);
@@ -14671,11 +15147,14 @@ rover.say("Survey done")`
       setProps([]);
       odoRef.current = 0;
       setOdo(0);
+      minProxRef.current = Infinity;
+      cmdCountRef.current = 0;
       setSensorDist(600);
       setActiveLine(0);
       setSay('');
       sync();
       genRef.current = null;
+      replRef.current = false; // a Reset always exits terminal mode (bugs D2)
       ctrl.current.abortTimer = setTimeout(() => {
         ctrl.current.abort = false;
         ctrl.current.abortTimer = null;
@@ -14786,9 +15265,22 @@ rover.say("Survey done")`
         type: 'sys',
         text: 'Switched to ' + (t.name || id) + '.' + (t.coord ? ' ' + t.coord : '')
       }]);
-      // The 3D viewport rebuilds on a terrain change (keyed by terrain.id) and
-      // can flash an empty canvas for a frame while it spins up. Cover that with
-      // a 200ms "Loading..." cue so the transition reads as intentional.
+      // Memory made visible: if a saved skill was built for THIS world, say so
+      // on entry -- the skill library exists but was invisible unless the user
+      // happened to open the Memory panel (product-coherence D7). Exact world
+      // matches only, so the toast never fires on a loose fallback.
+      try {
+        if (window.KodroMemory && window.KodroMemory.findSkill) {
+          const sk = window.KodroMemory.findSkill(t.id, robotSpec && robotSpec.type);
+          if (sk && sk.world === t.id) showToast('Saved skill "' + sk.name + '" fits this world. Open Memory to reuse it.', 'info');
+        }
+      } catch (err) {
+        void err;
+      }
+      // The 3D viewport rebuilds on any terrain OR mission-site change (keyed
+      // by siteId || id, so a site switch on the same base world remounts too)
+      // and can flash an empty canvas for a frame while it spins up. Cover that
+      // with a 200ms "Loading..." cue so the transition reads as intentional.
       setWorldLoading({
         name: t.name || id
       });
@@ -15077,13 +15569,18 @@ rover.say("Survey done")`
         if (prev && prev.focus) prev.focus();
       };
     }, [anyModalOpen]);
-    const statusLabel = {
+
+    // Shared vocabulary (app-data.jsx): telemetry renders the SAME labels.
+    const statusLabel = (window.KodroStatusLabels || {
       idle: 'Standby',
       running: 'Running',
       paused: 'Paused',
       done: 'Complete',
       error: 'Halted'
-    }[runState];
+    })[runState];
+    const chipName = robotSpec && robotSpec.name || 'Robot';
+    const chipType = robotSpec && robotSpec.type || null;
+    const chipMass = robotSpec && robotSpec.mass || null;
     return /*#__PURE__*/React.createElement("div", {
       className: "app"
     }, /*#__PURE__*/React.createElement("a", {
@@ -15158,6 +15655,15 @@ rover.say("Survey done")`
     }), /*#__PURE__*/React.createElement("span", null, statusLabel)), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("button", {
+      className: "robot-chip",
+      title: "Current robot build. Click to open the Robot Lab",
+      "aria-label": 'Current robot: ' + chipName + (chipType ? ', type ' + chipType : '') + (chipMass ? ', mass ' + chipMass + ' grams' : '') + '. Open Robot Lab',
+      onClick: () => setRobotLabOpen(true)
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "rc-name"
+    }, chipName), (chipType || chipMass) && /*#__PURE__*/React.createElement("span", {
+      className: "rc-meta"
+    }, chipType || '', chipType && chipMass ? ' · ' : '', chipMass ? chipMass + ' g' : '')), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn voice-agent-btn",
       title: "Talk to Kodro. Speak a command or ask a question",
       "aria-label": "Voice agent \u2014 speak a command or ask a question",
@@ -15386,11 +15892,32 @@ rover.say("Survey done")`
       onChange: onCodeChange,
       activeLine: activeLine,
       readOnly: runState === 'running'
-    }), /*#__PURE__*/React.createElement("div", {
-      className: "api-hint"
-    }, /*#__PURE__*/React.createElement("b", null, "move_forward(m)"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "move_backward(m)"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "turn_left(\xB0)"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "turn_right(\xB0)"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "set_speed(0\u2013100)"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "pen_down/up()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "scan()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "led(\"cyan\")"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "say(\"\u2026\")"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "collect_sample()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "place(\"flag\")"), /*#__PURE__*/React.createElement("span", {
-      className: "sep"
-    }, " \xB7 sensors return values: "), /*#__PURE__*/React.createElement("b", null, "distance()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "heading()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "battery()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "obstacle_ahead()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "gravity()"), " \xB7 ", /*#__PURE__*/React.createElement("b", null, "temperature()")), (() => {
+    }), (() => {
+      // The hint strip is driven by the SAME availability source the
+      // blocks palette and the runtime gate use (KodroCommands), so
+      // it can never advertise a command this build refuses: a
+      // command whose part is missing renders greyed out with the
+      // reason in its tooltip (product-coherence D5). The old static
+      // strip also advertised the collect_sample()/drop_sample()
+      // print stubs; only real, runnable commands are listed now.
+      const gateOk = g => !g || !window.KodroCommands || window.KodroCommands.check(robotSpec, g).ok;
+      const ACTION_HINTS = [['move_forward(m)', null], ['move_backward(m)', null], ['turn_left(°)', null], ['turn_right(°)', null], ['set_speed(0–100)', null], ['pen_down/up()', null], ['wait(s)', null], ['scan()', 'scan'], ['led("cyan")', null], ['say("…")', null], ['place("flag")', null]];
+      const SENSOR_HINTS = [['distance()', 'distance'], ['heading()', 'heading'], ['battery()', null], ['obstacle_ahead()', 'distance'], ['gravity()', null], ['temperature()', null]];
+      const hint = ([label, g], i) => {
+        const ok = gateOk(g);
+        return /*#__PURE__*/React.createElement(React.Fragment, {
+          key: label
+        }, i > 0 ? ' · ' : null, /*#__PURE__*/React.createElement("b", {
+          className: ok ? undefined : 'cmd-off',
+          title: ok ? undefined : 'Not available on this build. Fit the missing part in the Robot Lab.'
+        }, label));
+      };
+      return /*#__PURE__*/React.createElement("div", {
+        className: "api-hint"
+      }, ACTION_HINTS.map(hint), /*#__PURE__*/React.createElement("span", {
+        className: "sep"
+      }, " \xB7 sensors return values: "), SENSOR_HINTS.map(hint));
+    })(), (() => {
       const lesson = lessons.find(l => l.id === currentLessonId);
       if (!lesson) return null;
       return /*#__PURE__*/React.createElement("section", {
@@ -15634,7 +16161,7 @@ rover.say("Survey done")`
     }, "High"), /*#__PURE__*/React.createElement("option", {
       value: "cinematic"
     }, "Cinematic")))), view3d ? /*#__PURE__*/React.createElement(window.Viewport3D, {
-      key: 'vp3d-' + (terrain && terrain.id) + '-' + (robotSpec && robotSpec.type) + (quality === 'cinematic' ? '-cine' : '-std'),
+      key: 'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + (quality === 'cinematic' ? '-cine' : '-std'),
       terrain: terrain,
       rover: rover,
       fpv: fpv,
@@ -15716,9 +16243,10 @@ rover.say("Survey done")`
       style: {
         fontSize: 10,
         color: 'var(--fg-3)',
-        letterSpacing: '0.1em'
+        letterSpacing: '0.1em',
+        textTransform: 'uppercase'
       }
-    }, "OQ-ROVER-04"), /*#__PURE__*/React.createElement("button", {
+    }, chipName), /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: "tele-toggle",
       "aria-expanded": !teleCollapsed,
@@ -15728,7 +16256,9 @@ rover.say("Survey done")`
       rover: rover,
       terrain: terrain,
       sensorDist: sensorDist,
-      odometer: odo
+      odometer: odo,
+      robot: robotSpec,
+      runState: runState
     }))), /*#__PURE__*/React.createElement(window.TweaksPanel, {
       title: "Tweaks"
     }, /*#__PURE__*/React.createElement(window.TweakSection, {
@@ -15820,7 +16350,8 @@ rover.say("Survey done")`
       reviewData: reviewData,
       applyReview: applyReview
     }), realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, {
-      onClose: () => setRealismOpen(false)
+      onClose: () => setRealismOpen(false),
+      terrain: terrain
     }), demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, {
       onClose: () => setDemoOpen(false)
     }), vibeOpen && /*#__PURE__*/React.createElement(window.KodroPanels.VibeModal, {
@@ -15840,7 +16371,8 @@ rover.say("Survey done")`
       vibeMic: vibeMic,
       vibePrompt: vibePrompt,
       setVibePrompt: setVibePrompt,
-      vibeSend: vibeSend
+      vibeSend: vibeSend,
+      vibeContext: window.KodroMemory && window.KodroMemory.lessonFor ? window.KodroMemory.lessonFor(terrain.id) : null
     }), blocksOpen && /*#__PURE__*/React.createElement(window.KodroPanels.BlocksModal, {
       setBlocksOpen: setBlocksOpen,
       BLOCK_DEFS: BLOCK_DEFS,
@@ -15896,10 +16428,11 @@ rover.say("Survey done")`
   // via currentColor so it inherits whatever colour .brand-mark sets (theme-safe).
   const ORBIT_SVG = window.KodroOrbitSvg || '';
 
-  // adjust grid columns to include resizer tracks
-  const style = document.createElement('style');
-  style.textContent = '.workspace{grid-template-columns:var(--editor-w) 5px 1fr 5px var(--tele-w);}';
-  document.head.appendChild(style);
+  // The 5-track .workspace grid (editor | resizer | viewport | resizer |
+  // telemetry) lives in styles.css next to the rest of the layout; the old
+  // runtime <style> injection that duplicated it was a maintenance landmine
+  // (two competing sources for the same rule) and is gone.
+
   ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
 })();
 })();
