@@ -4,17 +4,17 @@
   "maxTurns": 3,
   "cellCount": 20,
   "funnel": {
-    "compiled": 18,
-    "ran": 16,
-    "safe": 8,
+    "compiled": 17,
+    "ran": 15,
+    "safe": 7,
     "taskComplete": 7
   },
-  "meanTurnsToSuccess": 1.14,
+  "meanTurnsToSuccess": 1,
   "byPersona": [
     {
       "persona": "beginner",
       "name": "Maya (KS3 beginner, no code)",
-      "done": 1,
+      "done": 0,
       "of": 5
     },
     {
@@ -32,7 +32,7 @@
     {
       "persona": "access",
       "name": "Priya (low vision, voice-first)",
-      "done": 2,
+      "done": 3,
       "of": 5
     }
   ],
@@ -54,12 +54,12 @@
     },
     {
       "task": "obstacle",
-      "done": 0,
+      "done": 1,
       "of": 4
     },
     {
       "task": "loop",
-      "done": 4,
+      "done": 3,
       "of": 4
     }
   ],
@@ -67,12 +67,12 @@
     {
       "persona": "beginner",
       "task": "forward",
-      "compiled": true,
-      "ran": true,
-      "safe": true,
+      "compiled": false,
+      "ran": false,
+      "safe": false,
       "didTask": false,
       "turns": 3,
-      "lastError": ""
+      "lastError": "Will not compile (line 1): Unexpected token \"kept\"."
     },
     {
       "persona": "beginner",
@@ -97,22 +97,22 @@
     {
       "persona": "beginner",
       "task": "obstacle",
+      "compiled": true,
+      "ran": false,
+      "safe": false,
+      "didTask": false,
+      "turns": 3,
+      "lastError": "Errors while running: 'float' object cannot be interpreted as an integer"
+    },
+    {
+      "persona": "beginner",
+      "task": "loop",
       "compiled": false,
       "ran": false,
       "safe": false,
       "didTask": false,
       "turns": 3,
-      "lastError": "Will not compile (line 1): Unexpected character \"`\"."
-    },
-    {
-      "persona": "beginner",
-      "task": "loop",
-      "compiled": true,
-      "ran": true,
-      "safe": true,
-      "didTask": true,
-      "turns": 2,
-      "lastError": ""
+      "lastError": "Will not compile (line 8): Unexpected character \":\"."
     },
     {
       "persona": "teacher",
@@ -127,6 +127,16 @@
     {
       "persona": "teacher",
       "task": "turn_move",
+      "compiled": true,
+      "ran": true,
+      "safe": false,
+      "didTask": false,
+      "turns": 3,
+      "lastError": "hit the wall"
+    },
+    {
+      "persona": "teacher",
+      "task": "square",
       "compiled": true,
       "ran": false,
       "safe": false,
@@ -136,23 +146,13 @@
     },
     {
       "persona": "teacher",
-      "task": "square",
-      "compiled": true,
-      "ran": false,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "Does not finish: it loops without stopping (200001+ steps)."
-    },
-    {
-      "persona": "teacher",
       "task": "obstacle",
       "compiled": false,
       "ran": false,
       "safe": false,
       "didTask": false,
       "turns": 3,
-      "lastError": "Will not compile (line 1): Unexpected character \"`\"."
+      "lastError": "Will not compile (line 1): Unterminated string."
     },
     {
       "persona": "teacher",
@@ -249,10 +249,10 @@
       "task": "obstacle",
       "compiled": true,
       "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": ""
     },
     {
       "persona": "access",

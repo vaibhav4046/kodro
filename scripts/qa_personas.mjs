@@ -56,6 +56,9 @@ function normalizeApi(code) {
   code = code.replace(/\bbackward\s*\(/g, 'move_backward(');
   code = code.replace(/\bleft\s*\(/g, 'turn_left(');
   code = code.replace(/\bright\s*\(/g, 'turn_right(');
+  // Backticks are never valid RoverLang; drop any stragglers (inline code
+  // marks, truncated fences) so they cannot reach the compiler.
+  code = code.replace(/`/g, '');
   return code;
 }
 function extractCode(t) {
