@@ -10,10 +10,15 @@
  *
  * On top of the 36-combo sweep it runs:
  *   - a render-tier loop (one combo at med / high / cinematic) so a tier-gated
- *     code path that throws cannot ship unseen, and
+ *     code path that throws cannot ship unseen,
  *   - two 2.5D site-identity DOM asserts pinning the F2 fix: base Earth still
  *     paints its farmland/river map layer, and an Earth SITE (Antarctica) must
- *     NOT (fields and a river on the Ross Ice Shelf were the bug).
+ *     NOT (fields and a river on the Ross Ice Shelf were the bug),
+ *   - a 17-site 3D identity sweep (P2): every mission site loads clean and
+ *     stamps the treatment markers its per-site row promises (atmosphere,
+ *     skyline kinds, prop kit, landmarks, ambient gating, quiet-site agents),
+ *   - three preset asserts (R8/R10): city at night, a Mars dust storm and
+ *     city rain each rebuild the scene and stamp their marker.
  *
  * Environment-missing cases (no Chrome, no static server) SKIP with exit 0 so
  * a GPU-less box never breaks a pipeline; real failures exit 1.
@@ -198,6 +203,82 @@ const gap = () => { const until = Date.now() + GAP_MS; while (Date.now() < until
   record('antarctica 2.5D no farmland', ant2d.pass && !/#2f6ea6/.test(ant2d.dom)
     ? { pass: true, reason: 'no farmland/river painted on the Ross Ice Shelf' }
     : { pass: false, reason: ant2d.pass ? 'farmland/river layer leaked onto an Earth site' : ant2d.reason });
+  gap();
+
+  // ---- Phase 4: 3D per-site identity (P2 acceptance). Every mission site
+  // loads in the 3D view and must (a) stay console-clean, (b) stamp the
+  // scene-build marker for ITS id, and (c) stamp the treatment markers its
+  // row promises: the atmosphere row (data-atmos), the tagged skyline kinds
+  // (data-skyline), the prop kit (data-propkit), the landmark set
+  // (data-landmark), the ambient gating (data-ambient) and the quiet-site
+  // agent count (data-agents=0 at the Challenger Deep and Europa). These are
+  // the DOM-visible fingerprints of the per-site treatments table.
+  console.log('\n== SITE IDENTITY (3D): 17 mission sites stamp their treatments ==');
+  const SITES = [
+    // [site, base, {marker: substring}]
+    ['sahara', 'earth', { atmos: '1', skyline: 'ridge', propkit: 'dune', landmark: 'shrub', ambientNot: 'butterflies' }],
+    ['amazon', 'earth', { atmos: '1', skyline: 'ridge', propkit: 'canopy', landmark: 'canopywall', ambient: 'parrots' }],
+    ['antarctica', 'earth', { atmos: '1', skyline: 'wedge', propkit: 'iceblock', ambient: 'snow', ambientNot: 'butterflies' }],
+    ['india', 'earth', { atmos: '1', skyline: 'ridge', propkit: 'khejri', landmark: 'shrub' }],
+    ['kenya', 'earth', { atmos: '1', skyline: 'wedge', propkit: 'acacia', landmark: 'termite' }],
+    ['japan', 'earth', { atmos: '1', skyline: 'cone', propkit: 'pine', landmark: 'torii' }],
+    ['egypt', 'earth', { atmos: '1', skyline: 'pyramid', propkit: 'limestone' }],
+    ['iceland', 'earth', { atmos: '1', skyline: 'shield', propkit: 'basalt', landmark: 'moss', ambient: 'steam' }],
+    ['nepal', 'earth', { atmos: '1', skyline: 'ridge', propkit: 'pine', landmark: 'prayerflags', ambient: 'snow' }],
+    ['reef', 'underwater', { atmos: '1', propkit: 'coralfan', waterfx: 'caustics' }],
+    ['mariana', 'underwater', { atmos: '1', propkit: 'tubeworm', headlight: '1', ambient: 'marinesnow', agents: '0' }],
+    ['olympus', 'mars', { atmos: '1', skyline: 'shield' }],
+    ['tycho', 'space', { atmos: '1', skyline: 'craterrim', landmark: 'rays' }],
+    ['europa', 'space', { atmos: '1', skyline: 'ridge', propkit: 'iceblock', landmark: 'jupiter', agents: '0' }],
+    ['lab', 'room', {}],
+    ['warehouse', 'room', {}],
+    ['debug_grid', 'room', {}],
+  ];
+  for (const [site, base, marks] of SITES) {
+    // q=med so the med-gated treatments (water surface, caustics) build; the
+    // heavier high-only layers are covered by the tier loop above.
+    const r = drive(chrome, `site3d_${site}`, `${BASE}?world=${site}&q=med`, { dom: true, vtime: 7_000 });
+    let verdict;
+    if (!r.pass) verdict = r;
+    else if (!new RegExp(`data-world="${base}:${site}"`).test(r.dom)) {
+      verdict = { pass: false, reason: `scene not built for ${base}:${site} (data-world marker missing)` };
+    } else {
+      const missing = [];
+      for (const [key, want] of Object.entries(marks)) {
+        if (key === 'ambientNot') {
+          const m = r.dom.match(/data-ambient="([^"]*)"/);
+          if (m && m[1].includes(want)) missing.push(`ambient must NOT include ${want}`);
+        } else if (key === 'agents') {
+          if (!r.dom.includes(`data-agents="${want}"`)) missing.push(`agents=${want}`);
+        } else {
+          const m = r.dom.match(new RegExp(`data-${key}="([^"]*)"`));
+          if (!m || !m[1].includes(want)) missing.push(`${key}~${want}`);
+        }
+      }
+      verdict = missing.length
+        ? { pass: false, reason: `treatment markers missing: ${missing.join(', ')}` }
+        : { pass: true, reason: 'identity markers present' };
+    }
+    record(`site ${site}`, verdict);
+    gap();
+  }
+
+  // ---- Phase 5: time-of-day and weather presets (R8/R10) render and stamp.
+  console.log('\n== TOD / WEATHER: presets rebuild the scene and stamp markers ==');
+  const night = drive(chrome, 'tod_night', `${BASE}?world=city&tod=night&q=med`, { dom: true, vtime: 7_000 });
+  record('city at night', night.pass && /data-tod="night"/.test(night.dom)
+    ? { pass: true, reason: 'night preset applied (data-tod marker)' }
+    : { pass: false, reason: night.pass ? 'data-tod=night marker missing' : night.reason });
+  gap();
+  const stormR = drive(chrome, 'weather_storm', `${BASE}?world=mars&weather=storm&q=med`, { dom: true, vtime: 7_000 });
+  record('mars dust storm', stormR.pass && /data-weather="storm"/.test(stormR.dom)
+    ? { pass: true, reason: 'storm preset applied (data-weather marker)' }
+    : { pass: false, reason: stormR.pass ? 'data-weather=storm marker missing' : stormR.reason });
+  gap();
+  const rainR = drive(chrome, 'weather_rain', `${BASE}?world=city&weather=rain&q=high`, { dom: true, vtime: 7_000 });
+  record('city rain', rainR.pass && /data-weather="rain"/.test(rainR.dom)
+    ? { pass: true, reason: 'rain built (data-weather marker)' }
+    : { pass: false, reason: rainR.pass ? 'data-weather=rain marker missing' : rainR.reason });
   gap();
 
   try { rmSync(TMP, { recursive: true, force: true }); } catch { /* noop */ }

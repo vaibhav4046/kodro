@@ -75,8 +75,19 @@
     const zoom = cam.zoom;
     const trailColor = t.trail === 'cyan' ? '#5ce0d8' : t.trail === 'amber' ? '#e0b45c' : t.trail === 'white' ? '#f5f0e4' : null;
 
+    // R8/R10: time-of-day and weather presets. Noon/clear are the identity
+    // (zero change to any baseline). applyTod scales terrain.env.light so the
+    // LIGHT gauge, the light() sensor, the realism dashboard and the 3D
+    // picture all describe the SAME sky -- the product's honesty promise.
+    const [tod, setTod] = useState(() => { try { return localStorage.getItem('kodro_tod') || 'noon'; } catch (e) { return 'noon'; } });
+    const [weather, setWeather] = useState(() => { try { return localStorage.getItem('kodro_weather') || 'clear'; } catch (e) { return 'clear'; } });
+    useEffect(() => { try { localStorage.setItem('kodro_tod', tod); } catch (e) { void e; } }, [tod]);
+    useEffect(() => { try { localStorage.setItem('kodro_weather', weather); } catch (e) { void e; } }, [weather]);
+
     // terrainId may be a base terrain OR a real-world mission site id.
-    const terrain = window.resolveSite ? window.resolveSite(terrainId) : TERRAINS[terrainId];
+    const baseTerrain = window.resolveSite ? window.resolveSite(terrainId) : TERRAINS[terrainId];
+    const terrain = (window.KodroWorldFX && window.KodroWorldFX.applyTod)
+      ? window.KodroWorldFX.applyTod(baseTerrain, tod, weather) : baseTerrain;
 
     // live rover state (authoritative for sensors/animation)
     const startState = () => ({ x: 0, y: 0, heading: 0, speed: 50, battery: 100, moving: false, led: null, scanning: false, penDown: false });
@@ -600,7 +611,19 @@
     }
 
     // Fire a synthesised sound cue (no-op if sound.js absent or muted).
-    function sfx(kind) { try { if (window.RLSound) window.RLSound.play(kind); } catch (e) { void e; } }
+    // `opt` carries a variant (e.g. WHAT was hit, for R6 crash voicing).
+    function sfx(kind, opt) { try { if (window.RLSound) window.RLSound.play(kind, opt); } catch (e) { void e; } }
+    // R6: motor-loop helpers. motorSfx follows the live speed profile during
+    // a move/turn; motorRest lets the loop fall silent between commands.
+    function motorSfx(type, v) { try { if (window.RLSound && window.RLSound.motor) window.RLSound.motor(type, v); } catch (e) { void e; } }
+    function motorRest() { try { if (window.RLSound && window.RLSound.motorIdle) window.RLSound.motorIdle(); } catch (e) { void e; } }
+
+    // R6: per-world ambience bed (wind, underwater rumble, city hum with
+    // traffic swells, room HVAC; space stays silent). The bed follows the
+    // active world and starts once the first user gesture unlocks audio.
+    useEffect(() => {
+      try { if (window.RLSound && window.RLSound.ambience) window.RLSound.ambience(terrain.siteId || terrain.id, terrain.id); } catch (e) { void e; }
+    }, [terrainId, muted]);
 
     // Lightweight celebration: a one-shot confetti burst on a lesson pass.
     function celebrate() {
@@ -749,6 +772,33 @@
       setTimeout(tick, 16);
     });
 
+    // Shared crash reporting for a collision that halts a move OR a car's
+    // arc turn: crash key (viewport jolt), voiced crash cue (R6), console
+    // line, toast, memory reflection and the design-coach verdict.
+    function reportCollision(crashed, robotBuild) {
+      const s = live.current;
+      setCrashKey(k => k + 1);
+      const what = crashed.type === 'wall' ? 'arena boundary'
+        : crashed.type === 'pedestrian' ? 'a pedestrian'
+          : crashed.type === 'robot' ? 'another robot'
+            : crashed.type === 'vehicle' ? 'a vehicle'
+              : terrain.obstacleLabel.toLowerCase();
+      sfx('crash', crashed.type);
+      addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
+      showToast('Collision detected', 'err');
+      // Self-refinement: record the run and surface what the system learned.
+      if (window.KodroMemory) {
+        const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'crash', detail: what, ts: Date.now() });
+        if (refl) addConsole('Reflection saved: ' + refl, 'sys');
+      }
+      // Coach: tie the outcome back to the design and recommend a fix.
+      if (window.KodroDiagnostics) {
+        const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotBuild || {}, terrain), { outcome: 'crash', detail: what });
+        if (v) addConsole(v.text, v.tone);
+      }
+      haltProgram('error');
+    }
+
     async function animateMove(ev) {
       const s = live.current;
       const myToken = ctrl.current.token;  // run epoch captured at move start
@@ -794,6 +844,13 @@
       if (accelFrac + brakeFrac > 0.95) { const k = 0.95 / (accelFrac + brakeFrac); accelFrac *= k; brakeFrac *= k; }
       const cruiseFrac = Math.max(0, 1 - accelFrac - brakeFrac);
       const profileArea = 0.5 * accelFrac + cruiseFrac + 0.5 * brakeFrac;
+      // R6: the motor loop tracks the trapezoid's instantaneous speed, so the
+      // ear hears the same ramp-cruise-brake the eye sees. vAt is the
+      // derivative of coverFrac (normalised to cruise speed = 1).
+      const sndType = (robot && robot.type) || (robotSpec && robotSpec.type) || 'rover';
+      const vAt = (p) => p <= accelFrac ? (accelFrac > 0 ? p / accelFrac : 1)
+        : p <= 1 - brakeFrac ? 1
+          : (brakeFrac > 0 ? Math.max(0, (1 - p) / brakeFrac) : 0);
       function coverFrac(p) {
         let area;
         if (accelFrac > 0 && p <= accelFrac) { const v = p / accelFrac; area = 0.5 * v * p; }
@@ -803,6 +860,7 @@
         return profileArea > 0 ? area / profileArea : p;
       }
       await frames(dur, (p) => {
+        motorSfx(sndType, 0.15 + 0.85 * vAt(p));
         let cf = coverFrac(p);
         // Out of charge mid-move: solve the cover-fraction at which the battery
         // reaches zero and clamp the committed position to it, so the robot
@@ -830,6 +888,7 @@
         if (outOfCharge) { flat = true; return true; } // halted at battery zero
         return false;
       });
+      motorRest(); // R6: the loop falls silent between commands
       // A Reset/restart while this move was animating bumps the token: bail
       // before touching the shared odometer or halting, so a stale in-flight
       // move can't corrupt the fresh run (phantom odometer add, or a spurious
@@ -842,26 +901,7 @@
       odoRef.current += travelled; setOdo(odoRef.current);
       s.moving = false; sync();
       if (crashed) {
-        setCrashKey(k => k + 1);
-        const what = crashed.type === 'wall' ? 'arena boundary'
-          : crashed.type === 'pedestrian' ? 'a pedestrian'
-            : crashed.type === 'robot' ? 'another robot'
-              : crashed.type === 'vehicle' ? 'a vehicle'
-                : terrain.obstacleLabel.toLowerCase();
-        sfx('crash');
-        addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
-        showToast('Collision detected', 'err');
-        // Self-refinement: record the run and surface what the system learned.
-        if (window.KodroMemory) {
-          const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'crash', detail: what, ts: Date.now() });
-          if (refl) addConsole('Reflection saved: ' + refl, 'sys');
-        }
-        // Coach: tie the outcome back to the design and recommend a fix.
-        if (window.KodroDiagnostics) {
-          const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), { outcome: 'crash', detail: what });
-          if (v) addConsole(v.text, v.tone);
-        }
-        haltProgram('error');
+        reportCollision(crashed, robot);
         return false;
       }
       if (flat) {
@@ -892,13 +932,69 @@
       // rather than snapping. The final heading is still exact (set below).
       const turnRobot = window.getKodroRobot ? window.getKodroRobot() : null;
       const turnMass = turnRobot && turnRobot.massFactor ? turnRobot.massFactor : 1;
+      const sndType = (turnRobot && turnRobot.type) || (robotSpec && robotSpec.type) || 'rover';
       s.vel = 0;
       const dur = (Math.abs(ev.deg) / 180) * 650 * (0.78 + 0.5 * Math.min(1.5, turnMass)) / speedMulRef.current;
       s.moving = true;
-      await frames(dur, (p) => { const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; s.heading = h0 + ev.deg * e; setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading))); sync(); return false; });
+      // R9: a car cannot pivot in place -- it drives a kinematic bicycle arc.
+      // Heading eases to EXACTLY h0+deg; the position follows the arc with a
+      // per-frame swept collision check, so a car that has no room to turn
+      // hits what is actually there instead of ghosting through it. Every
+      // other drive type keeps the skid-steer pivot.
+      const arcCar = sndType === 'car' && Math.abs(ev.deg) > 0.01;
+      if (!arcCar) {
+        await frames(dur, (p) => { motorSfx(sndType, 0.35); const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; s.heading = h0 + ev.deg * e; setSensorDist(Math.round(rayDistance(s.x, s.y, s.heading))); sync(); return false; });
+        motorRest();
+        if (ctrl.current.token !== myToken) { s.moving = false; return false; }  // superseded by Reset/restart
+        s.heading = h0 + ev.deg; s.moving = false;
+        s.battery = Math.max(0, s.battery - Math.abs(ev.deg) * 0.004);
+        sync();
+        return true;
+      }
+      const TURN_R = 90; // cm: a readable arc, about three body radii
+      const sgn = ev.deg >= 0 ? 1 : -1;
+      const h0r = h0 * Math.PI / 180;
+      // Arc centre sits TURN_R to the turning side. With forward = (sin h,
+      // -cos h), the centre for a right turn (deg>0) is at +(cos h, sin h).
+      const arcCx = s.x + TURN_R * Math.cos(h0r) * sgn;
+      const arcCy = s.y + TURN_R * Math.sin(h0r) * sgn;
+      const x0 = s.x, y0 = s.y;
+      if (s.penDown) { trailRef.current.push([{ x: x0, y: y0 }]); setTrail([...trailRef.current]); }
+      let crashed = false;
+      await frames(dur, (p) => {
+        motorSfx(sndType, 0.45);
+        const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        const h = h0r + (ev.deg * e) * Math.PI / 180;
+        const nx = arcCx - TURN_R * Math.cos(h) * sgn;
+        const ny = arcCy - TURN_R * Math.sin(h) * sgn;
+        const hit = collisionAt(nx, ny);
+        if (hit) { crashed = hit; return true; }
+        s.x = nx; s.y = ny; s.heading = h0 + ev.deg * e;
+        pushTrailPoint();
+        const dNow = rayDistance(s.x, s.y, s.heading);
+        if (dNow < minProxRef.current) minProxRef.current = dNow;
+        setSensorDist(Math.round(dNow));
+        sync();
+        return false;
+      });
+      motorRest();
       if (ctrl.current.token !== myToken) { s.moving = false; return false; }  // superseded by Reset/restart
-      s.heading = h0 + ev.deg; s.moving = false;
-      s.battery = Math.max(0, s.battery - Math.abs(ev.deg) * 0.004);
+      // The arc covered real ground: odometer and battery are charged for the
+      // distance actually driven (move drain model) plus the steering cost.
+      const arcTravelled = Math.abs(s.heading - h0) * Math.PI / 180 * TURN_R;
+      odoRef.current += arcTravelled; setOdo(odoRef.current);
+      if (crashed) {
+        s.moving = false; sync();
+        reportCollision(crashed, turnRobot);
+        return false;
+      }
+      const hfr = (h0 + ev.deg) * Math.PI / 180;
+      s.heading = h0 + ev.deg;
+      s.x = arcCx - TURN_R * Math.cos(hfr) * sgn;
+      s.y = arcCy - TURN_R * Math.sin(hfr) * sgn;
+      s.moving = false;
+      const gFacT = 0.5 + 0.5 * ((terrain.env.gravity || 9.81) / 9.81);
+      s.battery = Math.max(0, s.battery - Math.abs(ev.deg) * 0.004 - arcTravelled * 0.011 * gFacT * turnMass / terrain.traction);
       sync();
       return true;
     }
@@ -1679,10 +1775,28 @@
                     <option value="cinematic">Cinematic</option>
                   </select>
                 )}
+                {view3d && (
+                  <select className="terrain-btn" value={tod} title="Time of day. Drives the sun, the sky and the LIGHT gauge" aria-label="Time of day" style={{ cursor: 'pointer' }}
+                    onChange={e => setTod(e.target.value)}>
+                    <option value="noon">Noon</option>
+                    <option value="dawn">Dawn</option>
+                    <option value="dusk">Dusk</option>
+                    <option value="night">Night</option>
+                  </select>
+                )}
+                {view3d && (
+                  <select className="terrain-btn" value={weather} title="Weather. Dust storm on Mars; rain and snow outdoors on Earth" aria-label="Weather" style={{ cursor: 'pointer' }}
+                    onChange={e => setWeather(e.target.value)}>
+                    <option value="clear">Clear</option>
+                    <option value="storm">Dust storm</option>
+                    <option value="rain">Rain</option>
+                    <option value="snow">Snow</option>
+                  </select>
+                )}
               </span>
             </div>
             {view3d
-              ? <window.Viewport3D key={'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + (quality === 'cinematic' ? '-cine' : '-std')} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the 2.5D view.', 'sys'); }} />
+              ? <window.Viewport3D key={'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + '-' + ((terrain && terrain.tod) || 'noon') + '-' + ((terrain && terrain.weather) || 'clear') + (quality === 'cinematic' ? '-cine' : '-std')} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the 2.5D view.', 'sys'); }} />
               : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
             {worldLoading && (
               <div className="world-loading" role="status" aria-live="polite" aria-label={'Loading ' + worldLoading.name}>

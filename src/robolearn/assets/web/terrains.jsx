@@ -129,7 +129,10 @@
     underwater: {
       id: 'underwater', name: 'Abyssal', label: 'UNDERWATER', coord: '11.3733° N, 142.5917° E',
       accent: '#5ce0d8', dot: '#5ce0d8',
-      env: { gravity: 9.81, temp: 3, tempLabel: 'WATER TEMP', pressure: 38, pressureLabel: 'DEPTH', pressureUnit: 'm', light: 12 },
+      // Re-depthed (W7): a base called "Abyssal" declared 38 m deep contradicted
+      // itself; 3800 m is honest abyssal-zone depth (the reef site overrides to
+      // 12 m, the Challenger Deep to 10994 m).
+      env: { gravity: 9.81, temp: 3, tempLabel: 'WATER TEMP', pressure: 3800, pressureLabel: 'DEPTH', pressureUnit: 'm', light: 12 },
       traction: 0.66, obstacleLabel: 'CORAL HEAD',
       obstacles: genObstacles(48, 15, 50, 110),
       decor: genDecor(103, 46),
@@ -167,6 +170,9 @@
         texSize: '24px 24px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #d6ab64, #94703c 66%, #5e472a)',
+      // W1 atmosphere: hot pale sky over sand-pink heat haze.
+      atmos: { sky: '#bcd3e8', fog: '#e0c193', fogNear: 55, fogFar: 260, sun: '#ffedd0', sunInt: 1.5, hemiInt: 0.62, haze: '#ffd9a0' },
+      decorCols: { tuft: ['#d9c28a', '#9a7c4a'], peb: ['#d6ab64', '#8a6a3c'] },
     },
     amazon: {
       base: 'earth', label: 'AMAZON', name: 'Amazon Rainforest',
@@ -180,6 +186,10 @@
         texSize: '26px 26px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #5d8a44, #2e4a22 66%, #1c2f16)',
+      // W1: dim green light under the canopy; the fog wall closes in early
+      // (env.light 38 finally renders as shade through the lightK scaler).
+      atmos: { sky: '#87a892', fog: '#3f5c40', fogNear: 26, fogFar: 150, sun: '#d8ecc0', sunInt: 2.0, hemiInt: 1.0, haze: '#7fae6a' },
+      decorCols: { tuft: ['#4c7a34', '#26421c'], peb: ['#5d8a44', '#2e4a22'] },
     },
     antarctica: {
       base: 'earth', label: 'ANTARCTICA', name: 'Antarctica - Ross Ice Shelf',
@@ -193,6 +203,9 @@
         texSize: '30px 30px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #e8f2fa, #a9c2d6 64%, #6e8ba2)',
+      // W1: cold white light, pale-blue shadow tint, a lower colder sun.
+      atmos: { sky: '#cfe2f2', fog: '#e6eef6', fogNear: 45, fogFar: 240, sun: '#e8f2ff', sunInt: 1.15, hemiInt: 0.75, haze: '#bcd4ea' },
+      decorCols: { tuft: ['#f2f7fb', '#c2d4e2'], peb: ['#e8f2fa', '#a9c2d6'] },
     },
     india: {
       base: 'earth', label: 'INDIA', name: 'India - Thar Desert, Rajasthan',
@@ -206,6 +219,8 @@
         texSize: '24px 24px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #d9a85e, #9a6e38 66%, #5f4424)',
+      atmos: { sky: '#c3d4e4', fog: '#dfc294', fogNear: 55, fogFar: 250, sun: '#ffe8c8', sunInt: 1.5, hemiInt: 0.6, haze: '#ffd9a0' },
+      decorCols: { tuft: ['#d0b478', '#8f7040'], peb: ['#d9a85e', '#8a6034'] },
     },
     kenya: {
       base: 'earth', label: 'KENYA', name: 'Kenya - Maasai Mara Savanna',
@@ -219,6 +234,9 @@
         texSize: '26px 26px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #b8a24e, #756328 66%, #46401a)',
+      // W1: golden savanna light.
+      atmos: { sky: '#c7d8e4', fog: '#dcc98e', fogNear: 60, fogFar: 270, sun: '#ffe2b0', sunInt: 1.5, hemiInt: 0.6, haze: '#ffcf8a' },
+      decorCols: { tuft: ['#d8c078', '#8f7a38'], peb: ['#b8a24e', '#6a5a26'] },
     },
     japan: {
       base: 'earth', label: 'JAPAN', name: 'Japan - Mount Fuji Slopes',
@@ -232,6 +250,9 @@
         texSize: '24px 24px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #6a6470, #403c48 66%, #232029)',
+      // W1: cool blue-grey mountain air; no warm haze band on the volcano.
+      atmos: { sky: '#8fa3b8', fog: '#9fb0c2', fogNear: 40, fogFar: 230, sun: '#f2f4f8', sunInt: 1.5, hemiInt: 0.66, haze: null },
+      decorCols: { tuft: ['#8a8a92', '#54505c'], peb: ['#6a6470', '#3a3642'] },
     },
     egypt: {
       base: 'earth', label: 'EGYPT', name: 'Egypt - Giza Plateau',
@@ -245,6 +266,8 @@
         texSize: '24px 24px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #ddc184, #a8824c 66%, #6a512c)',
+      atmos: { sky: '#c0d4e8', fog: '#e8d2a2', fogNear: 55, fogFar: 260, sun: '#fff0d0', sunInt: 1.55, hemiInt: 0.62, haze: '#ffe0a0' },
+      decorCols: { tuft: ['#e0cb96', '#a8854c'], peb: ['#ddc184', '#8a6a3c'] },
     },
     iceland: {
       base: 'earth', label: 'ICELAND', name: 'Iceland - Lava Field',
@@ -258,6 +281,9 @@
         texSize: '22px 22px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #4a4a52, #28282e 66%, #131316)',
+      // W1: volcanic grey fog over the lava field; no warm haze.
+      atmos: { sky: '#8b95a2', fog: '#737a84', fogNear: 38, fogFar: 210, sun: '#e8ecf2', sunInt: 1.5, hemiInt: 0.72, haze: null },
+      decorCols: { tuft: ['#6a9a58', '#3c5c34'], peb: ['#4a4a52', '#232328'] },
     },
     nepal: {
       base: 'earth', label: 'NEPAL', name: 'Nepal - Himalayan Foothills',
@@ -271,6 +297,9 @@
         texSize: '28px 28px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #d7e0e8, #9fb2bf 64%, #6b8090)',
+      // W1: thin, crystal-clear high-altitude air (fog pushed far back).
+      atmos: { sky: '#9cc0e8', fog: '#ccdaea', fogNear: 55, fogFar: 320, sun: '#f6faff', sunInt: 1.55, hemiInt: 0.62, haze: '#e8f2ff' },
+      decorCols: { tuft: ['#e8eef4', '#aebecb'], peb: ['#d7e0e8', '#9fb2bf'] },
     },
     reef: {
       base: 'underwater', label: 'CORAL REEF', name: 'Great Barrier Reef',
@@ -284,6 +313,9 @@
         texSize: '26px 26px',
       },
       obFill: 'radial-gradient(circle at 40% 26%, #e08a96, #a04a62 66%, #5e2a3c)',
+      // W1: sunlit shallows -- clearer water than the abyssal base so the
+      // coral field actually reads (fogDensity below the base 0.025).
+      atmos: { sky: '#2e7f96', fog: '#1d6a80', fogDensity: 0.017, sun: '#9fe2d8', sunInt: 1.05, hemiInt: 0.66, haze: '#3adfc4' },
     },
     mariana: {
       base: 'underwater', label: 'MARIANA', name: 'Mariana Trench - Challenger Deep',
@@ -297,6 +329,10 @@
         texSize: '32px 32px',
       },
       obFill: 'radial-gradient(circle at 40% 26%, #3c5a66, #1e3540 66%, #101e26)',
+      // W1: darkness IS the signature. env.light 0 drives every intensity to
+      // the playability floor, the murk swallows everything past a few metres,
+      // and the robot's own headlight (atmos.headlight) is the only real light.
+      atmos: { sky: '#020609', fog: '#010407', fogDensity: 0.055, sun: '#4a7a8c', sunInt: 0.16, hemiInt: 0.3, haze: null, headlight: true },
     },
     olympus: {
       base: 'mars', label: 'OLYMPUS MONS', name: 'Mars - Olympus Mons',
@@ -309,6 +345,11 @@
         texture: 'radial-gradient(circle at 30% 30%, rgba(190,110,80,0.45) 0 2px, transparent 2px), radial-gradient(circle at 65% 70%, rgba(80,35,20,0.5) 0 2.5px, transparent 3px)',
         texSize: '22px 22px',
       },
+      // The missing obFill (world-coherence): scarp-red boulders, not the base
+      // Mars palette. Atmosphere: thinner dust for the altitude (density below
+      // the base 0.008), a dimmer half-lit sky.
+      obFill: 'radial-gradient(circle at 38% 24%, #a85238, #6b2f1f 68%, #3c180e)',
+      atmos: { sky: '#c98a58', fog: '#a86038', fogDensity: 0.0045, sun: '#ffd9b0', sunInt: 1.9, hemiInt: 0.95, haze: '#ffb070' },
     },
     tycho: {
       base: 'space', label: 'TYCHO', name: 'Moon - Tycho Crater',
@@ -316,6 +357,16 @@
       env: { gravity: 1.62, temp: -173, light: 100 },
       traction: 1.18,
       seed: 207, count: 14, minR: 44, maxR: 100, decorSeed: 217, decorCount: 52,
+      // Brighter ejecta than base Lunar (Tycho is the Moon's freshest big
+      // crater; its ray system is high-albedo). Fixes the pixel-identical-to-
+      // base-Lunar audit finding at the palette level.
+      groundBg: {
+        background: 'radial-gradient(circle at 48% 42%, #5e6069, #45474f 58%, #313239 100%)',
+        texture: 'radial-gradient(circle at 30% 30%, rgba(220,222,232,0.4) 0 2px, transparent 2.5px), radial-gradient(circle at 68% 66%, rgba(24,24,30,0.5) 0 2.5px, transparent 3px)',
+        texSize: '24px 24px',
+      },
+      obFill: 'radial-gradient(circle at 40% 26%, #9a9ca8, #5c5e68 66%, #34363e)',
+      atmos: { sky: '#05060d', sun: '#ffffff', sunInt: 1.05, hemiInt: 0.44, haze: null },
     },
     europa: {
       base: 'space', label: 'EUROPA', name: 'Jupiter - Europa Ice Crust',
@@ -329,6 +380,9 @@
         texSize: '64px 64px, 28px 28px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #e2ecf6, #a2b8cc 64%, #66809a)',
+      // W1: 5.2 AU from the Sun (env.light 4): a dim blue-white ice plain.
+      // Jupiter on the horizon (KodroWorldFX) is the identifier, not the light.
+      atmos: { sky: '#04050c', sun: '#cfe0ff', sunInt: 2.6, hemiInt: 1.4, haze: null },
     },
     lab: {
       base: 'room', label: 'ROBOTICS LAB', name: 'Robotics Lab - Test Bay',
@@ -389,6 +443,10 @@
       decor: genDecor(s.decorSeed, s.decorCount),
       groundBg: s.groundBg || null,
       obFill: s.obFill || null,
+      // W1: the site's authored atmosphere row (sky, fog, sun, hemisphere,
+      // haze), read by Viewport3D. W7: per-site 2.5D decor colours.
+      atmos: s.atmos || null,
+      decorCols: s.decorCols || null,
     };
   }
   window.SITES = SITES;
@@ -683,15 +741,20 @@
   }
 
   // Per-terrain decorative micro-feature (visual only; never collides).
-  function Decor({ d, id }) {
+  function Decor({ d, id, cols }) {
     const cx = GROUND / 2 + d.x, cy = GROUND / 2 + d.y;
     const base = { position: 'absolute', pointerEvents: 'none', transform: `rotate(${d.rot}deg)` };
     if (id === 'earth') {
+      // W7: a mission site carries its own decor palette (dry stalks on the
+      // Sahara, sastrugi flecks on the ice shelf, moss on the lava field)
+      // instead of the base Earth's grass greens painted everywhere.
+      const tuft = (cols && cols.tuft) || ['#86a861', '#4c6436'];
+      const peb = (cols && cols.peb) || ['#74875c', '#44522f'];
       // grass tuft (v<0.55) or pebble
       if (d.v < 0.55) {
-        return <div style={{ ...base, left: cx, top: cy, width: 2, height: d.r * 1.4, borderRadius: 2, background: 'linear-gradient(180deg, #86a861, #4c6436)', boxShadow: '3px 1px 0 -0.5px #6d8c4e, -3px 2px 0 -0.5px #5a7440' }}></div>;
+        return <div style={{ ...base, left: cx, top: cy, width: 2, height: d.r * 1.4, borderRadius: 2, background: `linear-gradient(180deg, ${tuft[0]}, ${tuft[1]})`, boxShadow: `3px 1px 0 -0.5px ${tuft[1]}, -3px 2px 0 -0.5px ${tuft[1]}` }}></div>;
       }
-      return <div style={{ ...base, left: cx - d.r / 2, top: cy - d.r / 3, width: d.r, height: d.r * 0.66, borderRadius: '50%', background: 'radial-gradient(circle at 38% 30%, #74875c, #44522f)' }}></div>;
+      return <div style={{ ...base, left: cx - d.r / 2, top: cy - d.r / 3, width: d.r, height: d.r * 0.66, borderRadius: '50%', background: `radial-gradient(circle at 38% 30%, ${peb[0]}, ${peb[1]})` }}></div>;
     }
     if (id === 'mars') {
       // wind ripple (v<0.5) or pebble
@@ -891,7 +954,7 @@
           position: 'absolute', left: GROUND / 2 - WALL, top: GROUND / 2 - WALL, width: WALL * 2, height: WALL * 2,
           border: '2px dashed ' + terrain.accent, opacity: 0.2, borderRadius: 12, pointerEvents: 'none'
         }}></div>
-        {(terrain.decor || []).map((d, i) => <Decor key={'d' + i} d={d} id={terrain.id} />)}
+        {(terrain.decor || []).map((d, i) => <Decor key={'d' + i} d={d} id={terrain.id} cols={terrain.decorCols} />)}
         {/* trail canvas slot */}
         {children}
         {terrain.obstacles.map((o, i) => <Obstacle key={i} o={o} terrain={terrain} />)}

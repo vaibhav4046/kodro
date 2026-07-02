@@ -108,6 +108,8 @@ fs.writeFileSync(path.join(WEB, 'studio_harness.html'), STUDIO);
 //                             vibe blocks review validate realism demo ask
 //                             robotlab memory build help settings
 //   cap.html?view=2d          force the flat 2.5D viewport (view=3d forces 3D)
+//   cap.html?tod=night        time-of-day preset (dawn|noon|dusk|night, R8)
+//   cap.html?weather=storm    weather preset (clear|storm|rain|snow, R10)
 //   cap.html?repl=<line>      type one line into the live terminal and Enter it
 //   cap.html?code=-           the '-' sentinel types an EMPTY program (blank-run
 //                             coverage); any other value types that program
@@ -137,6 +139,8 @@ const CAP = `<!DOCTYPE html>
         else localStorage.setItem('or_onboarded', '1');
         var w = q.get('world'); if (w) localStorage.setItem('or_terrain', w);
         var qq = q.get('q'); if (qq) localStorage.setItem('kodro_quality', qq);
+        var td = q.get('tod'); if (td) localStorage.setItem('kodro_tod', td);
+        var wx = q.get('weather'); if (wx) localStorage.setItem('kodro_weather', wx);
         var vw = q.get('view');
         if (vw === '2d') localStorage.setItem('or_view3d', '0');
         else if (vw === '3d') localStorage.setItem('or_view3d', '1');

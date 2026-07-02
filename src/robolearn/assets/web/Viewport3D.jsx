@@ -182,23 +182,54 @@
         try { mount.dataset.atmos = '1'; } catch (e) { void e; }
       }
 
+      const indoor = id === 'room';
+      // ---- R8 time-of-day + R10 Mars dust storm: build-time atmosphere.
+      // App already scaled terrain.env.light through KodroWorldFX.applyTod, so
+      // the LIGHT gauge, the light() sensor and this picture agree. Low tier
+      // keeps noon/clear (med+ static per the plan); a preset change remounts
+      // the viewport through the app-side key, so this is build-time only.
+      const _tod = (!indoor && Q !== 'low' && terrain && terrain.tod) || 'noon';
+      const todAdj = (_tod !== 'noon' && window.KodroWorldFX && window.KodroWorldFX.todShift) ? window.KodroWorldFX.todShift(_tod) : null;
+      const _weather = (!indoor && terrain && terrain.weather) || 'clear';
+      const storm = _weather === 'storm' && id === 'mars' && Q !== 'low';
+      if (todAdj) {
+        if (scene.background && scene.background.isColor) scene.background.lerp(new THREE.Color(todAdj.sky[0]), todAdj.sky[1]);
+        if (scene.fog) scene.fog.color.lerp(new THREE.Color(todAdj.fog[0]), todAdj.fog[1]);
+        try { mount.dataset.tod = _tod; } catch (e) { void e; }
+      }
+      if (storm) {
+        // Three lines of mood: the murk trebles, the sky stains dust-red, and
+        // the sun chokes (sunInt/hemiInt scale below). The dust particle count
+        // trebles in the ambient build, which receives the weather flag.
+        if (scene.fog && scene.fog.isFogExp2) scene.fog.density *= 3.2;
+        if (scene.background && scene.background.isColor) scene.background.lerp(new THREE.Color(0x7a3c24), 0.45);
+        if (scene.fog) scene.fog.color.lerp(new THREE.Color(0x7a3c24), 0.45);
+        try { mount.dataset.weather = 'storm'; } catch (e) { void e; }
+      }
+
       const camera = new THREE.PerspectiveCamera(62, w / h, 0.1, 2000);
 
       // Lights. Indoors (room) is warm and soft; outdoors is daylight.
-      const indoor = id === 'room';
       const skyCol2 = indoor ? 0xfff1de : 0xffffff;
       const grndCol2 = indoor ? 0x3a2f28 : 0x404048;
       // Each world carries its own light mood: the Moon is dim and contrasty,
       // the abyss is dark and blue, Mars is dusty and half-lit, indoors is warm.
       const hemiBase = id === 'space' ? 0.4 : id === 'underwater' ? 0.45 : indoor ? 0.85 : id === 'mars' ? 0.52 : 0.6;
-      const hemiInt = (atmos && atmos.hemiInt != null ? atmos.hemiInt : hemiBase) * lightK;
+      const hemiInt = (atmos && atmos.hemiInt != null ? atmos.hemiInt : hemiBase) * lightK
+        * (todAdj ? todAdj.hemiMul : 1) * (storm ? 0.65 : 1);
       scene.add(new THREE.HemisphereLight(skyCol2, grndCol2, hemiInt));
       const sunCol = (atmos && atmos.sun) ? new THREE.Color(atmos.sun).getHex()
         : indoor ? 0xffe9c4 : id === 'underwater' ? 0x6fb7c9 : id === 'mars' ? 0xffd9b0 : 0xfff4e2;
       const sunBase = id === 'space' ? 0.9 : id === 'underwater' ? 0.6 : indoor ? 1.05 : id === 'mars' ? 1.05 : 1.4;
-      const sunInt = (atmos && atmos.sunInt != null ? atmos.sunInt : sunBase) * lightK;
-      const sun = new THREE.DirectionalLight(sunCol, sunInt);
+      const sunInt = (atmos && atmos.sunInt != null ? atmos.sunInt : sunBase) * lightK
+        * (todAdj ? todAdj.sunMul : 1) * (storm ? 0.4 : 1);
+      // R8: the preset recolours and repositions the sun (a low warm dawn sun,
+      // a cold high moon at night); noon keeps the tuned default exactly.
+      const sunCol3 = new THREE.Color(sunCol);
+      if (todAdj) sunCol3.lerp(new THREE.Color(todAdj.sun[0]), todAdj.sun[1]);
+      const sun = new THREE.DirectionalLight(sunCol3, sunInt);
       sun.position.set(indoor ? 18 : 40, indoor ? 38 : 80, indoor ? 22 : 30);
+      if (todAdj && todAdj.sunPos) sun.position.set(todAdj.sunPos[0], todAdj.sunPos[1], todAdj.sunPos[2]);
       sun.castShadow = true;
       const _shMap = Q === 'low' ? 512 : Q === 'med' ? 1024 : Q === 'cinematic' ? 2048 : (indoor ? 2048 : 1024);
       sun.shadow.mapSize.set(_shMap, _shMap); // quality-scaled: lighter on iGPUs at Low/Med, crisp at High/Cinematic
@@ -233,6 +264,13 @@
         if (atmos.sky) skyTop.set(atmos.sky);
         if (atmos.fog) skyBot.set(atmos.fog);
       }
+      // R8/R10: the dome follows the same time-of-day / storm shift the scene
+      // background took, so the horizon never disagrees with the sky.
+      if (todAdj) {
+        skyTop.lerp(new THREE.Color(todAdj.sky[0]), todAdj.sky[1]);
+        skyBot.lerp(new THREE.Color(todAdj.fog[0]), todAdj.fog[1]);
+      }
+      if (storm) { skyTop.lerp(new THREE.Color(0x7a3c24), 0.45); skyBot.lerp(new THREE.Color(0x7a3c24), 0.5); }
       const skyGeo = new THREE.SphereGeometry(900, 24, 12);
       const skyCol = [];
       const pos = skyGeo.attributes.position;
@@ -242,7 +280,9 @@
       // A site row may override the haze colour or switch it off (haze: null).
       const baseHaze = id === 'underwater' ? new THREE.Color(0x3adfc4)
         : (id === 'earth' || id === 'mars') ? new THREE.Color(0xffa050) : null;
-      const hazeCol = (atmos && ('haze' in atmos)) ? (atmos.haze ? new THREE.Color(atmos.haze) : null) : baseHaze;
+      // Night kills the warm horizon band (there is no sunset at midnight).
+      const hazeCol = (_tod === 'night') ? null
+        : (atmos && ('haze' in atmos)) ? (atmos.haze ? new THREE.Color(atmos.haze) : null) : baseHaze;
       for (let i = 0; i < pos.count; i++) {
         const t = Math.max(0, Math.min(1, (pos.getY(i) / 900) * 0.5 + 0.5));
         const c = skyBot.clone().lerp(skyTop, t);
@@ -290,16 +330,20 @@
       // child so the teardown traverse frees it. Under 2k triangles per site.
       // Rows: k kind, a azimuth deg, d distance, w width, h height,
       //       c colour, t fog-tint 0..1 (default 0.55), snow adds a snow cap.
+      // Hero landforms sit 15 to 20 deg OFF the default view centre (azimuth
+      // ~318 deg for the default orbit): dead-centre sky is hidden behind the
+      // terrain-switch overlay, so the identity silhouettes rise in the open
+      // sky columns beside it, apexes inside the 62 deg frame.
       const SKYLINES = {
         japan: [
-          { k: 'cone', a: 38, d: 360, w: 300, h: 170, c: '#4a4550', snow: true },
-          { k: 'ridge', a: 74, d: 390, w: 340, h: 62, c: '#4a4550' },
-          { k: 'ridge', a: 6, d: 390, w: 300, h: 50, c: '#4a4550' },
+          { k: 'cone', a: 334, d: 360, w: 280, h: 105, c: '#4a4550', t: 0.35, snow: true },
+          { k: 'ridge', a: 296, d: 390, w: 340, h: 52, c: '#4a4550' },
+          { k: 'ridge', a: 356, d: 390, w: 300, h: 44, c: '#4a4550' },
         ],
         egypt: [
-          { k: 'pyramid', a: 205, d: 310, w: 170, h: 100, c: '#c9a86a', t: 0.4 },
-          { k: 'pyramid', a: 226, d: 350, w: 130, h: 76, c: '#c9a86a', t: 0.45 },
-          { k: 'pyramid', a: 187, d: 372, w: 100, h: 58, c: '#c9a86a', t: 0.5 },
+          { k: 'pyramid', a: 334, d: 310, w: 160, h: 90, c: '#b6905a', t: 0.32 },
+          { k: 'pyramid', a: 302, d: 350, w: 130, h: 72, c: '#b6905a', t: 0.38 },
+          { k: 'pyramid', a: 345, d: 372, w: 100, h: 55, c: '#b6905a', t: 0.45 },
         ],
         nepal: [
           { k: 'ridge', a: 0, d: 380, w: 360, h: 150, c: '#e8eef4', t: 0.3 },
@@ -308,33 +352,33 @@
           { k: 'ridge', a: 208, d: 390, w: 330, h: 175, c: '#dfe8f0', t: 0.35 },
           { k: 'ridge', a: 292, d: 380, w: 300, h: 145, c: '#e8eef4', t: 0.3 },
         ],
-        kenya: [{ k: 'wedge', a: 320, d: 380, w: 420, h: 55, c: '#8a7a4e' }],
+        kenya: [{ k: 'wedge', a: 334, d: 380, w: 420, h: 55, c: '#8a7a4e' }],
         antarctica: [
-          { k: 'wedge', a: 150, d: 370, w: 460, h: 40, c: '#dfe9f2', t: 0.35 },
-          { k: 'ridge', a: 245, d: 390, w: 220, h: 90, c: '#cdd9e4', t: 0.35 },
+          { k: 'wedge', a: 334, d: 370, w: 460, h: 40, c: '#dfe9f2', t: 0.35 },
+          { k: 'ridge', a: 297, d: 390, w: 220, h: 78, c: '#cdd9e4', t: 0.35 },
         ],
         sahara: [
-          { k: 'ridge', a: 100, d: 340, w: 320, h: 42, c: '#c9a05e' },
-          { k: 'ridge', a: 150, d: 385, w: 380, h: 55, c: '#bd9354' },
+          { k: 'ridge', a: 300, d: 340, w: 320, h: 42, c: '#c9a05e' },
+          { k: 'ridge', a: 338, d: 385, w: 380, h: 55, c: '#bd9354' },
         ],
-        india: [{ k: 'ridge', a: 250, d: 350, w: 300, h: 38, c: '#c99a58' }],
+        india: [{ k: 'ridge', a: 322, d: 350, w: 300, h: 38, c: '#c99a58' }],
         iceland: [
-          { k: 'shield', a: 30, d: 380, w: 420, h: 85, c: '#3c4148' },
-          { k: 'ridge', a: 330, d: 360, w: 260, h: 55, c: '#464b52' },
+          { k: 'shield', a: 334, d: 380, w: 420, h: 80, c: '#3c4148' },
+          { k: 'ridge', a: 296, d: 360, w: 260, h: 50, c: '#464b52' },
         ],
         amazon: [
           { k: 'ridge', a: 65, d: 300, w: 420, h: 60, c: '#24401e', t: 0.4 },
           { k: 'ridge', a: 175, d: 310, w: 400, h: 55, c: '#28451f', t: 0.4 },
           { k: 'ridge', a: 285, d: 305, w: 410, h: 58, c: '#24401e', t: 0.4 },
         ],
-        olympus: [{ k: 'shield', a: 45, d: 395, w: 760, h: 130, c: '#8a4630', t: 0.45 }],
+        olympus: [{ k: 'shield', a: 330, d: 395, w: 760, h: 110, c: '#8a4630', t: 0.45 }],
         tycho: [
           { k: 'craterrim', d: 400, h: 46, c: '#5a5c66', t: 0.25 },
-          { k: 'cone', a: 140, d: 260, w: 150, h: 95, c: '#6a6c76', t: 0.2 },
+          { k: 'cone', a: 334, d: 260, w: 150, h: 80, c: '#6a6c76', t: 0.2 },
         ],
         europa: [
-          { k: 'ridge', a: 20, d: 330, w: 380, h: 26, c: '#7a5a50', t: 0.3 },
-          { k: 'ridge', a: 200, d: 350, w: 420, h: 30, c: '#7a5a50', t: 0.3 },
+          { k: 'ridge', a: 298, d: 330, w: 380, h: 26, c: '#7a5a50', t: 0.3 },
+          { k: 'ridge', a: 342, d: 350, w: 420, h: 30, c: '#7a5a50', t: 0.3 },
         ],
         // The reef's identity is the coral field itself; the Challenger Deep's
         // identity is darkness. Neither gets a horizon landform on purpose.
@@ -345,7 +389,8 @@
           const fogTint = new THREE.Color(scene.fog ? scene.fog.color : (FOG[id] != null ? FOG[id] : FOG.earth));
           const kinds = [];
           skyRows.forEach((rw) => {
-            const col = new THREE.Color(rw.c || groundColor).lerp(fogTint, rw.t != null ? rw.t : 0.55).multiplyScalar(lightK);
+            const col = new THREE.Color(rw.c || groundColor).lerp(fogTint, rw.t != null ? rw.t : 0.55)
+              .multiplyScalar(lightK * (todAdj ? todAdj.hemiMul : 1));
             const lfM = new THREE.MeshBasicMaterial({ color: col, fog: false });
             const aRad = (rw.a || 0) * Math.PI / 180;
             let lf = null;
@@ -564,7 +609,7 @@
       // the foothills, fan corals on the reef, tube worms in the trench and
       // pressure-ridge ice on Europa. All primitives, all scene children.
       const PROP_KITS = {
-        sahara: 'dune', india: 'dune', antarctica: 'iceblock', europa: 'iceblock',
+        sahara: 'dune', india: 'khejri', antarctica: 'iceblock', europa: 'iceblock',
         kenya: 'acacia', iceland: 'basalt', egypt: 'limestone', japan: 'pine',
         nepal: 'pine', amazon: 'canopy', reef: 'coralfan', mariana: 'tubeworm',
       };
@@ -575,13 +620,24 @@
         const gy = groundY(px, pz);
         const g = new THREE.Group();
         g.userData.kodroProp = kind;
-        if (kind === 'dune') {
-          // an elongated, wind-aligned dune ridge (smooth half-ellipsoid)
+        if (kind === 'dune' || (kind === 'khejri' && o.v < 0.72)) {
+          // an elongated, wind-aligned dune ridge (smooth half-ellipsoid);
+          // the Thar's dunes are lower and more broken than the Sahara's
           const dm = km('dune', { color: kitLift(siteGround != null ? siteGround : 0xc9a05e, 0.06), roughness: 1 });
           const m = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), dm);
-          m.scale.set(2.3, 0.45, 1.0);
+          m.scale.set(kind === 'khejri' ? 1.7 : 2.3, kind === 'khejri' ? 0.34 : 0.45, 1.0);
           m.rotation.y = 0.5 + (o.v - 0.5) * 0.3; // one prevailing wind direction
           m.castShadow = true; m.receiveShadow = true; g.add(m);
+        } else if (kind === 'khejri') {
+          // the Thar's identity tree: a sparse flat-topped khejri (thin trunk,
+          // wide low ellipsoid canopy in dry olive) -- props, not palette,
+          // are what distinguish India from the Sahara (world-coherence)
+          const tm = km('khejriTrunk', { color: 0x5e4a2c, roughness: 1 });
+          const cm = km('khejriCanopy', { color: 0x55702c, roughness: 1, flatShading: true });
+          const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.08, r * 0.13, r * 1.4, 6), tm);
+          trunk.position.y = r * 0.7; trunk.rotation.z = 0.06; trunk.castShadow = true; g.add(trunk);
+          const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(r * 0.95, 0), cm);
+          canopy.position.y = r * 1.55; canopy.scale.y = 0.42; canopy.castShadow = true; g.add(canopy);
         } else if (kind === 'iceblock') {
           const im = km('ice', { color: 0xdfe9f2, roughness: 0.55, flatShading: true });
           const n = 2 + ((o.v * 2) | 0);
@@ -723,6 +779,21 @@
       });
       if (kitCount) { try { mount.dataset.propkit = propKit; } catch (e) { void e; } }
 
+      // ---- Per-site identity landmarks (KodroWorldFX): the one-off props
+      // the obstacle-driven kits cannot place -- a torii gate on Fuji's
+      // slopes, prayer flags in the foothills, termite mounds on the Mara,
+      // Jupiter over Europa, Tycho's ejecta rays, the Amazon's canopy wall.
+      let landmarkFx = null;
+      try {
+        if (window.KodroWorldFX && window.KodroWorldFX.landmarks) {
+          landmarkFx = window.KodroWorldFX.landmarks(THREE, scene, {
+            sid: _sid, id, groundY, lightK,
+            fogColor: scene.fog ? scene.fog.color : null, quality: Q,
+          });
+          if (landmarkFx && landmarkFx.names) { try { mount.dataset.landmark = landmarkFx.names.join(','); } catch (e) { void e; } }
+        }
+      } catch (e) { if (window.console) console.warn('Viewport3D landmarks failed:', e); landmarkFx = null; }
+
       // R2: instanced AO discs under every standing prop so the Low tier
       // (shadow map off) keeps its grounding. Slope-aligned at build time from
       // the shared displacement field; zero per-frame cost.
@@ -752,14 +823,14 @@
       } catch (e) { if (window.console) console.warn('Viewport3D AO discs failed:', e); }
 
       // ---- Proper 3D city and room scenes (meshes, not generic rocks). ----
-      function makeWindowTex() {
+      function makeWindowTex(litProb) {
         try {
           if (!document || !document.createElement) return null;
           const cv = document.createElement('canvas'); cv.width = 64; cv.height = 96;
           const g = cv.getContext && cv.getContext('2d'); if (!g) return null;
           g.fillStyle = '#39414f'; g.fillRect(0, 0, 64, 96);
           for (let yy = 0; yy < 8; yy++) for (let xx = 0; xx < 4; xx++) {
-            g.fillStyle = (Math.random() < 0.5) ? '#ffe6a0' : '#222a38';
+            g.fillStyle = (Math.random() < (litProb == null ? 0.5 : litProb)) ? '#ffe6a0' : '#222a38';
             g.fillRect(6 + xx * 14, 6 + yy * 11, 9, 7);
           }
           const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
@@ -937,7 +1008,9 @@
           const bar = new THREE.Mesh(new THREE.PlaneGeometry(0.7, ROADW * 0.92), zM);
           bar.rotation.x = -Math.PI / 2; bar.position.set(ROADW / 2 + 1.4 + k * 1.3, 0.03, 0); scene.add(bar);
         }
-        const winTex = makeWindowTex();
+        // R8: after dark most windows light up (a night city is defined by
+        // its lit windows, not its silhouettes); dusk is the in-between.
+        const winTex = makeWindowTex(_tod === 'night' ? 0.85 : _tod === 'dusk' ? 0.65 : 0.5);
         obstacles.forEach((o) => {
           const px = o.x * SCALE, pz = -o.y * SCALE;
           if (o.kind === 'building') {
@@ -997,6 +1070,25 @@
             t.position.set(p[0], 0, p[1]); scene.add(t);
           });
         } catch (e) { if (window.console) console.warn('Viewport3D street trees failed:', e); }
+        // R8: night/dusk street lighting -- lamp posts whose warm cones pool
+        // on the pavement, so a night city is lit by its own furniture.
+        if ((_tod === 'night' || _tod === 'dusk') && Q !== 'low') {
+          try {
+            const lampPoleM = new THREE.MeshStandardMaterial({ color: 0x23262c, roughness: 0.6, metalness: 0.4 });
+            const bulbM = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffd9a0, emissiveIntensity: 1.4 });
+            [[ROADW / 2 + 3, 14], [-(ROADW / 2 + 3), -14], [ROADW / 2 + 3, -30]].forEach((p) => {
+              const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 6.5, 8), lampPoleM);
+              pole.position.set(p[0], 3.25, p[1]); pole.castShadow = true; scene.add(pole);
+              const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), bulbM);
+              bulb.position.set(p[0], 6.6, p[1]); scene.add(bulb);
+              const sl = new THREE.SpotLight(0xffd9a0, 1.6, 30, 0.7, 0.5);
+              sl.position.set(p[0], 6.5, p[1]);
+              sl.target.position.set(p[0], 0, p[1]);
+              sl.castShadow = false;
+              scene.add(sl); scene.add(sl.target);
+            });
+          } catch (e) { if (window.console) console.warn('Viewport3D streetlamps failed:', e); }
+        }
         // Render the shared moving agents as 3D meshes, driven by the same
         // simulation the collision test reads, so a pedestrian the robot can
         // see in the world is one it can actually hit.
@@ -1285,9 +1377,32 @@
       let ambient = null;
       try {
         if (!reduce && window.KodroAmbient && window.KodroAmbient.build) {
-          ambient = window.KodroAmbient.build(THREE, scene, id, { quality: Q, siteId: _siteId });
+          ambient = window.KodroAmbient.build(THREE, scene, id, { quality: Q, siteId: _siteId, weather: _weather });
         }
       } catch (e) { if (window.console) console.warn('Viewport3D ambient life failed:', e); ambient = null; }
+
+      // R7: underwater optics -- water surface overhead (med+), scrolling
+      // caustic dapple on the seabed (med+), god rays (high+). The Challenger
+      // Deep opts out inside the module: darkness is its identity.
+      let waterFx = null;
+      try {
+        if (id === 'underwater' && window.KodroWorldFX && window.KodroWorldFX.underwater) {
+          waterFx = window.KodroWorldFX.underwater(THREE, scene, { sid: _sid, quality: Q, groundY });
+          if (waterFx && waterFx.flags) { try { mount.dataset.waterfx = waterFx.flags.join(','); } catch (e) { void e; } }
+        }
+      } catch (e) { if (window.console) console.warn('Viewport3D underwater FX failed:', e); waterFx = null; }
+      // R10: rain/snow particle weather (high+, outdoor Earth-family only;
+      // the module returns null everywhere else). Rain wets the ground.
+      let weatherFx = null;
+      try {
+        if (!reduce && window.KodroWorldFX && window.KodroWorldFX.weather) {
+          weatherFx = window.KodroWorldFX.weather(THREE, scene, { id, weather: _weather, quality: Q });
+          if (weatherFx) {
+            try { mount.dataset.weather = weatherFx.flag; } catch (e) { void e; }
+            if (weatherFx.wet && groundMat) { groundMat.roughness = Math.min(groundMat.roughness, 0.42); groundMat.needsUpdate = true; }
+          }
+        }
+      } catch (e) { if (window.console) console.warn('Viewport3D weather failed:', e); weatherFx = null; }
       // Stamp what the coherence infrastructure actually built onto the mount
       // node, so the headless QA sweep can assert the W4/W5 gating from the
       // DOM without a GPU read: which ambient systems run here, and how many
@@ -1330,6 +1445,7 @@
           const wheel = new THREE.Group();
           const tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.32, 16), wm); tyre.rotation.x = Math.PI / 2; tyre.castShadow = true;
           const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.42, r * 0.42, 0.34, 8), hubM); hub.rotation.x = Math.PI / 2;
+          tyre.userData.side = p[1] >= 0 ? 1 : -1; // R9: left/right for counter-rotation
           wheel.add(tyre); wheel.add(hub); wheel.position.set(p[0], r, p[1]); rov.add(wheel); wheels.push(tyre);
           if (p[0] > 0) steer.push(wheel); // front axle steers
         });
@@ -1460,6 +1576,24 @@
         contactShadow.castShadow = false;
         rov.add(contactShadow);
       } catch (e) { if (window.console) console.warn('Viewport3D contact shadow failed:', e); }
+      // Challenger Deep (atmos.headlight): the robot's own headlight is the
+      // only real light in the trench -- a forward spotlight that tracks the
+      // build, plus a visible lamp lens. Reuses the car headlight pattern.
+      if (atmos && atmos.headlight) {
+        try {
+          const hlY = rType === 'home' ? 1.6 : rType === 'arm' ? 1.2 : 1.15;
+          const hlX = rType === 'car' ? 1.78 : rType === 'home' ? 0.75 : 1.3;
+          const hl = new THREE.SpotLight(0xd8ecf2, 2.6, 70, 0.52, 0.45);
+          hl.position.set(hlX, hlY, 0);
+          hl.target.position.set(26, 0, 0);
+          rov.add(hl); rov.add(hl.target);
+          const lampM = new THREE.MeshStandardMaterial({ color: 0xcfe8ff, emissive: 0xcfe8ff, emissiveIntensity: 1.6, side: THREE.DoubleSide });
+          const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.16, 12), lampM);
+          lamp.position.set(hlX + 0.02, hlY, 0); lamp.rotation.y = Math.PI / 2;
+          body.add(lamp);
+          try { mount.dataset.headlight = '1'; } catch (e) { void e; }
+        } catch (e) { if (window.console) console.warn('Viewport3D headlight failed:', e); }
+      }
       scene.add(rov);
 
       // A trail ribbon that grows as the rover drives.
@@ -1480,19 +1614,28 @@
       let prevSpeed = 0, prevHead = 0, bodyPitch = 0, bodyRoll = 0, susp = 0, vsmooth = 0;
       // R5: smoothed terrain-conformance angles (3-point wheel sample).
       let terrPitch = 0, terrRoll = 0;
+      // R9: render-side lateral drift on low-traction turn exit (ice, sand).
+      const traction = (terrain && terrain.traction != null) ? terrain.traction : 1;
+      let driftV = 0;
       const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
       const camPos = new THREE.Vector3(0, 20, 30);
 
       // Third-person orbit: drag to rotate, wheel or two-finger pinch to zoom,
       // so it works on a tablet or Chromebook as well as a mouse.
-      let azim = 2.4, elev = 0.62, dist = id === 'room' ? 13 : 19, dragging = false, lx = 0, ly = 0;
+      // Open worlds default to a LOW orbit (elev 0.25): at the old 0.62 the
+      // look-down angle exceeded the half-FOV, so the horizon -- and with it
+      // every skyline landform, Fuji's cone, Giza's pyramids, Jupiter -- was
+      // geometrically off-frame at first glance. Indoors keeps the overview.
+      const ELEV0 = id === 'room' ? 0.62 : 0.16;
+      const DIST0 = id === 'room' ? 13 : 24;
+      let azim = 2.4, elev = ELEV0, dist = DIST0, dragging = false, lx = 0, ly = 0;
       // Cinematic auto-orbit (window.KODRO_CINEMATIC): when on and the user is
       // not dragging, the camera slowly revolves around the robot for a
       // hands-free showcase turntable.
       let cinematic = false;
       window.KODRO_CINEMATIC = false;
       // Smooth camera reset (window.KODRO_RESET_CAM): animates azim/elev/dist
-      // back to the default (2.4, 0.62, 26) over 30 frames with smoothstep easing.
+      // back to the world's default over 30 frames with smoothstep easing.
       let resetFrames = 0, resetStartAzim = 0, resetStartElev = 0, resetStartDist = 0;
       window.KODRO_RESET_CAM = function () { resetStartAzim = azim; resetStartElev = elev; resetStartDist = dist; resetFrames = 30; };
       // Baseline fog near plane, saved so the fake-DOF tick can modulate it
@@ -1558,6 +1701,7 @@
       let raf = 0;
       const tmp = new THREE.Vector3();
       const camTarget = new THREE.Vector3();
+      const UP_Y = new THREE.Vector3(0, 1, 0); // cinematic sun-drift axis (preallocated)
       const angLerp = (a, b, t) => {
         let d = (b - a) % (Math.PI * 2);
         if (d > Math.PI) d -= Math.PI * 2;
@@ -1623,6 +1767,25 @@
         vsmooth += (moved - vsmooth) * 0.2;
         let turn = curHeading - prevHead; prevHead = curHeading;
         if (turn > Math.PI) turn -= Math.PI * 2; else if (turn < -Math.PI) turn += Math.PI * 2;
+        // R9: skid-steer counter-rotation -- a pivoting rover visibly spins
+        // its left and right wheels opposite ways (a car arcs instead of
+        // pivoting, so its wheels keep rolling forward).
+        if (rType !== 'car' && Math.abs(turn) > 0.0006 && moved < 0.02) {
+          for (let i = 0; i < wheels.length; i++) wheels[i].rotateY(turn * 5.5 * (wheels[i].userData.side || 1));
+        }
+        // R9: low-traction drift -- on ice or loose sand the tail steps out on
+        // turn exit and settles over ~0.3 s. Render-side offset only: the
+        // cm-space sim, the collision test and the trail are untouched.
+        if (Q !== 'low' && !reduce && traction < 0.7) {
+          const dsec = Math.min(0.1, dt / 1000);
+          driftV += turn * vsmooth * 26 * (0.7 - traction);
+          driftV *= Math.max(0, 1 - dsec * 3.4);
+          if (driftV > 0.9) driftV = 0.9; else if (driftV < -0.9) driftV = -0.9;
+          if (Math.abs(driftV) > 0.002) {
+            rov.position.x += -Math.cos(curHeading) * driftV;
+            rov.position.z += Math.sin(curHeading) * driftV;
+          }
+        }
         // pitch: nose lifts under acceleration, dips under braking (about the lateral axis = local z)
         bodyPitch += (clamp(-accel * 7, -0.16, 0.16) * feel.pitch - bodyPitch) * 0.18;
         // roll: lean into the turn (about the forward axis = local x), more at speed
@@ -1679,6 +1842,20 @@
           try { ambient.update(now / 1000, dts); }
           catch (e) { if (window.console) console.warn('KodroAmbient update failed; ambient life stopped:', e); ambient = null; }
         }
+        // World FX driven off the same clock; a throwing system disables
+        // itself (its meshes stay for the teardown traverse to dispose).
+        if (landmarkFx && landmarkFx.update && !reduce) {
+          try { landmarkFx.update(now / 1000, dts); } catch (e) { landmarkFx = null; }
+        }
+        if (waterFx && !reduce) {
+          try { waterFx.update(now / 1000, dts); } catch (e) { waterFx = null; }
+        }
+        if (weatherFx && !reduce) {
+          try { weatherFx.update(now / 1000, dts, cur.x, cur.z); } catch (e) { weatherFx = null; }
+        }
+        // R8: at Cinematic the sun drifts slowly across the sky (a filmic
+        // day passing); static presets everywhere else.
+        if (cinematic && !reduce && todAdj) sun.position.applyAxisAngle(UP_Y, dts * 0.01);
 
         // Sync the cinematic toggle from the host app each frame.
         cinematic = !!window.KODRO_CINEMATIC;
@@ -1694,8 +1871,8 @@
           const rt = (30 - resetFrames) / 30;      // 0 -> 1
           const re = rt * rt * (3 - 2 * rt);       // smoothstep
           azim = resetStartAzim + (2.4 - resetStartAzim) * re;
-          elev = resetStartElev + (0.62 - resetStartElev) * re;
-          dist = resetStartDist + (26 - resetStartDist) * re;
+          elev = resetStartElev + (ELEV0 - resetStartElev) * re;
+          dist = resetStartDist + (DIST0 - resetStartDist) * re;
           resetFrames--;
         }
         if (fpvRef.current) {
@@ -1816,9 +1993,16 @@
     // users get a visible hint the moment they tab in, without cluttering the
     // pointer-driven view. aria-hidden because the canvas's own aria-label
     // already announces the same controls to screen readers.
+    // W6: the site identity chip -- name plus coordinates, previously only in
+    // the 2.5D view, so a 3D mission site never says where it is.
     return React.createElement(
       'div', { className: 'viewport3d', ref: mountRef },
       React.createElement('div', { className: 'vp3d-help', 'aria-hidden': 'true' }, 'Arrow keys orbit  ·  +/- zoom  ·  drag to look'),
+      (terrain && terrain.name) ? React.createElement(
+        'div', { className: 'vp3d-site' },
+        React.createElement('span', { className: 'vp3d-site-name' }, terrain.name),
+        terrain.coord ? React.createElement('span', { className: 'vp3d-site-coord' }, terrain.coord) : null,
+      ) : null,
     );
   }
 

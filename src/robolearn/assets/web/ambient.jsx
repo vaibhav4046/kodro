@@ -36,14 +36,20 @@
     india: { butterflies: false },
     egypt: { butterflies: false },
     kenya: {},
-    amazon: {},
+    // The rainforest's birds are parrots (warm red, named for the harness)
+    // and the understorey carries more butterflies than a temperate field.
+    amazon: { birdColor: 0xc84a30, birdName: 'parrots', butterflies: 7 },
     japan: {},
     antarctica: { birds: false, butterflies: false, snow: true },
     nepal: { butterflies: false, snow: true },
     iceland: { birds: false, butterflies: false, steam: true },
     reef: {},
-    mariana: { fish: false },
-    olympus: {},
+    // 10994 m down: no fish school, no rising bubbles -- marine snow drifting
+    // DOWN through the robot's headlight beam is the trench's only life.
+    mariana: { fish: false, bubbles: false, marinesnow: true },
+    // Thinner dust for the altitude (the caldera sits above most of the
+    // atmosphere); the storm toggle trebles whatever this leaves.
+    olympus: { dustMul: 0.45 },
     tycho: {},
     europa: {},
   };
@@ -109,7 +115,7 @@
     };
 
     // ---- birds: wandering orbits, banking into turns, flap-glide (R3) -------
-    function birds(n, colorHex) {
+    function birds(n, colorHex, name) {
       const geo = triGeo(0.95, 1.6, 0.1);
       const mat = new THREE.MeshBasicMaterial({ color: colorHex != null ? colorHex : 0x2c3038, side: THREE.DoubleSide });
       const flock = [];
@@ -131,7 +137,7 @@
           wob: 0.6 + Math.random() * 0.5, glide: 0, bankNow: 0,
         });
       }
-      systems.push({ extra: false, name: colorHex != null ? 'gulls' : 'birds', fn: (t, dt) => {
+      systems.push({ extra: false, name: name || (colorHex != null ? 'gulls' : 'birds'), fn: (t, dt) => {
         const k1 = Math.min(1, (dt || 0.016) * 3);
         const k2 = Math.min(1, (dt || 0.016) * 2.5);
         for (let i = 0; i < flock.length; i++) {
@@ -224,7 +230,7 @@
         g.attributes.position.needsUpdate = true;
       } });
     }
-    const marsDust = (n) => windDrift(n, 'dust', 0xd9a06a, 0.32, 0.35, 1);
+    const marsDust = (n, spd) => windDrift(n, 'dust', 0xd9a06a, 0.32, 0.35, spd || 1);
     // Blowing snow: the same drift, recoloured white and pushed harder.
     const snow = (n) => windDrift(n, 'snow', 0xeaf2f8, 0.26, 0.5, 1.5);
     function dustDevil() {
@@ -269,6 +275,37 @@
           const s = 1 + 0.08 * Math.sin(t * 0.45 + k.ph);
           k.cone.scale.set(s, 1 + 0.05 * Math.sin(t * 0.3 + k.ph), s);
         }
+      } });
+    }
+
+    // Marine snow (mariana): organic flecks sinking slowly through the dark,
+    // the inverse of the bubble column -- the trench's only visible life,
+    // caught in the robot's headlight beam. Base tier: it IS the site.
+    function marineSnow(n) {
+      const g = new THREE.BufferGeometry();
+      const arr = new Float32Array(n * 3);
+      const spd = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        arr[i * 3] = (Math.random() - 0.5) * 44;
+        arr[i * 3 + 1] = Math.random() * 14;
+        arr[i * 3 + 2] = (Math.random() - 0.5) * 44;
+        spd[i] = 0.35 + Math.random() * 0.5;
+      }
+      g.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+      const mat = new THREE.PointsMaterial({ color: 0xcfd8dc, size: 0.17, transparent: true, opacity: 0.55, depthWrite: false, sizeAttenuation: true });
+      const dot = roundDot();
+      if (dot) { mat.map = dot; mat.alphaTest = 0.02; }
+      const pts = new THREE.Points(g, mat);
+      pts.frustumCulled = false;
+      baseGrp.add(pts);
+      systems.push({ extra: false, name: 'marinesnow', fn: (t, dt) => {
+        const p = g.attributes.position.array;
+        for (let i = 0; i < n; i++) {
+          p[i * 3 + 1] -= spd[i] * dt;
+          if (p[i * 3 + 1] < 0.1) p[i * 3 + 1] = 14;
+          p[i * 3] += Math.sin(t * 0.5 + i * 2.1) * 0.5 * dt; // lazy sideways sway
+        }
+        g.attributes.position.needsUpdate = true;
       } });
     }
 
@@ -465,18 +502,23 @@
     // Resolve this scene's life: the base world's defaults overridden by the
     // site gating table (W4). Missing keys keep the base behaviour.
     const life = Object.assign({}, BASE_LIFE[worldId] || {}, (sid && SITE_LIFE[sid]) || {});
+    // R10: the weather toggle reuses these systems -- global snow outdoors,
+    // trebled faster dust in a Mars storm (the devil hides inside a storm).
+    const wthr = opts.weather || 'clear';
     if (worldId === 'earth' || worldId === 'city') {
-      if (life.gulls) birds(low ? 2 : 3, 0xd8dee6);       // R3: city gulls
-      if (life.birds) birds(low ? 2 : 3);
-      if (life.butterflies && !low) butterflies(4);
-      if (life.snow) snow(low ? 140 : 280);
+      if (life.gulls) birds(low ? 2 : 3, 0xd8dee6, 'gulls');   // R3: city gulls
+      if (life.birds) birds(low ? 2 : 3, life.birdColor != null ? life.birdColor : null, life.birdName || null);
+      if (life.butterflies && !low) butterflies(typeof life.butterflies === 'number' ? life.butterflies : 4);
+      if (life.snow || wthr === 'snow') snow(low ? 140 : 280);
       if (life.steam && !low) steamVents();
     } else if (worldId === 'mars') {
-      if (life.dust) marsDust(low ? 160 : 320);
-      if (life.devil && !low) dustDevil();
+      const storm = wthr === 'storm' && !low;
+      if (life.dust) marsDust(Math.round((low ? 160 : 320) * (life.dustMul || 1) * (storm ? 3 : 1)), storm ? 2.6 : 1);
+      if (life.devil && !low && !storm) dustDevil();
     } else if (worldId === 'underwater') {
       if (life.bubbles !== false) bubbles(low ? 24 : 44);
       if (life.fish !== false && !low) fishSchool(10);
+      if (life.marinesnow) marineSnow(low ? 90 : 170);
     } else if (worldId === 'space') {
       if (life.debris) debris(low ? 2 : 3);
       if (life.satellite && !low) satellite();

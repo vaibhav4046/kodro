@@ -1247,6 +1247,12 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   white-space:nowrap; pointer-events:none; opacity:0; transition:opacity var(--duration-normal,.3s) var(--ease,ease); }
 .viewport3d:focus-within .vp3d-help{ opacity:1; }
 @media (prefers-reduced-motion: reduce){ .vp3d-help{ transition:none; } }
+/* W6: the site identity chip -- the 3D view says WHERE the robot is (name +
+   coordinates), matching the overlay the 2.5D view has always had. */
+.vp3d-site{ position:absolute; left:12px; bottom:12px; display:flex; flex-direction:column; gap:1px;
+  padding:6px 10px; border-radius:8px; background:rgba(8,10,14,.6); pointer-events:none; }
+.vp3d-site-name{ color:var(--fg-0); font-size:12px; font-weight:600; letter-spacing:.02em; }
+.vp3d-site-coord{ color:var(--fg-2); font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; }
 .view-toggle button:focus-visible, .terrain-btn:focus-visible{ outline:2px solid var(--cyan); outline-offset:1px; }
 
 /* ===================== Robot Lab ===================== */
