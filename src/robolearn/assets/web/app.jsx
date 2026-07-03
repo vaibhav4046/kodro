@@ -2,7 +2,7 @@
    KODRO — App (runtime + UI wiring)
    ========================================================================== */
 (function () {
-  const { useState, useRef, useEffect, useCallback } = React;
+  const { useState, useRef, useEffect, useMemo } = React;
   const TERRAINS = window.TERRAINS;
   const WALL = TERRAINS.WALL;
   const RobotLab = window.RobotLab;
@@ -88,9 +88,15 @@
     useEffect(() => { try { localStorage.setItem('kodro_weather', weather); } catch (e) { void e; } }, [weather]);
 
     // terrainId may be a base terrain OR a real-world mission site id.
-    const baseTerrain = window.resolveSite ? window.resolveSite(terrainId) : TERRAINS[terrainId];
-    const terrain = (window.KodroWorldFX && window.KodroWorldFX.applyTod)
-      ? window.KodroWorldFX.applyTod(baseTerrain, tod, weather) : baseTerrain;
+    // L1: memoise the world derivation so resolveSite (which for a mission site
+    // runs an O(n^2) obstacle rejection sample) + applyTod only recompute when
+    // the world actually changes (terrainId/tod/weather), not on every
+    // rover-position render at animation-frame cadence during a run.
+    const terrain = useMemo(() => {
+      const baseTerrain = window.resolveSite ? window.resolveSite(terrainId) : TERRAINS[terrainId];
+      return (window.KodroWorldFX && window.KodroWorldFX.applyTod)
+        ? window.KodroWorldFX.applyTod(baseTerrain, tod, weather) : baseTerrain;
+    }, [terrainId, tod, weather]);
 
     // live rover state (authoritative for sensors/animation)
     const startState = () => ({ x: 0, y: 0, heading: 0, speed: 50, battery: 100, moving: false, led: null, scanning: false, penDown: false });
@@ -218,84 +224,13 @@
     // First-run onboarding / landing flow (shown once, remembered, skippable).
     const [onboarded, setOnboarded] = useState(() => localStorage.getItem('or_onboarded') === '1');
     // Budget robot builder (local AI hardware guide for a real-world rover).
-    const [buildOpen, setBuildOpen] = useState(false);
-    const [buildBudget, setBuildBudget] = useState('30');
-    const [buildGoal, setBuildGoal] = useState('');
-    const [buildBusy, setBuildBusy] = useState(false);
-    const [buildPlan, setBuildPlan] = useState(null);
-    const [buildErr, setBuildErr] = useState(null);
-    async function runBuild() {
-      if (buildBusy) return;
-      const usd = Math.max(1, Math.min(100000, parseFloat(buildBudget) || 30));
-      setBuildBusy(true); setBuildErr(null);
-      try {
-        if (!window.RoboLearn || !window.RoboLearn.isAvailable()) { setBuildErr('The robot builder needs the desktop app with local AI.'); }
-        else {
-          // A6: an empty goal prices the ACTIVE Robot Lab build, so the
-          // hardware plan and the Lab describe one robot, not two products.
-          const r = await window.RoboLearn.budgetBuild(usd, buildGoal.trim() || specGoalText());
-          if (r && r.ok) setBuildPlan(r);
-          else setBuildErr((r && r.reason) || 'Could not build a plan.');
-        }
-      } catch (e) { setBuildErr(String(e)); }
-      setBuildBusy(false);
-    }
     // ---- P7/A7: project file (one .kodro document for the whole state) ----
-    const projectFileRef = useRef(null);
-    async function saveProjectClick() {
-      setSettingsOpen(false);
-      if (!window.KodroProject) return;
-      const doc = window.KodroProject.collect();
-      const json = JSON.stringify(doc, null, 2);
-      const fname = window.KodroProject.fileName(doc);
-      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.exportProject) {
-        const r = await window.RoboLearn.exportProject(json, fname);
-        showToast(r && r.ok ? 'Project saved: ' + r.path : 'Project save ' + ((r && r.reason) || 'failed'), r && r.ok ? 'ok' : 'err');
-        return;
-      }
-      const blob = new Blob([json], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = fname;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-      showToast('Project downloaded: ' + fname, 'ok');
-    }
-    function applyProjectText(text) {
-      if (!window.KodroProject) return;
-      const r = window.KodroProject.apply(text);
-      if (!r.ok) {
-        addConsole('Project open failed: ' + (r.errors || []).join(' '), 'err');
-        showToast('Not a Kodro project file', 'err');
-        return;
-      }
-      (r.warnings || []).forEach(w => addConsole('Project: ' + w, 'sys'));
-      addConsole('Project loaded. Restarting the studio with the saved state...', 'ok');
-      // The document was written straight into storage; a clean reload is the
-      // honest way to rehydrate every consumer (App, Lab, memory, viewport).
-      setTimeout(() => { try { location.reload(); } catch (e) { void e; } }, 400);
-    }
-    async function openProjectClick() {
-      setSettingsOpen(false);
-      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.importProject) {
-        try {
-          const r = await window.RoboLearn.importProject();
-          if (r && r.ok) applyProjectText(r.text);
-          else if (r && r.reason && r.reason !== 'cancelled') showToast('Project open: ' + r.reason, 'err');
-        } catch (e) { showToast('Project open failed: ' + e, 'err'); }
-        return;
-      }
-      if (projectFileRef.current) projectFileRef.current.click();
-    }
-    function onProjectFilePicked(e) {
-      const f = e.target.files && e.target.files[0];
-      e.target.value = '';
-      if (!f) return;
-      if (f.size > 2 * 1024 * 1024) { showToast('Project file is larger than 2 MB', 'err'); return; }
-      const rd = new FileReader();
-      rd.onload = () => applyProjectText(String(rd.result));
-      rd.readAsText(f);
-    }
+    // Extracted VERBATIM to window.KodroHooks.useProjectIO (hooks.jsx); its
+    // external inputs are setSettingsOpen (save/open launch from the settings
+    // popover and close it), showToast and addConsole.
+    const { projectFileRef, saveProjectClick, openProjectClick, onProjectFilePicked } = (window.KodroHooks && window.KodroHooks.useProjectIO)
+      ? window.KodroHooks.useProjectIO({ setSettingsOpen, showToast, addConsole })
+      : { projectFileRef: { current: null }, saveProjectClick: function () {}, openProjectClick: function () {}, onProjectFilePicked: function () {} };
 
     // ---- P7/A8: run reports (structured per-run artefact + history) ----
     const [runsOpen, setRunsOpen] = useState(false);
@@ -332,30 +267,6 @@
       });
     }
 
-    // A6: merge of the two build features. The Build-real planner opens
-    // seeded with the current spec, and a generated plan's parts can be
-    // fitted straight back into the Robot Lab catalogue.
-    function specGoalText() {
-      const rb = window.getKodroRobot ? window.getKodroRobot() : null;
-      if (!rb) return '';
-      const parts = [].concat(rb.sensors || [], rb.actuators || []).join(', ');
-      return 'a ' + (rb.type || 'rover') + ' like my build "' + (rb.name || 'My Robot') + '"' + (parts ? ' with ' + parts : '');
-    }
-    function openBuildReal() {
-      setRobotLabOpen(false);
-      if (!buildGoal.trim()) setBuildGoal(specGoalText());
-      setBuildOpen(true);
-    }
-    function adoptPlanParts(plan) {
-      if (!plan || !plan.parts || !window.RobotLab || !window.RobotLab.buildFromText) return;
-      // The plan's part names route through the same catalogue mapper the
-      // onboarding agent uses, so only real, buildable parts get fitted.
-      const text = plan.parts.map(function (p) { return p.name + ' ' + (p.role || ''); }).join('; ');
-      const r = window.RobotLab.buildFromText(text);
-      setBuildOpen(false);
-      showToast('Plan parts fitted: ' + ((r && r.spec && r.spec.name) || 'build updated'), 'ok');
-      setRobotLabOpen(true);
-    }
     // Click-away + Escape close the settings popover; focus moves into the
     // popover on open and is restored to the gear button on close, so a keyboard
     // user is not dropped back to the top of the page (WCAG 2.4.3).
@@ -376,11 +287,34 @@
       };
     }, [settingsOpen]);
 
-    const [vibeOpen, setVibeOpen] = useState(false);
-    // --- AI vibe coding (local Ollama: Qwen/Gemma; graceful when absent) ---
-    // Extracted to window.KodroHooks.useAiStatus (hooks.jsx): owns aiInfo plus
-    // the status-refresh / model-pick logic, polling at mount and re-checking
-    // when the vibe panel opens. vibeOpen is its only external input.
+    // currentLessonId ref: the vibe streamed job is scoped to the lesson open
+    // when it started, so useVibeChat (below) reads this ref. Created here
+    // (ahead of useVibeChat) and kept in lockstep with the currentLessonId
+    // state; usage sites further down are unchanged.
+    const currentLessonIdRef = useRef(null);
+    useEffect(() => { currentLessonIdRef.current = currentLessonId; }, [currentLessonId]);
+    // --- AI vibe coding chat (prompt + thread + streamed poll loop) ----------
+    // Extracted VERBATIM to window.KodroHooks.useVibeChat (hooks.jsx): owns
+    // vibeOpen + the vibe-chat state/refs and the streamed vibeSend poll loop.
+    // Its only external inputs are the live world (terrain) and the current
+    // lesson ref. vibeApply stays in App (it bridges to the editor, like the
+    // other apply paths). vibeOpen is fed to useAiStatus and the modal wiring.
+    const {
+      vibeOpen, setVibeOpen, vibePrompt, setVibePrompt, vibeBusy, setVibeBusy,
+      vibeError, setVibeError, vibeMsgs, setVibeMsgs, vibeEndRef, vibeLive,
+      setVibeLive, vibeCancelRef, vibeSend,
+    } = (window.KodroHooks && window.KodroHooks.useVibeChat)
+      ? window.KodroHooks.useVibeChat({ terrain, currentLessonIdRef })
+      : {
+        vibeOpen: false, setVibeOpen: function () {}, vibePrompt: '', setVibePrompt: function () {},
+        vibeBusy: false, setVibeBusy: function () {}, vibeError: null, setVibeError: function () {},
+        vibeMsgs: [], setVibeMsgs: function () {}, vibeEndRef: { current: null }, vibeLive: '',
+        setVibeLive: function () {}, vibeCancelRef: { current: false }, vibeSend: function () {},
+      };
+    // --- AI status (local Ollama: Qwen/Gemma; graceful when absent) ---
+    // window.KodroHooks.useAiStatus (hooks.jsx): owns aiInfo plus the
+    // status-refresh / model-pick logic, polling at mount and re-checking when
+    // the vibe panel opens. vibeOpen is its only external input.
     const { aiInfo, pickModel, refreshAiStatus } = (window.KodroHooks ? window.KodroHooks.useAiStatus(vibeOpen) : { aiInfo: {}, pickModel: function(){}, refreshAiStatus: function(){} });
     const [realismOpen, setRealismOpen] = useState(false);
     const [demoOpen, setDemoOpen] = useState(false);
@@ -394,6 +328,21 @@
     // Robot Lab: design a custom robot whose spec drives the simulation.
     const [robotLabOpen, setRobotLabOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => (window.getKodroRobot ? window.getKodroRobot() : null));
+    // Build-a-real-robot planner (budget build). Extracted VERBATIM to
+    // window.KodroHooks.useBuild (hooks.jsx); its external inputs are
+    // setRobotLabOpen (openBuildReal/adoptPlanParts toggle the Lab) and showToast
+    // (adoptPlanParts surfaces the fitted-parts toast). specGoalText moves with
+    // it (used only inside the build cluster).
+    const {
+      buildOpen, setBuildOpen, buildBudget, setBuildBudget, buildGoal, setBuildGoal,
+      buildBusy, buildPlan, buildErr, runBuild, specGoalText, openBuildReal, adoptPlanParts,
+    } = (window.KodroHooks && window.KodroHooks.useBuild)
+      ? window.KodroHooks.useBuild({ setRobotLabOpen, showToast })
+      : {
+        buildOpen: false, setBuildOpen: function () {}, buildBudget: '30', setBuildBudget: function () {},
+        buildGoal: '', setBuildGoal: function () {}, buildBusy: false, buildPlan: null, buildErr: null,
+        runBuild: function () {}, specGoalText: function () { return ''; }, openBuildReal: function () {}, adoptPlanParts: function () {},
+      };
     useEffect(() => {
       const onRobot = (e) => {
         // Resolve a partial detail (a dispatcher may send { type } only)
@@ -449,17 +398,18 @@
     const { reviewOpen, setReviewOpen, reviewBusy, reviewData, reviewErr, runReview, applyReview } = (window.KodroHooks && window.KodroHooks.useReview)
       ? window.KodroHooks.useReview({ code, addConsole, typewriteCode, currentLessonId, aiInfo, selfTestReport })
       : { reviewOpen: false, setReviewOpen: function () {}, reviewBusy: false, reviewData: null, reviewErr: null, runReview: function () {}, applyReview: function () {} };
-    // Teacher dashboard: class concept-strength heatmap (now in the web app).
-    const [teacherOpen, setTeacherOpen] = useState(false);
-    const [teacherData, setTeacherData] = useState(null);
+    // Teacher dashboard: class concept-strength heatmap. Extracted VERBATIM to
+    // window.KodroHooks.useTeacher (hooks.jsx); its only external input is
+    // setSettingsOpen (openTeacher closes the settings popover it launches from).
+    const { teacherOpen, setTeacherOpen, teacherData, openTeacher } = (window.KodroHooks && window.KodroHooks.useTeacher)
+      ? window.KodroHooks.useTeacher({ setSettingsOpen })
+      : { teacherOpen: false, setTeacherOpen: function () {}, teacherData: null, openTeacher: function () {} };
     // Grounded Ask: answers from the lesson material, offline retrieval.
-    const [askOpen, setAskOpen] = useState(false);
-    const [askQuery, setAskQuery] = useState('');
-    const [askBusy, setAskBusy] = useState(false);
-    const [askData, setAskData] = useState(null);
-    const [vibePrompt, setVibePrompt] = useState('');
-    const [vibeBusy, setVibeBusy] = useState(false);
-    const [vibeError, setVibeError] = useState(null);
+    // Extracted VERBATIM to window.KodroHooks.useAsk (hooks.jsx); fully
+    // self-contained (window.KodroAI.ask), no external inputs.
+    const { askOpen, setAskOpen, askQuery, setAskQuery, askBusy, askData, setAskData, runAsk } = (window.KodroHooks && window.KodroHooks.useAsk)
+      ? window.KodroHooks.useAsk()
+      : { askOpen: false, setAskOpen: function () {}, askQuery: '', setAskQuery: function () {}, askBusy: false, askData: null, setAskData: function () {}, runAsk: function () {} };
     // B3 trigger: validate the current program across randomised seeds in the
     // scenario that fits this robot, persist the report, and open the dashboard.
     function runValidation() {
@@ -487,61 +437,6 @@
       }
       setRealismOpen(true);
     }
-    // Chat thread: [{role:'user'|'ai', kind:'text'|'code', text}]
-    const [vibeMsgs, setVibeMsgs] = useState([]);
-    const vibeEndRef = useRef(null);
-    useEffect(() => { if (vibeEndRef.current) vibeEndRef.current.scrollIntoView({ block: 'end' }); }, [vibeMsgs, vibeBusy]);
-
-    // Streamed reply: start a job, poll ~4x/s, and show the model's text live
-    // in the thread while it thinks (the response feels instant instead of a
-    // long opaque spinner).
-    const [vibeLive, setVibeLive] = useState('');
-    // Lets the user cancel an in-flight generation by closing the panel; the
-    // poll loop checks this and bails quietly instead of showing an error.
-    const vibeCancelRef = useRef(false);
-    async function vibeSend() {
-      const text = vibePrompt.trim();
-      if (vibeBusy || !text) return;
-      const next = [...vibeMsgs, { role: 'user', kind: 'text', text }];
-      setVibeMsgs(next); setVibePrompt(''); setVibeBusy(true); setVibeError(null); setVibeLive(''); vibeCancelRef.current = false;
-      try {
-        const history = next.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
-        // Self-refinement in action: feed the lesson the system remembers from
-        // past runs in this world into the assistant's context, so its advice
-        // is shaped by what actually happened, not just the immediate prompt.
-        const lesson = window.KodroMemory && window.KodroMemory.lessonFor(terrain.id);
-        if (lesson && lesson.reflection) {
-          history.unshift({ role: 'user', text: 'Keep in mind, learned from my past runs in the ' + terrain.name + ': ' + lesson.reflection });
-        }
-        // Ground the assistant in THIS robot's command registry (single source
-        // of truth: RobotLab.KodroCommands) so it only suggests commands the
-        // build supports and refuses ones whose part is not fitted. The runtime
-        // gate in host.sensor and the self-test are the deterministic backstop.
-        if (window.KodroCommands && window.getKodroRobot) {
-          history.unshift({ role: 'user', text: window.KodroCommands.groundingText(window.getKodroRobot()) });
-        }
-        const start = await window.KodroAI.chatStart(history, currentLessonIdRef.current);
-        if (!start || !start.ok) { setVibeError((start && start.reason) || 'AI unavailable. Start Ollama or run the desktop app.'); setVibeBusy(false); return; }
-        let r = null;
-        for (;;) {
-          await new Promise(res => setTimeout(res, 250));
-          if (vibeCancelRef.current) { setVibeLive(''); setVibeBusy(false); return; }
-          const p = await window.KodroAI.chatPoll(start.jobId);
-          if (!p || !p.ok) { r = p; break; }
-          if (p.done) { r = p; break; }
-          setVibeLive(p.text || '');
-        }
-        setVibeLive('');
-        if (r && r.ok && r.type === 'question') {
-          setVibeMsgs(m => [...m, { role: 'ai', kind: 'text', text: r.text }]);
-        } else if (r && r.ok && r.type === 'code') {
-          setVibeMsgs(m => [...m, { role: 'ai', kind: 'code', text: r.code, model: r.model }]);
-        } else {
-          setVibeError((r && r.reason) || 'Generation failed.');
-        }
-      } catch (e) { setVibeError(String(e)); }
-      setVibeBusy(false);
-    }
 
     // Autonomous test: when code is applied, run it through the real interpreter
     // and kinematics with no animation and report what actually happens, so the
@@ -562,42 +457,11 @@
     // runReview / applyReview moved to window.KodroHooks.useReview (hooks.jsx).
 
     // Agent swarm: run the program on a fleet of rovers, draw their trails.
-    const [swarmOpen, setSwarmOpen] = useState(false);
-    const [swarmBusy, setSwarmBusy] = useState(false);
-    const [swarmData, setSwarmData] = useState(null);
-    async function runSwarm() {
-      const src = (code || '').trim();
-      if (!src) { addConsole('Write a program first, then launch the swarm.', 'err'); return; }
-      setSwarmOpen(true); setSwarmBusy(true); setSwarmData(null);
-      try {
-        const r = await window.RoboLearn.swarmRun(src, currentLessonId || null, 6);
-        if (r && r.ok) setSwarmData(r);
-        else { setSwarmOpen(false); addConsole((r && r.reason) || 'Swarm failed.', 'err'); }
-      } catch (e) { setSwarmOpen(false); addConsole('Swarm: ' + e, 'err'); }
-      setSwarmBusy(false);
-    }
-
-    async function runAsk() {
-      const q = (askQuery || '').trim();
-      if (!q || askBusy) return;
-      setAskBusy(true); setAskData(null);
-      try {
-        const r = await window.KodroAI.ask(q);
-        setAskData(r || { ok: false, reason: 'No response.' });
-      } catch (e) { setAskData({ ok: false, reason: String(e) }); }
-      setAskBusy(false);
-    }
-
-    async function openTeacher() {
-      setSettingsOpen(false);
-      setTeacherOpen(true);
-      setTeacherData(null);
-      try {
-        const r = await window.RoboLearn.getClassHeatmap();
-        if (r && r.ok) setTeacherData(r);
-        else setTeacherData({ ok: false, concepts: [], pupils: [] });
-      } catch (e) { setTeacherData({ ok: false, concepts: [], pupils: [] }); }
-    }
+    // Extracted VERBATIM to window.KodroHooks.useSwarm (hooks.jsx); its external
+    // inputs are the live editor code, the current lesson id and addConsole.
+    const { swarmOpen, setSwarmOpen, swarmBusy, swarmData, runSwarm } = (window.KodroHooks && window.KodroHooks.useSwarm)
+      ? window.KodroHooks.useSwarm({ code, currentLessonId, addConsole })
+      : { swarmOpen: false, setSwarmOpen: function () {}, swarmBusy: false, swarmData: null, runSwarm: function () {} };
 
     // Typewriter: animate code into the active editor buffer like live typing.
     // P7/A9: every programmatic write (AI apply, review apply, blocks insert,
@@ -683,8 +547,6 @@
       document.body.classList.toggle('a11y-readable', readable);
       try { localStorage.setItem('or_readable', readable ? '1' : '0'); } catch (e) { void e; }
     }, [readable]);
-    const currentLessonIdRef = useRef(null);
-    useEffect(() => { currentLessonIdRef.current = currentLessonId; }, [currentLessonId]);
     useEffect(() => {
       if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
       window.RoboLearn.listLessons().then(ls => { if (Array.isArray(ls)) setLessons(ls); });
