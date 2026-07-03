@@ -166,7 +166,8 @@
     const [blocks, setBlocks] = useState([]);       // {k,label,val,indent,container,color,unit}
     const [blockIndent, setBlockIndent] = useState(0);
     function addBlock(def) {
-      setBlocks(bs => [...bs, { k: def.k, label: def.label, val: def.val, indent: blockIndent, container: !!def.container, color: def.color, unit: def.unit }]);
+      var bid = def.k + '#' + Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) * 1000);
+      setBlocks(bs => [...bs, { id: bid, k: def.k, label: def.label, val: def.val, indent: blockIndent, container: !!def.container, color: def.color, unit: def.unit }]);
       if (def.container) setBlockIndent(d => Math.min(3, d + 1));
       sfx('led');
     }

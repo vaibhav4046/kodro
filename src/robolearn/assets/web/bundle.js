@@ -12099,7 +12099,7 @@ Object.assign(window, {
 
     // 1. MOBILITY -- can it physically get around on this surface?
     // An imported KRS build (derived.phys.stallForceN present) is judged by
-    // the SAME force-ratio model the live tick drives it with (app.jsx uses
+    // the SAME force-ratio model the live tick drives it with (useSimEngine in
     // KodroMotion.physMobility / physStallVerdict), so the Design Check verdict
     // can never contradict what then happens on screen. Catalogue (non-physical)
     // builds keep the parts proxy (speedFactor*traction/massFactor).
@@ -16477,7 +16477,9 @@ Object.assign(window, {
     const [blocks, setBlocks] = useState([]); // {k,label,val,indent,container,color,unit}
     const [blockIndent, setBlockIndent] = useState(0);
     function addBlock(def) {
+      var bid = def.k + '#' + Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) * 1000);
       setBlocks(bs => [...bs, {
+        id: bid,
         k: def.k,
         label: def.label,
         val: def.val,
@@ -19996,7 +19998,7 @@ say("Survey done")`
     }, blocks.length === 0 && /*#__PURE__*/React.createElement("p", {
       className: "vibe-hint"
     }, "Click blocks above. They stack in order to form the program."), blocks.map((b, i) => /*#__PURE__*/React.createElement("div", {
-      key: i,
+      key: b.id != null ? b.id : i,
       className: "block-row",
       style: {
         marginLeft: b.indent * 22 + 'px',

@@ -545,7 +545,7 @@
           <div className="blocks-program" aria-label="Your program">
             {blocks.length === 0 && <p className="vibe-hint">Click blocks above. They stack in order to form the program.</p>}
             {blocks.map((b, i) => (
-              <div key={i} className="block-row" style={{ marginLeft: (b.indent * 22) + 'px', borderLeftColor: b.color }}>
+              <div key={b.id != null ? b.id : i} className="block-row" style={{ marginLeft: (b.indent * 22) + 'px', borderLeftColor: b.color }}>
                 <span>{b.label}</span>
                 {b.val !== undefined && (
                   <input

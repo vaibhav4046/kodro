@@ -53,7 +53,7 @@
 
     // 1. MOBILITY -- can it physically get around on this surface?
     // An imported KRS build (derived.phys.stallForceN present) is judged by
-    // the SAME force-ratio model the live tick drives it with (app.jsx uses
+    // the SAME force-ratio model the live tick drives it with (useSimEngine in
     // KodroMotion.physMobility / physStallVerdict), so the Design Check verdict
     // can never contradict what then happens on screen. Catalogue (non-physical)
     // builds keep the parts proxy (speedFactor*traction/massFactor).
