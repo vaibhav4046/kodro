@@ -323,9 +323,9 @@
 
   // ---- SI4: three-tier fidelity disclosure, one honest line per claim ------
   var FIDELITY = {
-    honoured: ['Commanded distances and turn angles (endpoint-exact)', 'Top speed calibrated from motor rpm and wheel radius, when it falls inside the simulable band (outside it the badge drops to APPROXIMATED and the sim speed is disclosed)', 'Sensor mount position, yaw and range in the studio sim (z ignored, disclosed; the Python engine rays from the rover centre)', 'Collision circle sized from the body footprint', 'Command availability gated on fitted parts', 'Battery as a hard budget: the robot halts at zero'],
-    approximated: ['Acceleration and braking: first-order trapezoid, not F=ma integration', 'Turn time from mass or track geometry, not wheel torque curves', 'Traction: three coarse bands per surface', 'Constant-power battery drain (no voltage sag or thermal derating)', 'Scenario validation spread from seeded randomisation'],
-    notSimulated: ['Slopes and terrain height (worlds are flat planes)', 'Wheel-level slip and per-motor torque curves', 'Suspension and 3D contact (body motion is cosmetic)', 'Voltage sag, thermal limits, per-motor current transients', 'IMU acceleration content (returns level readings)', 'Camera, GPS, bumper, line and gripper command semantics']
+    honoured: ['Commanded distances and turn angles (endpoint-exact)', 'No-load top speed calibrated from motor rpm and wheel radius, when it falls inside the simulable band; the sim cruises at exactly this value (outside the band the badge drops to APPROXIMATED and the sim speed is disclosed). Real speed under load is lower', 'Sensor mount position, yaw and range in the studio sim (z ignored, disclosed; the Python engine rays from the rover centre)', 'Collision circle sized from the body footprint', 'Command availability gated on fitted parts', 'Battery as a hard budget: the robot halts at zero'],
+    approximated: ['Acceleration and braking: first-order trapezoid at stall torque held constant (no torque falloff with speed), so 0-to-top time is a best-case lower bound and real hardware is slower', 'Turn time from mass or track geometry, not wheel torque curves', 'Traction: three coarse bands per surface', 'Constant-power battery drain (no voltage sag, thermal derating, or motor copper/stall losses), so runtime is optimistic', 'Scenario validation spread from seeded randomisation'],
+    notSimulated: ['Slopes and terrain height (worlds are flat planes); the reported max grade is a static grip-limit estimate, never driven', 'Wheel-level slip and per-motor torque curves', 'Suspension and 3D contact (body motion is cosmetic)', 'Voltage sag, thermal limits, per-motor current transients', 'IMU acceleration content (returns level readings)', 'Camera, GPS, bumper, line and gripper command semantics']
   };
 
   // Per-stat badge tier used by the Robot Lab readout and the report annex.
@@ -13356,7 +13356,7 @@ Object.assign(window, {
       className: 'rl-stat'
     }, React.createElement('b', null, '~' + d.runtimeMin + ' min'), React.createElement('span', null, 'battery / charge ', Badge('approximated'))), React.createElement('div', {
       className: 'rl-stat'
-    }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : d.speedFactor.toFixed(2) + '×'), React.createElement('span', null, 'top speed ', Badge('honoured'))), React.createElement('div', {
+    }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : d.speedFactor.toFixed(2) + '×'), React.createElement('span', null, 'top speed (no-load) ', Badge(d.phys && d.phys.badges && d.phys.badges.topSpeed || 'honoured'))), React.createElement('div', {
       className: 'rl-stat rl-stat-wide'
     }, React.createElement('b', null, d.commands.length ? d.commands.map(c => c + '()').join('  ') : 'move()  turn()  only'), React.createElement('span', null, 'commands this build supports ', Badge('honoured')))),
     // ---- SI1: measured-build banner for an imported KRS spec
@@ -13370,9 +13370,9 @@ Object.assign(window, {
       style: {
         margin: 0
       }
-    }, 'Measured build - imported spec drives the sim'), Badge('honoured')), React.createElement('div', {
+    }, 'Measured build - imported spec drives the sim; each stat carries its own fidelity badge')), React.createElement('div', {
       className: 'rl-measured-grid'
-    }, React.createElement('span', null, 'Mass ', React.createElement('b', null, d.phys.massKg !== undefined ? d.phys.massKg + ' kg' : '-')), React.createElement('span', null, 'Top speed ', React.createElement('b', null, d.phys.vMaxCmPerS !== undefined ? (d.phys.vMaxCmPerS / 100).toFixed(2) + ' m/s' : 'catalogue')), React.createElement('span', null, 'Runtime ', React.createElement('b', null, d.phys.runtimeMin !== undefined ? '~' + d.phys.runtimeMin + ' min' : 'catalogue')), React.createElement('span', null, 'Body ', React.createElement('b', null, d.phys.collisionRadiusCm !== undefined ? Math.round(d.phys.collisionRadiusCm * 2) + ' cm circle' : '60 cm default')), React.createElement('span', null, 'Sensor ', React.createElement('b', null, d.phys.sensor ? '+' + d.phys.sensor.fwdCm + ' cm fwd, ' + d.phys.sensor.rangeCm + ' cm range' : 'none imported')), d.phys.maxSlopeDeg !== undefined ? React.createElement('span', null, 'Max slope ', React.createElement('b', null, d.phys.maxSlopeDeg + '°'), ' ', Badge('notSimulated')) : null), d.phys.warnings && d.phys.warnings.length ? React.createElement('ul', {
+    }, React.createElement('span', null, 'Mass ', React.createElement('b', null, d.phys.massKg !== undefined ? d.phys.massKg + ' kg' : '-')), React.createElement('span', null, 'Top speed (no-load) ', React.createElement('b', null, d.phys.vMaxCmPerS !== undefined ? (d.phys.vMaxCmPerS / 100).toFixed(2) + ' m/s' : 'catalogue')), React.createElement('span', null, 'Runtime ', React.createElement('b', null, d.phys.runtimeMin !== undefined ? '~' + d.phys.runtimeMin + ' min' : 'catalogue')), React.createElement('span', null, 'Body ', React.createElement('b', null, d.phys.collisionRadiusCm !== undefined ? Math.round(d.phys.collisionRadiusCm * 2) + ' cm circle' : '60 cm default')), React.createElement('span', null, 'Sensor ', React.createElement('b', null, d.phys.sensor ? '+' + d.phys.sensor.fwdCm + ' cm fwd, ' + d.phys.sensor.rangeCm + ' cm range' : 'none imported')), d.phys.maxSlopeDeg !== undefined ? React.createElement('span', null, 'Max grade (static est.) ', React.createElement('b', null, d.phys.maxSlopeDeg + '°'), ' ', Badge('notSimulated')) : null), d.phys.warnings && d.phys.warnings.length ? React.createElement('ul', {
       className: 'rl-issues rl-issues-warn'
     }, d.phys.warnings.map(function (w, i) {
       return React.createElement('li', {
@@ -14396,13 +14396,28 @@ Object.assign(window, {
     var traction = terrain && terrain.traction || 1;
     var gravity = terrain && terrain.env && terrain.env.gravity || M.gravityEarthMps2;
     var rows = [];
-    // Top speed: physical -> motor-derived (HONOURED); catalogue -> the
-    // calibrated 3.125 m/s anchor scaled by the parts factor.
+    // Top speed: physical -> the motor NO-LOAD speed (v = rpm/60*2*pi*r). In
+    // band the sim cruises at exactly this value (HONOURED); out of band it is
+    // clamped to a DIFFERENT sim speed and the badge drops to APPROXIMATED, so
+    // consume phys.badges.topSpeed - never assume honoured - and disclose the
+    // clamp instead of printing a formula that yields a different number. The
+    // number is the no-load ceiling, so real speed under load is lower.
     var vCmPerS = phys && phys.vMaxSimCmPerS !== undefined ? phys.vMaxSimCmPerS : M.baseSpeedCmPerS * speedFac;
-    rows.push(row('Top speed', (vCmPerS / 100).toFixed(2) + ' m/s', phys && phys.vMaxSimCmPerS !== undefined ? 'honoured' : 'approximated', phys && phys.vMaxSimCmPerS !== undefined ? 'v = rpm/60 * 2*pi*r from the imported motor' : 'catalogue speed factor times the 3.125 m/s anchor'));
+    var topTier = phys && phys.badges && phys.badges.topSpeed ? phys.badges.topSpeed : phys && phys.vMaxSimCmPerS !== undefined ? 'honoured' : 'approximated';
+    var topHow;
+    if (phys && phys.vMaxSimCmPerS !== undefined) {
+      if (phys.vMaxCmPerS !== undefined && Math.abs(phys.vMaxSimCmPerS - phys.vMaxCmPerS) > 0.5) {
+        topHow = 'motor no-load ' + (phys.vMaxCmPerS / 100).toFixed(2) + ' m/s (v = rpm/60 * 2*pi*r), clamped to the ' + (phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s simulable band';
+      } else {
+        topHow = 'no-load motor speed v = rpm/60 * 2*pi*r, simulated exactly; real speed under load is lower';
+      }
+    } else {
+      topHow = 'catalogue speed factor times the 3.125 m/s anchor';
+    }
+    rows.push(row('Top speed (no-load)', (vCmPerS / 100).toFixed(2) + ' m/s', topTier, topHow));
     // 0-to-top time (physical only; catalogue ramp is a display trapezoid).
     if (phys && phys.accelCmPerS2 !== undefined) {
-      rows.push(row('0 to top speed', (vCmPerS / phys.accelCmPerS2).toFixed(2) + ' s', 'approximated', 'a = (F_stall - Crr*m*g)/m, first order'));
+      rows.push(row('0 to top speed (best case)', (vCmPerS / phys.accelCmPerS2).toFixed(2) + ' s', 'approximated', 'a = (F_stall - Crr*m*g)/m at stall torque held constant; a lower bound on the time - real motors lose torque with speed, so hardware is slower'));
     }
     // Stopping distance: v^2/(2*mu*g) replaces the old proxy.
     var stopCm = KM.physStoppingDistanceCm(vCmPerS, traction, gravity);
@@ -14415,14 +14430,14 @@ Object.assign(window, {
     }
     // Runtime and range.
     var runtimeMin = robot && robot.runtimeMin || 60;
-    rows.push(row('Runtime', '~' + runtimeMin + ' min', phys && phys.energyWh !== undefined ? 'approximated' : 'approximated', phys && phys.energyWh !== undefined ? 'E = mAh*V*usable; P = F*v/eta + idle (constant-power, no sag)' : 'catalogue estimate from mass'));
+    rows.push(row('Runtime', '~' + runtimeMin + ' min', phys && phys.energyWh !== undefined ? 'approximated' : 'approximated', phys && phys.energyWh !== undefined ? 'E = mAh*V*usable; P = F*v/eta + idle (constant-power; ignores voltage sag and motor copper/stall losses, so runtime is optimistic)' : 'catalogue estimate from mass'));
     rows.push(row('Range on one charge', (vCmPerS / 100 * runtimeMin * 60 / 1000).toFixed(2) + ' km', 'approximated', 'top speed times runtime; real missions turn and idle'));
     // Battery per metre, the number the empirical block cross-checks.
     var drainPerM = phys && phys.energyWh !== undefined ? phys.drainPctPerCmNominal * 100 : KM.moveDrainPct(100, gravity, massFac, traction);
     rows.push(row('Battery per metre', drainPerM.toFixed(3) + ' %', 'approximated', phys && phys.energyWh !== undefined ? 'energy-true model at cruise speed' : 'shared constant-power ledger'));
     // Max slope is REPORTED only: worlds are flat planes (disclosed).
     if (phys && phys.maxSlopeDeg !== undefined) {
-      rows.push(row('Max slope', phys.maxSlopeDeg + ' deg', 'notSimulated', 'force and grip limits; the sim worlds are flat, so this is never driven'));
+      rows.push(row('Max grade (static estimate)', phys.maxSlopeDeg + ' deg', 'notSimulated', 'static force/grip ceiling, grip-capped at atan(mu) so most torquey builds report the same; the sim worlds are flat, so no slope is ever driven'));
     }
     // Collision circle + sensor coverage.
     rows.push(row('Collision body', (phys && phys.collisionRadiusCm || M.roverRadiusCm) * 2 + ' cm circle', phys && phys.collisionRadiusCm ? 'honoured' : 'approximated', phys && phys.collisionRadiusCm ? 'hypot(length, width) from the imported body (still a circle, disclosed)' : 'default 60 cm circle'));

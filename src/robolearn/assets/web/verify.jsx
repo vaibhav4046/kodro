@@ -36,16 +36,31 @@
     var gravity = (terrain && terrain.env && terrain.env.gravity) || M.gravityEarthMps2;
 
     var rows = [];
-    // Top speed: physical -> motor-derived (HONOURED); catalogue -> the
-    // calibrated 3.125 m/s anchor scaled by the parts factor.
+    // Top speed: physical -> the motor NO-LOAD speed (v = rpm/60*2*pi*r). In
+    // band the sim cruises at exactly this value (HONOURED); out of band it is
+    // clamped to a DIFFERENT sim speed and the badge drops to APPROXIMATED, so
+    // consume phys.badges.topSpeed - never assume honoured - and disclose the
+    // clamp instead of printing a formula that yields a different number. The
+    // number is the no-load ceiling, so real speed under load is lower.
     var vCmPerS = phys && phys.vMaxSimCmPerS !== undefined ? phys.vMaxSimCmPerS : M.baseSpeedCmPerS * speedFac;
-    rows.push(row('Top speed', (vCmPerS / 100).toFixed(2) + ' m/s',
-      phys && phys.vMaxSimCmPerS !== undefined ? 'honoured' : 'approximated',
-      phys && phys.vMaxSimCmPerS !== undefined ? 'v = rpm/60 * 2*pi*r from the imported motor' : 'catalogue speed factor times the 3.125 m/s anchor'));
+    var topTier = phys && phys.badges && phys.badges.topSpeed
+      ? phys.badges.topSpeed
+      : (phys && phys.vMaxSimCmPerS !== undefined ? 'honoured' : 'approximated');
+    var topHow;
+    if (phys && phys.vMaxSimCmPerS !== undefined) {
+      if (phys.vMaxCmPerS !== undefined && Math.abs(phys.vMaxSimCmPerS - phys.vMaxCmPerS) > 0.5) {
+        topHow = 'motor no-load ' + (phys.vMaxCmPerS / 100).toFixed(2) + ' m/s (v = rpm/60 * 2*pi*r), clamped to the ' + (phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s simulable band';
+      } else {
+        topHow = 'no-load motor speed v = rpm/60 * 2*pi*r, simulated exactly; real speed under load is lower';
+      }
+    } else {
+      topHow = 'catalogue speed factor times the 3.125 m/s anchor';
+    }
+    rows.push(row('Top speed (no-load)', (vCmPerS / 100).toFixed(2) + ' m/s', topTier, topHow));
     // 0-to-top time (physical only; catalogue ramp is a display trapezoid).
     if (phys && phys.accelCmPerS2 !== undefined) {
-      rows.push(row('0 to top speed', (vCmPerS / phys.accelCmPerS2).toFixed(2) + ' s', 'approximated',
-        'a = (F_stall - Crr*m*g)/m, first order'));
+      rows.push(row('0 to top speed (best case)', (vCmPerS / phys.accelCmPerS2).toFixed(2) + ' s', 'approximated',
+        'a = (F_stall - Crr*m*g)/m at stall torque held constant; a lower bound on the time - real motors lose torque with speed, so hardware is slower'));
     }
     // Stopping distance: v^2/(2*mu*g) replaces the old proxy.
     var stopCm = KM.physStoppingDistanceCm(vCmPerS, traction, gravity);
@@ -64,7 +79,7 @@
     rows.push(row('Runtime', '~' + runtimeMin + ' min',
       phys && phys.energyWh !== undefined ? 'approximated' : 'approximated',
       phys && phys.energyWh !== undefined
-        ? 'E = mAh*V*usable; P = F*v/eta + idle (constant-power, no sag)'
+        ? 'E = mAh*V*usable; P = F*v/eta + idle (constant-power; ignores voltage sag and motor copper/stall losses, so runtime is optimistic)'
         : 'catalogue estimate from mass'));
     rows.push(row('Range on one charge', ((vCmPerS / 100) * runtimeMin * 60 / 1000).toFixed(2) + ' km', 'approximated',
       'top speed times runtime; real missions turn and idle'));
@@ -76,8 +91,8 @@
       phys && phys.energyWh !== undefined ? 'energy-true model at cruise speed' : 'shared constant-power ledger'));
     // Max slope is REPORTED only: worlds are flat planes (disclosed).
     if (phys && phys.maxSlopeDeg !== undefined) {
-      rows.push(row('Max slope', phys.maxSlopeDeg + ' deg', 'notSimulated',
-        'force and grip limits; the sim worlds are flat, so this is never driven'));
+      rows.push(row('Max grade (static estimate)', phys.maxSlopeDeg + ' deg', 'notSimulated',
+        'static force/grip ceiling, grip-capped at atan(mu) so most torquey builds report the same; the sim worlds are flat, so no slope is ever driven'));
     }
     // Collision circle + sensor coverage.
     rows.push(row('Collision body', ((phys && phys.collisionRadiusCm) || M.roverRadiusCm) * 2 + ' cm circle',

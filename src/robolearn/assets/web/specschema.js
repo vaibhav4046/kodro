@@ -65,21 +65,21 @@
   var FIDELITY = {
     honoured: [
       'Commanded distances and turn angles (endpoint-exact)',
-      'Top speed calibrated from motor rpm and wheel radius, when it falls inside the simulable band (outside it the badge drops to APPROXIMATED and the sim speed is disclosed)',
+      'No-load top speed calibrated from motor rpm and wheel radius, when it falls inside the simulable band; the sim cruises at exactly this value (outside the band the badge drops to APPROXIMATED and the sim speed is disclosed). Real speed under load is lower',
       'Sensor mount position, yaw and range in the studio sim (z ignored, disclosed; the Python engine rays from the rover centre)',
       'Collision circle sized from the body footprint',
       'Command availability gated on fitted parts',
       'Battery as a hard budget: the robot halts at zero',
     ],
     approximated: [
-      'Acceleration and braking: first-order trapezoid, not F=ma integration',
+      'Acceleration and braking: first-order trapezoid at stall torque held constant (no torque falloff with speed), so 0-to-top time is a best-case lower bound and real hardware is slower',
       'Turn time from mass or track geometry, not wheel torque curves',
       'Traction: three coarse bands per surface',
-      'Constant-power battery drain (no voltage sag or thermal derating)',
+      'Constant-power battery drain (no voltage sag, thermal derating, or motor copper/stall losses), so runtime is optimistic',
       'Scenario validation spread from seeded randomisation',
     ],
     notSimulated: [
-      'Slopes and terrain height (worlds are flat planes)',
+      'Slopes and terrain height (worlds are flat planes); the reported max grade is a static grip-limit estimate, never driven',
       'Wheel-level slip and per-motor torque curves',
       'Suspension and 3D contact (body motion is cosmetic)',
       'Voltage sag, thermal limits, per-motor current transients',

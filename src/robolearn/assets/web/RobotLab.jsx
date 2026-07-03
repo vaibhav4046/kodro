@@ -492,7 +492,7 @@
             React.createElement('div', { className: 'rl-spec' },
               React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.mass + ' g'), React.createElement('span', null, 'total mass ', Badge('honoured'))),
               React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, '~' + d.runtimeMin + ' min'), React.createElement('span', null, 'battery / charge ', Badge('approximated'))),
-              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : d.speedFactor.toFixed(2) + '×'), React.createElement('span', null, 'top speed ', Badge('honoured'))),
+              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : d.speedFactor.toFixed(2) + '×'), React.createElement('span', null, 'top speed (no-load) ', Badge((d.phys && d.phys.badges && d.phys.badges.topSpeed) || 'honoured'))),
               React.createElement('div', { className: 'rl-stat rl-stat-wide' },
                 React.createElement('b', null, d.commands.length ? d.commands.map(c => c + '()').join('  ') : 'move()  turn()  only'),
                 React.createElement('span', null, 'commands this build supports ', Badge('honoured'))
@@ -501,16 +501,15 @@
             // ---- SI1: measured-build banner for an imported KRS spec
             spec.physical && d.phys && React.createElement('div', { className: 'rl-measured', 'data-spec-import': 'measured' },
               React.createElement('div', { className: 'rl-measured-head' },
-                React.createElement('span', { className: 'rl-label', style: { margin: 0 } }, 'Measured build - imported spec drives the sim'),
-                Badge('honoured')
+                React.createElement('span', { className: 'rl-label', style: { margin: 0 } }, 'Measured build - imported spec drives the sim; each stat carries its own fidelity badge')
               ),
               React.createElement('div', { className: 'rl-measured-grid' },
                 React.createElement('span', null, 'Mass ', React.createElement('b', null, d.phys.massKg !== undefined ? d.phys.massKg + ' kg' : '-')),
-                React.createElement('span', null, 'Top speed ', React.createElement('b', null, d.phys.vMaxCmPerS !== undefined ? (d.phys.vMaxCmPerS / 100).toFixed(2) + ' m/s' : 'catalogue')),
+                React.createElement('span', null, 'Top speed (no-load) ', React.createElement('b', null, d.phys.vMaxCmPerS !== undefined ? (d.phys.vMaxCmPerS / 100).toFixed(2) + ' m/s' : 'catalogue')),
                 React.createElement('span', null, 'Runtime ', React.createElement('b', null, d.phys.runtimeMin !== undefined ? '~' + d.phys.runtimeMin + ' min' : 'catalogue')),
                 React.createElement('span', null, 'Body ', React.createElement('b', null, d.phys.collisionRadiusCm !== undefined ? Math.round(d.phys.collisionRadiusCm * 2) + ' cm circle' : '60 cm default')),
                 React.createElement('span', null, 'Sensor ', React.createElement('b', null, d.phys.sensor ? '+' + d.phys.sensor.fwdCm + ' cm fwd, ' + d.phys.sensor.rangeCm + ' cm range' : 'none imported')),
-                d.phys.maxSlopeDeg !== undefined ? React.createElement('span', null, 'Max slope ', React.createElement('b', null, d.phys.maxSlopeDeg + '°'), ' ', Badge('notSimulated')) : null
+                d.phys.maxSlopeDeg !== undefined ? React.createElement('span', null, 'Max grade (static est.) ', React.createElement('b', null, d.phys.maxSlopeDeg + '°'), ' ', Badge('notSimulated')) : null
               ),
               (d.phys.warnings && d.phys.warnings.length) ? React.createElement('ul', { className: 'rl-issues rl-issues-warn' },
                 d.phys.warnings.map(function (w, i) { return React.createElement('li', { key: i }, w); })
