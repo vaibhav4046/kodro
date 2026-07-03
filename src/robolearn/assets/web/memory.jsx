@@ -24,7 +24,7 @@
   const MAX = 40;
 
   function load(key) { try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : []; } catch (e) { return []; } }
-  function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); } catch (e) { void e; } }
+  function save(key, v) { try { localStorage.setItem(key, JSON.stringify(v)); return true; } catch (e) { void e; return false; } }
   function bump() { try { window.dispatchEvent(new CustomEvent('kodro-memory')); } catch (e) { void e; } }
 
   // Turn a run outcome into a short, specific, actionable reflection. Rule
@@ -164,9 +164,9 @@
   function importData(json) {
     let data;
     try { data = typeof json === 'string' ? JSON.parse(json) : json; }
-    catch (e) { return 0; }
-    if (!data || typeof data !== 'object') return 0;
-    let count = 0;
+    catch (e) { return { restored: 0, incomplete: false }; }
+    if (!data || typeof data !== 'object') return { restored: 0, incomplete: false };
+    let count = 0, incomplete = false;
     if (Array.isArray(data.reflections)) {
       const existing = load(RKEY);
       const merged = data.reflections
@@ -181,8 +181,7 @@
         }))
         .concat(existing);
       while (merged.length > MAX) merged.pop();
-      save(RKEY, merged);
-      count += merged.length;
+      if (save(RKEY, merged)) count += merged.length; else incomplete = true;
     }
     if (Array.isArray(data.skills)) {
       const existing = load(SKEY);
@@ -202,11 +201,10 @@
       }
       const merged = Object.values(byName).sort((a, b) => (b.ts || 0) - (a.ts || 0));
       while (merged.length > MAX) merged.pop();
-      save(SKEY, merged);
-      count += merged.length;
+      if (save(SKEY, merged)) count += merged.length; else incomplete = true;
     }
     bump();
-    return count;
+    return { restored: count, incomplete: incomplete };
   }
 
   // ---- scenario validation reports (domain randomisation across seeds) ----

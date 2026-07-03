@@ -41,6 +41,16 @@ FORBIDDEN_NAMES: frozenset[str] = frozenset(
     }
 )
 
+#: Largest constant multiplier allowed in a sequence-repeat expression. A pupil
+#: typo like ``[0] * 500000000`` allocates gigabytes in about a second, well
+#: under the wall-clock timeout, and can exhaust the machine's RAM (a
+#: self-inflicted denial of service on this single-user offline app). We reject
+#: an oversized *literal* multiplier at parse time. This does NOT catch a size
+#: computed at runtime (``n = 500000000; [0] * n``); a hard memory cap for that
+#: needs the out-of-process executor the design deliberately declined, so it
+#: stays a documented residual rather than a false guarantee.
+MAX_LITERAL_REPEAT: int = 1_000_000
+
 
 @dataclass(frozen=True, slots=True)
 class SandboxViolation:
@@ -78,6 +88,26 @@ class _SandboxWalker(ast.NodeVisitor):
     def visit_Attribute(self, node: ast.Attribute) -> None:
         if _is_dunder(node.attr):
             self.violations.append(SandboxViolation("dunder-attr", node.attr, node.lineno))
+        self.generic_visit(node)
+
+    # --- oversized sequence repeat ------------------------------------------
+
+    def visit_BinOp(self, node: ast.BinOp) -> None:
+        # Reject e.g. ``[0] * 500000000`` / ``"x" * 500000000`` where a literal
+        # int multiplier would allocate far more than any lesson needs, before
+        # the wall-clock timeout can fire. Runtime-computed sizes are out of
+        # reach here (see MAX_LITERAL_REPEAT).
+        if isinstance(node.op, ast.Mult):
+            for operand in (node.left, node.right):
+                if (
+                    isinstance(operand, ast.Constant)
+                    and isinstance(operand.value, int)
+                    and not isinstance(operand.value, bool)
+                    and abs(operand.value) > MAX_LITERAL_REPEAT
+                ):
+                    self.violations.append(
+                        SandboxViolation("oversized-repeat", str(operand.value), node.lineno)
+                    )
         self.generic_visit(node)
 
     # --- name references ----------------------------------------------------

@@ -170,6 +170,10 @@
     catch (e) { return { ok: false, reason: 'Ollama is not running. Start the Ollama app, then try again.' }; }
     const model = pick(models);
     if (!model) return { ok: false, reason: 'Ollama has no models. Pull one, e.g. ollama pull qwen2.5-coder:3b.' };
+    // Evict finished/orphaned jobs so a cancelled chat (whose poller stopped
+    // before marking the job done) does not accumulate in the map across a
+    // session (browser mode). Completed jobs from a prior turn are swept here.
+    for (const k in jobs) { if (jobs[k] && jobs[k].done) delete jobs[k]; }
     const id = 'wj' + (++jid);
     const job = { done: false, text: '', result: null };
     jobs[id] = job;
@@ -300,10 +304,14 @@
     try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running.' }; }
     const model = pick(models);
     if (!model) return { ok: false, reason: 'Ollama has no models.' };
-    const sys = 'You are Kodro\'s offline assistant. Answer briefly and concretely about designing and programming the simulated robot. If unsure, say so.';
+    // Browser mode has no lesson corpus to ground against (the desktop bridge
+    // does the retrieval), so constrain the model to Kodro's real commands and
+    // make it refuse rather than invent, and mark the answer ungrounded so the
+    // UI does not claim it came from the built-in material.
+    const sys = 'You are Kodro\'s offline assistant for a simulated robot. Answer briefly and concretely, only about Kodro\'s actual robot commands and features. If the question is outside that or you are not sure, say you are not sure rather than inventing a command or capability.';
     try {
       const text = await genOnce(model, query, { system: sys, num_predict: 350 });
-      return { ok: true, text: stripFences(text), answer: stripFences(text), model: model };
+      return { ok: true, text: stripFences(text), answer: stripFences(text), model: model, grounded: false };
     } catch (e) { return { ok: false, reason: 'Ask failed: ' + ((e && e.message) || e) }; }
   }
 

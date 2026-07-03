@@ -450,7 +450,11 @@
       min: function () { let a = [].slice.call(arguments); if (a.length === 1 && Array.isArray(a[0])) a = a[0]; return Math.min.apply(null, a); },
       max: function () { let a = [].slice.call(arguments); if (a.length === 1 && Array.isArray(a[0])) a = a[0]; return Math.max.apply(null, a); },
       sqrt: x => Math.sqrt(x),
-      random: () => Math.random()
+      // Deterministic when the host supplies a seeded PRNG (the scenario grader
+      // does): a graded program that calls random() then reproduces exactly for
+      // a given seed, upholding the "a fixed seed reproduces a run" contract.
+      // Live play has no host.rng, so it stays truly random.
+      random: () => (host && typeof host.rng === 'function' ? host.rng() : Math.random())
     };
   }
 
@@ -844,9 +848,23 @@
     }
     switch (op) {
       case '-': return l - r;
-      case '*':
-        if (typeof l === 'string' && typeof r === 'number') return l.repeat(Math.max(0, r));
+      case '*': {
+        // Python sequence-repeat, both operand orders, so the in-browser branch
+        // agrees with the Python grader instead of truncating or returning NaN:
+        // 'x'*3 and 3*'x' both repeat; a bool counts as 0/1 (True*'x' -> 'x');
+        // a float multiplier raises like range() does ('x'*2.5 -> TypeError in
+        // CPython) rather than silently truncating.
+        var lStr = typeof l === 'string', rStr = typeof r === 'string';
+        if (lStr || rStr) {
+          if (lStr && rStr) throw new RoverError("can't multiply sequence by non-int of type 'str'", line);
+          var seq = lStr ? l : r;
+          var n = lStr ? r : l;
+          if (typeof n === 'boolean') n = n ? 1 : 0;
+          if (typeof n !== 'number' || !Number.isInteger(n)) throw new RoverError("can't multiply sequence by non-int of type 'float'", line);
+          return seq.repeat(Math.max(0, n));
+        }
         return l * r;
+      }
       case '/': return l / r;
       case '//': return Math.floor(l / r);
       case '%': return ((l % r) + r) % r;

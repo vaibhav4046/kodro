@@ -1962,8 +1962,10 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
   function save(key, v) {
     try {
       localStorage.setItem(key, JSON.stringify(v));
+      return true;
     } catch (e) {
       void e;
+      return false;
     }
   }
   function bump() {
@@ -2157,10 +2159,17 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     try {
       data = typeof json === 'string' ? JSON.parse(json) : json;
     } catch (e) {
-      return 0;
+      return {
+        restored: 0,
+        incomplete: false
+      };
     }
-    if (!data || typeof data !== 'object') return 0;
-    let count = 0;
+    if (!data || typeof data !== 'object') return {
+      restored: 0,
+      incomplete: false
+    };
+    let count = 0,
+      incomplete = false;
     if (Array.isArray(data.reflections)) {
       const existing = load(RKEY);
       const merged = data.reflections.filter(r => r && typeof r === 'object' && r.reflection).map(r => ({
@@ -2172,8 +2181,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         reflection: String(r.reflection)
       })).concat(existing);
       while (merged.length > MAX) merged.pop();
-      save(RKEY, merged);
-      count += merged.length;
+      if (save(RKEY, merged)) count += merged.length;else incomplete = true;
     }
     if (Array.isArray(data.skills)) {
       const existing = load(SKEY);
@@ -2193,11 +2201,13 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       }
       const merged = Object.values(byName).sort((a, b) => (b.ts || 0) - (a.ts || 0));
       while (merged.length > MAX) merged.pop();
-      save(SKEY, merged);
-      count += merged.length;
+      if (save(SKEY, merged)) count += merged.length;else incomplete = true;
     }
     bump();
-    return count;
+    return {
+      restored: count,
+      incomplete: incomplete
+    };
   }
 
   // ---- scenario validation reports (domain randomisation across seeds) ----
@@ -13784,6 +13794,47 @@ Object.assign(window, {
     return KM.physDrainPctPerCm(phys.massKg, phys.energyWh, v, KM.MODEL.gravityEarthMps2, traction || 1);
   }
 
+  // Base-world environment for the sensor host, mirroring terrains.jsx base env
+  // (gravity, air temp, light on the 0-100 scale). A program that branches on
+  // gravity()/temperature()/light() must grade the way it runs, so the grader
+  // reports the scenario world's real environment instead of always Earth.
+  // Site scenarios set environmentPreset to their BASE world.
+  var ENV_BY_PRESET = {
+    earth: {
+      gravity: 9.81,
+      temp: 16,
+      light: 80
+    },
+    room: {
+      gravity: 9.81,
+      temp: 21,
+      light: 70
+    },
+    city: {
+      gravity: 9.81,
+      temp: 18,
+      light: 92
+    },
+    mars: {
+      gravity: 3.71,
+      temp: -63,
+      light: 43
+    },
+    underwater: {
+      gravity: 9.81,
+      temp: 3,
+      light: 12
+    },
+    space: {
+      gravity: 1.62,
+      temp: -173,
+      light: 100
+    }
+  };
+  function scenarioEnv(preset) {
+    return ENV_BY_PRESET[preset] || ENV_BY_PRESET.earth;
+  }
+
   // One headless run with the parameters this seed produced. `gateRobot` is the
   // build whose fitted parts gate the part-specific commands; run() resolves it
   // once and never passes null on a user-facing path (see run()).
@@ -13850,6 +13901,9 @@ Object.assign(window, {
     let commandErrors = 0,
       sensorFailures = 0;
     const host = {
+      // Seeded PRNG so a graded program that calls random() reproduces exactly
+      // for a fixed seed (the interpreter's random() reads host.rng when present).
+      rng: rng,
       sensor: function (name) {
         // Gate on the build's fitted parts, exactly like the live host.
         if (window.KodroCommands) {
@@ -13892,11 +13946,11 @@ Object.assign(window, {
           case 'y':
             return Math.round(-s.y);
           case 'gravity':
-            return 9.81;
+            return scenarioEnv(scenario.environmentPreset).gravity;
           case 'temperature':
-            return 16;
+            return scenarioEnv(scenario.environmentPreset).temp;
           case 'light':
-            return 0.8;
+            return scenarioEnv(scenario.environmentPreset).light;
           // Mirror the live host (app.jsx) so a program branching on tilt()/
           // read_colour() validates the same way it runs: same tilt formula,
           // and the scenario's environment preset as the ground id.
@@ -16018,6 +16072,12 @@ Object.assign(window, {
       ok: false,
       reason: 'Ollama has no models. Pull one, e.g. ollama pull qwen2.5-coder:3b.'
     };
+    // Evict finished/orphaned jobs so a cancelled chat (whose poller stopped
+    // before marking the job done) does not accumulate in the map across a
+    // session (browser mode). Completed jobs from a prior turn are swept here.
+    for (const k in jobs) {
+      if (jobs[k] && jobs[k].done) delete jobs[k];
+    }
     const id = 'wj' + ++jid;
     const job = {
       done: false,
@@ -16273,7 +16333,11 @@ Object.assign(window, {
       ok: false,
       reason: 'Ollama has no models.'
     };
-    const sys = 'You are Kodro\'s offline assistant. Answer briefly and concretely about designing and programming the simulated robot. If unsure, say so.';
+    // Browser mode has no lesson corpus to ground against (the desktop bridge
+    // does the retrieval), so constrain the model to Kodro's real commands and
+    // make it refuse rather than invent, and mark the answer ungrounded so the
+    // UI does not claim it came from the built-in material.
+    const sys = 'You are Kodro\'s offline assistant for a simulated robot. Answer briefly and concretely, only about Kodro\'s actual robot commands and features. If the question is outside that or you are not sure, say you are not sure rather than inventing a command or capability.';
     try {
       const text = await genOnce(model, query, {
         system: sys,
@@ -16283,7 +16347,8 @@ Object.assign(window, {
         ok: true,
         text: stripFences(text),
         answer: stripFences(text),
-        model: model
+        model: model,
+        grounded: false
       };
     } catch (e) {
       return {
@@ -19631,7 +19696,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, KI('ask'), "Ask. Answered from the built-in material, not made up"), /*#__PURE__*/React.createElement("button", {
+    }, KI('ask'), "Ask. ", askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Grounded in the built-in material when it is available'), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setAskOpen(false)
@@ -19713,15 +19778,20 @@ say("Survey done")`
       if (!f) return;
       const rd = new FileReader();
       rd.onload = () => {
-        let n = 0;
+        let res = 0;
         try {
-          n = window.KodroMemory.importData(String(rd.result));
+          res = window.KodroMemory.importData(String(rd.result));
         } catch (err) {
           void err;
         }
+        const restored = res && typeof res === 'object' ? res.restored : res;
+        const incomplete = !!(res && typeof res === 'object' && res.incomplete);
         try {
           window.dispatchEvent(new CustomEvent('kodro-toast', {
-            detail: n ? {
+            detail: restored ? incomplete ? {
+              text: 'Memory partly restored: storage was full, some items could not be saved',
+              kind: 'err'
+            } : {
               text: 'Memory restored from backup',
               kind: 'info'
             } : {
@@ -19840,6 +19910,7 @@ say("Survey done")`
       }
     }, "Insert"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
+      "aria-label": 'Remove skill ' + s.name,
       onClick: () => window.KodroMemory.removeSkill(s.name)
     }, "\u2715"))))) : /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
@@ -19917,6 +19988,7 @@ say("Survey done")`
     }, "Use model"), /*#__PURE__*/React.createElement("select", {
       value: aiInfo.override || aiInfo.model || '',
       onChange: e => pickModel(e.target.value),
+      "aria-label": "AI model",
       style: {
         background: 'var(--navy-2)',
         color: 'var(--fg-1)',
@@ -20202,9 +20274,20 @@ say("Survey done")`
       strokeLinejoin: "round"
     }))
   };
+
+  // localStorage can throw (DOM storage disabled / opaque origin in an embedded
+  // WebView); a read in a useState initialiser must never abort the first
+  // render, so route every getItem through this guarded helper.
+  function lsGet(k) {
+    try {
+      return window.localStorage.getItem(k);
+    } catch (e) {
+      return null;
+    }
+  }
   function App() {
     const [terrainId, setTerrainId] = useState(() => {
-      const saved = localStorage.getItem('or_terrain');
+      const saved = lsGet('or_terrain');
       if (saved) return saved;
       // Fresh load: open in the world recommended for the current build, so the
       // first impression matches the rover (the default rover recommends Earth),
@@ -20218,7 +20301,7 @@ say("Survey done")`
       return 'mars';
     });
     const [activeTab, setActiveTab] = useState(() => {
-      const saved = localStorage.getItem('or_tab');
+      const saved = lsGet('or_tab');
       if (saved) return saved;
       // Default to the short 'starter' example (drive tab) so the first thing a
       // user sees is a friendly 6-line program, not a wall of code. It uses only
@@ -20251,8 +20334,8 @@ say("Survey done")`
       zoom: 1
     });
     // Real WebGL 3D viewport (Three.js) with third-person orbit / first-person.
-    const [view3d, setView3d] = useState(() => localStorage.getItem('or_view3d') !== '0');
-    const [fpv, setFpv] = useState(() => localStorage.getItem('or_fpv') === '1');
+    const [view3d, setView3d] = useState(() => lsGet('or_view3d') !== '0');
+    const [fpv, setFpv] = useState(() => lsGet('or_fpv') === '1');
     useEffect(() => {
       try {
         localStorage.setItem('or_view3d', view3d ? '1' : '0');
@@ -20442,11 +20525,11 @@ say("Survey done")`
     // if activeTab is somehow not a known example key, fall back to basecamp.
     : programs[activeTab] !== undefined ? programs[activeTab] : programs.drive || '';
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
-    const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
-    const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
+    const [readable, setReadable] = useState(() => lsGet('or_readable') === '1');
+    const [muted, setMuted] = useState(() => lsGet('or_muted') === '1');
     // Visual theme. 'dark' is the default mission-control look; the rest are
     // full repaints driven by [data-theme] CSS variable swaps in styles.css.
-    const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
+    const [theme, setTheme] = useState(() => lsGet('or_theme') || 'dark');
     // P7/A1 mode split: 'studio' is the professional validation tool; the
     // Classroom toggle brings back pupils, lessons, the teacher dashboard,
     // achievements/confetti and the novelty themes. One product, two registers,
@@ -20511,7 +20594,7 @@ say("Survey done")`
       }
     });
     // First-run onboarding / landing flow (shown once, remembered, skippable).
-    const [onboarded, setOnboarded] = useState(() => localStorage.getItem('or_onboarded') === '1');
+    const [onboarded, setOnboarded] = useState(() => lsGet('or_onboarded') === '1');
     // Budget robot builder (local AI hardware guide for a real-world rover).
     // ---- P7/A7: project file (one .kodro document for the whole state) ----
     // Extracted VERBATIM to window.KodroHooks.useProjectIO (hooks.jsx); its

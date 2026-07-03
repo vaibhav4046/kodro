@@ -89,6 +89,21 @@
     return KM.physDrainPctPerCm(phys.massKg, phys.energyWh, v, KM.MODEL.gravityEarthMps2, traction || 1);
   }
 
+  // Base-world environment for the sensor host, mirroring terrains.jsx base env
+  // (gravity, air temp, light on the 0-100 scale). A program that branches on
+  // gravity()/temperature()/light() must grade the way it runs, so the grader
+  // reports the scenario world's real environment instead of always Earth.
+  // Site scenarios set environmentPreset to their BASE world.
+  var ENV_BY_PRESET = {
+    earth: { gravity: 9.81, temp: 16, light: 80 },
+    room: { gravity: 9.81, temp: 21, light: 70 },
+    city: { gravity: 9.81, temp: 18, light: 92 },
+    mars: { gravity: 3.71, temp: -63, light: 43 },
+    underwater: { gravity: 9.81, temp: 3, light: 12 },
+    space: { gravity: 1.62, temp: -173, light: 100 },
+  };
+  function scenarioEnv(preset) { return ENV_BY_PRESET[preset] || ENV_BY_PRESET.earth; }
+
   // One headless run with the parameters this seed produced. `gateRobot` is the
   // build whose fitted parts gate the part-specific commands; run() resolves it
   // once and never passes null on a user-facing path (see run()).
@@ -125,6 +140,9 @@
 
     let commandErrors = 0, sensorFailures = 0;
     const host = {
+      // Seeded PRNG so a graded program that calls random() reproduces exactly
+      // for a fixed seed (the interpreter's random() reads host.rng when present).
+      rng: rng,
       sensor: function (name) {
         // Gate on the build's fitted parts, exactly like the live host.
         if (window.KodroCommands) {
@@ -151,7 +169,9 @@
           case 'speed': return Math.round(s.speed);
           case 'x': return Math.round(s.x);
           case 'y': return Math.round(-s.y);
-          case 'gravity': return 9.81; case 'temperature': return 16; case 'light': return 0.8;
+          case 'gravity': return scenarioEnv(scenario.environmentPreset).gravity;
+          case 'temperature': return scenarioEnv(scenario.environmentPreset).temp;
+          case 'light': return scenarioEnv(scenario.environmentPreset).light;
           // Mirror the live host (app.jsx) so a program branching on tilt()/
           // read_colour() validates the same way it runs: same tilt formula,
           // and the scenario's environment preset as the ground id.

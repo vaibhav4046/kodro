@@ -538,6 +538,7 @@ def _snapshot(rover: Rover) -> RoverSnapshot:
         samples_held=state.samples_held,
         samples_collected=state.samples_collected,
         collisions=state.collisions,
+        distance_travelled_m=state.distance_travelled_m,
     )
 
 

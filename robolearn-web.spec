@@ -24,6 +24,12 @@ datas += collect_data_files("robolearn")
 datas += collect_data_files("webview")
 datas += collect_data_files("pythonnet")
 
+# Strip the build-only Babel (~3 MB) from the shipped datas. JSX is precompiled
+# to bundle.js at build time (scripts/build_web.cjs); Babel is never loaded at
+# runtime (index.html/cap.html load only React/Three), so it is pure bloat in
+# every distributed RoboLearn.exe.
+datas = [d for d in datas if not d[0].replace(os.sep, "/").endswith("vendor/babel.min.js")]
+
 hiddenimports = ["robolearn.web", "robolearn.web.app", "robolearn.web.__main__"]
 hiddenimports += collect_submodules("robolearn")
 # pywebview lazily imports its platform backend (WinForms on Windows) + the

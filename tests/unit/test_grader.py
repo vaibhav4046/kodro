@@ -47,7 +47,9 @@ def _tracer_with(events: list[Event]) -> Tracer:
     return t
 
 
-def _snap(x: float = 0.0, y: float = 0.0, battery: float = 100.0) -> RoverSnapshot:
+def _snap(
+    x: float = 0.0, y: float = 0.0, battery: float = 100.0, distance: float = 0.0
+) -> RoverSnapshot:
     return RoverSnapshot(
         x=x,
         y=y,
@@ -56,6 +58,7 @@ def _snap(x: float = 0.0, y: float = 0.0, battery: float = 100.0) -> RoverSnapsh
         samples_held=0,
         samples_collected=0,
         collisions=0,
+        distance_travelled_m=distance,
     )
 
 
@@ -289,17 +292,31 @@ def test_min_distance_travelled_pass() -> None:
     lesson = _lesson(criteria=[SuccessCriterion(min_distance_travelled=3.0)])
     tracer = _tracer_with(
         [
-            Event(0, 0, "call", "move_forward", (2.0,), None, None),
-            Event(0, 1, "call", "move_forward", (2.0,), None, None),
+            Event(0, 0, "call", "move_forward", (2.0,), None, _snap(distance=2.0)),
+            Event(0, 1, "call", "move_forward", (2.0,), None, _snap(distance=4.0)),
         ],
     )
     assert grade(lesson, tracer).passed is True
 
 
+def test_min_distance_travelled_counts_actual_not_commanded() -> None:
+    # A rover commanded to move far but clamped short by a wall or obstacle must
+    # NOT pass a min_distance_travelled criterion it did not physically meet: the
+    # grader reads the engine's actual travelled distance, not the command args.
+    lesson = _lesson(criteria=[SuccessCriterion(min_distance_travelled=3.0)])
+    tracer = _tracer_with(
+        [
+            Event(0, 0, "call", "move_forward", (5.0,), None, _snap(distance=1.0)),
+            Event(0, 1, "call", "move_forward", (5.0,), None, _snap(distance=1.0)),
+        ],
+    )
+    assert grade(lesson, tracer).passed is False
+
+
 def test_min_distance_travelled_fail() -> None:
     lesson = _lesson(criteria=[SuccessCriterion(min_distance_travelled=10.0)])
     tracer = _tracer_with(
-        [Event(0, 0, "call", "move_forward", (1.0,), None, None)],
+        [Event(0, 0, "call", "move_forward", (1.0,), None, _snap(distance=1.0))],
     )
     result = grade(lesson, tracer)
     assert result.passed is False

@@ -312,7 +312,7 @@
       <div className="modal-backdrop" onClick={() => !askBusy && setAskOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="Ask a question" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('ask')}Ask. Answered from the built-in material, not made up</span>
+            <span className="eyebrow">{KI('ask')}Ask. {askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Grounded in the built-in material when it is available'}</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setAskOpen(false)}>✕</button>
           </div>
           <div className="ask-body">
@@ -368,12 +368,16 @@
       if (!f) return;
       const rd = new FileReader();
       rd.onload = () => {
-        let n = 0;
-        try { n = window.KodroMemory.importData(String(rd.result)); } catch (err) { void err; }
+        let res = 0;
+        try { res = window.KodroMemory.importData(String(rd.result)); } catch (err) { void err; }
+        const restored = (res && typeof res === 'object') ? res.restored : res;
+        const incomplete = !!(res && typeof res === 'object' && res.incomplete);
         try {
           window.dispatchEvent(new CustomEvent('kodro-toast', {
-            detail: n
-              ? { text: 'Memory restored from backup', kind: 'info' }
+            detail: restored
+              ? (incomplete
+                  ? { text: 'Memory partly restored: storage was full, some items could not be saved', kind: 'err' }
+                  : { text: 'Memory restored from backup', kind: 'info' })
               : { text: 'Import failed: not a Kodro memory backup', kind: 'err' },
           }));
         } catch (err) { void err; }
@@ -419,7 +423,7 @@
                         <span className="mem-skill-ctx">{(s.world || '') + ' · used ' + (s.uses || 0) + '×'}</span>
                         <span className="mem-skill-act">
                           <button className="btn-mini" onClick={() => { const cd = window.KodroMemory.useSkill(s.name); if (cd != null) { if (applyCode) applyCode(cd); else if (currentLessonId) setLessonBuffers(b => ({ ...b, [currentLessonId]: cd })); else setPrograms(p => ({ ...p, [activeTab]: cd })); setMemoryOpen(false); } }}>Insert</button>
-                          <button className="btn-mini" onClick={() => window.KodroMemory.removeSkill(s.name)}>✕</button>
+                          <button className="btn-mini" aria-label={'Remove skill ' + s.name} onClick={() => window.KodroMemory.removeSkill(s.name)}>✕</button>
                         </span>
                       </li>
                     ))}
@@ -457,7 +461,7 @@
               {aiInfo.models && aiInfo.models.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 12.5, color: 'var(--fg-2)' }}>Use model</span>
-                  <select value={aiInfo.override || aiInfo.model || ''} onChange={e => pickModel(e.target.value)}
+                  <select value={aiInfo.override || aiInfo.model || ''} onChange={e => pickModel(e.target.value)} aria-label="AI model"
                     style={{ background: 'var(--navy-2)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
                     {aiInfo.models.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>

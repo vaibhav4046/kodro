@@ -35,6 +35,11 @@ class RoverSnapshot:
     samples_held: int
     samples_collected: int
     collisions: int
+    # Actual cumulative distance the rover travelled (metres). Optional with a
+    # default so deserialising a trace saved before this field existed still
+    # works. The grader reads this instead of summing commanded move distances,
+    # which over-count when a move is clamped short by a wall or obstacle.
+    distance_travelled_m: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)

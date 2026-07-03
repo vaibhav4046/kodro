@@ -98,12 +98,17 @@ def _compute_aggregates(events: list[Event]) -> _Aggregates:
             samples += 1
         if event.kind == "collision":
             collisions += 1
-        if event.name in ("move_forward", "move_backward") and event.args:
-            distance += abs(float(event.args[0]))
         if event.rover_state is not None:
             final_x = event.rover_state.x
             final_y = event.rover_state.y
             battery_used = max(battery_used, 100.0 - event.rover_state.battery_pct)
+            # Actual travelled distance from the engine, not the sum of commanded
+            # move distances: a move clamped short by a wall or obstacle travels
+            # less than commanded, so summing command args over-counts and could
+            # pass a min_distance_travelled criterion the rover never met. The
+            # engine accumulates true travel, so the running maximum over the
+            # snapshots is the total distance actually covered.
+            distance = max(distance, event.rover_state.distance_travelled_m)
     return _Aggregates(
         samples_collected=samples,
         collisions=collisions,

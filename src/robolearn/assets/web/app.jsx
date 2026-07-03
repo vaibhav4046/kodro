@@ -29,9 +29,14 @@
     reset: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12a8 8 0 108-8M4 12V6M4 12h6" strokeLinecap="round" strokeLinejoin="round" /></svg>
   };
 
+  // localStorage can throw (DOM storage disabled / opaque origin in an embedded
+  // WebView); a read in a useState initialiser must never abort the first
+  // render, so route every getItem through this guarded helper.
+  function lsGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+
   function App() {
     const [terrainId, setTerrainId] = useState(() => {
-      const saved = localStorage.getItem('or_terrain');
+      const saved = lsGet('or_terrain');
       if (saved) return saved;
       // Fresh load: open in the world recommended for the current build, so the
       // first impression matches the rover (the default rover recommends Earth),
@@ -40,7 +45,7 @@
       return 'mars';
     });
     const [activeTab, setActiveTab] = useState(() => {
-      const saved = localStorage.getItem('or_tab');
+      const saved = lsGet('or_tab');
       if (saved) return saved;
       // Default to the short 'starter' example (drive tab) so the first thing a
       // user sees is a friendly 6-line program, not a wall of code. It uses only
@@ -61,8 +66,8 @@
     const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
     const [cam, setCam] = useState({ tilt: 46, yaw: -8, zoom: 1 });
     // Real WebGL 3D viewport (Three.js) with third-person orbit / first-person.
-    const [view3d, setView3d] = useState(() => localStorage.getItem('or_view3d') !== '0');
-    const [fpv, setFpv] = useState(() => localStorage.getItem('or_fpv') === '1');
+    const [view3d, setView3d] = useState(() => lsGet('or_view3d') !== '0');
+    const [fpv, setFpv] = useState(() => lsGet('or_fpv') === '1');
     useEffect(() => { try { localStorage.setItem('or_view3d', view3d ? '1' : '0'); } catch (e) { void e; } }, [view3d]);
     // Spin up the moving-agent simulation for the current world (city traffic
     // and pedestrians); both viewports and the collision test read from it.
@@ -192,11 +197,11 @@
       // if activeTab is somehow not a known example key, fall back to basecamp.
       : (programs[activeTab] !== undefined ? programs[activeTab] : (programs.drive || ''));
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
-    const [readable, setReadable] = useState(() => localStorage.getItem('or_readable') === '1');
-    const [muted, setMuted] = useState(() => localStorage.getItem('or_muted') === '1');
+    const [readable, setReadable] = useState(() => lsGet('or_readable') === '1');
+    const [muted, setMuted] = useState(() => lsGet('or_muted') === '1');
     // Visual theme. 'dark' is the default mission-control look; the rest are
     // full repaints driven by [data-theme] CSS variable swaps in styles.css.
-    const [theme, setTheme] = useState(() => localStorage.getItem('or_theme') || 'dark');
+    const [theme, setTheme] = useState(() => lsGet('or_theme') || 'dark');
     // P7/A1 mode split: 'studio' is the professional validation tool; the
     // Classroom toggle brings back pupils, lessons, the teacher dashboard,
     // achievements/confetti and the novelty themes. One product, two registers,
@@ -232,7 +237,7 @@
     // Mobile telemetry: collapsed by default under 768px; toggle expands it.
     const [teleCollapsed, setTeleCollapsed] = useState(() => { try { return window.innerWidth <= 768; } catch (e) { return false; } });
     // First-run onboarding / landing flow (shown once, remembered, skippable).
-    const [onboarded, setOnboarded] = useState(() => localStorage.getItem('or_onboarded') === '1');
+    const [onboarded, setOnboarded] = useState(() => lsGet('or_onboarded') === '1');
     // Budget robot builder (local AI hardware guide for a real-world rover).
     // ---- P7/A7: project file (one .kodro document for the whole state) ----
     // Extracted VERBATIM to window.KodroHooks.useProjectIO (hooks.jsx); its

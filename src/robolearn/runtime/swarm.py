@@ -44,6 +44,7 @@ def _snap(rover: Rover) -> RoverSnapshot:
         samples_held=s.samples_held,
         samples_collected=s.samples_collected,
         collisions=s.collisions,
+        distance_travelled_m=s.distance_travelled_m,
     )
 
 

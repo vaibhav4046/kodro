@@ -1286,6 +1286,7 @@ def _snapshot(rover: Rover) -> RoverSnapshot:
         samples_held=s.samples_held,
         samples_collected=s.samples_collected,
         collisions=s.collisions,
+        distance_travelled_m=s.distance_travelled_m,
     )
 
 
@@ -1488,10 +1489,14 @@ def launch(*, db_path: Path | None = None, debug: bool = False) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     with contextlib.suppress(Exception):
         _ = json  # keep json imported (used implicitly by pywebview)
-    build_app(db_path=db_path)
     try:
+        # build_app loads the bundled lesson library and the index HTML; a
+        # missing or corrupt bundled asset raises here, BEFORE webview.start.
+        # Route that through the same native failure dialog rather than letting
+        # a raw traceback escape the windowed, console-less .exe.
+        build_app(db_path=db_path)
         webview.start(debug=debug)
-    except Exception as exc:  # e.g. WebView2 runtime missing
+    except Exception as exc:  # e.g. WebView2 runtime missing, or a bad bundle
         # Tell the user what to do (native dialog) rather than crash silently
         # with a raw traceback in the packaged, windowed .exe.
         _report_startup_failure(exc)
