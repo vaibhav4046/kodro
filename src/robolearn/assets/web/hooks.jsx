@@ -521,5 +521,891 @@
     return { projectFileRef, saveProjectClick, openProjectClick, onProjectFilePicked };
   }
 
-  window.KodroHooks = { useAiStatus, useResizers, useBlocks, useReview, useVibeChat, useSwarm, useAsk, useTeacher, useBuild, useProjectIO };
+  function useSimEngine(deps) {
+    deps = deps || {};
+    // The run/animation engine (V2_REVIEW M4): collisionAt / rayDistance /
+    // sensorRayDistance, the frames/delay animation primitives, animateMove /
+    // animateTurn, advance (one interpreter step), pumpLoop, and the run
+    // controls (onRun / onStep / onReset / onTerrain / runReplLine /
+    // onCodeChange / exportReportClick). Moved VERBATIM from App so the
+    // deterministic tick is byte-identical -- the odometer still reads 3.4m on
+    // the default earth run. Everything it reaches for that lives in the App
+    // (module constants, live state, shared refs, setters and cross-concern
+    // callbacks) is threaded in through deps; the ONLY things it hands back are
+    // the seven run-control handlers the chrome and the keyboard layer call.
+    const {
+      // module constants (app.jsx top-level)
+      LED_COLORS, R_DEFAULT, WALL, TERRAINS, PREFERS_REDUCED_MOTION,
+      // live world + build + program + run state (values, re-read each render)
+      terrain, robotSpec, code, currentLessonId, activeTab, runState, terrainId,
+      speedMul, startState,
+      // shared refs owned by the App (also read by recordRunReport / cleanup)
+      live, trailRef, odoRef, minProxRef, cmdCountRef, sayTimer, runStartRef,
+      // setters
+      setRover, setTrail, setOdo, setSensorDist, setActiveLine, setConsoleLines,
+      setProps, setSay, setCrashKey, setRunState, setTerrainId, setLessonVerdict,
+      setLessonBuffers, setPrograms, setWorldLoading,
+      // cross-concern callbacks
+      addConsole, showToast, sfx, motorSfx, motorRest, recordRunReport,
+      gradeWithBridge, celebrate,
+    } = deps;
+    const ctrl = useRef({ running: false, abort: false, advancing: false, token: 0, startTimer: null, abortTimer: null });
+    const genRef = useRef(null);
+
+    const sync = () => { setRover({ ...live.current }); try { window.KODRO_ROVER = { x: live.current.x, y: live.current.y }; } catch (e) { void e; } };
+    const pushTrailPoint = () => {
+      if (!live.current.penDown) return;
+      const segs = trailRef.current;
+      if (!segs.length) return;
+      const seg = segs[segs.length - 1];
+      const last = seg[seg.length - 1];
+      const x = live.current.x, y = live.current.y;
+      // Decimate (skip points <6cm from the last) + cap, so a long run can't
+      // grow the trail unboundedly or rebuild a huge SVG path each frame
+      // (QA re-score rank 8 performance).
+      if (last && Math.abs(x - last.x) < 6 && Math.abs(y - last.y) < 6) return;
+      if (seg.length > 1500) return;
+      seg.push({ x, y });
+    };
+
+    const R = (robotSpec && robotSpec.phys && robotSpec.phys.collisionRadiusCm) || R_DEFAULT;
+    function collisionAt(x, y) {
+      if (Math.abs(x) > WALL - R || Math.abs(y) > WALL - R) return { type: 'wall' };
+      for (const o of terrain.obstacles) {
+        if (Math.hypot(o.x - x, o.y - y) < o.r + R) return { type: 'obstacle', o };
+      }
+      // Moving agents (pedestrians and traffic) are real obstacles too: the
+      // robot must avoid them, not just the parked cars and buildings. The
+      // agent sim is keyed by the SITE id when a mission site is active
+      // (App builds it with terrainId), so gate on the same id.
+      if (window.KodroAgents && window.KodroAgents.world() === (terrain.siteId || terrain.id)) {
+        for (const a of window.KodroAgents.list()) {
+          if (Math.hypot(a.x - x, a.y - y) < a.r + R) return { type: a.kind === 'person' ? 'pedestrian' : a.kind === 'robot' ? 'robot' : 'vehicle', o: a };
+        }
+      }
+      return null;
+    }
+    function rayDistance(x, y, headingDeg) {
+      const a = headingDeg * Math.PI / 180;
+      const dx = Math.sin(a), dy = -Math.cos(a);
+      let best = Infinity;
+      // walls (square at ±(WALL-R))
+      const lim = WALL - R;
+      if (dx > 1e-6) best = Math.min(best, (lim - x) / dx);
+      if (dx < -1e-6) best = Math.min(best, (-lim - x) / dx);
+      if (dy > 1e-6) best = Math.min(best, (lim - y) / dy);
+      if (dy < -1e-6) best = Math.min(best, (-lim - y) / dy);
+      // obstacles (ray-circle)
+      for (const o of terrain.obstacles) {
+        const ox = o.x - x, oy = o.y - y;
+        const tca = ox * dx + oy * dy;
+        if (tca < 0) continue;
+        const d2 = ox * ox + oy * oy - tca * tca;
+        const rr = (o.r + R) * (o.r + R);
+        if (d2 > rr) continue;
+        const t = tca - Math.sqrt(rr - d2);
+        if (t > 0) best = Math.min(best, t);
+      }
+      // the sensor also picks up moving agents in the robot's path (same
+      // site-aware world key as the collision test above)
+      if (window.KodroAgents && window.KodroAgents.world() === (terrain.siteId || terrain.id)) {
+        for (const o of window.KodroAgents.list()) {
+          const ox = o.x - x, oy = o.y - y;
+          const tca = ox * dx + oy * dy;
+          if (tca < 0) continue;
+          const d2 = ox * ox + oy * oy - tca * tca;
+          const rr = (o.r + R) * (o.r + R);
+          if (d2 > rr) continue;
+          const t = tca - Math.sqrt(rr - d2);
+          if (t > 0) best = Math.min(best, t);
+        }
+      }
+      return Math.max(0, best);
+    }
+    // SI2: an imported spec's ultrasonic mounts WHERE the builder put it: the
+    // ray starts at the mount offset, points along the mount yaw, and reads
+    // at most the sensor's real range (HONOURED; z ignored and disclosed). A
+    // catalogue build keeps the body-centre ray and the 600 cm view exactly.
+    function sensorRayDistance(st) {
+      const rb = window.KODRO_ROBOT;
+      const sp = rb && rb.phys && rb.phys.sensor;
+      if (!sp || !window.KodroMotion) return rayDistance(st.x, st.y, st.heading);
+      const pose = window.KodroMotion.sensorPose(st.x, st.y, st.heading, sp.fwdCm, sp.leftCm, sp.yawDeg);
+      return Math.min(sp.rangeCm, rayDistance(pose.x, pose.y, pose.heading));
+    }
+    const host = {
+      sensor(name, args) {
+        const s = live.current;
+        // Single source of truth (RobotLab.KodroCommands): a sensor command is
+        // only available if the part it needs is fitted. A missing part is a
+        // readable refusal, not a faked reading, so removing a sensor genuinely
+        // removes its command from text and blocks alike.
+        const rb = window.getKodroRobot ? window.getKodroRobot() : null;
+        if (window.KodroCommands) {
+          const g = window.KodroCommands.check(rb, name);
+          if (!g.ok) throw new Error(g.reason);
+        }
+        switch (name) {
+          case 'distance': {
+            const d = Math.round(sensorRayDistance(s));
+            setSensorDist(d); return d;
+          }
+          case 'heading': return Math.round(((s.heading % 360) + 360) % 360);
+          case 'battery': return Math.round(s.battery);
+          case 'speed': return Math.round(s.speed);
+          case 'x': return Math.round(s.x);
+          case 'y': return Math.round(-s.y);
+          case 'tilt': return Math.round((Math.sin(s.x * 0.01) * 6 + Math.cos(s.y * 0.013) * 5) * 10) / 10;
+          case 'temperature': return terrain.env.temp;
+          case 'gravity': return terrain.env.gravity;
+          case 'light': return terrain.env.light;
+          case 'ground': return terrain.id;
+          default: return 0;
+        }
+      }
+    };
+
+    // ---------- animation primitives ----------
+    // Driven by setTimeout (not rAF) so logic still advances when the iframe is
+    // backgrounded; ~16ms cadence gives ~60fps while visible.
+    function frames(durationMs, onFrame) {
+      return new Promise(resolve => {
+        // Respect prefers-reduced-motion: snap straight to the final position
+        // (p=1) with no interpolation, so the rover teleports rather than
+        // animating (WCAG 2.3.3, vestibular safety).
+        if (PREFERS_REDUCED_MOTION()) {
+          // Snap with NO animation, but still sample the swept path so a
+          // boulder/wall mid-route halts the rover instead of being tunnelled
+          // through (the collision check lives in onFrame). Sample at a fixed
+          // fine resolution rather than four fixed fractions: at the 4000cm max
+          // move that is ~62cm per step, under the smallest collision band, so
+          // a long move can no longer skip past a small obstacle and the
+          // accessibility path grades the same as the animated one. QA rank 4.
+          const STEPS = 64;
+          for (let k = 1; k <= STEPS; k++) { if (onFrame(k / STEPS)) break; }
+          resolve('done'); return;
+        }
+        const start = performance.now();
+        const tick = () => {
+          if (ctrl.current.abort) { resolve('abort'); return; }
+          // Non-finite / <=0 duration completes immediately (p=1); this guards
+          // against a pathological value wedging the loop at p=0 forever.
+          const p = window.RoverLang.frameProgress(performance.now() - start, durationMs);
+          const stop = onFrame(p);
+          if (p >= 1 || stop) { resolve('done'); return; }
+          setTimeout(tick, 16);
+        };
+        tick();
+      });
+    }
+    const delay = (ms) => new Promise(res => {
+      if (ms <= 0) return res();
+      const start = performance.now();
+      const tick = () => { if (ctrl.current.abort || performance.now() - start >= ms) res(); else setTimeout(tick, 16); };
+      setTimeout(tick, 16);
+    });
+
+    // Shared crash reporting for a collision that halts a move OR a car's
+    // arc turn: crash key (viewport jolt), voiced crash cue (R6), console
+    // line, toast, memory reflection and the design-coach verdict.
+    function reportCollision(crashed, robotBuild) {
+      const s = live.current;
+      setCrashKey(k => k + 1);
+      const what = crashed.type === 'wall' ? 'arena boundary'
+        : crashed.type === 'pedestrian' ? 'a pedestrian'
+          : crashed.type === 'robot' ? 'another robot'
+            : crashed.type === 'vehicle' ? 'a vehicle'
+              : terrain.obstacleLabel.toLowerCase();
+      sfx('crash', crashed.type);
+      addConsole('Collision with ' + what + ' at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
+      showToast('Collision detected', 'err');
+      // Self-refinement: record the run and surface what the system learned.
+      if (window.KodroMemory) {
+        const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'crash', detail: what, ts: Date.now() });
+        if (refl) addConsole('Reflection saved: ' + refl, 'sys');
+      }
+      // Coach: tie the outcome back to the design and recommend a fix.
+      let crashVerdict = '';
+      if (window.KodroDiagnostics) {
+        const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotBuild || {}, terrain), { outcome: 'crash', detail: what });
+        if (v) { addConsole(v.text, v.tone); crashVerdict = v.text; }
+      }
+      recordRunReport('crash', what, crashVerdict);
+      haltProgram('error');
+    }
+
+    async function animateMove(ev) {
+      const s = live.current;
+      const myToken = ctrl.current.token;  // run epoch captured at move start
+      const a = s.heading * Math.PI / 180;
+      const dirx = Math.sin(a) * ev.dir, diry = -Math.cos(a) * ev.dir;
+      const total = ev.distance;
+      const x0 = s.x, y0 = s.y;
+      // The robot designed in Robot Lab drives the sim: a heavier build drains
+      // the battery faster, and a stronger motor set raises the top speed.
+      const robot = window.getKodroRobot ? window.getKodroRobot() : null;
+      const KM = window.KodroMotion;
+      // SI2: an imported KRS spec carries a physical block (robot.phys) whose
+      // measured numbers drive the tick; a catalogue parts build has no such
+      // block and takes the byte-identical pre-SI2 path through the shared
+      // motion model (E-P1: same constants, same formulas, one source).
+      const physR = robot && robot.phys;
+      const massFac = robot && robot.massFactor ? robot.massFactor : 1;
+      const speedFac = robot && robot.speedFactor ? robot.speedFactor : 1;
+      // Mobility: too much weight for the grip its motors get on this surface
+      // makes the robot crawl or stall, so an underpowered design visibly
+      // struggles instead of gliding along regardless of what was built.
+      // Physical builds use the real tractive-force ratio (stall torque over
+      // weight, E-A1); catalogue builds keep the proxy score.
+      const hasDrive = robot && robot.actuators && robot.actuators.some(function (a) { return a === 'motors2' || a === 'motors4' || a === 'servos'; });
+      const mob = physR && physR.stallForceN !== undefined
+        ? KM.physMobility(physR.stallForceN, physR.massKg, terrain.traction, terrain.env.gravity)
+        : (window.KodroDiagnostics ? window.KodroDiagnostics.mobilityScore(speedFac, massFac, terrain.traction) : 1);
+      // E-A5: a physically-specified build that cannot move here HALTS with a
+      // torque verdict instead of the catalogue 0.35x crawl - a stall is a
+      // result, not an animation style.
+      if (hasDrive && physR && physR.stallForceN !== undefined && KM) {
+        const sv = KM.physStallVerdict(physR.stallForceN, physR.massKg, terrain.traction, terrain.env.gravity, physR.motorCount || 2, physR.wheelRadiusCm || 3);
+        if (sv.stalled) {
+          s.moving = false; sync();
+          addConsole('Stalled: this build cannot move on ' + terrain.name + '. It needs about ' + sv.neededNm.toFixed(2) + ' N*m per motor here and has ' + sv.hasNm.toFixed(2) + ' N*m. Robot halted.', 'err');
+          showToast('Drive stalled', 'err');
+          if (window.KodroMemory) {
+            const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'stalled', detail: 'underpowered drive', ts: Date.now() });
+            if (refl) addConsole('Reflection saved: ' + refl, 'sys');
+          }
+          let stallVerdict = '';
+          if (window.KodroDiagnostics) {
+            const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), { outcome: 'stalled' });
+            if (v) { addConsole(v.text, v.tone); stallVerdict = v.text; }
+          }
+          recordRunReport('stalled', 'underpowered drive', stallVerdict);
+          haltProgram('error');
+          return false;
+        }
+      }
+      const mobMul = KM.mobilityMultiplier(hasDrive, mob);
+      // Speed: the catalogue chain keeps the calibrated 3.125 m/s anchor
+      // (0.32 ms per cm per speed unit); a physical build honours its
+      // motor-derived top speed at set_speed(100) exactly (E-A1, HONOURED).
+      const physV = physR && physR.vMaxSimCmPerS !== undefined
+        ? physR.vMaxSimCmPerS * (Math.max(8, s.speed) / 100) * mobMul * terrain.traction
+        : null;
+      const dur = physV !== null
+        ? (total / physV) * 1000 / speedMulRef.current
+        : KM.moveDurationMs(total, KM.effectiveSpeedUnits(s.speed, speedFac, mobMul), terrain.traction, speedMulRef.current);
+      s.moving = true;
+      // new trail segment if pen down
+      if (s.penDown) { trailRef.current.push([{ x: x0, y: y0 }]); setTrail([...trailRef.current]); }
+      // Battery drains smoothly across the move (was a no-op: subtracted 0).
+      // Catalogue: the shared constant-power ledger (heavier worlds drain
+      // faster, Moon ~0.58x Earth). Physical: the energy-true model (E-A2),
+      // P = F*v/eta + idle, drawn against the pack's real watt-hours.
+      const b0 = s.battery;
+      let drainFull;
+      if (physR && physR.energyWh !== undefined) {
+        drainFull = physV !== null
+          ? total * KM.physDrainPctPerCm(physR.massKg, physR.energyWh, physV, terrain.env.gravity, terrain.traction)
+          : total * physR.drainPctPerCmNominal;
+      } else {
+        drainFull = KM.moveDrainPct(total, terrain.env.gravity, massFac, terrain.traction);
+      }
+      let crashed = false, flat = false;
+      // ---- physical acceleration, inertia and braking ----------------------
+      // The robot does not snap to top speed and stop dead. It ramps up, holds
+      // a cruise, then brakes, and a heavier build takes longer to do each. If
+      // it is already rolling from the previous move (s.vel), it skips most of
+      // the ramp up so momentum carries between straight segments. The endpoint
+      // is exact (coverFrac(1) === 1), so distances and collisions are unchanged
+      // and the headless interpreter QA, which uses its own kinematics, is too.
+      const inertia = Math.min(0.92, Math.max(0.12, (massFac - 0.6) / 1.4));
+      const carried = Math.min(1, Math.max(0, s.vel || 0));
+      let accelFrac, brakeFrac;
+      if (physR && physR.accelCmPerS2 !== undefined && physV !== null) {
+        // E-A1: real ramp time t = v/a from the motor's closed-form
+        // acceleration a = (F_stall - Crr*m*g)/m, replacing the inertia
+        // heuristic. The endpoint stays exact; only the shape changes.
+        const dur0 = (total / physV) * 1000; // unscaled ms (sim-speed invariant)
+        const rampMs = (physV / physR.accelCmPerS2) * 1000;
+        accelFrac = Math.min(0.45, rampMs / Math.max(1, dur0)) * (1 - 0.85 * carried);
+        brakeFrac = Math.min(0.45, rampMs / Math.max(1, dur0));
+      } else {
+        accelFrac = (0.18 + 0.30 * inertia) * (1 - 0.85 * carried);
+        brakeFrac = 0.16 + 0.34 * inertia;
+      }
+      if (accelFrac + brakeFrac > 0.95) { const k = 0.95 / (accelFrac + brakeFrac); accelFrac *= k; brakeFrac *= k; }
+      const cruiseFrac = Math.max(0, 1 - accelFrac - brakeFrac);
+      const profileArea = 0.5 * accelFrac + cruiseFrac + 0.5 * brakeFrac;
+      // R6: the motor loop tracks the trapezoid's instantaneous speed, so the
+      // ear hears the same ramp-cruise-brake the eye sees. vAt is the
+      // derivative of coverFrac (normalised to cruise speed = 1).
+      const sndType = (robot && robot.type) || (robotSpec && robotSpec.type) || 'rover';
+      const vAt = (p) => p <= accelFrac ? (accelFrac > 0 ? p / accelFrac : 1)
+        : p <= 1 - brakeFrac ? 1
+          : (brakeFrac > 0 ? Math.max(0, (1 - p) / brakeFrac) : 0);
+      function coverFrac(p) {
+        let area;
+        if (accelFrac > 0 && p <= accelFrac) { const v = p / accelFrac; area = 0.5 * v * p; }
+        else if (p <= 1 - brakeFrac) { area = 0.5 * accelFrac + (p - accelFrac); }
+        else if (brakeFrac > 0) { const q = (p - (1 - brakeFrac)) / brakeFrac; area = 0.5 * accelFrac + cruiseFrac + (1 - 0.5 * q) * (q * brakeFrac); }
+        else { area = profileArea; }
+        return profileArea > 0 ? area / profileArea : p;
+      }
+      await frames(dur, (p) => {
+        motorSfx(sndType, 0.15 + 0.85 * vAt(p));
+        let cf = coverFrac(p);
+        // Out of charge mid-move: solve the cover-fraction at which the battery
+        // reaches zero and clamp the committed position to it, so the robot
+        // halts EXACTLY at the crossing rather than one frame past it (which
+        // over-reported the distance travelled and the odometer add).
+        let outOfCharge = false;
+        if (drainFull > 0 && drainFull * cf >= b0) {
+          cf = b0 / drainFull; // battery hits 0 at this fraction of the move
+          outOfCharge = true;
+        }
+        const nx = x0 + dirx * total * cf;
+        const ny = y0 + diry * total * cf;
+        const hit = collisionAt(nx, ny);
+        if (hit) {
+          crashed = hit;
+          return true; // stop frame loop, keep last safe pos
+        }
+        s.x = nx; s.y = ny;
+        s.battery = Math.max(0, b0 - drainFull * cf);
+        pushTrailPoint();
+        const dNow = sensorRayDistance(s);
+        if (dNow < minProxRef.current) minProxRef.current = dNow;
+        setSensorDist(Math.round(dNow));
+        sync();
+        if (outOfCharge) { flat = true; return true; } // halted at battery zero
+        return false;
+      });
+      motorRest(); // R6: the loop falls silent between commands
+      // A Reset/restart while this move was animating bumps the token: bail
+      // before touching the shared odometer or halting, so a stale in-flight
+      // move can't corrupt the fresh run (phantom odometer add, or a spurious
+      // 'error' state stomped over the Reset the user just pressed).
+      if (ctrl.current.token !== myToken) { s.moving = false; s.vel = 0; return false; }
+      // Settle battery on the distance actually travelled (handles a crash
+      // that stopped the move early), relative to the pre-move level b0.
+      // drainFull already encodes the per-cm model (catalogue or physical),
+      // so the settle is simply its travelled fraction.
+      const travelled = Math.hypot(s.x - x0, s.y - y0);
+      s.battery = Math.max(0, b0 - (total > 0 ? drainFull * (travelled / total) : 0));
+      odoRef.current += travelled; setOdo(odoRef.current);
+      s.moving = false; sync();
+      if (crashed) {
+        reportCollision(crashed, robot);
+        return false;
+      }
+      if (flat) {
+        s.battery = 0; sync();
+        sfx('crash');
+        addConsole('Out of charge at (' + Math.round(s.x) + ', ' + Math.round(-s.y) + '). Robot halted.', 'err');
+        if (window.KodroMemory) {
+          const refl = window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'flat', detail: 'battery', ts: Date.now() });
+          if (refl) addConsole('Reflection saved: ' + refl, 'sys');
+        }
+        let flatVerdict = '';
+        if (window.KodroDiagnostics) {
+          const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robot || {}, terrain), { outcome: 'flat' });
+          if (v) { addConsole(v.text, v.tone); flatVerdict = v.text; }
+        }
+        recordRunReport('flat', 'battery', flatVerdict);
+        haltProgram('error');
+        return false;
+      }
+      s.vel = 1; // leaving this move still rolling: momentum carries to the next
+      return true;
+    }
+
+    async function animateTurn(ev) {
+      const s = live.current;
+      const myToken = ctrl.current.token;  // run epoch captured at turn start
+      const h0 = s.heading;
+      // Turning bleeds forward momentum, and a heavier build is slower to swing
+      // its mass around, so the turn takes a little longer and eases in and out
+      // rather than snapping. The final heading is still exact (set below).
+      const turnRobot = window.getKodroRobot ? window.getKodroRobot() : null;
+      const KMt = window.KodroMotion;
+      const physT = turnRobot && turnRobot.phys;
+      const turnMass = turnRobot && turnRobot.massFactor ? turnRobot.massFactor : 1;
+      const sndType = (turnRobot && turnRobot.type) || (robotSpec && robotSpec.type) || 'rover';
+      s.vel = 0;
+      // E-A4: a physical build turns on its real geometry, omega = 2*v_w/track,
+      // so turn TIME follows the wheelbase and wheel speed; a catalogue build
+      // keeps the mass-scaled display timing. Final heading stays exact.
+      const dur = (physT && physT.trackCm !== undefined && physT.vMaxSimCmPerS !== undefined)
+        ? KMt.physTurnDurationMs(ev.deg, physT.vMaxSimCmPerS * (Math.max(8, s.speed) / 100), physT.trackCm, speedMulRef.current)
+        : KMt.turnDurationMs(ev.deg, turnMass, speedMulRef.current);
+      s.moving = true;
+      // R9: a car cannot pivot in place -- it drives a kinematic bicycle arc.
+      // Heading eases to EXACTLY h0+deg; the position follows the arc with a
+      // per-frame swept collision check, so a car that has no room to turn
+      // hits what is actually there instead of ghosting through it. Every
+      // other drive type keeps the skid-steer pivot.
+      const arcCar = sndType === 'car' && Math.abs(ev.deg) > 0.01;
+      if (!arcCar) {
+        await frames(dur, (p) => { motorSfx(sndType, 0.35); const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; s.heading = h0 + ev.deg * e; setSensorDist(Math.round(sensorRayDistance(s))); sync(); return false; });
+        motorRest();
+        if (ctrl.current.token !== myToken) { s.moving = false; return false; }  // superseded by Reset/restart
+        s.heading = h0 + ev.deg; s.moving = false;
+        // Pivot turn drain: shared per-degree ledger, or (physical, E-A2) the
+        // energy cost of the wheels sweeping their half-track arcs.
+        s.battery = Math.max(0, s.battery - ((physT && physT.energyWh !== undefined && physT.trackCm !== undefined)
+          ? (Math.abs(ev.deg) * Math.PI / 180) * (physT.trackCm / 2) * physT.drainPctPerCmNominal
+          : KMt.turnDrainPct(ev.deg)));
+        sync();
+        return true;
+      }
+      const TURN_R = 90; // cm: a readable arc, about three body radii
+      const sgn = ev.deg >= 0 ? 1 : -1;
+      const h0r = h0 * Math.PI / 180;
+      // Arc centre sits TURN_R to the turning side. With forward = (sin h,
+      // -cos h), the centre for a right turn (deg>0) is at +(cos h, sin h).
+      const arcCx = s.x + TURN_R * Math.cos(h0r) * sgn;
+      const arcCy = s.y + TURN_R * Math.sin(h0r) * sgn;
+      const x0 = s.x, y0 = s.y;
+      if (s.penDown) { trailRef.current.push([{ x: x0, y: y0 }]); setTrail([...trailRef.current]); }
+      let crashed = false;
+      await frames(dur, (p) => {
+        motorSfx(sndType, 0.45);
+        const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+        const h = h0r + (ev.deg * e) * Math.PI / 180;
+        const nx = arcCx - TURN_R * Math.cos(h) * sgn;
+        const ny = arcCy - TURN_R * Math.sin(h) * sgn;
+        const hit = collisionAt(nx, ny);
+        if (hit) { crashed = hit; return true; }
+        s.x = nx; s.y = ny; s.heading = h0 + ev.deg * e;
+        pushTrailPoint();
+        const dNow = sensorRayDistance(s);
+        if (dNow < minProxRef.current) minProxRef.current = dNow;
+        setSensorDist(Math.round(dNow));
+        sync();
+        return false;
+      });
+      motorRest();
+      if (ctrl.current.token !== myToken) { s.moving = false; return false; }  // superseded by Reset/restart
+      // The arc covered real ground: odometer and battery are charged for the
+      // distance actually driven (move drain model) plus the steering cost.
+      const arcTravelled = Math.abs(s.heading - h0) * Math.PI / 180 * TURN_R;
+      odoRef.current += arcTravelled; setOdo(odoRef.current);
+      if (crashed) {
+        s.moving = false; sync();
+        reportCollision(crashed, turnRobot);
+        return false;
+      }
+      const hfr = (h0 + ev.deg) * Math.PI / 180;
+      s.heading = h0 + ev.deg;
+      s.x = arcCx - TURN_R * Math.cos(hfr) * sgn;
+      s.y = arcCy - TURN_R * Math.sin(hfr) * sgn;
+      s.moving = false;
+      // Arc turn drains the steering cost plus the ground actually covered
+      // (shared ledger; or the physical energy model when a pack is specified).
+      s.battery = Math.max(0, s.battery - ((physT && physT.energyWh !== undefined)
+        ? arcTravelled * physT.drainPctPerCmNominal
+        : KMt.turnDrainPct(ev.deg) + KMt.moveDrainPct(arcTravelled, terrain.env.gravity, turnMass, terrain.traction)));
+      sync();
+      return true;
+    }
+
+    // speedMul ref so animation reads latest
+    const speedMulRef = useRef(1);
+    useEffect(() => { speedMulRef.current = speedMul; }, [speedMul]);
+
+    function showSay(text) {
+      setSay(text);
+      if (sayTimer.current) clearTimeout(sayTimer.current);
+      sayTimer.current = setTimeout(() => setSay(''), 2200);
+    }
+
+    // ---------- one interpreter step ----------
+    // `advancing` is a synchronous re-entrancy latch: a pump iteration and a
+    // manual Step (or two Steps) must never drive the same generator at once,
+    // or they double-consume gen.next() and run overlapping animations that
+    // stomp live.current. The latch wraps the whole body (incl. the awaited
+    // animation) so the next driver bails until this one settles.
+    async function advance(stepMode) {
+      if (ctrl.current.advancing) return false;
+      ctrl.current.advancing = true;
+      try {
+        const gen = genRef.current;
+        if (!gen) return false;
+        let res;
+        try { res = gen.next(); }
+        catch (e) { handleRuntimeError(e); return false; }
+        if (res.done) { finishProgram(); return false; }
+        const ev = res.value;
+        // Everything except a bookkeeping 'step' is a real command the program
+        // executed; the count feeds the post-run verdict so an empty program
+        // cannot claim "the design held up" (bugs D5).
+        if (ev.type !== 'step') cmdCountRef.current++;
+        if (ev.line) setActiveLine(ev.line);
+        switch (ev.type) {
+          case 'step': await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
+          case 'print': addConsole(ev.text, 'out'); await delay(stepMode ? 0 : 90 / speedMulRef.current); break;
+          case 'move': case 'turn': {
+            // Arm honesty (A13, bugs D4): a fixed-base arm has no drive, so a
+            // move/turn must be refused with a readable coach line instead of
+            // sliding its pedestal across the room. The gate lives in
+            // KodroCommands (the one source of truth the grader reads too), so
+            // the arm is honest on the visible run AND cannot pass a driving
+            // lesson it never performed. A rover/car/home build has a drive
+            // actuator, so driveCheck returns ok and the byte-identical
+            // animation path below runs exactly as before.
+            const driveRobot = window.getKodroRobot ? window.getKodroRobot() : null;
+            if (window.KodroCommands) {
+              const cmdName = ev.type === 'move'
+                ? (ev.dir < 0 ? 'move_backward' : 'move_forward')
+                : (ev.deg < 0 ? 'turn_left' : 'turn_right');
+              const g = window.KodroCommands.driveCheck(driveRobot, cmdName);
+              if (!g.ok) { const err = new Error(g.reason); err.line = ev.line; handleRuntimeError(err); return false; }
+            }
+            if (ev.type === 'move') { sfx('move'); return await animateMove(ev); }
+            sfx('turn'); return await animateTurn(ev);
+          }
+          case 'speed': live.current.speed = Math.max(0, Math.min(100, ev.value)); sync(); break;
+          case 'wait': live.current.vel = 0; await delay(ev.seconds * 1000 / speedMulRef.current); break;
+          case 'pen':
+            live.current.penDown = ev.down;
+            if (ev.down) { trailRef.current.push([{ x: live.current.x, y: live.current.y }]); setTrail([...trailRef.current]); }
+            break;
+          case 'halt': live.current.moving = false; sync(); break;
+          case 'led': sfx('led'); live.current.led = (ev.color in LED_COLORS) ? LED_COLORS[ev.color] : terrain.accent; sync(); break;
+          case 'say':
+            // Visual program output only: a speech bubble plus a console line.
+            sfx('say');
+            showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
+          case 'beep': {
+            // S3: beep() plays the synthesised beep it always claimed to be
+            // (SFX.beep existed unused); repeats are spaced so 3 beeps read
+            // as 3 beeps, and the wait respects sim speed like say().
+            const n = Math.round(ev.times != null ? ev.times : 1);
+            for (let bi = 0; bi < n; bi++) {
+              sfx('beep');
+              await delay(stepMode ? 0 : 160 / speedMulRef.current);
+            }
+            break;
+          }
+          case 'place': {
+            const px = ev.x !== undefined ? ev.x : live.current.x;
+            const py = ev.y !== undefined ? ev.y : live.current.y;
+            sfx('led');
+            setProps(p => p.length >= 80 ? p : [...p, { kind: ev.kind, x: px, y: py, id: p.length }]);
+            await delay(stepMode ? 0 : 160 / speedMulRef.current);
+            break;
+          }
+          case 'clear_props': setProps([]); break;
+          case 'scan': {
+            // scan() reports an ultrasonic range, so gate it on the same part
+            // distance() needs. A no-ultrasonic build refuses here for BOTH the
+            // text editor and the blocks path (both compile to scan()), instead
+            // of faking a reading distance() would correctly refuse.
+            const scanRobot = window.getKodroRobot ? window.getKodroRobot() : null;
+            if (window.KodroCommands) {
+              const g = window.KodroCommands.check(scanRobot, 'scan');
+              if (!g.ok) { const err = new Error(g.reason); err.line = ev.line; handleRuntimeError(err); return false; }
+            }
+            sfx('scan');
+            live.current.scanning = true; sync();
+            addConsole('Scanning. Nearest obstacle ' + Math.round(sensorRayDistance(live.current)) + ' cm ahead.', 'sys');
+            await delay(1000 / speedMulRef.current);
+            live.current.scanning = false; sync();
+            break;
+          }
+        }
+        return true;
+      } finally {
+        ctrl.current.advancing = false;
+      }
+    }
+
+    function handleRuntimeError(e) {
+      const msg = (e && e.message) ? e.message : String(e);
+      // A live-terminal (REPL) error is a one-line affair: report it in the
+      // console, but do NOT highlight an editor line ("Line 1" of a terminal
+      // one-liner is not a line of the user's program) and do NOT flip the
+      // studio into the Halted state -- the editor program never ran, let
+      // alone failed (bugs D6). replRef is cleared here AND in haltProgram/
+      // resetRover so the flag can never leak into the next editor run.
+      if (replRef.current) {
+        replRef.current = false;
+        addConsole(msg, 'err');
+        haltProgram('idle');
+        return;
+      }
+      const line = e && e.line;
+      if (line) setActiveLine(line);
+      addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
+      // A8: an error mid-mission is a run result; a compile-time typo that
+      // executed nothing is not.
+      if (cmdCountRef.current > 0) recordRunReport('error', msg, '');
+      haltProgram('error');
+    }
+    function finishProgram() {
+      ctrl.current.running = false;
+      genRef.current = null;
+      live.current.moving = false; sync();
+      setRunState('done');
+      if (replRef.current) { replRef.current = false; return; }  // terminal line: stay quiet
+      // SI3: record the run's measured facts (distance over wall time) so the
+      // verification report's empirical block can cross-check the derived
+      // top speed against something that actually happened.
+      try {
+        window.KODRO_LAST_RUN = {
+          distanceCm: odoRef.current,
+          wallMs: runStartRef.current ? (Date.now() - runStartRef.current) : 0,
+          battery: live.current.battery,
+          speedMul: speedMulRef.current,
+          ts: Date.now(),
+        };
+      } catch (err) { void err; }
+      addConsole('Program finished.', 'ok');
+      showToast('Program complete', 'ok');
+      // Self-refinement: a clean finish is a result worth remembering.
+      if (window.KodroMemory) {
+        window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'done', detail: 'finished without a collision', ts: Date.now() });
+      }
+      // Coach: confirm the design held up, or name what to still watch. The
+      // verdict reads the run's OWN stats (distance covered, closest approach,
+      // commands executed) so it describes what actually happened, not just
+      // the pre-run prediction (bugs D5).
+      let doneVerdict = '';
+      if (window.KodroDiagnostics) {
+        const robotNow = window.getKodroRobot ? window.getKodroRobot() : {};
+        const v = window.KodroDiagnostics.afterRun(window.KodroDiagnostics.assess(robotSpec, robotNow, terrain), {
+          outcome: 'done',
+          commands: cmdCountRef.current,
+          distanceCm: Math.round(odoRef.current),
+          minProximityCm: isFinite(minProxRef.current) ? Math.round(minProxRef.current) : null,
+        });
+        if (v) { addConsole(v.text, v.tone); doneVerdict = v.text; }
+      }
+      // P7/A8: every completed run leaves a durable, structured report.
+      recordRunReport('done', '', doneVerdict);
+      // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
+      gradeWithBridge(code);
+    }
+
+    // Live terminal: run ONE line immediately against the current world --
+    // like a real Python REPL, without resetting the rover or grading.
+    const replRef = useRef(false);
+    function runReplLine(line) {
+      const src = (line || '').trim();
+      if (!src) return;
+      if (window.RLSound) window.RLSound.resume();
+      addConsole('>>> ' + src, 'sys');
+      if (ctrl.current.running || ctrl.current.advancing) {
+        addConsole('The program is still running - press Pause or Reset first.', 'err');
+        return;
+      }
+      let gen;
+      try { gen = window.RoverLang.compile(src).run(host); }
+      catch (e) { addConsole(String((e && e.message) || e), 'err'); return; }
+      replRef.current = true;
+      genRef.current = gen;
+      ctrl.current.token++;
+      const myToken = ctrl.current.token;
+      ctrl.current.abort = false; ctrl.current.running = true;
+      setRunState('running');
+      pumpLoop(myToken);
+    }
+    function haltProgram(state) {
+      ctrl.current.running = false; ctrl.current.abort = false;
+      genRef.current = null;
+      // The REPL flag must not outlive the run that set it: a leaked true
+      // makes the NEXT editor run finish silently (no "Program finished.",
+      // no toast, no memory record, no verdict, no grading) -- bugs D2.
+      replRef.current = false;
+      live.current.moving = false; sync();
+      setRunState(state || 'idle');
+    }
+
+    // ---------- compile + start ----------
+    function compileFresh() {
+      try {
+        const interp = window.RoverLang.compile(code);
+        genRef.current = interp.run(host);
+        // Deprecated-dialect lint (product-coherence D4): rover.forward(100)
+        // still runs as a centimetre-based compatibility alias, but the
+        // canonical API is the bare metre-based dialect every shipped example
+        // and the grader use. Say so once per run, at compile time, so mixed
+        // programs stop reading as two different products.
+        if (/\brover\s*\./.test(code)) {
+          addConsole('Note: rover.forward(100) is the legacy centimetre dialect. It still runs, but new code should use the bare metre API, e.g. move_forward(1).', 'sys');
+        }
+        return true;
+      } catch (e) {
+        handleRuntimeError(e);
+        genRef.current = null;
+        return false;
+      }
+    }
+    // Cancel any deferred start / abort-clear left over from a prior control
+    // action so a queued Run can't fire after a Reset (the stale-callback race).
+    function clearPending() {
+      if (ctrl.current.startTimer) { clearTimeout(ctrl.current.startTimer); ctrl.current.startTimer = null; }
+      if (ctrl.current.abortTimer) { clearTimeout(ctrl.current.abortTimer); ctrl.current.abortTimer = null; }
+    }
+    function resetRover(clearConsole) {
+      clearPending();
+      ctrl.current.abort = true;
+      ctrl.current.running = false;
+      ctrl.current.advancing = false;  // abandon any in-flight advance latch
+      ctrl.current.token++;  // invalidate any in-flight pump / pending start
+      live.current = startState();
+      trailRef.current = []; setTrail([]);
+      setProps([]);
+      odoRef.current = 0; setOdo(0);
+      minProxRef.current = Infinity;
+      cmdCountRef.current = 0;
+      setSensorDist(600);
+      setActiveLine(0);
+      setSay('');
+      sync();
+      genRef.current = null;
+      replRef.current = false;  // a Reset always exits terminal mode (bugs D2)
+      ctrl.current.abortTimer = setTimeout(() => { ctrl.current.abort = false; ctrl.current.abortTimer = null; }, 30);
+      if (clearConsole) setConsoleLines([{ type: 'sys', text: 'Reset. Rover at origin.' }]);
+    }
+
+    async function pumpLoop(myToken) {
+      while (ctrl.current.running && ctrl.current.token === myToken) {
+        const cont = await advance(false);
+        if (!cont) break;
+      }
+      if (ctrl.current.token !== myToken) return;  // superseded by a reset/restart/resume
+      // The loop only exits with running=false. finish/halt null the generator
+      // (and already set 'done'/'error'); a Reset bumps the token (returned just
+      // above). So a still-live generator here means the user pressed Pause.
+      // Do NOT also gate on runStateRef === 'running': the 'running' commit can
+      // lag behind a fast Pause, which would drop the pause transition and then
+      // wedge the UI in a phantom 'running' with no pump driving it.
+      if (!ctrl.current.running && genRef.current) {
+        setRunState('paused');
+      }
+    }
+
+    function onRun() {
+      // Resume the AudioContext here, inside the click gesture (browsers block
+      // audio that starts outside a user gesture).
+      if (window.RLSound) window.RLSound.resume();
+      // Pause: gate on the synchronous ref, not the (stale until re-render)
+      // runState closure, so a Run pressed right after a resume still pauses.
+      if (ctrl.current.running) {
+        ctrl.current.running = false;
+        return;
+      }
+      // start fresh or resume
+      if (runState === 'idle' || runState === 'done' || runState === 'error') {
+        resetRover(false);
+        const myToken = ctrl.current.token;  // captured after reset's bump
+        // reset clears abort after 30ms; compile after
+        ctrl.current.startTimer = setTimeout(() => {
+          ctrl.current.startTimer = null;
+          if (ctrl.current.token !== myToken) return;  // a Reset landed first
+          if (!compileFresh()) return;
+          ctrl.current.abort = false; ctrl.current.running = true;
+          runStartRef.current = Date.now();  // SI3: measured-speed anchor
+          setRunState('running');
+          addConsole('Deployed on ' + terrain.name + '.', 'sys');
+          pumpLoop(myToken);
+        }, 50);
+      } else if (runState === 'paused') {
+        // `runState` is a lagging closure: after a Reset/finish nulled the
+        // generator it can still read 'paused' for a frame. Only a live
+        // generator is actually resumable — resuming a null gen would spin a
+        // pump that exits instantly yet leaves running=true, wedging the UI in
+        // a phantom 'running'. genRef is the synchronous truth.
+        if (!genRef.current) return;
+        if (ctrl.current.running || ctrl.current.advancing) return;  // already running / mid-step
+        ctrl.current.token++;  // new pump epoch: orphan any prior pump
+        const myToken = ctrl.current.token;
+        ctrl.current.abort = false; ctrl.current.running = true;
+        setRunState('running');
+        pumpLoop(myToken);
+      }
+    }
+
+    function onStep() {
+      // A Step while a pump is live pauses it (same as Run), gated on the
+      // synchronous ref so it works in the gap before runState commits.
+      if (ctrl.current.running) { ctrl.current.running = false; return; }
+      if (ctrl.current.advancing) return;  // a step/animation is in flight: ignore
+      if (runState === 'idle' || runState === 'done' || runState === 'error') {
+        resetRover(false);
+        const myToken = ctrl.current.token;
+        ctrl.current.startTimer = setTimeout(() => {
+          ctrl.current.startTimer = null;
+          if (ctrl.current.token !== myToken) return;
+          if (!compileFresh()) return;
+          ctrl.current.abort = false;
+          setRunState('paused');
+          addConsole('Stepping through on ' + terrain.name + '.', 'sys');
+          advance(true);
+        }, 50);
+      } else if (runState === 'paused') {
+        if (!genRef.current) return;  // stale 'paused' after a Reset/finish: nothing to step
+        ctrl.current.abort = false;
+        advance(true);
+      }
+    }
+
+    function onReset() { resetRover(true); setRunState('idle'); }
+
+    function onTerrain(id) {
+      if (id === terrainId) return;
+      resetRover(false);
+      setTerrainId(id);
+      setRunState('idle');
+      setLessonVerdict(null);  // verdict was graded on the lesson's own world
+      // Resolve through resolveSite: a real-world mission site id (e.g. 'sahara')
+      // lives in SITES, not TERRAINS, so TERRAINS[id] would be undefined and the
+      // old TERRAINS[id].name threw a TypeError that killed the render.
+      const t = (window.resolveSite ? window.resolveSite(id) : null) || TERRAINS[id] || TERRAINS.earth;
+      setConsoleLines([{ type: 'sys', text: 'Switched to ' + (t.name || id) + '.' + (t.coord ? ' ' + t.coord : '') }]);
+      // Memory made visible: if a saved skill was built for THIS world, say so
+      // on entry -- the skill library exists but was invisible unless the user
+      // happened to open the Memory panel (product-coherence D7). Exact world
+      // matches only, so the toast never fires on a loose fallback.
+      try {
+        if (window.KodroMemory && window.KodroMemory.findSkill) {
+          const sk = window.KodroMemory.findSkill(t.id, robotSpec && robotSpec.type);
+          if (sk && sk.world === t.id) showToast('Saved skill "' + sk.name + '" fits this world. Open Memory to reuse it.', 'info');
+        }
+      } catch (err) { void err; }
+      // The 3D viewport rebuilds on any terrain OR mission-site change (keyed
+      // by siteId || id, so a site switch on the same base world remounts too)
+      // and can flash an empty canvas for a frame while it spins up. Cover that
+      // with a 200ms "Loading..." cue so the transition reads as intentional.
+      setWorldLoading({ name: t.name || id });
+      setTimeout(() => setWorldLoading(null), 200);
+    }
+
+    function onCodeChange(v) {
+      if (currentLessonId) setLessonBuffers(b => ({ ...b, [currentLessonId]: v }));  // per-lesson buffer
+      else setPrograms(p => ({ ...p, [activeTab]: v })); // edit the example tab
+    }
+
+    async function exportReportClick() {
+      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
+        setConsoleLines(l => [...l, { type: 'warn', text: 'Report export needs the desktop app.' }]);
+        return;
+      }
+      try {
+        const r = await window.RoboLearn.exportReport();
+        if (r && r.ok) {
+          setConsoleLines(l => [...l, { type: 'ok', text: 'Progress report saved: ' + r.path }]);
+        } else {
+          setConsoleLines(l => [...l, { type: 'err', text: 'Report export failed: ' + ((r && r.reason) || 'unknown') }]);
+        }
+      } catch (e) {
+        setConsoleLines(l => [...l, { type: 'err', text: 'Report export error: ' + e }]);
+      }
+    }
+
+    return { onRun, onStep, onReset, onTerrain, runReplLine, onCodeChange, exportReportClick };
+  }
+
+  window.KodroHooks = { useAiStatus, useResizers, useBlocks, useReview, useVibeChat, useSwarm, useAsk, useTeacher, useBuild, useProjectIO, useSimEngine };
 })();
