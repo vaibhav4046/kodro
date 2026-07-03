@@ -139,3 +139,71 @@ This closes the four confirmed defects. It does not turn the pass into a
 perfect score: the fixes make the tool honest about what it was already
 computing, and the human study remains the right instrument for judging
 whether builders actually trust and learn from the result.
+
+## Round 2: re-testing the fixed build
+
+The obvious risk with a find-and-fix pass is that it converges on one
+area and calls the whole product done. To guard against that, a second
+panel of 28 fresh personas re-tested the already-fixed build, deliberately
+aimed away from the top-speed badge and at surfaces the first panel barely
+touched: a keyboard-only user, a screen-reader user, a colour-contrast
+auditor, an offline-guarantee auditor, a KRS import fuzzer, an interpreter
+adversary, a determinism auditor, a teardown/leak hunter, a prompt-injection
+tester, a security auditor, a mobile user, a reduced-motion user, an i18n
+auditor, a battery-ledger auditor, and more. Each was told that an empty
+findings list was the honest and expected answer for a build that had
+already had a fix pass, and every reported issue was again put through
+adversarial code-verification, defaulting to not-real unless it reproduced
+end to end against the source.
+
+It did not come back empty. After verification and dedup it produced
+**13 new confirmed defects** (5 HIGH, 7 MEDIUM, 1 LOW), all distinct from
+round 1 and all reproduced against the shipped code. That a second pass on
+a build that had just been fixed still found thirteen real defects is the
+strongest single argument that this method is not a rubber stamp, and it is
+also a plain reminder that a green test suite is not the same as a sound
+product. The most serious were:
+
+- **Persistent boot-brick from a corrupt project file (HIGH).** A
+  hand-edited or corrupted `.kodro` whose spec carried a non-array
+  `actuators`/`sensors` was persisted raw and then threw
+  `TypeError: forEach is not a function` at module init on every
+  subsequent reload, bricking the app until localStorage was manually
+  cleared. The project loader now coerces those list fields and the
+  derive path defends itself with `Array.isArray`.
+- **Stacked-modal focus trap (HIGH).** The focus-trap effect keyed on a
+  single "any modal open" boolean, so opening a second modal over an open
+  one never moved focus into it and Tab stayed trapped in the occluded
+  dialog. It now keys on each modal's own open-state.
+- **NPC motion ignored prefers-reduced-motion (HIGH).** Pedestrians and
+  traffic animated regardless of the setting, against WCAG 2.3.3 and the
+  codebase's own reduced-motion contract. The agent simulation is now
+  frozen under reduced motion, keeping the display and the collision test
+  consistent.
+- **Grader battery drain was speed-blind (HIGH).** The validator drained
+  at a fixed nominal figure while the live run recomputes drain at the
+  driven speed, so a program near the energy budget could pass validation
+  and then go flat mid-move on the live run. The grader now recomputes at
+  the actual speed and traction.
+- **Primary CTA clipped off-screen at 375px (HIGH).** The Robot Lab
+  footer did not wrap, pushing the "Build and test" button past the right
+  edge with no horizontal scroll. It now wraps on small viewports.
+
+The seven MEDIUM and one LOW findings were: an unguarded deep-recursion
+`RangeError` in the interpreter (now a wrapped, line-numbered error); the
+Design Check computing obstacle stopping distance from the raw no-load top
+speed instead of the throttled speed the live tick drives at (a false WARN
+the live run never earns); three fidelity-badge colour-contrast failures
+against WCAG AA (one on-screen, two in the exported report); two non-ASCII
+filename-slug collisions; and a cramped five-column archetype grid on
+phones. All 13 were fixed and the offline gates re-run green (interpreter
+156/156, UI 6/6 flows and 24/24 behaviour asserts and 12/12 modals, world
+sweep 61/61, Python 868 passed).
+
+Across both rounds, 58 simulated personas found and drove the fix of 17
+distinct, code-verified defects. The honest read does not move: this is a
+cheap, repeatable adversarial net that keeps finding real bugs, which is
+exactly why it is worth running and exactly why it cannot be read as a
+clean bill of health. It measures the code, not a learner. The human study
+remains the right next step, and nothing in this document licenses a
+perfect or fully validated score.
