@@ -52,7 +52,18 @@
     const dims = [];
 
     // 1. MOBILITY -- can it physically get around on this surface?
-    const mob = mobilityScore(speedFactor, massFactor, traction);
+    // An imported KRS build (derived.phys.stallForceN present) is judged by
+    // the SAME force-ratio model the live tick drives it with (app.jsx uses
+    // KodroMotion.physMobility / physStallVerdict), so the Design Check verdict
+    // can never contradict what then happens on screen. Catalogue (non-physical)
+    // builds keep the parts proxy (speedFactor*traction/massFactor).
+    const physM = derived.phys;
+    const usePhysMob = !!(physM && physM.stallForceN !== undefined && window.KodroMotion);
+    const massKg = (physM && physM.massKg !== undefined) ? physM.massKg
+      : (physM && physM.massKg === undefined && derived.mass ? derived.mass / 1000 : massFactor * 0.9);
+    const mob = usePhysMob
+      ? window.KodroMotion.physMobility(physM.stallForceN, massKg, traction, gravity)
+      : mobilityScore(speedFactor, massFactor, traction);
     if (driveCount === 0) {
       dims.push({ key: 'mobility', label: 'Mobility', status: 'fail', margin: 0,
         reason: 'No drive parts fitted, so it can barely crawl and cannot complete a moving mission.',

@@ -349,6 +349,108 @@ console.log('\n== KRS SPEC SCHEMA (SI0) + PHYSICAL MAPPING (SI2) ==');
   delete win.KODRO_LAST_RUN;
 }
 
+console.log('\n== PHYSICS HONESTY: SLOW-BUILD SPEED BADGE (H1) ==');
+{
+  const SS = win.KodroSpecSchema;
+  const REF = JSON.parse(readFileSync(new URL('../tests/fixtures/krs_reference_rover.json', import.meta.url), 'utf8'));
+  // A 60-rpm / 3.0-cm educational rover has a real top speed of ~0.19 m/s,
+  // FAR below the simulable floor (0.3 * 3.125 = 0.9375 m/s). The old code
+  // clamped it UP, simulated it ~5x too fast, and STILL stamped it
+  // 'honoured' with copy saying it "exceeds the simulable band" (it is
+  // BELOW). The fix must: (a) badge it 'approximated', never 'honoured',
+  // because the sim runs a different value; and (b) tell the truth in the
+  // warning - below the floor, simulated FASTER - with no wrong-direction
+  // word ("exceeds"/"above").
+  const slowSpec = {
+    physical: {
+      massKg: 1.0,
+      drive: { kind: 'differential', wheelRadiusCm: 3.0, motorCount: 2, motor: { noLoadRpm: 60, stallTorqueNm: 0.35 } },
+    },
+  };
+  const slow = SS.deriveFromPhysical(slowSpec, { mass: 1000, massFactor: 1.1, speedFactor: 1, runtimeMin: 60 });
+  const realMps = slow.vMaxCmPerS / 100;
+  const simMps = slow.vMaxSimCmPerS / 100;
+  check('slow build real top speed ~0.19 m/s (below the 0.9375 m/s floor)',
+    Math.abs(realMps - 0.188) < 0.01 && realMps < 0.9375, realMps.toFixed(3) + ' m/s real');
+  check('slow build IS clamped UP and simulated faster (~0.94 m/s)',
+    simMps > realMps && Math.abs(simMps - 0.9375) < 0.01, simMps.toFixed(3) + ' m/s sim');
+  check('H1: slow build is NOT badged honoured (sim runs a different value)',
+    slow.badges.topSpeed === 'approximated', 'badge=' + slow.badges.topSpeed);
+  const slowWarn = (slow.warnings || []).find((w) => /top speed/i.test(w)) || '';
+  check('H1: warning tells the truth - below the floor, simulated FASTER',
+    /below the simulable floor/i.test(slowWarn) && /faster/i.test(slowWarn), slowWarn);
+  check('H1: warning never uses the wrong-direction words exceeds/above',
+    slowWarn.length > 0 && !/exceed/i.test(slowWarn) && !/above/i.test(slowWarn), slowWarn);
+
+  // A build INSIDE the band stays honoured (the reference rover, 1.02 m/s),
+  // and a fast build ABOVE the ceiling drops to approximated with the
+  // opposite (slower) copy - proving the direction word is not hard-coded.
+  const refPh = SS.deriveFromPhysical(SS.validate(JSON.stringify(REF)).spec, { mass: 1200, massFactor: 1.33, speedFactor: 1.25, runtimeMin: 45 });
+  check('H1: an in-band build stays honoured (reference rover 1.02 m/s)',
+    refPh.badges.topSpeed === 'honoured' && Math.abs(refPh.vMaxSimCmPerS - refPh.vMaxCmPerS) < 0.5,
+    'badge=' + refPh.badges.topSpeed);
+  const fastSpec = { physical: { massKg: 1.0, drive: { kind: 'differential', wheelRadiusCm: 6.0, motorCount: 2, motor: { noLoadRpm: 2000, stallTorqueNm: 0.5 } } } };
+  const fast = SS.deriveFromPhysical(fastSpec, { mass: 1000, massFactor: 1.1, speedFactor: 1, runtimeMin: 60 });
+  const fastWarn = (fast.warnings || []).find((w) => /top speed/i.test(w)) || '';
+  check('H1: a fast build above the ceiling is approximated and simulated SLOWER',
+    fast.badges.topSpeed === 'approximated' && /above the simulable ceiling/i.test(fastWarn) && /slower/i.test(fastWarn), fastWarn);
+}
+
+console.log('\n== PHYSICS HONESTY: DESIGN CHECK vs TICK AGREE (H2) ==');
+{
+  // Load the Design Check (diagnostics.jsx is a plain IIFE despite the
+  // extension - no JSX/React on the honesty path). It must judge an imported
+  // build's mobility with the SAME force-ratio model the live tick drives it
+  // with (app.jsx:1015-1017 uses KodroMotion.physMobility / physStallVerdict),
+  // so the predictive verdict can never contradict what happens on screen.
+  const DIAG_SRC = readFileSync(new URL('../src/robolearn/assets/web/diagnostics.jsx', import.meta.url), 'utf8');
+  new Function('window', DIAG_SRC)(win);
+  const SS = win.KodroSpecSchema;
+  const D = win.KodroDiagnostics;
+  const KMv = win.KodroMotion;
+  const REF = JSON.parse(readFileSync(new URL('../tests/fixtures/krs_reference_rover.json', import.meta.url), 'utf8'));
+
+  // The shipped Reference Rover, as getKodroRobot() assembles it: spec fields
+  // plus the derived block (massFactor, speedFactor, phys).
+  const spec = SS.validate(JSON.stringify(REF)).spec;
+  const ph = SS.deriveFromPhysical(spec, { mass: 1200, massFactor: 1.33, speedFactor: 1.25, runtimeMin: 45 });
+  const derived = {
+    mass: 1200, massFactor: ph.massFactor, speedFactor: ph.speedFactor,
+    runtimeMin: ph.runtimeMin, phys: ph,
+  };
+  // The public robot shape the design check receives (spec + derived merged,
+  // exactly like RobotLab.save / getKodroRobot).
+  const robot = Object.assign({}, spec, derived);
+
+  for (const t of [
+    { name: 'Riverside City', traction: 0.85, env: { gravity: 9.81 } },
+    { name: 'Open terrain', traction: 1.0, env: { gravity: 9.81 } },
+    { name: 'Low-traction sand', traction: 0.55, env: { gravity: 9.81 } },
+  ]) {
+    // Design Check mobility verdict (predictive).
+    const rep = D.assess(spec, robot, t);
+    const mobDim = rep.dimensions.find((d) => d.key === 'mobility');
+    const predictStall = mobDim.status === 'fail';
+    // Live tick mobility verdict (what actually drives the rover).
+    const sv = KMv.physStallVerdict(ph.stallForceN, ph.massKg, t.traction, t.env.gravity, ph.motorCount || 2, ph.wheelRadiusCm || 3.25);
+    const tickStall = sv.stalled;
+    check('H2: Design Check and tick agree on ' + t.name + ' (both ' + (tickStall ? 'STALL' : 'DRIVE') + ')',
+      predictStall === tickStall,
+      'designCheck=' + (predictStall ? 'FAIL' : mobDim.status) + ' mob=' + rep.numbers.mobility + ' vs tickStalled=' + tickStall + ' tickMob=' + sv.mobility.toFixed(2));
+  }
+
+  // The exact defect the review reproduced: on the shipped Reference Rover the
+  // old catalogue-proxy mobility was ~0.18-0.24 (FAIL) while the tick's
+  // force-ratio was ~1.35-1.79 (drives fine). Assert the design check now
+  // reports the force-ratio value (well above the 0.45 stall band), not the
+  // proxy, so it PASSES in agreement with the tick.
+  const repCity = D.assess(spec, robot, { name: 'Riverside City', traction: 0.85, env: { gravity: 9.81 } });
+  const mobCity = repCity.dimensions.find((d) => d.key === 'mobility');
+  check('H2: reference-rover Design Check now uses the force-ratio (mob > 1.0, PASS)',
+    repCity.numbers.mobility > 1.0 && mobCity.status === 'pass',
+    'mobility=' + repCity.numbers.mobility + ' status=' + mobCity.status);
+}
+
 console.log('\n== SHIPPED EXAMPLE PROGRAMS ==');
 // Load the REAL EXAMPLES object the same way interpreter.js is loaded: app-data.jsx
 // is a plain IIFE that exposes window.KodroExamples (no JSX, no React in the data

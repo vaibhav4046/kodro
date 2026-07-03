@@ -323,7 +323,7 @@
 
   // ---- SI4: three-tier fidelity disclosure, one honest line per claim ------
   var FIDELITY = {
-    honoured: ['Commanded distances and turn angles (endpoint-exact)', 'Top speed calibrated from motor rpm and wheel radius', 'Sensor mount position, yaw and range (z ignored, disclosed)', 'Collision circle sized from the body footprint', 'Command availability gated on fitted parts', 'Battery as a hard budget: the robot halts at zero'],
+    honoured: ['Commanded distances and turn angles (endpoint-exact)', 'Top speed calibrated from motor rpm and wheel radius, when it falls inside the simulable band (outside it the badge drops to APPROXIMATED and the sim speed is disclosed)', 'Sensor mount position, yaw and range in the studio sim (z ignored, disclosed; the Python engine rays from the rover centre)', 'Collision circle sized from the body footprint', 'Command availability gated on fitted parts', 'Battery as a hard budget: the robot halts at zero'],
     approximated: ['Acceleration and braking: first-order trapezoid, not F=ma integration', 'Turn time from mass or track geometry, not wheel torque curves', 'Traction: three coarse bands per surface', 'Constant-power battery drain (no voltage sag or thermal derating)', 'Scenario validation spread from seeded randomisation'],
     notSimulated: ['Slopes and terrain height (worlds are flat planes)', 'Wheel-level slip and per-motor torque curves', 'Suspension and 3D contact (body motion is cosmetic)', 'Voltage sag, thermal limits, per-motor current transients', 'IMU acceleration content (returns level readings)', 'Camera, GPS, bumper, line and gripper command semantics']
   };
@@ -685,13 +685,27 @@
       out.vMaxCmPerS = KM.physTopSpeedCmPerS(motor.noLoadRpm, drive.wheelRadiusCm);
       out.speedFactor = KM.physSpeedFactor(out.vMaxCmPerS);
       var capped = KM.MODEL.baseSpeedCmPerS * out.speedFactor;
+      // The sim can only run inside the speedFactor band [Lo, Hi]. A build
+      // whose real top speed falls outside that band is simulated at a
+      // DIFFERENT speed than it actually reaches: clamped DOWN when it is
+      // above the ceiling, clamped UP (so it runs FASTER than real) when it
+      // is below the floor. Never badge such a value 'honoured' - the sim is
+      // not honouring the measured number - and the warning must name the
+      // real direction (below/above, faster/slower), not always "exceeds".
       if (Math.abs(capped - out.vMaxCmPerS) > 0.5) {
-        out.warnings.push('Top speed ' + (out.vMaxCmPerS / 100).toFixed(2) + ' m/s exceeds the simulable band; simulated at ' + (capped / 100).toFixed(2) + ' m/s.');
         out.vMaxSimCmPerS = capped;
+        var realMps = (out.vMaxCmPerS / 100).toFixed(2);
+        var simMps = (capped / 100).toFixed(2);
+        if (capped > out.vMaxCmPerS) {
+          out.warnings.push('Top speed ' + realMps + ' m/s is below the simulable floor; simulated FASTER at ' + simMps + ' m/s.');
+        } else {
+          out.warnings.push('Top speed ' + realMps + ' m/s is above the simulable ceiling; simulated SLOWER at ' + simMps + ' m/s.');
+        }
+        out.badges.topSpeed = 'approximated';
       } else {
         out.vMaxSimCmPerS = out.vMaxCmPerS;
+        out.badges.topSpeed = 'honoured';
       }
-      out.badges.topSpeed = 'honoured';
     }
     // Tractive force, mobility, acceleration, slope (E-A1/E-A5).
     if (motor.stallTorqueNm !== undefined && drive.wheelRadiusCm !== undefined) {
@@ -11974,7 +11988,15 @@ Object.assign(window, {
     const dims = [];
 
     // 1. MOBILITY -- can it physically get around on this surface?
-    const mob = mobilityScore(speedFactor, massFactor, traction);
+    // An imported KRS build (derived.phys.stallForceN present) is judged by
+    // the SAME force-ratio model the live tick drives it with (app.jsx uses
+    // KodroMotion.physMobility / physStallVerdict), so the Design Check verdict
+    // can never contradict what then happens on screen. Catalogue (non-physical)
+    // builds keep the parts proxy (speedFactor*traction/massFactor).
+    const physM = derived.phys;
+    const usePhysMob = !!(physM && physM.stallForceN !== undefined && window.KodroMotion);
+    const massKg = physM && physM.massKg !== undefined ? physM.massKg : physM && physM.massKg === undefined && derived.mass ? derived.mass / 1000 : massFactor * 0.9;
+    const mob = usePhysMob ? window.KodroMotion.physMobility(physM.stallForceN, massKg, traction, gravity) : mobilityScore(speedFactor, massFactor, traction);
     if (driveCount === 0) {
       dims.push({
         key: 'mobility',
