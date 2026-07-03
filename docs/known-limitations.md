@@ -140,10 +140,13 @@ An imported KRS spec (Robot Lab, Import spec) drives the simulation through
 three disclosed tiers, surfaced as badges in the Lab, the Realism dashboard
 and the verification report:
 
-- HONOURED: commanded distances and angles, motor-derived top speed
-  (v = rpm/60 x 2 pi r), sensor mount pose and range (z ignored), the
-  collision circle from the body footprint, command availability, and the
-  battery as a hard budget.
+- HONOURED: commanded distances and angles; motor-derived top speed
+  (v = rpm/60 x 2 pi r) WHEN it lands inside the simulable band (a build
+  outside the band drops to APPROXIMATED and the sim speed is disclosed, see
+  below); sensor mount pose and range (z ignored) IN THE STUDIO SIM only, the
+  Python engine rays from the rover centre with a fixed range; the collision
+  circle from the body footprint; command availability; and the battery as a
+  hard budget.
 - APPROXIMATED: first-order acceleration/braking (a trapezoid, not F=ma
   integration), turn timing from track geometry, three traction bands, and
   the constant-power battery model (no voltage sag, no thermal derating).
@@ -154,6 +157,31 @@ and the verification report:
 
 The Ackermann minimum turn radius (wheelbase/tan(steer)) is REPORT-ONLY in
 v1: the sim still turns in place (or on its fixed display arc for the car
-type). Slow builds below 0.94 m/s and fast builds above 6.25 m/s are
-simulated at the band edge with a named warning, because the studio's
-readable speed range is calibrated around the 3.125 m/s anchor.
+type). A build whose real top speed falls outside the simulable band is
+simulated at the band edge, NOT at its true speed, so its top-speed badge is
+APPROXIMATED (never HONOURED) and the warning states the real direction: a
+slow build below 0.94 m/s is simulated FASTER at the 0.94 m/s floor, and a
+fast build above 6.25 m/s is simulated SLOWER at the 6.25 m/s ceiling. The
+studio's readable speed range is calibrated around the 3.125 m/s anchor.
+
+### Formula parity vs simulation parity (M1)
+
+The two engines are locked at two levels. The constant table is hash-gated
+(`test_motion_model_conformance.py`, E-C4) and the catalogue behaviour is
+golden-trace gated (`test_golden_traces.py`, E-P2). As of this pass the
+physical-mode CLOSED FORMS are gated too: the twelve `phys*` functions plus
+`sensorPose` were ported from `motion-model.js` into `engine/motion_model.py`
+and `test_physical_golden_trace.py` runs the JS twin over the shipped
+Reference Rover and fails on any drift, so an imported build's DERIVED NUMBERS
+(top speed, stall force, mobility, acceleration, energy, runtime, slope, turn
+timing, stopping distance, sensor pose) are provably identical across the two
+engines.
+
+What is still JS-only is the full measured-build SIMULATION, not the formulas.
+The Python `engine/sensors.py` rays originate at the rover centre and use fixed
+module ranges (`LIDAR_MAX_RANGE_M`, `ULTRASONIC_MAX_RANGE_M`); they do not yet
+consume the imported `rangeCm` or the sensor mount offset, and `rover_api.py`
+does not import a KRS spec's mass/rpm/battery. So a measured build is simulated
+end to end only in the JS studio; the Python engine reproduces the derived
+numbers and grades catalogue-mode motion. The HONOURED sensor-pose/range line
+above is therefore scoped to the studio sim.

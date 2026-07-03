@@ -120,6 +120,174 @@ def turn_drain_pct(deg: float) -> float:
     return abs(deg) * float(MODEL["drainPctPerDeg"])  # type: ignore[arg-type]
 
 
+def _clamp(value: float, low: float, high: float) -> float:
+    """Mirror of the JS clamp helper in motion-model.js."""
+    return min(high, max(low, value))
+
+
+# --- physical-mode closed forms (E-A1/E-A2/E-A4) ----------------------------
+# Ported verbatim from the phys* functions in assets/web/motion-model.js so the
+# derived numbers a KRS import produces (top speed, stall force, mobility,
+# acceleration, energy, runtime, slope, turns, stopping distance, sensor pose)
+# are provably identical across the two engines. tests/unit/test_physical_
+# golden_trace.py runs the JS twin over the shipped reference-rover spec and
+# fails the build on any drift, so these formulas are parity-locked, not just
+# the constant table (E-C4). Full measured-build SIMULATION (sensor rays that
+# honour mount geometry and imported range) remains the JS studio only; see
+# docs/known-limitations.md.
+
+
+def phys_top_speed_cm_per_s(no_load_rpm: float, wheel_radius_cm: float) -> float:
+    """Free top speed from motor and wheel: v = rpm/60 * 2*pi*r (E-A1)."""
+    return (no_load_rpm / 60.0) * 2.0 * math.pi * wheel_radius_cm
+
+
+def phys_speed_factor(v_cm_per_s: float) -> float:
+    """Clamp the derived speed into the simulable band [Lo, Hi]."""
+    return _clamp(
+        v_cm_per_s / float(MODEL["baseSpeedCmPerS"]),  # type: ignore[arg-type]
+        float(MODEL["physSpeedFactorLo"]),  # type: ignore[arg-type]
+        float(MODEL["physSpeedFactorHi"]),  # type: ignore[arg-type]
+    )
+
+
+def phys_mass_factor(mass_kg: float) -> float:
+    """Clamp mass into the physical mass-factor band."""
+    return _clamp(
+        (mass_kg * 1000.0) / float(MODEL["massBaselineG"]),  # type: ignore[arg-type]
+        float(MODEL["physMassFactorLo"]),  # type: ignore[arg-type]
+        float(MODEL["physMassFactorHi"]),  # type: ignore[arg-type]
+    )
+
+
+def phys_stall_force_n(stall_torque_nm: float, motor_count: float, wheel_radius_cm: float) -> float:
+    """Tractive force at stall: F = n * tau / r (gear ratio 1 in v1)."""
+    return (motor_count * stall_torque_nm) / (wheel_radius_cm / 100.0)
+
+
+def phys_mobility(
+    stall_force_n: float, mass_kg: float, traction: float, gravity_mps2: float | None
+) -> float:
+    """Force-ratio mobility fed into the shared three bands: drive force
+    times grip over weight."""
+    g = gravity_mps2 or float(MODEL["gravityEarthMps2"])  # type: ignore[arg-type]
+    return (stall_force_n * traction) / (mass_kg * g)
+
+
+def phys_accel_cm_per_s2(stall_force_n: float, mass_kg: float, gravity_mps2: float | None) -> float:
+    """First-order acceleration a = (F_stall - Crr*m*g)/m, floored at 1 cm/s^2."""
+    g = gravity_mps2 or float(MODEL["gravityEarthMps2"])  # type: ignore[arg-type]
+    a = (stall_force_n - float(MODEL["rollingResistance"]) * mass_kg * g) / mass_kg  # type: ignore[arg-type]
+    return max(1.0, a * 100.0)
+
+
+def phys_energy_wh(m_ah: float, voltage: float, usable_fraction: float) -> float:
+    """Usable pack energy in watt-hours."""
+    return (m_ah / 1000.0) * voltage * usable_fraction
+
+
+def phys_drain_pct_per_cm(
+    mass_kg: float, energy_wh: float, v_cm_per_s: float, gravity_mps2: float | None, traction: float
+) -> float:
+    """Energy-true battery drain per cm (E-A2): P = F_drive*v/eta + P_idle."""
+    g = gravity_mps2 or float(MODEL["gravityEarthMps2"])  # type: ignore[arg-type]
+    v_mps = max(0.01, v_cm_per_s / 100.0)
+    f_drive = float(MODEL["rollingResistance"]) * mass_kg * g / (traction or 1.0)  # type: ignore[arg-type]
+    watts = (f_drive * v_mps) / float(MODEL["drivetrainEfficiency"]) + float(MODEL["idleDrawW"])  # type: ignore[arg-type]
+    joules_per_cm = watts * (0.01 / v_mps)
+    return 100.0 * joules_per_cm / (3600.0 * energy_wh)
+
+
+def phys_runtime_min(
+    mass_kg: float, energy_wh: float, v_cm_per_s: float, gravity_mps2: float | None, traction: float
+) -> float:
+    """Minutes until the usable energy is gone at cruise speed v."""
+    g = gravity_mps2 or float(MODEL["gravityEarthMps2"])  # type: ignore[arg-type]
+    v_mps = max(0.01, v_cm_per_s / 100.0)
+    f_drive = float(MODEL["rollingResistance"]) * mass_kg * g / (traction or 1.0)  # type: ignore[arg-type]
+    watts = (f_drive * v_mps) / float(MODEL["drivetrainEfficiency"]) + float(MODEL["idleDrawW"])  # type: ignore[arg-type]
+    return (energy_wh * 3600.0) / watts / 60.0
+
+
+def phys_turn_duration_ms(
+    deg: float, v_cm_per_s: float, track_cm: float, speed_mul: float | None = None
+) -> float:
+    """Geometric differential-drive turn (E-A4): omega = 2*v_wheel/track."""
+    omega = (2.0 * v_cm_per_s) / max(1.0, track_cm)
+    return (abs(deg) * math.pi / 180.0) / max(0.01, omega) * 1000.0 / (speed_mul or 1.0)
+
+
+def phys_turn_radius_cm(wheelbase_cm: float, max_steer_deg: float) -> float:
+    """Ackermann minimum turn radius (report-only in v1): R = wheelbase/tan(steer)."""
+    t = math.tan(max_steer_deg * math.pi / 180.0)
+    return wheelbase_cm / t if t > 1e-6 else math.inf
+
+
+def phys_stopping_distance_cm(
+    v_cm_per_s: float, traction: float, gravity_mps2: float | None
+) -> float:
+    """Braking distance from speed v: d = v^2 / (2*mu*g)."""
+    g = gravity_mps2 or float(MODEL["gravityEarthMps2"])  # type: ignore[arg-type]
+    v_mps = v_cm_per_s / 100.0
+    mu = float(MODEL["brakeMu"]) * (traction or 1.0)  # type: ignore[arg-type]
+    return (v_mps * v_mps) / (2.0 * mu * g) * 100.0
+
+
+def phys_max_slope_deg(
+    stall_force_n: float, mass_kg: float, gravity_mps2: float | None, traction: float = 1.0
+) -> float:
+    """Max climbable slope: lesser of the force limit and the wheel-grip limit."""
+    g = gravity_mps2 or float(MODEL["gravityEarthMps2"])  # type: ignore[arg-type]
+    s = (stall_force_n - float(MODEL["rollingResistance"]) * mass_kg * g) / (mass_kg * g)  # type: ignore[arg-type]
+    force_deg = math.asin(_clamp(s, 0.0, 1.0)) * 180.0 / math.pi
+    grip_deg = math.atan(float(MODEL["brakeMu"]) * (traction or 1.0)) * 180.0 / math.pi  # type: ignore[arg-type]
+    return min(force_deg, grip_deg)
+
+
+def phys_stall_verdict(
+    stall_force_n: float,
+    mass_kg: float,
+    traction: float,
+    gravity_mps2: float | None,
+    motor_count: float,
+    wheel_radius_cm: float,
+) -> dict[str, object]:
+    """Stall verdict inputs (E-A5): needed vs available torque per motor."""
+    g = gravity_mps2 or float(MODEL["gravityEarthMps2"])  # type: ignore[arg-type]
+    mob = phys_mobility(stall_force_n, mass_kg, traction, g)
+    needed_force_n = (float(MODEL["mobilityStallBand"]) * mass_kg * g) / (traction or 1.0)  # type: ignore[arg-type]
+    needed_nm = needed_force_n * (wheel_radius_cm / 100.0) / max(1.0, motor_count)
+    has_nm = stall_force_n * (wheel_radius_cm / 100.0) / max(1.0, motor_count)
+    return {
+        "stalled": mob < float(MODEL["mobilityStallBand"]),  # type: ignore[arg-type]
+        "mobility": mob,
+        "neededNm": needed_nm,
+        "hasNm": has_nm,
+    }
+
+
+def sensor_pose(
+    x: float,
+    y: float,
+    heading_deg: float,
+    fwd_cm: float,
+    left_cm: float,
+    yaw_deg: float,
+) -> dict[str, float]:
+    """Sensor mount pose (SI2): ray origin offset by the sensor's forward/left
+    position and yaw, in the sim's compass frame (heading 0 is up/-y,
+    clockwise positive). z is ignored and disclosed. Mirrors sensorPose in
+    motion-model.js."""
+    a = heading_deg * math.pi / 180.0
+    fx, fy = math.sin(a), -math.cos(a)  # forward
+    lx, ly = -math.cos(a), -math.sin(a)  # left
+    return {
+        "x": x + fwd_cm * fx + left_cm * lx,
+        "y": y + fwd_cm * fy + left_cm * ly,
+        "heading": heading_deg + (yaw_deg or 0.0),
+    }
+
+
 def segment_circle_hit(
     ax: float,
     ay: float,
