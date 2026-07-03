@@ -549,6 +549,13 @@
       addConsole, showToast, sfx, motorSfx, motorRest, recordRunReport,
       gradeWithBridge, celebrate,
     } = deps;
+    // `token` is a monotonic run id: every reset/start/resume bumps it, so a
+    // stale pump loop or a pending start setTimeout that fires after a Reset is
+    // ignored. `advancing` is a synchronous single-flight latch so two advance()
+    // calls can never overlap (a pump step racing a manual Step). `startTimer`
+    // and `abortTimer` hold the deferred-start / abort-clear handles so any new
+    // control action can cancel them. Together these fix the Run/Step/Reset
+    // mash races (QA adv5).
     const ctrl = useRef({ running: false, abort: false, advancing: false, token: 0, startTimer: null, abortTimer: null });
     const genRef = useRef(null);
 
