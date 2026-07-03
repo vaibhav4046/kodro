@@ -207,3 +207,59 @@ exactly why it is worth running and exactly why it cannot be read as a
 clean bill of health. It measures the code, not a learner. The human study
 remains the right next step, and nothing in this document licenses a
 perfect or fully validated score.
+
+## Round 3: the deep sweep
+
+Rounds 1 and 2 were almost entirely about the web front end. Round 3
+pointed thirty fresh personas at the surfaces those rounds never reached:
+the Python engine (executor, sandbox, scorer, rover, tracer), the two
+engines cross-checked constant by constant, the desktop bridge, the AI
+grounding path, the memory store, determinism, packaging, and a full
+accessibility regression pass. Sixteen of the thirty lenses came back
+clean; the other fourteen produced, after adversarial verification and
+dedup, **16 new confirmed defects** (2 HIGH, 13 MEDIUM, 1 LOW), all
+distinct from the first two rounds.
+
+That the deep sweep found more, not fewer, is the honest and expected
+result of finally testing under-tested code, and the two HIGH findings
+were both real correctness bugs in the grading layer that the whole
+teaching product rests on:
+
+- **The grader counted commanded distance, not travelled distance
+  (HIGH).** A rover ordered to drive five metres into a wall travels far
+  less, but the grader summed the command arguments, so a program could
+  pass a "travel at least three metres" lesson the rover never physically
+  completed. The rover already tracked true distance; the fix carries it
+  onto the trace snapshot and grades from that, with a regression test that
+  pins the wall-clamped case to a fail.
+- **The grader hardcoded the environment sensors (HIGH).** Gravity,
+  temperature and light were fixed at Earth values in the validator, so a
+  Mars or underwater or space program that branched on gravity() or
+  temperature() was graded on the wrong planet. The grader now reports the
+  scenario world's real environment, matching the live run.
+
+The thirteen MEDIUM and one LOW findings spread across the areas the sweep
+was built to probe: a sandbox that let a pupil allocate gigabytes with a
+single oversized literal (now rejected at parse time, with the
+runtime-computed case documented as a residual that needs an
+out-of-process executor); three interpreter-versus-Python divergences in
+string multiplication and an unseeded random() that broke reproducible
+grading; a startup path that showed a raw traceback instead of the native
+failure dialog when a bundled asset was corrupt; a browser-mode Ask that
+promised grounded answers it could not provide; a memory import that
+reported success after a partial, quota-failed save; contrast failures on
+the tertiary text tokens across all eight alternate themes; two missing
+accessible names; eight unguarded storage reads that could crash the app
+on load; a leaked AI chat job on cancel; and three megabytes of build-only
+tooling shipped inside the executable. All sixteen were fixed and the
+gates re-run green.
+
+Across three rounds, 88 simulated personas found and drove the correction
+of 33 distinct, code-verified defects, and the fraction of lenses that
+came back clean rose from none in round one to more than half in round
+three. That trend is the closest thing to a convergence signal this method
+can give, and it is still not a clean bill of health: it says the code got
+more robust under an adversarial net, not that a learner is well served.
+The read is unchanged. This is a bug-finding instrument, not validation;
+it measures the code and not a person; and it does not license a perfect
+score. The human study remains the right next step.
