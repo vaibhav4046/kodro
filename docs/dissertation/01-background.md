@@ -1,49 +1,33 @@
-# 2. Background and related work (scaffold)
+# 2. Background and related work
 
-> **Scaffold, not finished prose, and deliberately citation-free.** Each
-> section names what to research and cite. Find, read and reference the
-> sources yourself — do not let any tool invent citations.
+> **Superseded draft.** The canonical Background chapter is Chapter 2 of
+> [`Kodro_Dissertation.tex`](Kodro_Dissertation.tex), which carries the real
+> citations. This file is an earlier scaffold, kept for reference only; where
+> it differs, the `.tex` is authoritative.
 
-## 2.1 Computational thinking and the UK curriculum
+## Current framing (v2.0)
 
-- Define computational thinking and its strands (decomposition, abstraction,
-  algorithms, pattern recognition, evaluation). *Cite the foundational CT
-  literature you choose (e.g. seminal CT papers and a UK CT-in-schools
-  reference) and the official curriculum documents.*
-- Map the strands to what RoboLearn teaches; this connects directly to the
-  `ct_concepts` field on every lesson and to the grader's `uses_construct`
-  checks.
+The `.tex` situates Kodro against four lines of work, each read for what it
+implies for an offline proving ground:
 
-## 2.2 Educational programming environments
+1. **Learning by building** (constructionism): people learn by building
+   something they can watch behave and debug. The blocks palette compiles to
+   the same Python the editor runs, so the medium does not get in the way of
+   the idea.
+2. **The simulation-to-reality gap and domain randomisation:** the value of a
+   simulator is the honesty of the spread it reports, not its prettiness.
+   Kodro validates across randomised seeds and reports the spread.
+3. **Hallucination, grounding and honest refinement:** hallucination is
+   intrinsic to language models, so generation is grounded in the build the
+   user assembled or imported, a deterministic gate has the final word, and
+   refinement is system-level (reflection + skill library), not weight-level.
+4. **Small local models:** small open-weight models with retrieval make the
+   offline choice practical; the honest limit is grounding and format, not
+   frontier capability.
 
-- Survey comparable tools (block-based and text-based learning
-  environments, turtle/robot micro-worlds, physical kits and their
-  simulators). *Cite each tool you discuss.*
-- Position RoboLearn: text-based procedural Python (not blocks), offline,
-  curriculum-mapped, with automated formative feedback. Argue the gap it
-  fills.
-
-## 2.3 Formative feedback and intelligent tutoring
-
-- Summarise the pedagogy of *formative assessment* and immediate feedback,
-  and the idea of hints/scaffolding. *Cite the assessment-for-learning and
-  ITS literature you use.*
-- This justifies the central design decision (see Design §"grade on Run"):
-  feedback is coupled to every run rather than hidden behind a separate
-  submit step.
-
-## 2.4 Simulation and game elements in learning
-
-- Briefly cover motivation/engagement: streaks, achievements, immediate
-  audio-visual response. *Cite the gamification-in-education evidence you
-  rely on, and note the debate/limitations honestly.*
-
-## 2.5 Privacy, cost and access in school software
-
-- Make the case for offline-by-design: safeguarding of minors' data, GDPR,
-  total cost of ownership, and reliability on locked-down school networks.
-  *Cite relevant guidance/regulation.*
-
-> **Synthesis paragraph:** end by stating the specific niche — a free,
-> offline, curriculum-mapped, text-Python rover simulator with automated
-> formative feedback — that the surveyed work leaves open.
+The niche the surveyed work leaves open is a single offline desktop tool that
+lets a builder import a real robot specification, or a non-expert design one,
+validate its behaviour among moving agents across a randomised spread, with
+every figure carried at an honestly stated level of fidelity, a grounded
+local model, and a deterministic gate. See Chapter 2 of the `.tex` for the
+full review and references.

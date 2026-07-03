@@ -1,70 +1,33 @@
 # 6. Conclusion and future work
 
-## 6.1 Summary
+> **Superseded draft.** The canonical Conclusion & Future Work chapter is
+> Chapter 8 of [`Kodro_Dissertation.tex`](Kodro_Dissertation.tex). This file
+> is an earlier draft written for the older teaching-tool framing; where it
+> differs, the `.tex` is authoritative.
 
-RoboLearn is a free, fully offline desktop application that lets UK secondary
-pupils learn curriculum programming constructs by writing procedural Python to
-drive a simulated rover across four terrains. Against the objectives set out
-in the introduction, the project delivered:
+## Current framing (v2.0)
 
-- a procedural, curriculum-aligned pupil API that never crashes on bad input;
-- a deterministic simulation with per-terrain physics, four sensor types and
-  battery modelling;
-- an automated grader and a 24-rule offline hint engine, both driven by a
-  single per-call trace and validated against explicit per-lesson criteria;
-- a pupil-progress memory model (per-concept strength, recommendations,
-  achievements, streaks) and a teacher dashboard plus offline HTML reporting;
-- fifteen curriculum-mapped lessons spanning KS3 and KS4; and
-- a one-download desktop binary, built and released through a disciplined,
-  fully green CI process.
+Kodro is an offline desktop proving ground on which a builder imports a real
+robot specification, or a non-expert designs one, programs it two ways
+against one meaning, and validates its behaviour in a realistic,
+agent-populated simulation before building any hardware, with every reported
+figure carried at an honestly stated level of fidelity and a local model
+that helps without ever having the last word on safety.
 
-The central design insight — coupling formative feedback to every Run — was
-validated by a heuristic review that moved from 4.5/10 to roughly 8.3/10 once
-the loop was closed and polished.
+Against the core objectives the artefact delivers: a specification (imported
+or designed) that drives the simulation; a three-tier fidelity disclosure
+with a verification report; one shared motion model locked across the two
+engines; a sandboxed execution and scoring path; a validation layer of 17
+named mission sites with moving agents; a grounded assistant with a
+deterministic fallback; and a self-refinement memory. Measured evidence:
+interpreter QA **156/156**, Python suite **~870 passing** above the 85%
+coverage gate, world and interface smoke nets, and an objective
+execution-scored persona-task evaluation.
 
-## 6.2 Reflection
+The main future work is to wire the imported specification through the Python
+engine (sensor mount pose/range and the public API), implement the remaining
+part commands, put rigid-body physics on the hot path, and run the specified
+human studies under consent. No result from a study with real users is
+reported, because that study has not been run.
 
-- **What worked.** Building grading, hinting and replay on one trace
-  abstraction, and keeping the decision-making cores pure and Tk-free, paid
-  off repeatedly in testability and in the ease of adding the report and
-  recommendation features late in the project.
-- **What was harder than expected.** Headless GUI testing across three
-  operating systems was a persistent source of friction; the honest outcome
-  was to gate on the two stable platforms and treat the third as
-  informational, rather than weaken the tests.
-- **What I would do differently.** Wire the feedback loop first, not last —
-  the most important feature was implemented after much of the surrounding
-  UI, and discovering its absence through a structured review (rather than
-  by design) cost rework.
-
-## 6.3 Limitations
-
-- The system is **verified and heuristically reviewed, but not yet validated
-  with human users.** The persona review is analyst-simulated and carries
-  single-rater bias.
-- The data model is single-pupil-per-install; multi-pupil shared machines
-  are handled only coarsely.
-- macOS is not covered by a hard CI gate (a test-environment limitation).
-
-## 6.4 Future work
-
-1. **Run the teacher evaluation study** specified in the
-   [evaluation chapter](../developers/evaluation.md) and
-   `HUMAN_TODO.md`: 5–8 teachers, task-based sessions, a SUS questionnaire
-   and interviews, using the built-in dashboard and HTML report as evidence.
-2. **Broaden content** beyond the current lessons, and add worked-example and
-   Parsons-problem lesson types.
-3. **Deepen accessibility** (screen-reader labelling, a bundled
-   OpenDyslexic-style font) toward a formal WCAG-style assessment.
-4. **Multi-pupil support** for shared classroom machines, with per-pupil
-   selection and isolated stores.
-5. **Strengthen the optional local AI** tutor's reliability across small
-   models, keeping the strict no-cloud guarantee.
-
-## 6.5 Closing statement
-
-The project demonstrates that a single, free, offline download can provide a
-curriculum-aligned, feedback-rich programming environment for schools without
-the cost, fragility or privacy concerns of hardware kits or cloud platforms.
-The remaining step to a `v1.0.0` release is empirical validation with real
-teachers and pupils — for which the instrumentation is already in place.
+See Chapter 8 of the `.tex` for the full summary, reflection and roadmap.
