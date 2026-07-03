@@ -7,6 +7,7 @@ and keep event-loop pumping short.
 
 from __future__ import annotations
 
+import contextlib
 import sys
 import time
 import tkinter as tk
@@ -55,19 +56,146 @@ def app_ctx(tmp_path_factory: pytest.TempPathFactory) -> Iterator[App]:
     except (tk.TclError, RuntimeError) as exc:  # pragma: no cover
         app_mod.show_toast = _orig_toast
         pytest.skip(f"Tk unavailable: {exc}")
+    # H3: prove the Tk event loop on THIS machine can actually run scheduled
+    # ``after`` callbacks before any timing-sensitive test relies on it. If it
+    # cannot (a wedged headless interpreter), the whole GUI group skips cleanly
+    # instead of flaking red halfway through a graded run.
+    try:
+        _require_scheduling(win.root)
+    except _TkSchedulingUnavailable as exc:  # pragma: no cover
+        app_mod.show_toast = _orig_toast
+        app.store.close()
+        win.destroy()
+        _teardown_tk()
+        pytest.skip(f"Tk cannot schedule callbacks: {exc}")
     try:
         yield app
     finally:
         app_mod.show_toast = _orig_toast
         app.store.close()
         win.destroy()
+        # H3: drop the Tk default-root so the NEXT GUI test module starts from
+        # a clean interpreter rather than inheriting this module's torn-down one.
+        _teardown_tk()
 
 
-def _pump(root: tk.Tk, seconds: float = 0.4) -> None:
-    """Run the Tk event loop briefly to flush after() callbacks."""
+class _TkSchedulingUnavailable(RuntimeError):
+    """Raised when the Tk event loop cannot run ``after`` callbacks at all."""
+
+
+#: Hard ceiling for any single graded run to reach its terminal callback. The
+#: real work is a handful of 16-90 ms tweened frames, so a few seconds is
+#: generous headroom; we poll to COMPLETION and stop early, so a fast machine
+#: never waits the full budget and a loaded one never gives up too soon.
+_RUN_TIMEOUT_S: float = 8.0
+
+
+def _teardown_tk() -> None:
+    """Destroy any lingering Tk default root so modules don't cross-wire."""
+    with contextlib.suppress(Exception):
+        root = tk._get_default_root() if hasattr(tk, "_get_default_root") else tk._default_root  # type: ignore[attr-defined]
+        if root is not None:
+            root.destroy()
+    with contextlib.suppress(Exception):
+        tk._default_root = None  # type: ignore[attr-defined]
+
+
+def _require_scheduling(root: tk.Tk) -> None:
+    """Confirm ``root.after`` callbacks fire, or raise so the caller can skip."""
+    fired = {"ok": False}
+
+    def _mark() -> None:
+        fired["ok"] = True
+
+    root.after(0, _mark)
+    deadline = time.monotonic() + 2.0
+    while not fired["ok"] and time.monotonic() < deadline:
+        try:
+            root.update()
+        except tk.TclError as exc:  # pragma: no cover
+            raise _TkSchedulingUnavailable(str(exc)) from exc
+    if not fired["ok"]:  # pragma: no cover
+        raise _TkSchedulingUnavailable("after(0) callback never fired within 2s")
+
+
+def _pump_until(
+    root: tk.Tk,
+    done: "object",
+    *,
+    timeout: float = _RUN_TIMEOUT_S,
+    settle: float = 0.05,
+) -> bool:
+    """Pump the Tk loop until ``done()`` is truthy, then briefly settle.
+
+    Deterministic replacement for the old fixed-wall-clock ``_pump``: it drives
+    the SAME ``after``-chained animation the app schedules, but stops the instant
+    the run reaches its terminal state (``done()`` true) rather than racing a
+    guessed budget. Returns whether the terminal state was observed. A short
+    post-settle lets the trailing ``_finish_run`` callbacks (grade + persist)
+    flush after the condition first flips.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        root.update()
+        if done():  # type: ignore[operator]
+            break
+    else:
+        return False
+    settle_end = time.monotonic() + settle
+    while time.monotonic() < settle_end:
+        root.update()
+    return True
+
+
+def _pump(root: tk.Tk, seconds: float = 0.2) -> None:
+    """Flush pending ``after`` callbacks for surfaces with no terminal signal.
+
+    Used only by paths that schedule at most one short callback and expose no
+    natural completion predicate (reset, sandbox-rejected run). The graded-run
+    tests use :func:`_pump_until` and poll their real terminal state instead.
+    """
     end = time.monotonic() + seconds
     while time.monotonic() < end:
         root.update()
+
+
+def _drain_after(root: tk.Tk, timeout: float = _RUN_TIMEOUT_S) -> None:
+    """Run the Tk loop until no ``after`` callbacks remain queued.
+
+    A run's animation is a chain of self-scheduling ``after`` callbacks; if a
+    test asserts before the chain finishes, a leftover frame fires DURING the
+    next test and corrupts its state (the exact cross-test bleed behind the old
+    flakiness). Draining to an empty ``after`` queue between tests makes each
+    test start from a quiescent event loop, so order can never matter.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            pending = root.tk.call("after", "info")
+        except tk.TclError:  # pragma: no cover
+            return
+        if not pending:
+            return
+        root.update()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_run_loop(request: pytest.FixtureRequest) -> Iterator[None]:
+    """Quiesce the Tk event loop after every GUI test so none bleed into the next.
+
+    Only engages for tests that took the module ``app_ctx`` fixture (the GUI
+    group); pure-helper tests have no root and are left untouched. It requests
+    a stop and drains the ``after`` queue, guaranteeing the next test sees no
+    in-flight animation regardless of run order.
+    """
+    yield
+    if "app_ctx" not in request.fixturenames:
+        return
+    app = request.getfixturevalue("app_ctx")
+    app.stop_requested = True
+    with contextlib.suppress(tk.TclError):
+        _drain_after(app.main_window.root)
+    app.stop_requested = False
 
 
 def test_build_app_wires_every_panel(app_ctx: App) -> None:
@@ -82,19 +210,33 @@ def test_build_app_wires_every_panel(app_ctx: App) -> None:
 def test_run_button_drives_and_animates(app_ctx: App) -> None:
     editor = app_ctx.main_window.get_slot("editor")
     assert editor is not None
+    base_x = app_ctx.world.base[0]
+    before = len(app_ctx.store.list_submissions(pupil_id=app_ctx.pupil_id))
     editor._callbacks.on_run("move_forward(2)\nbeep(1)\n")  # type: ignore[attr-defined]
-    _pump(app_ctx.main_window.root, 0.8)
-    assert app_ctx.rover.state.x >= app_ctx.world.base[0]
+    # Poll to the run's TERMINAL callback (the whole tweened animation is drained
+    # and _finish_run has persisted the submission) rather than to the first
+    # moved frame: draining every chained after() callback here is what stops a
+    # trailing frame from firing into -- and corrupting -- the next test.
+    finished = _pump_until(
+        app_ctx.main_window.root,
+        lambda: len(app_ctx.store.list_submissions(pupil_id=app_ctx.pupil_id)) > before,
+    )
+    assert finished, "run never finished (Tk animation did not drain to _finish_run)"
+    assert app_ctx.rover.state.x >= base_x
 
 
 @_skip_darwin_anim
 def test_reset_button_restores_world(app_ctx: App) -> None:
     editor = app_ctx.main_window.get_slot("editor")
     assert editor is not None
+    base_x = app_ctx.world.base[0]
     app_ctx.rover.state.x = 99.0
     editor._callbacks.on_reset()  # type: ignore[attr-defined]
-    _pump(app_ctx.main_window.root, 0.2)
-    assert app_ctx.rover.state.x == app_ctx.world.base[0]
+    restored = _pump_until(
+        app_ctx.main_window.root, lambda: app_ctx.rover.state.x == base_x, timeout=2.0
+    )
+    assert restored
+    assert app_ctx.rover.state.x == base_x
 
 
 @_skip_darwin_anim
@@ -115,7 +257,13 @@ def test_run_pass_records_submission_and_clears_hint(app_ctx: App) -> None:
     app_ctx.current_lesson = _default_lesson()
     before = len(app_ctx.store.list_submissions(pupil_id=app_ctx.pupil_id))
     editor._callbacks.on_run("move_forward(1)")  # type: ignore[attr-defined]
-    _pump(app_ctx.main_window.root, 0.9)
+    # Poll to the run's terminal callback (_finish_run persists the submission)
+    # rather than guessing a wall-clock budget -- deterministic under load.
+    graded = _pump_until(
+        app_ctx.main_window.root,
+        lambda: len(app_ctx.store.list_submissions(pupil_id=app_ctx.pupil_id)) > before,
+    )
+    assert graded, "graded run never recorded a submission (Tk run did not finish)"
     subs = app_ctx.store.list_submissions(pupil_id=app_ctx.pupil_id)
     assert len(subs) == before + 1
     assert subs[-1].passed is True
@@ -141,7 +289,11 @@ def test_run_fail_records_and_surfaces_hint(app_ctx: App) -> None:
     app_ctx.current_lesson = sample_lessons[0]
     before = len(app_ctx.store.list_submissions(pupil_id=app_ctx.pupil_id))
     editor._callbacks.on_run("move_forward(1)")  # type: ignore[attr-defined]
-    _pump(app_ctx.main_window.root, 0.9)
+    graded = _pump_until(
+        app_ctx.main_window.root,
+        lambda: len(app_ctx.store.list_submissions(pupil_id=app_ctx.pupil_id)) > before,
+    )
+    assert graded, "graded run never recorded a submission (Tk run did not finish)"
     subs = app_ctx.store.list_submissions(pupil_id=app_ctx.pupil_id)
     assert len(subs) == before + 1
     assert subs[-1].passed is False

@@ -100,13 +100,6 @@
         <path d="M8.5 7h7M7.4 8.9l3.5 6M16.6 8.9l-3.5 6" />
       </g>
     ),
-    globe: () => (
-      <g>
-        <circle cx="12" cy="12" r="8.6" />
-        <path d="M3.4 12h17.2" />
-        <path d="M12 3.4c2.9 2.5 2.9 14.7 0 17.2M12 3.4c-2.9 2.5-2.9 14.7 0 17.2" />
-      </g>
-    ),
     eye: () => (
       <g>
         <path d="M2.6 12S6.2 5.8 12 5.8 21.4 12 21.4 12 17.8 18.2 12 18.2 2.6 12 2.6 12z" />
@@ -134,6 +127,10 @@
         <path d="M9 12.4h6M9 16.2h6" />
       </g>
     ),
+    // save / open: the project-file download and load-from-disk glyphs. The
+    // Save/Open buttons that consume these live in app.jsx (saveProjectClick /
+    // openProjectClick); they currently render without an icon. Kept registered
+    // so that wiring is a one-line KI('save')/KI('open') on the app.jsx side.
     save: () => (
       <g>
         <path d="M12 3.2v10.2M8.2 9.6l3.8 3.8 3.8-3.8" />
@@ -146,26 +143,11 @@
         <path d="M2.8 9.8h18.4l-1.8 8.4a1.8 1.8 0 0 1-1.8 1.4H6.4a1.8 1.8 0 0 1-1.8-1.4L2.8 9.8z" />
       </g>
     ),
-    undo: () => (
-      <g>
-        <path d="M4.4 9.8h9a5.4 5.4 0 1 1 0 10.8H8.6" />
-        <path d="M8.2 6 4.4 9.8l3.8 3.8" />
-      </g>
-    ),
     bulb: () => (
       <g>
         <path d="M12 3a6 6 0 0 1 3.6 10.8c-.7.6-1.1 1.3-1.1 2.2h-5c0-.9-.4-1.6-1.1-2.2A6 6 0 0 1 12 3z" />
         <path d="M9.6 19h4.8M10.4 21.4h3.2" />
       </g>
-    ),
-    award: () => (
-      <g>
-        <circle cx="12" cy="9" r="5.2" />
-        <path d="M8.8 13.4 7 21l5-2.7L17 21l-1.8-7.6" />
-      </g>
-    ),
-    next: () => (
-      <path d="M4 12h15.2M13.4 6.2 19.2 12l-5.8 5.8" />
     ),
     // -- robot archetypes -----------------------------------------------------
     rover: () => (
