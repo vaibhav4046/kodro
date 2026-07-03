@@ -671,6 +671,11 @@ textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible,
   .panel-head { flex-wrap:wrap; height:auto; row-gap:6px; }
   .tabs { flex-wrap:wrap; }
   .btn-mini { flex:0 0 auto; white-space:nowrap; }
+  /* Robot Lab footer actions must wrap instead of pushing the primary
+     "Build & test" CTA off the right edge (the modal has no horizontal scroll). */
+  .rl-foot { flex-wrap:wrap; justify-content:flex-start; }
+  /* The 5-archetype picker is too tight at phone width; drop to 3 columns. */
+  .rl-types { grid-template-columns:repeat(3,1fr); }
   /* >= 44px touch targets (WCAG 2.5.5) on the primary phone controls. */
   .ctrl, .icon-btn, .terrain-btn, .tab, .btn-mini, .view-toggle button, .lesson-picker {
     min-height:44px;
@@ -1361,7 +1366,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 }
 .fid-honoured { color:#06121b; background:#5ce0d8; }
 .fid-approximated { color:#06121b; background:#f5c451; }
-.fid-notSimulated { color:#f5f0e4; background:#c8685a; }
+.fid-notSimulated { color:#f5f0e4; background:#9a3f34; }
 .rl-measured {
   background:#0e1a22; border:1.5px solid #1d8a7d66; border-radius:14px;
   padding:14px 16px; margin-top:12px;

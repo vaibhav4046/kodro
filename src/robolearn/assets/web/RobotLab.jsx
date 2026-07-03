@@ -104,10 +104,16 @@
 
   // ---- derive the numbers the simulation cares about from a spec.
   function derive(spec) {
+    // Tolerate a spec whose list fields are the wrong type (a corrupted or
+    // hand-edited .kodro persisted before the project-loader guard existed): a
+    // non-array actuators/sensors must not throw at module init and brick every
+    // reload with "forEach is not a function".
+    const sensors = Array.isArray(spec.sensors) ? spec.sensors : [];
+    const actuators = Array.isArray(spec.actuators) ? spec.actuators : [];
     let mass = CHASSIS_MASS + (BOARDS[spec.board] ? BOARDS[spec.board].mass : (spec.boardMassG || 10));
-    (spec.sensors || []).forEach(s => { if (SENSORS[s]) mass += SENSORS[s].mass; });
+    sensors.forEach(s => { if (SENSORS[s]) mass += SENSORS[s].mass; });
     let speed = 0;
-    (spec.actuators || []).forEach(a => { if (ACTUATORS[a]) { mass += ACTUATORS[a].mass; speed = Math.max(speed, ACTUATORS[a].speed || 0); } });
+    actuators.forEach(a => { if (ACTUATORS[a]) { mass += ACTUATORS[a].mass; speed = Math.max(speed, ACTUATORS[a].speed || 0); } });
     if (speed === 0) speed = 0.8; // no drive parts: it barely crawls
     // Catalogue bounds live in the SHARED motion model (E-P1) so the sim, the
     // Lab and the Python twin read the same numbers; values are unchanged.
@@ -118,8 +124,8 @@
     // crude runtime estimate: lighter + fewer parts last longer on one charge
     const runtimeMin = Math.round(60 / massFactor);
     const cmds = [];
-    (spec.sensors || []).forEach(s => { if (SENSORS[s] && SENSORS[s].cmd) cmds.push(SENSORS[s].cmd); });
-    (spec.actuators || []).forEach(a => { if (ACTUATORS[a] && ACTUATORS[a].cmd) cmds.push(ACTUATORS[a].cmd); });
+    sensors.forEach(s => { if (SENSORS[s] && SENSORS[s].cmd) cmds.push(SENSORS[s].cmd); });
+    actuators.forEach(a => { if (ACTUATORS[a] && ACTUATORS[a].cmd) cmds.push(ACTUATORS[a].cmd); });
     const out = { mass, massFactor, speedFactor, runtimeMin, commands: cmds };
     // SI2: an imported KRS spec's physical block overrides the catalogue
     // proxies with measured numbers (top speed from rpm and wheel radius,
@@ -379,7 +385,10 @@
       rd.readAsText(f);
     }
     function specFileName(suffix) {
-      return ((spec.name || 'robot').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'robot') + suffix;
+      // Unicode-aware slug so a non-ASCII robot name (CJK, Cyrillic, accented
+      // Latin) is preserved in the download filename instead of collapsing to the
+      // generic 'robot' and colliding with every other non-Latin-named export.
+      return ((spec.name || 'robot').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'robot') + suffix;
     }
     function downloadText(text, fname, mime) {
       const blob = new Blob([text], { type: mime });

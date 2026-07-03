@@ -533,6 +533,12 @@
         const funcs = Object.create(null);
         let steps = 0;
         const MAX_STEPS = 200000;
+        // Guard user-function recursion: the native JS stack overflows around
+        // ~2000 nested generator frames (before MAX_STEPS can trip), throwing a
+        // raw RangeError with no line number. Cap call depth well under that and
+        // surface a wrapped RoverError instead, matching Python's RecursionError.
+        let callDepth = 0;
+        const MAX_CALL_DEPTH = 400;
 
         function evalExpr(node) {
           switch (node.k) {
@@ -615,11 +621,15 @@
             const usaved = {};
             ufn.params.forEach((pn, i) => { usaved[pn] = scope[pn]; scope[pn] = uargs[i]; });
             let rv = null;
+            callDepth++;
             try {
+              if (callDepth > MAX_CALL_DEPTH) throw new RoverError('Recursion too deep (over ' + MAX_CALL_DEPTH + ' nested calls; check for a missing base case).', curLine);
               for (const _ev of execBlock(ufn.body)) { void _ev; }
             } catch (e) {
               if (e === RETURN) { rv = RETURN.value; }
               else { ufn.params.forEach(pn => { scope[pn] = usaved[pn]; }); throw e; }
+            } finally {
+              callDepth--;
             }
             ufn.params.forEach(pn => { scope[pn] = usaved[pn]; });
             return rv;
@@ -759,8 +769,13 @@
               const saved = {};
               fn.params.forEach((pn, idx) => { saved[pn] = scope[pn]; scope[pn] = args[idx]; });
               yield { type: 'step', line: line };
-              try { yield* execBlock(fn.body); }
+              callDepth++;
+              try {
+                if (callDepth > MAX_CALL_DEPTH) throw new RoverError('Recursion too deep (over ' + MAX_CALL_DEPTH + ' nested calls; check for a missing base case).', line);
+                yield* execBlock(fn.body);
+              }
               catch (e) { if (e !== RETURN) { fn.params.forEach(pn => { scope[pn] = saved[pn]; }); throw e; } }
+              finally { callDepth--; }
               fn.params.forEach(pn => { scope[pn] = saved[pn]; });
               return;
             }

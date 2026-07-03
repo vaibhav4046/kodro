@@ -66,7 +66,17 @@
     useEffect(() => { try { localStorage.setItem('or_view3d', view3d ? '1' : '0'); } catch (e) { void e; } }, [view3d]);
     // Spin up the moving-agent simulation for the current world (city traffic
     // and pedestrians); both viewports and the collision test read from it.
-    useEffect(() => { if (window.KodroAgents) window.KodroAgents.build(terrainId); return () => { if (window.KodroAgents) window.KodroAgents.stop(); }; }, [terrainId]);
+    useEffect(() => {
+      if (window.KodroAgents) {
+        window.KodroAgents.build(terrainId);
+        // Reduced-motion: build the agents so they still exist for collision and
+        // are drawn once, but stop the sim loop so pedestrians and traffic do not
+        // animate (WCAG 2.3.3). Freezing the sim keeps the display and the
+        // collision test consistent (both see the same static layout).
+        if (PREFERS_REDUCED_MOTION()) window.KodroAgents.stop();
+      }
+      return () => { if (window.KodroAgents) window.KodroAgents.stop(); };
+    }, [terrainId]);
     useEffect(() => { try { localStorage.setItem('or_fpv', fpv ? '1' : '0'); } catch (e) { void e; } }, [fpv]);
     // Escape leaves first person fast (a quick exit for motion sensitivity).
     useEffect(() => {
@@ -816,7 +826,12 @@
       };
       document.addEventListener('keydown', onKey, true);
       return () => { document.removeEventListener('keydown', onKey, true); if (prev && prev.focus) prev.focus(); };
-    }, [anyModalOpen]);
+      // Keyed on EACH modal's open-state, not a single anyModalOpen boolean: when
+      // a second modal opens over an already-open one, the boolean does not change
+      // so the effect would not re-run and focus would stay trapped in the now
+      // occluded background modal. Depending on every flag re-captures the new
+      // frontmost dialog and moves focus into it.
+    }, [swarmOpen, askOpen, teacherOpen, robotLabOpen, memoryOpen, reviewOpen, vibeOpen, blocksOpen, buildOpen, showHelp, realismOpen, demoOpen]);
 
     // Shared vocabulary (app-data.jsx): telemetry renders the SAME labels.
     const statusLabel = (window.KodroStatusLabels || { idle: 'Standby', running: 'Running', paused: 'Paused', done: 'Complete', error: 'Halted' })[runState];

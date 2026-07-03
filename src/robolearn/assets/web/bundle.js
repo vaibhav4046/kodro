@@ -916,7 +916,10 @@
   }
   function fileName(doc) {
     var name = doc && doc.spec && doc.spec.name || 'kodro-project';
-    var slug = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'kodro-project';
+    // Unicode-aware slug: keep letters and numbers from any script (CJK,
+    // Cyrillic, accented Latin) so a non-ASCII robot name does not collapse to
+    // the generic 'kodro-project' and collide with every other non-Latin name.
+    var slug = String(name).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'kodro-project';
     return slug + '.kodro';
   }
   function isPlainObject(v) {
@@ -1014,7 +1017,19 @@
       doc.spec = null;
       errors.push('"spec" must be an object.');
     } else {
-      doc.spec = raw.spec;
+      // Coerce the spec's list fields to arrays. A hand-edited or corrupted
+      // .kodro with e.g. "actuators": {} (an object) used to be persisted raw
+      // and then throw "TypeError: forEach is not a function" at module init on
+      // the next reload - a persistent boot brick until localStorage was cleared.
+      // The KRS schema rejects this, but a project file bypasses it, so guard here.
+      var spec = Object.assign({}, raw.spec);
+      ['sensors', 'actuators'].forEach(function (k) {
+        if (spec[k] !== undefined && !Array.isArray(spec[k])) {
+          warnings.push('"spec.' + k + '" is not a list; reset to empty.');
+          spec[k] = [];
+        }
+      });
+      doc.spec = spec;
     }
 
     // Program buffers: a map of tab -> source string.
@@ -12152,7 +12167,14 @@ Object.assign(window, {
     const phys = derived.phys;
     const SENSOR_RANGE_BUILD = phys && phys.sensor && phys.sensor.rangeCm || SENSOR_RANGE;
     const hasRange = has(sensors, 'ultrasonic');
-    const stop = phys && phys.vMaxSimCmPerS !== undefined && window.KodroMotion ? Math.round(window.KodroMotion.physStoppingDistanceCm(phys.vMaxSimCmPerS, traction, gravity)) : stoppingDistance(speedFactor, massFactor);
+    // Stop distance must use the speed the live tick actually approaches at, not
+    // the raw no-load top speed: the tick hard-throttles by the mobility
+    // multiplier and by traction (hooks.jsx physV = vMaxSimCmPerS * mobMul *
+    // traction at full speed), so a mobility-limited build reaches an obstacle
+    // far slower and stops far sooner. Using vMaxSimCmPerS alone made the sensing
+    // dimension emit a WARN the live run never earns, contradicting the tick.
+    const approachMobMul = usePhysMob ? window.KodroMotion.mobilityMultiplier(driveCount > 0, mob) : 1;
+    const stop = phys && phys.vMaxSimCmPerS !== undefined && window.KodroMotion ? Math.round(window.KodroMotion.physStoppingDistanceCm(phys.vMaxSimCmPerS * approachMobMul * traction, traction, gravity)) : stoppingDistance(speedFactor, massFactor);
     if (!hasRange) {
       dims.push({
         key: 'sensing',
@@ -12800,12 +12822,18 @@ Object.assign(window, {
 
   // ---- derive the numbers the simulation cares about from a spec.
   function derive(spec) {
+    // Tolerate a spec whose list fields are the wrong type (a corrupted or
+    // hand-edited .kodro persisted before the project-loader guard existed): a
+    // non-array actuators/sensors must not throw at module init and brick every
+    // reload with "forEach is not a function".
+    const sensors = Array.isArray(spec.sensors) ? spec.sensors : [];
+    const actuators = Array.isArray(spec.actuators) ? spec.actuators : [];
     let mass = CHASSIS_MASS + (BOARDS[spec.board] ? BOARDS[spec.board].mass : spec.boardMassG || 10);
-    (spec.sensors || []).forEach(s => {
+    sensors.forEach(s => {
       if (SENSORS[s]) mass += SENSORS[s].mass;
     });
     let speed = 0;
-    (spec.actuators || []).forEach(a => {
+    actuators.forEach(a => {
       if (ACTUATORS[a]) {
         mass += ACTUATORS[a].mass;
         speed = Math.max(speed, ACTUATORS[a].speed || 0);
@@ -12821,10 +12849,10 @@ Object.assign(window, {
     // crude runtime estimate: lighter + fewer parts last longer on one charge
     const runtimeMin = Math.round(60 / massFactor);
     const cmds = [];
-    (spec.sensors || []).forEach(s => {
+    sensors.forEach(s => {
       if (SENSORS[s] && SENSORS[s].cmd) cmds.push(SENSORS[s].cmd);
     });
-    (spec.actuators || []).forEach(a => {
+    actuators.forEach(a => {
       if (ACTUATORS[a] && ACTUATORS[a].cmd) cmds.push(ACTUATORS[a].cmd);
     });
     const out = {
@@ -13188,7 +13216,10 @@ Object.assign(window, {
       rd.readAsText(f);
     }
     function specFileName(suffix) {
-      return ((spec.name || 'robot').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'robot') + suffix;
+      // Unicode-aware slug so a non-ASCII robot name (CJK, Cyrillic, accented
+      // Latin) is preserved in the download filename instead of collapsing to the
+      // generic 'robot' and colliding with every other non-Latin-named export.
+      return ((spec.name || 'robot').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'robot') + suffix;
     }
     function downloadText(text, fname, mime) {
       const blob = new Blob([text], {
@@ -13739,6 +13770,20 @@ Object.assign(window, {
     return Math.max(0, best);
   }
 
+  // Physical-build battery drain at the speed actually driven (E-A2), mirroring
+  // the live host (hooks.jsx). The energy-true per-cm figure RISES as speed
+  // falls, because the fixed idle draw is amortised over fewer centimetres, so
+  // grading every move at the fixed nominal top-speed figure under-counted drain
+  // and passed programs that then go flat mid-move on the live run. Gravity is
+  // Earth, matching the grader's gravity sensor; traction threads through both
+  // the drive load and the driven speed, exactly as the live tick does.
+  function physDrainPerCm(phys, speedSetting, traction) {
+    var KM = window.KodroMotion;
+    if (!KM || phys.vMaxSimCmPerS === undefined) return phys.drainPctPerCmNominal;
+    var v = phys.vMaxSimCmPerS * (Math.max(8, speedSetting) / 100) * (traction || 1);
+    return KM.physDrainPctPerCm(phys.massKg, phys.energyWh, v, KM.MODEL.gravityEarthMps2, traction || 1);
+  }
+
   // One headless run with the parameters this seed produced. `gateRobot` is the
   // build whose fitted parts gate the part-specific commands; run() resolves it
   // once and never passes null on a user-facing path (see run()).
@@ -13939,7 +13984,7 @@ Object.assign(window, {
           }
           // Shared drain ledger (E-P1); an imported pack uses its energy-true
           // per-cm figure (E-A2), scaled by this seed's mass randomisation.
-          s.battery = Math.max(0, s.battery - (robot && robot.phys && robot.phys.energyWh !== undefined ? Math.abs(dist) * robot.phys.drainPctPerCmNominal * massMul : window.KodroMotion.moveDrainPct(Math.abs(dist), window.KodroMotion.MODEL.gravityEarthMps2, massFac, friction)));
+          s.battery = Math.max(0, s.battery - (robot && robot.phys && robot.phys.energyWh !== undefined ? Math.abs(dist) * physDrainPerCm(robot.phys, s.speed, friction) * massMul : window.KodroMotion.moveDrainPct(Math.abs(dist), window.KodroMotion.MODEL.gravityEarthMps2, massFac, friction)));
           noteClearance();
           if (!reachedGoal && Math.hypot(s.x - goal.x, s.y - goal.y) <= goal.r) {
             reachedGoal = true;
@@ -14510,9 +14555,11 @@ Object.assign(window, {
     approximated: 'APPROXIMATED',
     notSimulated: 'NOT SIMULATED'
   };
+  // Badge backgrounds darkened so white 10px-bold text clears WCAG AA 4.5:1 in
+  // the exported report (was 4.21:1 honoured / 3.83:1 approximated).
   var TIER_COLOR = {
-    honoured: '#1d8a7d',
-    approximated: '#a97a1c',
+    honoured: '#15736a',
+    approximated: '#7a5a14',
     notSimulated: '#a5453a'
   };
   function toHtml(r) {
@@ -20216,7 +20263,14 @@ say("Survey done")`
     // Spin up the moving-agent simulation for the current world (city traffic
     // and pedestrians); both viewports and the collision test read from it.
     useEffect(() => {
-      if (window.KodroAgents) window.KodroAgents.build(terrainId);
+      if (window.KodroAgents) {
+        window.KodroAgents.build(terrainId);
+        // Reduced-motion: build the agents so they still exist for collision and
+        // are drawn once, but stop the sim loop so pedestrians and traffic do not
+        // animate (WCAG 2.3.3). Freezing the sim keeps the display and the
+        // collision test consistent (both see the same static layout).
+        if (PREFERS_REDUCED_MOTION()) window.KodroAgents.stop();
+      }
       return () => {
         if (window.KodroAgents) window.KodroAgents.stop();
       };
@@ -21521,7 +21575,12 @@ say("Survey done")`
         document.removeEventListener('keydown', onKey, true);
         if (prev && prev.focus) prev.focus();
       };
-    }, [anyModalOpen]);
+      // Keyed on EACH modal's open-state, not a single anyModalOpen boolean: when
+      // a second modal opens over an already-open one, the boolean does not change
+      // so the effect would not re-run and focus would stay trapped in the now
+      // occluded background modal. Depending on every flag re-captures the new
+      // frontmost dialog and moves focus into it.
+    }, [swarmOpen, askOpen, teacherOpen, robotLabOpen, memoryOpen, reviewOpen, vibeOpen, blocksOpen, buildOpen, showHelp, realismOpen, demoOpen]);
 
     // Shared vocabulary (app-data.jsx): telemetry renders the SAME labels.
     const statusLabel = (window.KodroStatusLabels || {

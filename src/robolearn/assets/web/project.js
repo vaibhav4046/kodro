@@ -100,7 +100,10 @@
 
   function fileName(doc) {
     var name = (doc && doc.spec && doc.spec.name) || 'kodro-project';
-    var slug = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'kodro-project';
+    // Unicode-aware slug: keep letters and numbers from any script (CJK,
+    // Cyrillic, accented Latin) so a non-ASCII robot name does not collapse to
+    // the generic 'kodro-project' and collide with every other non-Latin name.
+    var slug = String(name).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'kodro-project';
     return slug + '.kodro';
   }
 
@@ -162,7 +165,19 @@
       doc.spec = null;
       errors.push('"spec" must be an object.');
     } else {
-      doc.spec = raw.spec;
+      // Coerce the spec's list fields to arrays. A hand-edited or corrupted
+      // .kodro with e.g. "actuators": {} (an object) used to be persisted raw
+      // and then throw "TypeError: forEach is not a function" at module init on
+      // the next reload - a persistent boot brick until localStorage was cleared.
+      // The KRS schema rejects this, but a project file bypasses it, so guard here.
+      var spec = Object.assign({}, raw.spec);
+      ['sensors', 'actuators'].forEach(function (k) {
+        if (spec[k] !== undefined && !Array.isArray(spec[k])) {
+          warnings.push('"spec.' + k + '" is not a list; reset to empty.');
+          spec[k] = [];
+        }
+      });
+      doc.spec = spec;
     }
 
     // Program buffers: a map of tab -> source string.

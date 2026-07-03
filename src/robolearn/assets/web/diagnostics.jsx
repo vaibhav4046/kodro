@@ -88,8 +88,15 @@
     const phys = derived.phys;
     const SENSOR_RANGE_BUILD = (phys && phys.sensor && phys.sensor.rangeCm) || SENSOR_RANGE;
     const hasRange = has(sensors, 'ultrasonic');
+    // Stop distance must use the speed the live tick actually approaches at, not
+    // the raw no-load top speed: the tick hard-throttles by the mobility
+    // multiplier and by traction (hooks.jsx physV = vMaxSimCmPerS * mobMul *
+    // traction at full speed), so a mobility-limited build reaches an obstacle
+    // far slower and stops far sooner. Using vMaxSimCmPerS alone made the sensing
+    // dimension emit a WARN the live run never earns, contradicting the tick.
+    const approachMobMul = usePhysMob ? window.KodroMotion.mobilityMultiplier(driveCount > 0, mob) : 1;
     const stop = (phys && phys.vMaxSimCmPerS !== undefined && window.KodroMotion)
-      ? Math.round(window.KodroMotion.physStoppingDistanceCm(phys.vMaxSimCmPerS, traction, gravity))
+      ? Math.round(window.KodroMotion.physStoppingDistanceCm(phys.vMaxSimCmPerS * approachMobMul * traction, traction, gravity))
       : stoppingDistance(speedFactor, massFactor);
     if (!hasRange) {
       dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'fail', margin: 0,

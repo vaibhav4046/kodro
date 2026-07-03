@@ -75,6 +75,20 @@
     return Math.max(0, best);
   }
 
+  // Physical-build battery drain at the speed actually driven (E-A2), mirroring
+  // the live host (hooks.jsx). The energy-true per-cm figure RISES as speed
+  // falls, because the fixed idle draw is amortised over fewer centimetres, so
+  // grading every move at the fixed nominal top-speed figure under-counted drain
+  // and passed programs that then go flat mid-move on the live run. Gravity is
+  // Earth, matching the grader's gravity sensor; traction threads through both
+  // the drive load and the driven speed, exactly as the live tick does.
+  function physDrainPerCm(phys, speedSetting, traction) {
+    var KM = window.KodroMotion;
+    if (!KM || phys.vMaxSimCmPerS === undefined) return phys.drainPctPerCmNominal;
+    var v = phys.vMaxSimCmPerS * (Math.max(8, speedSetting) / 100) * (traction || 1);
+    return KM.physDrainPctPerCm(phys.massKg, phys.energyWh, v, KM.MODEL.gravityEarthMps2, traction || 1);
+  }
+
   // One headless run with the parameters this seed produced. `gateRobot` is the
   // build whose fitted parts gate the part-specific commands; run() resolves it
   // once and never passes null on a user-facing path (see run()).
@@ -198,7 +212,7 @@
           // Shared drain ledger (E-P1); an imported pack uses its energy-true
           // per-cm figure (E-A2), scaled by this seed's mass randomisation.
           s.battery = Math.max(0, s.battery - ((robot && robot.phys && robot.phys.energyWh !== undefined)
-            ? Math.abs(dist) * robot.phys.drainPctPerCmNominal * massMul
+            ? Math.abs(dist) * physDrainPerCm(robot.phys, s.speed, friction) * massMul
             : window.KodroMotion.moveDrainPct(Math.abs(dist), window.KodroMotion.MODEL.gravityEarthMps2, massFac, friction)));
           noteClearance();
           if (!reachedGoal && Math.hypot(s.x - goal.x, s.y - goal.y) <= goal.r) { reachedGoal = true; timeToGoal = steps; }

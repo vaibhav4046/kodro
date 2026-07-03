@@ -158,7 +158,9 @@
   }
 
   var TIER_LABEL = { honoured: 'HONOURED', approximated: 'APPROXIMATED', notSimulated: 'NOT SIMULATED' };
-  var TIER_COLOR = { honoured: '#1d8a7d', approximated: '#a97a1c', notSimulated: '#a5453a' };
+  // Badge backgrounds darkened so white 10px-bold text clears WCAG AA 4.5:1 in
+  // the exported report (was 4.21:1 honoured / 3.83:1 approximated).
+  var TIER_COLOR = { honoured: '#15736a', approximated: '#7a5a14', notSimulated: '#a5453a' };
 
   function toHtml(r) {
     var h = [];
