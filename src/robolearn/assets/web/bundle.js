@@ -1375,15 +1375,6 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }), /*#__PURE__*/React.createElement("path", {
       d: "M8.5 7h7M7.4 8.9l3.5 6M16.6 8.9l-3.5 6"
     })),
-    globe: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
-      cx: "12",
-      cy: "12",
-      r: "8.6"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M3.4 12h17.2"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M12 3.4c2.9 2.5 2.9 14.7 0 17.2M12 3.4c-2.9 2.5-2.9 14.7 0 17.2"
-    })),
     eye: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
       d: "M2.6 12S6.2 5.8 12 5.8 21.4 12 21.4 12 17.8 18.2 12 18.2 2.6 12 2.6 12z"
     }), /*#__PURE__*/React.createElement("circle", {
@@ -1425,6 +1416,10 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }), /*#__PURE__*/React.createElement("path", {
       d: "M9 12.4h6M9 16.2h6"
     })),
+    // save / open: the project-file download and load-from-disk glyphs. The
+    // Save/Open buttons that consume these live in app.jsx (saveProjectClick /
+    // openProjectClick); they currently render without an icon. Kept registered
+    // so that wiring is a one-line KI('save')/KI('open') on the app.jsx side.
     save: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
       d: "M12 3.2v10.2M8.2 9.6l3.8 3.8 3.8-3.8"
     }), /*#__PURE__*/React.createElement("path", {
@@ -1435,26 +1430,11 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }), /*#__PURE__*/React.createElement("path", {
       d: "M2.8 9.8h18.4l-1.8 8.4a1.8 1.8 0 0 1-1.8 1.4H6.4a1.8 1.8 0 0 1-1.8-1.4L2.8 9.8z"
     })),
-    undo: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M4.4 9.8h9a5.4 5.4 0 1 1 0 10.8H8.6"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M8.2 6 4.4 9.8l3.8 3.8"
-    })),
     bulb: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
       d: "M12 3a6 6 0 0 1 3.6 10.8c-.7.6-1.1 1.3-1.1 2.2h-5c0-.9-.4-1.6-1.1-2.2A6 6 0 0 1 12 3z"
     }), /*#__PURE__*/React.createElement("path", {
       d: "M9.6 19h4.8M10.4 21.4h3.2"
     })),
-    award: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
-      cx: "12",
-      cy: "9",
-      r: "5.2"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M8.8 13.4 7 21l5-2.7L17 21l-1.8-7.6"
-    })),
-    next: () => /*#__PURE__*/React.createElement("path", {
-      d: "M4 12h15.2M13.4 6.2 19.2 12l-5.8 5.8"
-    }),
     // -- robot archetypes -----------------------------------------------------
     rover: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
       x: "3.4",
@@ -2630,15 +2610,19 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       },
       obFill: 'radial-gradient(circle at 38% 24%, #e8f2fa, #a9c2d6 64%, #6e8ba2)',
       // W1: cold white light, pale-blue shadow tint, a lower colder sun.
+      // M5: the pale fog closed in so fast the whole frame read as a white void.
+      // A distinctly deeper polar-blue sky over a bluer fog pushed much further
+      // back gives the ice shelf a real horizon and depth, so the white ice
+      // reads against the sky instead of dissolving into it.
       atmos: {
-        sky: '#cfe2f2',
-        fog: '#e6eef6',
-        fogNear: 45,
-        fogFar: 240,
+        sky: '#7ba6d4',
+        fog: '#b0cae0',
+        fogNear: 100,
+        fogFar: 480,
         sun: '#e8f2ff',
         sunInt: 1.15,
         hemiInt: 0.75,
-        haze: '#bcd4ea'
+        haze: '#8fbce0'
       },
       decorCols: {
         tuft: ['#f2f7fb', '#c2d4e2'],
@@ -2783,11 +2767,14 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         texSize: '24px 24px'
       },
       obFill: 'radial-gradient(circle at 38% 24%, #ddc184, #a8824c 66%, #6a512c)',
+      // M5: a deeper desert-blue sky and a fog pushed further back so the Giza
+      // pyramids read as dark sandstone triangles against the sky instead of
+      // washing into a pale haze.
       atmos: {
-        sky: '#c0d4e8',
-        fog: '#e8d2a2',
-        fogNear: 55,
-        fogFar: 260,
+        sky: '#a8c2e0',
+        fog: '#e0c894',
+        fogNear: 80,
+        fogFar: 400,
         sun: '#fff0d0',
         sunInt: 1.55,
         hemiInt: 0.62,
@@ -2977,10 +2964,12 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       // Mars palette. Atmosphere: thinner dust for the altitude (density below
       // the base 0.008), a dimmer half-lit sky.
       obFill: 'radial-gradient(circle at 38% 24%, #a85238, #6b2f1f 68%, #3c180e)',
+      // M5: thin the dust further and lift the sky so the shield volcano on the
+      // horizon is not swallowed by the haze -- the mountain is the identity.
       atmos: {
-        sky: '#c98a58',
-        fog: '#a86038',
-        fogDensity: 0.0045,
+        sky: '#d49a68',
+        fog: '#9a5230',
+        fogDensity: 0.0026,
         sun: '#ffd9b0',
         sunInt: 1.9,
         hemiInt: 0.95,
@@ -6015,6 +6004,95 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         scene.add(shrub);
       });
       names.push('shrub');
+    } else if (sid === 'egypt') {
+      // M5: a hero Giza group standing on the ground near the horizon, so the
+      // pyramid identity reads up close and unmistakably -- not only as far
+      // skyline silhouettes. Three 4-sided cones (square pyramids) in sunlit
+      // sandstone, largest first, in the open sky column beside the overlay.
+      const stoneHi = std({
+        color: 0xcaa768,
+        roughness: 1,
+        flatShading: true
+      });
+      const stoneLo = std({
+        color: 0x9c7638,
+        roughness: 1,
+        flatShading: true
+      });
+      const pyr = [[70, -40, 22, 17], [96, -20, 15, 12], [110, -52, 11, 9]];
+      pyr.forEach((p, i) => {
+        const grp = new THREE.Group();
+        const base = new THREE.Mesh(new THREE.ConeGeometry(p[2], p[3], 4), i ? stoneLo : stoneHi);
+        base.rotation.y = Math.PI / 4; // face a flat side to the camera
+        base.position.y = p[3] / 2;
+        base.castShadow = true;
+        grp.add(base);
+        grp.position.set(p[0], gy(p[0], p[1]), p[1]);
+        grp.userData.kodroLandmark = 'pyramid';
+        scene.add(grp);
+      });
+      names.push('pyramid');
+    } else if (sid === 'olympus') {
+      // M5: a broad shield-volcano dome rising nearer than the skyline shield,
+      // its gentle profile and summit caldera making the tallest volcano in the
+      // solar system read at first glance. Scoria-red, matched to the ground.
+      const domeM = std({
+        color: 0x8a4028,
+        roughness: 1,
+        flatShading: true
+      });
+      const dome = new THREE.Mesh(new THREE.ConeGeometry(150, 60, 40), domeM);
+      dome.scale.y = 0.9;
+      const dx = -78,
+        dz = -150; // ~332 deg, out beyond the boulder field
+      dome.position.set(dx, gy(dx, dz) + 30, dz);
+      dome.userData.kodroLandmark = 'shield';
+      scene.add(dome);
+      names.push('shield');
+      // A dark summit caldera ring so the dome reads as a volcano, not a hill.
+      const rimM = std({
+        color: 0x4a1f12,
+        roughness: 1,
+        flatShading: true
+      });
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(26, 7, 6, 20), rimM);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.set(dx, gy(dx, dz) + 58, dz);
+      rim.userData.kodroLandmark = 'caldera';
+      scene.add(rim);
+    } else if (sid === 'antarctica') {
+      // M5: a tabular iceberg wall standing off the horizon so the Ross Ice
+      // Shelf stops reading as a white void -- a flat-topped shadowed ice cliff
+      // (bluer than the snow) gives the frame a clear ground/sky separation.
+      const iceM = std({
+        color: 0x8fb0cf,
+        roughness: 0.7,
+        flatShading: true
+      });
+      const capM = std({
+        color: 0xeaf3fc,
+        roughness: 0.6,
+        flatShading: true
+      });
+      // Sit the tabular bergs on the default view ray (world +x,-z ~= az 318),
+      // near enough to read as a cliff wall on the horizon at first glance.
+      const bergs = [[66, -60, 40, 26, 34], [92, -84, 30, 20, 26], [44, -40, 30, 22, 28]];
+      bergs.forEach(b => {
+        const grp = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(b[2], b[3], b[4]), iceM);
+        body.position.y = b[3] / 2;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        grp.add(body);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(b[2] * 1.02, b[3] * 0.12, b[4] * 1.02), capM);
+        cap.position.y = b[3] + b[3] * 0.05;
+        grp.add(cap);
+        grp.position.set(b[0], gy(b[0], b[1]), b[1]);
+        grp.rotation.y = b[0] % 7 * 0.05;
+        grp.userData.kodroLandmark = 'iceberg';
+        scene.add(grp);
+      });
+      names.push('iceberg');
     } else if (sid === 'amazon') {
       // A canopy wall closing the horizon: the rainforest reads as being
       // INSIDE a forest, not a park. Pre-blended toward the fog colour and
@@ -7609,30 +7687,35 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           h: 44,
           c: '#4a4550'
         }],
-        egypt: [{
+        egypt: [
+        // M5: the pyramids washed into the pale desert sky (fog-tint too high
+        // over a near-white sky). Drop the tint hard and darken to a sunlit-
+        // sandstone shadow tone, and raise the apexes so the triangles clearly
+        // break the horizon instead of ghosting into it.
+        {
           k: 'pyramid',
-          a: 334,
-          d: 310,
-          w: 160,
-          h: 90,
-          c: '#b6905a',
-          t: 0.32
+          a: 330,
+          d: 300,
+          w: 190,
+          h: 132,
+          c: '#9a6f38',
+          t: 0.1
         }, {
           k: 'pyramid',
-          a: 302,
-          d: 350,
-          w: 130,
-          h: 72,
-          c: '#b6905a',
-          t: 0.38
+          a: 344,
+          d: 330,
+          w: 150,
+          h: 104,
+          c: '#8f6430',
+          t: 0.14
         }, {
           k: 'pyramid',
-          a: 345,
-          d: 372,
-          w: 100,
-          h: 55,
-          c: '#b6905a',
-          t: 0.45
+          a: 318,
+          d: 356,
+          w: 118,
+          h: 80,
+          c: '#845b2c',
+          t: 0.2
         }],
         nepal: [{
           k: 'ridge',
@@ -7683,22 +7766,35 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           h: 55,
           c: '#8a7a4e'
         }],
-        antarctica: [{
+        antarctica: [
+        // M5: the whole frame was a near-white void -- ice-white landforms on
+        // a near-white sky and fog. Give the ice shelf a real horizon: a long
+        // shadowed ice cliff (bluer, near-zero tint) with taller bergs behind
+        // it, so an ice wall clearly separates ground from sky at first glance.
+        {
           k: 'wedge',
-          a: 334,
-          d: 370,
-          w: 460,
-          h: 40,
-          c: '#dfe9f2',
-          t: 0.35
+          a: 332,
+          d: 355,
+          w: 520,
+          h: 96,
+          c: '#7d9cba',
+          t: 0.05
         }, {
           k: 'ridge',
-          a: 297,
-          d: 390,
-          w: 220,
-          h: 78,
-          c: '#cdd9e4',
-          t: 0.35
+          a: 300,
+          d: 385,
+          w: 260,
+          h: 150,
+          c: '#8fadc8',
+          t: 0.08
+        }, {
+          k: 'ridge',
+          a: 356,
+          d: 380,
+          w: 230,
+          h: 120,
+          c: '#88a6c2',
+          t: 0.1
         }],
         sahara: [{
           k: 'ridge',
@@ -7763,14 +7859,28 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           c: '#24401e',
           t: 0.4
         }],
-        olympus: [{
+        olympus: [
+        // M5: no shield volcano read at all -- one low, far, heavily fog-tinted
+        // dome vanished into the dusty sky. Olympus Mons is the tallest volcano
+        // in the solar system: bring the shield closer and much taller, drop
+        // the tint, and stack a broad lower flank so the frame is unmistakably
+        // dominated by an enormous gently-domed mountain.
+        {
           k: 'shield',
-          a: 330,
-          d: 395,
-          w: 760,
-          h: 110,
-          c: '#8a4630',
-          t: 0.45
+          a: 332,
+          d: 330,
+          w: 620,
+          h: 230,
+          c: '#7a3a24',
+          t: 0.12
+        }, {
+          k: 'shield',
+          a: 332,
+          d: 366,
+          w: 940,
+          h: 120,
+          c: '#6e3320',
+          t: 0.22
         }],
         tycho: [{
           k: 'craterrim',

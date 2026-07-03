@@ -341,9 +341,13 @@
           { k: 'ridge', a: 356, d: 390, w: 300, h: 44, c: '#4a4550' },
         ],
         egypt: [
-          { k: 'pyramid', a: 334, d: 310, w: 160, h: 90, c: '#b6905a', t: 0.32 },
-          { k: 'pyramid', a: 302, d: 350, w: 130, h: 72, c: '#b6905a', t: 0.38 },
-          { k: 'pyramid', a: 345, d: 372, w: 100, h: 55, c: '#b6905a', t: 0.45 },
+          // M5: the pyramids washed into the pale desert sky (fog-tint too high
+          // over a near-white sky). Drop the tint hard and darken to a sunlit-
+          // sandstone shadow tone, and raise the apexes so the triangles clearly
+          // break the horizon instead of ghosting into it.
+          { k: 'pyramid', a: 330, d: 300, w: 190, h: 132, c: '#9a6f38', t: 0.1 },
+          { k: 'pyramid', a: 344, d: 330, w: 150, h: 104, c: '#8f6430', t: 0.14 },
+          { k: 'pyramid', a: 318, d: 356, w: 118, h: 80, c: '#845b2c', t: 0.2 },
         ],
         nepal: [
           { k: 'ridge', a: 0, d: 380, w: 360, h: 150, c: '#e8eef4', t: 0.3 },
@@ -354,8 +358,13 @@
         ],
         kenya: [{ k: 'wedge', a: 334, d: 380, w: 420, h: 55, c: '#8a7a4e' }],
         antarctica: [
-          { k: 'wedge', a: 334, d: 370, w: 460, h: 40, c: '#dfe9f2', t: 0.35 },
-          { k: 'ridge', a: 297, d: 390, w: 220, h: 78, c: '#cdd9e4', t: 0.35 },
+          // M5: the whole frame was a near-white void -- ice-white landforms on
+          // a near-white sky and fog. Give the ice shelf a real horizon: a long
+          // shadowed ice cliff (bluer, near-zero tint) with taller bergs behind
+          // it, so an ice wall clearly separates ground from sky at first glance.
+          { k: 'wedge', a: 332, d: 355, w: 520, h: 96, c: '#7d9cba', t: 0.05 },
+          { k: 'ridge', a: 300, d: 385, w: 260, h: 150, c: '#8fadc8', t: 0.08 },
+          { k: 'ridge', a: 356, d: 380, w: 230, h: 120, c: '#88a6c2', t: 0.1 },
         ],
         sahara: [
           { k: 'ridge', a: 300, d: 340, w: 320, h: 42, c: '#c9a05e' },
@@ -371,7 +380,15 @@
           { k: 'ridge', a: 175, d: 310, w: 400, h: 55, c: '#28451f', t: 0.4 },
           { k: 'ridge', a: 285, d: 305, w: 410, h: 58, c: '#24401e', t: 0.4 },
         ],
-        olympus: [{ k: 'shield', a: 330, d: 395, w: 760, h: 110, c: '#8a4630', t: 0.45 }],
+        olympus: [
+          // M5: no shield volcano read at all -- one low, far, heavily fog-tinted
+          // dome vanished into the dusty sky. Olympus Mons is the tallest volcano
+          // in the solar system: bring the shield closer and much taller, drop
+          // the tint, and stack a broad lower flank so the frame is unmistakably
+          // dominated by an enormous gently-domed mountain.
+          { k: 'shield', a: 332, d: 330, w: 620, h: 230, c: '#7a3a24', t: 0.12 },
+          { k: 'shield', a: 332, d: 366, w: 940, h: 120, c: '#6e3320', t: 0.22 },
+        ],
         tycho: [
           { k: 'craterrim', d: 400, h: 46, c: '#5a5c66', t: 0.25 },
           { k: 'cone', a: 334, d: 260, w: 150, h: 80, c: '#6a6c76', t: 0.2 },

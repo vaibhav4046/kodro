@@ -243,6 +243,64 @@
         scene.add(shrub);
       });
       names.push('shrub');
+    } else if (sid === 'egypt') {
+      // M5: a hero Giza group standing on the ground near the horizon, so the
+      // pyramid identity reads up close and unmistakably -- not only as far
+      // skyline silhouettes. Three 4-sided cones (square pyramids) in sunlit
+      // sandstone, largest first, in the open sky column beside the overlay.
+      const stoneHi = std({ color: 0xcaa768, roughness: 1, flatShading: true });
+      const stoneLo = std({ color: 0x9c7638, roughness: 1, flatShading: true });
+      const pyr = [[70, -40, 22, 17], [96, -20, 15, 12], [110, -52, 11, 9]];
+      pyr.forEach((p, i) => {
+        const grp = new THREE.Group();
+        const base = new THREE.Mesh(new THREE.ConeGeometry(p[2], p[3], 4), i ? stoneLo : stoneHi);
+        base.rotation.y = Math.PI / 4; // face a flat side to the camera
+        base.position.y = p[3] / 2;
+        base.castShadow = true; grp.add(base);
+        grp.position.set(p[0], gy(p[0], p[1]), p[1]);
+        grp.userData.kodroLandmark = 'pyramid';
+        scene.add(grp);
+      });
+      names.push('pyramid');
+    } else if (sid === 'olympus') {
+      // M5: a broad shield-volcano dome rising nearer than the skyline shield,
+      // its gentle profile and summit caldera making the tallest volcano in the
+      // solar system read at first glance. Scoria-red, matched to the ground.
+      const domeM = std({ color: 0x8a4028, roughness: 1, flatShading: true });
+      const dome = new THREE.Mesh(new THREE.ConeGeometry(150, 60, 40), domeM);
+      dome.scale.y = 0.9;
+      const dx = -78, dz = -150; // ~332 deg, out beyond the boulder field
+      dome.position.set(dx, gy(dx, dz) + 30, dz);
+      dome.userData.kodroLandmark = 'shield';
+      scene.add(dome); names.push('shield');
+      // A dark summit caldera ring so the dome reads as a volcano, not a hill.
+      const rimM = std({ color: 0x4a1f12, roughness: 1, flatShading: true });
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(26, 7, 6, 20), rimM);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.set(dx, gy(dx, dz) + 58, dz);
+      rim.userData.kodroLandmark = 'caldera';
+      scene.add(rim);
+    } else if (sid === 'antarctica') {
+      // M5: a tabular iceberg wall standing off the horizon so the Ross Ice
+      // Shelf stops reading as a white void -- a flat-topped shadowed ice cliff
+      // (bluer than the snow) gives the frame a clear ground/sky separation.
+      const iceM = std({ color: 0x8fb0cf, roughness: 0.7, flatShading: true });
+      const capM = std({ color: 0xeaf3fc, roughness: 0.6, flatShading: true });
+      // Sit the tabular bergs on the default view ray (world +x,-z ~= az 318),
+      // near enough to read as a cliff wall on the horizon at first glance.
+      const bergs = [[66, -60, 40, 26, 34], [92, -84, 30, 20, 26], [44, -40, 30, 22, 28]];
+      bergs.forEach((b) => {
+        const grp = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(b[2], b[3], b[4]), iceM);
+        body.position.y = b[3] / 2; body.castShadow = true; body.receiveShadow = true; grp.add(body);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(b[2] * 1.02, b[3] * 0.12, b[4] * 1.02), capM);
+        cap.position.y = b[3] + b[3] * 0.05; grp.add(cap);
+        grp.position.set(b[0], gy(b[0], b[1]), b[1]);
+        grp.rotation.y = (b[0] % 7) * 0.05;
+        grp.userData.kodroLandmark = 'iceberg';
+        scene.add(grp);
+      });
+      names.push('iceberg');
     } else if (sid === 'amazon') {
       // A canopy wall closing the horizon: the rainforest reads as being
       // INSIDE a forest, not a park. Pre-blended toward the fog colour and

@@ -204,7 +204,11 @@
       },
       obFill: 'radial-gradient(circle at 38% 24%, #e8f2fa, #a9c2d6 64%, #6e8ba2)',
       // W1: cold white light, pale-blue shadow tint, a lower colder sun.
-      atmos: { sky: '#cfe2f2', fog: '#e6eef6', fogNear: 45, fogFar: 240, sun: '#e8f2ff', sunInt: 1.15, hemiInt: 0.75, haze: '#bcd4ea' },
+      // M5: the pale fog closed in so fast the whole frame read as a white void.
+      // A distinctly deeper polar-blue sky over a bluer fog pushed much further
+      // back gives the ice shelf a real horizon and depth, so the white ice
+      // reads against the sky instead of dissolving into it.
+      atmos: { sky: '#7ba6d4', fog: '#b0cae0', fogNear: 100, fogFar: 480, sun: '#e8f2ff', sunInt: 1.15, hemiInt: 0.75, haze: '#8fbce0' },
       decorCols: { tuft: ['#f2f7fb', '#c2d4e2'], peb: ['#e8f2fa', '#a9c2d6'] },
     },
     india: {
@@ -266,7 +270,10 @@
         texSize: '24px 24px',
       },
       obFill: 'radial-gradient(circle at 38% 24%, #ddc184, #a8824c 66%, #6a512c)',
-      atmos: { sky: '#c0d4e8', fog: '#e8d2a2', fogNear: 55, fogFar: 260, sun: '#fff0d0', sunInt: 1.55, hemiInt: 0.62, haze: '#ffe0a0' },
+      // M5: a deeper desert-blue sky and a fog pushed further back so the Giza
+      // pyramids read as dark sandstone triangles against the sky instead of
+      // washing into a pale haze.
+      atmos: { sky: '#a8c2e0', fog: '#e0c894', fogNear: 80, fogFar: 400, sun: '#fff0d0', sunInt: 1.55, hemiInt: 0.62, haze: '#ffe0a0' },
       decorCols: { tuft: ['#e0cb96', '#a8854c'], peb: ['#ddc184', '#8a6a3c'] },
     },
     iceland: {
@@ -349,7 +356,9 @@
       // Mars palette. Atmosphere: thinner dust for the altitude (density below
       // the base 0.008), a dimmer half-lit sky.
       obFill: 'radial-gradient(circle at 38% 24%, #a85238, #6b2f1f 68%, #3c180e)',
-      atmos: { sky: '#c98a58', fog: '#a86038', fogDensity: 0.0045, sun: '#ffd9b0', sunInt: 1.9, hemiInt: 0.95, haze: '#ffb070' },
+      // M5: thin the dust further and lift the sky so the shield volcano on the
+      // horizon is not swallowed by the haze -- the mountain is the identity.
+      atmos: { sky: '#d49a68', fog: '#9a5230', fogDensity: 0.0026, sun: '#ffd9b0', sunInt: 1.9, hemiInt: 0.95, haze: '#ffb070' },
     },
     tycho: {
       base: 'space', label: 'TYCHO', name: 'Moon - Tycho Crater',
