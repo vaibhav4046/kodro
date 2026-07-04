@@ -57,7 +57,7 @@ CORPUS: list[tuple[str, str, bool, bool]] = [
     ),
     (
         "spiral",
-        "step = 0.4\nfor i in range(8):\n    move_forward(step)\n    turn_right(90)\n    step = step + 0.2",
+        "step = 0.4\nfor i in range(8):\n    move_forward(step)\n    turn_right(90)\n    step = step + 0.2",  # noqa: E501
         False,
         False,
     ),
@@ -137,7 +137,7 @@ def test_cross_engine_conformance(case) -> None:  # type: ignore[no-untyped-def]
     assert js["collisions"] == 0
     assert py.state.collisions == 0, f"{name}: python registered a phantom collision"
     assert abs(py_disp_cm - js["displacementCm"]) <= 1.0, (
-        f"{name}: displacement diverged (py {py_disp_cm:.2f} cm vs js {js['displacementCm']:.2f} cm)"
+        f"{name}: displacement diverged (py {py_disp_cm:.2f} cm vs js {js['displacementCm']:.2f} cm)"  # noqa: E501
     )
     assert abs(py_travel_cm - js["travelledCm"]) <= 1.0
     assert py.state.degrees_turned == pytest.approx(js["turnedDeg"], abs=1e-6)

@@ -118,9 +118,7 @@ def suggest_next_lesson(
     # reached yet. If prereq-gating leaves nothing (an unmet or cyclic chain),
     # fall back to the unfiltered candidates rather than dead-ending.
     ready = [
-        lesson
-        for lesson in candidates
-        if all(prereq in completed for prereq in lesson.prereqs)
+        lesson for lesson in candidates if all(prereq in completed for prereq in lesson.prereqs)
     ]
     if ready:
         candidates = ready

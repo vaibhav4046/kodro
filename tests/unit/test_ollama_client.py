@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import urllib.error
 from unittest.mock import MagicMock, patch
 
@@ -47,10 +46,10 @@ def test_models_returns_list_on_success(mock_urlopen: MagicMock) -> None:
     mock_resp = MagicMock()
     mock_resp.read.return_value = b'{"models": [{"name": "llama3.2:3b"}, {"name": "phi3"}]}'
     mock_urlopen.return_value.__enter__.return_value = mock_resp
-    
+
     models = OllamaClient().models()
     assert models == ["llama3.2:3b", "phi3"]
-    
+
     models2 = list_models()
     assert models2 == ["llama3.2:3b", "phi3"]
 
@@ -75,7 +74,7 @@ def test_generate_success(mock_urlopen: MagicMock) -> None:
     mock_resp = MagicMock()
     mock_resp.read.return_value = b'{"response": "Hello world"}'
     mock_urlopen.return_value.__enter__.return_value = mock_resp
-    
+
     client = OllamaClient()
     result = client.generate(
         "Hi",
@@ -93,7 +92,7 @@ def test_generate_raises_ollama_error_on_bad_response(mock_urlopen: MagicMock) -
     mock_resp = MagicMock()
     mock_resp.read.return_value = b'{"response": 123}'  # Not a string
     mock_urlopen.return_value.__enter__.return_value = mock_resp
-    
+
     client = OllamaClient()
     with pytest.raises(OllamaError, match="malformed response"):
         client.generate("Hi")
@@ -109,21 +108,18 @@ def test_generate_stream_yields_chunks(mock_urlopen: MagicMock) -> None:
         b'{"response": "", "done": true}\n',
     ]
     mock_urlopen.return_value.__enter__.return_value = mock_resp
-    
+
     client = OllamaClient()
-    chunks = list(client.generate_stream(
-        "Hi",
-        system="System prompt",
-        num_predict=50,
-        keep_alive="5m"
-    ))
+    chunks = list(
+        client.generate_stream("Hi", system="System prompt", num_predict=50, keep_alive="5m")
+    )
     assert chunks == ["Hello ", "world"]
 
 
 @patch("urllib.request.urlopen")
 def test_generate_stream_raises_on_error(mock_urlopen: MagicMock) -> None:
     mock_urlopen.side_effect = urllib.error.URLError("conn refused")
-    
+
     client = OllamaClient()
     with pytest.raises(OllamaError, match="streaming generate failed"):
         list(client.generate_stream("Hi"))
@@ -134,7 +130,7 @@ def test_embed_success(mock_urlopen: MagicMock) -> None:
     mock_resp = MagicMock()
     mock_resp.read.return_value = b'{"embedding": [0.1, 0.2, 0.3]}'
     mock_urlopen.return_value.__enter__.return_value = mock_resp
-    
+
     client = OllamaClient()
     vector = client.embed("test text")
     assert vector == [0.1, 0.2, 0.3]

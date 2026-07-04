@@ -120,7 +120,7 @@ def _require_scheduling(root: tk.Tk) -> None:
 
 def _pump_until(
     root: tk.Tk,
-    done: "object",
+    done: object,
     *,
     timeout: float = _RUN_TIMEOUT_S,
     settle: float = 0.05,

@@ -209,11 +209,7 @@ class HintContext:
         the snapshots is the total (matches the grader).
         """
         return max(
-            (
-                e.rover_state.distance_travelled_m
-                for e in self.events
-                if e.rover_state is not None
-            ),
+            (e.rover_state.distance_travelled_m for e in self.events if e.rover_state is not None),
             default=0.0,
         )
 

@@ -130,7 +130,14 @@ no_implicit_reexport = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["pygame.*", "pymunk.*", "tkcode.*"]
+module = [
+    "pygame.*",
+    "pymunk.*",
+    "tkcode.*",
+    "yourdfpy.*",
+    "urdf_parser_py.*",
+    "reportlab.*",
+]
 ignore_missing_imports = true
 
 # ---------- pytest ---------------------------------------------------------
@@ -157,6 +164,12 @@ markers = [
 [tool.coverage.run]
 source = ["src/robolearn"]
 branch = true
+# The sandbox executor (runtime/executor.py) runs pupil code in a daemon thread
+# and can hard-kill it via PyThreadState_SetAsyncExc. Without thread-concurrency
+# support, coverage's data lock can deadlock when it traces that thread mid-kill,
+# which intermittently hung pytest (and risked the same on CI, which runs
+# coverage under --timeout-method=thread). Declaring the concurrency model fixes it.
+concurrency = ["thread"]
 
 [tool.coverage.report]
 exclude_lines = [

@@ -145,14 +145,14 @@ class BridgeAPI:
         try:
             row_id = self._store.save_scenario_run(report or {})
             return {"ok": True, "id": row_id}
-        except Exception as exc:  # noqa: BLE001 - surface any persistence failure to the UI
+        except Exception as exc:
             return {"ok": False, "reason": str(exc)}
 
     def list_scenario_runs(self, limit: int = 50) -> dict[str, Any]:
         """Return saved scenario runs, newest first."""
         try:
             return {"ok": True, "runs": self._store.list_scenario_runs(limit=int(limit))}
-        except Exception as exc:  # noqa: BLE001 - surface query failure to the UI
+        except Exception as exc:
             return {"ok": False, "reason": str(exc), "runs": []}
 
     def get_pupil_summary(self) -> dict[str, Any]:
@@ -1419,14 +1419,12 @@ def _normalize_rover_api(code: str) -> str:
     """
     import re
 
-    def _to_bare(match: "re.Match[str]") -> str:
+    def _to_bare(match: re.Match[str]) -> str:
         name = match.group(1)
         return f"{_ROVER_API_ALIASES.get(name, name)}("
 
     rewritten = re.sub(r"\b(?:rover|robot|bot)\.([A-Za-z_]\w*)\s*\(", _to_bare, code)
-    kept = [
-        line for line in rewritten.splitlines() if line.strip() not in _BARE_ROVER_NAMES
-    ]
+    kept = [line for line in rewritten.splitlines() if line.strip() not in _BARE_ROVER_NAMES]
     return "\n".join(kept)
 
 

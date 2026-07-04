@@ -8,6 +8,7 @@ opens the browser straight to it, so anyone can run the studio and see it work.
 No build step, no network: the app is pre-compiled into bundle.js. If the
 default port is busy it walks forward to the next free one and prints the URL.
 """
+
 import functools
 import http.server
 import os
@@ -15,9 +16,10 @@ import socketserver
 import sys
 import threading
 import webbrowser
+from pathlib import Path
 
 DEFAULT_PORT = int(os.environ.get("KODRO_PORT", "8080"))
-WEB = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src", "robolearn", "assets", "web"))
+WEB = (Path(__file__).resolve().parent / ".." / "src" / "robolearn" / "assets" / "web").resolve()
 
 
 class Quiet(http.server.SimpleHTTPRequestHandler):
@@ -31,6 +33,7 @@ class Server(socketserver.TCPServer):
 
 def find_port(start):
     import socket
+
     for p in range(start, start + 20):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             if s.connect_ex(("127.0.0.1", p)) != 0:
@@ -39,15 +42,15 @@ def find_port(start):
 
 
 def main():
-    if not os.path.exists(os.path.join(WEB, "index.html")):
+    if not (WEB / "index.html").exists():
         print("[Kodro] cannot find the web app at", WEB)
         sys.exit(1)
-    if not os.path.exists(os.path.join(WEB, "bundle.js")):
+    if not (WEB / "bundle.js").exists():
         print("[Kodro] bundle.js missing. Build it once: node scripts/build_web.cjs")
         sys.exit(1)
     port = find_port(DEFAULT_PORT)
-    url = "http://localhost:%d/index.html" % port
-    handler = functools.partial(Quiet, directory=WEB)
+    url = f"http://localhost:{port}/index.html"
+    handler = functools.partial(Quiet, directory=str(WEB))
     print("=" * 56)
     print("  Kodro is running. Open it here:")
     print("    " + url)

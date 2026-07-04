@@ -40,10 +40,10 @@ def _js_canonical() -> str:
 
 def test_python_model_exposes_shared_battery_constants() -> None:
     """The Python engine's battery constants come from the shared table."""
-    assert motion_model.BATTERY_PCT_PER_METRE == pytest.approx(1.1)
-    assert motion_model.BATTERY_PCT_PER_DEGREE == pytest.approx(0.004)
-    assert motion_model.BATTERY_PCT_PER_COLLISION == pytest.approx(1.0)
-    assert motion_model.ROVER_RADIUS_M == pytest.approx(0.3)
+    assert pytest.approx(1.1) == motion_model.BATTERY_PCT_PER_METRE
+    assert pytest.approx(0.004) == motion_model.BATTERY_PCT_PER_DEGREE
+    assert pytest.approx(1.0) == motion_model.BATTERY_PCT_PER_COLLISION
+    assert pytest.approx(0.3) == motion_model.ROVER_RADIUS_M
 
 
 @pytest.mark.skipif(_NODE is None and not _REQUIRE_NODE, reason="Node.js not available")

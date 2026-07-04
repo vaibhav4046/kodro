@@ -168,8 +168,10 @@ def phys_stall_force_n(stall_torque_nm: float, motor_count: float, wheel_radius_
 def phys_mobility(
     stall_force_n: float, mass_kg: float, traction: float, gravity_mps2: float | None
 ) -> float:
-    """Force-ratio mobility fed into the shared three bands: drive force
-    times grip over weight."""
+    """Force-ratio mobility fed into the shared three bands.
+
+    Drive force times grip over weight.
+    """
     g = gravity_mps2 or float(MODEL["gravityEarthMps2"])  # type: ignore[arg-type]
     return (stall_force_n * traction) / (mass_kg * g)
 
@@ -274,10 +276,12 @@ def sensor_pose(
     left_cm: float,
     yaw_deg: float,
 ) -> dict[str, float]:
-    """Sensor mount pose (SI2): ray origin offset by the sensor's forward/left
-    position and yaw, in the sim's compass frame (heading 0 is up/-y,
-    clockwise positive). z is ignored and disclosed. Mirrors sensorPose in
-    motion-model.js."""
+    """Sensor mount pose (SI2).
+
+    Ray origin offset by the sensor's forward/left position and yaw, in the
+    sim's compass frame (heading 0 is up/-y, clockwise positive). z is ignored
+    and disclosed. Mirrors sensorPose in motion-model.js.
+    """
     a = heading_deg * math.pi / 180.0
     fx, fy = math.sin(a), -math.cos(a)  # forward
     lx, ly = -math.cos(a), -math.sin(a)  # left

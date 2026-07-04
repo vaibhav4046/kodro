@@ -779,11 +779,7 @@ def _run_aggregates(events: list) -> tuple[int, float]:  # type: ignore[type-arg
     # event stream (which the engine never emits, so this always read 0 and the
     # "no collisions" achievement/report were wrong). Matches the grader.
     collisions = max(
-        (
-            e.rover_state.collisions
-            for e in events
-            if getattr(e, "rover_state", None) is not None
-        ),
+        (e.rover_state.collisions for e in events if getattr(e, "rover_state", None) is not None),
         default=0,
     )
     battery_used = 0.0

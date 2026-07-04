@@ -92,7 +92,7 @@ class SuccessCriterion(BaseModel):
     min_distance_travelled: float | None = Field(default=None, ge=0.0)
 
     @model_validator(mode="after")
-    def _at_least_one_field(self) -> "SuccessCriterion":
+    def _at_least_one_field(self) -> SuccessCriterion:
         if all(
             getattr(self, name) is None
             for name in (

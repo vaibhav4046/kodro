@@ -94,7 +94,10 @@ class TeacherDashboard:
         return out
 
     def export_pdf(self, path: Path | str) -> Path | None:
-        """Write the class heatmap to ``path`` as PDF; return the path or None if reportlab is missing."""
+        """Write the class heatmap to ``path`` as PDF.
+
+        Return the path, or None if reportlab is missing.
+        """
         try:
             from reportlab.lib import colors
             from reportlab.lib.pagesizes import A4
@@ -102,6 +105,7 @@ class TeacherDashboard:
             from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
         except ImportError:
             from tkinter import messagebox
+
             messagebox.showerror(
                 "Missing dependency",
                 "reportlab is required to export PDF. Install it with `pip install reportlab`",
@@ -113,21 +117,21 @@ class TeacherDashboard:
         heatmap = class_heatmap(self._store)
         pupils = {p.id: p for p in self._store.list_pupils()}
         concepts = sorted({c for scores in heatmap.values() for c in scores})
-        
+
         doc = SimpleDocTemplate(str(out), pagesize=A4, title="Kodro Teacher Dashboard")
         styles = getSampleStyleSheet()
         story = [
             Paragraph("<b>Kodro — Class Heatmap</b>", styles["Title"]),
             Spacer(1, 12),
         ]
-        
+
         table_data = [["Pupil", *concepts]]
         for pupil_id, scores in heatmap.items():
             pupil = pupils.get(pupil_id)
             display = pupil.display_name if pupil else pupil_id[:8]
             row = [display, *[f"{scores.get(c, 0.0) * 100:.1f}%" for c in concepts]]
             table_data.append(row)
-            
+
         if not concepts:
             story.append(Paragraph("No pupil submissions yet.", styles["Normal"]))
         else:
@@ -145,7 +149,7 @@ class TeacherDashboard:
                 )
             )
             story.append(tbl)
-            
+
         out.parent.mkdir(parents=True, exist_ok=True)
         doc.build(story)
         return out
@@ -190,10 +194,14 @@ class TeacherDashboard:
         button_frame = ttk.Frame(outer)
         button_frame.pack(anchor=tk.E, pady=(6, 0))
 
-        export_button = ttk.Button(button_frame, text="Export CSV…", command=self._on_export_clicked)
+        export_button = ttk.Button(
+            button_frame, text="Export CSV…", command=self._on_export_clicked
+        )
         export_button.pack(side=tk.LEFT, padx=(0, 4))
-        
-        pdf_button = ttk.Button(button_frame, text="Export PDF…", command=self._on_export_pdf_clicked)
+
+        pdf_button = ttk.Button(
+            button_frame, text="Export PDF…", command=self._on_export_pdf_clicked
+        )
         pdf_button.pack(side=tk.LEFT)
 
         return _Widgets(

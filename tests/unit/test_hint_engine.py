@@ -252,9 +252,7 @@ def test_overshoot_negative_when_passed() -> None:
 # --- battery_drained ---
 
 
-def _snap(
-    battery: float = 100.0, collisions: int = 0, distance: float = 0.0
-) -> RoverSnapshot:
+def _snap(battery: float = 100.0, collisions: int = 0, distance: float = 0.0) -> RoverSnapshot:
     return RoverSnapshot(0.0, 0.0, 0.0, battery, 0, 0, collisions, distance)
 
 
