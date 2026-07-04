@@ -361,3 +361,52 @@ demonstrably, measurably more trustworthy, and it never reaches the point
 where you can declare it done. It is not a perfect score. It does not stand
 in for a human learner. The human study remains the right and necessary
 next step, and nothing here changes that.
+
+## Round 6: hunting a bug class instead of sweeping blind
+
+By the sixth round the interesting question was no longer "is there another
+bug" but "where do the bugs that survive five rounds actually live". Two of
+the most serious findings so far, the round-three distance bug and the
+round-five collision bug, were the same shape: a metric read from the wrong
+source, the commanded value or a never-emitted event instead of the real
+number the engine records on the rover. So round six was pointed
+deliberately at that class. A third of its thirty personas did nothing but
+trace every aggregate the grader, the hint engine, the report, the
+achievements and the dashboard compute, back to its source, and check it
+against what the engine actually produces.
+
+Targeting the class rather than sweeping blind is exactly what found more
+of it. Twenty-three of the thirty lenses came back clean, the highest yet,
+but the eight confirmed findings included a third and a fourth instance of
+the same wrong-source pattern that five rounds had walked past. The Tk
+application had its own private copy of the collision aggregate, untouched
+by the round-five fix that corrected the grader and the hint engine, and it
+still counted collisions from the event stream the engine never emits: so
+in the fallback app a rover that crashed into a wall was persisted with
+zero collisions, wrongly earned the "no collisions" achievement, and showed
+zero in its progress report. The hint engine had the distance twin of the
+same bug, summing commanded move arguments rather than the travelled
+distance. Both are now read from the snapshot, like the grader.
+
+The re-audit of the reduced-motion contract also paid off: two camera
+animations, the first-person head-bob and the cinematic auto-orbit, had
+never been gated on the reduced-motion flag even though every other motion
+in the same render loop was, so a motion-sensitive user still got a swaying
+or slowly revolving camera. Both are now gated. The last finding was a
+genuine interpreter-versus-Python parity gap: ordering comparisons between
+incompatible types, or with None, silently coerced in the browser preview
+where the Python grader raises, so the two could disagree; the preview now
+raises the same line-numbered error. All eight were fixed, none deferred.
+
+Across six rounds, 178 simulated personas found 79 confirmed defects, of
+which 69 were fixed, 8 were deferred with stated reasons, and 2 were
+reclassified or found already correct. The clean-lens share is at its
+highest and still climbing. The single most useful thing the sixth round
+taught is methodological: once a class of bug is known, hunting that class
+directly finds instances a broad sweep misses, and the wrong-source
+aggregate turned out to have four copies scattered across the grader, the
+hint engine, the fallback app and the hint engine again. That is a real,
+transferable finding about how to test this kind of system. It is still not
+a perfect score, it still does not stand in for a learner, and the human
+study is still the next step. Six rounds in, both halves of that sentence
+remain exactly as true as they were after the first.
