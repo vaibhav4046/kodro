@@ -96,12 +96,15 @@ def _compute_aggregates(events: list[Event]) -> _Aggregates:
     for event in events:
         if event.name == "collect_sample" and event.result is True:
             samples += 1
-        if event.kind == "collision":
-            collisions += 1
         if event.rover_state is not None:
             final_x = event.rover_state.x
             final_y = event.rover_state.y
             battery_used = max(battery_used, 100.0 - event.rover_state.battery_pct)
+            # Real collision count from the engine snapshot, not a
+            # kind=="collision" event stream (which is never emitted, so
+            # no_collisions never actually failed). Collisions accumulate on the
+            # rover, so the running max over snapshots is the total.
+            collisions = max(collisions, event.rover_state.collisions)
             # Actual travelled distance from the engine, not the sum of commanded
             # move distances: a move clamped short by a wall or obstacle travels
             # less than commanded, so summing command args over-counts and could

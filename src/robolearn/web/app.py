@@ -241,6 +241,13 @@ class BridgeAPI:
 
         result = run_pupil_code(source or "", timeout_s=5.0)
         events = tracer.events()
+        # Detach the global tracer/engine bindings now the run is captured (the
+        # grader takes the tracer object directly), so a later read never sees
+        # this submission's stale rover/world/tracer.
+        set_active(None)
+        set_active_rover(None)
+        set_active_world(None)
+        set_state_provider(None)
 
         # Even on a runtime error we grade against whatever the tracer
         # captured -- the design's React console can still show partial
@@ -338,6 +345,10 @@ class BridgeAPI:
         set_state_provider(lambda: _snapshot(rover))
         run_pupil_code(source or "", timeout_s=5.0)
         events = tuple(tracer.events())
+        set_active(None)
+        set_active_rover(None)
+        set_active_world(None)
+        set_state_provider(None)
         verdict = grade(lesson, tracer, source or "")
         ctx = HintContext(lesson=lesson, source=source or "", events=events, grade_result=verdict)
         # Read-only preview: rank by learned effectiveness, no outcome recorded.

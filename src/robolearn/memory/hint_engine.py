@@ -183,8 +183,16 @@ class HintContext:
 
     @property
     def collisions(self) -> int:
-        """Count of ``kind="collision"`` events."""
-        return sum(1 for e in self.events if e.kind == "collision")
+        """Highest collision count recorded on the rover snapshots.
+
+        Collisions accumulate on the rover state, not as ``kind="collision"``
+        events (which are never emitted), so read the running max from the
+        snapshots the same way the grader does.
+        """
+        return max(
+            (e.rover_state.collisions for e in self.events if e.rover_state is not None),
+            default=0,
+        )
 
     @property
     def samples_collected(self) -> int:

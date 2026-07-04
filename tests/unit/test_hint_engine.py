@@ -215,12 +215,12 @@ def test_while_true_no_break_negative_finite_while() -> None:
 
 
 def test_multiple_collisions_positive() -> None:
-    events = [_evt("wall", kind="collision"), _evt("wall", kind="collision")]
+    events = [_evt("wall", kind="collision", rover_state=_snap(collisions=2))]
     assert _rule("multiple_collisions").when(_ctx(events=events))
 
 
 def test_multiple_collisions_negative_one_collision() -> None:
-    events = [_evt("wall", kind="collision")]
+    events = [_evt("wall", kind="collision", rover_state=_snap(collisions=1))]
     assert not _rule("multiple_collisions").when(_ctx(events=events))
 
 
@@ -234,7 +234,7 @@ def test_multiple_collisions_negative_no_collision() -> None:
 def test_overshoot_positive() -> None:
     events = [
         _evt("move_forward", (5.0,)),
-        _evt("wall", kind="collision"),
+        _evt("wall", kind="collision", rover_state=_snap(collisions=1)),
         _evt("move_forward", (1.0,)),
     ]
     assert _rule("overshoot").when(_ctx(events=events, passed=False))
@@ -252,8 +252,8 @@ def test_overshoot_negative_when_passed() -> None:
 # --- battery_drained ---
 
 
-def _snap(battery: float) -> RoverSnapshot:
-    return RoverSnapshot(0.0, 0.0, 0.0, battery, 0, 0, 0)
+def _snap(battery: float = 100.0, collisions: int = 0) -> RoverSnapshot:
+    return RoverSnapshot(0.0, 0.0, 0.0, battery, 0, 0, collisions)
 
 
 def test_battery_drained_positive() -> None:
@@ -599,7 +599,10 @@ def test_no_sensor_reads_when_sensors_required_negative_not_abstraction_lesson()
 
 
 def test_last_action_was_collision_prone_positive() -> None:
-    events = [_evt("wall", kind="collision"), _evt("move_forward", (1.0,))]
+    events = [
+        _evt("wall", kind="collision", rover_state=_snap(collisions=1)),
+        _evt("move_forward", (1.0,)),
+    ]
     assert _rule("last_action_was_collision_prone").when(_ctx(events=events, passed=False))
 
 

@@ -158,7 +158,10 @@ def _wall_intersections(
     if abs(dx) > epsilon:
         for wall_x in (0.0, bounds.width):
             t = (wall_x - x) / dx
-            if t < 0.0:
+            if t <= epsilon:
+                # Reject a ray that originates exactly on (or a hair inside) a
+                # wall: a rover clamped against a boundary must read the far
+                # wall, not 0 from the wall it is already touching.
                 continue
             hit_y = y + t * dy
             if 0.0 <= hit_y <= bounds.height:
@@ -166,7 +169,10 @@ def _wall_intersections(
     if abs(dy) > epsilon:
         for wall_y in (0.0, bounds.height):
             t = (wall_y - y) / dy
-            if t < 0.0:
+            if t <= epsilon:
+                # Reject a ray that originates exactly on (or a hair inside) a
+                # wall: a rover clamped against a boundary must read the far
+                # wall, not 0 from the wall it is already touching.
                 continue
             hit_x = x + t * dx
             if 0.0 <= hit_x <= bounds.width:

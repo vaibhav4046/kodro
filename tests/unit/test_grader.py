@@ -48,7 +48,11 @@ def _tracer_with(events: list[Event]) -> Tracer:
 
 
 def _snap(
-    x: float = 0.0, y: float = 0.0, battery: float = 100.0, distance: float = 0.0
+    x: float = 0.0,
+    y: float = 0.0,
+    battery: float = 100.0,
+    distance: float = 0.0,
+    collisions: int = 0,
 ) -> RoverSnapshot:
     return RoverSnapshot(
         x=x,
@@ -57,7 +61,7 @@ def _snap(
         battery_pct=battery,
         samples_held=0,
         samples_collected=0,
-        collisions=0,
+        collisions=collisions,
         distance_travelled_m=distance,
     )
 
@@ -131,7 +135,7 @@ def test_no_collisions_pass_when_no_collision_events() -> None:
 def test_no_collisions_fail_when_collision_recorded() -> None:
     lesson = _lesson(criteria=[SuccessCriterion(no_collisions=True)])
     tracer = _tracer_with(
-        [Event(0, 0, "collision", "wall", (), None, None)],
+        [Event(0, 0, "call", "move_forward", (1.0,), None, _snap(collisions=1))],
     )
     result = grade(lesson, tracer)
     assert result.passed is False
@@ -337,7 +341,7 @@ def test_score_loses_points_per_failed_criterion() -> None:
     )
     tracer = _tracer_with(
         [
-            Event(0, 0, "collision", "wall", (), None, None),
+            Event(0, 0, "call", "move_forward", (1.0,), None, _snap(collisions=1)),
         ],
     )
     result = grade(lesson, tracer)

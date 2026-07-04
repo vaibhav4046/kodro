@@ -46,15 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matches. It works with no local model at all (returns the matching passages)
   and, with a model, writes a short answer constrained to those sources and is
   never even called when retrieval is empty.
-- **Voice-to-rover (offline)** — a "🎙 Voice" button turns a spoken phrase
-  ("go forward three", "turn left ninety") into a real rover line in the editor
-  via a deterministic parser (`ai/voice_commands.py`); no model, no network, so
-  voice now drives the rover rather than only the AI prompt.
 - **Teacher dashboard in the web app** — a `get_class_heatmap` bridge method
   and a React panel (Settings) render the class concept-strength heatmap,
   colour-coded per pupil and concept. Previously legacy-Tk only.
-- **Read-aloud** — a control on the lesson card speaks the intro and glossary
-  through the offline TTS at a slower rate; `speak()` gains a rate argument.
 - **High-contrast, colour-blind-safe theme** — a WCAG-AA `data-theme` with
   solid text and a blue/amber/orange status triad (pass/fail also carry glyphs
   and words, never colour alone).
@@ -81,10 +75,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plan ships with a procedural SVG schematic (board, wheels, sensor, driver,
   battery). A deterministic floor guarantees a usable plan even at tiny
   budgets ($5 → cardboard micro-rover; $30+ → ESP32 rover). Offline, no cloud.
-- **Nine visual themes** — a Theme picker in Settings, driven by `[data-theme]`
+- **Ten visual themes** — a Theme picker in Settings, driven by `[data-theme]`
   CSS variable swaps so the whole shell repaints from one attribute: Mission
   (dark default), Daylight (light), Matrix, Pixel, Arcade, Brick, Clean,
-  Abstract and Wiki / Network. The choice persists across sessions.
+  Abstract, Wiki / Network and High contrast. The choice persists across sessions.
 - **Real-world Earth landscape** — the base Earth terrain now reads like a map
   you could fly over: a farmland patchwork of crop fields (with crop-row
   striping and hedgerows), forest clusters, country roads with dashed

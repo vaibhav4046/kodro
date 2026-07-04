@@ -220,7 +220,10 @@ class Compass(tk.Canvas):
             ty = c - (r - 8) * math.cos(rad)
             colour = orbital.CYAN if label == "N" else orbital.FG_MUTED
             self.create_text(tx, ty, text=label, fill=colour, font=("TkDefaultFont", 8, "bold"))
-        rad = math.radians(self._heading)
+        # The rover heading is 0 = east, anticlockwise positive; the compass
+        # labels are 0 = north, clockwise. Convert so the needle points where the
+        # rover actually faces (heading 0 -> east/right, not north/up).
+        rad = math.radians(90.0 - self._heading)
         nx = c + (r - 12) * math.sin(rad)
         ny = c - (r - 12) * math.cos(rad)
         # tail (muted) + head (cyan) needle.

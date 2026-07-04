@@ -20159,7 +20159,7 @@ say("Survey done")`
         // otherwise silently clamp a too-big value at run time),
         // and use Number.isFinite so 0 (valid for set speed)
         // is kept rather than coerced to 1 by truthiness.
-        const lo = b.unit === '%' ? 0 : 1;
+        const lo = b.unit === '×' ? 1 : 0; // only repeat (×) needs a minimum of 1; distance/turn/wait/% may be 0
         const hi = b.unit === '°' ? 360 : b.unit === '%' ? 100 : 20;
         const raw = Number(e.target.value);
         const v = Number.isFinite(raw) ? Math.max(lo, Math.min(hi, raw)) : lo;
