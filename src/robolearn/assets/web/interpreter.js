@@ -568,7 +568,7 @@
               let prev = evalExpr(node.operands[0]);
               for (let ci = 0; ci < node.ops.length; ci++) {
                 const rhs = evalExpr(node.operands[ci + 1]);
-                if (!truthy(compare(node.ops[ci], prev, rhs))) return false;
+                if (!truthy(compare(node.ops[ci], prev, rhs, curLine))) return false;
                 prev = rhs;
               }
               return true;
@@ -884,11 +884,25 @@
     }
     return a === b;
   }
-  function compare(op, l, r) {
+  function compare(op, l, r, line) {
+    if (op === '==') return pyEqual(l, r);
+    if (op === '!=') return !pyEqual(l, r);
+    // Ordering (<, >, <=, >=): Python only orders number-vs-number (bool counts
+    // as int) or str-vs-str; mixing types, or comparing with None, raises a
+    // TypeError. Match that so the in-browser branch agrees with the Python
+    // grader instead of silently coercing (e.g. 1 < "a" -> false in raw JS).
+    var lo = typeof l === 'number' || typeof l === 'boolean';
+    var ro = typeof r === 'number' || typeof r === 'boolean';
+    var ls = typeof l === 'string';
+    var rs = typeof r === 'string';
+    if (!((lo && ro) || (ls && rs))) {
+      throw new RoverError("'" + op + "' not supported between those types", line);
+    }
     switch (op) {
-      case '<': return l < r; case '>': return l > r;
-      case '<=': return l <= r; case '>=': return l >= r;
-      case '==': return pyEqual(l, r); case '!=': return !pyEqual(l, r);
+      case '<': return l < r;
+      case '>': return l > r;
+      case '<=': return l <= r;
+      case '>=': return l >= r;
     }
     return false;
   }

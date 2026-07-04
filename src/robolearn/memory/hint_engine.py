@@ -201,12 +201,21 @@ class HintContext:
 
     @property
     def distance_moved(self) -> float:
-        """Sum of absolute distance arguments to move_forward / move_backward."""
-        total = 0.0
-        for event in self.events:
-            if event.name in _MOVE_NAMES and event.args:
-                total += abs(float(event.args[0]))
-        return total
+        """Actual distance the rover travelled, from the snapshots.
+
+        Not the sum of commanded move arguments: a move clamped short by a wall
+        or obstacle travels less than commanded, so summing the arguments
+        over-counts. The engine accumulates true travel, so the running max over
+        the snapshots is the total (matches the grader).
+        """
+        return max(
+            (
+                e.rover_state.distance_travelled_m
+                for e in self.events
+                if e.rover_state is not None
+            ),
+            default=0.0,
+        )
 
     @property
     def battery_used(self) -> float:

@@ -775,7 +775,17 @@ def _refresh_progress(app: App) -> None:
 
 def _run_aggregates(events: list) -> tuple[int, float]:  # type: ignore[type-arg]
     """Return ``(collisions, battery_used_pct)`` derived from trace events."""
-    collisions = sum(1 for e in events if getattr(e, "kind", None) == "collision")
+    # Real collision count from the rover snapshot, not a kind=="collision"
+    # event stream (which the engine never emits, so this always read 0 and the
+    # "no collisions" achievement/report were wrong). Matches the grader.
+    collisions = max(
+        (
+            e.rover_state.collisions
+            for e in events
+            if getattr(e, "rover_state", None) is not None
+        ),
+        default=0,
+    )
     battery_used = 0.0
     for event in events:
         snap = getattr(event, "rover_state", None)

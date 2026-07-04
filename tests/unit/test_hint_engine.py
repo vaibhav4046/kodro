@@ -191,7 +191,7 @@ def test_while_no_progress_negative_no_while() -> None:
 def test_while_no_progress_negative_movement_recorded() -> None:
     src = "while x: move_forward(1)"
     assert not _rule("while_no_progress").when(
-        _ctx(source=src, events=[_evt("move_forward", (1.0,))])
+        _ctx(source=src, events=[_evt("move_forward", (1.0,), rover_state=_snap(distance=1.0))])
     )
 
 
@@ -252,8 +252,10 @@ def test_overshoot_negative_when_passed() -> None:
 # --- battery_drained ---
 
 
-def _snap(battery: float = 100.0, collisions: int = 0) -> RoverSnapshot:
-    return RoverSnapshot(0.0, 0.0, 0.0, battery, 0, 0, collisions)
+def _snap(
+    battery: float = 100.0, collisions: int = 0, distance: float = 0.0
+) -> RoverSnapshot:
+    return RoverSnapshot(0.0, 0.0, 0.0, battery, 0, 0, collisions, distance)
 
 
 def test_battery_drained_positive() -> None:
@@ -483,7 +485,7 @@ def test_distance_zero_positive() -> None:
 
 
 def test_distance_zero_negative_movement_present() -> None:
-    events = [_evt("move_forward", (1.0,))]
+    events = [_evt("move_forward", (1.0,), rover_state=_snap(distance=1.0))]
     assert not _rule("distance_zero").when(_ctx(events=events, passed=False))
 
 

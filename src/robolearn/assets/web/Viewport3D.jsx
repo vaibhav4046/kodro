@@ -1889,7 +1889,7 @@
         // Cinematic auto-orbit: slowly revolve around the robot when enabled and
         // the user is not dragging (third person only). 0.15 deg/frame -> a full
         // turn in about 40 seconds, slow enough to feel like a film dolly.
-        if (cinematic && !dragging && !fpvRef.current) {
+        if (cinematic && !dragging && !fpvRef.current && !reduce) {
           azim += 0.15 * Math.PI / 180;
         }
         // Smooth camera reset: ease azim/elev/dist back to the default over 30
@@ -1909,7 +1909,7 @@
           // rails. Bob fades to zero when the robot is still.
           const sp = vsmooth;
           const bobAmt = Math.min(1, sp * 6);
-          const bob = Math.sin(now * 0.015 * (1 + sp * 12)) * 0.02 * bobAmt;
+          const bob = reduce ? 0 : Math.sin(now * 0.015 * (1 + sp * 12)) * 0.02 * bobAmt;
           // R5: the driver's eye rides the terrain too, and looks at a point
           // on the surface ahead, so FPV pitches naturally through the swells.
           camPos.set(cur.x + fwd.x * 1.2, gy + 2.4 + bob, cur.z + fwd.z * 1.2);
