@@ -410,3 +410,43 @@ transferable finding about how to test this kind of system. It is still not
 a perfect score, it still does not stand in for a learner, and the human
 study is still the next step. Six rounds in, both halves of that sentence
 remain exactly as true as they were after the first.
+
+## Round 7: auditing a new feature the day it shipped
+
+Round 7 was different in kind: it audited a feature added the same day, the
+optional bring-your-own-key cloud AI that lets a user connect their own
+Anthropic or OpenAI model alongside the offline Ollama default. Sixteen
+personas, weighted toward the security of the new surface: the
+offline-guarantee, key handling, error paths, prompt-injection through the
+cloud, and a regression sweep of the prior sixty-nine fixes.
+
+The security verdict was the one that mattered and it was clean. The
+offline-by-default guarantee holds in code: with the default provider, or
+any cloud provider without a key, no request can reach a non-localhost
+host. The key is never logged, is stored only in the browser, and is sent
+only to the provider the user picks. Cloud-generated code still passes the
+same deterministic self-test gate as local code before it can reach the
+learner. Thirteen of the sixteen lenses came back clean.
+
+The six confirmed findings were all honesty-of-labelling, not security. The
+Vibe, Review and Ask panels still said "runs entirely offline" or "answered
+by the local model on this machine" even when a cloud key was actually
+answering, and the README and developer docs still carried absolute "not
+cloud-connected" and "one hundred percent offline" claims that the new
+opt-in feature contradicts. All six were fixed: each panel now names the
+real provider, the documentation is qualified to "offline by default" while
+keeping the honest core that a cloud key is never required, and the
+dissertation's niche section now grounds the market gap in the competitor
+survey rather than asserting it. The one lower finding was an uncontrolled
+key input that kept its value across a provider switch, now controlled and
+cleared.
+
+The lesson of round seven is that the honesty discipline extends to new
+features on arrival: a genuinely useful capability was added, its security
+was verified rather than assumed, and every place the old copy had quietly
+become false was corrected the same day. Seven rounds in, across 194
+simulated personas, the count of confirmed defects stands at 85 with 75
+fixed, and the verdict is unchanged. The tool is more capable and more
+honestly described than it was this morning. It is still offered as a
+proving ground, not a certified twin, and the human study is still the step
+that no amount of this can replace.
