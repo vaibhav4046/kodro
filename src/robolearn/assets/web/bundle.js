@@ -15837,6 +15837,284 @@ Object.assign(window, {
 })();
 
 ;(function () {
+/* window.KodroProviders -- pluggable AI backend for the assistant.
+ *
+ * Kodro is OFFLINE BY DEFAULT: the default provider is the local Ollama server
+ * at http://localhost:11434, and with no other provider selected the app makes
+ * ZERO external network calls. A user who wants a stronger model may connect
+ * their OWN key (bring-your-own-key) for Anthropic Claude or OpenAI. That key
+ * lives only in this browser's localStorage, is sent only to that one provider,
+ * and is never logged, uploaded, or shared. Switching back to Ollama (or simply
+ * not entering a key) restores the fully offline guarantee.
+ *
+ * This module owns provider config + a single generate(prompt, opts) entry the
+ * assistant facade (ai-web.jsx) routes through, so the rest of the app does not
+ * care which model answered.
+ */
+(function () {
+  'use strict';
+
+  var OLLAMA = 'http://localhost:11434';
+  var LOCAL_RE = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+/i;
+
+  // Provider registry. `local:true` providers are the offline guarantee and use
+  // the localhost-only guard; cloud providers require an explicit user key and
+  // are never contacted until one is set AND the provider is selected.
+  var PROVIDERS = {
+    ollama: {
+      id: 'ollama',
+      label: 'Local (Ollama, offline)',
+      local: true
+    },
+    anthropic: {
+      id: 'anthropic',
+      label: 'Anthropic (Claude, your key)',
+      local: false,
+      endpoint: 'https://api.anthropic.com/v1/messages',
+      defaultModel: 'claude-3-5-sonnet-latest'
+    },
+    openai: {
+      id: 'openai',
+      label: 'OpenAI (GPT, your key)',
+      local: false,
+      endpoint: 'https://api.openai.com/v1/chat/completions',
+      defaultModel: 'gpt-4o-mini'
+    }
+  };
+  var KEYS = {
+    provider: 'kodro_ai_provider',
+    cloudModel: 'kodro_ai_cloud_model',
+    key: function (id) {
+      return 'kodro_ai_key_' + id;
+    }
+  };
+  function lsGet(k) {
+    try {
+      return localStorage.getItem(k);
+    } catch (e) {
+      return null;
+    }
+  }
+  function lsSet(k, v) {
+    try {
+      if (v == null || v === '') localStorage.removeItem(k);else localStorage.setItem(k, v);
+    } catch (e) {
+      void e;
+    }
+  }
+  function providerId() {
+    var p = lsGet(KEYS.provider);
+    return p && PROVIDERS[p] ? p : 'ollama';
+  }
+  function isLocal() {
+    return !!(PROVIDERS[providerId()] || {}).local;
+  }
+  function keyFor(id) {
+    return lsGet(KEYS.key(id)) || '';
+  }
+  function cloudModel() {
+    var id = providerId();
+    var pr = PROVIDERS[id] || {};
+    return lsGet(KEYS.cloudModel) || pr.defaultModel || '';
+  }
+
+  // A cloud provider is USABLE only when selected AND holding a key. Otherwise
+  // the app silently falls back to the offline path, so a half-configured cloud
+  // provider never blocks the assistant and never leaks a request.
+  function cloudReady() {
+    var id = providerId();
+    var pr = PROVIDERS[id];
+    return !!(pr && !pr.local && keyFor(id));
+  }
+  function localOnly(url) {
+    if (!LOCAL_RE.test(url)) throw new Error('refusing non-local URL (offline): ' + url);
+    return url;
+  }
+
+  // --- cloud generate (BYOK) -------------------------------------------------
+  async function anthropicGenerate(prompt, opts, key, model) {
+    var body = {
+      model: model,
+      max_tokens: opts.num_predict || 400,
+      messages: [{
+        role: 'user',
+        content: prompt
+      }]
+    };
+    if (opts.system) body.system = opts.system;
+    if (opts.temperature != null) body.temperature = opts.temperature;
+    var r = await fetch(PROVIDERS.anthropic.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        // Anthropic requires this opt-in header to allow a direct browser call.
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error('Anthropic ' + r.status + ': ' + (await r.text()).slice(0, 200));
+    var j = await r.json();
+    var parts = (j.content || []).filter(function (c) {
+      return c && c.type === 'text';
+    });
+    return parts.map(function (c) {
+      return c.text;
+    }).join('').trim();
+  }
+  async function openaiGenerate(prompt, opts, key, model) {
+    var messages = [];
+    if (opts.system) messages.push({
+      role: 'system',
+      content: opts.system
+    });
+    messages.push({
+      role: 'user',
+      content: prompt
+    });
+    var body = {
+      model: model,
+      messages: messages,
+      max_tokens: opts.num_predict || 400
+    };
+    if (opts.temperature != null) body.temperature = opts.temperature;
+    var r = await fetch(PROVIDERS.openai.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + key
+      },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error('OpenAI ' + r.status + ': ' + (await r.text()).slice(0, 200));
+    var j = await r.json();
+    return (((j.choices || [])[0] || {}).message || {}).content ? j.choices[0].message.content.trim() : '';
+  }
+
+  // Ollama non-streaming generate (the offline default).
+  async function ollamaGenerate(prompt, opts, model) {
+    var body = {
+      model: model,
+      prompt: prompt,
+      stream: false,
+      keep_alive: '30m',
+      options: {
+        temperature: opts.temperature != null ? opts.temperature : 0.3,
+        num_predict: opts.num_predict || 400
+      }
+    };
+    if (opts.system) body.system = opts.system;
+    var r = await fetch(localOnly(OLLAMA + '/api/generate'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error('generate ' + r.status);
+    var j = await r.json();
+    return (j.response || '').trim();
+  }
+
+  // The single entry the assistant routes through. `ollamaModel` is the resolved
+  // local model name (the facade already picks it); cloud providers use the
+  // user's configured cloud model. When a cloud provider is selected but not
+  // ready (no key), we fall back to Ollama, preserving the offline default.
+  async function generate(prompt, opts, ollamaModel) {
+    opts = opts || {};
+    var id = providerId();
+    var pr = PROVIDERS[id];
+    if (pr && !pr.local && cloudReady()) {
+      var key = keyFor(id);
+      var model = cloudModel();
+      if (id === 'anthropic') return anthropicGenerate(prompt, opts, key, model);
+      if (id === 'openai') return openaiGenerate(prompt, opts, key, model);
+    }
+    return ollamaGenerate(prompt, opts, ollamaModel);
+  }
+
+  // List selectable models for the active provider (best effort). Ollama and
+  // OpenAI can list; Anthropic has no simple list endpoint, so we offer a small
+  // curated set the user can still override with a free-text model id.
+  async function listCloudModels() {
+    var id = providerId();
+    if (id === 'openai' && keyFor('openai')) {
+      try {
+        var r = await fetch(PROVIDERS.openai.endpoint.replace('/chat/completions', '/models'), {
+          headers: {
+            Authorization: 'Bearer ' + keyFor('openai')
+          }
+        });
+        if (r.ok) {
+          var j = await r.json();
+          return (j.data || []).map(function (m) {
+            return m.id;
+          }).filter(function (x) {
+            return /gpt|o1|o3|o4/i.test(x);
+          }).sort();
+        }
+      } catch (e) {
+        void e;
+      }
+      return ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'gpt-4.1-mini'];
+    }
+    if (id === 'anthropic') {
+      return ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-opus-latest'];
+    }
+    return [];
+  }
+  function config() {
+    var id = providerId();
+    var pr = PROVIDERS[id] || {};
+    return {
+      provider: id,
+      label: pr.label || id,
+      local: !!pr.local,
+      cloudReady: cloudReady(),
+      cloudModel: cloudModel(),
+      hasKey: !!keyFor(id),
+      providers: Object.keys(PROVIDERS).map(function (k) {
+        return {
+          id: k,
+          label: PROVIDERS[k].label,
+          local: !!PROVIDERS[k].local,
+          hasKey: !!keyFor(k)
+        };
+      })
+    };
+  }
+  function setProvider(id) {
+    if (PROVIDERS[id]) {
+      lsSet(KEYS.provider, id);
+      lsSet(KEYS.cloudModel, '');
+    }
+    return config();
+  }
+  function setKey(id, key) {
+    if (PROVIDERS[id] && !PROVIDERS[id].local) lsSet(KEYS.key(id), (key || '').trim());
+    return config();
+  }
+  function setCloudModel(model) {
+    lsSet(KEYS.cloudModel, (model || '').trim());
+    return config();
+  }
+  if (typeof window !== 'undefined') {
+    window.KodroProviders = {
+      generate: generate,
+      config: config,
+      setProvider: setProvider,
+      setKey: setKey,
+      setCloudModel: setCloudModel,
+      listCloudModels: listCloudModels,
+      cloudReady: cloudReady,
+      isLocal: isLocal
+    };
+  }
+})();
+})();
+
+;(function () {
 /* window.KodroAI -- one assistant facade for both run modes (offline).
  *
  * The desktop build talks to the local model through the pywebview bridge
@@ -15907,6 +16185,11 @@ Object.assign(window, {
   }
   async function genOnce(model, prompt, opts) {
     opts = opts || {};
+    // Route through the provider layer when a cloud provider (BYOK) is selected
+    // and holding a key; otherwise fall through to the offline Ollama path.
+    if (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady()) {
+      return window.KodroProviders.generate(prompt, opts, model);
+    }
     const body = {
       model: model,
       prompt: prompt,
@@ -16058,20 +16341,26 @@ Object.assign(window, {
   async function chatStart(history, lessonId) {
     const b = bridge();
     if (b && b.aiChatStart) return b.aiChatStart(history, lessonId);
-    let models;
-    try {
-      models = await tags();
-    } catch (e) {
-      return {
+    const cloud = typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady();
+    let model;
+    if (cloud) {
+      model = window.KodroProviders.config().cloudModel;
+    } else {
+      let models;
+      try {
+        models = await tags();
+      } catch (e) {
+        return {
+          ok: false,
+          reason: 'Ollama is not running. Start the Ollama app, or connect a cloud model in Settings.'
+        };
+      }
+      model = pick(models);
+      if (!model) return {
         ok: false,
-        reason: 'Ollama is not running. Start the Ollama app, then try again.'
+        reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b), or connect a cloud model in Settings.'
       };
     }
-    const model = pick(models);
-    if (!model) return {
-      ok: false,
-      reason: 'Ollama has no models. Pull one, e.g. ollama pull qwen2.5-coder:3b.'
-    };
     // Evict finished/orphaned jobs so a cancelled chat (whose poller stopped
     // before marking the job done) does not accumulate in the map across a
     // session (browser mode). Completed jobs from a prior turn are swept here.
@@ -16091,43 +16380,53 @@ Object.assign(window, {
     }).join('\n') + '\nAssistant:';
     (async function () {
       try {
-        const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            model: model,
-            prompt: prompt,
+        if (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady()) {
+          // Cloud provider (BYOK): one non-streamed request, then the same
+          // post-processing (code detection, normalise, self-test) as Ollama.
+          job.text = await window.KodroProviders.generate(prompt, {
             system: sys,
-            stream: true,
-            keep_alive: '30m',
-            options: {
-              temperature: 0.3,
-              num_predict: 400
-            }
-          })
-        });
-        if (!r.ok || !r.body) throw new Error('generate ' + (r && r.status));
-        const reader = r.body.getReader();
-        const dec = new TextDecoder();
-        let buf = '';
-        for (;;) {
-          const out = await reader.read();
-          if (out.done) break;
-          buf += dec.decode(out.value, {
-            stream: true
+            num_predict: 400,
+            temperature: 0.3
+          }, model);
+        } else {
+          const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: model,
+              prompt: prompt,
+              system: sys,
+              stream: true,
+              keep_alive: '30m',
+              options: {
+                temperature: 0.3,
+                num_predict: 400
+              }
+            })
           });
-          let nl;
-          while ((nl = buf.indexOf('\n')) >= 0) {
-            const line = buf.slice(0, nl).trim();
-            buf = buf.slice(nl + 1);
-            if (!line) continue;
-            try {
-              const c = JSON.parse(line);
-              if (c.response) job.text += c.response;
-            } catch (e) {
-              void e;
+          if (!r.ok || !r.body) throw new Error('generate ' + (r && r.status));
+          const reader = r.body.getReader();
+          const dec = new TextDecoder();
+          let buf = '';
+          for (;;) {
+            const out = await reader.read();
+            if (out.done) break;
+            buf += dec.decode(out.value, {
+              stream: true
+            });
+            let nl;
+            while ((nl = buf.indexOf('\n')) >= 0) {
+              const line = buf.slice(0, nl).trim();
+              buf = buf.slice(nl + 1);
+              if (!line) continue;
+              try {
+                const c = JSON.parse(line);
+                if (c.response) job.text += c.response;
+              } catch (e) {
+                void e;
+              }
             }
           }
         }
@@ -16230,6 +16529,18 @@ Object.assign(window, {
   async function status() {
     const b = bridge();
     if (b && b.aiStatus) return b.aiStatus();
+    // A ready BYOK cloud provider makes the assistant available regardless of
+    // whether Ollama is running.
+    if (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady()) {
+      const cfg = window.KodroProviders.config();
+      return {
+        available: true,
+        model: cfg.cloudModel,
+        models: [cfg.cloudModel],
+        override: override,
+        source: cfg.provider
+      };
+    }
     try {
       const ms = await tags();
       const chosen = pick(ms);
@@ -16269,20 +16580,26 @@ Object.assign(window, {
   async function reviewCode(src, lessonId) {
     const b = bridge();
     if (b && b.aiReviewCode) return b.aiReviewCode(src, lessonId);
-    let models;
-    try {
-      models = await tags();
-    } catch (e) {
-      return {
+    const cloud = typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady();
+    let model;
+    if (cloud) {
+      model = window.KodroProviders.config().cloudModel;
+    } else {
+      let models;
+      try {
+        models = await tags();
+      } catch (e) {
+        return {
+          ok: false,
+          reason: 'Ollama is not running (or connect a cloud model in Settings).'
+        };
+      }
+      model = pick(models);
+      if (!model) return {
         ok: false,
-        reason: 'Ollama is not running.'
+        reason: 'Ollama has no models (or connect a cloud model in Settings).'
       };
     }
-    const model = pick(models);
-    if (!model) return {
-      ok: false,
-      reason: 'Ollama has no models.'
-    };
     const sys = 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
     try {
       const out = await genOnce(model, 'Review and tidy this rover program:\n\n' + src, {
@@ -16319,20 +16636,26 @@ Object.assign(window, {
   async function ask(query) {
     const b = bridge();
     if (b && b.aiAsk) return b.aiAsk(query);
-    let models;
-    try {
-      models = await tags();
-    } catch (e) {
-      return {
+    const cloud = typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady();
+    let model;
+    if (cloud) {
+      model = window.KodroProviders.config().cloudModel;
+    } else {
+      let models;
+      try {
+        models = await tags();
+      } catch (e) {
+        return {
+          ok: false,
+          reason: 'Ollama is not running (or connect a cloud model in Settings).'
+        };
+      }
+      model = pick(models);
+      if (!model) return {
         ok: false,
-        reason: 'Ollama is not running.'
+        reason: 'Ollama has no models (or connect a cloud model in Settings).'
       };
     }
-    const model = pick(models);
-    if (!model) return {
-      ok: false,
-      reason: 'Ollama has no models.'
-    };
     // Browser mode has no lesson corpus to ground against (the desktop bridge
     // does the retrieval), so constrain the model to Kodro's real commands and
     // make it refuse rather than invent, and mark the answer ungrounded so the
@@ -16360,6 +16683,7 @@ Object.assign(window, {
   async function available() {
     const b = bridge();
     if (b) return true;
+    if (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady()) return true;
     try {
       const ms = await tags();
       return ms.length > 0;
@@ -19926,6 +20250,109 @@ say("Survey done")`
   }
 
   // ---- Vibe coding (Code with AI) ----
+  // Choose the AI backend: Local (Ollama, offline default) or a bring-your-own-key
+  // cloud model (Anthropic Claude, OpenAI). The key stays in this browser and is
+  // sent only to the chosen provider; Local keeps the app fully offline.
+  function ProviderPicker() {
+    const P = window.KodroProviders;
+    const [cfg, setCfg] = React.useState(P ? P.config() : null);
+    if (!P || !cfg) return null;
+    const refresh = () => setCfg(P.config());
+    const isCloud = cfg.provider !== 'ollama';
+    return /*#__PURE__*/React.createElement("div", {
+      className: "vibe-provider",
+      style: {
+        margin: '2px 0 8px',
+        padding: '8px 10px',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        background: 'var(--navy-2)'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 12.5,
+        color: 'var(--fg-2)'
+      }
+    }, "AI provider"), /*#__PURE__*/React.createElement("select", {
+      value: cfg.provider,
+      "aria-label": "AI provider",
+      onChange: e => {
+        P.setProvider(e.target.value);
+        refresh();
+      },
+      style: {
+        background: 'var(--navy)',
+        color: 'var(--fg-1)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '5px 8px',
+        fontSize: 12.5
+      }
+    }, cfg.providers.map(p => /*#__PURE__*/React.createElement("option", {
+      key: p.id,
+      value: p.id
+    }, p.label))), isCloud && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        color: cfg.cloudReady ? 'var(--success)' : 'var(--fg-3)'
+      }
+    }, cfg.cloudReady ? 'connected' : 'needs a key')), isCloud && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 6,
+        marginTop: 6,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("input", {
+      type: "password",
+      "aria-label": "API key",
+      placeholder: cfg.hasKey ? 'key saved (type to replace)' : 'paste your API key',
+      onChange: e => {
+        P.setKey(cfg.provider, e.target.value);
+        refresh();
+      },
+      style: {
+        flex: '1 1 180px',
+        background: 'var(--navy)',
+        color: 'var(--fg-1)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '5px 8px',
+        fontSize: 12
+      }
+    }), /*#__PURE__*/React.createElement("input", {
+      type: "text",
+      "aria-label": "Cloud model id",
+      value: cfg.cloudModel,
+      placeholder: "model id",
+      onChange: e => {
+        P.setCloudModel(e.target.value);
+        refresh();
+      },
+      style: {
+        flex: '0 1 160px',
+        background: 'var(--navy)',
+        color: 'var(--fg-1)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '5px 8px',
+        fontSize: 12
+      }
+    })), isCloud && /*#__PURE__*/React.createElement("p", {
+      style: {
+        margin: '6px 0 0',
+        fontSize: 10.5,
+        color: 'var(--fg-3)'
+      }
+    }, "Your key stays in this browser and is sent only to the provider you pick. Switch to Local for fully offline use."));
+  }
   function VibeModal({
     setVibeOpen,
     vibeCancelRef,
@@ -19976,7 +20403,7 @@ say("Survey done")`
         setVibeBusy(false);
         setVibeOpen(false);
       }
-    }, "\u2715")), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
+    }, "\u2715")), /*#__PURE__*/React.createElement(ProviderPicker, null), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
     }, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"

@@ -59,6 +59,11 @@
 
   async function genOnce(model, prompt, opts) {
     opts = opts || {};
+    // Route through the provider layer when a cloud provider (BYOK) is selected
+    // and holding a key; otherwise fall through to the offline Ollama path.
+    if (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady()) {
+      return window.KodroProviders.generate(prompt, opts, model);
+    }
     const body = {
       model: model, prompt: prompt, stream: false,
       // keep_alive holds the model in RAM between requests; without it Ollama
@@ -165,11 +170,17 @@
   async function chatStart(history, lessonId) {
     const b = bridge();
     if (b && b.aiChatStart) return b.aiChatStart(history, lessonId);
-    let models;
-    try { models = await tags(); }
-    catch (e) { return { ok: false, reason: 'Ollama is not running. Start the Ollama app, then try again.' }; }
-    const model = pick(models);
-    if (!model) return { ok: false, reason: 'Ollama has no models. Pull one, e.g. ollama pull qwen2.5-coder:3b.' };
+    const cloud = (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady());
+    let model;
+    if (cloud) {
+      model = window.KodroProviders.config().cloudModel;
+    } else {
+      let models;
+      try { models = await tags(); }
+      catch (e) { return { ok: false, reason: 'Ollama is not running. Start the Ollama app, or connect a cloud model in Settings.' }; }
+      model = pick(models);
+      if (!model) return { ok: false, reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b), or connect a cloud model in Settings.' };
+    }
     // Evict finished/orphaned jobs so a cancelled chat (whose poller stopped
     // before marking the job done) does not accumulate in the map across a
     // session (browser mode). Completed jobs from a prior turn are swept here.
@@ -183,24 +194,30 @@
     }).join('\n') + '\nAssistant:';
     (async function () {
       try {
-        const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: model, prompt: prompt, system: sys, stream: true, keep_alive: '30m', options: { temperature: 0.3, num_predict: 400 } }),
-        });
-        if (!r.ok || !r.body) throw new Error('generate ' + (r && r.status));
-        const reader = r.body.getReader();
-        const dec = new TextDecoder();
-        let buf = '';
-        for (;;) {
-          const out = await reader.read();
-          if (out.done) break;
-          buf += dec.decode(out.value, { stream: true });
-          let nl;
-          while ((nl = buf.indexOf('\n')) >= 0) {
-            const line = buf.slice(0, nl).trim();
-            buf = buf.slice(nl + 1);
-            if (!line) continue;
-            try { const c = JSON.parse(line); if (c.response) job.text += c.response; } catch (e) { void e; }
+        if (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady()) {
+          // Cloud provider (BYOK): one non-streamed request, then the same
+          // post-processing (code detection, normalise, self-test) as Ollama.
+          job.text = await window.KodroProviders.generate(prompt, { system: sys, num_predict: 400, temperature: 0.3 }, model);
+        } else {
+          const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: model, prompt: prompt, system: sys, stream: true, keep_alive: '30m', options: { temperature: 0.3, num_predict: 400 } }),
+          });
+          if (!r.ok || !r.body) throw new Error('generate ' + (r && r.status));
+          const reader = r.body.getReader();
+          const dec = new TextDecoder();
+          let buf = '';
+          for (;;) {
+            const out = await reader.read();
+            if (out.done) break;
+            buf += dec.decode(out.value, { stream: true });
+            let nl;
+            while ((nl = buf.indexOf('\n')) >= 0) {
+              const line = buf.slice(0, nl).trim();
+              buf = buf.slice(nl + 1);
+              if (!line) continue;
+              try { const c = JSON.parse(line); if (c.response) job.text += c.response; } catch (e) { void e; }
+            }
           }
         }
         const full = job.text.trim();
@@ -256,6 +273,12 @@
   async function status() {
     const b = bridge();
     if (b && b.aiStatus) return b.aiStatus();
+    // A ready BYOK cloud provider makes the assistant available regardless of
+    // whether Ollama is running.
+    if (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady()) {
+      const cfg = window.KodroProviders.config();
+      return { available: true, model: cfg.cloudModel, models: [cfg.cloudModel], override: override, source: cfg.provider };
+    }
     try {
       const ms = await tags();
       const chosen = pick(ms);
@@ -276,10 +299,15 @@
   async function reviewCode(src, lessonId) {
     const b = bridge();
     if (b && b.aiReviewCode) return b.aiReviewCode(src, lessonId);
-    let models;
-    try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running.' }; }
-    const model = pick(models);
-    if (!model) return { ok: false, reason: 'Ollama has no models.' };
+    const cloud = (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady());
+    let model;
+    if (cloud) { model = window.KodroProviders.config().cloudModel; }
+    else {
+      let models;
+      try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running (or connect a cloud model in Settings).' }; }
+      model = pick(models);
+      if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud model in Settings).' };
+    }
     const sys = 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
     try {
       const out = await genOnce(model, 'Review and tidy this rover program:\n\n' + src, { system: sys, num_predict: 500 });
@@ -300,10 +328,15 @@
   async function ask(query) {
     const b = bridge();
     if (b && b.aiAsk) return b.aiAsk(query);
-    let models;
-    try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running.' }; }
-    const model = pick(models);
-    if (!model) return { ok: false, reason: 'Ollama has no models.' };
+    const cloud = (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady());
+    let model;
+    if (cloud) { model = window.KodroProviders.config().cloudModel; }
+    else {
+      let models;
+      try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running (or connect a cloud model in Settings).' }; }
+      model = pick(models);
+      if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud model in Settings).' };
+    }
     // Browser mode has no lesson corpus to ground against (the desktop bridge
     // does the retrieval), so constrain the model to Kodro's real commands and
     // make it refuse rather than invent, and mark the answer ungrounded so the
@@ -318,6 +351,7 @@
   async function available() {
     const b = bridge();
     if (b) return true;
+    if (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady()) return true;
     try { const ms = await tags(); return ms.length > 0; } catch (e) { return false; }
   }
 

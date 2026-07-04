@@ -437,6 +437,40 @@
   }
 
   // ---- Vibe coding (Code with AI) ----
+  // Choose the AI backend: Local (Ollama, offline default) or a bring-your-own-key
+  // cloud model (Anthropic Claude, OpenAI). The key stays in this browser and is
+  // sent only to the chosen provider; Local keeps the app fully offline.
+  function ProviderPicker() {
+    const P = window.KodroProviders;
+    const [cfg, setCfg] = React.useState(P ? P.config() : null);
+    if (!P || !cfg) return null;
+    const refresh = () => setCfg(P.config());
+    const isCloud = cfg.provider !== 'ollama';
+    return (
+      <div className="vibe-provider" style={{ margin: '2px 0 8px', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--navy-2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12.5, color: 'var(--fg-2)' }}>AI provider</span>
+          <select value={cfg.provider} aria-label="AI provider" onChange={e => { P.setProvider(e.target.value); refresh(); }}
+            style={{ background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
+            {cfg.providers.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+          {isCloud && <span style={{ fontSize: 11, color: cfg.cloudReady ? 'var(--success)' : 'var(--fg-3)' }}>{cfg.cloudReady ? 'connected' : 'needs a key'}</span>}
+        </div>
+        {isCloud && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+            <input type="password" aria-label="API key" placeholder={cfg.hasKey ? 'key saved (type to replace)' : 'paste your API key'}
+              onChange={e => { P.setKey(cfg.provider, e.target.value); refresh(); }}
+              style={{ flex: '1 1 180px', background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
+            <input type="text" aria-label="Cloud model id" value={cfg.cloudModel} placeholder="model id"
+              onChange={e => { P.setCloudModel(e.target.value); refresh(); }}
+              style={{ flex: '0 1 160px', background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
+          </div>
+        )}
+        {isCloud && <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Your key stays in this browser and is sent only to the provider you pick. Switch to Local for fully offline use.</p>}
+      </div>
+    );
+  }
+
   function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeContext }) {
     // The reflection the assistant is fed from past runs in this world,
     // rendered as a VISIBLE chip instead of an invisible prompt injection
@@ -454,6 +488,7 @@
             <span className="eyebrow">{KI('vibe')}Vibe coding. Describe it, the AI writes it</span>
             <button className="btn-mini" aria-label="Close" onClick={() => { vibeCancelRef.current = true; setVibeBusy(false); setVibeOpen(false); }}>✕</button>
           </div>
+          <ProviderPicker />
           {aiInfo.available ? (
             <div className="vibe-body">
               <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
