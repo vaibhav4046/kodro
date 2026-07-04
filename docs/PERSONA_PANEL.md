@@ -312,3 +312,52 @@ convergence, and it is still exactly what it says on the tin: the code is
 markedly more robust under adversarial reading. It is not a verdict that a
 learner is well served, it is not a perfect score, and it does not replace
 the human study, which remains the right and necessary next step.
+
+## Round 5: the final sweep, and a lesson about convergence
+
+Round 5 put thirty personas on the very last untested corners: each
+individual Tk panel, every bridge method, the block-coding surface, all
+eighteen lessons read one by one, the run-report and project round-trips,
+and a per-component accessibility pass. Twenty of the thirty lenses came
+back clean, the most yet, which is the convergence signal continuing. But
+the round is also a useful correction to any story that says the tail is
+all trivia: of the fifteen confirmed findings, two were genuinely HIGH, and
+one of them had been latent since the very first commit.
+
+That one is worth stating plainly. The grader was never actually enforcing
+"no collisions." It counted collisions from an event stream the engine does
+not emit, while the real collision count accumulates on the rover snapshot,
+so a program that drove straight into a wall passed a no-collisions lesson
+with full marks. The grader's own docstring claimed "collision counts are
+real now"; they were not. It is the same shape as the round-3 distance bug,
+another aggregate read from the wrong source, and four rounds of testing
+had walked past it because the only tests that touched it hand-built the
+synthetic events the real engine never produces. The fix reads the real
+count from the snapshot, the docstring is finally true, and the tests were
+rewritten to drive the real path. The second HIGH was a boundary bug in the
+Python distance sensor: a rover pressed against a wall read zero to the wall
+it was touching instead of the distance to the far wall.
+
+The other six fixes were smaller: a compass needle drawn ninety degrees off
+(and here the panel's own proposed fix was wrong, adding ninety where it
+needed to subtract, which a careful check caught before it shipped); a
+global engine binding left dangling after a submission; a block input that
+would not accept zero; and stale CHANGELOG entries for two removed features
+and a miscounted theme total. Six further findings were deferred with
+reasons rather than pretended-done: a nearest-versus-last obstacle-hit rule
+that would perturb the golden-trace-gated physics for a rare two-obstacle
+case, and five builtin error messages missing a line number, whose fix is a
+refactor of the gated interpreter for cosmetic gain. One reported item was
+already correct on inspection.
+
+Across five rounds, 148 simulated personas found 71 confirmed defects, of
+which 61 were fixed, 8 were deferred with stated reasons, and 2 were
+reclassified or already correct. The clean-lens share is at its highest and
+still rising, and yet the fifth round still surfaced a real, high-severity
+correctness bug that had survived every prior pass. Both of those things
+are true at once, and together they are the honest verdict this whole
+exercise was for: adversarial simulated testing makes the code
+demonstrably, measurably more trustworthy, and it never reaches the point
+where you can declare it done. It is not a perfect score. It does not stand
+in for a human learner. The human study remains the right and necessary
+next step, and nothing here changes that.
