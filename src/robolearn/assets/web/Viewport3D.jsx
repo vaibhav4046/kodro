@@ -1041,7 +1041,11 @@
             const roof = new THREE.Mesh(new THREE.BoxGeometry(w * 1.05, 0.4, w * 1.05), new THREE.MeshStandardMaterial({ color: 0x343b45, roughness: 1 }));
             roof.position.set(px, hgt + 0.2, pz); scene.add(roof);
           } else if (o.kind === 'car') {
-            const car = mkCar(o.v < 0.5 ? 0xc0392b : 0x2c6fb0);
+            // Muted automotive palette (charcoal / gunmetal / silver / slate /
+            // deep green / off-white), keyed on o.v so parked cars vary without
+            // the old candy red+blue that read as a toy set under bright light.
+            const PARKED = [0x2b3039, 0x40474f, 0xa6acb2, 0x35414f, 0x33413a, 0xc4c8cc];
+            const car = mkCar(PARKED[Math.min(PARKED.length - 1, (o.v * PARKED.length) | 0)]);
             car.position.set(px, 0, pz); car.rotation.y = (o.rot || 0) * Math.PI / 180; scene.add(car);
           }
         });

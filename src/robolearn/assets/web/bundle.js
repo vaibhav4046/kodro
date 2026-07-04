@@ -1400,14 +1400,23 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     orbit: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
       cx: "12",
       cy: "12",
-      r: "8",
-      opacity: "0.35"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M5.6 18 A8.8 8.8 0 1 1 18 5.6"
+      r: "8.4",
+      opacity: "0.5"
     }), /*#__PURE__*/React.createElement("circle", {
-      cx: "18",
-      cy: "5.6",
-      r: "2.1",
+      cx: "12",
+      cy: "12",
+      r: "4.4",
+      opacity: "0.85"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "1.9",
+      fill: "currentColor",
+      stroke: "none"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "3.6",
+      r: "1.7",
       fill: "currentColor",
       stroke: "none"
     })),
@@ -1591,7 +1600,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
   let last = null;
   let simT = 0; // accumulated sim seconds; drives the traffic-light cycle
   const R = 30; // rover collision radius (cm), matched to the engine
-  const ROBOT_COLORS = [0x5ce0d8, 0xe0b45c, 0xd35d7a, 0x7a5fc0];
+  const ROBOT_COLORS = [0x4a9a94, 0x9a8850, 0x8a8f96, 0x556072];
   // Mission sites where a roaming pastel fleet would break the fiction (W5):
   // the Challenger Deep and Europa are silent, lifeless places.
   const QUIET_SITES = {
@@ -1746,11 +1755,11 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     if (id === 'city') {
       const shirts = [0xd98c4a, 0x5aa0d8, 0x8a6fc0, 0x5bbf86, 0xd35d7a, 0xe0b45c];
       // Traffic: two lanes each way on both roads, flowing one direction, looping.
-      agents.push(car(true, 1, -78, 240, 200, 0x2c6fb0));
-      agents.push(car(true, 1, -78, 240, 1900, 0xc0392b));
-      agents.push(car(true, -1, 78, 220, 1100, 0x4aa564));
-      agents.push(car(false, 1, 78, 230, 600, 0xd8a838));
-      agents.push(car(false, -1, -78, 210, 2400, 0x7a5fc0));
+      agents.push(car(true, 1, -78, 240, 200, 0x3a434d));
+      agents.push(car(true, 1, -78, 240, 1900, 0x4a4f57));
+      agents.push(car(true, -1, 78, 220, 1100, 0x39424a));
+      agents.push(car(false, 1, 78, 230, 600, 0xa6acb2));
+      agents.push(car(false, -1, -78, 210, 2400, 0x2b3039));
       // Pedestrians walking the pavements, one direction each, looping.
       const pave = 300;
       agents.push(ped(true, 1, -pave, 60, 0, shirts[0]));
@@ -9034,7 +9043,11 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
             roof.position.set(px, hgt + 0.2, pz);
             scene.add(roof);
           } else if (o.kind === 'car') {
-            const car = mkCar(o.v < 0.5 ? 0xc0392b : 0x2c6fb0);
+            // Muted automotive palette (charcoal / gunmetal / silver / slate /
+            // deep green / off-white), keyed on o.v so parked cars vary without
+            // the old candy red+blue that read as a toy set under bright light.
+            const PARKED = [0x2b3039, 0x40474f, 0xa6acb2, 0x35414f, 0x33413a, 0xc4c8cc];
+            const car = mkCar(PARKED[Math.min(PARKED.length - 1, o.v * PARKED.length | 0)]);
             car.position.set(px, 0, pz);
             car.rotation.y = (o.rot || 0) * Math.PI / 180;
             scene.add(car);

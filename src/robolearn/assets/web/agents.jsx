@@ -22,7 +22,7 @@
   let last = null;
   let simT = 0; // accumulated sim seconds; drives the traffic-light cycle
   const R = 30; // rover collision radius (cm), matched to the engine
-  const ROBOT_COLORS = [0x5ce0d8, 0xe0b45c, 0xd35d7a, 0x7a5fc0];
+  const ROBOT_COLORS = [0x4a9a94, 0x9a8850, 0x8a8f96, 0x556072];
   // Mission sites where a roaming pastel fleet would break the fiction (W5):
   // the Challenger Deep and Europa are silent, lifeless places.
   const QUIET_SITES = { mariana: 1, europa: 1 };
@@ -112,11 +112,11 @@
     if (id === 'city') {
       const shirts = [0xd98c4a, 0x5aa0d8, 0x8a6fc0, 0x5bbf86, 0xd35d7a, 0xe0b45c];
       // Traffic: two lanes each way on both roads, flowing one direction, looping.
-      agents.push(car(true, 1, -78, 240, 200, 0x2c6fb0));
-      agents.push(car(true, 1, -78, 240, 1900, 0xc0392b));
-      agents.push(car(true, -1, 78, 220, 1100, 0x4aa564));
-      agents.push(car(false, 1, 78, 230, 600, 0xd8a838));
-      agents.push(car(false, -1, -78, 210, 2400, 0x7a5fc0));
+      agents.push(car(true, 1, -78, 240, 200, 0x3a434d));
+      agents.push(car(true, 1, -78, 240, 1900, 0x4a4f57));
+      agents.push(car(true, -1, 78, 220, 1100, 0x39424a));
+      agents.push(car(false, 1, 78, 230, 600, 0xa6acb2));
+      agents.push(car(false, -1, -78, 210, 2400, 0x2b3039));
       // Pedestrians walking the pavements, one direction each, looping.
       const pave = 300;
       agents.push(ped(true, 1, -pave, 60, 0, shirts[0]));

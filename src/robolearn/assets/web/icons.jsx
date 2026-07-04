@@ -108,9 +108,10 @@
     ),
     orbit: () => (
       <g>
-        <circle cx="12" cy="12" r="8" opacity="0.35" />
-        <path d="M5.6 18 A8.8 8.8 0 1 1 18 5.6" />
-        <circle cx="18" cy="5.6" r="2.1" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="12" r="8.4" opacity="0.5" />
+        <circle cx="12" cy="12" r="4.4" opacity="0.85" />
+        <circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="3.6" r="1.7" fill="currentColor" stroke="none" />
       </g>
     ),
     camera: () => (
