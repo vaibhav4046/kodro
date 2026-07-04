@@ -263,3 +263,52 @@ more robust under an adversarial net, not that a learner is well served.
 The read is unchanged. This is a bug-finding instrument, not validation;
 it measures the code and not a person; and it does not license a perfect
 score. The human study remains the right next step.
+
+## Round 4: the corner sweep
+
+Round 4 pointed thirty more personas at the corners even the deep sweep had
+left: the replay dialog, the swarm runner, the hint engine, the lesson
+YAML content, the retrieval and grounding path, the SQLite store, the Tk
+fallback, and deeper interpreter and accessibility passes. Fifteen of the
+thirty lenses came back clean; the rest produced 23 findings after
+adversarial verification.
+
+The important shift is in severity, not count. Only one finding was HIGH,
+and it was bounded: in-progress lesson code lived only in memory and was
+lost on refresh, because only the example-tab code was ever persisted; the
+fix hydrates and saves the lesson buffers like everything else. Everything
+else was maintainability and polish: a hint rule that could never fire
+because the rover clamps its input before the event is recorded (rewired to
+read the source); a retrieval tokenizer that split "move_forward" but not
+"move forward" and so refused questions the lessons covered; a
+select-then-write in the store that could race two callers into a
+constraint failure (made a single atomic upsert); a Tk slider whose
+callback re-entered itself; a lesson recommender that ignored
+prerequisites; two lessons whose own starter code tripped their own
+allowed-construct guard; several AI results that updated silently for a
+screen reader; and stale test counts in the docs. Twenty of these were
+fixed and the gates re-run green.
+
+Two findings were deliberately not changed, and the reason matters for
+honesty: adding list and dictionary indexing to the interpreter, and making
+print work inside a function called as an expression, are both changes to a
+deliberately restricted, golden-trace-gated teaching language for rare
+cases; bolting on language features to chase a number is exactly the kind
+of padding this record is meant to avoid, so they are documented as
+subset limitations rather than pretended-done. One further finding, that a
+lesson's line limit can be lower than its starter, turned out on
+implementation to be intended behaviour: the optimisation lesson ships an
+over-budget starter precisely so the pupil shortens it, and a validator
+enforcing the opposite would have rejected valid content. A test caught
+that before it shipped, which is the method working as intended in both
+directions.
+
+Across four rounds, 118 simulated personas found 56 confirmed defects, of
+which 53 were fixed, 2 were deferred with stated reasons, and 1 was
+reclassified as intended once a fix was attempted. Roughly half the lenses
+now come back clean and the severity of what remains has fallen from a
+cluster of honesty and correctness bugs to mostly polish. That is real
+convergence, and it is still exactly what it says on the tin: the code is
+markedly more robust under adversarial reading. It is not a verdict that a
+learner is well served, it is not a perfect score, and it does not replace
+the human study, which remains the right and necessary next step.
