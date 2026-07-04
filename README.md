@@ -10,7 +10,9 @@ Kodro is a self contained desktop studio. You build a custom robot from
 real parts, write its behaviour in code, blocks or plain language, and
 validate it in a 3D world chosen to suit it. The system reflects on each
 run and refines what it suggests next. It runs entirely on your own
-computer with no account and no cloud.
+computer with no account and, by default, no cloud. You can optionally
+connect your own Anthropic or OpenAI key for a stronger assistant; the
+offline local model stays the default and requires no connection.
 
 Kodro is for a capable non expert adult who wants to design and test robot
 behaviour without a lab, a kit, or a cloud subscription.
@@ -33,10 +35,13 @@ set honest expectations up front:
   hand written tick. See [`docs/known-limitations.md`](docs/known-limitations.md).
 - **Not ROS2.** There is no ROS2 bridge, topic publisher or message
   types. A bridge is on the roadmap, not in the code.
-- **Not cloud-connected.** Zero paid services, zero API calls, zero
-  accounts. The local AI assistant talks only to an Ollama model on
-  `localhost`, and falls back to a deterministic rule engine when
-  Ollama is absent.
+- **Not cloud-connected by default.** No account is ever required and
+  nothing leaves your machine on the default path: the local AI
+  assistant talks only to an Ollama model on `localhost`, and falls
+  back to a deterministic rule engine when Ollama is absent. You may
+  optionally connect your own Anthropic or OpenAI key for a stronger
+  model; that key stays in your browser, is sent only to the provider
+  you pick, and is never required.
 - **Not a childrens coding toy.** It assumes a capable non expert adult.
 
 ## The loop
@@ -99,8 +104,10 @@ What actually ships in this repository, verified against the test suite:
 - **Curriculum lessons.** Eighteen bundled lessons mapped to the UK
   DfE / BCS computing programme of study, from KS1 through KS4
   stretch, each with success criteria and offline hints.
-- **Strictly offline.** Zero paid services, zero API calls, zero
-  accounts.
+- **Offline by default.** No account required, no paid service required,
+  and no mandatory network call: the local Ollama assistant is the
+  default and the app is fully functional with no connection. Cloud
+  models are an optional, bring-your-own-key extra.
 
 For what is partial, experimental or only on the roadmap, see
 [`docs/implementation-status.md`](docs/implementation-status.md).

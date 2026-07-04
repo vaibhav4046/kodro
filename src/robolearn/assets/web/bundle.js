@@ -16624,7 +16624,8 @@ Object.assign(window, {
         code: code,
         notes: notes || 'Reviewed.',
         issues: issues,
-        model: model
+        model: model,
+        source: cloud ? window.KodroProviders.config().provider : 'local'
       };
     } catch (e) {
       return {
@@ -16671,7 +16672,8 @@ Object.assign(window, {
         text: stripFences(text),
         answer: stripFences(text),
         model: model,
-        grounded: false
+        grounded: false,
+        source: cloud ? window.KodroProviders.config().provider : 'local'
       };
     } catch (e) {
       return {
@@ -19981,7 +19983,7 @@ say("Survey done")`
       role: "alert"
     }, reviewErr), reviewData && !reviewBusy && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "Reviewer: ", /*#__PURE__*/React.createElement("b", null, reviewData.model), " \xB7 runs entirely offline."), reviewData.issues && reviewData.issues.length > 0 ? /*#__PURE__*/React.createElement("ul", {
+    }, "Reviewer: ", /*#__PURE__*/React.createElement("b", null, reviewData.model), " \xB7 ", reviewData.source === 'anthropic' || reviewData.source === 'openai' ? 'via your ' + reviewData.source + ' key' : 'runs entirely offline', "."), reviewData.issues && reviewData.issues.length > 0 ? /*#__PURE__*/React.createElement("ul", {
       className: "review-issues"
     }, reviewData.issues.map((it, i) => /*#__PURE__*/React.createElement("li", {
       key: i
@@ -20026,7 +20028,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, KI('ask'), "Ask. ", askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Grounded in the built-in material when it is available'), /*#__PURE__*/React.createElement("button", {
+    }, KI('ask'), "Ask. ", askData && (askData.source === 'anthropic' || askData.source === 'openai') ? 'Answered by your ' + askData.source + ' cloud model' : askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Grounded in the built-in material when it is available'), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setAskOpen(false)
@@ -20256,6 +20258,7 @@ say("Survey done")`
   function ProviderPicker() {
     const P = window.KodroProviders;
     const [cfg, setCfg] = React.useState(P ? P.config() : null);
+    const [keyInput, setKeyInput] = React.useState('');
     if (!P || !cfg) return null;
     const refresh = () => setCfg(P.config());
     const isCloud = cfg.provider !== 'ollama';
@@ -20285,6 +20288,7 @@ say("Survey done")`
       "aria-label": "AI provider",
       onChange: e => {
         P.setProvider(e.target.value);
+        setKeyInput('');
         refresh();
       },
       style: {
@@ -20313,8 +20317,10 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("input", {
       type: "password",
       "aria-label": "API key",
+      value: keyInput,
       placeholder: cfg.hasKey ? 'key saved (type to replace)' : 'paste your API key',
       onChange: e => {
+        setKeyInput(e.target.value);
         P.setKey(cfg.provider, e.target.value);
         refresh();
       },
@@ -20405,7 +20411,9 @@ say("Survey done")`
       }
     }, "\u2715")), /*#__PURE__*/React.createElement(ProviderPicker, null), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
-    }, /*#__PURE__*/React.createElement("p", {
+    }, aiInfo.source === 'anthropic' || aiInfo.source === 'openai' ? /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "Cloud model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 via your ", aiInfo.source, " key, your prompt is sent only to that provider.") : /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
     }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it."), ctxChip, aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
       style: {

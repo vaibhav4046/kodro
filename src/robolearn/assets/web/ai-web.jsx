@@ -321,7 +321,7 @@
       // with an all-clear.
       const issues = notes ? notes.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean) : [];
       if (!issues.length && revised) issues.push('The reviewer suggests a tidied rewrite - read the diff below before applying.');
-      return { ok: true, revised: revised, code: code, notes: notes || 'Reviewed.', issues: issues, model: model };
+      return { ok: true, revised: revised, code: code, notes: notes || 'Reviewed.', issues: issues, model: model, source: cloud ? window.KodroProviders.config().provider : 'local' };
     } catch (e) { return { ok: false, reason: 'Review failed: ' + ((e && e.message) || e) }; }
   }
 
@@ -344,7 +344,7 @@
     const sys = 'You are Kodro\'s offline assistant for a simulated robot. Answer briefly and concretely, only about Kodro\'s actual robot commands and features. If the question is outside that or you are not sure, say you are not sure rather than inventing a command or capability.';
     try {
       const text = await genOnce(model, query, { system: sys, num_predict: 350 });
-      return { ok: true, text: stripFences(text), answer: stripFences(text), model: model, grounded: false };
+      return { ok: true, text: stripFences(text), answer: stripFences(text), model: model, grounded: false, source: cloud ? window.KodroProviders.config().provider : 'local' };
     } catch (e) { return { ok: false, reason: 'Ask failed: ' + ((e && e.message) || e) }; }
   }
 

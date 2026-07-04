@@ -13,9 +13,9 @@ to third-party hosts. The AI layer honours every one of those:
 | --- | --- |
 | No cloud SDK | Uses only the standard-library `urllib`. |
 | No API key | Ollama needs none. |
-| No account | Ollama needs none. |
-| No third-party host | All traffic targets `http://localhost:11434` — the user's own machine. |
-| 100% offline after install | The model file lives on disk; inference is local. |
+| No account by default | Ollama needs none. Optional cloud providers use the user's own key. |
+| No third-party host by default | Default traffic targets `http://localhost:11434`, the user's own machine. An optional cloud provider, once a key is entered, sends the prompt only to that provider. |
+| Offline by default after install | With the default Ollama provider the model file lives on disk and inference is local; a cloud key is optional and never required. |
 
 The model weights are downloaded once by the user
 (`ollama pull llama3.2:3b`) and run offline thereafter. Nothing a pupil

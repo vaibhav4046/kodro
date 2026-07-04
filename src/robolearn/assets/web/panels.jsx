@@ -280,7 +280,7 @@
             {reviewErr && <p className="vibe-error" role="alert">{reviewErr}</p>}
             {reviewData && !reviewBusy && (
               <div>
-                <p className="vibe-status">Reviewer: <b>{reviewData.model}</b> · runs entirely offline.</p>
+                <p className="vibe-status">Reviewer: <b>{reviewData.model}</b> · {(reviewData.source === 'anthropic' || reviewData.source === 'openai') ? 'via your ' + reviewData.source + ' key' : 'runs entirely offline'}.</p>
                 {reviewData.issues && reviewData.issues.length > 0 ? (
                   <ul className="review-issues">
                     {reviewData.issues.map((it, i) => <li key={i}>{it}</li>)}
@@ -312,7 +312,7 @@
       <div className="modal-backdrop" onClick={() => !askBusy && setAskOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="Ask a question" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('ask')}Ask. {askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Grounded in the built-in material when it is available'}</span>
+            <span className="eyebrow">{KI('ask')}Ask. {(askData && (askData.source === 'anthropic' || askData.source === 'openai')) ? 'Answered by your ' + askData.source + ' cloud model' : (askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Grounded in the built-in material when it is available')}</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setAskOpen(false)}>✕</button>
           </div>
           <div className="ask-body" role="status" aria-live="polite">
@@ -443,6 +443,7 @@
   function ProviderPicker() {
     const P = window.KodroProviders;
     const [cfg, setCfg] = React.useState(P ? P.config() : null);
+    const [keyInput, setKeyInput] = React.useState('');
     if (!P || !cfg) return null;
     const refresh = () => setCfg(P.config());
     const isCloud = cfg.provider !== 'ollama';
@@ -450,7 +451,7 @@
       <div className="vibe-provider" style={{ margin: '2px 0 8px', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--navy-2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12.5, color: 'var(--fg-2)' }}>AI provider</span>
-          <select value={cfg.provider} aria-label="AI provider" onChange={e => { P.setProvider(e.target.value); refresh(); }}
+          <select value={cfg.provider} aria-label="AI provider" onChange={e => { P.setProvider(e.target.value); setKeyInput(''); refresh(); }}
             style={{ background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
             {cfg.providers.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
@@ -458,8 +459,8 @@
         </div>
         {isCloud && (
           <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-            <input type="password" aria-label="API key" placeholder={cfg.hasKey ? 'key saved (type to replace)' : 'paste your API key'}
-              onChange={e => { P.setKey(cfg.provider, e.target.value); refresh(); }}
+            <input type="password" aria-label="API key" value={keyInput} placeholder={cfg.hasKey ? 'key saved (type to replace)' : 'paste your API key'}
+              onChange={e => { setKeyInput(e.target.value); P.setKey(cfg.provider, e.target.value); refresh(); }}
               style={{ flex: '1 1 180px', background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
             <input type="text" aria-label="Cloud model id" value={cfg.cloudModel} placeholder="model id"
               onChange={e => { P.setCloudModel(e.target.value); refresh(); }}
@@ -491,7 +492,9 @@
           <ProviderPicker />
           {aiInfo.available ? (
             <div className="vibe-body">
-              <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
+              {(aiInfo.source === 'anthropic' || aiInfo.source === 'openai')
+                ? <p className="vibe-status">Cloud model: <b>{aiInfo.model}</b> · via your {aiInfo.source} key, your prompt is sent only to that provider.</p>
+                : <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>}
               {ctxChip}
               {aiInfo.models && aiInfo.models.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
