@@ -15327,7 +15327,7 @@ Object.assign(window, {
   }));
 
   // Capability labels for the hero strip: concrete, mono, what the studio does.
-  const CAPS = ["Design the machine", "Program its behaviour", "Simulate the world", "100% offline"];
+  const CAPS = ["Design the machine", "Program its behaviour", "Simulate the world", "Offline by default"];
   const CSS = `
   .konb-root{
     position:fixed; inset:0; z-index:4000; overflow:auto;
@@ -15666,7 +15666,7 @@ Object.assign(window, {
       id: "konb-h1"
     }, "Build a robot.", /*#__PURE__*/React.createElement("br", null), "Teach it.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("em", null, "Watch it work.")), /*#__PURE__*/React.createElement("p", {
       className: "konb-lead"
-    }, "Kodro is an ", /*#__PURE__*/React.createElement("b", null, "offline robot design and simulation studio"), ". Assemble a machine from real parts, write the code that drives it, and validate it in a physics world that fits the build. Everything runs on your own computer, with a local AI assistant. No account, no cloud, no internet."), /*#__PURE__*/React.createElement("ul", {
+    }, "Kodro is an ", /*#__PURE__*/React.createElement("b", null, "offline robot design and simulation studio"), ". Assemble a machine from real parts, write the code that drives it, and validate it in a physics world that fits the build. Everything runs on your own computer, with a local AI assistant and no account needed. Offline by default; you can optionally connect your own cloud model key."), /*#__PURE__*/React.createElement("ul", {
       className: "konb-caps"
     }, CAPS.map((c, i) => /*#__PURE__*/React.createElement("li", {
       key: i
