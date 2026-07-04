@@ -186,7 +186,11 @@
     // Lessons keep their OWN editable buffer so loading one never clobbers the
     // example tabs (autopilot.py etc.); the editor shows it while a lesson is
     // active (QA re-score rank 11).
-    const [lessonBuffers, setLessonBuffers] = useState({});  // per-lesson editable code
+    const [lessonBuffers, setLessonBuffers] = useState(() => {
+      // Hydrate from storage so in-progress lesson edits survive a refresh,
+      // navigation or quit (only example-tab code was persisted before).
+      try { return JSON.parse(lsGet('or_lesson_buffers')) || {}; } catch (e) { return {}; }
+    });  // per-lesson editable code
     const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
     // The editor's current source: a lesson's own buffer when one is loaded,
     // otherwise the active example tab. (Declared AFTER the state above to
@@ -621,15 +625,16 @@
     useEffect(() => { if (consoleEndRef.current) consoleEndRef.current.scrollTop = consoleEndRef.current.scrollHeight; }, [consoleLines]);
 
     // persist
-    useEffect(() => { localStorage.setItem('or_terrain', terrainId); }, [terrainId]);
+    useEffect(() => { try { localStorage.setItem('or_terrain', terrainId); } catch (e) { void e; } }, [terrainId]);
     useEffect(() => {
       try { localStorage.setItem('or_theme', theme); } catch (e) { void e; }
       const root = document.documentElement;
       if (theme && theme !== 'dark') root.setAttribute('data-theme', theme);
       else root.removeAttribute('data-theme');
     }, [theme]);
-    useEffect(() => { localStorage.setItem('or_tab', activeTab); }, [activeTab]);
+    useEffect(() => { try { localStorage.setItem('or_tab', activeTab); } catch (e) { void e; } }, [activeTab]);
     useEffect(() => { try { localStorage.setItem('or_programs', JSON.stringify(programs)); } catch (e) {} }, [programs]);
+    useEffect(() => { try { localStorage.setItem('or_lesson_buffers', JSON.stringify(lessonBuffers)); } catch (e) { void e; } }, [lessonBuffers]);
 
 
     function addConsole(text, type) {

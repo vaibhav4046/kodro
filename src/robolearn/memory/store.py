@@ -408,42 +408,41 @@ class Store:
         """
         sample = 1.0 if passed else 0.0
         now = _now_ms()
+        d_success = 1 if passed else 0
+        d_failure = 0 if passed else 1
+        # Single atomic upsert. The old SELECT-then-INSERT/UPDATE raced two
+        # concurrent callers into a UNIQUE-constraint failure. On the first write
+        # the row takes the sample verbatim; on conflict it applies the EMA step
+        # against the existing score, all in one statement.
         row = self._conn.execute(
-            "SELECT score, successes, failures FROM concept_strength "
-            "WHERE pupil_id = ? AND concept = ?",
-            (pupil_id, concept),
+            """
+            INSERT INTO concept_strength
+              (pupil_id, concept, score, successes, failures, last_seen)
+            VALUES (:pupil_id, :concept, :sample, :d_success, :d_failure, :now)
+            ON CONFLICT(pupil_id, concept) DO UPDATE SET
+              score = :alpha * :sample + (1.0 - :alpha) * concept_strength.score,
+              successes = concept_strength.successes + :d_success,
+              failures = concept_strength.failures + :d_failure,
+              last_seen = :now
+            RETURNING score, successes, failures, last_seen
+            """,
+            {
+                "pupil_id": pupil_id,
+                "concept": concept,
+                "sample": sample,
+                "d_success": d_success,
+                "d_failure": d_failure,
+                "now": now,
+                "alpha": alpha,
+            },
         ).fetchone()
-        if row is None:
-            score = sample
-            successes = 1 if passed else 0
-            failures = 0 if passed else 1
-            self._conn.execute(
-                """
-                INSERT INTO concept_strength
-                  (pupil_id, concept, score, successes, failures, last_seen)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (pupil_id, concept, score, successes, failures, now),
-            )
-        else:
-            score = alpha * sample + (1.0 - alpha) * float(row["score"])
-            successes = int(row["successes"]) + (1 if passed else 0)
-            failures = int(row["failures"]) + (0 if passed else 1)
-            self._conn.execute(
-                """
-                UPDATE concept_strength
-                   SET score = ?, successes = ?, failures = ?, last_seen = ?
-                 WHERE pupil_id = ? AND concept = ?
-                """,
-                (score, successes, failures, now, pupil_id, concept),
-            )
         return ConceptStrength(
             pupil_id=pupil_id,
             concept=concept,
-            score=score,
-            successes=successes,
-            failures=failures,
-            last_seen=now,
+            score=float(row["score"]),
+            successes=int(row["successes"]),
+            failures=int(row["failures"]),
+            last_seen=row["last_seen"],
         )
 
     def get_concept_strength(self, pupil_id: str) -> list[ConceptStrength]:

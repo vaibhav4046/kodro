@@ -221,7 +221,7 @@ node scripts/qa_interpreter.mjs   # interpreter and kinematics functional QA
 python -m pytest                  # Python engine test suite
 ```
 
-- **Interpreter QA: 74 of 74 passing.** Every shipped example program
+- **Interpreter QA: 156 of 156 passing.** Every shipped example program
   terminates, moves, stays inside the arena box, never hits a wall and
   never throws. Command semantics (metres versus centimetres, turn,
   speed clamp, guarded huge exponents, for and while, sensors), Python
@@ -232,7 +232,7 @@ python -m pytest                  # Python engine test suite
   bundle in headless Chrome: six studio flows, five behaviour asserts
   (the rover measurably moves, blocks insert real code, errors surface,
   worlds are distinct) and a render check for every modal.
-- **Python engine: 876 tests passing**, coverage gated at
+- **Python engine: 869 tests passing**, coverage gated at
   `--cov-fail-under=85` on every push.
 
 The honest marker assessment of the project to date is a strong A. An A

@@ -15710,7 +15710,7 @@ Object.assign(window, {
       "aria-labelledby": "konb-h2-pick"
     }, /*#__PURE__*/React.createElement("span", {
       className: "konb-eyebrow"
-    }, "Step one"), /*#__PURE__*/React.createElement("h2", {
+    }, "Step two"), /*#__PURE__*/React.createElement("h2", {
       className: "konb-h2",
       id: "konb-h2-pick"
     }, "What do you want to build?"), /*#__PURE__*/React.createElement("p", {
@@ -19352,7 +19352,9 @@ say("Survey done")`
       "aria-label": "Close",
       onClick: onClose
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "build-body"
+      className: "build-body",
+      role: "status",
+      "aria-live": "polite"
     }, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
     }, "Type a budget and the local AI plans a real robot you can build and program, mapping your simulated work onto real hardware. Nothing is ordered; this runs offline."), robotSpec && /*#__PURE__*/React.createElement("p", {
@@ -19471,7 +19473,9 @@ say("Survey done")`
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
       className: "swarm-body"
     }, swarmBusy && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
+      className: "vibe-status",
+      role: "status",
+      "aria-live": "polite"
     }, "Launching the swarm\u2026"), swarmData && swarmData.paths && (() => {
       const COLORS = ['var(--cyan)', '#e0b45c', '#7cc49b', '#c8685a', '#a78bfa', '#f0808a', '#62b6ff', '#b6e36a'];
       const pts = swarmData.paths.flat();
@@ -19643,7 +19647,9 @@ say("Survey done")`
       "aria-label": "Close",
       onClick: () => setReviewOpen(false)
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "review-body"
+      className: "review-body",
+      role: "status",
+      "aria-live": "polite"
     }, reviewBusy && /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
     }, "A reviewer agent is reading your code on this machine\u2026"), reviewErr && /*#__PURE__*/React.createElement("p", {
@@ -19701,7 +19707,9 @@ say("Survey done")`
       "aria-label": "Close",
       onClick: () => setAskOpen(false)
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "ask-body"
+      className: "ask-body",
+      role: "status",
+      "aria-live": "polite"
     }, /*#__PURE__*/React.createElement("div", {
       className: "build-input"
     }, /*#__PURE__*/React.createElement("label", {
@@ -20515,7 +20523,15 @@ say("Survey done")`
     // Lessons keep their OWN editable buffer so loading one never clobbers the
     // example tabs (autopilot.py etc.); the editor shows it while a lesson is
     // active (QA re-score rank 11).
-    const [lessonBuffers, setLessonBuffers] = useState({}); // per-lesson editable code
+    const [lessonBuffers, setLessonBuffers] = useState(() => {
+      // Hydrate from storage so in-progress lesson edits survive a refresh,
+      // navigation or quit (only example-tab code was persisted before).
+      try {
+        return JSON.parse(lsGet('or_lesson_buffers')) || {};
+      } catch (e) {
+        return {};
+      }
+    }); // per-lesson editable code
     const [lessonVerdict, setLessonVerdict] = useState(null); // {passed,score,reasons,hint}
     // The editor's current source: a lesson's own buffer when one is loaded,
     // otherwise the active example tab. (Declared AFTER the state above to
@@ -21241,7 +21257,11 @@ say("Survey done")`
 
     // persist
     useEffect(() => {
-      localStorage.setItem('or_terrain', terrainId);
+      try {
+        localStorage.setItem('or_terrain', terrainId);
+      } catch (e) {
+        void e;
+      }
     }, [terrainId]);
     useEffect(() => {
       try {
@@ -21253,13 +21273,24 @@ say("Survey done")`
       if (theme && theme !== 'dark') root.setAttribute('data-theme', theme);else root.removeAttribute('data-theme');
     }, [theme]);
     useEffect(() => {
-      localStorage.setItem('or_tab', activeTab);
+      try {
+        localStorage.setItem('or_tab', activeTab);
+      } catch (e) {
+        void e;
+      }
     }, [activeTab]);
     useEffect(() => {
       try {
         localStorage.setItem('or_programs', JSON.stringify(programs));
       } catch (e) {}
     }, [programs]);
+    useEffect(() => {
+      try {
+        localStorage.setItem('or_lesson_buffers', JSON.stringify(lessonBuffers));
+      } catch (e) {
+        void e;
+      }
+    }, [lessonBuffers]);
     function addConsole(text, type) {
       const ts = new Date();
       const hh = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0') + ':' + String(ts.getSeconds()).padStart(2, '0');

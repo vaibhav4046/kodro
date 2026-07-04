@@ -72,6 +72,36 @@ def _line_count(source: str) -> int:
     return sum(1 for line in source.splitlines() if line.strip())
 
 
+def _calls_move_forward_with_negative(source: str) -> bool:
+    """True if the source calls ``move_forward`` with a negative literal.
+
+    The rover clamps distances to >= 0 before emitting the event, so a
+    negative distance never survives into ``c.events``; detect it from the
+    source instead, so the "use move_backward" hint can still fire.
+    """
+    tree = _parse(source)
+    if tree is None:
+        return False
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "move_forward"
+            and node.args
+        ):
+            arg = node.args[0]
+            if isinstance(arg, ast.UnaryOp) and isinstance(arg.op, ast.USub):
+                return True
+            if (
+                isinstance(arg, ast.Constant)
+                and isinstance(arg.value, (int, float))
+                and not isinstance(arg.value, bool)
+                and arg.value < 0
+            ):
+                return True
+    return False
+
+
 def _uses_disallowed_construct(source: str, allowed: Iterable[str]) -> bool:
     tree = _parse(source)
     if tree is None:
@@ -270,9 +300,7 @@ RULES: tuple[HintRule, ...] = (
     ),
     HintRule(
         name="negative_move_argument",
-        when=lambda c: any(
-            e.name == "move_forward" and e.args and float(e.args[0]) < 0 for e in c.events
-        ),
+        when=lambda c: _calls_move_forward_with_negative(c.source),
         say="You passed a negative distance to move_forward. Use `move_backward(...)` instead.",
     ),
     HintRule(

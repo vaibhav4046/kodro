@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from robolearn.engine.terrain import Terrain
 
@@ -90,6 +90,23 @@ class SuccessCriterion(BaseModel):
     returns_to_base: bool | None = None
     max_steps: int | None = Field(default=None, ge=0)
     min_distance_travelled: float | None = Field(default=None, ge=0.0)
+
+    @model_validator(mode="after")
+    def _at_least_one_field(self) -> "SuccessCriterion":
+        if all(
+            getattr(self, name) is None
+            for name in (
+                "samples_collected",
+                "max_battery_used",
+                "no_collisions",
+                "uses_construct",
+                "returns_to_base",
+                "max_steps",
+                "min_distance_travelled",
+            )
+        ):
+            raise ValueError("a success criterion must set at least one field")
+        return self
 
 
 class HintRules(BaseModel):

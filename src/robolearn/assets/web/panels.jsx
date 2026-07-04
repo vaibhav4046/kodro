@@ -86,7 +86,7 @@
             <span className="eyebrow">{KI('build')}Build a real robot. What your budget can buy</span>
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
-          <div className="build-body">
+          <div className="build-body" role="status" aria-live="polite">
             <p className="vibe-status">Type a budget and the local AI plans a real robot you can build and program, mapping your simulated work onto real hardware. Nothing is ordered; this runs offline.</p>
             {robotSpec && (
               <p className="build-active" data-build-active="1">
@@ -166,7 +166,7 @@
             <button className="btn-mini" aria-label="Close" onClick={() => setSwarmOpen(false)}>✕</button>
           </div>
           <div className="swarm-body">
-            {swarmBusy && <p className="vibe-status">Launching the swarm…</p>}
+            {swarmBusy && <p className="vibe-status" role="status" aria-live="polite">Launching the swarm…</p>}
             {swarmData && swarmData.paths && (() => {
               const COLORS = ['var(--cyan)', '#e0b45c', '#7cc49b', '#c8685a', '#a78bfa', '#f0808a', '#62b6ff', '#b6e36a'];
               const pts = swarmData.paths.flat();
@@ -275,7 +275,7 @@
             <span className="eyebrow">{KI('review')}Code review. A second AI agent checks your work</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setReviewOpen(false)}>✕</button>
           </div>
-          <div className="review-body">
+          <div className="review-body" role="status" aria-live="polite">
             {reviewBusy && <p className="vibe-status">A reviewer agent is reading your code on this machine…</p>}
             {reviewErr && <p className="vibe-error" role="alert">{reviewErr}</p>}
             {reviewData && !reviewBusy && (
@@ -315,7 +315,7 @@
             <span className="eyebrow">{KI('ask')}Ask. {askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Grounded in the built-in material when it is available'}</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setAskOpen(false)}>✕</button>
           </div>
-          <div className="ask-body">
+          <div className="ask-body" role="status" aria-live="polite">
             <div className="build-input">
               <label className="grow"><span>Your question</span>
                 <input type="text" value={askQuery} placeholder='e.g. how do I check for a wall?'

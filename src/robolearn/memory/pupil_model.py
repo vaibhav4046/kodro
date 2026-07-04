@@ -113,6 +113,17 @@ def suggest_next_lesson(
     candidates = [lesson for lesson in lesson_list if lesson.id not in completed]
     if not candidates:
         return None
+    # Only recommend lessons whose prerequisites have all been attempted, so a
+    # pupil is never pushed into a lesson that assumes concepts they have not
+    # reached yet. If prereq-gating leaves nothing (an unmet or cyclic chain),
+    # fall back to the unfiltered candidates rather than dead-ending.
+    ready = [
+        lesson
+        for lesson in candidates
+        if all(prereq in completed for prereq in lesson.prereqs)
+    ]
+    if ready:
+        candidates = ready
 
     strengths = get_strengths(store, pupil_id)
     if not strengths:

@@ -70,7 +70,11 @@ _STOP: frozenset[str] = frozenset(
     ]
 )
 
-_WORD = re.compile(r"[a-z0-9_]+")
+# Underscore is a token separator, not part of a word, so a natural-language
+# query like "move forward" matches an API doc that names "move_forward"
+# (both tokenize to {move, forward}); otherwise the token sets never intersect
+# and grounded_answer() wrongly refuses questions the lessons do cover.
+_WORD = re.compile(r"[a-z0-9]+")
 
 #: Hand-written reference passages for the rover interface, so a question
 #: like "how do I check for a wall" retrieves the right function even

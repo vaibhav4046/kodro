@@ -55,6 +55,7 @@ class ReplayDialog:
         self._window = tk.Toplevel(parent)
         self._window.title("Time-travel debugger")
         self._window.transient(parent.winfo_toplevel())
+        self._scrubbing = False
         self._widgets = self._build_widgets()
         self.scrub_to(0)
 
@@ -75,7 +76,13 @@ class ReplayDialog:
             self._widgets.snapshot_label.configure(text="")
             return
         idx = max(0, min(int(frame), total - 1))
-        self._widgets.scale.set(idx)
+        # Setting the scale fires its command (_on_scale_move) again; guard
+        # against re-entering scrub_to in an infinite callback loop.
+        self._scrubbing = True
+        try:
+            self._widgets.scale.set(idx)
+        finally:
+            self._scrubbing = False
         event = self._events[idx]
         self._widgets.info_label.configure(
             text=_INFO_FORMAT.format(
@@ -189,6 +196,8 @@ class ReplayDialog:
         self._widgets.scale.configure(from_=0, to=max(0, total - 1))
 
     def _on_scale_move(self, raw: str) -> None:
+        if self._scrubbing:
+            return
         try:
             value = int(float(raw))
         except ValueError:

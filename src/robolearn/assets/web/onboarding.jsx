@@ -382,7 +382,7 @@
 
             {step === 1 && (
               <section className="konb-panel" aria-labelledby="konb-h2-pick">
-                <span className="konb-eyebrow">Step one</span>
+                <span className="konb-eyebrow">Step two</span>
                 <h2 className="konb-h2" id="konb-h2-pick">What do you want to build?</h2>
                 <p className="konb-sub">Describe it in your own words and the assistant fits the parts, or pick a starting point. You can redesign every part later in the Robot Lab.</p>
                 <div className="konb-agent">

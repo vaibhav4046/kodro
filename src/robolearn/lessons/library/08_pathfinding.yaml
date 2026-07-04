@@ -27,7 +27,7 @@ starter_code: |
   turn_left(180)
   for _ in range(8):
       move_forward(1)
-allowed_constructs: [while, if, function_def, function_call, comparison]
+allowed_constructs: [while, for, if, function_def, function_call, comparison]
 max_lines: 22
 world:
   base: [1.0, 5.0]

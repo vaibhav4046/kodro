@@ -88,7 +88,7 @@ withholds its command from every way of programming the robot.
   store at `src/robolearn/memory/store.py` (now has a `scenario_runs` table),
   the pywebview bridge at `src/robolearn/web/app.py` (BridgeAPI, with
   `save_scenario_run`, `set_ai_model`, the Ollama model pick).
-- Tests: `tests/` (854 passing). Dissertation: `docs/dissertation/
+- Tests: `tests/` (869 passing). Dissertation: `docs/dissertation/
   Kodro_Dissertation.tex` and `.pdf` (35 pages, compiled offline with the
   vendored tectonic at `.tools/tectonic.exe`). Living plan and status:
   `docs/UPGRADE_AND_DISSERTATION_PLAN.md`, `docs/implementation-status.md`,
@@ -123,7 +123,7 @@ All verified, committed and pushed (latest `main` around commit `7927886`):
 - The dissertation: 35 page LaTeX with the University of Liverpool logo, real
   references, the AI disclosure, compiled offline.
 
-Verification last measured: 854 pytest passing, interpreter QA 21 of 21, bundle
+Verification last measured: 869 pytest passing, interpreter QA 156 of 156, bundle
 fresh, zero console errors on load, and a live in browser smoke test of 14
 modules and 11 feature areas with zero errors.
 
@@ -170,8 +170,8 @@ The other remaining real item, recorded honestly, is the human user study in
 ```
 cd D:\project\robolearn
 node scripts/build_web.cjs        # rebuild bundle.js after any .jsx edit
-node scripts/qa_interpreter.mjs   # interpreter and kinematics QA, expect 21/21
-python -m pytest -q --no-cov      # Python engine, expect 854 passed
+node scripts/qa_interpreter.mjs   # interpreter and kinematics QA, expect 156/156
+python -m pytest -q --no-cov      # Python engine, expect 869 passed
 .tools\tectonic.exe docs\dissertation\Kodro_Dissertation.tex --outdir _build  # dissertation PDF
 ```
 
@@ -303,7 +303,7 @@ correct in the code; it was left as-is. The human user study in
 `HUMAN_TODO.md` remains the one thing only a human can run; do not fabricate
 its results.
 
-Verification last measured: build 19 sources, interpreter QA 21/21, headless
-bundle-eval 3/3, gating assertions 7/7, full pytest 854 collected (852 to 854
+Verification last measured: build 31 sources, interpreter QA 156/156, headless
+bundle-eval 3/3, gating assertions 7/7, full pytest 869 collected (867 to 869
 pass with 0 to 2 Tk GUI tests skipped depending on whether this Python's Tcl
 initialises that run; zero failures).

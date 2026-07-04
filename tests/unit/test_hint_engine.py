@@ -275,13 +275,13 @@ def test_battery_drained_negative_no_snapshots() -> None:
 
 
 def test_negative_move_argument_positive() -> None:
-    events = [_evt("move_forward", (-1.0,))]
-    assert _rule("negative_move_argument").when(_ctx(events=events))
+    # Detected from the source: the rover clamps distances to >= 0 before
+    # emitting the event, so a negative never survives into c.events.
+    assert _rule("negative_move_argument").when(_ctx(source="move_forward(-1)"))
 
 
 def test_negative_move_argument_negative_positive_arg() -> None:
-    events = [_evt("move_forward", (1.0,))]
-    assert not _rule("negative_move_argument").when(_ctx(events=events))
+    assert not _rule("negative_move_argument").when(_ctx(source="move_forward(1)"))
 
 
 def test_negative_move_argument_negative_no_move() -> None:
