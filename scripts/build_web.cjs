@@ -48,6 +48,42 @@ function normalise(s) {
   return s.replace(/\r\n/g, '\n');
 }
 
+// --static: emit a self-contained site/ directory for the zero-install web
+// build (served on GitHub Pages). Copies the runtime web assets and DROPS
+// everything only the desktop app or the dev harnesses need: the .jsx sources
+// (already compiled into bundle.js), the ~3 MB Babel transpiler (index.html
+// never loads it), and the screenshot / a11y / perf harness pages. The result
+// is a plain static folder anyone can open or host, no Python and no build.
+function emitStaticSite() {
+  const SITE = path.join(__dirname, '..', 'site');
+  const DROP_EXT = new Set(['.jsx']);
+  const DROP_NAME = new Set([
+    'babel.min.js',
+    'harness.html',
+    'studio_harness.html',
+    'cap.html',
+    'harness_bundle.js',
+  ]);
+  const DROP_PREFIX = ['_a11y_probe', '_perf_probe'];
+  function keep(srcPath) {
+    const base = path.basename(srcPath);
+    if (DROP_EXT.has(path.extname(base))) return false;
+    if (DROP_NAME.has(base)) return false;
+    if (DROP_PREFIX.some((p) => base.startsWith(p))) return false;
+    return true;
+  }
+  fs.rmSync(SITE, { recursive: true, force: true });
+  fs.cpSync(WEB, SITE, { recursive: true, filter: keep });
+  let files = 0;
+  (function count(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) count(path.join(dir, entry.name));
+      else files += 1;
+    }
+  })(SITE);
+  console.log('wrote static site/ (' + files + ' files) at ' + SITE);
+}
+
 const bundlePath = path.join(WEB, 'bundle.js');
 const fresh = build();
 
@@ -61,4 +97,5 @@ if (process.argv.includes('--check')) {
 } else {
   fs.writeFileSync(bundlePath, fresh);
   console.log('wrote bundle.js (' + fresh.length + ' bytes) from ' + ORDER.length + ' sources');
+  if (process.argv.includes('--static')) emitStaticSite();
 }
