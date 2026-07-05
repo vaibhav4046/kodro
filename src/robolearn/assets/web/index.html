@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Kodro</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.svg" />
+  <meta name="theme-color" content="#08090f" />
   <style>
     /* ambient particle keyframes (referenced by terrains.jsx) */
     @keyframes dust { 0%{transform:translate(0,0);opacity:0;} 10%{opacity:0.8;} 90%{opacity:0.8;} 100%{transform:translate(var(--drift),-60px);opacity:0;} }
@@ -111,5 +114,16 @@
 
   <!-- Pre-compiled React components + app (generated from the .jsx sources) -->
   <script src="bundle.js"></script>
+
+  <!-- PWA: register the service worker so the app works offline after the first
+       load. Guarded to http(s) so the desktop (file://) path is a no-op, and
+       failures are swallowed so a service-worker problem never blocks the app. -->
+  <script>
+    if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function () {});
+      });
+    }
+  </script>
 </body>
 </html>
