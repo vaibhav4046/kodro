@@ -69,6 +69,12 @@ jobs:
       - name: Mypy
         run: mypy src/robolearn
 
+      # Cross-engine interpreter gate: builds the bundle and runs the RoverLang
+      # parity suite in Node (no browser needed), so a JS-engine regression is
+      # caught in CI, not only locally.
+      - name: Web interpreter gate
+        run: node scripts/qa_interpreter.mjs
+
       # --timeout converts any hung GUI/thread test into a fast failure
       # with a full per-thread traceback instead of burning to the 6h cap.
       # thread method works cross-platform (signal/SIGALRM does not).
