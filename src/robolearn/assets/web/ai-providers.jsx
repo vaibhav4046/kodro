@@ -33,6 +33,11 @@
       endpoint: 'https://api.openai.com/v1/chat/completions',
       defaultModel: 'gpt-4o-mini',
     },
+    groq: {
+      id: 'groq', label: 'Groq (fast LPU, your key)', local: false,
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+      defaultModel: 'llama-3.3-70b-versatile',
+    },
   };
 
   var KEYS = {
@@ -96,20 +101,26 @@
     return parts.map(function (c) { return c.text; }).join('').trim();
   }
 
-  async function openaiGenerate(prompt, opts, key, model) {
+  // OpenAI-compatible chat/completions, shared by OpenAI and Groq (Groq exposes
+  // the identical /openai/v1 surface). `label` only shapes the error message.
+  async function openaiCompatibleGenerate(endpoint, label, prompt, opts, key, model) {
     var messages = [];
     if (opts.system) messages.push({ role: 'system', content: opts.system });
     messages.push({ role: 'user', content: prompt });
     var body = { model: model, messages: messages, max_tokens: opts.num_predict || 400 };
     if (opts.temperature != null) body.temperature = opts.temperature;
-    var r = await fetch(PROVIDERS.openai.endpoint, {
+    var r = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
       body: JSON.stringify(body),
     });
-    if (!r.ok) throw new Error('OpenAI ' + r.status + ': ' + (await r.text()).slice(0, 200));
+    if (!r.ok) throw new Error(label + ' ' + r.status + ': ' + (await r.text()).slice(0, 200));
     var j = await r.json();
     return (((j.choices || [])[0] || {}).message || {}).content ? j.choices[0].message.content.trim() : '';
+  }
+
+  function openaiGenerate(prompt, opts, key, model) {
+    return openaiCompatibleGenerate(PROVIDERS.openai.endpoint, 'OpenAI', prompt, opts, key, model);
   }
 
   // Ollama non-streaming generate (the offline default).
@@ -140,6 +151,7 @@
       var model = cloudModel();
       if (id === 'anthropic') return anthropicGenerate(prompt, opts, key, model);
       if (id === 'openai') return openaiGenerate(prompt, opts, key, model);
+      if (id === 'groq') return openaiCompatibleGenerate(PROVIDERS.groq.endpoint, 'Groq', prompt, opts, key, model);
     }
     return ollamaGenerate(prompt, opts, ollamaModel);
   }
@@ -160,6 +172,18 @@
         }
       } catch (e) { void e; }
       return ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'gpt-4.1-mini'];
+    }
+    if (id === 'groq' && keyFor('groq')) {
+      try {
+        var rg = await fetch(PROVIDERS.groq.endpoint.replace('/chat/completions', '/models'), {
+          headers: { Authorization: 'Bearer ' + keyFor('groq') },
+        });
+        if (rg.ok) {
+          var jg = await rg.json();
+          return (jg.data || []).map(function (m) { return m.id; }).sort();
+        }
+      } catch (e) { void e; }
+      return ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'qwen-2.5-coder-32b'];
     }
     if (id === 'anthropic') {
       return ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-opus-latest'];
