@@ -15,6 +15,7 @@ any exception and converting it to a structured :class:`ExecutionResult`.
 
 from __future__ import annotations
 
+import sys
 import threading
 import time
 import traceback
@@ -83,6 +84,13 @@ def execute(source: str, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> ExecutionRe
     captured: list[BaseException] = []
 
     def _worker() -> None:
+        # Detach this daemon thread from any active trace/profile hook (e.g.
+        # coverage.py). Pupil code is dynamically exec'd and this thread can be
+        # force-killed mid-line; if coverage were tracing it, the kill could
+        # leave coverage's internal data lock held and deadlock the main thread
+        # (this intermittently hung pytest under --cov). We never want a
+        # profiler to descend into pupil code anyway.
+        sys.settrace(None)
         try:
             # This exec IS the product: it runs the pupil's lesson code, and
             # the sandbox is the restricted globals built above (no builtins

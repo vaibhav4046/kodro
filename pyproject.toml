@@ -44,6 +44,7 @@ dev = [
     "mypy>=1.10",
     "pre-commit>=3.7",
     "types-PyYAML",
+    "reportlab>=4.0",
     "pyinstaller>=6.6",
     "mkdocs-material>=9.5",
 ]
