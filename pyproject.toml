@@ -48,6 +48,13 @@ dev = [
     "pyinstaller>=6.6",
     "mkdocs-material>=9.5",
 ]
+# URDF import/export interop (see src/robolearn/interop/urdf_io.py). Optional so
+# the core stays light; yourdfpy is the lenient reader, urdf_parser_py the ROS
+# reference parser for the parity check.
+interop = [
+    "yourdfpy>=0.0.56",
+    "urdf_parser_py>=0.0.4",
+]
 
 [project.scripts]
 robolearn = "robolearn.__main__:main"
