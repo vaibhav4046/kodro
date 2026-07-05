@@ -1,10 +1,13 @@
 # Kodro: An Offline AI-Assisted Robotics Design and Simulation Platform
 
 [![CI](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml)
+[![Deploy Pages](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
 **Design a robot. Program it. Validate its behaviour in a realistic simulation. All offline, on one laptop.**
+
+**Try it now, zero install: [vaibhav4046.github.io/robolearn](https://vaibhav4046.github.io/robolearn/)**. The browser build runs entirely client side and works offline after the first load. The full desktop app adds the local Python engine, lesson grading, and multi pupil progress.
 
 Kodro is a self contained desktop studio. You build a custom robot from
 real parts, write its behaviour in code, blocks or plain language, and
