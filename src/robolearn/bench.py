@@ -42,10 +42,13 @@ from typing import Any
 from robolearn.engine.rover import Rover
 from robolearn.engine.terrain import Terrain
 from robolearn.engine.world import ArenaBounds, Obstacle, World
+from robolearn.grounding import check_grounding
 from robolearn.runtime.binding import clear_active, set_active_rover, set_active_world
 from robolearn.runtime.executor import execute
 
-REPORT_SCHEMA = "kodro.report/1"
+# v2 adds the grounding (invention) block: which fitted-command set the program
+# was checked against and which symbols, if any, it invented.
+REPORT_SCHEMA = "kodro.report/2"
 
 #: Base obstacle field (metres). Each seed jitters these positions so a program
 #: that only works for one exact layout is exposed across the batch.
@@ -144,6 +147,10 @@ def run_batch(
     """Run ``code`` across ``seeds`` seeds (0..seeds-1) and build the report."""
     if seeds < 1:
         raise ValueError(f"seeds must be >= 1, got {seeds}")
+    # Grounding is a property of the PROGRAM, not the seed, so it is computed
+    # once. It records whether the program invented any command outside the
+    # build's fitted-command set (the invention metric).
+    grounding = check_grounding(code)
     runs = [run_seed(code, s, min_distance=min_distance, timeout_s=timeout_s) for s in range(seeds)]
     successes = sum(1 for r in runs if r.success)
     errors = sum(1 for r in runs if r.error is not None)
@@ -152,6 +159,7 @@ def run_batch(
         "scenario": "obstacle_field",
         "seeds": seeds,
         "success_criterion": f"no collisions and travelled >= {min_distance} m",
+        "grounding": grounding.to_dict(),
         "runs": [r.to_dict() for r in runs],
         "aggregate": {
             "success_rate": round(successes / seeds, 6),

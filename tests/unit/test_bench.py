@@ -26,6 +26,15 @@ def test_report_has_versioned_schema_and_shape() -> None:
     assert set(report["runs"][0]) >= {"seed", "success", "collisions", "distance_m", "error"}
 
 
+def test_report_carries_the_grounding_block() -> None:
+    # v2: a grounded program reports no invented symbols; an invented one does.
+    grounded = run_batch(_DRIVE, seeds=1)["grounding"]
+    assert grounded["grounded"] is True and grounded["invented"] == []
+
+    invented = run_batch("read_gps()\nmove_forward(1)\n", seeds=1)["grounding"]
+    assert invented["grounded"] is False and "read_gps" in invented["invented"]
+
+
 def test_same_seed_is_deterministic() -> None:
     # The determinism contract: identical (code, seed) -> identical run record.
     assert run_seed(_DRIVE, 7) == run_seed(_DRIVE, 7)
