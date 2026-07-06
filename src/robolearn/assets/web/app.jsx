@@ -567,7 +567,11 @@
       try { localStorage.setItem('or_readable', readable ? '1' : '0'); } catch (e) { void e; }
     }, [readable]);
     useEffect(() => {
-      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
+      // Load lessons in BOTH desktop (pywebview) and browser (static) mode:
+      // listLessons() now fetches the shipped lessons.json when the Python
+      // bridge is absent and degrades to [] on failure, so this is safe without
+      // the isAvailable() gate. (Grading/submit still gate on isAvailable.)
+      if (!window.RoboLearn) return;
       window.RoboLearn.listLessons().then(ls => { if (Array.isArray(ls)) setLessons(ls); });
     }, []);
     function loadLesson(lesson) {

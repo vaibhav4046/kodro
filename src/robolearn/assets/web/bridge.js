@@ -45,10 +45,36 @@
     }
   };
 
+  // --- browser (no-pywebview) lesson fallback ------------------------------
+  // On the zero-install static build there is no Python bridge, so the lessons
+  // are shipped as a sibling lessons.json (written by scripts/export_lessons.py
+  // with the SAME shape list_lessons() returns). Fetch it once, cache the
+  // parsed array, and degrade to []/null on any failure so classroom mode
+  // renders instead of crashing. The desktop pywebview path never reaches here.
+  let lessonsCache = null;
+  const fetchLessons = async () => {
+    if (lessonsCache !== null) return lessonsCache;
+    try {
+      const res = await fetch("./lessons.json", { cache: "no-cache" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      lessonsCache = Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn("[Kodro bridge] could not load lessons.json (browser mode):", err);
+      lessonsCache = [];
+    }
+    return lessonsCache;
+  };
+  const listLessonsBrowser = () => fetchLessons();
+  const getLessonBrowser = async (id) => {
+    const all = await fetchLessons();
+    return all.find((lesson) => lesson && lesson.id === id) || null;
+  };
+
   window.RoboLearn = {
     isAvailable: isPywebview,
-    listLessons: () => call("list_lessons"),
-    getLesson: (id) => call("get_lesson", id),
+    listLessons: () => (isPywebview() ? call("list_lessons") : listLessonsBrowser()),
+    getLesson: (id) => (isPywebview() ? call("get_lesson", id) : getLessonBrowser(id)),
     submitAttempt: (lessonId, source, traceJson) =>
       call("submit_attempt", lessonId, source, traceJson),
     getPupilSummary: () => call("get_pupil_summary"),

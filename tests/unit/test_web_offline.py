@@ -58,7 +58,16 @@ def test_app_css_and_js_have_no_remote_dependencies() -> None:
 
 
 def test_no_network_apis_in_app_code() -> None:
-    """No fetch / XHR / WebSocket / dynamic import in the app's own JS."""
+    """No remote fetch / XHR / WebSocket in the app's own JS.
+
+    The offline constraint forbids reaching the *network* -- CDNs, cloud APIs,
+    sockets. It does not forbid loading a file the build already ships next to
+    index.html: the static web build reads its lessons from a same-origin
+    ``./lessons.json`` (bridge.js browser fallback), which is a local asset
+    load, not a network dependency. So we allow exactly that relative fetch and
+    ban everything else: any other ``fetch(`` argument, plus XHR/WebSocket/
+    EventSource anywhere.
+    """
     own = [
         "bridge.js",
         "interpreter.js",
@@ -70,11 +79,19 @@ def test_no_network_apis_in_app_code() -> None:
         "terrains.jsx",
         "tweaks-panel.jsx",
     ]
-    banned = re.compile(r"\b(fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(")
+    banned_sockets = re.compile(r"\b(XMLHttpRequest|WebSocket|EventSource)\s*\(")
+    # Any fetch( whose first argument is NOT a bare same-origin relative string
+    # ("./..." / "/...") is a violation. A relative-path fetch is a local asset.
+    # The negative lookahead rejects "//host" (protocol-relative == remote).
+    fetch_call = re.compile(r"\bfetch\s*\(\s*([^)]*)")
+    allowed_fetch_arg = re.compile(r"""^["'](?:\./|/(?!/))[^"']*["']""")
     offenders: dict[str, list[str]] = {}
     for name in own:
         text = (WEB / name).read_text(encoding="utf-8")
-        hits = banned.findall(text)
+        hits = list(banned_sockets.findall(text))
+        for arg in fetch_call.findall(text):
+            if not allowed_fetch_arg.match(arg.strip()):
+                hits.append("fetch(" + arg.strip()[:40])
         if hits:
             offenders[name] = hits
     assert not offenders, f"network APIs used in app code: {offenders}"
