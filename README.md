@@ -242,7 +242,7 @@ python -m pytest                  # Python engine test suite
   bundle in headless Chrome: six studio flows, five behaviour asserts
   (the rover measurably moves, blocks insert real code, errors surface,
   worlds are distinct) and a render check for every modal.
-- **Python engine: 869 tests passing**, coverage gated at
+- **Python engine and CLI: 950+ tests passing**, coverage gated at
   `--cov-fail-under=85` on every push.
 
 The honest marker assessment of the project to date is a strong A. An A
