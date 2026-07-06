@@ -1,6 +1,70 @@
 # Kodro Market Research
 
-# Kodro Market Research
+## 2026-07 brutal reassessment and first MEASURED results
+
+A second, adversarial round of web-verified research (five lenses: education
+sims, research sims, LLM-for-robotics evals, hiring signal at Anthropic/Meta/
+DeepMind, and revenue) reframed the project. The honest verdict:
+
+**The one real moat.** The four-way combination of build-parameterised robot
+dynamics, a grounding validator that refuses code for unfitted parts, seeded
+domain-randomised validation, and a headless JSON-report CLI is not replicated
+by any of the ~17 surveyed tools. Everything else (3D worlds, blocks, browser
+access, realism) is a loss: incumbents already own those axes, so leading with
+them reads as a weaker clone. Kodro is not a physics simulator (it is kinematic,
+not rigid-body); the honest, still-valuable framing is a deterministic, seeded,
+reproducible EVALUATION environment.
+
+**The unoccupied research gap.** No public benchmark measures the INVENTED-SYMBOL
+rate: an LLM emitting a program symbol outside a per-build fitted-command set,
+detected by AST analysis, scored across seeded physics runs. The nearest
+neighbours (RoboEval/CodeBotler, Robo-Instruct) measure an invalid ARGUMENT to a
+valid primitive; general API-hallucination benchmarks (CloudAPIBench, HalluLens)
+are non-robotics with no execution. Because Kodro's API is derived from the
+user's build, the ground-truth valid set is per-design, a second novelty axis.
+
+**Two credibility bombs, now fixed.** (1) The invention metric existed only in
+docstrings and the CA1 study design (0 hits in src). It is now real:
+`robolearn.grounding.check_grounding` plus the `kodrobench` harness. (2) The QA
+counts disagreed across docs (README 869, status 21, actual 951); the README now
+states the measured 950+.
+
+### First measured KodroBench results (v0.1: 5 tasks, 10 seeds)
+
+Generated from `results/kodrobench-v0.1.json` by `robolearn.kodrobench`, never
+hand-typed. Lower invention_rate is better.
+
+| Model | success@N | invention_rate |
+|---|---|---|
+| deterministic floor | 0.22 | 0.00 |
+| gemma3:4b | 0.14 | 0.00 |
+| llama3.2:3b | 0.00 | 0.00 |
+| gemma3:1b | 0.02 | 0.00 |
+| kodro-fast (fine-tune) | 0.00 | 0.60 |
+| kodro-coder (fine-tune) | 0.00 | 1.00 |
+
+The finding is honest and counter-intuitive: the LOCAL FINE-TUNES invent more
+than the general models. kodro-coder emits an object-style `rover.forward()` API
+on every task, a surface that does not exist (the real API is bare functions),
+so it invents on 100% of tasks and its programs fail at runtime. This is a real
+failure mode of the fine-tune, surfaced by the metric, reported as measured.
+General models stay grounded but produce weak or non-parsing code (low success,
+high syntax-error rate). Next iterations add a with-spec vs without-spec
+condition, pass@k, and a held-out split; grow the suite toward 20 to 50 tasks.
+
+### Positioning and hiring narrative
+
+Read Kodro as evidence of reproducible-eval-infrastructure and LLM-guardrail
+engineering by a solo developer who is rigorous about measured versus claimed.
+The load-bearing artifacts are `bench.py`/`kodrobench.py` (a deterministic,
+seeded, no-GPU eval that runs in CI, close to the DeepMind benchmarking-role
+brief) and the grounding validator (eval plus safety-guardrail infra). Stated
+plainly for a panel: no learned policy, no real-robot data, no publication, so
+it does not clear a robotics-research-scientist bar on its own; its value is the
+eval and grounding work. Cite RoboEval/CodeBotler as the closest prior art and
+Anthropic's evals guidance as the method authority in the dissertation.
+
+---
 
 Synthesized July 2026 from five research briefs: professional simulators, K-12 education platforms, AI-assisted robotics tooling, sim-to-real parts prediction, and pricing/voice-of-customer. Every source URL from the underlying briefs is retained; the full list is in the Source Appendix. Claims flagged [unverified] in the source research remain flagged here.
 
