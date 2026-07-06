@@ -39,6 +39,21 @@ def test_fitted_set_is_per_build() -> None:
     assert "read_distance" in result.invented
 
 
+def test_invented_object_api_is_caught() -> None:
+    # A model that calls rover.forward() invented an object the build has no such
+    # thing as -- the fitted API is bare functions, no objects. Must be caught.
+    result = check_grounding("rover.set_speed(60)\nrover.forward(80)\n")
+    assert result.grounded is False
+    assert "rover.forward" in result.invented and "rover.set_speed" in result.invented
+
+
+def test_local_container_methods_are_not_invention() -> None:
+    # xs is assigned locally, so xs.append(...) is ordinary Python, not invention.
+    result = check_grounding("xs = []\nxs.append(read_distance())\nmove_forward(1)\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
 def test_syntax_error_is_reported_not_raised() -> None:
     result = check_grounding("move_forward(\n")
     assert result.grounded is False

@@ -1,0 +1,382 @@
+{
+  "schema": "kodrobench.results/1",
+  "seeds": 10,
+  "tasks": [
+    "drive_forward",
+    "square",
+    "turn_and_go",
+    "no_sensor_scan",
+    "no_arm_collect"
+  ],
+  "models": [
+    {
+      "model": "deterministic",
+      "tasks": 5,
+      "success_at_n": 0.22,
+      "invention_rate": 0.0,
+      "syntax_error_rate": 0.0,
+      "collision_rate": 1.24,
+      "gen_errors": 0,
+      "per_task": [
+        {
+          "task": "drive_forward",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.1,
+          "mean_collisions": 0.9,
+          "code": "move_forward(3)\n"
+        },
+        {
+          "task": "square",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 3.3,
+          "code": "for i in range(4):\n    move_forward(1)\n    turn_left(90)\n"
+        },
+        {
+          "task": "turn_and_go",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 1.0,
+          "code": "turn_right(90)\nmove_forward(2)\n"
+        },
+        {
+          "task": "no_sensor_scan",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.5,
+          "mean_collisions": 0.5,
+          "code": "move_forward(1)\n"
+        },
+        {
+          "task": "no_arm_collect",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.5,
+          "mean_collisions": 0.5,
+          "code": "move_forward(1)\n"
+        }
+      ]
+    },
+    {
+      "model": "kodro-coder:latest",
+      "tasks": 5,
+      "success_at_n": 0.0,
+      "invention_rate": 1.0,
+      "syntax_error_rate": 0.0,
+      "collision_rate": 0.0,
+      "gen_errors": 0,
+      "per_task": [
+        {
+          "task": "drive_forward",
+          "grounded": false,
+          "invented": [
+            "rover.forward",
+            "rover.set_speed"
+          ],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "rover.set_speed(60)\nfor i in range(40):\n    rover.forward(80)\n"
+        },
+        {
+          "task": "square",
+          "grounded": false,
+          "invented": [
+            "rover.move_forward",
+            "rover.set_speed",
+            "rover.turn_right"
+          ],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "rover.set_speed(60)\nfor i in range(4):\n    rover.move_forward(100)\n    rover.turn_right(90)\n"
+        },
+        {
+          "task": "turn_and_go",
+          "grounded": false,
+          "invented": [
+            "rover.forward",
+            "rover.turn_right"
+          ],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "rover.turn_right(90)\nfor i in range(8):\n    rover.forward(60)\n"
+        },
+        {
+          "task": "no_sensor_scan",
+          "grounded": false,
+          "invented": [
+            "rover.forward",
+            "rover.set_speed"
+          ],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "rover.set_speed(60)\nfor i in range(40):\n    rover.forward(20)\n"
+        },
+        {
+          "task": "no_arm_collect",
+          "grounded": false,
+          "invented": [
+            "rover.forward",
+            "rover.set_speed"
+          ],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "rover.set_speed(60)\nfor i in range(40):\n    rover.forward(25)\n"
+        }
+      ]
+    },
+    {
+      "model": "kodro-fast:latest",
+      "tasks": 5,
+      "success_at_n": 0.0,
+      "invention_rate": 0.6,
+      "syntax_error_rate": 0.4,
+      "collision_rate": 0.0,
+      "gen_errors": 0,
+      "per_task": [
+        {
+          "task": "drive_forward",
+          "grounded": false,
+          "invented": [
+            "rover.distance",
+            "rover.forward",
+            "rover.set_speed",
+            "rover.turn_left",
+            "rover.turn_right"
+          ],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "rover.set_speed(60)\nleg1 = rover.distance()\nrover.turn_left(90)\nleg2 = rover.distance()\nrover.forward(leg1)\nrover.turn_right(80)\n"
+        },
+        {
+          "task": "square",
+          "grounded": false,
+          "invented": [],
+          "syntax_error": true,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "The leg length is about 1.5 m.\n\n## Step 1: Understand the problem\nThe task involves driving a robot along a square path with each side being approximately 450 meters long. The robot drives forward and turns left at each corner, so it closes the shape.\n\n## Step 2: Plan the route\nTo close the shape, the robot needs to drive four equal sides. Each exterior turn is 90 degrees, so two of them close the shape while the other two are part of the interior loop.\n\n## Step 3: Calculate the distance for each exterior turn\nEach exterior turn closes a leg that is 450 meters long. Since there are four turns, the total distance covered by these turns is 4 * 450 = 1800 meters.\n\n## Step 4: Consider the interior loop\nThe interior loop is closed by two more exterior turns (each corner), so it also covers 2 * 450 = 900 meters.\n\n## Step 5: Calculate the total distance\nAdding the distances from step 3 and step 4 gives a total distance of 1800 + 900 = 2700 meters.\n\nThe final answer is: $\\boxed{2700}$\n"
+        },
+        {
+          "task": "turn_and_go",
+          "grounded": false,
+          "invented": [],
+          "syntax_error": true,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "The left side of the road is on fire.\n\nThe driver pulls over and gets out to investigate. He sees that the fire is coming from a large puddle of oil that has been leaking from a nearby car. The puddle is so hot it's burning his boots. He carefully pours water onto the oil, then smokes the area with a long-handled duster to clear away any embers.\n\nHe drives back home, feeling relieved that he was able to put out the fire before it spread and caused more damage.\n"
+        },
+        {
+          "task": "no_sensor_scan",
+          "grounded": false,
+          "invented": [
+            "rover.forward",
+            "rover.pen_down",
+            "rover.read_distance",
+            "rover.set_speed",
+            "rover.stop"
+          ],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "rover.set_speed(60)\nrover.pen_down()\nrover.distance = 0\n\nrover.forward(1)\nrover.read_distance()\nrover.stop()\n"
+        },
+        {
+          "task": "no_arm_collect",
+          "grounded": false,
+          "invented": [
+            "rover.forward",
+            "rover.pen_down",
+            "rover.set_speed",
+            "rover.turn_right"
+          ],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "rover.set_speed(60)\nrover.pen_down()\ndistance = 10\nrover.forward(distance)\nrover.turn_right(90)\n"
+        }
+      ]
+    },
+    {
+      "model": "gemma3:4b",
+      "tasks": 5,
+      "success_at_n": 0.14,
+      "invention_rate": 0.0,
+      "syntax_error_rate": 0.4,
+      "collision_rate": 0.46,
+      "gen_errors": 0,
+      "per_task": [
+        {
+          "task": "drive_forward",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.1,
+          "mean_collisions": 0.9,
+          "code": "set_speed(3)\nmove_forward(3)\n"
+        },
+        {
+          "task": "square",
+          "grounded": false,
+          "invented": [],
+          "syntax_error": true,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "set_speed(1)\n    move_forward(1)\n    turn_right(90)\n    set_speed(1)\n    move_forward(1)\n    turn_right(90)\n    set_speed(1)\n    move_forward(1)\n    turn_right(90)\n    set_speed(1)\n    move_forward(1)\n"
+        },
+        {
+          "task": "turn_and_go",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.1,
+          "mean_collisions": 0.9,
+          "code": "turn_right\nturn_right\nmove_forward(2)\n"
+        },
+        {
+          "task": "no_sensor_scan",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.5,
+          "mean_collisions": 0.5,
+          "code": "set_speed(2)\nmove_forward(1)\n"
+        },
+        {
+          "task": "no_arm_collect",
+          "grounded": false,
+          "invented": [],
+          "syntax_error": true,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "set_speed(1)\n    move_forward(1)\n    set_speed(0)\n"
+        }
+      ]
+    },
+    {
+      "model": "llama3.2:3b",
+      "tasks": 5,
+      "success_at_n": 0.0,
+      "invention_rate": 0.0,
+      "syntax_error_rate": 0.0,
+      "collision_rate": 0.2,
+      "gen_errors": 0,
+      "per_task": [
+        {
+          "task": "drive_forward",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "at_base(3)\n"
+        },
+        {
+          "task": "square",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "for _ in range(4):\n    at_base(1)\n    set_speed(100)\n    move_forward()\n    turn_right(90)\n    set_speed(100)\n    move_forward()\n    turn_left(90)\n    set_speed(100)\n    move_forward()\n    turn_left(90)\n    set_speed(100)\n    move_forward()\n"
+        },
+        {
+          "task": "turn_and_go",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 1.0,
+          "code": "turn_right(90)\nset_speed(2)\nmove_forward(200)\n"
+        },
+        {
+          "task": "no_sensor_scan",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "at_base(100)\n"
+        },
+        {
+          "task": "no_arm_collect",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "at_base(1)\nmove_forward(100)\n"
+        }
+      ]
+    },
+    {
+      "model": "gemma3:1b",
+      "tasks": 5,
+      "success_at_n": 0.02,
+      "invention_rate": 0.0,
+      "syntax_error_rate": 0.4,
+      "collision_rate": 0.18,
+      "gen_errors": 0,
+      "per_task": [
+        {
+          "task": "drive_forward",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.1,
+          "mean_collisions": 0.9,
+          "code": "move_forward(3)\n"
+        },
+        {
+          "task": "square",
+          "grounded": false,
+          "invented": [],
+          "syntax_error": true,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "move_forward\n  turn_left\n  move_forward\n  turn_left\n  move_forward\n  turn_left\n  move_forward\n  turn_left\n  move_forward\n  turn_left\n  move_forward\n  turn_left\n  move_forward\n  turn_left\n"
+        },
+        {
+          "task": "turn_and_go",
+          "grounded": false,
+          "invented": [],
+          "syntax_error": true,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "turn_right 90\ndrive_forward 2\n"
+        },
+        {
+          "task": "no_sensor_scan",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "print(\"Move forward one metre.\")\n"
+        },
+        {
+          "task": "no_arm_collect",
+          "grounded": true,
+          "invented": [],
+          "syntax_error": false,
+          "success_rate": 0.0,
+          "mean_collisions": 0.0,
+          "code": "print(\"Drive forward one metre.\")\n"
+        }
+      ]
+    }
+  ]
+}

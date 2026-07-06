@@ -59,6 +59,7 @@ interop = [
 [project.scripts]
 robolearn = "robolearn.__main__:main"
 kodro = "robolearn.bench:main"
+kodrobench = "robolearn.kodrobench:main"
 
 [project.urls]
 Homepage = "https://github.com/vaibhav4046/robolearn"

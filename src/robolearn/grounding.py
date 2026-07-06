@@ -54,12 +54,28 @@ class GroundingResult:
         }
 
 
-def _called_names(tree: ast.AST) -> set[str]:
-    """Bare function-call names in ``tree`` (``foo(...)`` -> ``foo``)."""
+def _add_target(target: ast.expr, into: set[str]) -> None:
+    """Collect the Name(s) bound by an assignment / for / with target."""
+    if isinstance(target, ast.Name):
+        into.add(target.id)
+    elif isinstance(target, ast.Starred):
+        _add_target(target.value, into)
+    elif isinstance(target, ast.Tuple | ast.List):
+        for element in target.elts:
+            _add_target(element, into)
+
+
+def _assigned_names(tree: ast.AST) -> set[str]:
+    """Names bound locally (so ``xs.append()`` on a local list is not invention)."""
     names: set[str] = set()
     for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            names.add(node.func.id)
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                _add_target(target, names)
+        elif isinstance(node, ast.AugAssign | ast.AnnAssign | ast.For | ast.comprehension):
+            _add_target(node.target, names)
+        elif isinstance(node, ast.withitem) and node.optional_vars is not None:
+            _add_target(node.optional_vars, names)
     return names
 
 
@@ -67,19 +83,42 @@ def check_grounding(code: str, fitted: frozenset[str] = FITTED_DEFAULT) -> Groun
     """Report which called symbols ``code`` invented relative to ``fitted``.
 
     ``fitted`` is the build's command set (defaults to the full default-rover
-    set). A call to a name outside ``fitted`` and outside the allowed builtins
-    is an invented symbol; a program with no invented symbols is grounded.
+    set). A symbol is invented when it is a bare call to a name outside
+    ``fitted`` and the allowed builtins (e.g. ``fly()``), OR an attribute call on
+    an object the program never created (e.g. ``rover.forward()`` on a build that
+    exposes only bare functions). Attribute calls on a locally-assigned variable
+    (``xs = []; xs.append(1)``) are ordinary Python and are not invention.
     """
     try:
         tree = ast.parse(code)
     except SyntaxError as exc:
         return GroundingResult(grounded=False, invented=(), called=(), syntax_error=str(exc))
-    called = _called_names(tree)
+    assigned = _assigned_names(tree)
     allowed = fitted | ALLOWED_BUILTINS
-    invented = tuple(sorted(name for name in called if name not in allowed))
+    called: set[str] = set()
+    invented: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Name):
+            called.add(func.id)
+            if func.id not in allowed:
+                invented.add(func.id)
+        elif isinstance(func, ast.Attribute):
+            base = func.value
+            if isinstance(base, ast.Name):
+                called.add(f"{base.id}.{func.attr}")
+                # A method on an object the program never created is an invented
+                # API surface (the fitted API exposes bare functions, no objects).
+                if base.id not in assigned and base.id not in allowed:
+                    invented.add(f"{base.id}.{func.attr}")
+            else:
+                called.add(func.attr)
+                invented.add(func.attr)
     return GroundingResult(
         grounded=not invented,
-        invented=invented,
+        invented=tuple(sorted(invented)),
         called=tuple(sorted(called)),
         syntax_error=None,
     )
