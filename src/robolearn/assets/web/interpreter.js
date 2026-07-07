@@ -60,6 +60,16 @@
   // takes the SAME branch in the browser sim and under the grader.
   const OBSTACLE_AHEAD_CM = 50;
   const AT_BASE_CM = 20;
+  // Lesson-world verbs (samples, base, obstacle look-ahead). The live sim has
+  // no sample/base state, so these five have built-in approximations below.
+  // A host may supply lessonApi(name, args) to take them over - the browser
+  // lesson grader (lesson-grader.jsx) does, giving Python-engine-faithful
+  // behaviour. Hosts without lessonApi (live sim, scenario validator, QA
+  // harnesses) keep the built-ins unchanged.
+  const LESSON_API = {
+    obstacle_ahead: 1, sample_detected: 1, at_base: 1,
+    collect_sample: 1, drop_sample: 1,
+  };
 
   // =========================================================================
   // 1. LINE / BLOCK STRUCTURING (indentation -> nested statement lists)
@@ -599,6 +609,9 @@
           if (callee.k === 'name' && !(callee.v in scope) && !funcs[callee.v]) {
             const v = callee.v;
             if (v in LESSON_SENSOR) return host.sensor(LESSON_SENSOR[v], node.args.map(evalExpr));
+            if (v in LESSON_API && host && typeof host.lessonApi === 'function') {
+              return host.lessonApi(v, node.args.map(evalExpr));
+            }
             if (v === 'obstacle_ahead') {
               const d = host.sensor('distance', []);
               return typeof d === 'number' && d < OBSTACLE_AHEAD_CM;
@@ -737,6 +750,11 @@
               }
               if (v in LESSON_MOTION) { yield motionEvent(LESSON_MOTION[v], expr.args.map(evalExpr), line); return; }
               if (v in LESSON_SENSOR) { host.sensor(LESSON_SENSOR[v], expr.args.map(evalExpr)); yield { type: 'step', line: line }; return; }
+              if (v in LESSON_API && host && typeof host.lessonApi === 'function') {
+                host.lessonApi(v, expr.args.map(evalExpr));
+                yield { type: 'step', line: line };
+                return;
+              }
               if (v === 'beep') {
                 // S3: beep() is a real, audible event now, not console spam.
                 // times clamps 0..16, mirroring the Python API's beep clamp

@@ -71,12 +71,42 @@
     return all.find((lesson) => lesson && lesson.id === id) || null;
   };
 
+  // Browser grading (WebBackend slice 2): with no Python bridge, submit and
+  // hints route to the JS lesson grader (lesson-grader.jsx), which re-runs
+  // the source headlessly in the lesson's world and applies the same
+  // success-criteria checks as robolearn/lessons/grader.py. The response
+  // mirrors BridgeAPI.submit_attempt's shape, so the UI renders the same
+  // verdict panel in both modes. Degrades to {ok:false, reason} on any
+  // failure instead of crashing the classroom panel.
+  const submitAttemptBrowser = async (lessonId, source) => {
+    if (!window.KodroLessonGrader) {
+      return { ok: false, reason: 'lesson grader not loaded' };
+    }
+    const lesson = await getLessonBrowser(lessonId);
+    if (!lesson) return { ok: false, reason: 'unknown lesson: ' + lessonId };
+    try {
+      return await window.KodroLessonGrader.grade(lesson, source || '');
+    } catch (err) {
+      console.warn('[Kodro bridge] browser grading failed:', err);
+      return { ok: false, reason: String((err && err.message) || err) };
+    }
+  };
+  // Read-only hint preview: grade without recording anything (the browser
+  // grader records nothing anyway) and surface just the hint, matching the
+  // desktop get_hint contract ({ruleName, message} | null).
+  const getHintBrowser = async (lessonId, source) => {
+    const r = await submitAttemptBrowser(lessonId, source);
+    return r && r.ok ? (r.hint || null) : null;
+  };
+
   window.RoboLearn = {
     isAvailable: isPywebview,
     listLessons: () => (isPywebview() ? call("list_lessons") : listLessonsBrowser()),
     getLesson: (id) => (isPywebview() ? call("get_lesson", id) : getLessonBrowser(id)),
     submitAttempt: (lessonId, source, traceJson) =>
-      call("submit_attempt", lessonId, source, traceJson),
+      (isPywebview()
+        ? call("submit_attempt", lessonId, source, traceJson)
+        : submitAttemptBrowser(lessonId, source)),
     getPupilSummary: () => call("get_pupil_summary"),
     getClassHeatmap: () => call("get_class_heatmap"),
     listPupils: () => call("list_pupils"),
@@ -84,7 +114,9 @@
     selectPupil: (id) => call("select_pupil", id),
     renamePupil: (id, name) => call("rename_pupil", id, name),
     getHint: (lessonId, source, errKind) =>
-      call("get_hint", lessonId, source, errKind),
+      (isPywebview()
+        ? call("get_hint", lessonId, source, errKind)
+        : getHintBrowser(lessonId, source)),
     exportReport: () => call("export_report"),
     aiStatus: () => call("ai_status"),
     aiGenerate: (prompt, lessonId) => call("ai_generate", prompt, lessonId),

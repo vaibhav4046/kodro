@@ -18,7 +18,7 @@ const WEB = path.join(__dirname, '..', 'src', 'robolearn', 'assets', 'web');
 // order; everything else is '<name>.jsx'. motion-model.js (the shared physics
 // model, E-P1) and specschema.js (the KRS import schema, SI0) must load
 // before the modules that call them (diagnostics/selftest/RobotLab/scenario/app).
-const ORDER = ['motion-model.js', 'specschema.js', 'project.js', 'runreport.js', 'icons', 'agents', 'memory', 'terrains', 'Rover', 'Viewport', 'textures', 'post', 'worldfx', 'ambient', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'selftest', 'RobotLab', 'scenario', 'verify', 'realism', 'demo', 'onboarding', 'ai-providers', 'ai-web', 'hooks', 'app-data', 'panels', 'app'];
+const ORDER = ['motion-model.js', 'specschema.js', 'project.js', 'runreport.js', 'icons', 'agents', 'memory', 'terrains', 'Rover', 'Viewport', 'textures', 'post', 'worldfx', 'ambient', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'selftest', 'RobotLab', 'scenario', 'lesson-grader', 'verify', 'realism', 'demo', 'onboarding', 'ai-providers', 'ai-web', 'hooks', 'app-data', 'panels', 'app'];
 const HEADER = '/* AUTO-GENERATED from the .jsx sources by scripts/build_web.cjs. Do not edit. */\n';
 
 function build() {

@@ -570,7 +570,8 @@
       // Load lessons in BOTH desktop (pywebview) and browser (static) mode:
       // listLessons() now fetches the shipped lessons.json when the Python
       // bridge is absent and degrades to [] on failure, so this is safe without
-      // the isAvailable() gate. (Grading/submit still gate on isAvailable.)
+      // the isAvailable() gate. (Submit also works in both modes now: the
+      // bridge routes it to the JS lesson grader when pywebview is absent.)
       if (!window.RoboLearn) return;
       window.RoboLearn.listLessons().then(ls => { if (Array.isArray(ls)) setLessons(ls); });
     }, []);
@@ -592,7 +593,12 @@
       ]);
     }
     async function gradeWithBridge(source) {
-      if (!window.RoboLearn || !window.RoboLearn.isAvailable()) return;
+      // Submit works in BOTH modes: the bridge routes to the Python engine
+      // under pywebview and to the JS lesson grader (lesson-grader.jsx) in
+      // the static browser build, so the classroom register is live on the
+      // hosted site too. Both paths return the same response shape, so the
+      // verdict panel below renders identically.
+      if (!window.RoboLearn) return;
       const lessonId = currentLessonIdRef.current;
       if (!lessonId) return;
       try {
