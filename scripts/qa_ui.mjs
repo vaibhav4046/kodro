@@ -77,15 +77,17 @@ const FIRST_SPAWN_TIMEOUT_MS = 90_000;
 const BEHAVIOUR_FLOW = 'studio-earth-run';
 
 // RUN DETERMINISM: the default starter program on world=earth/robot=rover at
-// q=high drives a fixed distance every time. After the default program changed,
-// its stable single-run odometer is 3.4m: captured by driving the earth run flow
-// at virtual-time 9000/16000/22000ms — all three read 3.4m with status IDLE (the
-// run has fully completed, not caught mid-drive). We assert equality within a
-// small tolerance — tight enough to catch run-pump drift (a dropped step, a
-// doubled advance, a physics tweak), loose enough to absorb a sub-decimetre
-// rounding wobble. If a future run ever proves NON-deterministic, drop back to
-// the >0 check and say so in the label rather than asserting a value that drifts.
-const EXPECTED_ODOMETER_M = 3.4;
+// q=high drives a fixed distance every time. After the default program changed
+// to the 51-line patrol demo (obstacle avoidance, trail, status), its stable
+// single-run odometer is 15.0m: captured by driving the earth run flow and
+// reading the telemetry odometer once the run completes (status IDLE, not caught
+// mid-drive). We assert equality within a small tolerance, tight enough to catch
+// run-pump drift (a dropped step, a doubled advance, a physics tweak), loose
+// enough to absorb a sub-decimetre rounding wobble. If a future run ever proves
+// NON-deterministic, drop back to the >0 check and say so in the label rather
+// than asserting a value that drifts. Re-capture this whenever the default
+// program changes (its value is printed in the determinism reason line).
+const EXPECTED_ODOMETER_M = 15.0;
 const ODOMETER_TOLERANCE_M = 0.3;
 
 // First Chrome we can find. The Git-Bash-style path in the task maps to this
