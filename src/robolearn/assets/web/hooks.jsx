@@ -388,10 +388,22 @@
       setSettingsOpen(false);
       setTeacherOpen(true);
       setTeacherData(null);
+      // Browser (static) build never persists pupil data, so there is no class
+      // register to read. Short-circuit BEFORE the bridge's ~5s pywebview wait
+      // so the panel resolves instantly with an honest "desktop only" state
+      // instead of hanging on a spinner and then rendering an empty table. We
+      // invent NO pupils; the unavailable flag + reason let the dashboard show
+      // honest copy (TeacherModal copy is finished by the panels owner).
+      if (window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable()) {
+        setTeacherData({ ok: false, unavailable: true, reason: 'Teacher records are saved only in the desktop app. Browser mode does not keep pupil data.', concepts: [], pupils: [] });
+        return;
+      }
       try {
         const r = await window.RoboLearn.getClassHeatmap();
         if (r && r.ok) setTeacherData(r);
-        else setTeacherData({ ok: false, concepts: [], pupils: [] });
+        // Preserve a browser-unavailable signal (from bridge.js) so honest copy
+        // can render; otherwise fall back to the plain empty shape.
+        else setTeacherData(r && r.unavailable ? r : { ok: false, concepts: [], pupils: [] });
       } catch (e) { setTeacherData({ ok: false, concepts: [], pupils: [] }); }
     }
     return { teacherOpen, setTeacherOpen, teacherData, openTeacher };
@@ -559,6 +571,14 @@
     // mash races (QA adv5).
     const ctrl = useRef({ running: false, abort: false, advancing: false, token: 0, startTimer: null, abortTimer: null });
     const genRef = useRef(null);
+    // RoboLearn grading used to fire ONLY on a clean finish (finishProgram), so
+    // a lesson attempt that crashed / stalled / ran flat / threw got no verdict,
+    // score or hint even though the JS grader (lesson-grader.jsx) is built to
+    // grade a crashing run. `gradedRef` makes grading idempotent PER RUN: the
+    // clean-finish path and the halt paths both route through gradeOnce(), and
+    // whichever fires first wins, so a run can never be double-graded. Reset on
+    // every fresh start in resetRover().
+    const gradedRef = useRef(false);
 
     const sync = () => { setRover({ ...live.current }); try { window.KODRO_ROVER = { x: live.current.x, y: live.current.y }; } catch (e) { void e; } };
     const pushTrailPoint = () => {
@@ -739,6 +759,10 @@
         if (v) { addConsole(v.text, v.tone); crashVerdict = v.text; }
       }
       recordRunReport('crash', what, crashVerdict);
+      // A collided lesson attempt is still a gradable run: the headless JS
+      // grader models the same collision and returns the criteria failure plus
+      // the on_failure hint, so the pupil gets a verdict instead of silence.
+      gradeOnce();
       haltProgram('error');
     }
 
@@ -788,6 +812,7 @@
             if (v) { addConsole(v.text, v.tone); stallVerdict = v.text; }
           }
           recordRunReport('stalled', 'underpowered drive', stallVerdict);
+          gradeOnce();  // a stalled lesson attempt still earns a verdict + hint
           haltProgram('error');
           return false;
         }
@@ -920,6 +945,7 @@
           if (v) { addConsole(v.text, v.tone); flatVerdict = v.text; }
         }
         recordRunReport('flat', 'battery', flatVerdict);
+        gradeOnce();  // a battery-flat lesson attempt still earns a verdict + hint
         haltProgram('error');
         return false;
       }
@@ -1147,8 +1173,25 @@
       addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
       // A8: an error mid-mission is a run result; a compile-time typo that
       // executed nothing is not.
-      if (cmdCountRef.current > 0) recordRunReport('error', msg, '');
+      // A runtime error mid-mission is a run result: record it AND grade it, so
+      // a lesson attempt that threw gets the same verdict + hint a crash does.
+      // A compile-time typo that executed nothing (cmdCount 0) is neither. REPL
+      // one-liners never reach here -- they returned above via haltProgram('idle').
+      if (cmdCountRef.current > 0) { recordRunReport('error', msg, ''); gradeOnce(); }
       haltProgram('error');
+    }
+    // Grade a lesson attempt at most once per run. Called from the clean-finish
+    // path AND every halt path (collision / stall / flat / runtime error), so a
+    // failed run produces a verdict + hint instead of silence. Idempotent via
+    // gradedRef; skips REPL one-liners like finishProgram does; and delegates
+    // the "is a lesson loaded?" gate to gradeWithBridge (app.jsx), which no-ops
+    // when currentLessonId is null -- so free-play (non-lesson) runs stay
+    // ungraded exactly as before.
+    function gradeOnce() {
+      if (gradedRef.current) return;
+      if (replRef.current) return;
+      gradedRef.current = true;
+      gradeWithBridge(code);
     }
     function finishProgram() {
       ctrl.current.running = false;
@@ -1191,8 +1234,10 @@
       }
       // P7/A8: every completed run leaves a durable, structured report.
       recordRunReport('done', '', doneVerdict);
-      // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
-      gradeWithBridge(code);
+      // RoboLearn: if a lesson is loaded, grade the Run via the Python engine
+      // (or the JS grader in browser mode). Routed through gradeOnce so a run
+      // that a halt path already graded is not graded a second time.
+      gradeOnce();
     }
 
     // Live terminal: run ONE line immediately against the current world --
@@ -1273,6 +1318,7 @@
       sync();
       genRef.current = null;
       replRef.current = false;  // a Reset always exits terminal mode (bugs D2)
+      gradedRef.current = false;  // a fresh run may grade again (once)
       ctrl.current.abortTimer = setTimeout(() => { ctrl.current.abort = false; ctrl.current.abortTimer = null; }, 30);
       if (clearConsole) setConsoleLines([{ type: 'sys', text: 'Reset. Rover at origin.' }]);
     }

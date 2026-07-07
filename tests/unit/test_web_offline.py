@@ -24,6 +24,67 @@ def _remote_urls(text: str) -> list[str]:
     return [u for u in _REMOTE.findall(text) if not _LOCAL.match(u)]
 
 
+#: Vendored/generated bundles never edited by hand: their doc-string URLs are not
+#: our network calls, so they are out of scope for the app-code offline proof.
+#: (``vendor/`` is a subdirectory, so the non-recursive glob below already skips
+#: it; these are the top-level generated artefacts that must also be excluded.)
+_EXCLUDED_SCRIPTS = {"bundle.js", "harness_bundle.js"}
+
+#: The two BYOK (bring-your-own-key) assistant modules are the ONLY shipped files
+#: allowed to reference a remote host, and only these four: the user opts in with
+#: their own key and the request goes to exactly one of these clouds, or to the
+#: local Ollama server. localhost is local (the machine itself), so it is filtered
+#: as non-remote everywhere and is not listed here.
+_BYOK_FILES = {"ai-providers.jsx", "ai-web.jsx"}
+_BYOK_ALLOWED_HOSTS = {"api.anthropic.com", "api.openai.com", "api.groq.com"}
+
+#: A protocol-relative URL (``//host/...``) is remote too. Match it only inside a
+#: string literal so a ``// comment`` or the ``//`` integer-division operator is
+#: never mistaken for a host.
+_PROTO_RELATIVE = re.compile(r"""["'](//[\w.-]+(?::\d+)?)""")
+_HOST = re.compile(r"(?:https?:)?//([^/:\s\"']+)", re.IGNORECASE)
+
+
+def _shipped_web_scripts() -> list[Path]:
+    """Every hand-written web script the build ships, minus vendored bundles.
+
+    Globs all top-level ``*.js``/``*.jsx`` (so ``vendor/`` is skipped), then drops
+    the generated bundles and any ``*harness*`` / ``*probe*`` diagnostic file.
+    """
+    files = sorted(WEB.glob("*.js")) + sorted(WEB.glob("*.jsx"))
+    out: list[Path] = []
+    for path in files:
+        stem = path.stem.lower()
+        if path.name in _EXCLUDED_SCRIPTS or "harness" in stem or "probe" in stem:
+            continue
+        out.append(path)
+    return out
+
+
+def _remote_hosts(text: str) -> set[str]:
+    """The set of non-local hosts this file references as a URL.
+
+    Covers full ``http(s)://host`` URLs and protocol-relative ``//host`` string
+    literals. Local hosts (localhost / 127.0.0.1) and XML/spec namespace hosts
+    (``w3.org`` SVG/MathML/xlink namespaces, ``spdx.org`` licence ids) are
+    dropped: the first is the local machine, the second is a declarative
+    namespace value that is never fetched.
+    """
+    candidates = list(_REMOTE.findall(text)) + _PROTO_RELATIVE.findall(text)
+    hosts: set[str] = set()
+    for url in candidates:
+        if _LOCAL.match(url):
+            continue
+        match = _HOST.match(url)
+        if not match:
+            continue
+        host = match.group(1).lower()
+        if host.endswith("w3.org") or host.endswith("spdx.org"):
+            continue
+        hosts.add(host)
+    return hosts
+
+
 def test_index_html_loads_only_local_assets() -> None:
     html = (WEB / "index.html").read_text(encoding="utf-8")
     refs = re.findall(r'(?:src|href)\s*=\s*"([^"]+)"', html)
@@ -58,43 +119,56 @@ def test_app_css_and_js_have_no_remote_dependencies() -> None:
 
 
 def test_no_network_apis_in_app_code() -> None:
-    """No remote fetch / XHR / WebSocket in the app's own JS.
+    """No remote fetch / XHR / WebSocket in ANY shipped web script.
 
     The offline constraint forbids reaching the *network* -- CDNs, cloud APIs,
-    sockets. It does not forbid loading a file the build already ships next to
-    index.html: the static web build reads its lessons from a same-origin
-    ``./lessons.json`` (bridge.js browser fallback), which is a local asset
-    load, not a network dependency. So we allow exactly that relative fetch and
-    ban everything else: any other ``fetch(`` argument, plus XHR/WebSocket/
-    EventSource anywhere.
+    sockets. This scans EVERY hand-written ``*.js``/``*.jsx`` the build ships
+    (see ``_shipped_web_scripts``), not a hand-picked subset, so the proof also
+    covers the network-capable modules (``ai-providers.jsx`` / ``ai-web.jsx``)
+    that earlier lists silently excluded.
+
+    Two guarantees, over the whole file set:
+
+    * XHR / WebSocket / EventSource constructors are banned everywhere.
+    * The only non-local host any file may reference is one of the documented
+      BYOK cloud endpoints, and only in the two BYOK modules. A remote fetch
+      needs a remote host literal, so a clean host set proves no external fetch
+      (protocol-relative ``//host`` included). localhost (Ollama) and same-origin
+      relative fetches like bridge.js's ``./lessons.json`` carry no host and are
+      inherently allowed.
     """
-    own = [
-        "bridge.js",
-        "interpreter.js",
-        "app.jsx",
-        "Editor.jsx",
-        "Viewport.jsx",
-        "Telemetry.jsx",
-        "Rover.jsx",
-        "terrains.jsx",
-        "tweaks-panel.jsx",
-    ]
     banned_sockets = re.compile(r"\b(XMLHttpRequest|WebSocket|EventSource)\s*\(")
-    # Any fetch( whose first argument is NOT a bare same-origin relative string
-    # ("./..." / "/...") is a violation. A relative-path fetch is a local asset.
-    # The negative lookahead rejects "//host" (protocol-relative == remote).
-    fetch_call = re.compile(r"\bfetch\s*\(\s*([^)]*)")
-    allowed_fetch_arg = re.compile(r"""^["'](?:\./|/(?!/))[^"']*["']""")
-    offenders: dict[str, list[str]] = {}
-    for name in own:
-        text = (WEB / name).read_text(encoding="utf-8")
-        hits = list(banned_sockets.findall(text))
-        for arg in fetch_call.findall(text):
-            if not allowed_fetch_arg.match(arg.strip()):
-                hits.append("fetch(" + arg.strip()[:40])
-        if hits:
-            offenders[name] = hits
-    assert not offenders, f"network APIs used in app code: {offenders}"
+    scanned: set[str] = set()
+    socket_offenders: dict[str, list[str]] = {}
+    host_offenders: dict[str, list[str]] = {}
+    for path in _shipped_web_scripts():
+        name = path.name
+        scanned.add(name)
+        text = path.read_text(encoding="utf-8")
+        sockets = banned_sockets.findall(text)
+        if sockets:
+            socket_offenders[name] = sockets
+        allowed = _BYOK_ALLOWED_HOSTS if name in _BYOK_FILES else set()
+        stray = _remote_hosts(text) - allowed
+        if stray:
+            host_offenders[name] = sorted(stray)
+
+    # The offline proof must actually reach the risky files.
+    assert scanned >= _BYOK_FILES, f"BYOK modules not scanned: {_BYOK_FILES - scanned}"
+    assert not socket_offenders, f"socket APIs used in app code: {socket_offenders}"
+    assert not host_offenders, (
+        f"non-local hosts referenced outside the BYOK allow-list: {host_offenders}"
+    )
+
+    # ...and the exception is real, not vacuous: the two BYOK files together
+    # reference EXACTLY the documented cloud hosts (nothing more, nothing less).
+    byok_hosts: set[str] = set()
+    for name in _BYOK_FILES:
+        byok_hosts |= _remote_hosts((WEB / name).read_text(encoding="utf-8"))
+    assert byok_hosts == _BYOK_ALLOWED_HOSTS, (
+        "BYOK files must reference exactly the documented cloud hosts "
+        f"(got {sorted(byok_hosts)}, expected {sorted(_BYOK_ALLOWED_HOSTS)})"
+    )
 
 
 def test_fonts_css_uses_local_paths() -> None:

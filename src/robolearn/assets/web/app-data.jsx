@@ -109,55 +109,59 @@ print("Range scans:", scans)`
     },
     drive: {
       label: 'starter.py',
-      code: `# Welcome to Kodro. This is your rover, and this program is a patrol demo.
-# Press Run and watch: the rover drives itself, dodges anything in its way,
-# draws its route on the ground, and prints a report at the end.
+      code: `# Welcome to Kodro. This is your rover, and this is a little patrol show.
+# Press Run and watch: it drives a square, draws its route on the ground,
+# flashes a different colour at every corner, then prints a report.
 # Every line is yours to edit. Change a number, press Run again.
 
 set_speed(70)          # motor power, 0 to 100
 pen_down()             # drop the pen so the route gets drawn as it drives
-led("cyan")            # light colour while patrolling
+led("cyan")            # patrol light
 say("Patrol starting")
 beep(2)
-scan()                 # take one look around before moving off
 
-legs = 0               # counts clear stretches driven
-dodges = 0             # counts obstacles avoided
+legs = 0               # counts the straight legs driven
+corners = 0            # counts the corners turned
 
-# The patrol loop: look, decide, move - 30 times over.
-# Checking BEFORE moving is how real robots avoid crashing.
-for step in range(30):
-    gap = read_distance()      # clear road ahead, in centimetres
-    if obstacle_ahead():
-        # Something is right in front. Back off and turn away hard.
-        led("red")
-        beep(1)
-        say("Blocked - turning away")
-        move_backward(0.4)
-        turn_left(120)
-        dodges = dodges + 1
-    elif gap < 120:
-        # Something is coming up. Steer away early, no drama.
-        led("amber")
-        turn_right(60)
-        dodges = dodges + 1
-    else:
-        # All clear. Drive on.
+# Lap one: drive a square. Each turn of the loop is one side and one corner.
+for side in range(4):
+    # A different colour on each side makes the lap easy to follow.
+    if side == 0:
         led("cyan")
-        move_forward(0.6)
-        legs = legs + 1
+    elif side == 1:
+        led("amber")
+    elif side == 2:
+        led("green")
+    else:
+        led("white")
+    move_forward(1)        # one metre along this side
+    legs = legs + 1
+    turn_right(90)         # a square corner
+    corners = corners + 1
+    beep(1)
 
-# Patrol finished - line up and park.
+# Lap two: speed up and cut back across with a short zig-zag.
+say("Zig-zag across the middle")
+set_speed(90)
+led("cyan")
+for zig in range(3):
+    move_forward(0.6)
+    turn_left(45)
+    move_forward(0.6)
+    turn_right(45)
+    legs = legs + 2
+
+# Patrol done: slow down, ease back onto the mark, lift the pen.
 say("Patrol complete - parking")
+set_speed(50)
 led("green")
-turn_left(read_heading())     # spin back until we face north again
-move_forward(0.8)             # roll forward onto the parking spot
-pen_up()                      # lift the pen, the route is finished
+move_backward(0.5)
+pen_up()               # lift the pen, the drawing is finished
 
 # Mission report - every number below is measured, not made up.
 beep(3)
-print("Clear stretches driven:", legs)
-print("Obstacles dodged:", dodges)
+print("Legs driven:", legs)
+print("Corners turned:", corners)
 print("Battery left:", read_battery(), "%")
 say("Report filed. Rover out.")`
     },

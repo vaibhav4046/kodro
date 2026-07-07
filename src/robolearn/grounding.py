@@ -54,28 +54,57 @@ class GroundingResult:
         }
 
 
-def _add_target(target: ast.expr, into: set[str]) -> None:
-    """Collect the Name(s) bound by an assignment / for / with target."""
-    if isinstance(target, ast.Name):
-        into.add(target.id)
-    elif isinstance(target, ast.Starred):
-        _add_target(target.value, into)
-    elif isinstance(target, ast.Tuple | ast.List):
-        for element in target.elts:
-            _add_target(element, into)
+# RHS node types that produce a genuine Python container/string: calling a
+# method on one of these (``xs.append()``, ``s.split()``) is ordinary code, not
+# an invented robot API. Binding a name to anything else -- a call result
+# (``rover = make_rover()``), another name, an attribute -- does NOT exempt it,
+# so ``rover = make(); rover.forward()`` can no longer launder an invented API
+# surface past the metric just by assigning the base name first.
+_CONTAINER_RHS = (
+    ast.List,
+    ast.Dict,
+    ast.Set,
+    ast.Tuple,
+    ast.ListComp,
+    ast.DictComp,
+    ast.SetComp,
+    ast.GeneratorExp,
+    ast.JoinedStr,  # f-string
+)
 
 
-def _assigned_names(tree: ast.AST) -> set[str]:
-    """Names bound locally (so ``xs.append()`` on a local list is not invention)."""
+def _is_container_rhs(value: ast.expr | None) -> bool:
+    """True when ``value`` is a literal container/string (see ``_CONTAINER_RHS``)."""
+    if value is None:
+        return False
+    if isinstance(value, _CONTAINER_RHS):
+        return True
+    return isinstance(value, ast.Constant) and isinstance(value.value, str | bytes)
+
+
+def _container_names(tree: ast.AST) -> set[str]:
+    """Names bound to a literal container/string.
+
+    Only these exempt attribute calls on the name from the invention check, so a
+    local list stays fine (``xs = []; xs.append(1)``) while an object minted from
+    an unknown call (``rover = spawn(); rover.forward()``) is still flagged.
+    Assignments with a non-container RHS, or with anything other than a single
+    ``Name`` target (tuple unpacking, ``with`` items, ``for`` targets), are
+    treated conservatively as non-containers.
+    """
     names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
-            for target in node.targets:
-                _add_target(target, names)
-        elif isinstance(node, ast.AugAssign | ast.AnnAssign | ast.For | ast.comprehension):
-            _add_target(node.target, names)
-        elif isinstance(node, ast.withitem) and node.optional_vars is not None:
-            _add_target(node.optional_vars, names)
+            if _is_container_rhs(node.value):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        names.add(target.id)
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and _is_container_rhs(node.value)
+        ):
+            names.add(node.target.id)
     return names
 
 
@@ -86,14 +115,16 @@ def check_grounding(code: str, fitted: frozenset[str] = FITTED_DEFAULT) -> Groun
     set). A symbol is invented when it is a bare call to a name outside
     ``fitted`` and the allowed builtins (e.g. ``fly()``), OR an attribute call on
     an object the program never created (e.g. ``rover.forward()`` on a build that
-    exposes only bare functions). Attribute calls on a locally-assigned variable
-    (``xs = []; xs.append(1)``) are ordinary Python and are not invention.
+    exposes only bare functions). Attribute calls on a name bound to a literal
+    container/string (``xs = []; xs.append(1)``) are ordinary Python and are not
+    invention; binding the base to anything else (``rover = spawn()``) does not
+    exempt it, so the metric cannot be gamed by assigning the object first.
     """
     try:
         tree = ast.parse(code)
     except SyntaxError as exc:
         return GroundingResult(grounded=False, invented=(), called=(), syntax_error=str(exc))
-    assigned = _assigned_names(tree)
+    containers = _container_names(tree)
     allowed = fitted | ALLOWED_BUILTINS
     called: set[str] = set()
     invented: set[str] = set()
@@ -111,7 +142,7 @@ def check_grounding(code: str, fitted: frozenset[str] = FITTED_DEFAULT) -> Groun
                 called.add(f"{base.id}.{func.attr}")
                 # A method on an object the program never created is an invented
                 # API surface (the fitted API exposes bare functions, no objects).
-                if base.id not in assigned and base.id not in allowed:
+                if base.id not in containers and base.id not in allowed:
                     invented.add(f"{base.id}.{func.attr}")
             else:
                 called.add(func.attr)

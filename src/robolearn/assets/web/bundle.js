@@ -16291,7 +16291,17 @@ Object.assign(window, {
       onClick: function () {
         return props.onClose && props.onClose();
       }
-    }, React.createElement('div', {
+    },
+    // className 'modal' + role/aria-modal is the exact contract app.jsx's focus
+    // trap keys on (it selects '.modal[aria-modal="true"]'), so opening the demo
+    // moves focus into this dialog and confines Tab to it, like every other modal.
+    // The inline styles fully own the layout/colour; the shared class only adds
+    // the entrance animation (which honours prefers-reduced-motion).
+    React.createElement('div', {
+      className: 'modal',
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-label': 'Realism demo',
       style: {
         width: 'min(640px,100%)',
         background: 'var(--navy)',
@@ -18498,9 +18508,28 @@ Object.assign(window, {
       setSettingsOpen(false);
       setTeacherOpen(true);
       setTeacherData(null);
+      // Browser (static) build never persists pupil data, so there is no class
+      // register to read. Short-circuit BEFORE the bridge's ~5s pywebview wait
+      // so the panel resolves instantly with an honest "desktop only" state
+      // instead of hanging on a spinner and then rendering an empty table. We
+      // invent NO pupils; the unavailable flag + reason let the dashboard show
+      // honest copy (TeacherModal copy is finished by the panels owner).
+      if (window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable()) {
+        setTeacherData({
+          ok: false,
+          unavailable: true,
+          reason: 'Teacher records are saved only in the desktop app. Browser mode does not keep pupil data.',
+          concepts: [],
+          pupils: []
+        });
+        return;
+      }
       try {
         const r = await window.RoboLearn.getClassHeatmap();
-        if (r && r.ok) setTeacherData(r);else setTeacherData({
+        if (r && r.ok) setTeacherData(r);
+        // Preserve a browser-unavailable signal (from bridge.js) so honest copy
+        // can render; otherwise fall back to the plain empty shape.
+        else setTeacherData(r && r.unavailable ? r : {
           ok: false,
           concepts: [],
           pupils: []
@@ -18757,6 +18786,14 @@ Object.assign(window, {
       abortTimer: null
     });
     const genRef = useRef(null);
+    // RoboLearn grading used to fire ONLY on a clean finish (finishProgram), so
+    // a lesson attempt that crashed / stalled / ran flat / threw got no verdict,
+    // score or hint even though the JS grader (lesson-grader.jsx) is built to
+    // grade a crashing run. `gradedRef` makes grading idempotent PER RUN: the
+    // clean-finish path and the halt paths both route through gradeOnce(), and
+    // whichever fires first wins, so a run can never be double-graded. Reset on
+    // every fresh start in resetRover().
+    const gradedRef = useRef(false);
     const sync = () => {
       setRover({
         ...live.current
@@ -18994,6 +19031,10 @@ Object.assign(window, {
         }
       }
       recordRunReport('crash', what, crashVerdict);
+      // A collided lesson attempt is still a gradable run: the headless JS
+      // grader models the same collision and returns the criteria failure plus
+      // the on_failure hint, so the pupil gets a verdict instead of silence.
+      gradeOnce();
       haltProgram('error');
     }
     async function animateMove(ev) {
@@ -19056,6 +19097,7 @@ Object.assign(window, {
             }
           }
           recordRunReport('stalled', 'underpowered drive', stallVerdict);
+          gradeOnce(); // a stalled lesson attempt still earns a verdict + hint
           haltProgram('error');
           return false;
         }
@@ -19220,6 +19262,7 @@ Object.assign(window, {
           }
         }
         recordRunReport('flat', 'battery', flatVerdict);
+        gradeOnce(); // a battery-flat lesson attempt still earns a verdict + hint
         haltProgram('error');
         return false;
       }
@@ -19527,8 +19570,28 @@ Object.assign(window, {
       addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
       // A8: an error mid-mission is a run result; a compile-time typo that
       // executed nothing is not.
-      if (cmdCountRef.current > 0) recordRunReport('error', msg, '');
+      // A runtime error mid-mission is a run result: record it AND grade it, so
+      // a lesson attempt that threw gets the same verdict + hint a crash does.
+      // A compile-time typo that executed nothing (cmdCount 0) is neither. REPL
+      // one-liners never reach here -- they returned above via haltProgram('idle').
+      if (cmdCountRef.current > 0) {
+        recordRunReport('error', msg, '');
+        gradeOnce();
+      }
       haltProgram('error');
+    }
+    // Grade a lesson attempt at most once per run. Called from the clean-finish
+    // path AND every halt path (collision / stall / flat / runtime error), so a
+    // failed run produces a verdict + hint instead of silence. Idempotent via
+    // gradedRef; skips REPL one-liners like finishProgram does; and delegates
+    // the "is a lesson loaded?" gate to gradeWithBridge (app.jsx), which no-ops
+    // when currentLessonId is null -- so free-play (non-lesson) runs stay
+    // ungraded exactly as before.
+    function gradeOnce() {
+      if (gradedRef.current) return;
+      if (replRef.current) return;
+      gradedRef.current = true;
+      gradeWithBridge(code);
     }
     function finishProgram() {
       ctrl.current.running = false;
@@ -19586,8 +19649,10 @@ Object.assign(window, {
       }
       // P7/A8: every completed run leaves a durable, structured report.
       recordRunReport('done', '', doneVerdict);
-      // RoboLearn: if a lesson is loaded, grade the Run via the Python engine.
-      gradeWithBridge(code);
+      // RoboLearn: if a lesson is loaded, grade the Run via the Python engine
+      // (or the JS grader in browser mode). Routed through gradeOnce so a run
+      // that a halt path already graded is not graded a second time.
+      gradeOnce();
     }
 
     // Live terminal: run ONE line immediately against the current world --
@@ -19683,6 +19748,7 @@ Object.assign(window, {
       sync();
       genRef.current = null;
       replRef.current = false; // a Reset always exits terminal mode (bugs D2)
+      gradedRef.current = false; // a fresh run may grade again (once)
       ctrl.current.abortTimer = setTimeout(() => {
         ctrl.current.abort = false;
         ctrl.current.abortTimer = null;
@@ -19991,55 +20057,59 @@ print("Range scans:", scans)`
     },
     drive: {
       label: 'starter.py',
-      code: `# Welcome to Kodro. This is your rover, and this program is a patrol demo.
-# Press Run and watch: the rover drives itself, dodges anything in its way,
-# draws its route on the ground, and prints a report at the end.
+      code: `# Welcome to Kodro. This is your rover, and this is a little patrol show.
+# Press Run and watch: it drives a square, draws its route on the ground,
+# flashes a different colour at every corner, then prints a report.
 # Every line is yours to edit. Change a number, press Run again.
 
 set_speed(70)          # motor power, 0 to 100
 pen_down()             # drop the pen so the route gets drawn as it drives
-led("cyan")            # light colour while patrolling
+led("cyan")            # patrol light
 say("Patrol starting")
 beep(2)
-scan()                 # take one look around before moving off
 
-legs = 0               # counts clear stretches driven
-dodges = 0             # counts obstacles avoided
+legs = 0               # counts the straight legs driven
+corners = 0            # counts the corners turned
 
-# The patrol loop: look, decide, move - 30 times over.
-# Checking BEFORE moving is how real robots avoid crashing.
-for step in range(30):
-    gap = read_distance()      # clear road ahead, in centimetres
-    if obstacle_ahead():
-        # Something is right in front. Back off and turn away hard.
-        led("red")
-        beep(1)
-        say("Blocked - turning away")
-        move_backward(0.4)
-        turn_left(120)
-        dodges = dodges + 1
-    elif gap < 120:
-        # Something is coming up. Steer away early, no drama.
-        led("amber")
-        turn_right(60)
-        dodges = dodges + 1
-    else:
-        # All clear. Drive on.
+# Lap one: drive a square. Each turn of the loop is one side and one corner.
+for side in range(4):
+    # A different colour on each side makes the lap easy to follow.
+    if side == 0:
         led("cyan")
-        move_forward(0.6)
-        legs = legs + 1
+    elif side == 1:
+        led("amber")
+    elif side == 2:
+        led("green")
+    else:
+        led("white")
+    move_forward(1)        # one metre along this side
+    legs = legs + 1
+    turn_right(90)         # a square corner
+    corners = corners + 1
+    beep(1)
 
-# Patrol finished - line up and park.
+# Lap two: speed up and cut back across with a short zig-zag.
+say("Zig-zag across the middle")
+set_speed(90)
+led("cyan")
+for zig in range(3):
+    move_forward(0.6)
+    turn_left(45)
+    move_forward(0.6)
+    turn_right(45)
+    legs = legs + 2
+
+# Patrol done: slow down, ease back onto the mark, lift the pen.
 say("Patrol complete - parking")
+set_speed(50)
 led("green")
-turn_left(read_heading())     # spin back until we face north again
-move_forward(0.8)             # roll forward onto the parking spot
-pen_up()                      # lift the pen, the route is finished
+move_backward(0.5)
+pen_up()               # lift the pen, the drawing is finished
 
 # Mission report - every number below is measured, not made up.
 beep(3)
-print("Clear stretches driven:", legs)
-print("Obstacles dodged:", dodges)
+print("Legs driven:", legs)
+print("Corners turned:", corners)
 print("Battery left:", read_battery(), "%")
 say("Report filed. Rover out.")`
     },
@@ -21123,6 +21193,12 @@ say("Survey done")`
     onClose,
     teacherData
   }) {
+    // Browser mode has no persistent pupil store: the class register lives in the
+    // desktop app's local database, so getClassHeatmap() cannot return real rows
+    // here. Mirror the isAvailable() gate the Export/Import actions use and tell
+    // the truth instead of spinning forever and then showing an empty table with
+    // copy that promises scores "once pupils pass lessons" (which never persist).
+    const browserMode = typeof window !== 'undefined' && window.RoboLearn && !window.RoboLearn.isAvailable();
     return /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: onClose
@@ -21142,11 +21218,13 @@ say("Survey done")`
       onClick: onClose
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
       className: "teacher-body"
-    }, !teacherData && /*#__PURE__*/React.createElement("p", {
+    }, browserMode && /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "Reading the class records saved on this computer\u2026"), teacherData && teacherData.pupils.length === 0 && /*#__PURE__*/React.createElement("p", {
+    }, "The class register needs the desktop app. In the browser, lessons still run and grade, but pupil records are not saved."), !browserMode && !teacherData && /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "No pupil data yet. Once pupils pass lessons, their scores show up here."), teacherData && teacherData.pupils.length > 0 && /*#__PURE__*/React.createElement("div", {
+    }, "Reading the class records saved on this computer\u2026"), !browserMode && teacherData && teacherData.pupils.length === 0 && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "No pupil data yet. Once pupils pass lessons, their scores show up here."), !browserMode && teacherData && teacherData.pupils.length > 0 && /*#__PURE__*/React.createElement("div", {
       style: {
         overflow: 'auto',
         maxHeight: '60vh'

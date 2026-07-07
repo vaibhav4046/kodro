@@ -54,6 +54,33 @@ def test_local_container_methods_are_not_invention() -> None:
     assert result.invented == ()
 
 
+def test_dict_and_string_methods_are_not_invention() -> None:
+    # Names bound to a dict / string literal expose ordinary container methods.
+    code = 'seen = {}\nname = "patrol"\nseen.setdefault(name.upper(), 0)\nmove_forward(1)\n'
+    result = check_grounding(code)
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_binding_the_base_name_does_not_launder_an_invented_api() -> None:
+    # The evasion the metric must resist: assign the object first, then call
+    # methods on it. rover is bound to a call result (not a container), so
+    # rover.forward()/rover.set_speed() are still flagged as invented.
+    code = "rover = spawn_rover()\nrover.set_speed(60)\nrover.forward(80)\n"
+    result = check_grounding(code)
+    assert result.grounded is False
+    assert "rover.forward" in result.invented
+    assert "rover.set_speed" in result.invented
+
+
+def test_binding_base_to_another_name_is_not_exempt() -> None:
+    # Aliasing a name to a non-container does not exempt its attribute calls.
+    code = "bot = something\nbot.drive(1)\nmove_forward(1)\n"
+    result = check_grounding(code)
+    assert result.grounded is False
+    assert "bot.drive" in result.invented
+
+
 def test_syntax_error_is_reported_not_raised() -> None:
     result = check_grounding("move_forward(\n")
     assert result.grounded is False

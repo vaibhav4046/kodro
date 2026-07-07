@@ -121,7 +121,12 @@
     }
 
     return React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 4200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(120% 120% at 50% 0%,#101726cc 0%,#070a12ee 70%)', padding: 28 }, onClick: function () { return props.onClose && props.onClose(); } },
-      React.createElement('div', { style: { width: 'min(640px,100%)', background: 'var(--navy)', border: '1.5px solid var(--border)', borderRadius: 18, padding: 26, color: 'var(--fg-1)', boxShadow: '0 30px 80px -30px #000' }, onClick: function (e) { e.stopPropagation(); } },
+      // className 'modal' + role/aria-modal is the exact contract app.jsx's focus
+      // trap keys on (it selects '.modal[aria-modal="true"]'), so opening the demo
+      // moves focus into this dialog and confines Tab to it, like every other modal.
+      // The inline styles fully own the layout/colour; the shared class only adds
+      // the entrance animation (which honours prefers-reduced-motion).
+      React.createElement('div', { className: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Realism demo', style: { width: 'min(640px,100%)', background: 'var(--navy)', border: '1.5px solid var(--border)', borderRadius: 18, padding: 26, color: 'var(--fg-1)', boxShadow: '0 30px 80px -30px #000' }, onClick: function (e) { e.stopPropagation(); } },
         React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 } },
           React.createElement('span', { style: { fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--cyan)' } }, 'Kodro Realism Demo'),
           React.createElement('span', { style: { fontSize: 12, color: 'var(--fg-3)' } }, 'Step ' + (i + 1) + ' of ' + STEPS.length)

@@ -99,6 +99,22 @@
     return r && r.ok ? (r.hint || null) : null;
   };
 
+  // Teacher / roster features persist pupil data on the Python (desktop) side
+  // only. In the static browser build there is no bridge and nothing is ever
+  // saved, so routing these through call() would block on the ~5s pywebview
+  // wait and then resolve null -- the dashboard hangs on a spinner, then shows
+  // an empty table implying scores will appear. Return an honest, immediate
+  // "desktop only" signal instead. We invent NO pupil data.
+  const TEACHER_BROWSER_REASON =
+    'Teacher records are saved only in the desktop app. Browser mode does not keep pupil data.';
+  const teacherUnavailable = () => ({
+    ok: false,
+    unavailable: true,
+    reason: TEACHER_BROWSER_REASON,
+    concepts: [],
+    pupils: [],
+  });
+
   window.RoboLearn = {
     isAvailable: isPywebview,
     listLessons: () => (isPywebview() ? call("list_lessons") : listLessonsBrowser()),
@@ -107,9 +123,16 @@
       (isPywebview()
         ? call("submit_attempt", lessonId, source, traceJson)
         : submitAttemptBrowser(lessonId, source)),
-    getPupilSummary: () => call("get_pupil_summary"),
-    getClassHeatmap: () => call("get_class_heatmap"),
-    listPupils: () => call("list_pupils"),
+    // Desktop persists these; browser mode has no store, so resolve fast and
+    // honestly instead of blocking on the pywebview wait and returning null.
+    getPupilSummary: () =>
+      (isPywebview() ? call("get_pupil_summary") : Promise.resolve(teacherUnavailable())),
+    getClassHeatmap: () =>
+      (isPywebview() ? call("get_class_heatmap") : Promise.resolve(teacherUnavailable())),
+    // A roster is a list; the honest browser answer is an empty roster (safe to
+    // .map over) rather than a hang or a shape that would break list callers.
+    listPupils: () =>
+      (isPywebview() ? call("list_pupils") : Promise.resolve([])),
     createPupil: (name) => call("create_pupil", name),
     selectPupil: (id) => call("select_pupil", id),
     renamePupil: (id, name) => call("rename_pupil", id, name),

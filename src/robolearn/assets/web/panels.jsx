@@ -205,6 +205,12 @@
 
   // ---- Teacher dashboard ----
   function TeacherModal({ onClose, teacherData }) {
+    // Browser mode has no persistent pupil store: the class register lives in the
+    // desktop app's local database, so getClassHeatmap() cannot return real rows
+    // here. Mirror the isAvailable() gate the Export/Import actions use and tell
+    // the truth instead of spinning forever and then showing an empty table with
+    // copy that promises scores "once pupils pass lessons" (which never persist).
+    const browserMode = typeof window !== 'undefined' && window.RoboLearn && !window.RoboLearn.isAvailable();
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Teacher dashboard" onClick={e => e.stopPropagation()}>
@@ -213,11 +219,14 @@
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
           <div className="teacher-body">
-            {!teacherData && <p className="vibe-status">Reading the class records saved on this computer…</p>}
-            {teacherData && teacherData.pupils.length === 0 && (
+            {browserMode && (
+              <p className="vibe-status">The class register needs the desktop app. In the browser, lessons still run and grade, but pupil records are not saved.</p>
+            )}
+            {!browserMode && !teacherData && <p className="vibe-status">Reading the class records saved on this computer…</p>}
+            {!browserMode && teacherData && teacherData.pupils.length === 0 && (
               <p className="vibe-status">No pupil data yet. Once pupils pass lessons, their scores show up here.</p>
             )}
-            {teacherData && teacherData.pupils.length > 0 && (
+            {!browserMode && teacherData && teacherData.pupils.length > 0 && (
               <div style={{ overflow: 'auto', maxHeight: '60vh' }}>
                 <table className="heatmap-table">
                   <thead>
