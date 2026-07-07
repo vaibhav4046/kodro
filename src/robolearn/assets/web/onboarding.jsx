@@ -94,7 +94,7 @@
   }
   .konb-eyebrow::before{ content:''; width:24px; height:1px; background:var(--cyan); opacity:.7; }
 
-  /* ============ STEP 0 — editorial hero ============ */
+  /* ============ STEP 0 - editorial hero ============ */
   .konb-hero{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:clamp(28px,5vw,72px); align-items:center; animation:konb-rise .5s var(--ease) both; }
   .konb-lede{ min-width:0; }
   .konb-h1{
@@ -159,7 +159,7 @@
   .konb-btn[disabled]{ cursor:not-allowed; opacity:1; }
   .konb-btn.primary[disabled]{ background:var(--navy-3); color:var(--fg-3); border-color:var(--border); box-shadow:none; }
 
-  /* ============ STEP 1 / 2 — panel ============ */
+  /* ============ STEP 1 / 2 - panel ============ */
   .konb-panel{ width:min(760px,100%); margin:0 auto; animation:konb-rise .45s var(--ease) both; }
   .konb-h2{ font-family:var(--font-display); font-weight:600; font-size:clamp(30px,4.4vw,46px); line-height:1.02; letter-spacing:-.01em; margin:14px 0 0; }
   .konb-sub{ font-size:14.5px; line-height:1.6; color:var(--fg-2); max-width:58ch; margin:12px 0 0; }
@@ -179,7 +179,7 @@
     letter-spacing:.18em; text-transform:uppercase; color:var(--fg-3); margin:20px 0 4px; }
   .konb-agent-or::before, .konb-agent-or::after{ content:''; flex:1; height:0.5px; background:var(--border); }
 
-  /* robot tiles — bento-ish, first tile spans wider on desktop */
+  /* robot tiles - bento layout, first tile spans wider on desktop */
   .konb-grid{ display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin:14px 0 0; }
   .konb-tile{
     grid-column:span 2; text-align:left; cursor:pointer; color:inherit; font:inherit; min-height:44px;
@@ -355,8 +355,9 @@
                   <h1 className="konb-h1" id="konb-h1">Build a robot.<br />Teach it.<br /><em>Watch it work.</em></h1>
                   <p className="konb-lead">
                     Kodro is an <b>offline robot design and simulation studio</b>. Assemble a machine from real parts,
-                    write the code that drives it, and validate it in a physics world that fits the build. Everything
-                    runs on your own computer, with a local AI assistant and no account needed. Offline by default; you can optionally connect your own cloud model key.
+                    write the code that drives it, and test it in a physics world that fits the build. Everything
+                    runs on your own computer, with a local AI assistant and no account needed. Offline by default;
+                    connect your own cloud model key only if you want it.
                   </p>
                   <ul className="konb-caps">
                     {CAPS.map((c, i) => <li key={i}>{c}</li>)}
@@ -384,7 +385,7 @@
               <section className="konb-panel" aria-labelledby="konb-h2-pick">
                 <span className="konb-eyebrow">Step two</span>
                 <h2 className="konb-h2" id="konb-h2-pick">What do you want to build?</h2>
-                <p className="konb-sub">Describe it in your own words and the assistant fits the parts, or pick a starting point. You can redesign every part later in the Robot Lab.</p>
+                <p className="konb-sub">Describe it in your own words and the assistant fits the parts, or pick a starting point. You can change every part later in the Robot Lab.</p>
                 <div className="konb-agent">
                   <div className="konb-agent-row">
                     <input
@@ -436,7 +437,7 @@
               <section className="konb-panel" aria-labelledby="konb-h2-rec">
                 <span className="konb-eyebrow">Step three</span>
                 <h2 className="konb-h2" id="konb-h2-rec">Where it gets tested first</h2>
-                <p className="konb-sub">The assistant picks a world that suits your robot. Test it there, then try the others from inside the studio.</p>
+                <p className="konb-sub">The assistant picks a world that suits your robot. Test it there first, then try the others from the studio.</p>
                 <div className="konb-rec">
                   <div className="rec-badge" aria-hidden="true">{window.KodroIcons ? window.KodroIcons.el((TYPES[type] && TYPES[type].icon) || "home") : null}</div>
                   <div className="rec-meta">

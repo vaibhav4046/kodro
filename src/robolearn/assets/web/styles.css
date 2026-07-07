@@ -1,5 +1,5 @@
 /* ============================================================================
-   KODRO — styles
+   KODRO - styles
    Built on the Orbital Quill token system, retuned as a mission-control IDE.
    ========================================================================== */
 @import url('vendor/fonts.css');
@@ -17,10 +17,16 @@
   --font-body:'Inter Tight',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --font-mono:'JetBrains Mono','SF Mono',Menlo,Consolas,monospace;
   --ease:cubic-bezier(0.22,0.61,0.36,1);
+  /* Elevation scale (low to high): card < popover/menu < modal. Bubbles and
+     one-off overlays keep --shadow-3. Values are additive tokens only; no
+     existing token name changed (qa_ui.mjs / probes reference selectors,
+     not shadows, but the menu token is used across surfaces). */
+  --shadow-card:0 1px 2px rgba(5,3,0,0.25),0 0 0 0.5px rgba(5,3,0,0.12);
   --shadow-menu:0 12px 32px -8px rgba(5,3,0,0.5),0 2px 6px rgba(5,3,0,0.3);
+  --shadow-modal:0 32px 80px -24px rgba(0,0,0,0.72),0 4px 14px rgba(0,0,0,0.38),0 1px 0 rgba(255,255,255,0.03);
   --shadow-3:0 1px 0 rgba(255,255,255,0.03),0 24px 48px -20px rgba(0,0,0,0.6);
 
-  /* terrain accent — set dynamically on .stage */
+  /* terrain accent - set dynamically on .stage */
   --terrain:#5ce0d8;
 }
 
@@ -374,6 +380,7 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .gauge {
   background:var(--void); border:0.5px solid var(--border); border-radius:6px;
   padding:11px 12px; display:flex; flex-direction:column; gap:3px;
+  box-shadow:var(--shadow-card);
 }
 .gauge .g-label { font-family:var(--font-mono); font-size:9px; letter-spacing:0.14em; text-transform:uppercase; color:var(--fg-3); }
 .gauge .g-val { font-family:var(--font-mono); font-size:19px; font-weight:600; color:var(--fg-1); font-variant-numeric:tabular-nums; line-height:1.1; }
@@ -441,8 +448,23 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 }
 .btn-mini:hover { color:var(--fg-1); border-color:var(--fg-3); }
 .btn-mini.active { color:var(--cyan); border-color:rgba(92,224,216,0.4); }
+/* Uniform pressed feedback on the small controls (.ctrl already scales). */
+.btn-mini:active, .icon-btn:active, .terrain-btn:active, .tab:active,
+.tele-toggle:active, .robot-chip:active { transform:translateY(1px); }
+/* Visibly distinct disabled state for every small control; hover/press styles
+   are neutralised so a disabled button never lights up under the cursor. */
+.btn-mini:disabled, .icon-btn:disabled, .tele-toggle:disabled,
+.robot-chip:disabled, .lesson-select:disabled, .terrain-btn:disabled {
+  opacity:0.4; cursor:not-allowed;
+}
+.btn-mini:disabled:hover, .icon-btn:disabled:hover, .tele-toggle:disabled:hover,
+.robot-chip:disabled:hover, .terrain-btn:disabled:hover {
+  color:var(--fg-3); border-color:var(--border); background:transparent;
+}
+.btn-mini:disabled:active, .icon-btn:disabled:active, .terrain-btn:disabled:active,
+.tele-toggle:disabled:active, .robot-chip:disabled:active { transform:none; }
 
-.kbd { font-family:var(--font-mono); font-size:9px; padding:2px 5px; border-radius:3px;
+.kbd { font-family:var(--font-mono); font-size:9px; padding:2px 5px; border-radius:4px;
   border:0.5px solid var(--border); color:var(--fg-3); background:rgba(245,240,228,0.03); }
 
 /* ===================== 3D scene objects ===================== */
@@ -537,6 +559,7 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
   padding:5px 11px; border-radius:4px; border:none; cursor:pointer; color:var(--fg-3); background:transparent;
   transition:all 160ms var(--ease);
 }
+.view-mode-pill button:not(.on):hover { color:var(--fg-1); background:rgba(245,240,228,0.06); }
 .view-mode-pill button.on { color:var(--void); background:var(--terrain,#5ce0d8); font-weight:600; }
 
 .orbit-hint {
@@ -549,7 +572,7 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 @keyframes hintfade { 0%{opacity:0;} 12%{opacity:0.9;} 78%{opacity:0.9;} 100%{opacity:0;} }
 
 /* ============================================================================
-   RoboLearn — accessibility hardening + bridge widgets (QA pass)
+   RoboLearn - accessibility hardening + bridge widgets (QA pass)
    ========================================================================== */
 
 /* Higher-contrast text tokens (WCAG 2.1 AA). The design's opacity-based
@@ -569,7 +592,17 @@ textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible,
   border-radius:4px;
 }
 
-/* Respect reduced-motion: kill the ambient/loop animations. */
+/* Respect reduced-motion: kill the ambient/loop animations.
+   Audit note: the ambient loops live in two places. index.html defines
+   dust/bub/twk (inline animation on particles from terrains.jsx), rlpulse
+   (boot skeleton), radarspin (.radar-sweep) and caust (.caustics); styles.css
+   defines pulse, dustkick, scanring, shaft, hintfade, saypop, crashf, spin,
+   confetti-fall, toast-life and the onboarding orbit spinners. The starred
+   rule below covers ALL of them, including inline styles: an !important
+   stylesheet declaration outranks a non-important inline declaration, so the
+   0.001ms duration + single iteration stops every loop at its first frame.
+   The explicit list pins the named ambient layers dead even if a future rule
+   re-declares their animation with !important. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration:0.001ms !important;
@@ -577,6 +610,8 @@ textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible,
     transition-duration:0.001ms !important;
     scroll-behavior:auto !important;
   }
+  .radar-sweep, .caustics, .dust-kick span, .scan-ripple i, .shafts i,
+  .status-dot.run, .prop-pulse { animation:none !important; }
 }
 
 /* Screen-reader-only utility + skip link. */
@@ -695,7 +730,7 @@ textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible,
 .lesson-card-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .lesson-badge {
   font-family:var(--font-mono); font-size:9px; letter-spacing:0.1em;
-  background:var(--cyan-deep); color:var(--paper); padding:2px 6px; border-radius:3px;
+  background:var(--cyan-deep); color:var(--paper); padding:2px 6px; border-radius:4px;
 }
 .lesson-title { font-family:var(--font-body); font-size:12px; font-weight:600; color:var(--fg-1); }
 .lesson-verdict { margin-left:auto; font-family:var(--font-mono); font-size:11px; font-weight:600; }
@@ -740,7 +775,10 @@ body.a11y-readable .api-hint { font-size: 12px !important; }
 /* Lesson reading-age chip + plain-English glossary (KS1/KS2 scaffolding). */
 .lesson-age {
   font-family:var(--font-mono); font-size:9px; letter-spacing:0.08em;
-  color:var(--void); background:var(--brass); padding:2px 6px; border-radius:3px;
+  /* Fixed dark ink, not var(--void): in the light themes --void is near-white,
+     which left this badge's text at ~3:1 on the brass chip. Brass stays a
+     mid-to-light hue in every theme, so dark ink is safe across all of them. */
+  color:#0b0c12; background:var(--brass); padding:2px 6px; border-radius:4px;
 }
 .lesson-glossary { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
 .lesson-glossary .gloss-item { display:flex; gap:8px; align-items:baseline; }
@@ -774,7 +812,7 @@ body.a11y-readable .api-hint { font-size: 12px !important; }
 }
 .modal {
   width:min(420px,92vw); background:linear-gradient(180deg,var(--navy-2),var(--navy));
-  border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-menu);
+  border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow-modal);
   padding:18px 20px; animation:pop-in 180ms var(--ease);
 }
 .modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
@@ -826,7 +864,7 @@ kbd {
 /* ===================== Run reports (P7/A8) ===================== */
 .runs-panel { flex:1; min-height:0; display:flex; flex-direction:column; overflow:auto; font-size:12px; }
 .runs-list { list-style:none; margin:0; padding:4px 8px; display:flex; flex-direction:column; gap:3px; }
-.run-entry { display:flex; align-items:center; gap:8px; padding:4px 6px; border:0.5px solid var(--border-2); border-radius:6px; background:rgba(245,240,228,0.02); }
+.run-entry { display:flex; align-items:center; gap:8px; padding:4px 6px; border:0.5px solid var(--border-2); border-radius:6px; background:rgba(245,240,228,0.02); box-shadow:var(--shadow-card); }
 .run-entry input[type="checkbox"] { accent-color:var(--cyan); flex:none; }
 .run-outcome { font-family:var(--font-mono); font-size:9px; font-weight:700; letter-spacing:0.08em; border-radius:4px; padding:2px 6px; flex:none; }
 .ro-done { background:rgba(124,196,155,0.16); color:var(--success); }
@@ -893,7 +931,7 @@ kbd {
   font-family:var(--font-body); font-size:14px; line-height:1.5; color:var(--fg-1);
   background:var(--void); border:1px solid var(--border); border-radius:6px; padding:10px 12px;
 }
-.vibe-input:focus-visible { outline:2px solid var(--cyan); outline-offset:1px; }
+.vibe-input:focus-visible { outline:3px solid var(--cyan); outline-offset:2px; }
 .vibe-error { color:var(--danger); font-size:12px; margin:0; }
 .vibe-actions { display:flex; align-items:center; gap:12px; justify-content:flex-end; margin-top:6px; }
 .vibe-hint { font-size:11px; color:var(--fg-3); }
@@ -1011,6 +1049,10 @@ kbd {
 /* Memory panel export/import cluster (head row, before the close button). */
 .mem-io { display:inline-flex; gap:4px; margin-right:6px; }
 .mem-io .mem-import { display:inline-flex; align-items:center; cursor:pointer; }
+/* The import control is a label wrapping a visually-hidden file input, so the
+   global input:focus-visible ring lands on an invisible element; surface the
+   ring on the label instead. */
+.mem-io .mem-import:focus-within { outline:3px solid var(--cyan); outline-offset:2px; border-radius:4px; }
 
 /* Vibe chat thread (Claude/ChatGPT-style assistant inside the modal). */
 .vibe-thread {
@@ -1088,7 +1130,7 @@ kbd {
 .build-note{ font-size:10.5px; color:var(--fg-3); font-style:italic; margin:0; }
 
 /* ============================================================================
-   THEMES — full repaints via [data-theme] token swaps.
+   THEMES - full repaints via [data-theme] token swaps.
    Default (no attribute) is the dark mission-control look above. Every theme
    below only re-declares the core tokens; the whole UI inherits the change.
    ========================================================================== */
@@ -1097,13 +1139,17 @@ kbd {
 :root[data-theme="light"]{
   --void:#eef1f6; --navy:#ffffff; --navy-2:#f4f6fb; --navy-3:#e6eaf2;
   --ink:#dfe4ee; --ink-2:#c9d0de; --ink-3:#8c93a6;
-  --cyan:#0e8f86; --cyan-2:#0c7b73; --cyan-deep:#0a5f59;
-  --mars:#c8685a; --brass:#a9842f;
-  --success:#2f9e6e; --warning:#b8842a; --danger:#c2504f;
-  --fg-1:#181c28; --fg-2:rgba(24,28,40,0.70); --fg-3:#73767d; --fg-4:#92949a;
+  /* Accent + status tokens double as TEXT colours (hints, verdicts, console
+     err/ok lines), so each is computed to >=4.5:1 on void/navy/navy-2. */
+  --cyan:#0c7b73; --cyan-2:#0b6d65; --cyan-deep:#0a5f59;
+  --mars:#a7574b; --brass:#a9842f;
+  --success:#257c56; --warning:#8f6621; --danger:#b64b4a;
+  --fg-1:#181c28; --fg-2:rgba(24,28,40,0.70); --fg-3:#63666c; --fg-4:#6c6e72;
   --border:rgba(24,28,40,0.14); --border-2:rgba(24,28,40,0.07);
-  --terrain:#0e8f86;
+  --terrain:#0c7b73;
   --shadow-menu:0 12px 32px -10px rgba(40,50,80,0.28),0 2px 6px rgba(40,50,80,0.14);
+  --shadow-card:0 1px 2px rgba(40,50,80,0.14),0 0 0 0.5px rgba(40,50,80,0.08);
+  --shadow-modal:0 32px 80px -28px rgba(40,50,80,0.4),0 4px 14px rgba(40,50,80,0.16);
 }
 :root[data-theme="light"] ::-webkit-scrollbar-thumb{ background:rgba(24,28,40,0.18); border-color:var(--void); }
 
@@ -1114,7 +1160,8 @@ kbd {
   --cyan:#21f37a; --cyan-2:#19c563; --cyan-deep:#0c7a3c;
   --mars:#21f37a; --brass:#7dffae;
   --success:#21f37a; --warning:#b6ff5c; --danger:#ff5d5d;
-  --fg-1:#9dffbf; --fg-2:rgba(120,255,165,0.66); --fg-3:#3e8958; --fg-4:#2e6a44;
+  /* fg-3/fg-4 computed to >=4.5:1 on void/navy/navy-2 (phosphor dims, still reads). */
+  --fg-1:#9dffbf; --fg-2:rgba(120,255,165,0.66); --fg-3:#4d9a67; --fg-4:#59896a;
   --border:rgba(33,243,122,0.20); --border-2:rgba(33,243,122,0.09);
   --font-display:var(--font-mono); --font-body:var(--font-mono);
   --terrain:#21f37a;
@@ -1124,15 +1171,19 @@ kbd {
 
 /* --- Pixel: PICO-8 palette, hard edges. --- */
 :root[data-theme="pixel"]{
-  --void:#1a1c2c; --navy:#29366f; --navy-2:#3b5dc9; --navy-3:#41a6f6;
-  --ink:#222b50; --ink-2:#3b5dc9; --ink-3:#5d6aa8;
-  --cyan:#41a6f6; --cyan-2:#29adff; --cyan-deep:#1d5fb0;
+  /* navy-2/navy-3 darkened from the raw PICO-8 blues (#3b5dc9/#41a6f6): both
+     are used as SURFACES (cards, modals, kbd), where the bright blues left
+     muted text at 1.5-2.6:1. The deeper blues keep the palette family while
+     letting every fg token clear 4.5:1; the bright blue lives on in --cyan. */
+  --void:#1a1c2c; --navy:#29366f; --navy-2:#2a3a85; --navy-3:#3452b5;
+  --ink:#222b50; --ink-2:#2a3a85; --ink-3:#5d6aa8;
+  --cyan:#63b6f8; --cyan-2:#29adff; --cyan-deep:#1d5fb0;
   --mars:#ef7d57; --brass:#ffcd75;
   --success:#38b764; --warning:#ffcd75; --danger:#b13e53;
-  --fg-1:#f4f4f4; --fg-2:rgba(244,244,244,0.74); --fg-3:#9da2bb; --fg-4:#7a82a4;
+  --fg-1:#f4f4f4; --fg-2:rgba(244,244,244,0.74); --fg-3:#aeb3c9; --fg-4:#a6acc4;
   --border:rgba(244,244,244,0.18); --border-2:rgba(244,244,244,0.08);
   --font-display:var(--font-mono); --font-body:var(--font-mono);
-  --terrain:#41a6f6;
+  --terrain:#63b6f8;
 }
 :root[data-theme="pixel"] *{ border-radius:0 !important; }
 :root[data-theme="pixel"] button, :root[data-theme="pixel"] .panel, :root[data-theme="pixel"] .card{ image-rendering:pixelated; }
@@ -1144,7 +1195,7 @@ kbd {
   --cyan:#00e5ff; --cyan-2:#22d3ee; --cyan-deep:#0b8fa6;
   --mars:#ff2e97; --brass:#ffd400;
   --success:#39ff14; --warning:#ffd400; --danger:#ff2e97;
-  --fg-1:#f1ecff; --fg-2:rgba(241,236,255,0.70); --fg-3:#83799a; --fg-4:#685d81;
+  --fg-1:#f1ecff; --fg-2:rgba(241,236,255,0.70); --fg-3:#948ba9; --fg-4:#8a819d;
   --border:rgba(0,229,255,0.22); --border-2:rgba(255,46,151,0.10);
   --terrain:#00e5ff;
   --shadow-menu:0 0 24px -2px rgba(0,229,255,0.35),0 12px 32px -8px rgba(0,0,0,0.6);
@@ -1157,8 +1208,11 @@ kbd {
   --ink:#e6e6e6; --ink-2:#cfcfcf; --ink-3:#8a8a8a;
   --cyan:#0055bf; --cyan-2:#0a6bd6; --cyan-deep:#013f8f;
   --mars:#d01012; --brass:#f5cd2f;
-  --success:#237841; --warning:#f5cd2f; --danger:#d01012;
-  --fg-1:#16161a; --fg-2:rgba(22,22,26,0.72); --fg-3:#767678; --fg-4:#949496;
+  /* warning doubles as verdict/hint TEXT on white and on the yellow navy-2
+     card; the LEGO yellow sat at 1.5:1 there, so the text token is a dark
+     ochre while --brass keeps the brick yellow for fills. */
+  --success:#237841; --warning:#7a6200; --danger:#d01012;
+  --fg-1:#16161a; --fg-2:rgba(22,22,26,0.72); --fg-3:#5c5c5e; --fg-4:#646466;
   --border:rgba(22,22,26,0.16); --border-2:rgba(22,22,26,0.08);
   --terrain:#0055bf;
   --shadow-menu:0 10px 0 -4px rgba(0,0,0,0.18),0 14px 30px -12px rgba(0,0,0,0.3);
@@ -1169,13 +1223,14 @@ kbd {
 :root[data-theme="chatgpt"]{
   --void:#ffffff; --navy:#f7f7f8; --navy-2:#ececf1; --navy-3:#e3e3e8;
   --ink:#ececf1; --ink-2:#d9d9e3; --ink-3:#9a9aa6;
-  --cyan:#10a37f; --cyan-2:#0e9070; --cyan-deep:#0a6f56;
+  /* Green + muted tokens computed to >=4.5:1 as text on all three surfaces. */
+  --cyan:#0c795f; --cyan-2:#0a6a53; --cyan-deep:#085c46;
   --mars:#c2504f; --brass:#9a7a2f;
-  --success:#10a37f; --warning:#b8842a; --danger:#c2504f;
-  --fg-1:#0d0d0d; --fg-2:rgba(13,13,13,0.68); --fg-3:#727272; --fg-4:#8f8f8f;
+  --success:#0c795f; --warning:#8b6420; --danger:#b24948;
+  --fg-1:#0d0d0d; --fg-2:rgba(13,13,13,0.68); --fg-3:#616161; --fg-4:#6b6b6b;
   --border:rgba(13,13,13,0.12); --border-2:rgba(13,13,13,0.06);
   --font-display:var(--font-body);
-  --terrain:#10a37f;
+  --terrain:#0c795f;
   --shadow-menu:0 12px 28px -12px rgba(0,0,0,0.22),0 2px 6px rgba(0,0,0,0.08);
 }
 :root[data-theme="chatgpt"] ::-webkit-scrollbar-thumb{ background:rgba(13,13,13,0.16); border-color:var(--void); }
@@ -1187,7 +1242,7 @@ kbd {
   --cyan:#ff8fb1; --cyan-2:#ff6f9c; --cyan-deep:#c25478;
   --mars:#ffd36e; --brass:#a0e7e5;
   --success:#b5e48c; --warning:#ffd36e; --danger:#ff6f6f;
-  --fg-1:#fdf3ff; --fg-2:rgba(253,243,255,0.70); --fg-3:#8c8295; --fg-4:#70667a;
+  --fg-1:#fdf3ff; --fg-2:rgba(253,243,255,0.70); --fg-3:#9c93a6; --fg-4:#938b9b;
   --border:rgba(255,143,177,0.20); --border-2:rgba(160,231,229,0.10);
   --terrain:#ff8fb1;
 }
@@ -1199,7 +1254,7 @@ kbd {
   --cyan:#3ad0d8; --cyan-2:#2bb4bc; --cyan-deep:#177a80;
   --mars:#e0b45c; --brass:#e0b45c;
   --success:#7cc49b; --warning:#e0b45c; --danger:#d06a6a;
-  --fg-1:#c7d3e0; --fg-2:rgba(199,211,224,0.66); --fg-3:#747d89; --fg-4:#5a626e;
+  --fg-1:#c7d3e0; --fg-2:rgba(199,211,224,0.66); --fg-3:#828b96; --fg-4:#7b818b;
   --border:rgba(58,208,216,0.16); --border-2:rgba(58,208,216,0.07);
   --font-display:var(--font-mono); --font-body:var(--font-mono);
   --terrain:#3ad0d8;
@@ -1228,6 +1283,17 @@ kbd {
   --shadow-menu:0 0 0 1px rgba(255,255,255,0.4),0 12px 32px -8px rgba(0,0,0,0.9);
 }
 :root[data-theme="contrast"] ::-webkit-scrollbar-thumb{ background:rgba(255,255,255,0.5); border-color:#000; }
+
+/* Syntax legibility on the light editor backgrounds: --brass (numbers) and
+   the fixed function-blue #9fb4ff read at 1.3-4.0:1 on the near-white voids.
+   Text-only overrides here, scoped to the syntax token classes, so badge and
+   border FILLS keep the brighter brand hues (computed, all >=4.5:1). */
+:root[data-theme="light"] .tok-num{ color:#876a26; }
+:root[data-theme="light"] .tok-fn{ color:#4e67c8; }
+:root[data-theme="chatgpt"] .tok-num{ color:#90722c; }
+:root[data-theme="chatgpt"] .tok-fn{ color:#546fd7; }
+:root[data-theme="lego"] .tok-num{ color:#816c19; }
+:root[data-theme="lego"] .tok-fn{ color:#4e67c6; }
 
 /* Teacher dashboard heatmap. */
 .teacher-body{ display:flex; flex-direction:column; gap:8px; }
@@ -1277,7 +1343,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 
 /* 3D viewport: failure fallback + keyboard focus + canvas focus ring. */
 .vp3d-fail{ display:flex; align-items:center; justify-content:center; height:100%; padding:24px; text-align:center; color:var(--fg-2); font-size:13px; }
-.viewport3d.vp3d-lost::after{ content:'3D paused — switch to 2.5D in the bar'; position:absolute; inset:auto 0 12px 0; text-align:center; color:var(--fg-2); font-family:var(--font-mono); font-size:11px; }
+.viewport3d.vp3d-lost::after{ content:'3D paused. Switch to 2.5D in the bar'; position:absolute; inset:auto 0 12px 0; text-align:center; color:var(--fg-2); font-family:var(--font-mono); font-size:11px; }
 .viewport3d canvas:focus-visible{ outline:2px solid var(--cyan); outline-offset:-2px; }
 /* Stronger, always-on focus ring for keyboard orbit (programmatic focus on
    open does not always trip :focus-visible, so target :focus too). */
@@ -1295,7 +1361,12 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   padding:6px 10px; border-radius:8px; background:rgba(8,10,14,.6); pointer-events:none; }
 .vp3d-site-name{ color:var(--fg-0); font-size:12px; font-weight:600; letter-spacing:.02em; }
 .vp3d-site-coord{ color:var(--fg-2); font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; }
-.view-toggle button:focus-visible, .terrain-btn:focus-visible{ outline:2px solid var(--cyan); outline-offset:1px; }
+/* Compact focus ring for dense toolbar clusters: the default 3px/2px ring
+   overlaps neighbouring controls inside the pill toolbars, so these use a
+   deliberate 2px/1px variant (same colour, still >=3:1 against both the
+   control and its backdrop). Everything else inherits the 3px global ring. */
+.view-toggle button:focus-visible, .terrain-btn:focus-visible,
+.view-mode-pill button:focus-visible{ outline:2px solid var(--cyan); outline-offset:1px; }
 
 /* ===================== Robot Lab ===================== */
 .rl-modal { width:min(680px,95vw); }
@@ -1305,7 +1376,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   text-transform:uppercase; color:var(--fg-3); }
 .rl-types { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
 .rl-type { display:flex; flex-direction:column; align-items:center; gap:5px; padding:11px 6px;
-  border:1px solid var(--border); border-radius:9px; background:rgba(245,240,228,0.02);
+  border:1px solid var(--border); border-radius:8px; background:rgba(245,240,228,0.02);
   color:var(--fg-2); cursor:pointer; transition:all 140ms var(--ease); }
 .rl-type:hover { border-color:var(--fg-3); color:var(--fg-1); }
 .rl-type-on { border-color:var(--cyan); color:var(--fg-1);
@@ -1320,7 +1391,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .rl-note { margin:0; font-size:11px; color:var(--fg-3); }
 .rl-chips { display:flex; flex-wrap:wrap; gap:7px; }
 .rl-chip { display:flex; flex-direction:column; align-items:flex-start; gap:1px; padding:7px 11px;
-  border:1px solid var(--border); border-radius:7px; background:transparent; cursor:pointer;
+  border:1px solid var(--border); border-radius:6px; background:transparent; cursor:pointer;
   color:var(--fg-2); transition:all 140ms var(--ease); text-align:left; }
 .rl-chip:hover { border-color:var(--fg-3); color:var(--fg-1); }
 .rl-chip-on { border-color:var(--cyan); color:var(--fg-1); background:rgba(92,224,216,0.07); }
@@ -1328,7 +1399,8 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .rl-chip-sub { font-family:var(--font-mono); font-size:9.5px; color:var(--fg-3); }
 .rl-chip-on .rl-chip-sub { color:var(--cyan); }
 .rl-spec { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; padding:12px;
-  border:1px solid var(--border); border-radius:9px; background:rgba(245,240,228,0.02); }
+  border:1px solid var(--border); border-radius:8px; background:rgba(245,240,228,0.02);
+  box-shadow:var(--shadow-card); }
 .rl-stat { display:flex; flex-direction:column; gap:2px; }
 .rl-stat b { font-family:var(--font-mono); font-size:15px; color:var(--cyan); font-variant-numeric:tabular-nums; }
 .rl-stat span { font-size:10px; color:var(--fg-3); text-transform:uppercase; letter-spacing:0.08em; }
@@ -1347,13 +1419,13 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .mem-body { display:grid; grid-template-columns:1fr 1fr; gap:16px; max-height:64vh; overflow:auto; }
 .mem-col { display:flex; flex-direction:column; gap:8px; }
 .mem-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; }
-.mem-refl { font-size:12px; color:var(--fg-1); padding:8px 10px; border-radius:7px;
+.mem-refl { font-size:12px; color:var(--fg-1); padding:8px 10px; border-radius:6px;
   border:1px solid var(--border); border-left:3px solid var(--fg-3); background:rgba(245,240,228,0.02); }
 .mem-refl.mem-done { border-left-color:var(--success); }
 .mem-refl.mem-crash { border-left-color:var(--danger); }
 .mem-ctx { display:block; font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.06em;
   text-transform:uppercase; color:var(--fg-3); margin-bottom:3px; }
-.mem-skill { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:7px;
+.mem-skill { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:6px;
   border:1px solid var(--border); background:rgba(245,240,228,0.02); }
 .mem-skill-name { font-size:12.5px; font-weight:600; color:var(--fg-1); flex:1; }
 .mem-skill-ctx { font-family:var(--font-mono); font-size:9.5px; color:var(--fg-3); }
@@ -1368,7 +1440,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .fid-approximated { color:#06121b; background:#f5c451; }
 .fid-notSimulated { color:#f5f0e4; background:#9a3f34; }
 .rl-measured {
-  background:#0e1a22; border:1.5px solid #1d8a7d66; border-radius:14px;
+  background:#0e1a22; border:1.5px solid #1d8a7d66; border-radius:12px;
   padding:14px 16px; margin-top:12px;
 }
 .rl-measured-head { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
@@ -1378,7 +1450,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 }
 .rl-measured-grid b { color:#dce8f8; }
 .rl-import-report {
-  background:#141420; border:1.5px solid #2a2a3c; border-radius:14px;
+  background:#141420; border:1.5px solid #2a2a3c; border-radius:12px;
   padding:12px 16px; margin-top:12px;
 }
 .rl-issues { margin:6px 0 0; padding-left:18px; font-size:12px; line-height:1.5; }

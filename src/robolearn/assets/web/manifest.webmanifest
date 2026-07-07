@@ -1,7 +1,7 @@
 {
   "name": "Kodro Robot Design Studio",
   "short_name": "Kodro",
-  "description": "Offline robot design and simulation studio. Build a robot, program it, and validate it in a physics world.",
+  "description": "Offline robot design and simulation studio. Build a robot, program it, and test it in a physics world.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
