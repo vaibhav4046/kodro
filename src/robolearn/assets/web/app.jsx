@@ -47,10 +47,18 @@
     const [activeTab, setActiveTab] = useState(() => {
       const saved = lsGet('or_tab');
       if (saved) return saved;
-      // Default to the short 'starter' example (drive tab) so the first thing a
-      // user sees is a friendly 6-line program, not a wall of code. It uses only
-      // base commands (forward/turn/say), so it runs on every robot build without
-      // a gating refusal -- no need to branch on distance() availability.
+      // Fresh load: show a starter the CURRENT build can actually run on the
+      // first press of Run. Wheeled builds get the drive patrol; a fixed-base
+      // build with no drive actuator (e.g. the arm) gets the sensor-free
+      // systems-check starter, which uses only lights/sound/speech/battery and
+      // runs clean on every build instead of an honest but discouraging "this
+      // arm cannot drive" refusal on the very first run.
+      try {
+        const rb = window.getKodroRobot && window.getKodroRobot();
+        const acts = (rb && rb.actuators) || [];
+        const canDrive = ['motors2', 'motors4', 'servos'].some((a) => acts.indexOf(a) >= 0);
+        if (rb && !canDrive) return 'systems';
+      } catch (e) { void e; }
       return 'drive';
     });
     const [programs, setPrograms] = useState(() => {

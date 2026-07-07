@@ -165,6 +165,38 @@ print("Corners turned:", corners)
 print("Battery left:", read_battery(), "%")
 say("Report filed. Rover out.")`
     },
+    systems: {
+      label: 'systems.py',
+      code: `# Welcome to Kodro. This build has no wheels, so instead of driving
+# it runs a systems check: lights, sound, speech, and a battery report.
+# Every command here works on ANY robot, so pressing Run just works.
+say("Systems check starting")
+
+# Cycle the status light a few times so you can watch the loop run.
+flashes = 0
+for i in range(3):
+    led("cyan")
+    beep(1)
+    wait(1)
+    led("amber")
+    wait(1)
+    flashes = flashes + 1
+
+led("green")
+print("Light cycles run:", flashes)
+say("All lights good")
+
+# Read a real number back from the robot and branch on it.
+power = read_battery()
+print("Battery at", power, "percent")
+if power > 50:
+    say("Power is healthy")
+else:
+    say("Time for a recharge")
+
+beep(2)
+say("Systems nominal. Ready when you are.")`
+    },
     square: {
       label: 'square.py',
       code: `# A for-loop draws a square. Change the 4 or the 3.
