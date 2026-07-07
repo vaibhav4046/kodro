@@ -87,10 +87,10 @@
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
           <div className="build-body" role="status" aria-live="polite">
-            <p className="vibe-status">Type a budget and the local AI plans a real robot you can build and program, mapping your simulated work onto real hardware. Nothing is ordered; this runs offline.</p>
+            <p className="vibe-status">Type a budget and the built-in AI plans a real robot you could build and program, showing which real part does each job your simulated robot does. Nothing is ordered, and nothing goes online.</p>
             {robotSpec && (
               <p className="build-active" data-build-active="1">
-                Pricing the active build: <b>{robotSpec.name || 'My Robot'}</b>
+                Pricing your current robot: <b>{robotSpec.name || 'My Robot'}</b>
                 {' · '}{robotSpec.type || 'rover'}
                 {' · '}{[].concat(robotSpec.sensors || [], robotSpec.actuators || []).join(', ') || 'no parts fitted'}
               </p>
@@ -162,7 +162,7 @@
       <div className="modal-backdrop" onClick={() => !swarmBusy && setSwarmOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="Agent swarm" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('swarm')}Agent swarm. Your one program, run by a fleet at once</span>
+            <span className="eyebrow">{KI('swarm')}Robot swarm. Your one program, run by many rovers at once</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setSwarmOpen(false)}>✕</button>
           </div>
           <div className="swarm-body">
@@ -193,7 +193,7 @@
                       );
                     })}
                   </svg>
-                  <p className="build-note">{swarmData.n} rovers ran the same program from different starting points. Identical code, no central controller, a coordinated pattern. All offline.</p>
+                  <p className="build-note">{swarmData.n} rovers ran the same program from different starting points. Same code on every rover, no leader telling them what to do, and a pattern still forms. All offline.</p>
                 </div>
               );
             })()}
@@ -209,13 +209,13 @@
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Teacher dashboard" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('report')}Teacher dashboard. Class concept strength</span>
+            <span className="eyebrow">{KI('report')}Teacher dashboard. How the class is doing, idea by idea</span>
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
           <div className="teacher-body">
-            {!teacherData && <p className="vibe-status">Reading the class memory on this machine…</p>}
+            {!teacherData && <p className="vibe-status">Reading the class records saved on this computer…</p>}
             {teacherData && teacherData.pupils.length === 0 && (
-              <p className="vibe-status">No pupil data yet. Pass a lesson to start the heatmap.</p>
+              <p className="vibe-status">No pupil data yet. Once pupils pass lessons, their scores show up here.</p>
             )}
             {teacherData && teacherData.pupils.length > 0 && (
               <div style={{ overflow: 'auto', maxHeight: '60vh' }}>
@@ -257,7 +257,7 @@
                     ))}
                   </tbody>
                 </table>
-                <p className="build-note">Each cell is a rolling strength score from 0 to 100 for that concept. Higher and greener is stronger. All data is local to this machine.</p>
+                <p className="build-note">Each cell is a score from 0 to 100 showing how well that pupil knows that idea. It updates as they practise, and greener means stronger. Nothing leaves this computer.</p>
               </div>
             )}
           </div>
@@ -272,11 +272,11 @@
       <div className="modal-backdrop" onClick={() => !reviewBusy && setReviewOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="AI code review" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('review')}Code review. A second AI agent checks your work</span>
+            <span className="eyebrow">{KI('review')}Code review. A second AI checks your work</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setReviewOpen(false)}>✕</button>
           </div>
           <div className="review-body" role="status" aria-live="polite">
-            {reviewBusy && <p className="vibe-status">A reviewer agent is reading your code on this machine…</p>}
+            {reviewBusy && <p className="vibe-status">A second AI is reading your code on this machine…</p>}
             {reviewErr && <p className="vibe-error" role="alert">{reviewErr}</p>}
             {reviewData && !reviewBusy && (
               <div>
@@ -312,7 +312,7 @@
       <div className="modal-backdrop" onClick={() => !askBusy && setAskOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="Ask a question" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('ask')}Ask. {(askData && (askData.source === 'anthropic' || askData.source === 'openai')) ? 'Answered by your ' + askData.source + ' cloud model' : (askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Grounded in the built-in material when it is available')}</span>
+            <span className="eyebrow">{KI('ask')}Ask. {(askData && (askData.source === 'anthropic' || askData.source === 'openai')) ? 'Answered by your ' + askData.source + ' cloud model' : (askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Answers come from the built-in lesson notes when they cover it')}</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setAskOpen(false)}>✕</button>
           </div>
           <div className="ask-body" role="status" aria-live="polite">
@@ -336,7 +336,7 @@
                     ))}
                   </div>
                 )}
-                {askData.noModel && <p className="build-note">Start a local model (Ollama) for a written answer; the lesson material above is shown offline.</p>}
+                {askData.noModel && <p className="build-note">Install the free on-device AI (Ollama) for a written answer. The matching lesson notes above work without it.</p>}
               </div>
             )}
           </div>
@@ -388,7 +388,7 @@
       <div className="modal-backdrop" onClick={() => setMemoryOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Memory and skills" data-tick={memTick} onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('memory')}Memory. The system refines from what it has seen, offline</span>
+            <span className="eyebrow">{KI('memory')}Memory. What the app has learned from your runs, saved on this computer</span>
             <span className="mem-io">
               <button className="btn-mini" data-mem-export title="Download reflections and skills as a JSON backup" onClick={exportMemory}>Export</button>
               <label className="btn-mini mem-import" title="Restore reflections and skills from a JSON backup">
@@ -400,7 +400,7 @@
           </div>
           <div className="mem-body">
             <div className="mem-col">
-              <div className="rl-label">Reflections from past runs</div>
+              <div className="rl-label">Notes from past runs</div>
               {(window.KodroMemory ? window.KodroMemory.reflections() : []).length
                 ? <ul className="mem-list">
                     {window.KodroMemory.reflections().slice(0, 10).map((r, i) => (
@@ -410,10 +410,10 @@
                       </li>
                     ))}
                   </ul>
-                : <p className="vibe-status">No runs yet. Run a program and the system notes what happened, then draws on it.</p>}
+                : <p className="vibe-status">No runs yet. Run a program and the app writes a short note about how it went, then uses those notes to help next time.</p>}
             </div>
             <div className="mem-col">
-              <div className="rl-label">Skill library. Programs that worked, reused</div>
+              <div className="rl-label">Skill library. Programs that worked, saved for reuse</div>
               <button className="btn-mini btn-vibe" onClick={() => { const n = window.prompt && window.prompt('Name this skill'); if (n && window.KodroMemory) { window.KodroMemory.saveSkill(n, code, { world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', ts: Date.now() }); try { window.dispatchEvent(new CustomEvent('kodro-toast', { detail: { text: 'Skill saved', kind: 'info' } })); } catch (e) { void e; } } }}>＋ Save current code as a skill</button>
               {(window.KodroMemory ? window.KodroMemory.skills() : []).length
                 ? <ul className="mem-list">
@@ -477,8 +477,8 @@
     // rendered as a VISIBLE chip instead of an invisible prompt injection
     // (product-coherence D7: the memory loop must be seen to be believed).
     const ctxChip = (vibeContext && vibeContext.reflection) ? (
-      <div className="vibe-ctx" title="Learned from your past runs in this world; it is fed into the assistant's context">
-        <span className="vibe-ctx-tag">Memory context{vibeContext.world ? ' · ' + vibeContext.world : ''}</span>
+      <div className="vibe-ctx" title="Learned from your past runs in this world; the AI is reminded of it when it writes code for you">
+        <span className="vibe-ctx-tag">Learned from past runs{vibeContext.world ? ' · ' + vibeContext.world : ''}</span>
         <span className="vibe-ctx-text">{vibeContext.reflection}</span>
       </div>
     ) : null;
@@ -618,7 +618,7 @@
           </div>
           <div className="vibe-actions">
             <button className="btn-mini" disabled={!blocks.length} onClick={() => { setBlocks([]); setBlockIndent(0); }}>Clear</button>
-            <span className="vibe-hint" style={{ flex: 1 }}>Compiles to real Python in the editor. Nothing runs until you press Run.</span>
+            <span className="vibe-hint" style={{ flex: 1 }}>Turns into real Python in the editor. Nothing runs until you press Run.</span>
             <button className="ctrl ctrl-run" disabled={!blocks.length} onClick={insertBlocksCode}>Insert code →</button>
           </div>
         </div>

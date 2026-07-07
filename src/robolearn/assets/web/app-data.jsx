@@ -63,7 +63,7 @@ print("Base camp built: 1 beacon, 4 crates, 3 flags, 2 crew, 1 tree, 1 rock")`
 # Every step it reads its range sensor. It ONLY moves forward when the
 # way is clear, so it can never hit a boulder OR the arena wall. When
 # something looms it scans, probes left + right, and steers toward
-# the side with more room. Pure sense-think-act. Press Run and watch.
+# the side with more room. Look, decide, move - over and over. Press Run and watch.
 set_speed(72)
 pen_down()
 led("cyan")
@@ -109,15 +109,57 @@ print("Range scans:", scans)`
     },
     drive: {
       label: 'starter.py',
-      code: `# Welcome to Kodro.
-# Edit freely, then press Run. The API is listed below.
-set_speed(60)
-pen_down()
+      code: `# Welcome to Kodro. This is your rover, and this program is a patrol demo.
+# Press Run and watch: the rover drives itself, dodges anything in its way,
+# draws its route on the ground, and prints a report at the end.
+# Every line is yours to edit. Change a number, press Run again.
 
-move_forward(2)
-turn_left(90)
-move_forward(1.4)
-say("Hello, terrain")`
+set_speed(70)          # motor power, 0 to 100
+pen_down()             # drop the pen so the route gets drawn as it drives
+led("cyan")            # light colour while patrolling
+say("Patrol starting")
+beep(2)
+scan()                 # take one look around before moving off
+
+legs = 0               # counts clear stretches driven
+dodges = 0             # counts obstacles avoided
+
+# The patrol loop: look, decide, move - 30 times over.
+# Checking BEFORE moving is how real robots avoid crashing.
+for step in range(30):
+    gap = read_distance()      # clear road ahead, in centimetres
+    if obstacle_ahead():
+        # Something is right in front. Back off and turn away hard.
+        led("red")
+        beep(1)
+        say("Blocked - turning away")
+        move_backward(0.4)
+        turn_left(120)
+        dodges = dodges + 1
+    elif gap < 120:
+        # Something is coming up. Steer away early, no drama.
+        led("amber")
+        turn_right(60)
+        dodges = dodges + 1
+    else:
+        # All clear. Drive on.
+        led("cyan")
+        move_forward(0.6)
+        legs = legs + 1
+
+# Patrol finished - line up and park.
+say("Patrol complete - parking")
+led("green")
+turn_left(read_heading())     # spin back until we face north again
+move_forward(0.8)             # roll forward onto the parking spot
+pen_up()                      # lift the pen, the route is finished
+
+# Mission report - every number below is measured, not made up.
+beep(3)
+print("Clear stretches driven:", legs)
+print("Obstacles dodged:", dodges)
+print("Battery left:", read_battery(), "%")
+say("Report filed. Rover out.")`
     },
     square: {
       label: 'square.py',
@@ -726,7 +768,7 @@ say("Gauntlet reference complete")`
     },
     survey: {
       label: 'survey.py',
-      code: `# Sensors + conditionals: profile the environment.
+      code: `# Sensors + if/else: find out what kind of world you landed in.
 led("amber")
 scan()
 
