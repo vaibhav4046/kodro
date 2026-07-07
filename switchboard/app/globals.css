@@ -1,0 +1,143 @@
+:root {
+  /* espresso base */
+  --ink-0: #0b0a09;
+  --ink-1: #14110e;
+  --ink-2: #1d1813;
+  --ink-3: #26201a;
+  /* bone text */
+  --bone: #ede6da;
+  --sand: #c7bba9;
+  --dim: #8a7c68;
+  /* signal colours, each mapped to a real meaning */
+  --ember: #e2600f; /* replying / live voice */
+  --ember-2: #c8571b;
+  --brass: #e3b95b; /* thinking / selection / accent */
+  --brass-2: #c9a24b;
+  --moss: #3e7f52; /* resolved / healthy */
+  --plum: #8a4e96; /* waiting on a human (lifted from #6B3A75 for contrast) */
+  --plum-2: #6b3a75;
+
+  --line: rgba(199, 187, 169, 0.12);
+  --line-strong: rgba(199, 187, 169, 0.22);
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-ui: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --pad: clamp(14px, 2.2vw, 28px);
+  --header-h: 60px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+html {
+  background: var(--ink-0);
+  color: var(--bone);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  scrollbar-color: var(--ink-3) var(--ink-0);
+}
+
+body {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(140% 100% at 80% -10%, rgba(226, 96, 15, 0.08), transparent 55%),
+    radial-gradient(120% 90% at 0% 110%, rgba(107, 58, 117, 0.08), transparent 55%),
+    var(--ink-0);
+}
+
+/* film grain, generated in an SVG data URI, no external asset */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9000;
+  opacity: 0.4;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+::selection { background: rgba(226, 96, 15, 0.32); color: var(--bone); }
+
+a { color: inherit; }
+button { font-family: inherit; color: inherit; cursor: pointer; }
+input, textarea { font-family: inherit; }
+
+/* focus visibility for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+h1, h2, h3, p { margin: 0; }
+
+/* ---------- type ---------- */
+.display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 0.98;
+}
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* ---------- custom cursor ---------- */
+.cursor-dot, .cursor-ring {
+  position: fixed;
+  top: 0; left: 0;
+  pointer-events: none;
+  z-index: 9500;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+.cursor-dot { width: 6px; height: 6px; background: var(--brass); margin: -3px 0 0 -3px; }
+.cursor-ring {
+  width: 34px; height: 34px; margin: -17px 0 0 -17px;
+  border: 1px solid rgba(227, 185, 91, 0.55);
+  transition: width 0.18s ease, height 0.18s ease, margin 0.18s ease, border-color 0.18s ease;
+}
+.cursor-ring.hot {
+  width: 52px; height: 52px; margin: -26px 0 0 -26px;
+  border-color: rgba(226, 96, 15, 0.8);
+}
+@media (pointer: fine) {
+  body.has-cursor, body.has-cursor * { cursor: none; }
+  body.has-cursor input, body.has-cursor textarea { cursor: text; }
+}
+@media (pointer: coarse) {
+  .cursor-dot, .cursor-ring { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+  .cursor-ring { transition: none; }
+}
+
+/* ---------- utility ---------- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+.skip-link {
+  position: fixed; top: -60px; left: 12px; z-index: 9999;
+  background: var(--brass); color: var(--ink-0); padding: 8px 14px;
+  font-family: var(--font-mono); font-size: 12px; transition: top 0.15s;
+}
+.skip-link:focus { top: 12px; }

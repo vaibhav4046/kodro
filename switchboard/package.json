@@ -1,0 +1,26 @@
+{
+  "name": "switchboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Switchboard: a live AI-conversations watch floor. Stage Two build for NexCell.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "serve": "npx --yes serve@14 out -l 4321"
+  },
+  "dependencies": {
+    "gsap": "3.12.5",
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.10",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "playwright": "^1.47.2",
+    "typescript": "5.5.3"
+  }
+}
