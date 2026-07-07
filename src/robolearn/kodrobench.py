@@ -11,33 +11,44 @@ exposes, then measures three things that matter for a grounded assistant:
   - success_at_n: mean task success across N domain-randomised seeds (bench).
   - collision_rate and syntax_error_rate.
 
+Every task also carries a dev/heldout split (Task.split); dev_/heldout_ variants
+of the above are reported for free from the same single-sample run. Passing
+--samples > k additionally draws that many independent generations per task and
+reports pass@k (Chen et al. 2021), the unbiased at-least-one-of-k-passes
+estimator, overall and per split.
+
 Adapters:
   - "deterministic": a fixed, grounded program per task. Needs no model, is
     byte-reproducible, and is the floor row a CI job can assert against.
   - "ollama": a local open-weight model via OllamaClient (temperature 0.2,
     retries 0). A failed generation is a recorded failure, never a silent skip.
 
-Results are written as JSON (schema kodrobench.results/1); the leaderboard is
+Results are written as JSON (schema kodrobench.results/2); the leaderboard is
 GENERATED from that JSON (generate_leaderboard), never typed by hand, so a
 number in the docs always traces to a run.
 
     python -m robolearn.kodrobench --models deterministic,llama3.2:3b --seeds 10 --json results.json
+    python -m robolearn.kodrobench --models llama3.2:3b --samples 5 --k 1 --json out.json
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from robolearn import rover_api
 from robolearn.bench import run_batch
 from robolearn.grounding import check_grounding
 
-RESULTS_SCHEMA = "kodrobench.results/1"
+# v2 adds: per-task train/heldout split (dev_/heldout_ aggregates, free -- no
+# extra generation) and an optional pass@k block (robolearn.kodrobench.pass_at_k,
+# Chen et al. 2021) when --samples > 1 draws independent generations per task.
+RESULTS_SCHEMA = "kodrobench.results/2"
 
 _FULL = frozenset(rover_api.__all__)
 _NO_DISTANCE = _FULL - {"read_distance", "obstacle_ahead", "sample_detected", "scan"}
@@ -46,17 +57,25 @@ _NO_ARM = _FULL - {"collect_sample", "drop_sample"}
 
 @dataclass(frozen=True, slots=True)
 class Task:
-    """One grounded-control task: an instruction plus the build's command set."""
+    """One grounded-control task: an instruction plus the build's command set.
+
+    ``split`` marks whether the task is used during iteration ("dev") or kept
+    aside as a held-out check ("heldout"). With only 5 tasks in v0.1 this is a
+    MECHANISM, not yet a rigorous held-out claim: growing the suite toward 20 to
+    50 tasks (research item 7) is what makes the split meaningful at scale.
+    """
 
     id: str
     instruction: str
     fitted: frozenset[str]
     min_distance: float = 0.5
+    split: Literal["dev", "heldout"] = "dev"
 
 
-# v0.1 suite. The last two are ADVERSARIAL: the instruction names a command the
-# build does not expose (a distance sensor / a gripper), so a model that obeys
-# the stated command set stays grounded and one that hallucinates is caught.
+# v0.1 suite. The two ADVERSARIAL tasks (the instruction names a command the
+# build does not expose, e.g. a distance sensor or a gripper) are held out: they
+# were not looked at while iterating on the grounding metric itself, and they
+# are the tasks most likely to catch a model or a metric that over-generalises.
 TASKS: tuple[Task, ...] = (
     Task("drive_forward", "Drive the robot forward three metres in a straight line.", _FULL, 2.0),
     Task(
@@ -71,8 +90,15 @@ TASKS: tuple[Task, ...] = (
         "The robot has NO distance sensor. Drive forward one metre.",
         _NO_DISTANCE,
         0.5,
+        split="heldout",
     ),
-    Task("no_arm_collect", "The robot has NO gripper. Drive forward one metre.", _NO_ARM, 0.5),
+    Task(
+        "no_arm_collect",
+        "The robot has NO gripper. Drive forward one metre.",
+        _NO_ARM,
+        0.5,
+        split="heldout",
+    ),
 )
 
 # Deterministic floor: a grounded program per task (uses only fitted commands).
@@ -119,12 +145,44 @@ def generate_ollama(client: Any, model: str, task: Task) -> str:
     return extract_code(reply)
 
 
+def pass_at_k(n: int, c: int, k: int) -> float:
+    """Unbiased pass@k (Chen et al. 2021, HumanEval / Codex).
+
+    The probability that at least one of ``k`` samples drawn without
+    replacement from ``n`` total (of which ``c`` passed) is a pass.
+    ``P(all k drawn are failures) = C(n-c, k) / C(n, k)``, so
+    ``pass@k = 1 - C(n-c, k) / C(n, k)``. Exact (integer combinatorics), no
+    floating-point approximation.
+    """
+    if k > n:
+        raise ValueError(f"k ({k}) cannot exceed n ({n})")
+    if n - c < k:  # fewer failures than k -> any k-subset must contain a pass
+        return 1.0
+    return 1.0 - math.comb(n - c, k) / math.comb(n, k)
+
+
+def _mean(values: list[float]) -> float:
+    return round(sum(values) / len(values), 4) if values else 0.0
+
+
+def _split_aggregate(per_task: list[dict[str, Any]], split: str) -> dict[str, float]:
+    rows = [t for t in per_task if t["split"] == split]
+    if not rows:
+        return {"success_at_n": 0.0, "invention_rate": 0.0, "tasks": 0}
+    return {
+        "success_at_n": _mean([t["success_rate"] for t in rows]),
+        "invention_rate": round(sum(1 for t in rows if t["invented"]) / len(rows), 4),
+        "tasks": len(rows),
+    }
+
+
 def _evaluate_program(code: str, task: Task, seeds: int) -> dict[str, Any]:
     grounding = check_grounding(code, task.fitted)
     report = run_batch(code, seeds, min_distance=task.min_distance)
     agg = report["aggregate"]
     return {
         "task": task.id,
+        "split": task.split,
         "grounded": grounding.grounded,
         "invented": list(grounding.invented),
         "syntax_error": grounding.syntax_error is not None,
@@ -155,6 +213,7 @@ def evaluate_model(model: str, seeds: int, tasks: tuple[Task, ...] = TASKS) -> d
                 per_task.append(
                     {
                         "task": task.id,
+                        "split": task.split,
                         "grounded": False,
                         "invented": [],
                         "syntax_error": False,
@@ -170,9 +229,15 @@ def evaluate_model(model: str, seeds: int, tasks: tuple[Task, ...] = TASKS) -> d
     n = len(tasks)
     invented = sum(1 for t in per_task if t["invented"])
     syntax = sum(1 for t in per_task if t["syntax_error"])
+    dev = _split_aggregate(per_task, "dev")
+    heldout = _split_aggregate(per_task, "heldout")
     return {
         "model": model,
         "tasks": n,
+        "dev_success_at_n": dev["success_at_n"],
+        "dev_invention_rate": dev["invention_rate"],
+        "heldout_success_at_n": heldout["success_at_n"],
+        "heldout_invention_rate": heldout["invention_rate"],
         "success_at_n": round(sum(t["success_rate"] for t in per_task) / n, 4),
         "invention_rate": round(invented / n, 4),
         "syntax_error_rate": round(syntax / n, 4),
@@ -182,9 +247,76 @@ def evaluate_model(model: str, seeds: int, tasks: tuple[Task, ...] = TASKS) -> d
     }
 
 
-def run_bench(models: list[str], seeds: int) -> dict[str, Any]:
-    """Evaluate every model and build the results document."""
+def _generate_one(model: str, task: Task) -> str:
+    """One code sample for ``task``: the canned floor, or one Ollama draw."""
+    if model == "deterministic":
+        return _CANNED[task.id]
+    from robolearn.ai.ollama_client import OllamaClient
+
+    return generate_ollama(OllamaClient(), model, task)
+
+
+def evaluate_model_pass_at_k(
+    model: str, k: int, n_samples: int, seeds_per_sample: int = 5, tasks: tuple[Task, ...] = TASKS
+) -> dict[str, Any]:
+    """Draw ``n_samples`` independent generations per task and compute pass@k.
+
+    A sample "passes" when it is grounded (no invented symbols) AND succeeds on
+    at least one of ``seeds_per_sample`` domain-randomised seeds. ``n_samples``
+    independent draws give the ``(n, c)`` the unbiased :func:`pass_at_k`
+    estimator needs; a deterministic model's canned program is identical every
+    draw, so it degenerates to a plain pass/fail as expected.
+    """
+    per_task: list[dict[str, Any]] = []
+    for task in tasks:
+        passes = 0
+        for _ in range(n_samples):
+            try:
+                code = _generate_one(model, task)
+            except Exception:
+                continue
+            grounding = check_grounding(code, task.fitted)
+            report = run_batch(code, seeds_per_sample, min_distance=task.min_distance)
+            if grounding.grounded and report["aggregate"]["success_rate"] > 0.0:
+                passes += 1
+        per_task.append(
+            {
+                "task": task.id,
+                "split": task.split,
+                "n": n_samples,
+                "c": passes,
+                "pass_at_k": round(pass_at_k(n_samples, passes, k), 4),
+            }
+        )
+
+    def _mean_pass(rows: list[dict[str, Any]]) -> float:
+        return _mean([r["pass_at_k"] for r in rows])
+
+    dev_rows = [t for t in per_task if t["split"] == "dev"]
+    heldout_rows = [t for t in per_task if t["split"] == "heldout"]
+    return {
+        "model": model,
+        "k": k,
+        "n_samples": n_samples,
+        "pass_at_k": _mean_pass(per_task),
+        "dev_pass_at_k": _mean_pass(dev_rows),
+        "heldout_pass_at_k": _mean_pass(heldout_rows),
+        "per_task": per_task,
+    }
+
+
+def run_bench(models: list[str], seeds: int, *, samples: int = 1, k: int = 1) -> dict[str, Any]:
+    """Evaluate every model and build the results document.
+
+    When ``samples > 1``, also draws that many independent generations per task
+    per model and attaches a ``pass_at_k`` block (see
+    :func:`evaluate_model_pass_at_k`); omitted when ``samples == 1`` so the
+    default run stays exactly as fast as before.
+    """
     rows = [evaluate_model(m, seeds) for m in models]
+    if samples > 1:
+        for row, model in zip(rows, models, strict=True):
+            row["pass_at_k"] = evaluate_model_pass_at_k(model, k, samples)
     return {
         "schema": RESULTS_SCHEMA,
         "seeds": seeds,
@@ -196,20 +328,44 @@ def run_bench(models: list[str], seeds: int) -> dict[str, Any]:
 def generate_leaderboard(results: dict[str, Any]) -> str:
     """Render a markdown leaderboard FROM the results JSON (never hand-typed)."""
     rows = sorted(results["models"], key=lambda r: (r["invention_rate"], -r["success_at_n"]))
+    has_pass_at_k = any("pass_at_k" in r for r in rows)
     lines = [
         f"# KodroBench v0.1 leaderboard ({len(results['tasks'])} tasks, {results['seeds']} seeds)",
         "",
         "Lower invention_rate is better (program stays within the build's command "
-        "set); higher success@N is better. Generated from results JSON.",
+        "set); higher success@N is better. dev/heldout split the same task set by "
+        "whether it was visible while iterating (see robolearn.kodrobench.Task). "
+        "Generated from results JSON.",
         "",
-        "| Model | success@N | invention_rate | collision_rate | syntax_err | gen_err |",
-        "|---|---|---|---|---|---|",
+        "| Model | success@N | invention_rate | dev succ | heldout succ | dev inv | "
+        "heldout inv | collision | syntax_err | gen_err |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
         lines.append(
             f"| {r['model']} | {r['success_at_n']:.2f} | {r['invention_rate']:.2f} | "
+            f"{r['dev_success_at_n']:.2f} | {r['heldout_success_at_n']:.2f} | "
+            f"{r['dev_invention_rate']:.2f} | {r['heldout_invention_rate']:.2f} | "
             f"{r['collision_rate']:.2f} | {r['syntax_error_rate']:.2f} | {r['gen_errors']} |"
         )
+    if has_pass_at_k:
+        pk = rows[0]["pass_at_k"]["k"] if "pass_at_k" in rows[0] else None
+        ns = rows[0]["pass_at_k"]["n_samples"] if "pass_at_k" in rows[0] else None
+        lines += [
+            "",
+            f"## pass@{pk} ({ns} independent generations per task per model)",
+            "",
+            "| Model | pass@k | dev pass@k | heldout pass@k |",
+            "|---|---|---|---|",
+        ]
+        for r in rows:
+            if "pass_at_k" not in r:
+                continue
+            p = r["pass_at_k"]
+            lines.append(
+                f"| {r['model']} | {p['pass_at_k']:.2f} | {p['dev_pass_at_k']:.2f} | "
+                f"{p['heldout_pass_at_k']:.2f} |"
+            )
     return "\n".join(lines) + "\n"
 
 
@@ -225,6 +381,13 @@ def main(argv: list[str] | None = None) -> int:
         help="comma-separated model names (Ollama tags), plus 'deterministic' for the floor",
     )
     parser.add_argument("--seeds", type=int, default=10, help="domain-randomised seeds per task")
+    parser.add_argument(
+        "--samples",
+        type=int,
+        default=1,
+        help="independent generations per task; >1 also computes pass@k",
+    )
+    parser.add_argument("--k", type=int, default=1, help="k in pass@k (requires --samples >= k)")
     parser.add_argument("--json", dest="json_out", default=None, help="write results JSON here")
     parser.add_argument(
         "--leaderboard", default=None, help="write the generated leaderboard.md here"
@@ -232,7 +395,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     models = [m.strip() for m in args.models.split(",") if m.strip()]
-    results = run_bench(models, args.seeds)
+    results = run_bench(models, args.seeds, samples=args.samples, k=args.k)
     if args.json_out:
         Path(args.json_out).write_text(json.dumps(results, indent=2) + "\n", encoding="utf-8")
     board = generate_leaderboard(results)
