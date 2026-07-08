@@ -12,6 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const crypto = require('crypto');
 
 const WEB = path.join(__dirname, '..', 'src', 'robolearn', 'assets', 'web');
 // Entries ending in '.js' are plain-JS modules (no JSX) bundled verbatim in
@@ -74,6 +75,7 @@ function emitStaticSite() {
   }
   fs.rmSync(SITE, { recursive: true, force: true });
   fs.cpSync(WEB, SITE, { recursive: true, filter: keep });
+  stampServiceWorker(SITE);
   let files = 0;
   (function count(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -82,6 +84,31 @@ function emitStaticSite() {
     }
   })(SITE);
   console.log('wrote static site/ (' + files + ' files) at ' + SITE);
+}
+
+// Stamp the emitted service worker's cache name with a short content hash of the
+// shipped bundle. The SOURCE sw.js keeps a stable 'kodro-shell-v1' placeholder
+// (clean diffs, no churn in the bundle freshness check); only this site copy is
+// stamped. A changed bundle => changed hash => changed sw.js bytes => the browser
+// installs the new SW, precaches the new shell, and drops the old cache on
+// activate -- so returning visitors stop being pinned to the first shell they
+// ever loaded. Deploys that touch only index.html/lessons.json are still picked
+// up because those are served network-first (see sw.js).
+function stampServiceWorker(siteDir) {
+  const swPath = path.join(siteDir, 'sw.js');
+  const bundleFile = path.join(siteDir, 'bundle.js');
+  if (!fs.existsSync(swPath) || !fs.existsSync(bundleFile)) return;
+  const hash = crypto.createHash('sha256')
+    .update(fs.readFileSync(bundleFile))
+    .digest('hex')
+    .slice(0, 12);
+  const sw = fs.readFileSync(swPath, 'utf8');
+  const stamped = sw.replace(/kodro-shell-v\d+/, 'kodro-shell-' + hash);
+  if (stamped === sw) {
+    throw new Error('stampServiceWorker: no kodro-shell-vN token found in site/sw.js');
+  }
+  fs.writeFileSync(swPath, stamped);
+  console.log('stamped site/sw.js cache -> kodro-shell-' + hash);
 }
 
 const bundlePath = path.join(WEB, 'bundle.js');

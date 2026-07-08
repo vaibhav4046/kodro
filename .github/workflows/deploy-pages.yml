@@ -1,10 +1,16 @@
 name: Deploy Pages
 
-# Publishes the zero-install Kodro Web static build to GitHub Pages on every
-# push to main. Free tier, public repo. The build is the same
-# `build_web.cjs --static` used locally; nothing here needs a secret.
+# Publishes the zero-install Kodro Web static build to GitHub Pages. The build
+# is the same `build_web.cjs --static` used locally; nothing here needs a secret.
+#
+# GATED ON CI: instead of firing on every push to main (which would ship even a
+# red build), this runs AFTER the CI workflow finishes on main and only proceeds
+# when CI concluded success. A manual workflow_dispatch is always allowed as an
+# escape hatch. Pages enablement is unchanged.
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -21,8 +27,15 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # workflow_dispatch has no workflow_run payload (conclusion is empty), so it
+    # passes; a workflow_run only proceeds when CI on main went green.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Deploy exactly the commit CI validated (workflow_run), or the current
+          # ref for a manual run.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: '20'

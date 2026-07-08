@@ -16260,9 +16260,6 @@ Object.assign(window, {
     }, []);
     const step = STEPS[i];
     const res = results[i];
-    const toneColor = function (t) {
-      return t === 'err' ? 'var(--danger)' : t === 'warn' ? 'var(--warning)' : 'var(--cyan)';
-    };
     function doRun() {
       let out;
       try {
@@ -16278,16 +16275,7 @@ Object.assign(window, {
       }));
     }
     return React.createElement('div', {
-      style: {
-        position: 'fixed',
-        inset: 0,
-        zIndex: 4200,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'radial-gradient(120% 120% at 50% 0%,#101726cc 0%,#070a12ee 70%)',
-        padding: 28
-      },
+      className: 'modal-backdrop demo-backdrop',
       onClick: function () {
         return props.onClose && props.onClose();
       }
@@ -16295,136 +16283,53 @@ Object.assign(window, {
     // className 'modal' + role/aria-modal is the exact contract app.jsx's focus
     // trap keys on (it selects '.modal[aria-modal="true"]'), so opening the demo
     // moves focus into this dialog and confines Tab to it, like every other modal.
-    // The inline styles fully own the layout/colour; the shared class only adds
-    // the entrance animation (which honours prefers-reduced-motion).
+    // All styling now lives in styles.css (.demo-* + reused .modal / .ctrl), so
+    // the tour repaints with every theme and inherits the shared hover, focus
+    // and disabled states; .modal also carries the reduced-motion-safe entrance.
     React.createElement('div', {
-      className: 'modal',
+      className: 'modal demo-modal',
       role: 'dialog',
       'aria-modal': 'true',
       'aria-label': 'Realism demo',
-      style: {
-        width: 'min(640px,100%)',
-        background: 'var(--navy)',
-        border: '1.5px solid var(--border)',
-        borderRadius: 18,
-        padding: 26,
-        color: 'var(--fg-1)',
-        boxShadow: '0 30px 80px -30px #000'
-      },
       onClick: function (e) {
         e.stopPropagation();
       }
     }, React.createElement('div', {
-      style: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 6
-      }
+      className: 'demo-head'
     }, React.createElement('span', {
-      style: {
-        fontSize: 12,
-        fontWeight: 800,
-        letterSpacing: '0.08em',
-        textTransform: 'uppercase',
-        color: 'var(--cyan)'
-      }
+      className: 'demo-eyebrow'
     }, 'Kodro Realism Demo'), React.createElement('span', {
-      style: {
-        fontSize: 12,
-        color: 'var(--fg-3)'
-      }
+      className: 'demo-count'
     }, 'Step ' + (i + 1) + ' of ' + STEPS.length)), React.createElement('h2', {
-      style: {
-        fontSize: 24,
-        fontWeight: 720,
-        margin: '6px 0 8px',
-        letterSpacing: '-0.02em'
-      }
+      className: 'demo-title'
     }, step.title), React.createElement('p', {
-      style: {
-        color: 'var(--fg-2)',
-        fontSize: 14,
-        lineHeight: 1.55,
-        margin: '0 0 16px'
-      }
+      className: 'demo-blurb'
     }, step.blurb), React.createElement('button', {
-      style: {
-        appearance: 'none',
-        border: 0,
-        cursor: 'pointer',
-        fontWeight: 650,
-        borderRadius: 11,
-        padding: '11px 22px',
-        background: 'var(--cyan)',
-        color: 'var(--void)',
-        fontSize: 14
-      },
+      type: 'button',
+      className: 'ctrl ctrl-run',
       onClick: doRun
     }, step.action), res && React.createElement('div', {
-      style: {
-        marginTop: 16,
-        padding: '13px 15px',
-        background: 'var(--navy-2)',
-        border: '1.5px solid color-mix(in srgb, ' + toneColor(res.tone) + ' 33%, transparent)',
-        borderRadius: 12,
-        fontSize: 13.5,
-        lineHeight: 1.5,
-        color: 'var(--fg-1)'
-      }
+      className: 'demo-result tone-' + res.tone
     }, res.text), React.createElement('div', {
-      style: {
-        display: 'flex',
-        gap: 10,
-        justifyContent: 'space-between',
-        marginTop: 22
-      }
+      className: 'demo-foot'
     }, React.createElement('button', {
-      style: {
-        appearance: 'none',
-        border: '1px solid var(--border)',
-        background: 'transparent',
-        color: 'var(--fg-2)',
-        cursor: 'pointer',
-        borderRadius: 11,
-        padding: '10px 18px',
-        font: 'inherit'
-      },
+      type: 'button',
+      className: 'ctrl',
       onClick: function () {
         return props.onClose && props.onClose();
       }
     }, 'Close'), React.createElement('div', {
-      style: {
-        display: 'flex',
-        gap: 10
-      }
+      className: 'demo-nav'
     }, i > 0 && React.createElement('button', {
-      style: {
-        appearance: 'none',
-        border: '1px solid var(--border)',
-        background: 'transparent',
-        color: 'var(--fg-2)',
-        cursor: 'pointer',
-        borderRadius: 11,
-        padding: '10px 18px',
-        font: 'inherit'
-      },
+      type: 'button',
+      className: 'ctrl',
       onClick: function () {
         setResults({});
         setI(i - 1);
       }
     }, 'Back'), i < STEPS.length - 1 ? React.createElement('button', {
-      style: {
-        appearance: 'none',
-        border: 0,
-        background: res ? 'var(--cyan)' : 'var(--navy-3)',
-        color: res ? 'var(--void)' : 'var(--fg-3)',
-        cursor: res ? 'pointer' : 'not-allowed',
-        borderRadius: 11,
-        padding: '10px 20px',
-        fontWeight: 650,
-        font: 'inherit'
-      },
+      type: 'button',
+      className: 'ctrl ctrl-run',
       disabled: !res,
       onClick: function () {
         if (res) {
@@ -16433,17 +16338,8 @@ Object.assign(window, {
         }
       }
     }, 'Next') : React.createElement('button', {
-      style: {
-        appearance: 'none',
-        border: 0,
-        background: 'var(--cyan)',
-        color: 'var(--void)',
-        cursor: 'pointer',
-        borderRadius: 11,
-        padding: '10px 20px',
-        fontWeight: 650,
-        font: 'inherit'
-      },
+      type: 'button',
+      className: 'ctrl ctrl-run',
       onClick: function () {
         return props.onClose && props.onClose();
       }
@@ -16529,14 +16425,18 @@ Object.assign(window, {
   /* Starfield + faint orbital lines, painted CSS-only behind everything. */
   .konb-root::before{
     content:''; position:absolute; inset:0; pointer-events:none; z-index:0; opacity:0.6;
+    /* Stars use --fg-2 (the theme's secondary text colour), which is light on
+       dark themes and dark on light themes, so the field stays visible on every
+       theme instead of the old paper-white dots vanishing on light backgrounds.
+       Cyan and brass accents keep their tokens. */
     background-image:
-      radial-gradient(1px 1px at 18% 24%, rgba(245,240,228,0.7), transparent),
-      radial-gradient(1px 1px at 67% 14%, rgba(245,240,228,0.5), transparent),
-      radial-gradient(1.4px 1.4px at 41% 62%, rgba(245,240,228,0.55), transparent),
-      radial-gradient(1px 1px at 88% 48%, rgba(92,224,216,0.6), transparent),
-      radial-gradient(1px 1px at 12% 78%, rgba(245,240,228,0.45), transparent),
-      radial-gradient(1.2px 1.2px at 74% 82%, rgba(245,240,228,0.4), transparent),
-      radial-gradient(1px 1px at 54% 32%, rgba(201,168,106,0.5), transparent);
+      radial-gradient(1px 1px at 18% 24%, color-mix(in srgb, var(--fg-2) 70%, transparent), transparent),
+      radial-gradient(1px 1px at 67% 14%, color-mix(in srgb, var(--fg-2) 50%, transparent), transparent),
+      radial-gradient(1.4px 1.4px at 41% 62%, color-mix(in srgb, var(--fg-2) 55%, transparent), transparent),
+      radial-gradient(1px 1px at 88% 48%, color-mix(in srgb, var(--cyan) 60%, transparent), transparent),
+      radial-gradient(1px 1px at 12% 78%, color-mix(in srgb, var(--fg-2) 45%, transparent), transparent),
+      radial-gradient(1.2px 1.2px at 74% 82%, color-mix(in srgb, var(--fg-2) 40%, transparent), transparent),
+      radial-gradient(1px 1px at 54% 32%, color-mix(in srgb, var(--brass) 50%, transparent), transparent);
     background-repeat:no-repeat;
   }
   /* Fine grain over the whole panel for atmosphere (matches studio .grain). */
@@ -16561,7 +16461,7 @@ Object.assign(window, {
   .konb-wordmark .wm-sub{ font-family:var(--font-mono); font-size:8.5px; letter-spacing:.26em; text-transform:uppercase; color:var(--fg-3); margin-top:3px; }
   .konb-skip{ background:none; border:1px solid var(--border); color:var(--fg-2);
     font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
-    border-radius:5px; padding:9px 14px; cursor:pointer; transition:all 160ms var(--ease); }
+    border-radius:var(--radius-sm); padding:9px 14px; cursor:pointer; transition:all 160ms var(--ease); }
   .konb-skip:hover{ color:var(--fg-1); border-color:var(--fg-3); background:rgba(245,240,228,.04); }
 
   .konb-body{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(24px,5vh,56px) 0 8px; }
@@ -16592,7 +16492,7 @@ Object.assign(window, {
   .konb-caps li{
     font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; color:var(--fg-2);
     border:0.5px solid var(--border); border-left:2px solid var(--brass);
-    border-radius:5px; padding:6px 11px; background:rgba(245,240,228,.02);
+    border-radius:var(--radius-sm); padding:6px 11px; background:rgba(245,240,228,.02);
   }
   .konb-caps li:last-child{ border-left-color:var(--cyan); color:var(--cyan); }
 
@@ -16619,13 +16519,13 @@ Object.assign(window, {
   .konb-steps{ display:flex; gap:7px; align-items:center; margin:34px 0 0; }
   .konb-dot{ width:7px; height:7px; border-radius:99px; background:var(--ink-2); transition:all .25s var(--ease); }
   .konb-dot.done{ background:var(--cyan-deep); }
-  .konb-dot.on{ width:24px; border-radius:4px; background:var(--cyan); }
+  .konb-dot.on{ width:24px; border-radius:var(--radius-sm); background:var(--cyan); }
   .konb-progress{ font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; color:var(--fg-3); text-transform:uppercase; margin-left:6px; }
 
   .konb-actions{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:30px 0 0; }
   .konb-btn{
     appearance:none; cursor:pointer; font-family:var(--font-body); font-weight:600; font-size:14px;
-    display:inline-flex; align-items:center; gap:9px; min-height:46px; padding:0 24px; border-radius:6px;
+    display:inline-flex; align-items:center; gap:9px; min-height:46px; padding:0 24px; border-radius:var(--radius-md);
     border:1px solid var(--border); background:transparent; color:var(--fg-1);
     transition:transform 120ms var(--ease), background 180ms var(--ease), border-color 180ms var(--ease), box-shadow 180ms var(--ease);
   }
@@ -16648,7 +16548,7 @@ Object.assign(window, {
   .konb-agent{ margin:26px 0 0; }
   .konb-agent-row{ display:flex; gap:9px; align-items:stretch; }
   .konb-agent-input{
-    flex:1; min-width:0; background:var(--void); border:1px solid var(--border); border-radius:6px;
+    flex:1; min-width:0; background:var(--void); border:1px solid var(--border); border-radius:var(--radius-md);
     color:var(--fg-1); font-family:var(--font-body); font-size:14.5px; padding:0 15px; min-height:46px; outline:none;
     transition:border-color 160ms var(--ease), box-shadow 160ms var(--ease);
   }
@@ -16664,7 +16564,7 @@ Object.assign(window, {
   .konb-tile{
     grid-column:span 2; text-align:left; cursor:pointer; color:inherit; font:inherit; min-height:44px;
     background:linear-gradient(180deg, var(--navy-2), var(--navy));
-    border:1px solid var(--border); border-radius:10px; padding:15px 16px;
+    border:1px solid var(--border); border-radius:var(--radius-lg); padding:15px 16px;
     transition:transform 140ms var(--ease), border-color 160ms var(--ease), box-shadow 160ms var(--ease);
   }
   .konb-tile:hover{ transform:translateY(-2px); border-color:rgba(92,224,216,.4); box-shadow:0 16px 34px -22px rgba(0,0,0,.8); }
@@ -16680,11 +16580,11 @@ Object.assign(window, {
   .konb-rec{
     display:flex; gap:20px; align-items:center; margin:24px 0 0; padding:22px 24px;
     background:linear-gradient(180deg, var(--navy-2), var(--navy));
-    border:1px solid var(--border); border-radius:12px;
+    border:1px solid var(--border); border-radius:var(--radius-lg);
     box-shadow:0 24px 60px -30px rgba(0,0,0,.8);
   }
   .konb-rec .rec-badge{
-    flex:none; width:74px; height:74px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:38px;
+    flex:none; width:74px; height:74px; border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; font-size:38px;
     background:radial-gradient(circle at 36% 28%, var(--navy-3), var(--void) 78%);
     border:0.5px solid var(--border);
   }
@@ -16732,7 +16632,7 @@ Object.assign(window, {
 
   /* Visible keyboard focus on every control (AA). */
   .konb-root button:focus-visible, .konb-root input:focus-visible, .konb-root [tabindex]:focus-visible{
-    outline:3px solid var(--cyan); outline-offset:2px; border-radius:6px;
+    outline:3px solid var(--cyan); outline-offset:2px; border-radius:var(--radius-md);
   }
 
   /* Full reduced-motion path: no entry, no orbit, no transitions. */
@@ -17362,6 +17262,34 @@ Object.assign(window, {
     if (!LOCAL_RE.test(url)) throw new Error('refusing non-local URL (offline): ' + url);
     return url;
   }
+
+  // Time budgets for the local fetches. Generation can pay a 10 to 30s cold
+  // model load, so it gets a generous cap; listing installed models is a quick
+  // metadata call, so it gets a short one. Both stop an unreachable or stuck
+  // Ollama from hanging the UI forever.
+  const GEN_TIMEOUT_MS = 120000;
+  const TAGS_TIMEOUT_MS = 8000;
+
+  // Wrap a non-streamed fetch in an AbortController plus timer so a stuck or
+  // cold-loading model cannot hang forever. The timer is cleared on success and
+  // on failure, and an aborted request surfaces one clear, honest error.
+  function fetchTimeout(url, options, ms) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(function () {
+      ctrl.abort();
+    }, ms);
+    const opts = Object.assign({}, options || {}, {
+      signal: ctrl.signal
+    });
+    return fetch(url, opts).then(function (r) {
+      clearTimeout(timer);
+      return r;
+    }, function (e) {
+      clearTimeout(timer);
+      if (e && e.name === 'AbortError') throw new Error('the model took too long, it may still be loading, try again');
+      throw e;
+    });
+  }
   function bridge() {
     return typeof window !== 'undefined' && window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() ? window.RoboLearn : null;
   }
@@ -17372,9 +17300,9 @@ Object.assign(window, {
     void e;
   }
   async function tags() {
-    const r = await fetch(localOnly(OLLAMA + '/api/tags'), {
+    const r = await fetchTimeout(localOnly(OLLAMA + '/api/tags'), {
       method: 'GET'
-    });
+    }, TAGS_TIMEOUT_MS);
     if (!r.ok) throw new Error('tags ' + r.status);
     const j = await r.json();
     return (j.models || []).map(function (m) {
@@ -17423,13 +17351,13 @@ Object.assign(window, {
       }
     };
     if (opts.system) body.system = opts.system;
-    const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
+    const r = await fetchTimeout(localOnly(OLLAMA + '/api/generate'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
-    });
+    }, GEN_TIMEOUT_MS);
     if (!r.ok) throw new Error('generate ' + r.status);
     const j = await r.json();
     return (j.response || '').trim();
@@ -17445,13 +17373,29 @@ Object.assign(window, {
     return t.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
   }
 
+  // The command surface depends on the parts fitted to the CURRENT robot, so
+  // ground the reviewer and the grounded Ask in the same fitted-command list the
+  // vibe chat uses (hooks.jsx unshifts KodroCommands.groundingText into the chat
+  // history). Guarded so a missing global just degrades to no prefix.
+  function grounding() {
+    try {
+      if (typeof window !== 'undefined' && window.KodroCommands && window.KodroCommands.groundingText && window.getKodroRobot) {
+        const g = window.KodroCommands.groundingText(window.getKodroRobot());
+        if (g) return g + '\n\n';
+      }
+    } catch (e) {
+      void e;
+    }
+    return '';
+  }
+
   // The CANONICAL robot API is bare, metre-based function calls. rover.*(...)
   // still runs as a deprecated centimetre-based compatibility alias, but the
   // model must not use it: mixing the two dialects in one program is a 100x
   // unit trap. The prompt is explicit, the output is gated, and normalizeApi
   // below converts stray rover.forward(cm) into the equivalent bare METRE
   // call (value included) so a rewrite never silently changes distances.
-  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. A turn is 90 degrees for a right angle, 180 to face back. A beep is beep(1). A wait is wait(1) for one second. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.\n\nExamples of correct code:\n# Example 1: move forward 3m, turn right 90, then move 2m\nmove_forward(3)\nturn_right(90)\nmove_forward(2)\n\n# Example 2: draw a square of side 2m\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n\n# Example 3: drive forward until close to a wall\nwhile distance() > 40:\n    move_forward(1)';
+  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). distance() returns CENTIMETRES to the nearest wall (0 to 4000); to stop near a wall loop while distance() > 40 and move a small step inside. NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. A turn is 90 degrees for a right angle, 180 to face back. A beep is beep(1). A wait is wait(1) for one second. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.\n\nExamples of correct code:\n# Example 1: move forward 3m, turn right 90, then move 2m\nmove_forward(3)\nturn_right(90)\nmove_forward(2)\n\n# Example 2: draw a square of side 2m\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n\n# Example 3: drive forward until close to a wall\nwhile distance() > 40:\n    move_forward(1)';
 
   // The fine-tuned model strongly prefers object-method style (rover.move_forward,
   // rover.forward, rover.right) which the interpreter's bare-function surface does
@@ -17572,13 +17516,13 @@ Object.assign(window, {
       } catch (e) {
         return {
           ok: false,
-          reason: 'Ollama is not running. Start the Ollama app, or connect a cloud model in Settings.'
+          reason: 'Ollama is not running. Start the Ollama app, or connect a cloud key in the Vibe panel.'
         };
       }
       model = pick(models);
       if (!model) return {
         ok: false,
-        reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b), or connect a cloud model in Settings.'
+        reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b), or connect a cloud key in the Vibe panel.'
       };
     }
     // Evict finished/orphaned jobs so a cancelled chat (whose poller stopped
@@ -17609,51 +17553,68 @@ Object.assign(window, {
             temperature: 0.3
           }, model);
         } else {
-          const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              model: model,
-              prompt: prompt,
-              system: sys,
-              stream: true,
-              keep_alive: '30m',
-              options: {
-                temperature: 0.3,
-                num_predict: 400
-              }
-            })
-          });
-          if (!r.ok || !r.body) throw new Error('generate ' + (r && r.status));
-          const reader = r.body.getReader();
-          const dec = new TextDecoder();
-          let buf = '';
-          for (;;) {
-            const out = await reader.read();
-            if (out.done) break;
-            buf += dec.decode(out.value, {
-              stream: true
+          // Streamed generation: the AbortController guards the WHOLE read, not
+          // just the initial response, so a model that stalls mid-stream (or
+          // never produces a first token) is cut off with a clear error instead
+          // of hanging the panel. The timer is cleared once the stream ends.
+          const ctrl = new AbortController();
+          const timer = setTimeout(function () {
+            ctrl.abort();
+          }, GEN_TIMEOUT_MS);
+          try {
+            const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                model: model,
+                prompt: prompt,
+                system: sys,
+                stream: true,
+                keep_alive: '30m',
+                options: {
+                  temperature: 0.3,
+                  num_predict: 400
+                }
+              }),
+              signal: ctrl.signal
             });
-            let nl;
-            while ((nl = buf.indexOf('\n')) >= 0) {
-              const line = buf.slice(0, nl).trim();
-              buf = buf.slice(nl + 1);
-              if (!line) continue;
-              try {
-                const c = JSON.parse(line);
-                if (c.response) job.text += c.response;
-              } catch (e) {
-                void e;
+            if (!r.ok || !r.body) throw new Error('generate ' + (r && r.status));
+            const reader = r.body.getReader();
+            const dec = new TextDecoder();
+            let buf = '';
+            for (;;) {
+              const out = await reader.read();
+              if (out.done) break;
+              buf += dec.decode(out.value, {
+                stream: true
+              });
+              let nl;
+              while ((nl = buf.indexOf('\n')) >= 0) {
+                const line = buf.slice(0, nl).trim();
+                buf = buf.slice(nl + 1);
+                if (!line) continue;
+                try {
+                  const c = JSON.parse(line);
+                  if (c.response) job.text += c.response;
+                } catch (e) {
+                  void e;
+                }
               }
             }
+          } catch (eStream) {
+            if (eStream && eStream.name === 'AbortError') throw new Error('the model took too long, it may still be loading, try again');
+            throw eStream;
+          } finally {
+            clearTimeout(timer);
           }
         }
         const full = job.text.trim();
         if (looksLikeCode(full)) {
           let code = normalizeApi(extractCode(full));
           const v = validate(code);
+          let validated = v.ok;
           if (!v.ok) {
             // One repair round, feeding the real interpreter error back, so the
             // browser ships code that actually runs (mirrors the desktop gate).
@@ -17664,18 +17625,37 @@ Object.assign(window, {
                 temperature: 0.2
               });
               const fixed = normalizeApi(extractCode(fix));
-              if (fixed && validate(fixed).ok) code = fixed;
+              if (fixed && validate(fixed).ok) {
+                code = fixed;
+                validated = true;
+              }
             } catch (e2) {
               void e2;
             }
           }
-          job.result = {
-            ok: true,
-            done: true,
-            type: 'code',
-            code: code,
-            model: model
-          };
+          if (validated) {
+            job.result = {
+              ok: true,
+              done: true,
+              type: 'code',
+              code: code,
+              model: model
+            };
+          } else {
+            // Both the self-test and the single repair round failed. Ship the
+            // code so the user is not blocked, but mark it so the UI can warn
+            // honestly instead of presenting known-broken code as OK. Keep the
+            // original interpreter error (v.error) for the warning to display.
+            job.result = {
+              ok: true,
+              done: true,
+              type: 'code',
+              code: code,
+              model: model,
+              validated: false,
+              validationError: v.error
+            };
+          }
         } else {
           job.result = {
             ok: true,
@@ -17773,12 +17753,41 @@ Object.assign(window, {
         source: 'browser'
       };
     } catch (e) {
+      void e;
+      // tags() failed. The two ways this happens read very differently to the
+      // user, so tell them apart. On a hosted page (an http origin that is NOT
+      // localhost) the browser blocks the request to the local Ollama server by
+      // CORS: Ollama is likely running, it just refuses this origin. On a local
+      // origin (localhost, 127.0.0.1, or a file:// page) the request is allowed,
+      // so a failure means Ollama is not running. The hint carries the exact,
+      // copy-pasteable fix, with the real origin computed at runtime.
+      let origin = '';
+      try {
+        origin = typeof window !== 'undefined' && window.location && window.location.origin || '';
+      } catch (er) {
+        void er;
+      }
+      const httpOrigin = /^https?:\/\//i.test(origin);
+      const localHost = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(origin);
+      if (httpOrigin && !localHost) {
+        return {
+          available: false,
+          model: null,
+          models: [],
+          override: override,
+          source: 'browser',
+          reason: 'blocked-origin',
+          hint: 'Your browser blocked the local AI. Start Ollama allowing this page: set OLLAMA_ORIGINS=' + origin + ' then run ollama serve. Or use the desktop app, or connect a cloud key below.'
+        };
+      }
       return {
         available: false,
         model: null,
         models: [],
         override: override,
-        source: 'browser'
+        source: 'browser',
+        reason: 'not-running',
+        hint: 'Ollama is not running. Start the Ollama app (or run: ollama serve), then reopen this panel.'
       };
     }
   }
@@ -17811,16 +17820,16 @@ Object.assign(window, {
       } catch (e) {
         return {
           ok: false,
-          reason: 'Ollama is not running (or connect a cloud model in Settings).'
+          reason: 'Ollama is not running (or connect a cloud key in the Vibe panel).'
         };
       }
       model = pick(models);
       if (!model) return {
         ok: false,
-        reason: 'Ollama has no models (or connect a cloud model in Settings).'
+        reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).'
       };
     }
-    const sys = 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
+    const sys = grounding() + 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
     try {
       const out = await genOnce(model, 'Review and tidy this rover program:\n\n' + src, {
         system: sys,
@@ -17868,20 +17877,20 @@ Object.assign(window, {
       } catch (e) {
         return {
           ok: false,
-          reason: 'Ollama is not running (or connect a cloud model in Settings).'
+          reason: 'Ollama is not running (or connect a cloud key in the Vibe panel).'
         };
       }
       model = pick(models);
       if (!model) return {
         ok: false,
-        reason: 'Ollama has no models (or connect a cloud model in Settings).'
+        reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).'
       };
     }
     // Browser mode has no lesson corpus to ground against (the desktop bridge
     // does the retrieval), so constrain the model to Kodro's real commands and
     // make it refuse rather than invent, and mark the answer ungrounded so the
     // UI does not claim it came from the built-in material.
-    const sys = 'You are Kodro\'s offline assistant for a simulated robot. Answer briefly and concretely, only about Kodro\'s actual robot commands and features. If the question is outside that or you are not sure, say you are not sure rather than inventing a command or capability.';
+    const sys = grounding() + 'You are Kodro\'s offline assistant for a simulated robot. Answer briefly and concretely, only about Kodro\'s actual robot commands and features. If the question is outside that or you are not sure, say you are not sure rather than inventing a command or capability.';
     try {
       const text = await genOnce(model, query, {
         system: sys,
@@ -18389,7 +18398,9 @@ Object.assign(window, {
             role: 'ai',
             kind: 'code',
             text: r.code,
-            model: r.model
+            model: r.model,
+            validated: r.validated,
+            validationError: r.validationError
           }]);
         } else {
           setVibeError(r && r.reason || 'Generation failed.');
@@ -18439,7 +18450,17 @@ Object.assign(window, {
       setSwarmData(null);
       try {
         const r = await window.RoboLearn.swarmRun(src, currentLessonId || null, 6);
-        if (r && r.ok) setSwarmData(r);else {
+        if (r && r.ok) setSwarmData(r);
+        // Browser (static) build: swarm racing runs only on the desktop Python
+        // fleet. The bridge short-circuits BEFORE its ~5s pywebview wait and
+        // resolves an honest {unavailable:true, reason} in ~0ms, so close the
+        // modal at once and print the real reason as an informational line --
+        // NOT a 5s dead spinner followed by a generic "Swarm failed." (which
+        // read like a crash). Desktop keeps the real run/verdict path.
+        else if (r && r.unavailable) {
+          setSwarmOpen(false);
+          addConsole(r.reason, 'sys');
+        } else {
           setSwarmOpen(false);
           addConsole(r && r.reason || 'Swarm failed.', 'err');
         }
@@ -20946,6 +20967,33 @@ say("Survey done")`
   // monochrome SVG mark instead of an emoji.
   const KI = (name, cls) => window.KodroIcons ? window.KodroIcons.el(name, cls) : null;
 
+  // A model source is "local/offline" ONLY when it is the offline Ollama path
+  // (source 'local' or 'browser') or a provider the registry marks local:true.
+  // Any other source (groq, anthropic, openai, ...) is a cloud model whose
+  // prompts leave this machine and must be labelled honestly (judge HIGH-2:
+  // Groq BYOK was falsely shown as "runs on this machine").
+  function providerIsLocal(source) {
+    if (source === 'local' || source === 'browser') return true;
+    try {
+      const P = window.KodroProviders;
+      if (P && P.PROVIDERS && P.PROVIDERS[source]) return !!P.PROVIDERS[source].local;
+    } catch (e) {
+      void e;
+    }
+    return false;
+  }
+  // Short, human display name for a provider source used in the labels above.
+  function providerName(source) {
+    const NAMES = {
+      anthropic: 'Anthropic',
+      openai: 'OpenAI',
+      groq: 'Groq',
+      ollama: 'Ollama'
+    };
+    if (source && NAMES[source]) return NAMES[source];
+    return source ? source.charAt(0).toUpperCase() + source.slice(1) : 'the cloud provider';
+  }
+
   // ---- Keyboard shortcuts (Help) ----
   // Pure static content; only needs a close handler.
   function HelpModal({
@@ -21345,7 +21393,7 @@ say("Survey done")`
       role: "alert"
     }, reviewErr), reviewData && !reviewBusy && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "Reviewer: ", /*#__PURE__*/React.createElement("b", null, reviewData.model), " \xB7 ", reviewData.source === 'anthropic' || reviewData.source === 'openai' ? 'via your ' + reviewData.source + ' key' : 'runs entirely offline', "."), reviewData.issues && reviewData.issues.length > 0 ? /*#__PURE__*/React.createElement("ul", {
+    }, "Reviewer: ", /*#__PURE__*/React.createElement("b", null, reviewData.model), " \xB7 ", providerIsLocal(reviewData.source) ? 'runs entirely offline' : 'via ' + providerName(reviewData.source) + ', your code is sent to ' + providerName(reviewData.source), "."), reviewData.issues && reviewData.issues.length > 0 ? /*#__PURE__*/React.createElement("ul", {
       className: "review-issues"
     }, reviewData.issues.map((it, i) => /*#__PURE__*/React.createElement("li", {
       key: i
@@ -21355,9 +21403,11 @@ say("Survey done")`
       className: "review-rewrite"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "Suggested rewrite (checked to run safely)"), /*#__PURE__*/React.createElement("pre", {
+    }, "Suggested rewrite"), /*#__PURE__*/React.createElement("pre", {
       className: "vibe-code"
-    }, reviewData.code), /*#__PURE__*/React.createElement("div", {
+    }, reviewData.code), /*#__PURE__*/React.createElement("p", {
+      className: "vibe-hint"
+    }, "Read the diff before applying; the self-test runs when you apply."), /*#__PURE__*/React.createElement("div", {
       className: "vibe-code-actions"
     }, /*#__PURE__*/React.createElement("button", {
       className: "ctrl ctrl-run",
@@ -21390,7 +21440,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, KI('ask'), "Ask. ", askData && (askData.source === 'anthropic' || askData.source === 'openai') ? 'Answered by your ' + askData.source + ' cloud model' : askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Answers come from the built-in lesson notes when they cover it'), /*#__PURE__*/React.createElement("button", {
+    }, KI('ask'), "Ask. ", askData && !providerIsLocal(askData.source) ? 'Answered by ' + providerName(askData.source) + ' (your key); your question is sent to ' + providerName(askData.source) : askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Answers come from the built-in lesson notes when they cover it'), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setAskOpen(false)
@@ -21773,11 +21823,11 @@ say("Survey done")`
       }
     }, "\u2715")), /*#__PURE__*/React.createElement(ProviderPicker, null), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
-    }, aiInfo.source === 'anthropic' || aiInfo.source === 'openai' ? /*#__PURE__*/React.createElement("p", {
+    }, providerIsLocal(aiInfo.source) ? /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "Cloud model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 via your ", aiInfo.source, " key, your prompt is sent only to that provider.") : /*#__PURE__*/React.createElement("p", {
+    }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it.") : /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it."), ctxChip, aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
+    }, "Cloud model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 via ", providerName(aiInfo.source), ", your prompt is sent to ", providerName(aiInfo.source), "."), ctxChip, aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -21819,7 +21869,10 @@ say("Survey done")`
     }, "Chat with the AI like a coding partner. It may ask a question first, e.g. try ", /*#__PURE__*/React.createElement("i", null, "\"explore the field\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"draw a star\""), "."), vibeMsgs.map((m, i) => m.kind === 'code' ? /*#__PURE__*/React.createElement("div", {
       key: i,
       className: "vibe-msg ai code"
-    }, /*#__PURE__*/React.createElement("pre", {
+    }, m.validated === false && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-error",
+      role: "alert"
+    }, "This did not pass Kodro's self-test: ", m.validationError || 'unknown error', ". You can still apply it, but it may not run."), /*#__PURE__*/React.createElement("pre", {
       className: "vibe-code"
     }, m.text), /*#__PURE__*/React.createElement("div", {
       className: "vibe-code-actions"
@@ -21871,11 +21924,13 @@ say("Survey done")`
       className: "vibe-hint"
     }, "Apply types the code into the editor. Nothing runs until you press Run.")) : /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
-    }, /*#__PURE__*/React.createElement("p", {
+    }, aiInfo.hint ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, aiInfo.hint), ctxChip) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
     }, "AI is offline. Vibe coding uses a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account):"), ctxChip, /*#__PURE__*/React.createElement("ol", {
       className: "vibe-steps"
-    }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. This panel lights up automatically")))));
+    }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. This panel lights up automatically"))))));
   }
 
   // ---- Blocks (visual block editor) ----
@@ -22090,6 +22145,30 @@ say("Survey done")`
       return null;
     }
   }
+
+  // ---------------- drive-capability helpers (shared) ----------------
+  // ONE definition of "can this build drive?" and "does this tab's starter
+  // drive?", used by BOTH the activeTab initialiser (reload path) and the
+  // kodro-robot handler (fresh pick) so the two can never disagree about when
+  // to rescue a fixed-base build off a drive starter it physically cannot run.
+  //
+  // A build can drive only if it fits a locomotion actuator; this mirrors
+  // RobotLab's DRIVE_ACTUATORS. A fixed-base arm fits only a gripper, so it
+  // cannot drive and every move_forward/turn starter refuses on the first Run.
+  const DRIVE_ACTUATORS = ['motors2', 'motors4', 'servos'];
+  function canDrive(robot) {
+    const acts = robot && robot.actuators || [];
+    return DRIVE_ACTUATORS.some(a => acts.indexOf(a) >= 0);
+  }
+  // A tab "needs drive" when its starter program calls one of the four
+  // locomotion verbs; read straight off the starter source so the set stays
+  // correct as examples are added (the systems-check starter uses none, so it
+  // runs clean on any build). An unknown tab is treated as not needing drive.
+  function tabNeedsDrive(tabKey) {
+    const ex = EXAMPLES[tabKey];
+    const code = ex && ex.code || '';
+    return /\b(?:move_forward|move_backward|turn_left|turn_right)\s*\(/.test(code);
+  }
   function App() {
     const [terrainId, setTerrainId] = useState(() => {
       const saved = lsGet('or_terrain');
@@ -22107,7 +22186,22 @@ say("Survey done")`
     });
     const [activeTab, setActiveTab] = useState(() => {
       const saved = lsGet('or_tab');
-      if (saved) return saved;
+      if (saved) {
+        // Re-validate the persisted tab against the SAVED build. or_tab is
+        // written on first mount (a fresh session lands on 'drive'), so a user
+        // who later switched to a fixed-base build would otherwise be pinned to
+        // a drive starter that refuses on every Run -- the fresh-load rescue
+        // below is short-circuited by this saved value. If the saved tab's
+        // starter drives but the current build cannot, fall to the sensor-free
+        // systems-check starter, which runs clean on any build.
+        try {
+          const rb = window.getKodroRobot && window.getKodroRobot();
+          if (rb && !canDrive(rb) && tabNeedsDrive(saved)) return 'systems';
+        } catch (e) {
+          void e;
+        }
+        return saved;
+      }
       // Fresh load: show a starter the CURRENT build can actually run on the
       // first press of Run. Wheeled builds get the drive patrol; a fixed-base
       // build with no drive actuator (e.g. the arm) gets the sensor-free
@@ -22116,9 +22210,7 @@ say("Survey done")`
       // arm cannot drive" refusal on the very first run.
       try {
         const rb = window.getKodroRobot && window.getKodroRobot();
-        const acts = rb && rb.actuators || [];
-        const canDrive = ['motors2', 'motors4', 'servos'].some(a => acts.indexOf(a) >= 0);
-        if (rb && !canDrive) return 'systems';
+        if (rb && !canDrive(rb)) return 'systems';
       } catch (e) {
         void e;
       }
@@ -22650,13 +22742,24 @@ say("Survey done")`
             void err;
           }
         }
-        // If the freshly chosen build cannot range (no ultrasonic), a
-        // distance-based example would fail on the first Run with a gating
-        // refusal. Move off it to the base-command 'starter' so the first Run
-        // after picking, say, a camera-only arm still works.
+        // Keep the active tab runnable for the freshly chosen build. A build
+        // with NO drive actuator (a fixed-base arm) cannot run ANY drive
+        // starter, so move it to the systems-check tab -- the fix for the arm's
+        // guaranteed first-Run error. A wheeled build that is sitting on that
+        // rescue tab is returned to the drive patrol; and if it merely cannot
+        // range (no ultrasonic), a distance-based starter (autopilot/avoid) is
+        // swapped for the plain drive patrol so the first Run still works.
         try {
-          const canRange = !window.KodroCommands || window.KodroCommands.check(full, 'distance').ok;
-          if (!canRange) setActiveTab(t => t === 'autopilot' || t === 'avoid' ? 'drive' : t);
+          if (!canDrive(full)) {
+            setActiveTab('systems');
+          } else {
+            const canRange = !window.KodroCommands || window.KodroCommands.check(full, 'distance').ok;
+            setActiveTab(t => {
+              if (t === 'systems') return 'drive';
+              if (!canRange && (t === 'autopilot' || t === 'avoid')) return 'drive';
+              return t;
+            });
+          }
         } catch (err) {
           void err;
         }

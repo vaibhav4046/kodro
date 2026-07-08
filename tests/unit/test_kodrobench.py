@@ -15,9 +15,17 @@ from robolearn.kodrobench import (
     evaluate_model_pass_at_k,
     extract_code,
     generate_leaderboard,
+    main,
     pass_at_k,
     run_bench,
 )
+
+
+def test_cli_rejects_k_greater_than_samples() -> None:
+    # --k must not exceed --samples; the CLI exits with a clear error rather
+    # than propagating an uncaught ValueError out of pass_at_k.
+    with pytest.raises(SystemExit):
+        main(["--models", "deterministic", "--samples", "3", "--k", "5"])
 
 
 def test_deterministic_floor_is_grounded() -> None:

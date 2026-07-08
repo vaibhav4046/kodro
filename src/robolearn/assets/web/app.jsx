@@ -34,6 +34,30 @@
   // render, so route every getItem through this guarded helper.
   function lsGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
 
+  // ---------------- drive-capability helpers (shared) ----------------
+  // ONE definition of "can this build drive?" and "does this tab's starter
+  // drive?", used by BOTH the activeTab initialiser (reload path) and the
+  // kodro-robot handler (fresh pick) so the two can never disagree about when
+  // to rescue a fixed-base build off a drive starter it physically cannot run.
+  //
+  // A build can drive only if it fits a locomotion actuator; this mirrors
+  // RobotLab's DRIVE_ACTUATORS. A fixed-base arm fits only a gripper, so it
+  // cannot drive and every move_forward/turn starter refuses on the first Run.
+  const DRIVE_ACTUATORS = ['motors2', 'motors4', 'servos'];
+  function canDrive(robot) {
+    const acts = (robot && robot.actuators) || [];
+    return DRIVE_ACTUATORS.some((a) => acts.indexOf(a) >= 0);
+  }
+  // A tab "needs drive" when its starter program calls one of the four
+  // locomotion verbs; read straight off the starter source so the set stays
+  // correct as examples are added (the systems-check starter uses none, so it
+  // runs clean on any build). An unknown tab is treated as not needing drive.
+  function tabNeedsDrive(tabKey) {
+    const ex = EXAMPLES[tabKey];
+    const code = (ex && ex.code) || '';
+    return /\b(?:move_forward|move_backward|turn_left|turn_right)\s*\(/.test(code);
+  }
+
   function App() {
     const [terrainId, setTerrainId] = useState(() => {
       const saved = lsGet('or_terrain');
@@ -46,7 +70,20 @@
     });
     const [activeTab, setActiveTab] = useState(() => {
       const saved = lsGet('or_tab');
-      if (saved) return saved;
+      if (saved) {
+        // Re-validate the persisted tab against the SAVED build. or_tab is
+        // written on first mount (a fresh session lands on 'drive'), so a user
+        // who later switched to a fixed-base build would otherwise be pinned to
+        // a drive starter that refuses on every Run -- the fresh-load rescue
+        // below is short-circuited by this saved value. If the saved tab's
+        // starter drives but the current build cannot, fall to the sensor-free
+        // systems-check starter, which runs clean on any build.
+        try {
+          const rb = window.getKodroRobot && window.getKodroRobot();
+          if (rb && !canDrive(rb) && tabNeedsDrive(saved)) return 'systems';
+        } catch (e) { void e; }
+        return saved;
+      }
       // Fresh load: show a starter the CURRENT build can actually run on the
       // first press of Run. Wheeled builds get the drive patrol; a fixed-base
       // build with no drive actuator (e.g. the arm) gets the sensor-free
@@ -55,9 +92,7 @@
       // arm cannot drive" refusal on the very first run.
       try {
         const rb = window.getKodroRobot && window.getKodroRobot();
-        const acts = (rb && rb.actuators) || [];
-        const canDrive = ['motors2', 'motors4', 'servos'].some((a) => acts.indexOf(a) >= 0);
-        if (rb && !canDrive) return 'systems';
+        if (rb && !canDrive(rb)) return 'systems';
       } catch (e) { void e; }
       return 'drive';
     });
@@ -386,13 +421,24 @@
           setTerrainId(w);
           try { localStorage.setItem('or_terrain', w); } catch (err) { void err; }
         }
-        // If the freshly chosen build cannot range (no ultrasonic), a
-        // distance-based example would fail on the first Run with a gating
-        // refusal. Move off it to the base-command 'starter' so the first Run
-        // after picking, say, a camera-only arm still works.
+        // Keep the active tab runnable for the freshly chosen build. A build
+        // with NO drive actuator (a fixed-base arm) cannot run ANY drive
+        // starter, so move it to the systems-check tab -- the fix for the arm's
+        // guaranteed first-Run error. A wheeled build that is sitting on that
+        // rescue tab is returned to the drive patrol; and if it merely cannot
+        // range (no ultrasonic), a distance-based starter (autopilot/avoid) is
+        // swapped for the plain drive patrol so the first Run still works.
         try {
-          const canRange = !window.KodroCommands || window.KodroCommands.check(full, 'distance').ok;
-          if (!canRange) setActiveTab((t) => (t === 'autopilot' || t === 'avoid') ? 'drive' : t);
+          if (!canDrive(full)) {
+            setActiveTab('systems');
+          } else {
+            const canRange = !window.KodroCommands || window.KodroCommands.check(full, 'distance').ok;
+            setActiveTab((t) => {
+              if (t === 'systems') return 'drive';
+              if (!canRange && (t === 'autopilot' || t === 'avoid')) return 'drive';
+              return t;
+            });
+          }
         } catch (err) { void err; }
       };
       window.addEventListener('kodro-robot', onRobot);

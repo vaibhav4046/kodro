@@ -20,7 +20,7 @@
  * round-trip and a service-worker second-load once the WebBackend lands.
  */
 'use strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, existsSync, statSync, createReadStream } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -89,8 +89,13 @@ function startServer() {
   return new Promise((resolve) => server.listen(PORT, HOST, () => resolve(server)));
 }
 
+// NB: no --disable-gpu. On headless Chrome 140 it hangs the WebGL app (blank
+// 0-byte DOM, boot check times out), so the SwiftShader software-GL path below
+// is used INSTEAD, exactly as qa_worlds.mjs does. --window-size matches too so
+// the studio lays out at its real 1280x800.
 const FLAGS = [
-  '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run',
+  '--headless=new', '--no-sandbox', '--no-first-run',
+  '--window-size=1280,800',
   '--no-default-browser-check', '--disable-background-networking',
   '--disable-component-update', '--disable-domain-reliability', '--disable-sync',
   '--disable-default-apps', '--disable-client-side-phishing-detection',
@@ -99,14 +104,43 @@ const FLAGS = [
   '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
 ];
 
-function dumpOnce(chrome, url, netlog) {
+// Run Chrome ASYNCHRONOUSLY (spawn, not spawnSync). This is load-bearing: the
+// static file server (startServer) lives in THIS process's event loop. A
+// blocking spawnSync would freeze that loop for the whole child run, so the
+// server could never answer Chrome's requests -- Chrome would get no app,
+// virtual-time would never settle, and every load would stall to the timeout.
+// (That deadlock, not --disable-gpu alone, is why this gate used to hang.)
+// spawn keeps the loop free, so the in-process server serves the app while
+// Chrome loads it. The net-log is written by Chrome to a file, so stdout only
+// carries the dumped DOM (~50 KB); we buffer it directly. A timeout guard kills
+// a genuinely stuck Chrome so a launch flake still fails fast, not forever.
+function runChrome(chrome, args, timeoutMs) {
+  return new Promise((resolve) => {
+    let stdout = '';
+    let settled = false;
+    const child = spawn(chrome, args, { windowsHide: true });
+    const finish = (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try { child.kill('SIGKILL'); } catch { /* already exited */ }
+      resolve({ stdout, error });
+    };
+    const timer = setTimeout(() => finish(new Error('ETIMEDOUT')), timeoutMs);
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.on('error', (e) => finish(e));
+    child.on('close', () => finish(null));
+  });
+}
+
+async function dumpOnce(chrome, url, netlog) {
   const tmp = mkdtempSync(path.join(os.tmpdir(), 'kodro-qaweb-'));
   const args = [
     ...FLAGS, `--user-data-dir=${path.join(tmp, 'p')}`,
     `--log-net-log=${netlog}`, '--net-log-capture-mode=Everything',
     '--virtual-time-budget=8000', '--dump-dom', url,
   ];
-  const res = spawnSync(chrome, args, { encoding: 'utf8', timeout: 90000, maxBuffer: 96 * 1024 * 1024 });
+  const res = await runChrome(chrome, args, 90000);
   let net = '';
   try { net = readFileSync(netlog, 'utf8'); } catch { net = ''; }
   return { dom: res.stdout || '', net, error: res.error };
@@ -114,11 +148,11 @@ function dumpOnce(chrome, url, netlog) {
 
 // Chrome's cold spawn on Windows sometimes ETIMEDOUTs; warm up, then try a few
 // times so a launch flake does not read as a product failure.
-function loadWithRetry(chrome, url) {
-  spawnSync(chrome, [...FLAGS, '--virtual-time-budget=1500', '--dump-dom', 'about:blank'], { encoding: 'utf8', timeout: 60000 });
+async function loadWithRetry(chrome, url) {
+  await runChrome(chrome, [...FLAGS, '--virtual-time-budget=1500', '--dump-dom', 'about:blank'], 60000);
   let out = { dom: '', net: '', error: new Error('not run') };
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    out = dumpOnce(chrome, url, path.join(mkdtempSync(path.join(os.tmpdir(), 'kodro-net-')), 'n.json'));
+    out = await dumpOnce(chrome, url, path.join(mkdtempSync(path.join(os.tmpdir(), 'kodro-net-')), 'n.json'));
     if (!out.error && out.dom) return out;
   }
   return out;
@@ -151,12 +185,24 @@ async function main() {
 
   const server = await startServer();
   try {
-    const { dom, net, error } = loadWithRetry(chrome, `http://${HOST}:${PORT}/index.html`);
+    const { dom, net, error } = await loadWithRetry(chrome, `http://${HOST}:${PORT}/index.html`);
     if (error || !dom) {
       results.push(log(false, 'boot', `chrome load failed after retries: ${error ? error.message : 'empty DOM'}`));
     } else {
-      const mounted = !dom.includes('id="rl-boot"') && !dom.includes('The simulator failed to load') && !dom.includes('neterror');
-      results.push(log(mounted, 'boot-mount', mounted ? 'React mounted; no error fallback' : 'app did not mount'));
+      // The app has mounted when React has cleared the #rl-boot skeleton AND
+      // painted real studio UI. We CANNOT detect the offline fallback by its
+      // text ("The simulator failed to load"): that string also lives verbatim
+      // in index.html's inline safety-net <script>, which --dump-dom serialises,
+      // so it is present whether or not the fallback ever rendered. Use instead
+      // a POSITIVE render signal the fallback and the boot skeleton never
+      // contain -- the studio's 'Skip to studio' control or the 3D scene's
+      // data-world marker (both painted only by the mounted React app).
+      const stillBooting = dom.includes('id="rl-boot"');
+      const appRendered = dom.includes('Skip to studio') || dom.includes('data-world=');
+      const mounted = !stillBooting && appRendered && !dom.includes('neterror');
+      results.push(log(mounted, 'boot-mount',
+        mounted ? 'React mounted; studio painted'
+          : stillBooting ? 'app still on boot skeleton' : 'app did not render studio UI'));
       const rendered = /Kodro|Robot Design Studio|Start building|Skip to studio/i.test(dom);
       results.push(log(rendered, 'app-content', rendered ? 'app UI rendered' : 'no app content'));
       const ext = appExternalHosts(net);

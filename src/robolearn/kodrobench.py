@@ -394,6 +394,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    # pass@k is only defined for 1 <= k <= samples (you cannot draw k passes
+    # from fewer than k independent samples); reject the combination up front
+    # with a clear message rather than letting pass_at_k raise deep in the run.
+    if args.samples < 1:
+        parser.error(f"--samples must be at least 1 (got {args.samples})")
+    if not 1 <= args.k <= args.samples:
+        parser.error(f"--k must be between 1 and --samples ({args.samples}); got {args.k}")
+
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     results = run_bench(models, args.seeds, samples=args.samples, k=args.k)
     if args.json_out:

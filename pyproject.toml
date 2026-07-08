@@ -4,15 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "robolearn"
-version = "0.1.0"
-description = "Offline desktop rover simulator that teaches the UK Computing curriculum through procedural Python."
+version = "2.0.0"
+description = "Offline AI-assisted robotics design and simulation platform (Kodro): build a robot, program it, validate it in a 3D world, all on one laptop."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
 authors = [{ name = "RoboLearn contributors" }]
 keywords = ["education", "stem", "robotics", "simulator", "ks3", "ks4"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: MacOS X",
     "Environment :: Win32 (MS Windows)",
     "Environment :: X11 Applications",

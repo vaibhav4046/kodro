@@ -177,8 +177,11 @@ check('function return 5 printed', printsOf('def foo():\n    return 5\nprint(foo
 check('function return used in expression', printsOf('def double(n):\n    return n * 2\nprint(double(21))')[0] === '42', printsOf('def double(n):\n    return n * 2\nprint(double(21))')[0]);
 // String concatenation
 check('string concat "hello"+" "+"world"', printsOf('print("hello" + " " + "world")')[0] === 'hello world', printsOf('print("hello" + " " + "world")')[0]);
-// List indexing via [] is not supported (parseTrailers only handles . and ())
-check('[1,2,3][0] raises (no [] indexing)', runThrows('print([1,2,3][0])') !== null, runThrows('print([1,2,3][0])'));
+// List indexing via [] is supported: parseTrailers parses the subscript and
+// pyIndex evaluates it with CPython semantics. The grader runs real `exec`
+// where [1,2,3][0] is 1, so the browser sim must agree (was a defect: the old
+// parser ignored '[' and raised a confusing 'Expected ")"').
+check('[1,2,3][0] indexes to 1 (real [] indexing)', printsOf('print([1,2,3][0])')[0] === '1', printsOf('print([1,2,3][0])')[0]);
 // Math builtins
 check('abs(-5) == 5', printsOf('print(abs(-5))')[0] === '5', printsOf('print(abs(-5))')[0]);
 check('round(3.7) == 4', printsOf('print(round(3.7))')[0] === '4', printsOf('print(round(3.7))')[0]);

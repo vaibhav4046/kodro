@@ -13,7 +13,7 @@ today. Status values:
 | Component | Status | Notes |
 | --- | --- | --- |
 | Robot Builder | Complete | Robot Lab assembles a robot from board, sensors, actuators and chassis type; derives mass, top speed, runtime. |
-| Python Interpreter | Complete | Python subset interpreter in `interpreter.js`, 21 of 21 interpreter QA passing, runs all bundled lessons. |
+| Python Interpreter | Complete | Python subset interpreter in `interpreter.js`, all interpreter QA checks pass (157 at time of writing; reproduce with `node scripts/qa_interpreter.mjs`), runs all bundled lessons. |
 | Block Coding | Complete | Scratch style blocks palette compiles to the same Python the interpreter runs; reordering, speed, wait, pen and drop blocks. |
 | 3D Rendering | Complete | Three.js r137 core, environment map, shadows, tone mapping, per type motion feel. Procedural geometry only, no glTF loading. |
 | 2D Viewport | Complete | Tk embedded pygame surface via base64 PPM, four terrain palettes, perspective diorama mode, pen trail. |

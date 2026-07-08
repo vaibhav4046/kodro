@@ -112,36 +112,35 @@
     }, []);
     const step = STEPS[i];
     const res = results[i];
-    const toneColor = function (t) { return t === 'err' ? 'var(--danger)' : t === 'warn' ? 'var(--warning)' : 'var(--cyan)'; };
-
     function doRun() {
       let out;
       try { out = step.run(); } catch (e) { out = { text: 'Error: ' + (e && e.message ? e.message : e), tone: 'err' }; }
       setResults(Object.assign({}, results, { [i]: out }));
     }
 
-    return React.createElement('div', { style: { position: 'fixed', inset: 0, zIndex: 4200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(120% 120% at 50% 0%,#101726cc 0%,#070a12ee 70%)', padding: 28 }, onClick: function () { return props.onClose && props.onClose(); } },
+    return React.createElement('div', { className: 'modal-backdrop demo-backdrop', onClick: function () { return props.onClose && props.onClose(); } },
       // className 'modal' + role/aria-modal is the exact contract app.jsx's focus
       // trap keys on (it selects '.modal[aria-modal="true"]'), so opening the demo
       // moves focus into this dialog and confines Tab to it, like every other modal.
-      // The inline styles fully own the layout/colour; the shared class only adds
-      // the entrance animation (which honours prefers-reduced-motion).
-      React.createElement('div', { className: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Realism demo', style: { width: 'min(640px,100%)', background: 'var(--navy)', border: '1.5px solid var(--border)', borderRadius: 18, padding: 26, color: 'var(--fg-1)', boxShadow: '0 30px 80px -30px #000' }, onClick: function (e) { e.stopPropagation(); } },
-        React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 } },
-          React.createElement('span', { style: { fontSize: 12, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--cyan)' } }, 'Kodro Realism Demo'),
-          React.createElement('span', { style: { fontSize: 12, color: 'var(--fg-3)' } }, 'Step ' + (i + 1) + ' of ' + STEPS.length)
+      // All styling now lives in styles.css (.demo-* + reused .modal / .ctrl), so
+      // the tour repaints with every theme and inherits the shared hover, focus
+      // and disabled states; .modal also carries the reduced-motion-safe entrance.
+      React.createElement('div', { className: 'modal demo-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Realism demo', onClick: function (e) { e.stopPropagation(); } },
+        React.createElement('div', { className: 'demo-head' },
+          React.createElement('span', { className: 'demo-eyebrow' }, 'Kodro Realism Demo'),
+          React.createElement('span', { className: 'demo-count' }, 'Step ' + (i + 1) + ' of ' + STEPS.length)
         ),
-        React.createElement('h2', { style: { fontSize: 24, fontWeight: 720, margin: '6px 0 8px', letterSpacing: '-0.02em' } }, step.title),
-        React.createElement('p', { style: { color: 'var(--fg-2)', fontSize: 14, lineHeight: 1.55, margin: '0 0 16px' } }, step.blurb),
-        React.createElement('button', { style: { appearance: 'none', border: 0, cursor: 'pointer', fontWeight: 650, borderRadius: 11, padding: '11px 22px', background: 'var(--cyan)', color: 'var(--void)', fontSize: 14 }, onClick: doRun }, step.action),
-        res && React.createElement('div', { style: { marginTop: 16, padding: '13px 15px', background: 'var(--navy-2)', border: '1.5px solid color-mix(in srgb, ' + toneColor(res.tone) + ' 33%, transparent)', borderRadius: 12, fontSize: 13.5, lineHeight: 1.5, color: 'var(--fg-1)' } }, res.text),
-        React.createElement('div', { style: { display: 'flex', gap: 10, justifyContent: 'space-between', marginTop: 22 } },
-          React.createElement('button', { style: { appearance: 'none', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-2)', cursor: 'pointer', borderRadius: 11, padding: '10px 18px', font: 'inherit' }, onClick: function () { return props.onClose && props.onClose(); } }, 'Close'),
-          React.createElement('div', { style: { display: 'flex', gap: 10 } },
-            i > 0 && React.createElement('button', { style: { appearance: 'none', border: '1px solid var(--border)', background: 'transparent', color: 'var(--fg-2)', cursor: 'pointer', borderRadius: 11, padding: '10px 18px', font: 'inherit' }, onClick: function () { setResults({}); setI(i - 1); } }, 'Back'),
+        React.createElement('h2', { className: 'demo-title' }, step.title),
+        React.createElement('p', { className: 'demo-blurb' }, step.blurb),
+        React.createElement('button', { type: 'button', className: 'ctrl ctrl-run', onClick: doRun }, step.action),
+        res && React.createElement('div', { className: 'demo-result tone-' + res.tone }, res.text),
+        React.createElement('div', { className: 'demo-foot' },
+          React.createElement('button', { type: 'button', className: 'ctrl', onClick: function () { return props.onClose && props.onClose(); } }, 'Close'),
+          React.createElement('div', { className: 'demo-nav' },
+            i > 0 && React.createElement('button', { type: 'button', className: 'ctrl', onClick: function () { setResults({}); setI(i - 1); } }, 'Back'),
             i < STEPS.length - 1
-              ? React.createElement('button', { style: { appearance: 'none', border: 0, background: res ? 'var(--cyan)' : 'var(--navy-3)', color: res ? 'var(--void)' : 'var(--fg-3)', cursor: res ? 'pointer' : 'not-allowed', borderRadius: 11, padding: '10px 20px', fontWeight: 650, font: 'inherit' }, disabled: !res, onClick: function () { if (res) { setResults({}); setI(i + 1); } } }, 'Next')
-              : React.createElement('button', { style: { appearance: 'none', border: 0, background: 'var(--cyan)', color: 'var(--void)', cursor: 'pointer', borderRadius: 11, padding: '10px 20px', fontWeight: 650, font: 'inherit' }, onClick: function () { return props.onClose && props.onClose(); } }, 'Done')
+              ? React.createElement('button', { type: 'button', className: 'ctrl ctrl-run', disabled: !res, onClick: function () { if (res) { setResults({}); setI(i + 1); } } }, 'Next')
+              : React.createElement('button', { type: 'button', className: 'ctrl ctrl-run', onClick: function () { return props.onClose && props.onClose(); } }, 'Done')
           )
         )
       )

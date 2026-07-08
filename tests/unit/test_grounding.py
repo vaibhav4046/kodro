@@ -81,6 +81,37 @@ def test_binding_base_to_another_name_is_not_exempt() -> None:
     assert "bot.drive" in result.invented
 
 
+def test_container_launder_is_caught() -> None:
+    # Binding a name to a []/{}/f-string literal must not launder an invented
+    # method: launch_missiles is not a real container method, so even though x
+    # is container-bound the call is still invention.
+    result = check_grounding("x = []\nx.launch_missiles()\nmove_forward(1)\n")
+    assert result.grounded is False
+    assert "x.launch_missiles" in result.invented
+
+
+def test_bare_decorator_is_caught() -> None:
+    # A bare decorator invokes fly at def time but is not a Call node; it must
+    # still be flagged as an invented symbol.
+    result = check_grounding("@fly\ndef g():\n    pass\n")
+    assert result.grounded is False
+    assert "fly" in result.invented
+
+
+def test_user_defined_helper_is_not_invention() -> None:
+    # A function the program defines itself is not invented when called.
+    result = check_grounding("def helper():\n    move_forward(1)\nhelper()\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_alias_of_fitted_command_is_not_invention() -> None:
+    # A single-level alias of a fitted command is ordinary code, not invention.
+    result = check_grounding("mv = move_forward\nmv(3)\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
 def test_syntax_error_is_reported_not_raised() -> None:
     result = check_grounding("move_forward(\n")
     assert result.grounded is False

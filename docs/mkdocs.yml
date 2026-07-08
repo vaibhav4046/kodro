@@ -1,6 +1,6 @@
-site_name: RoboLearn
-site_description: Offline desktop rover simulator for the UK Computing curriculum.
-site_url: https://robolearn.github.io
+site_name: Kodro
+site_description: Offline AI-assisted robotics design and simulation platform. Build a robot, program it, validate it in a 3D world, all on one laptop.
+site_url: https://vaibhav4046.github.io/robolearn
 repo_url: https://github.com/vaibhav4046/robolearn
 repo_name: vaibhav4046/robolearn
 docs_dir: .

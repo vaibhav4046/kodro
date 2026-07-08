@@ -52,17 +52,38 @@
   // parsed array, and degrade to []/null on any failure so classroom mode
   // renders instead of crashing. The desktop pywebview path never reaches here.
   let lessonsCache = null;
+  // A real classroom load should survive one dropped connection. A single
+  // fetch that threw (a transient network blip) used to blank the whole lesson
+  // list AND console.warn with an embedded 'TypeError', which trips the
+  // qa_worlds console-error regex nondeterministically. So try up to 3 times
+  // with short backoff before giving up, and warn ONCE, only after every
+  // attempt has failed. The graceful degrade-to-[] is unchanged, and so is the
+  // memoization: lessonsCache is written exactly once -- the parsed array on
+  // the first success, or [] after all retries are exhausted -- so a resolved
+  // result is still cached and never re-fetched. Retries touch only the
+  // network attempt, never the cache.
+  const LESSONS_RETRY_BACKOFF_MS = [150, 400]; // waited before the 2nd / 3rd try
+  const fetchLessonsOnce = async () => {
+    const res = await fetch("./lessons.json", { cache: "no-cache" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  };
   const fetchLessons = async () => {
     if (lessonsCache !== null) return lessonsCache;
-    try {
-      const res = await fetch("./lessons.json", { cache: "no-cache" });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
-      lessonsCache = Array.isArray(data) ? data : [];
-    } catch (err) {
-      console.warn("[Kodro bridge] could not load lessons.json (browser mode):", err);
-      lessonsCache = [];
+    let lastErr = null;
+    for (let attempt = 0; attempt <= LESSONS_RETRY_BACKOFF_MS.length; attempt++) {
+      try {
+        lessonsCache = await fetchLessonsOnce();
+        return lessonsCache;
+      } catch (err) {
+        lastErr = err;
+        const backoff = LESSONS_RETRY_BACKOFF_MS[attempt];
+        if (backoff !== undefined) await new Promise((r) => setTimeout(r, backoff));
+      }
     }
+    console.warn("[Kodro bridge] could not load lessons.json after retries (browser mode):", lastErr);
+    lessonsCache = [];
     return lessonsCache;
   };
   const listLessonsBrowser = () => fetchLessons();
@@ -115,6 +136,21 @@
     pupils: [],
   });
 
+  // Swarm racing runs the program on a fleet of rovers via the Python (desktop)
+  // side. In the static browser build there is no bridge, so routing swarm_run
+  // through call() would block on the ~5s pywebview wait and then resolve null
+  // -- the Swarm button then spins "Launching the swarm..." for 5s and prints a
+  // generic "Swarm failed.", which reads like the product crashed. Return an
+  // honest, immediate "desktop only" signal instead (same shape/flow as the
+  // teacher branch). We run NO fleet and invent no trails.
+  const SWARM_BROWSER_REASON =
+    'Swarm racing needs the desktop app. In the browser you can still design, program, and run one robot.';
+  const swarmUnavailable = () => ({
+    ok: false,
+    unavailable: true,
+    reason: SWARM_BROWSER_REASON,
+  });
+
   window.RoboLearn = {
     isAvailable: isPywebview,
     listLessons: () => (isPywebview() ? call("list_lessons") : listLessonsBrowser()),
@@ -145,7 +181,10 @@
     aiGenerate: (prompt, lessonId) => call("ai_generate", prompt, lessonId),
     aiReviewCode: (source, lessonId) => call("ai_review_code", source, lessonId),
     aiAsk: (query) => call("ai_ask", query),
-    swarmRun: (source, lessonId, n) => call("swarm_run", source, lessonId || null, n || 5),
+    swarmRun: (source, lessonId, n) =>
+      (isPywebview()
+        ? call("swarm_run", source, lessonId || null, n || 5)
+        : Promise.resolve(swarmUnavailable())),
     aiChat: (messages, lessonId) => call("ai_chat", messages, lessonId),
     aiChatStart: (messages, lessonId) => call("ai_chat_start", messages, lessonId),
     aiChatPoll: (jobId) => call("ai_chat_poll", jobId),

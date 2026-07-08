@@ -174,6 +174,19 @@ the assistant:
    your machine: the only network peer the app will talk to is
    `localhost:11434`.
 
+**Using the hosted web build with Ollama.** The desktop app needs none of
+this. The browser build at
+[vaibhav4046.github.io/robolearn](https://vaibhav4046.github.io/robolearn/)
+is served from a different origin than `localhost`, so Ollama must be told
+to accept requests from it. Start Ollama with that origin allowed:
+
+- Windows: run `setx OLLAMA_ORIGINS "https://vaibhav4046.github.io"`, then
+  restart Ollama.
+- macOS or Linux: run `OLLAMA_ORIGINS=https://vaibhav4046.github.io ollama serve`.
+
+Without this the browser build cannot reach your local model and falls back
+to the deterministic rule engine.
+
 The web UI is pre compiled to a single `bundle.js`, so the desktop app
 loads plain JavaScript with no build server and no network. To rebuild
 after editing any `.jsx` source:
@@ -231,7 +244,8 @@ node scripts/qa_interpreter.mjs   # interpreter and kinematics functional QA
 python -m pytest                  # Python engine test suite
 ```
 
-- **Interpreter QA: 156 of 156 passing.** Every shipped example program
+- **Interpreter QA: all checks pass** (157 at time of writing; reproduce
+  with `node scripts/qa_interpreter.mjs`). Every shipped example program
   terminates, moves, stays inside the arena box, never hits a wall and
   never throws. Command semantics (metres versus centimetres, turn,
   speed clamp, guarded huge exponents, for and while, sensors), Python
@@ -248,6 +262,48 @@ python -m pytest                  # Python engine test suite
 The honest marker assessment of the project to date is a strong A. An A
 star band depends on the empirical teacher and user study, which only a
 real run can produce; see [`HUMAN_TODO.md`](HUMAN_TODO.md).
+
+## KodroBench: measuring grounded code
+
+A grounded local model must not invent commands outside the robot's fitted
+set. KodroBench measures exactly that. It asks a model to write rover
+programs for seeded tasks, then scores whether the program stays inside the
+build's real command set (invention_rate, lower is better) and whether it
+completes the task (success@N, higher is better). Full results and the
+methodology are in
+[`results/kodrobench-leaderboard.md`](results/kodrobench-leaderboard.md).
+
+How to read the numbers: success@N is the mean seeded-task success over N
+seeds (v0.1 runs 5 tasks over 10 seeds). The dev/heldout split is the same
+task set divided by whether a task was visible while iterating, so heldout
+success is the honest generalisation figure; invention_rate is the fraction
+of runs that call a command the fitted robot does not have.
+
+| Model | success@N | invention_rate |
+| --- | --- | --- |
+| gemma3:4b | 0.24 | 0.00 |
+| deterministic | 0.22 | 0.00 |
+| gemma3:1b | 0.02 | 0.00 |
+| llama3.2:3b | 0.00 | 0.00 |
+| kodro-fast:latest | 0.00 | 0.60 |
+| kodro-coder:latest | 0.00 | 1.00 |
+
+The honest story of these numbers is that the project's own fine-tunes are
+the worst behaved. `kodro-fast` and `kodro-coder` invent `rover.*` commands
+at 0.60 and 1.00 while never completing a task (0.00 success@N), whereas the
+general models hold invention_rate at 0.00. The deterministic floor, a rule
+engine with no model at all, scores 0.22 success@N: it beats every fine-tune
+and comes within 0.02 of the best general model (gemma3:4b at 0.24). A
+grounded rule engine is a strong baseline, and naive fine-tuning of tiny
+models made grounding worse, not better, which is why the deterministic
+fallback ships as the honest default.
+
+Reproduce the benchmark yourself:
+
+```bash
+kodrobench --help                        # console script
+python -m robolearn.kodrobench --help    # module entry point
+```
 
 ## Documentation
 

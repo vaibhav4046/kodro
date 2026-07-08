@@ -19,6 +19,26 @@
   // monochrome SVG mark instead of an emoji.
   const KI = (name, cls) => (window.KodroIcons ? window.KodroIcons.el(name, cls) : null);
 
+  // A model source is "local/offline" ONLY when it is the offline Ollama path
+  // (source 'local' or 'browser') or a provider the registry marks local:true.
+  // Any other source (groq, anthropic, openai, ...) is a cloud model whose
+  // prompts leave this machine and must be labelled honestly (judge HIGH-2:
+  // Groq BYOK was falsely shown as "runs on this machine").
+  function providerIsLocal(source) {
+    if (source === 'local' || source === 'browser') return true;
+    try {
+      const P = window.KodroProviders;
+      if (P && P.PROVIDERS && P.PROVIDERS[source]) return !!P.PROVIDERS[source].local;
+    } catch (e) { void e; }
+    return false;
+  }
+  // Short, human display name for a provider source used in the labels above.
+  function providerName(source) {
+    const NAMES = { anthropic: 'Anthropic', openai: 'OpenAI', groq: 'Groq', ollama: 'Ollama' };
+    if (source && NAMES[source]) return NAMES[source];
+    return source ? (source.charAt(0).toUpperCase() + source.slice(1)) : 'the cloud provider';
+  }
+
   // ---- Keyboard shortcuts (Help) ----
   // Pure static content; only needs a close handler.
   function HelpModal({ onClose }) {
@@ -289,7 +309,7 @@
             {reviewErr && <p className="vibe-error" role="alert">{reviewErr}</p>}
             {reviewData && !reviewBusy && (
               <div>
-                <p className="vibe-status">Reviewer: <b>{reviewData.model}</b> · {(reviewData.source === 'anthropic' || reviewData.source === 'openai') ? 'via your ' + reviewData.source + ' key' : 'runs entirely offline'}.</p>
+                <p className="vibe-status">Reviewer: <b>{reviewData.model}</b> · {providerIsLocal(reviewData.source) ? 'runs entirely offline' : 'via ' + providerName(reviewData.source) + ', your code is sent to ' + providerName(reviewData.source)}.</p>
                 {reviewData.issues && reviewData.issues.length > 0 ? (
                   <ul className="review-issues">
                     {reviewData.issues.map((it, i) => <li key={i}>{it}</li>)}
@@ -299,8 +319,9 @@
                 )}
                 {reviewData.revised && reviewData.code && (
                   <div className="review-rewrite">
-                    <span className="eyebrow">Suggested rewrite (checked to run safely)</span>
+                    <span className="eyebrow">Suggested rewrite</span>
                     <pre className="vibe-code">{reviewData.code}</pre>
+                    <p className="vibe-hint">Read the diff before applying; the self-test runs when you apply.</p>
                     <div className="vibe-code-actions">
                       <button className="ctrl ctrl-run" onClick={applyReview}>✓ Apply to editor</button>
                       <button className="btn-mini" onClick={() => setReviewOpen(false)}>Keep mine</button>
@@ -321,7 +342,7 @@
       <div className="modal-backdrop" onClick={() => !askBusy && setAskOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="Ask a question" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('ask')}Ask. {(askData && (askData.source === 'anthropic' || askData.source === 'openai')) ? 'Answered by your ' + askData.source + ' cloud model' : (askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Answers come from the built-in lesson notes when they cover it')}</span>
+            <span className="eyebrow">{KI('ask')}Ask. {askData && !providerIsLocal(askData.source) ? 'Answered by ' + providerName(askData.source) + ' (your key); your question is sent to ' + providerName(askData.source) : (askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Answers come from the built-in lesson notes when they cover it')}</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setAskOpen(false)}>✕</button>
           </div>
           <div className="ask-body" role="status" aria-live="polite">
@@ -501,9 +522,9 @@
           <ProviderPicker />
           {aiInfo.available ? (
             <div className="vibe-body">
-              {(aiInfo.source === 'anthropic' || aiInfo.source === 'openai')
-                ? <p className="vibe-status">Cloud model: <b>{aiInfo.model}</b> · via your {aiInfo.source} key, your prompt is sent only to that provider.</p>
-                : <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>}
+              {providerIsLocal(aiInfo.source)
+                ? <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
+                : <p className="vibe-status">Cloud model: <b>{aiInfo.model}</b> · via {providerName(aiInfo.source)}, your prompt is sent to {providerName(aiInfo.source)}.</p>}
               {ctxChip}
               {aiInfo.models && aiInfo.models.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
@@ -521,6 +542,9 @@
                 )}
                 {vibeMsgs.map((m, i) => m.kind === 'code' ? (
                   <div key={i} className="vibe-msg ai code">
+                    {m.validated === false && (
+                      <p className="vibe-error" role="alert">This did not pass Kodro's self-test: {m.validationError || 'unknown error'}. You can still apply it, but it may not run.</p>
+                    )}
                     <pre className="vibe-code">{m.text}</pre>
                     <div className="vibe-code-actions">
                       <button className="ctrl ctrl-run" onClick={() => vibeApply(m.text, m.model)}>✓ Apply to editor</button>
@@ -555,13 +579,22 @@
             </div>
           ) : (
             <div className="vibe-body">
-              <p className="vibe-status">AI is offline. Vibe coding uses a <b>local</b> model (no cloud, no account):</p>
-              {ctxChip}
-              <ol className="vibe-steps">
-                <li>Install Ollama from ollama.com (free, offline after install)</li>
-                <li>Run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
-                <li>Reopen Kodro. This panel lights up automatically</li>
-              </ol>
+              {aiInfo.hint ? (
+                <>
+                  <p className="vibe-status">{aiInfo.hint}</p>
+                  {ctxChip}
+                </>
+              ) : (
+                <>
+                  <p className="vibe-status">AI is offline. Vibe coding uses a <b>local</b> model (no cloud, no account):</p>
+                  {ctxChip}
+                  <ol className="vibe-steps">
+                    <li>Install Ollama from ollama.com (free, offline after install)</li>
+                    <li>Run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
+                    <li>Reopen Kodro. This panel lights up automatically</li>
+                  </ol>
+                </>
+              )}
             </div>
           )}
         </div>

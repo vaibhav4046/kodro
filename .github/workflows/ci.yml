@@ -75,6 +75,13 @@ jobs:
       - name: Web interpreter gate
         run: node scripts/qa_interpreter.mjs
 
+      # Lesson-grader gate: pure Node, no browser, so it is cheap to run on every
+      # leg. Guards the JS lesson grader (browser-mode submit/hint) against
+      # regressions. The browser-driven gates (qa_web, qa_worlds) need headless
+      # Chrome plus a served site and are run locally / pre-deploy, not here.
+      - name: Web grader gate
+        run: node scripts/qa_grader.mjs
+
       # --timeout converts any hung GUI/thread test into a fast failure
       # with a full per-thread traceback instead of burning to the 6h cap.
       # thread method works cross-platform (signal/SIGALRM does not).

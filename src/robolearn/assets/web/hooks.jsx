@@ -314,7 +314,7 @@
         if (r && r.ok && r.type === 'question') {
           setVibeMsgs(m => [...m, { role: 'ai', kind: 'text', text: r.text }]);
         } else if (r && r.ok && r.type === 'code') {
-          setVibeMsgs(m => [...m, { role: 'ai', kind: 'code', text: r.code, model: r.model }]);
+          setVibeMsgs(m => [...m, { role: 'ai', kind: 'code', text: r.code, model: r.model, validated: r.validated, validationError: r.validationError }]);
         } else {
           setVibeError((r && r.reason) || 'Generation failed.');
         }
@@ -347,6 +347,13 @@
       try {
         const r = await window.RoboLearn.swarmRun(src, currentLessonId || null, 6);
         if (r && r.ok) setSwarmData(r);
+        // Browser (static) build: swarm racing runs only on the desktop Python
+        // fleet. The bridge short-circuits BEFORE its ~5s pywebview wait and
+        // resolves an honest {unavailable:true, reason} in ~0ms, so close the
+        // modal at once and print the real reason as an informational line --
+        // NOT a 5s dead spinner followed by a generic "Swarm failed." (which
+        // read like a crash). Desktop keeps the real run/verdict path.
+        else if (r && r.unavailable) { setSwarmOpen(false); addConsole(r.reason, 'sys'); }
         else { setSwarmOpen(false); addConsole((r && r.reason) || 'Swarm failed.', 'err'); }
       } catch (e) { setSwarmOpen(false); addConsole('Swarm: ' + e, 'err'); }
       setSwarmBusy(false);

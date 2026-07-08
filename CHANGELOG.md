@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-07
+
 ### Added
 - **KRS v1 spec import/export (the core mission)** - the Robot Lab gains
   Import spec / Export spec / Verification report. A builder's real robot
@@ -39,74 +41,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (clamped 0..16 like the Python API), not console spam; the example tab
   row scrolls instead of truncating.
 
-- **Grounded Ask (offline)** — an "❓ Ask" button answers a how-do-I question
+- **Grounded Ask (offline)**, an "❓ Ask" button answers a how-do-I question
   strictly from retrieved lesson material (pure offline IDF retrieval over the
   lesson intros, glossaries and a rover-interface reference in
   `ai/retrieval.py`), shows the source passages, and refuses when nothing
   matches. It works with no local model at all (returns the matching passages)
   and, with a model, writes a short answer constrained to those sources and is
   never even called when retrieval is empty.
-- **Teacher dashboard in the web app** — a `get_class_heatmap` bridge method
+- **Teacher dashboard in the web app**, a `get_class_heatmap` bridge method
   and a React panel (Settings) render the class concept-strength heatmap,
   colour-coded per pupil and concept. Previously legacy-Tk only.
-- **High-contrast, colour-blind-safe theme** — a WCAG-AA `data-theme` with
+- **High-contrast, colour-blind-safe theme**, a WCAG-AA `data-theme` with
   solid text and a blue/amber/orange status triad (pass/fail also carry glyphs
   and words, never colour alone).
-- **Block reordering + fuller palette** — move blocks up/down, plus speed,
+- **Block reordering + fuller palette**, move blocks up/down, plus speed,
   wait, pen and drop blocks.
-- **Self-improving hints (offline)** — the rule engine now learns, from local
+- **Self-improving hints (offline)**, the rule engine now learns, from local
   outcomes, which hint actually unblocks a pupil. A `hint_stats` table records
   shown vs helped per rule; `memory.hint_learning` ranks matching hints by a
   Laplace-smoothed success rate (author order as the stable tie-break, so a
   fresh install behaves like the old first-match engine). Weight-frozen,
   honest self-improvement: no model, no cloud.
-- **Second-agent code review (local AI)** — a "🔎 Review" button runs a
+- **Second-agent code review (local AI)**, a "🔎 Review" button runs a
   propose-then-critique reviewer on the local model: it critiques the pupil's
   code against the lesson goal and the full rover interface, returns up to
   three concrete issues, and offers a rewrite that is accepted only after it
   passes the same sandbox the Run button uses.
-- **Technical and evaluation report** — `docs/ca1/` gains a seven-page report
+- **Technical and evaluation report**, `docs/ca1/` gains a seven-page report
   (HTML + PDF) covering the AI layer and a fifty-persona simulated evaluation
   with browser-verified references.
-- **Budget Robot Builder (local AI)** — a "🤖" nav-bar tool: type a budget
+- **Budget Robot Builder (local AI)**, a "🤖" nav-bar tool: type a budget
   (and an optional goal) and a **local** Ollama model returns a real-hardware
-  rover guide — a tiered parts list with costs, numbered build steps, and a
+  rover guide, a tiered parts list with costs, numbered build steps, and a
   mapping from each RoboLearn command to the hardware action it drives. Every
   plan ships with a procedural SVG schematic (board, wheels, sensor, driver,
   battery). A deterministic floor guarantees a usable plan even at tiny
   budgets ($5 → cardboard micro-rover; $30+ → ESP32 rover). Offline, no cloud.
-- **Ten visual themes** — a Theme picker in Settings, driven by `[data-theme]`
+- **Ten visual themes**, a Theme picker in Settings, driven by `[data-theme]`
   CSS variable swaps so the whole shell repaints from one attribute: Mission
   (dark default), Daylight (light), Matrix, Pixel, Arcade, Brick, Clean,
   Abstract, Wiki / Network and High contrast. The choice persists across sessions.
-- **Real-world Earth landscape** — the base Earth terrain now reads like a map
+- **Real-world Earth landscape**, the base Earth terrain now reads like a map
   you could fly over: a farmland patchwork of crop fields (with crop-row
   striping and hedgerows), forest clusters, country roads with dashed
   centrelines, and a meandering river. Decorative only; it never collides.
-- **Vibe coding (local AI)** — a "✨ Vibe" panel: describe what the rover
+- **Vibe coding (local AI)**, a "✨ Vibe" panel: describe what the rover
   should do and a **local** Ollama model (Qwen 2.5 Coder / Gemma preference)
   writes the Python, which is typed live into the editor (typewriter
   animation) for the pupil to read and Run. Localhost-only, no cloud, no
   account; graceful 3-step guide when Ollama is absent. The generated code
   runs through the same sandbox as hand-typed code.
-- **Blocks mode (Scratch-style)** — a "🧩 Blocks" panel with a click-to-stack
+- **Blocks mode (Scratch-style)**, a "🧩 Blocks" panel with a click-to-stack
   palette (move/turn/beep/say/LED/scan/collect, repeat-N and if-obstacle
   containers with nesting), editable amounts, and "Insert code" that turns
   the stack into real Python typed live into the editor.
-- **Rover voice** — `say()` lines are spoken aloud with the OS's built-in
+- **Rover voice**, `say()` lines are spoken aloud with the OS's built-in
   offline TTS (Windows SAPI; zero new dependencies); respects the sound mute.
-- **Security hardening** — the Ollama client now *enforces* localhost-only
+- **Security hardening**, the Ollama client now *enforces* localhost-only
   URLs; pip-audit clean (pip itself patched); sandbox `exec` documented;
   AI prompt/speech length caps.
-- **Standalone desktop app** — the web UI now packages into a single
+- **Standalone desktop app**, the web UI now packages into a single
   double-clickable `RoboLearn.exe` (PyInstaller spec `robolearn-web.spec`)
   that bundles pywebview, the engine and the vendored design; no Python
   install required. Verified launching + rendering the full UI.
-- **Offline sound design** — `sound.js` synthesises every cue with the Web
+- **Offline sound design**, `sound.js` synthesises every cue with the Web
   Audio API (no audio files): drive/turn/scan/LED/speech, a pass arpeggio,
   a fail cadence and a crash burst, with a persisted "🔊 Sound" toggle.
 - **Celebration confetti** on a lesson pass (honours `prefers-reduced-motion`).
-- **KS1/KS2 onboarding lessons + reading scaffolding** — three new
+- **KS1/KS2 onboarding lessons + reading scaffolding**, three new
   age-appropriate lessons (`00_first_drive` KS1 age 6, `00b_repeat_square`
   KS2 age 9, `00c_look_first` KS2 age 10) in plain language, extending the
   curriculum below the KS3/KS4 core. The lesson schema gains optional
@@ -114,32 +116,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lesson card shows an "Age N+" chip and an inline glossary so jargon
   (loop, sensor, obstacle) is always explained. `KeyStage` now allows
   KS1/KS2. Library is 18 lessons; both engines run all of them (conformance).
-- **Multi-pupil accounts** — see above; bridge list/create/select/rename +
+- **Multi-pupil accounts**, see above; bridge list/create/select/rename +
   a "Pupil" picker so shared machines keep each pupil's progress separate.
-- **Autopilot demo** — a flagship "self-driving rover" example (now the
+- **Autopilot demo**, a flagship "self-driving rover" example (now the
   default program in the web UI): it reads its lidar, probes left/right when
   a boulder looms, steers toward the clearer side, and finishes with a survey
-  spiral — pure sense-think-act, no waypoints. Verified to drive ~36 legs and
+  spiral, pure sense-think-act, no waypoints. Verified to drive ~36 legs and
   dodge ~25 obstacles in the interpreter.
 
 ### Fixed
-- **Learner model was inert in the shipped web app** — a 50-persona evaluation
+- **Learner model was inert in the shipped web app**, a 50-persona evaluation
   found concept-strength updates, achievements and the next-lesson recommender
   were wired only into the legacy Tk shell, so the heatmap never moved for
   pupils on the packaged app. `submit_attempt` now calls `update_on_submission`,
   `check_and_unlock` and `suggest_next_lesson` and returns achievements + the
   recommendation, which the React console surfaces.
-- **Rover rendered on the wrong world** — `loadLesson` now sets the viewport to
+- **Rover rendered on the wrong world**, `loadLesson` now sets the viewport to
   `lesson.terrain`, so the rover is shown on the same world it is graded on.
 - **Nested `if/else` was broken in the interpreter** (real correctness bug):
   an `if` node carries `.branches`, not `.body`, so the conditional-linking
-  pass skipped recursion into `if` bodies — a nested `else` survived to
+  pass skipped recursion into `if` bodies, a nested `else` survived to
   execution as `Unknown statement`. Any program with a conditional inside an
   `if` (e.g. the autopilot's steering logic) failed. Now linked correctly;
   regression-tested (`test_nested_if_else*`).
 - **JS↔Python API parity** (re-score round, 2.87→6.7): the in-browser
   interpreter and the Python grader were two engines that didn't agree on
-  the lesson vocabulary. Now reconciled — `interpreter.js` also accepts the
+  the lesson vocabulary. Now reconciled, `interpreter.js` also accepts the
   Python sensor names (`read_distance`/`read_heading`/`read_battery`/
   `read_colour`/`sample_detected`/`at_base`/`drop_sample`), and Python
   `rover_api` gains the missing action verbs (`say`/`led`/`scan`/
@@ -147,7 +149,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`test_web_lesson_parity`) runs every bundled lesson's starter through
   *both* engines and fails on any unresolved verb.
 - **JS recursion was broken**: `return` only ended the current statement,
-  not the function, so a base case never stopped — `09_recursion` recursed
+  not the function, so a base case never stopped, `09_recursion` recursed
   until the JS stack overflowed. `return` now unwinds to the enclosing call.
 - **Scientific-notation + `1_000` numeric literals** now tokenize in the
   interpreter (`move_forward(1e3)` no longer throws `Expected ")"`).
@@ -164,10 +166,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   still works. Contract-tested through Node (`test_web_interpreter`).
 - **Adversarial: huge motion magnitudes froze the rover** (QA adv1):
   `move_forward(99999999)` overflowed the animation; magnitudes are now
-  clamped (distance ≤ 40 m, turn ≤ 3600°, speed 0–100, wait 0–10 s).
+  clamped (distance ≤ 40 m, turn ≤ 3600°, speed 0 to 100, wait 0 to 10 s).
 
 ### Added
-- **JSX compile-check in CI** — `test_web_jsx_valid` transforms every vendored
+- **JSX compile-check in CI**, `test_web_jsx_valid` transforms every vendored
   `.jsx` with the bundled Babel (via Node) so a syntax error that would
   white-screen the app is caught as a failing test, not at runtime.
 - **Web accessibility round 2** (100-persona QA): the console is a
@@ -178,70 +180,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (WCAG 1.4.10) instead of crushing the viewport off-screen on Chromebooks;
   the API hint bar now lists the real lesson verbs (`move_forward`,
   `obstacle_ahead`, `collect_sample`).
-- **NEW web UI** (`python -m robolearn.web`) — the actual Claude Design
+- **NEW web UI** (`python -m robolearn.web`), the actual Claude Design
   rover-simulator React/CSS prototype is now vendored under
   `src/robolearn/assets/web/` (with React 18, Babel standalone, and 14 TTF
-  font files vendored locally — fully offline, no CDN) and rendered in a
+  font files vendored locally, fully offline, no CDN) and rendered in a
   desktop window via **pywebview** (Edge WebView2 on Windows). A new
   `robolearn.web.app.BridgeAPI` exposes the existing lesson library +
   pupil store to the React shell via `window.pywebview.api.*`, bridged by
   `assets/web/bridge.js`. The Tk app at `python -m robolearn` is unchanged
   and stays as a fallback. This is the *modern, sleek* UI medium the design
-  was built in — closes the "looks like a Macintosh game" gap.
+  was built in, closes the "looks like a Macintosh game" gap.
 
 ### Changed
-- **Full dark ttk theme** — every ttk widget (buttons, slider, scrollbars,
+- **Full dark ttk theme**, every ttk widget (buttons, slider, scrollbars,
   entries, separators, notebook) is now repainted from the active palette
   via clam `style.configure`/`map`, so the controls match the dark Orbital
   Rover chrome instead of clam's light-grey default. The editor's **Run**
   button is now a cyan `Accent.TButton`; Step/Stop/Reset are ghost buttons.
   This closes the biggest UI gap against the design (light buttons on dark).
-- **Lessons list + progress drawer reskinned** — navy panels with
+- **Lessons list + progress drawer reskinned**, navy panels with
   warm-paper text and a phosphor-cyan selection highlight, matching the rest
   of the Orbital Rover chrome.
-- **Telemetry rail reskinned** — the LIDAR/battery mini-charts and the
+- **Telemetry rail reskinned**, the LIDAR/battery mini-charts and the
   rover-trail mini-map now use the design's tokens: navy panels, a cyan
   trail and series lines, warm-paper labels, brass/success/danger accents.
-- **Console + hint card reskinned** to the Orbital Rover chrome — navy
+- **Console + hint card reskinned** to the Orbital Rover chrome, navy
   panels, warm-paper text, cyan hints, brass warnings, danger-red errors
   (the green/orange pass-fail banners stay semantic).
 - **Viewport chrome** reskinned to void background + navy HUD chip.
-- **Dark theme retuned to the Orbital Rover palette** — the shared dark
+- **Dark theme retuned to the Orbital Rover palette**, the shared dark
   `Palette` now uses the design's void/navy chrome, phosphor-cyan accent and
   warm-paper text, so the code editor (which reads the palette) matches the
   mission bar's identity. Semantic panel colours (pass/fail banners) are
   unchanged.
 
 ### Added
-- **3-D diorama viewport** — the hero viewport now renders the world on a
+- **3-D diorama viewport**, the hero viewport now renders the world on a
   tilted, receding ground plane (perspective grid converging to a horizon,
   a sky band, and depth-squeezed rover/trail/obstacles), evoking the
   design's 3-D scene. A `_PerspectiveView` wraps the flat transform so every
   element tilts together; `set_perspective(False)` falls back to flat
   top-down. Defaults to 3-D.
-- **Telemetry gauges** — the sensors rail now leads with the design's
+- **Telemetry gauges**, the sensors rail now leads with the design's
   instrument cluster: a **compass dial** (cardinal ticks + cyan heading
   needle) and circular **arc gauges** for battery and LIDAR, above the
   existing history charts. New `Compass` + `ArcGauge` canvas widgets.
-- **Rover pen trail** — the viewport now traces the rover's path as a
+- **Rover pen trail**, the viewport now traces the rover's path as a
   phosphor-cyan trail while it drives (the design's signature "pen trail"),
   cleared on Reset or lesson change. Capped at 400 points.
-- **"Orbital Rover" mission bar** — implements the signature chrome from the
+- **"Orbital Rover" mission bar**, implements the signature chrome from the
   Claude Design handoff (`Rover Simulator.html`): a wordmark + `ROVER
   SIMULATOR` mono subtitle, a run-status dot (idle / running / complete /
   error, in the design's phosphor-cyan palette) wired to the run lifecycle,
-  and a **sim-speed slider** that scales playback (0.25×–4×) via
+  and a **sim-speed slider** that scales playback (0.25× to 4×) via
   `orbital.scaled_delay`. Tk-free tokens/helpers in `robolearn.ui.orbital`.
-- **Passed-lesson ticks** — the lessons list now shows a ✓ next to lessons
+- **Passed-lesson ticks**, the lessons list now shows a ✓ next to lessons
   the pupil has passed (• otherwise), updated after every Run, so progress
   through the curriculum is visible at a glance (`LessonsPanel.set_completed`).
-- **Resume your last attempt** — selecting a lesson you've worked on before
+- **Resume your last attempt**, selecting a lesson you've worked on before
   reloads your most recent code instead of the starter, so progress survives
   closing the app (`_source_for_lesson`). "↺ Starter code" still starts fresh.
-- **Restore starter code** — a top-bar "↺ Starter code" button puts the
+- **Restore starter code**, a top-bar "↺ Starter code" button puts the
   current lesson's starter back in the editor, so a pupil who tangles their
   code can start over in one click (the Reset button only resets the world).
-- **Sound on/off toggle** — a top-bar 🔊/🔇 button mutes all sound effects
+- **Sound on/off toggle**, a top-bar 🔊/🔇 button mutes all sound effects
   for SEN pupils and quiet classrooms. The choice persists with the other
   accessibility settings in `~/.robolearn/a11y.toml` and re-applies on
   launch (`A11ySettings.sound_enabled`, `sounds.set_enabled`).

@@ -49,14 +49,18 @@
   /* Starfield + faint orbital lines, painted CSS-only behind everything. */
   .konb-root::before{
     content:''; position:absolute; inset:0; pointer-events:none; z-index:0; opacity:0.6;
+    /* Stars use --fg-2 (the theme's secondary text colour), which is light on
+       dark themes and dark on light themes, so the field stays visible on every
+       theme instead of the old paper-white dots vanishing on light backgrounds.
+       Cyan and brass accents keep their tokens. */
     background-image:
-      radial-gradient(1px 1px at 18% 24%, rgba(245,240,228,0.7), transparent),
-      radial-gradient(1px 1px at 67% 14%, rgba(245,240,228,0.5), transparent),
-      radial-gradient(1.4px 1.4px at 41% 62%, rgba(245,240,228,0.55), transparent),
-      radial-gradient(1px 1px at 88% 48%, rgba(92,224,216,0.6), transparent),
-      radial-gradient(1px 1px at 12% 78%, rgba(245,240,228,0.45), transparent),
-      radial-gradient(1.2px 1.2px at 74% 82%, rgba(245,240,228,0.4), transparent),
-      radial-gradient(1px 1px at 54% 32%, rgba(201,168,106,0.5), transparent);
+      radial-gradient(1px 1px at 18% 24%, color-mix(in srgb, var(--fg-2) 70%, transparent), transparent),
+      radial-gradient(1px 1px at 67% 14%, color-mix(in srgb, var(--fg-2) 50%, transparent), transparent),
+      radial-gradient(1.4px 1.4px at 41% 62%, color-mix(in srgb, var(--fg-2) 55%, transparent), transparent),
+      radial-gradient(1px 1px at 88% 48%, color-mix(in srgb, var(--cyan) 60%, transparent), transparent),
+      radial-gradient(1px 1px at 12% 78%, color-mix(in srgb, var(--fg-2) 45%, transparent), transparent),
+      radial-gradient(1.2px 1.2px at 74% 82%, color-mix(in srgb, var(--fg-2) 40%, transparent), transparent),
+      radial-gradient(1px 1px at 54% 32%, color-mix(in srgb, var(--brass) 50%, transparent), transparent);
     background-repeat:no-repeat;
   }
   /* Fine grain over the whole panel for atmosphere (matches studio .grain). */
@@ -81,7 +85,7 @@
   .konb-wordmark .wm-sub{ font-family:var(--font-mono); font-size:8.5px; letter-spacing:.26em; text-transform:uppercase; color:var(--fg-3); margin-top:3px; }
   .konb-skip{ background:none; border:1px solid var(--border); color:var(--fg-2);
     font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
-    border-radius:5px; padding:9px 14px; cursor:pointer; transition:all 160ms var(--ease); }
+    border-radius:var(--radius-sm); padding:9px 14px; cursor:pointer; transition:all 160ms var(--ease); }
   .konb-skip:hover{ color:var(--fg-1); border-color:var(--fg-3); background:rgba(245,240,228,.04); }
 
   .konb-body{ flex:1; display:flex; flex-direction:column; justify-content:center; padding:clamp(24px,5vh,56px) 0 8px; }
@@ -112,7 +116,7 @@
   .konb-caps li{
     font-family:var(--font-mono); font-size:11px; letter-spacing:.04em; color:var(--fg-2);
     border:0.5px solid var(--border); border-left:2px solid var(--brass);
-    border-radius:5px; padding:6px 11px; background:rgba(245,240,228,.02);
+    border-radius:var(--radius-sm); padding:6px 11px; background:rgba(245,240,228,.02);
   }
   .konb-caps li:last-child{ border-left-color:var(--cyan); color:var(--cyan); }
 
@@ -139,13 +143,13 @@
   .konb-steps{ display:flex; gap:7px; align-items:center; margin:34px 0 0; }
   .konb-dot{ width:7px; height:7px; border-radius:99px; background:var(--ink-2); transition:all .25s var(--ease); }
   .konb-dot.done{ background:var(--cyan-deep); }
-  .konb-dot.on{ width:24px; border-radius:4px; background:var(--cyan); }
+  .konb-dot.on{ width:24px; border-radius:var(--radius-sm); background:var(--cyan); }
   .konb-progress{ font-family:var(--font-mono); font-size:10px; letter-spacing:.14em; color:var(--fg-3); text-transform:uppercase; margin-left:6px; }
 
   .konb-actions{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:30px 0 0; }
   .konb-btn{
     appearance:none; cursor:pointer; font-family:var(--font-body); font-weight:600; font-size:14px;
-    display:inline-flex; align-items:center; gap:9px; min-height:46px; padding:0 24px; border-radius:6px;
+    display:inline-flex; align-items:center; gap:9px; min-height:46px; padding:0 24px; border-radius:var(--radius-md);
     border:1px solid var(--border); background:transparent; color:var(--fg-1);
     transition:transform 120ms var(--ease), background 180ms var(--ease), border-color 180ms var(--ease), box-shadow 180ms var(--ease);
   }
@@ -168,7 +172,7 @@
   .konb-agent{ margin:26px 0 0; }
   .konb-agent-row{ display:flex; gap:9px; align-items:stretch; }
   .konb-agent-input{
-    flex:1; min-width:0; background:var(--void); border:1px solid var(--border); border-radius:6px;
+    flex:1; min-width:0; background:var(--void); border:1px solid var(--border); border-radius:var(--radius-md);
     color:var(--fg-1); font-family:var(--font-body); font-size:14.5px; padding:0 15px; min-height:46px; outline:none;
     transition:border-color 160ms var(--ease), box-shadow 160ms var(--ease);
   }
@@ -184,7 +188,7 @@
   .konb-tile{
     grid-column:span 2; text-align:left; cursor:pointer; color:inherit; font:inherit; min-height:44px;
     background:linear-gradient(180deg, var(--navy-2), var(--navy));
-    border:1px solid var(--border); border-radius:10px; padding:15px 16px;
+    border:1px solid var(--border); border-radius:var(--radius-lg); padding:15px 16px;
     transition:transform 140ms var(--ease), border-color 160ms var(--ease), box-shadow 160ms var(--ease);
   }
   .konb-tile:hover{ transform:translateY(-2px); border-color:rgba(92,224,216,.4); box-shadow:0 16px 34px -22px rgba(0,0,0,.8); }
@@ -200,11 +204,11 @@
   .konb-rec{
     display:flex; gap:20px; align-items:center; margin:24px 0 0; padding:22px 24px;
     background:linear-gradient(180deg, var(--navy-2), var(--navy));
-    border:1px solid var(--border); border-radius:12px;
+    border:1px solid var(--border); border-radius:var(--radius-lg);
     box-shadow:0 24px 60px -30px rgba(0,0,0,.8);
   }
   .konb-rec .rec-badge{
-    flex:none; width:74px; height:74px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:38px;
+    flex:none; width:74px; height:74px; border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; font-size:38px;
     background:radial-gradient(circle at 36% 28%, var(--navy-3), var(--void) 78%);
     border:0.5px solid var(--border);
   }
@@ -252,7 +256,7 @@
 
   /* Visible keyboard focus on every control (AA). */
   .konb-root button:focus-visible, .konb-root input:focus-visible, .konb-root [tabindex]:focus-visible{
-    outline:3px solid var(--cyan); outline-offset:2px; border-radius:6px;
+    outline:3px solid var(--cyan); outline-offset:2px; border-radius:var(--radius-md);
   }
 
   /* Full reduced-motion path: no entry, no orbit, no transitions. */

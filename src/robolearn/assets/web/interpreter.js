@@ -284,7 +284,25 @@
       if (c === '"' || c === "'") {
         let j = i + 1, s = '';
         while (j < n && src[j] !== c) {
-          if (src[j] === '\\' && j + 1 < n) { s += src[j + 1]; j += 2; }
+          if (src[j] === '\\' && j + 1 < n) {
+            // Translate the standard C-Python escapes so the sim's string
+            // VALUES match what the grader's real `exec` builds (e.g.
+            // print("a\nb") is two lines, not the literal letters a n b).
+            // An UNKNOWN escape keeps its backslash, mirroring CPython, where
+            // "\d" stays the two characters backslash + d.
+            const e = src[j + 1];
+            switch (e) {
+              case 'n': s += '\n'; break;
+              case 't': s += '\t'; break;
+              case 'r': s += '\r'; break;
+              case '\\': s += '\\'; break;
+              case '"': s += '"'; break;
+              case "'": s += "'"; break;
+              case '0': s += '\0'; break;
+              default: s += '\\' + e; break;   // unknown escape: keep the backslash
+            }
+            j += 2;
+          }
           else { s += src[j]; j++; }
         }
         if (j >= n) throw new RoverError('Unterminated string.', line);
@@ -319,32 +337,34 @@
     function parsePrimary() {
       const tk = peek();
       if (!tk) throw new RoverError('Unexpected end of expression.', line);
-      if (tk.t === 'num') { next(); return { k: 'num', v: tk.v }; }
-      if (tk.t === 'str') { next(); return { k: 'str', v: tk.v }; }
-      if (tk.v === '(') {
+      let node;
+      if (tk.t === 'num') { next(); node = { k: 'num', v: tk.v }; }
+      else if (tk.t === 'str') { next(); node = { k: 'str', v: tk.v }; }
+      else if (tk.v === '(') {
         next();
         const items = [parseTernaryless()];
         while (peek() && peek().v === ',') { next(); if (peek() && peek().v === ')') break; items.push(parseTernaryless()); }
         expect(')');
-        return items.length === 1 ? items[0] : { k: 'tuple', items: items };
+        node = items.length === 1 ? items[0] : { k: 'tuple', items: items };
       }
-      if (tk.v === '[') {
+      else if (tk.v === '[') {
         next();
         const items = [];
         while (peek() && peek().v !== ']') { items.push(parseTernaryless()); if (peek() && peek().v === ',') next(); else break; }
         expect(']');
-        return { k: 'list', items: items };
+        node = { k: 'list', items: items };
       }
-      if (tk.t === 'name') {
+      else if (tk.t === 'name') {
         if (tk.v === 'True') { next(); return { k: 'bool', v: true }; }
         if (tk.v === 'False') { next(); return { k: 'bool', v: false }; }
         if (tk.v === 'None') { next(); return { k: 'none' }; }
         next();
-        let node = { k: 'name', v: tk.v };
-        node = parseTrailers(node);
-        return node;
+        node = { k: 'name', v: tk.v };
       }
-      throw new RoverError('Unexpected token "' + (tk.v) + '".', line);
+      else throw new RoverError('Unexpected token "' + (tk.v) + '".', line);
+      // Trailers (attribute / call / subscript) apply to every atom, so a list
+      // or string literal can be indexed directly, e.g. [1,2,3][0] or "abc"[1].
+      return parseTrailers(node);
     }
 
     function parseTrailers(node) {
@@ -360,6 +380,15 @@
           while (peek() && peek().v !== ')') { args.push(parseTernaryless()); if (peek() && peek().v === ',') next(); else break; }
           expect(')');
           node = { k: 'call', callee: node, args: args };
+        } else if (peek().v === '[') {
+          // Subscript read: obj[index]. Slices (obj[a:b]) are not supported;
+          // the ':' would fall through to the expression parser and error,
+          // matching the file's honest-diagnostic standard rather than
+          // silently returning a wrong value.
+          next();
+          const idx = parseTernaryless();
+          expect(']');
+          node = { k: 'index', obj: node, index: idx };
         } else break;
       }
       return node;
@@ -584,6 +613,7 @@
               return true;
             }
             case 'attr': return { __attr: true, obj: evalExpr(node.obj), name: node.name, node: node };
+            case 'index': return pyIndex(evalExpr(node.obj), evalExpr(node.index), curLine);
             case 'call': return evalCall(node);
             default: throw new RoverError('Cannot evaluate expression.', curLine);
           }
@@ -832,11 +862,13 @@
 
   // Clamp a pupil-supplied magnitude into [lo, hi]. A *missing* argument
   // (undefined) falls back to `dflt`; a *present* but non-finite value (NaN or
-  // +/-Infinity -- e.g. `forward(10 ** 400)`, the only inf a pupil can type
-  // since the tokenizer rejects `1e308`) maps to the lower bound `lo`. This
-  // mirrors the Python engine's rover_api._clamp_finite so the animated and
-  // graded paths agree, and guarantees a finite magnitude so the value can
-  // never overflow app.jsx's animation duration and soft-hang the UI.
+  // +/-Infinity) maps to the lower bound `lo`. A pupil can reach non-finite two
+  // ways: an overflowing power such as `forward(10 ** 400)`, or an e-notation
+  // literal the tokenizer accepts but that overflows a double (e.g. `1e309`
+  // parses to Infinity). The clamp handles both. This mirrors the Python
+  // engine's rover_api._clamp_finite so the animated and graded paths agree,
+  // and guarantees a finite magnitude so the value can never overflow app.jsx's
+  // animation duration and soft-hang the UI.
   function clampNum(v, lo, hi, dflt) {
     const n = (v === undefined) ? dflt : Number(v);
     if (!isFinite(n)) return lo;            // NaN / +/-Infinity -> lower bound
@@ -852,6 +884,40 @@
     return p < 0 ? 0 : (p > 1 ? 1 : p);
   }
   function describe(node) { return node.k === 'name' ? node.v : node.k; }
+
+  // Python type name for a value, used in subscript diagnostics so the message
+  // reads like the grader's ("'int' object is not subscriptable").
+  function pyTypeName(v) {
+    if (v === null || v === undefined) return 'NoneType';
+    if (typeof v === 'boolean') return 'bool';
+    if (typeof v === 'number') return Number.isInteger(v) ? 'int' : 'float';
+    if (typeof v === 'string') return 'str';
+    if (Array.isArray(v)) return 'list';
+    return 'object';
+  }
+
+  // Subscript read obj[idx] with CPython semantics, so the sim agrees with the
+  // grader (which runs real `exec`): only lists and strings are subscriptable;
+  // the index must be an int (a bool counts as 0/1); a negative index counts
+  // from the end; an out-of-range index raises (IndexError-style) with the
+  // 1-based source line. Slices are not implemented (parser rejects the ':').
+  function pyIndex(obj, idx, line) {
+    if (typeof obj === 'string' || Array.isArray(obj)) {
+      const container = Array.isArray(obj) ? 'list' : 'string';
+      let i = idx;
+      if (typeof i === 'boolean') i = i ? 1 : 0;
+      if (typeof i !== 'number' || !Number.isInteger(i)) {
+        throw new RoverError(container + ' indices must be integers, not ' + pyTypeName(idx), line);
+      }
+      const len = obj.length;
+      const k = i < 0 ? i + len : i;   // negative index counts from the end
+      if (k < 0 || k >= len) {
+        throw new RoverError(container + ' index out of range', line);
+      }
+      return obj[k];
+    }
+    throw new RoverError("'" + pyTypeName(obj) + "' object is not subscriptable", line);
+  }
 
   function binop(op, l, r, line) {
     if (op === '+') {

@@ -1,6 +1,6 @@
-# Human TODO (post-v1.0.0-rc2)
+# Human TODO
 
-Three deliverables remain that the autonomous build cannot finish
+A few deliverables remain that the autonomous build cannot finish
 without a human in the room.
 
 ## 1. Conduct the 5-8 teacher evaluation study
@@ -19,17 +19,19 @@ Store the raw responses in `docs/teachers/evaluation-raw.md` (gitignored
 if it contains personal data) and a redacted summary in
 `docs/teachers/evaluation-summary.md`.
 
-## 2. Tag v1.0.0
+## 2. Cut the next release tag
 
-Once the teacher evaluation summary has zero blocker-severity issues,
-run:
+The current released tag is `v2.0.0`, and it matches the `pyproject.toml`
+version and the CHANGELOG `[2.0.0]` entry, so there is nothing to tag right
+now. For a future release, add a dated CHANGELOG entry, bump the
+`pyproject.toml` version to match, then tag and push:
 
 ```bash
-git tag -a v1.0.0 -m "v1.0.0 - production release"
-git push origin v1.0.0
+git tag -a vX.Y.Z -m "vX.Y.Z"
+git push origin vX.Y.Z
 ```
 
-The `release.yml` workflow then builds Windows / macOS / Linux
+The `release.yml` workflow then builds the Windows, macOS and Linux
 binaries via PyInstaller and attaches them to the release.
 
 ## 3. Deferred polish (P7 + P8)

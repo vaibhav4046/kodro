@@ -26,6 +26,30 @@
     return url;
   }
 
+  // Time budgets for the local fetches. Generation can pay a 10 to 30s cold
+  // model load, so it gets a generous cap; listing installed models is a quick
+  // metadata call, so it gets a short one. Both stop an unreachable or stuck
+  // Ollama from hanging the UI forever.
+  const GEN_TIMEOUT_MS = 120000;
+  const TAGS_TIMEOUT_MS = 8000;
+
+  // Wrap a non-streamed fetch in an AbortController plus timer so a stuck or
+  // cold-loading model cannot hang forever. The timer is cleared on success and
+  // on failure, and an aborted request surfaces one clear, honest error.
+  function fetchTimeout(url, options, ms) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(function () { ctrl.abort(); }, ms);
+    const opts = Object.assign({}, options || {}, { signal: ctrl.signal });
+    return fetch(url, opts).then(
+      function (r) { clearTimeout(timer); return r; },
+      function (e) {
+        clearTimeout(timer);
+        if (e && e.name === 'AbortError') throw new Error('the model took too long, it may still be loading, try again');
+        throw e;
+      }
+    );
+  }
+
   function bridge() {
     return (typeof window !== 'undefined' && window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable())
       ? window.RoboLearn : null;
@@ -35,7 +59,7 @@
   try { override = localStorage.getItem('kodro_web_model') || null; } catch (e) { void e; }
 
   async function tags() {
-    const r = await fetch(localOnly(OLLAMA + '/api/tags'), { method: 'GET' });
+    const r = await fetchTimeout(localOnly(OLLAMA + '/api/tags'), { method: 'GET' }, TAGS_TIMEOUT_MS);
     if (!r.ok) throw new Error('tags ' + r.status);
     const j = await r.json();
     return (j.models || []).map(function (m) { return m && m.name; }).filter(Boolean);
@@ -72,9 +96,9 @@
       options: { temperature: opts.temperature != null ? opts.temperature : 0.3, num_predict: opts.num_predict || 400 },
     };
     if (opts.system) body.system = opts.system;
-    const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
+    const r = await fetchTimeout(localOnly(OLLAMA + '/api/generate'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    });
+    }, GEN_TIMEOUT_MS);
     if (!r.ok) throw new Error('generate ' + r.status);
     const j = await r.json();
     return (j.response || '').trim();
@@ -89,13 +113,27 @@
   }
   function stripFences(t) { return t.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim(); }
 
+  // The command surface depends on the parts fitted to the CURRENT robot, so
+  // ground the reviewer and the grounded Ask in the same fitted-command list the
+  // vibe chat uses (hooks.jsx unshifts KodroCommands.groundingText into the chat
+  // history). Guarded so a missing global just degrades to no prefix.
+  function grounding() {
+    try {
+      if (typeof window !== 'undefined' && window.KodroCommands && window.KodroCommands.groundingText && window.getKodroRobot) {
+        const g = window.KodroCommands.groundingText(window.getKodroRobot());
+        if (g) return g + '\n\n';
+      }
+    } catch (e) { void e; }
+    return '';
+  }
+
   // The CANONICAL robot API is bare, metre-based function calls. rover.*(...)
   // still runs as a deprecated centimetre-based compatibility alias, but the
   // model must not use it: mixing the two dialects in one program is a 100x
   // unit trap. The prompt is explicit, the output is gated, and normalizeApi
   // below converts stray rover.forward(cm) into the equivalent bare METRE
   // call (value included) so a rewrite never silently changes distances.
-  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. A turn is 90 degrees for a right angle, 180 to face back. A beep is beep(1). A wait is wait(1) for one second. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.\n\nExamples of correct code:\n# Example 1: move forward 3m, turn right 90, then move 2m\nmove_forward(3)\nturn_right(90)\nmove_forward(2)\n\n# Example 2: draw a square of side 2m\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n\n# Example 3: drive forward until close to a wall\nwhile distance() > 40:\n    move_forward(1)';
+  const API_HINT = 'The robot is programmed with BARE Python function calls, NEVER object methods. Use exactly: move_forward(metres), move_backward(metres), turn_left(degrees), turn_right(degrees), set_speed(percent), say("text"), led("colour"), beep(1), wait(seconds), scan(), pen_down(), pen_up(). Sensors are distance() and heading(). distance() returns CENTIMETRES to the nearest wall (0 to 4000); to stop near a wall loop while distance() > 40 and move a small step inside. NEVER write rover.anything() or robot.anything() or create any object. Distances are in METRES and the arena is small (about 15 metres from the centre to a wall), so a normal move is 1 to 5 metres: "a few metres" means move_forward(3), never 30 or 300. A turn is 90 degrees for a right angle, 180 to face back. A beep is beep(1). A wait is wait(1) for one second. For repeated motion use a loop, for example "for i in range(4):" with an indented body. To stop before an obstacle, loop "while distance() > 40:" moving a small step like move_forward(1) inside. Keep programs short. Output ONLY runnable Python code, no prose, no explanations.\n\nExamples of correct code:\n# Example 1: move forward 3m, turn right 90, then move 2m\nmove_forward(3)\nturn_right(90)\nmove_forward(2)\n\n# Example 2: draw a square of side 2m\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n\n# Example 3: drive forward until close to a wall\nwhile distance() > 40:\n    move_forward(1)';
 
   // The fine-tuned model strongly prefers object-method style (rover.move_forward,
   // rover.forward, rover.right) which the interpreter's bare-function surface does
@@ -177,9 +215,9 @@
     } else {
       let models;
       try { models = await tags(); }
-      catch (e) { return { ok: false, reason: 'Ollama is not running. Start the Ollama app, or connect a cloud model in Settings.' }; }
+      catch (e) { return { ok: false, reason: 'Ollama is not running. Start the Ollama app, or connect a cloud key in the Vibe panel.' }; }
       model = pick(models);
-      if (!model) return { ok: false, reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b), or connect a cloud model in Settings.' };
+      if (!model) return { ok: false, reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b), or connect a cloud key in the Vibe panel.' };
     }
     // Evict finished/orphaned jobs so a cancelled chat (whose poller stopped
     // before marking the job done) does not accumulate in the map across a
@@ -199,41 +237,64 @@
           // post-processing (code detection, normalise, self-test) as Ollama.
           job.text = await window.KodroProviders.generate(prompt, { system: sys, num_predict: 400, temperature: 0.3 }, model);
         } else {
-          const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: model, prompt: prompt, system: sys, stream: true, keep_alive: '30m', options: { temperature: 0.3, num_predict: 400 } }),
-          });
-          if (!r.ok || !r.body) throw new Error('generate ' + (r && r.status));
-          const reader = r.body.getReader();
-          const dec = new TextDecoder();
-          let buf = '';
-          for (;;) {
-            const out = await reader.read();
-            if (out.done) break;
-            buf += dec.decode(out.value, { stream: true });
-            let nl;
-            while ((nl = buf.indexOf('\n')) >= 0) {
-              const line = buf.slice(0, nl).trim();
-              buf = buf.slice(nl + 1);
-              if (!line) continue;
-              try { const c = JSON.parse(line); if (c.response) job.text += c.response; } catch (e) { void e; }
+          // Streamed generation: the AbortController guards the WHOLE read, not
+          // just the initial response, so a model that stalls mid-stream (or
+          // never produces a first token) is cut off with a clear error instead
+          // of hanging the panel. The timer is cleared once the stream ends.
+          const ctrl = new AbortController();
+          const timer = setTimeout(function () { ctrl.abort(); }, GEN_TIMEOUT_MS);
+          try {
+            const r = await fetch(localOnly(OLLAMA + '/api/generate'), {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ model: model, prompt: prompt, system: sys, stream: true, keep_alive: '30m', options: { temperature: 0.3, num_predict: 400 } }),
+              signal: ctrl.signal,
+            });
+            if (!r.ok || !r.body) throw new Error('generate ' + (r && r.status));
+            const reader = r.body.getReader();
+            const dec = new TextDecoder();
+            let buf = '';
+            for (;;) {
+              const out = await reader.read();
+              if (out.done) break;
+              buf += dec.decode(out.value, { stream: true });
+              let nl;
+              while ((nl = buf.indexOf('\n')) >= 0) {
+                const line = buf.slice(0, nl).trim();
+                buf = buf.slice(nl + 1);
+                if (!line) continue;
+                try { const c = JSON.parse(line); if (c.response) job.text += c.response; } catch (e) { void e; }
+              }
             }
+          } catch (eStream) {
+            if (eStream && eStream.name === 'AbortError') throw new Error('the model took too long, it may still be loading, try again');
+            throw eStream;
+          } finally {
+            clearTimeout(timer);
           }
         }
         const full = job.text.trim();
         if (looksLikeCode(full)) {
           let code = normalizeApi(extractCode(full));
           const v = validate(code);
+          let validated = v.ok;
           if (!v.ok) {
             // One repair round, feeding the real interpreter error back, so the
             // browser ships code that actually runs (mirrors the desktop gate).
             try {
               const fix = await genOnce(model, prompt + '\n\nThat code failed to run with this error: ' + v.error + '\nThe code must use ONLY bare function calls like move_forward(3), NOT rover.move_forward(3). Fix the syntax and return only the corrected code. ' + API_HINT, { system: sys, num_predict: 400, temperature: 0.2 });
               const fixed = normalizeApi(extractCode(fix));
-              if (fixed && validate(fixed).ok) code = fixed;
+              if (fixed && validate(fixed).ok) { code = fixed; validated = true; }
             } catch (e2) { void e2; }
           }
-          job.result = { ok: true, done: true, type: 'code', code: code, model: model };
+          if (validated) {
+            job.result = { ok: true, done: true, type: 'code', code: code, model: model };
+          } else {
+            // Both the self-test and the single repair round failed. Ship the
+            // code so the user is not blocked, but mark it so the UI can warn
+            // honestly instead of presenting known-broken code as OK. Keep the
+            // original interpreter error (v.error) for the warning to display.
+            job.result = { ok: true, done: true, type: 'code', code: code, model: model, validated: false, validationError: v.error };
+          }
         } else {
           job.result = { ok: true, done: true, type: 'question', text: stripFences(full), model: model };
         }
@@ -284,7 +345,32 @@
       const chosen = pick(ms);
       if (chosen) warm(chosen);
       return { available: ms.length > 0, model: chosen, models: ms, override: override, source: 'browser' };
-    } catch (e) { return { available: false, model: null, models: [], override: override, source: 'browser' }; }
+    } catch (e) {
+      void e;
+      // tags() failed. The two ways this happens read very differently to the
+      // user, so tell them apart. On a hosted page (an http origin that is NOT
+      // localhost) the browser blocks the request to the local Ollama server by
+      // CORS: Ollama is likely running, it just refuses this origin. On a local
+      // origin (localhost, 127.0.0.1, or a file:// page) the request is allowed,
+      // so a failure means Ollama is not running. The hint carries the exact,
+      // copy-pasteable fix, with the real origin computed at runtime.
+      let origin = '';
+      try { origin = (typeof window !== 'undefined' && window.location && window.location.origin) || ''; } catch (er) { void er; }
+      const httpOrigin = /^https?:\/\//i.test(origin);
+      const localHost = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(origin);
+      if (httpOrigin && !localHost) {
+        return {
+          available: false, model: null, models: [], override: override, source: 'browser',
+          reason: 'blocked-origin',
+          hint: 'Your browser blocked the local AI. Start Ollama allowing this page: set OLLAMA_ORIGINS=' + origin + ' then run ollama serve. Or use the desktop app, or connect a cloud key below.',
+        };
+      }
+      return {
+        available: false, model: null, models: [], override: override, source: 'browser',
+        reason: 'not-running',
+        hint: 'Ollama is not running. Start the Ollama app (or run: ollama serve), then reopen this panel.',
+      };
+    }
   }
 
   function setModel(name) {
@@ -304,11 +390,11 @@
     if (cloud) { model = window.KodroProviders.config().cloudModel; }
     else {
       let models;
-      try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running (or connect a cloud model in Settings).' }; }
+      try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running (or connect a cloud key in the Vibe panel).' }; }
       model = pick(models);
-      if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud model in Settings).' };
+      if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).' };
     }
-    const sys = 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
+    const sys = grounding() + 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
     try {
       const out = await genOnce(model, 'Review and tidy this rover program:\n\n' + src, { system: sys, num_predict: 500 });
       const code = normalizeApi(extractCode(out));
@@ -333,15 +419,15 @@
     if (cloud) { model = window.KodroProviders.config().cloudModel; }
     else {
       let models;
-      try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running (or connect a cloud model in Settings).' }; }
+      try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running (or connect a cloud key in the Vibe panel).' }; }
       model = pick(models);
-      if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud model in Settings).' };
+      if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).' };
     }
     // Browser mode has no lesson corpus to ground against (the desktop bridge
     // does the retrieval), so constrain the model to Kodro's real commands and
     // make it refuse rather than invent, and mark the answer ungrounded so the
     // UI does not claim it came from the built-in material.
-    const sys = 'You are Kodro\'s offline assistant for a simulated robot. Answer briefly and concretely, only about Kodro\'s actual robot commands and features. If the question is outside that or you are not sure, say you are not sure rather than inventing a command or capability.';
+    const sys = grounding() + 'You are Kodro\'s offline assistant for a simulated robot. Answer briefly and concretely, only about Kodro\'s actual robot commands and features. If the question is outside that or you are not sure, say you are not sure rather than inventing a command or capability.';
     try {
       const text = await genOnce(model, query, { system: sys, num_predict: 350 });
       return { ok: true, text: stripFences(text), answer: stripFences(text), model: model, grounded: false, source: cloud ? window.KodroProviders.config().provider : 'local' };

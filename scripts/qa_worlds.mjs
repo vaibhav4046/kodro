@@ -64,7 +64,10 @@ const CHROME_CANDIDATES = [
 
 // Same console filters as qa_ui.mjs: noise lines never fail a combo, and a
 // line only fails when it is a console/exception line naming a real symptom.
-const NOISE = /gcm|registration|GROUP_MARKER|swiftshader|GPU stall|extension|manifest|web_app|externally_managed|about:blank|Permissions-Policy|deprecat|AudioContext|autoplay/i;
+// The browser lesson fallback (bridge.js) warns a handled "could not load
+// lessons.json" line after its retries are exhausted; it is a graceful degrade,
+// not a failure, so it is allowlisted here exactly as qa_ui.mjs does.
+const NOISE = /gcm|registration|GROUP_MARKER|swiftshader|GPU stall|extension|manifest|web_app|externally_managed|about:blank|Permissions-Policy|deprecat|AudioContext|autoplay|could not load lessons\.json/i;
 const FAIL = /CONSOLE.*(error|uncaught|is not a function|is not defined|cannot read)/i;
 
 function findChrome() {
