@@ -56,9 +56,7 @@ _REQUIRE_NODE = os.environ.get("ROBOLEARN_REQUIRE_NODE") == "1"
 # Windows CI loses no real coverage. ROBOLEARN_REQUIRE_NODE=1 overrides the skip
 # for a deliberate local Windows conformance run.
 _ON_WINDOWS_CI = (
-    platform.system() == "Windows"
-    and os.environ.get("CI") == "true"
-    and not _REQUIRE_NODE
+    platform.system() == "Windows" and os.environ.get("CI") == "true" and not _REQUIRE_NODE
 )
 _WIN_CI_SUBPROCESS_SKIP = pytest.mark.skipif(
     _ON_WINDOWS_CI,
