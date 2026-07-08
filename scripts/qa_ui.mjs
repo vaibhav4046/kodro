@@ -44,6 +44,7 @@ import { mkdirSync, existsSync, statSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import http from 'node:http';
+import { resolveChrome } from './lib/resolve-chrome.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
@@ -91,16 +92,6 @@ const BEHAVIOUR_FLOW = 'studio-earth-run';
 // and qa_grader (34), which run the same interpreter with no browser timing in
 // the loop. A zero here still fails (the rover never moved).
 const MIN_DRIVE_M = 3.0;
-
-// First Chrome we can find. The Git-Bash-style path in the task maps to this
-// Windows location; fall back to a couple of common spots / PATH.
-const CHROME_CANDIDATES = [
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  process.env.CHROME_PATH,
-  'chrome',
-  'google-chrome',
-].filter(Boolean);
 
 // Lines we never want to count as failures: GPU/swiftshader chatter, service
 // worker / GCM registration, extension + manifest noise, policy/deprecation
@@ -176,14 +167,6 @@ const MODALS = [
 // Validate has no modal — it drives a 5-seed run and prints a "Validation:"
 // console line. Asserted separately on that marker so the coverage is honest.
 const VALIDATE = { name: 'validate', marker: /Validation:/, note: 'Validate (5-seed run; console line, not a modal)' };
-
-function findChrome() {
-  for (const c of CHROME_CANDIDATES) {
-    if (c === 'chrome' || c === 'google-chrome') return c; // resolved via PATH
-    if (existsSync(c)) return c;
-  }
-  return null;
-}
 
 // Probe the static server with a tiny HEAD-ish GET. Resolves to the status code
 // or 0 on connection failure. No external deps, short timeout.
@@ -873,7 +856,7 @@ function cleanup() {
     process.exit(0);
   }
 
-  const chrome = findChrome();
+  const chrome = resolveChrome();
   if (!chrome) {
     console.log('SKIP: Chrome not found (set CHROME_PATH). UI smoke needs headless Chrome.');
     process.exit(0);

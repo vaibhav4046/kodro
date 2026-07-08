@@ -107,7 +107,12 @@
     const [say, setSay] = useState('');
     const [crashKey, setCrashKey] = useState(0);
     const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
-    const [cam, setCam] = useState({ tilt: 46, yaw: -8, zoom: 1 });
+    // Interactive 3D camera (pose + drag/wheel handlers) extracted to
+    // window.KodroHooks.useCamera (hooks.jsx); cam + setCam are consumed by the
+    // Viewport and the tweak sliders below, so they come back from the hook.
+    const { cam, setCam, camDrag, camWheel } = (window.KodroHooks && window.KodroHooks.useCamera)
+      ? window.KodroHooks.useCamera()
+      : { cam: { tilt: 46, yaw: -8, zoom: 1 }, setCam: function () {}, camDrag: function () {}, camWheel: function () {} };
     // Real WebGL 3D viewport (Three.js) with third-person orbit / first-person.
     const [view3d, setView3d] = useState(() => lsGet('or_view3d') !== '0');
     const [fpv, setFpv] = useState(() => lsGet('or_fpv') === '1');
@@ -777,30 +782,8 @@
     // ---------- layout resizers ----------
     const { editorW, teleW, consoleH, startDrag, nudge, preset: layoutPreset } = (window.KodroHooks && window.KodroHooks.useResizers) ? window.KodroHooks.useResizers() : { editorW: 404, teleW: 318, consoleH: 184, startDrag: function () {}, nudge: function () {}, preset: function () {} };
 
-    // interactive camera: drag the viewport to orbit (yaw + pitch), wheel to zoom
-    function camDrag(e) {
-      if (e.target.closest('.terrain-switch') || e.target.closest('.view-mode-pill')) return;
-      const sx = e.clientX, sy = e.clientY;
-      const y0 = cam.yaw, t0 = cam.tilt;
-      let moved = false;
-      const move = (ev) => {
-        moved = true;
-        setCam(c => ({
-          ...c,
-          yaw: Math.max(-60, Math.min(60, y0 + (ev.clientX - sx) * 0.35)),
-          tilt: Math.max(0, Math.min(72, t0 - (ev.clientY - sy) * 0.32))
-        }));
-      };
-      const up = () => {
-        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
-        document.body.style.cursor = '';
-      };
-      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
-      document.body.style.cursor = 'grabbing';
-    }
-    function camWheel(e) {
-      setCam(c => ({ ...c, zoom: Math.max(0.7, Math.min(1.7, c.zoom - e.deltaY * 0.0012)) }));
-    }
+    // interactive camera: camDrag (orbit) + camWheel (zoom) now come from
+    // window.KodroHooks.useCamera (destructured with cam/setCam above).
 
     // keyboard shortcuts. The handler is registered ONCE: App re-renders ~60
     // times a second during a run, so a deps-free effect would thrash

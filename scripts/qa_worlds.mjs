@@ -32,6 +32,7 @@ import { mkdirSync, existsSync, statSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import http from 'node:http';
+import { resolveChrome } from './lib/resolve-chrome.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
@@ -54,14 +55,6 @@ const ROBOTS = [null, 'rover', 'car', 'home', 'arm', 'custom'];
 // One combo re-run at every non-low tier: tier-gated paths must not throw.
 const TIER_LOOP = ['med', 'high', 'cinematic'];
 
-const CHROME_CANDIDATES = [
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  process.env.CHROME_PATH,
-  'chrome',
-  'google-chrome',
-].filter(Boolean);
-
 // Same console filters as qa_ui.mjs: noise lines never fail a combo, and a
 // line only fails when it is a console/exception line naming a real symptom.
 // The browser lesson fallback (bridge.js) warns a handled "could not load
@@ -69,14 +62,6 @@ const CHROME_CANDIDATES = [
 // not a failure, so it is allowlisted here exactly as qa_ui.mjs does.
 const NOISE = /gcm|registration|GROUP_MARKER|swiftshader|GPU stall|extension|manifest|web_app|externally_managed|about:blank|Permissions-Policy|deprecat|AudioContext|autoplay|could not load lessons\.json/i;
 const FAIL = /CONSOLE.*(error|uncaught|is not a function|is not defined|cannot read)/i;
-
-function findChrome() {
-  for (const c of CHROME_CANDIDATES) {
-    if (c === 'chrome' || c === 'google-chrome') return c;
-    if (existsSync(c)) return c;
-  }
-  return null;
-}
 
 function probeServer() {
   return new Promise((resolve) => {
@@ -148,7 +133,7 @@ const gap = () => { const until = Date.now() + GAP_MS; while (Date.now() < until
     console.log('SKIP: cap.html missing — run `node scripts/build_screenshot_harness.cjs` first.');
     process.exit(0);
   }
-  const chrome = findChrome();
+  const chrome = resolveChrome();
   if (!chrome) {
     console.log('SKIP: Chrome not found (set CHROME_PATH). World sweep needs headless Chrome.');
     process.exit(0);

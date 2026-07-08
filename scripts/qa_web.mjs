@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
+import { resolveChrome } from './lib/resolve-chrome.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
@@ -54,21 +55,6 @@ const BROWSER_TELEMETRY = [
 function log(pass, name, detail) {
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${name.padEnd(24)} ${detail || ''}`);
   return pass;
-}
-
-function findChrome() {
-  const candidates = [
-    process.env.CHROME_BIN,
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    '/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium',
-    'google-chrome', 'chrome',
-  ].filter(Boolean);
-  for (const c of candidates) {
-    if (c === 'chrome' || c === 'google-chrome') return c;
-    if (existsSync(c)) return c;
-  }
-  return null;
 }
 
 function buildSiteIfNeeded() {
@@ -176,7 +162,7 @@ async function main() {
   console.log('== KODRO WEB GATE (qa_web) ==\n');
   const results = [];
 
-  const chrome = findChrome();
+  const chrome = resolveChrome();
   if (!chrome) {
     console.log('SKIP  chrome not found; qa_web needs headless Chrome. (exit 0 for local dev)');
     process.exit(0);

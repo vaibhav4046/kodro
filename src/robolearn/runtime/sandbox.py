@@ -7,6 +7,14 @@ set of builtin names that allow trivial sandbox escape (``open``, ``eval``,
 We also reject the most common companion names (``__import__``, ``exit``,
 ``quit``, ``input``) because pupil code has no legitimate need for them.
 
+One vector deliberately sidesteps the ``Attribute``/``Name`` dunder checks:
+``str.format`` and ``str.format_map`` evaluate their replacement-field names at
+*runtime*, so a template like ``"{0.__class__.__init__.__globals__}"`` walks an
+exposed object all the way to the real module globals without ever emitting a
+``__dunder__`` node the walker can see. We close it by inspecting template
+*strings* for attribute-access field specs (see
+:func:`_format_template_walks_attribute`).
+
 The sandbox check happens *before* execution. If any violations are found
 the executor (:mod:`robolearn.runtime.executor`) refuses to run the
 snippet at all and reports the violation with its line number.
@@ -15,6 +23,7 @@ snippet at all and reports the violation with its line number.
 from __future__ import annotations
 
 import ast
+import string
 from dataclasses import dataclass
 from typing import Any
 
@@ -110,6 +119,21 @@ class _SandboxWalker(ast.NodeVisitor):
                     )
         self.generic_visit(node)
 
+    # --- format-string field specs ------------------------------------------
+
+    def visit_Constant(self, node: ast.Constant) -> None:
+        # ``str.format`` / ``str.format_map`` templates resolve their field
+        # names at runtime, so an attribute walk inside the template
+        # (e.g. ``"{0.__class__.__init__.__globals__}"``) never appears as an
+        # ``Attribute`` node for :meth:`visit_Attribute` to reject. Catch it by
+        # inspecting the literal template string itself, regardless of how it is
+        # later used (``"...".format(x)``, ``fmt = "..."; fmt.format(x)``, ...).
+        if isinstance(node.value, str) and _format_template_walks_attribute(node.value):
+            self.violations.append(
+                SandboxViolation("format-attr", _truncate(node.value), node.lineno)
+            )
+        self.generic_visit(node)
+
     # --- name references ----------------------------------------------------
 
     def visit_Name(self, node: ast.Name) -> None:
@@ -131,6 +155,58 @@ class _SandboxWalker(ast.NodeVisitor):
 def _is_dunder(name: str) -> bool:
     """Return True if ``name`` is a double-underscore identifier like ``__class__``."""
     return name.startswith("__") and name.endswith("__")
+
+
+#: Shared parser for ``str.format`` templates (stateless, safe to reuse).
+_FORMATTER = string.Formatter()
+
+#: Longest template fragment quoted back in a violation message.
+_MAX_TEMPLATE_SNIPPET: int = 40
+
+
+def _truncate(text: str) -> str:
+    """Return ``text`` shortened to a readable length for a violation message."""
+    if len(text) <= _MAX_TEMPLATE_SNIPPET:
+        return text
+    return text[: _MAX_TEMPLATE_SNIPPET - 1] + "…"
+
+
+def _format_template_walks_attribute(template: str) -> bool:
+    """Return True if a ``str.format`` template reaches into an attribute.
+
+    ``str.format`` / ``str.format_map`` evaluate the replacement-field name at
+    runtime, so a template such as ``"{0.__class__.__init__.__globals__}"`` steps
+    from an exposed object (e.g. a ``rover_api`` function) to the real module
+    globals -- and thus the unrestricted builtins -- without ever producing an
+    ``Attribute`` node for the walker to reject. This inspects the template
+    string for that pattern.
+
+    Only attribute access (``.``) in a field name is treated as a violation.
+    Pure subscripting (``"{0[0]}".format(read_colour())``) is legitimate pupil
+    formatting and cannot, on its own, escape an object the pupil already holds;
+    every escalation walk needs at least one attribute hop to reach a dunder.
+    Nested format specs (``"{0:{1.__class__}}"``) are inspected recursively.
+
+    Args:
+        template: A candidate ``str.format`` template string.
+
+    Returns:
+        True if any (possibly nested) replacement field selects an attribute.
+    """
+    try:
+        fields = list(_FORMATTER.parse(template))
+    except ValueError:
+        # Malformed template (e.g. a stray "{"). ``str.format`` would raise at
+        # runtime rather than leak, and there is no usable field to walk.
+        return False
+    for _literal_text, field_name, format_spec, _conversion in fields:
+        if field_name is not None and "." in field_name:
+            return True
+        # A nested replacement field lives inside the format spec, e.g.
+        # ``"{0:{1.__class__}}"`` -- recurse so a walk hidden there is caught.
+        if format_spec and _format_template_walks_attribute(format_spec):
+            return True
+    return False
 
 
 # --- public API ------------------------------------------------------------

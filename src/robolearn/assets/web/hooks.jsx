@@ -61,6 +61,11 @@
  * document I/O concern (projectFileRef + saveProjectClick / openProjectClick /
  * applyProjectText / onProjectFilePicked). Moved VERBATIM.
  *
+ * useCamera(): the interactive 3D-camera concern. Owns the camera pose ({tilt,
+ * yaw, zoom}) plus camDrag (orbit on pointer drag) and camWheel (wheel zoom),
+ * moved VERBATIM from App. Fully self-contained; cam + setCam are returned too
+ * because the Viewport and the perspective/orbit/zoom sliders read them.
+ *
  * Uses the global React (like every other web module), so the IIFE reads
  * React.useState / React.useEffect / React.useRef rather than importing.
  */
@@ -541,6 +546,39 @@
     return { projectFileRef, saveProjectClick, openProjectClick, onProjectFilePicked };
   }
 
+  function useCamera() {
+    // The interactive 3D-camera concern: orbit (yaw + pitch) by dragging the
+    // viewport, zoom with the wheel. Owns the camera pose and the two pointer
+    // handlers, moved VERBATIM from App. cam is read by the Viewport and the
+    // perspective/orbit/zoom tweak sliders, so the state and its setter are
+    // returned alongside the drag handlers (like useResizers exposes its sizes).
+    const [cam, setCam] = useState({ tilt: 46, yaw: -8, zoom: 1 });
+    function camDrag(e) {
+      if (e.target.closest('.terrain-switch') || e.target.closest('.view-mode-pill')) return;
+      const sx = e.clientX, sy = e.clientY;
+      const y0 = cam.yaw, t0 = cam.tilt;
+      let moved = false;
+      const move = (ev) => {
+        moved = true;
+        setCam(c => ({
+          ...c,
+          yaw: Math.max(-60, Math.min(60, y0 + (ev.clientX - sx) * 0.35)),
+          tilt: Math.max(0, Math.min(72, t0 - (ev.clientY - sy) * 0.32))
+        }));
+      };
+      const up = () => {
+        window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+        document.body.style.cursor = '';
+      };
+      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+      document.body.style.cursor = 'grabbing';
+    }
+    function camWheel(e) {
+      setCam(c => ({ ...c, zoom: Math.max(0.7, Math.min(1.7, c.zoom - e.deltaY * 0.0012)) }));
+    }
+    return { cam, setCam, camDrag, camWheel };
+  }
+
   function useSimEngine(deps) {
     deps = deps || {};
     // The run/animation engine (V2_REVIEW M4): collisionAt / rayDistance /
@@ -604,59 +642,14 @@
     };
 
     const R = (robotSpec && robotSpec.phys && robotSpec.phys.collisionRadiusCm) || R_DEFAULT;
-    function collisionAt(x, y) {
-      if (Math.abs(x) > WALL - R || Math.abs(y) > WALL - R) return { type: 'wall' };
-      for (const o of terrain.obstacles) {
-        if (Math.hypot(o.x - x, o.y - y) < o.r + R) return { type: 'obstacle', o };
-      }
-      // Moving agents (pedestrians and traffic) are real obstacles too: the
-      // robot must avoid them, not just the parked cars and buildings. The
-      // agent sim is keyed by the SITE id when a mission site is active
-      // (App builds it with terrainId), so gate on the same id.
-      if (window.KodroAgents && window.KodroAgents.world() === (terrain.siteId || terrain.id)) {
-        for (const a of window.KodroAgents.list()) {
-          if (Math.hypot(a.x - x, a.y - y) < a.r + R) return { type: a.kind === 'person' ? 'pedestrian' : a.kind === 'robot' ? 'robot' : 'vehicle', o: a };
-        }
-      }
-      return null;
-    }
-    function rayDistance(x, y, headingDeg) {
-      const a = headingDeg * Math.PI / 180;
-      const dx = Math.sin(a), dy = -Math.cos(a);
-      let best = Infinity;
-      // walls (square at ±(WALL-R))
-      const lim = WALL - R;
-      if (dx > 1e-6) best = Math.min(best, (lim - x) / dx);
-      if (dx < -1e-6) best = Math.min(best, (-lim - x) / dx);
-      if (dy > 1e-6) best = Math.min(best, (lim - y) / dy);
-      if (dy < -1e-6) best = Math.min(best, (-lim - y) / dy);
-      // obstacles (ray-circle)
-      for (const o of terrain.obstacles) {
-        const ox = o.x - x, oy = o.y - y;
-        const tca = ox * dx + oy * dy;
-        if (tca < 0) continue;
-        const d2 = ox * ox + oy * oy - tca * tca;
-        const rr = (o.r + R) * (o.r + R);
-        if (d2 > rr) continue;
-        const t = tca - Math.sqrt(rr - d2);
-        if (t > 0) best = Math.min(best, t);
-      }
-      // the sensor also picks up moving agents in the robot's path (same
-      // site-aware world key as the collision test above)
-      if (window.KodroAgents && window.KodroAgents.world() === (terrain.siteId || terrain.id)) {
-        for (const o of window.KodroAgents.list()) {
-          const ox = o.x - x, oy = o.y - y;
-          const tca = ox * dx + oy * dy;
-          if (tca < 0) continue;
-          const d2 = ox * ox + oy * oy - tca * tca;
-          const rr = (o.r + R) * (o.r + R);
-          if (d2 > rr) continue;
-          const t = tca - Math.sqrt(rr - d2);
-          if (t > 0) best = Math.min(best, t);
-        }
-      }
-      return Math.max(0, best);
-    }
+    // Collision geometry (collisionAt, rayDistance) is pure math and lives in
+    // the physics module (sim-physics.js, window.KodroPhysics), so it is now
+    // unit-testable headlessly (scripts/qa_physics.mjs). These thin wrappers
+    // bind the run's collision radius R, the arena half-extent WALL and the
+    // live terrain, leaving every call site below unchanged and behaviour-exact.
+    const KP = window.KodroPhysics;
+    function collisionAt(x, y) { return KP.collisionAt(x, y, R, WALL, terrain); }
+    function rayDistance(x, y, headingDeg) { return KP.rayDistance(x, y, headingDeg, R, WALL, terrain); }
     // SI2: an imported spec's ultrasonic mounts WHERE the builder put it: the
     // ray starts at the mount offset, points along the mount yaw, and reads
     // at most the sensor's real range (HONOURED; z ignored and disclosed). A
@@ -880,17 +873,12 @@
       // ear hears the same ramp-cruise-brake the eye sees. vAt is the
       // derivative of coverFrac (normalised to cruise speed = 1).
       const sndType = (robot && robot.type) || (robotSpec && robotSpec.type) || 'rover';
-      const vAt = (p) => p <= accelFrac ? (accelFrac > 0 ? p / accelFrac : 1)
-        : p <= 1 - brakeFrac ? 1
-          : (brakeFrac > 0 ? Math.max(0, (1 - p) / brakeFrac) : 0);
-      function coverFrac(p) {
-        let area;
-        if (accelFrac > 0 && p <= accelFrac) { const v = p / accelFrac; area = 0.5 * v * p; }
-        else if (p <= 1 - brakeFrac) { area = 0.5 * accelFrac + (p - accelFrac); }
-        else if (brakeFrac > 0) { const q = (p - (1 - brakeFrac)) / brakeFrac; area = 0.5 * accelFrac + cruiseFrac + (1 - 0.5 * q) * (q * brakeFrac); }
-        else { area = profileArea; }
-        return profileArea > 0 ? area / profileArea : p;
-      }
+      // The trapezoid's instantaneous speed (vAt) and covered-distance integral
+      // (coverFrac) are pure math in the physics module (window.KodroPhysics);
+      // these closures bind THIS move's profile so the call sites below are
+      // unchanged and the endpoint stays exact (coverFrac(1) === 1).
+      const vAt = (p) => KP.trapVelocity(p, accelFrac, brakeFrac);
+      function coverFrac(p) { return KP.trapCover(p, accelFrac, brakeFrac, cruiseFrac, profileArea); }
       await frames(dur, (p) => {
         motorSfx(sndType, 0.15 + 0.85 * vAt(p));
         let cf = coverFrac(p);
@@ -1468,5 +1456,5 @@
     return { onRun, onStep, onReset, onTerrain, runReplLine, onCodeChange, exportReportClick };
   }
 
-  window.KodroHooks = { useAiStatus, useResizers, useBlocks, useReview, useVibeChat, useSwarm, useAsk, useTeacher, useBuild, useProjectIO, useSimEngine };
+  window.KodroHooks = { useAiStatus, useResizers, useBlocks, useReview, useVibeChat, useSwarm, useAsk, useTeacher, useBuild, useProjectIO, useCamera, useSimEngine };
 })();

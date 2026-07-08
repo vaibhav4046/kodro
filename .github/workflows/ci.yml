@@ -82,6 +82,49 @@ jobs:
       - name: Web grader gate
         run: node scripts/qa_grader.mjs
 
+      # Pure-physics gate: the collision / ray / coverage / trapezoid math
+      # extracted from useSimEngine into sim-physics.js, tested headlessly with
+      # no browser, so the kinematics now have unit coverage independent of the
+      # React run engine.
+      - name: Web physics gate
+        run: node scripts/qa_physics.mjs
+
+      # Browser boot + privacy gate (qa_web): the ONLY browser-driven gate wired
+      # into CI, and only on Linux. It builds the static web bundle and loads it
+      # in headless Chrome to prove two things a green Python/Node CI otherwise
+      # cannot: the app actually BOOTS (React mounts, the studio paints) and its
+      # default load makes ZERO app-originated external requests (the coded proof
+      # of "nothing leaves your machine"). Those 4 boot+privacy checks are the
+      # high-value smoke.
+      #
+      # Chrome is installed explicitly rather than relied on as an incidental
+      # runner preinstall (same reasoning as ROBOLEARN_REQUIRE_NODE above) and
+      # pinned via CHROME_PATH so resolveChrome() picks it deterministically.
+      # qa_web already passes --no-sandbox (required for Chrome under the CI user)
+      # and warms Chrome + retries the boot spawn (ETIMEDOUT) up to 3x, so a cold
+      # launch flake fails an attempt, not the job.
+      #
+      # Linux-only on purpose: the Windows/macOS runners differ in Chrome
+      # availability and headless-GL behaviour, so gating them would add flake for
+      # no extra signal. qa_worlds / qa_ui are deliberately NOT in CI -- they drive
+      # 36+ world/robot combos through a Python static server and are too slow /
+      # flake-prone for the gate; they stay local + pre-deploy.
+      - name: Setup Chrome (Linux only, for qa_web)
+        if: matrix.os == 'ubuntu-latest'
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: Web boot + privacy gate (qa_web, Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        timeout-minutes: 10
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+        run: |
+          node scripts/build_web.cjs --static
+          node scripts/qa_web.mjs
+
       # --timeout converts any hung GUI/thread test into a fast failure
       # with a full per-thread traceback instead of burning to the 6h cap.
       # thread method works cross-platform (signal/SIGALRM does not).
