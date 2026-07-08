@@ -1410,7 +1410,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
    coordinates), matching the overlay the 2.5D view has always had. */
 .vp3d-site{ position:absolute; left:12px; bottom:12px; display:flex; flex-direction:column; gap:1px;
   padding:6px 10px; border-radius:var(--radius-md); background:rgba(8,10,14,.6); pointer-events:none; }
-.vp3d-site-name{ color:var(--fg-0); font-size:12px; font-weight:600; letter-spacing:.02em; }
+.vp3d-site-name{ color:var(--fg-1); font-size:12px; font-weight:600; letter-spacing:.02em; }
 .vp3d-site-coord{ color:var(--fg-2); font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; }
 /* Compact focus ring for dense toolbar clusters: the default 3px/2px ring
    overlaps neighbouring controls inside the pill toolbars, so these use a

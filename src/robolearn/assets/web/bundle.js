@@ -21752,12 +21752,21 @@ say("Survey done")`
   // Choose the AI backend: Local (Ollama, offline default) or a bring-your-own-key
   // cloud model (Anthropic Claude, OpenAI). The key stays in this browser and is
   // sent only to the chosen provider; Local keeps the app fully offline.
-  function ProviderPicker() {
+  function ProviderPicker({
+    onChange
+  }) {
     const P = window.KodroProviders;
     const [cfg, setCfg] = React.useState(P ? P.config() : null);
     const [keyInput, setKeyInput] = React.useState('');
     if (!P || !cfg) return null;
+    // refresh() re-reads the picker's own view; bump() ALSO re-probes panel
+    // availability so pasting a cloud key flips the panel from "AI is offline"
+    // to ready immediately, without needing to close and reopen the panel.
     const refresh = () => setCfg(P.config());
+    const bump = () => {
+      refresh();
+      if (onChange) onChange();
+    };
     const isCloud = cfg.provider !== 'ollama';
     return /*#__PURE__*/React.createElement("div", {
       className: "vibe-provider",
@@ -21786,7 +21795,7 @@ say("Survey done")`
       onChange: e => {
         P.setProvider(e.target.value);
         setKeyInput('');
-        refresh();
+        bump();
       },
       style: {
         background: 'var(--navy)',
@@ -21819,7 +21828,7 @@ say("Survey done")`
       onChange: e => {
         setKeyInput(e.target.value);
         P.setKey(cfg.provider, e.target.value);
-        refresh();
+        bump();
       },
       style: {
         flex: '1 1 180px',
@@ -21837,7 +21846,7 @@ say("Survey done")`
       placeholder: "model id",
       onChange: e => {
         P.setCloudModel(e.target.value);
-        refresh();
+        bump();
       },
       style: {
         flex: '0 1 160px',
@@ -21862,6 +21871,7 @@ say("Survey done")`
     setVibeBusy,
     aiInfo,
     pickModel,
+    refreshAiStatus,
     vibeMsgs,
     setVibeMsgs,
     vibeApply,
@@ -21906,7 +21916,9 @@ say("Survey done")`
         setVibeBusy(false);
         setVibeOpen(false);
       }
-    }, "\u2715")), /*#__PURE__*/React.createElement(ProviderPicker, null), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
+    }, "\u2715")), /*#__PURE__*/React.createElement(ProviderPicker, {
+      onChange: refreshAiStatus
+    }), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
     }, providerIsLocal(aiInfo.source) ? /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
@@ -24617,6 +24629,7 @@ say("Survey done")`
       setVibeBusy: setVibeBusy,
       aiInfo: aiInfo,
       pickModel: pickModel,
+      refreshAiStatus: refreshAiStatus,
       vibeMsgs: vibeMsgs,
       setVibeMsgs: setVibeMsgs,
       vibeApply: vibeApply,

@@ -65,12 +65,15 @@ function emitStaticSite() {
     'cap.html',
     'harness_bundle.js',
   ]);
-  const DROP_PREFIX = ['_a11y_probe', '_perf_probe'];
   function keep(srcPath) {
     const base = path.basename(srcPath);
     if (DROP_EXT.has(path.extname(base))) return false;
     if (DROP_NAME.has(base)) return false;
-    if (DROP_PREFIX.some((p) => base.startsWith(p))) return false;
+    // Every dev-only artifact in the web dir is named with a leading underscore
+    // (the a11y/perf probe HTML and the *_default/_ped screenshot captures), so
+    // one rule keeps ~800KB of throwaway assets out of the deployed static site
+    // and covers any future probe without another allowlist edit.
+    if (base.startsWith('_')) return false;
     return true;
   }
   fs.rmSync(SITE, { recursive: true, force: true });

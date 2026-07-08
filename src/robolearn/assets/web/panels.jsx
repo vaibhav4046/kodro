@@ -513,18 +513,22 @@
   // Choose the AI backend: Local (Ollama, offline default) or a bring-your-own-key
   // cloud model (Anthropic Claude, OpenAI). The key stays in this browser and is
   // sent only to the chosen provider; Local keeps the app fully offline.
-  function ProviderPicker() {
+  function ProviderPicker({ onChange }) {
     const P = window.KodroProviders;
     const [cfg, setCfg] = React.useState(P ? P.config() : null);
     const [keyInput, setKeyInput] = React.useState('');
     if (!P || !cfg) return null;
+    // refresh() re-reads the picker's own view; bump() ALSO re-probes panel
+    // availability so pasting a cloud key flips the panel from "AI is offline"
+    // to ready immediately, without needing to close and reopen the panel.
     const refresh = () => setCfg(P.config());
+    const bump = () => { refresh(); if (onChange) onChange(); };
     const isCloud = cfg.provider !== 'ollama';
     return (
       <div className="vibe-provider" style={{ margin: '2px 0 8px', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--navy-2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12.5, color: 'var(--fg-2)' }}>AI provider</span>
-          <select value={cfg.provider} aria-label="AI provider" onChange={e => { P.setProvider(e.target.value); setKeyInput(''); refresh(); }}
+          <select value={cfg.provider} aria-label="AI provider" onChange={e => { P.setProvider(e.target.value); setKeyInput(''); bump(); }}
             style={{ background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
             {cfg.providers.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
@@ -533,10 +537,10 @@
         {isCloud && (
           <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
             <input type="password" aria-label="API key" value={keyInput} placeholder={cfg.hasKey ? 'key saved (type to replace)' : 'paste your API key'}
-              onChange={e => { setKeyInput(e.target.value); P.setKey(cfg.provider, e.target.value); refresh(); }}
+              onChange={e => { setKeyInput(e.target.value); P.setKey(cfg.provider, e.target.value); bump(); }}
               style={{ flex: '1 1 180px', background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
             <input type="text" aria-label="Cloud model id" value={cfg.cloudModel} placeholder="model id"
-              onChange={e => { P.setCloudModel(e.target.value); refresh(); }}
+              onChange={e => { P.setCloudModel(e.target.value); bump(); }}
               style={{ flex: '0 1 160px', background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
           </div>
         )}
@@ -545,7 +549,7 @@
     );
   }
 
-  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeContext }) {
+  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, refreshAiStatus, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeContext }) {
     // The reflection the assistant is fed from past runs in this world,
     // rendered as a VISIBLE chip instead of an invisible prompt injection
     // (product-coherence D7: the memory loop must be seen to be believed).
@@ -562,7 +566,7 @@
             <span className="eyebrow">{KI('vibe')}Vibe coding. Describe it, the AI writes it</span>
             <button className="btn-mini" aria-label="Close" onClick={() => { vibeCancelRef.current = true; setVibeBusy(false); setVibeOpen(false); }}>✕</button>
           </div>
-          <ProviderPicker />
+          <ProviderPicker onChange={refreshAiStatus} />
           {aiInfo.available ? (
             <div className="vibe-body">
               {providerIsLocal(aiInfo.source)
