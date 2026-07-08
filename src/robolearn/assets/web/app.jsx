@@ -102,7 +102,15 @@
     });
     const [runState, setRunState] = useState('idle');
     const [activeLine, setActiveLine] = useState(0);
-    const [consoleLines, setConsoleLines] = useState([{ type: 'sys', text: 'Kodro ready. Press Run to deploy.' }]);
+    // Notification plumbing (the program-output console + the transient toasts)
+    // extracted VERBATIM to window.KodroHooks.useConsoleToast (hooks.jsx); it is
+    // fully self-contained (no external inputs). App threads setConsoleLines /
+    // addConsole / showToast into the other hooks and the sim engine and reads
+    // consoleLines / toasts / consoleEndRef in the JSX, so all come back here.
+    const { consoleLines, setConsoleLines, addConsole, consoleEndRef, toasts, setToasts, showToast } =
+      (window.KodroHooks && window.KodroHooks.useConsoleToast)
+        ? window.KodroHooks.useConsoleToast()
+        : { consoleLines: [], setConsoleLines: function () {}, addConsole: function () {}, consoleEndRef: { current: null }, toasts: [], setToasts: function () {}, showToast: function () {} };
     const [speedMul, setSpeedMul] = useState(1);
     const [say, setSay] = useState('');
     const [crashKey, setCrashKey] = useState(0);
@@ -277,17 +285,7 @@
     }, [mode]);
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
-    // Toast notifications: transient success/error/info messages pinned to the
-    // bottom-right. A single CSS keyframe drives fade-in, hold and fade-out, so
-    // the JS only needs to mount the toast and unmount it after the animation.
-    const [toasts, setToasts] = useState([]);
-    const toastIdRef = useRef(0);
-    function showToast(text, kind, action) {
-      const id = ++toastIdRef.current;
-      setToasts(function (t) { return t.concat([{ id: id, text: text, kind: kind || 'info', action: action || null }]); });
-      // A toast carrying an action (e.g. Revert) needs time to be clicked.
-      setTimeout(function () { setToasts(function (t) { return t.filter(function (to) { return to.id !== id; }); }); }, action ? 7000 : 2400);
-    }
+    // (Toast state + showToast now live in useConsoleToast, destructured above.)
     // Brief "Loading {world}..." overlay shown while the 3D scene rebuilds on a
     // world switch, so the viewport does not flash empty for a frame.
     const [worldLoading, setWorldLoading] = useState(null);
@@ -365,6 +363,20 @@
     // state; usage sites further down are unchanged.
     const currentLessonIdRef = useRef(null);
     useEffect(() => { currentLessonIdRef.current = currentLessonId; }, [currentLessonId]);
+    // Programmatic editor writes + one-click Revert (typewriteCode /
+    // applyProgramText / revert snapshot) extracted VERBATIM to
+    // window.KodroHooks.useEditorApply (hooks.jsx). Called here (ahead of
+    // useReview/useBlocks, which take typewriteCode) with the live buffers,
+    // programs, current-lesson ref, active tab, showToast/addConsole and the
+    // reduced-motion probe threaded in. typewriteCode/applyProgramText come back
+    // for the consumers below and the Memory panel's applyCode.
+    const { typewriteCode, applyProgramText } = (window.KodroHooks && window.KodroHooks.useEditorApply)
+      ? window.KodroHooks.useEditorApply({
+          lessonBuffers, programs, setLessonBuffers, setPrograms,
+          currentLessonIdRef, activeTab, showToast, addConsole,
+          prefersReducedMotion: PREFERS_REDUCED_MOTION,
+        })
+      : { typewriteCode: function () {}, applyProgramText: function () {} };
     // --- AI vibe coding chat (prompt + thread + streamed poll loop) ----------
     // Extracted VERBATIM to window.KodroHooks.useVibeChat (hooks.jsx): owns
     // vibeOpen + the vibe-chat state/refs and the streamed vibeSend poll loop.
@@ -546,63 +558,14 @@
       ? window.KodroHooks.useSwarm({ code, currentLessonId, addConsole })
       : { swarmOpen: false, setSwarmOpen: function () {}, swarmBusy: false, swarmData: null, runSwarm: function () {} };
 
-    // Typewriter: animate code into the active editor buffer like live typing.
-    // P7/A9: every programmatic write (AI apply, review apply, blocks insert,
-    // skill insert) snapshots the buffer it is about to overwrite and offers a
-    // one-click Revert toast, so applying a rewrite is never a destructive act.
-    const typeRef = useRef(null);
-    const undoRef = useRef(null); // { lessonId, tab, code } - the pre-apply buffer
-    function snapshotForUndo(lessonId, tab) {
-      const prior = lessonId
-        ? (lessonBuffers[lessonId] !== undefined ? lessonBuffers[lessonId] : '')
-        : (programs[tab] !== undefined ? programs[tab] : '');
-      undoRef.current = { lessonId: lessonId || null, tab: tab, code: prior };
-      showToast('Editor updated', 'info', { label: 'Revert', onClick: revertLastApply });
-    }
-    function revertLastApply() {
-      const u = undoRef.current;
-      if (!u) return;
-      undoRef.current = null;
-      if (typeRef.current) { clearInterval(typeRef.current); typeRef.current = null; }
-      if (u.lessonId) setLessonBuffers(b => ({ ...b, [u.lessonId]: u.code }));
-      else setPrograms(p => ({ ...p, [u.tab]: u.code }));
-      addConsole('Reverted the last applied code. Your previous program is back.', 'sys');
-    }
-    function typewriteCode(codeText) {
-      if (typeRef.current) { clearInterval(typeRef.current); typeRef.current = null; }
-      const lessonId = currentLessonIdRef.current;
-      // Snapshot the target tab at invocation (like lessonId) so a tab switch
-      // mid-animation cannot redirect the remaining typed code to another buffer.
-      const tab = activeTab;
-      snapshotForUndo(lessonId, tab);
-      const setCode = (v) => {
-        if (lessonId) setLessonBuffers(b => ({ ...b, [lessonId]: v }));
-        else setPrograms(p => ({ ...p, [tab]: v }));
-      };
-      if (PREFERS_REDUCED_MOTION() || codeText.length > 4000) { setCode(codeText); return; }
-      let i = 0;
-      setCode('');
-      typeRef.current = setInterval(() => {
-        i = Math.min(codeText.length, i + 3);
-        setCode(codeText.slice(0, i));
-        if (i >= codeText.length) { clearInterval(typeRef.current); typeRef.current = null; }
-      }, 12);
-    }
-    // Skill insert (Memory panel) writes the editor through the same
-    // snapshot-then-apply path, so it is revertable like every other apply.
-    function applyProgramText(codeText) {
-      const lessonId = currentLessonIdRef.current;
-      const tab = activeTab;
-      snapshotForUndo(lessonId, tab);
-      if (lessonId) setLessonBuffers(b => ({ ...b, [lessonId]: codeText }));
-      else setPrograms(p => ({ ...p, [tab]: codeText }));
-    }
+    // (Typewriter / snapshot-Revert / applyProgramText now live in
+    // useEditorApply, destructured above; its own unmount effect clears the
+    // typewriter interval, so only the say-bubble timer cleanup stays here.)
 
-    // If the app ever unmounts, clear the typewriter interval and the say-bubble
-    // timer so no stray timer fires against a torn-down tree. (sayTimer is
-    // declared below; this cleanup closure only runs at unmount, after init.)
+    // If the app ever unmounts, clear the say-bubble timer so no stray timer
+    // fires against a torn-down tree. (sayTimer is declared below; this cleanup
+    // closure only runs at unmount, after init.)
     useEffect(() => () => {
-      if (typeRef.current) clearInterval(typeRef.current);
       if (sayTimer.current) clearTimeout(sayTimer.current);
     }, []);
 
@@ -695,8 +658,7 @@
     // Wall-clock start of the current editor run (SI3 measured-speed block).
     const runStartRef = useRef(0);
 
-    const consoleEndRef = useRef(null);
-    useEffect(() => { if (consoleEndRef.current) consoleEndRef.current.scrollTop = consoleEndRef.current.scrollHeight; }, [consoleLines]);
+    // (consoleEndRef + its auto-scroll effect now live in useConsoleToast.)
 
     // persist
     useEffect(() => { try { localStorage.setItem('or_terrain', terrainId); } catch (e) { void e; } }, [terrainId]);
@@ -711,11 +673,7 @@
     useEffect(() => { try { localStorage.setItem('or_lesson_buffers', JSON.stringify(lessonBuffers)); } catch (e) { void e; } }, [lessonBuffers]);
 
 
-    function addConsole(text, type) {
-      const ts = new Date();
-      const hh = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0') + ':' + String(ts.getSeconds()).padStart(2, '0');
-      setConsoleLines(l => [...l, { type: type || 'out', text, ts: hh }]);
-    }
+    // (addConsole now lives in useConsoleToast, destructured near the top.)
 
     // Fire a synthesised sound cue (no-op if sound.js absent or muted).
     // `opt` carries a variant (e.g. WHAT was hit, for R6 crash voicing).

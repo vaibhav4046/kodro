@@ -579,6 +579,111 @@
     return { cam, setCam, camDrag, camWheel };
   }
 
+  function useConsoleToast() {
+    // The notification plumbing: the scrolling program-output console and the
+    // transient bottom-right toasts. Both are fully self-contained -- addConsole
+    // only appends a timestamped line, showToast only mounts a toast and unmounts
+    // it after its CSS animation -- so the whole concern moves out of App
+    // VERBATIM (same logic, same deps). App threads setConsoleLines / addConsole /
+    // showToast into the other hooks and the sim engine, and reads consoleLines /
+    // toasts / consoleEndRef in the JSX, so all of those come back from here.
+    const [consoleLines, setConsoleLines] = useState([{ type: 'sys', text: 'Kodro ready. Press Run to deploy.' }]);
+    const consoleEndRef = useRef(null);
+    // Keep the console pinned to its newest line as it grows.
+    useEffect(() => { if (consoleEndRef.current) consoleEndRef.current.scrollTop = consoleEndRef.current.scrollHeight; }, [consoleLines]);
+    function addConsole(text, type) {
+      const ts = new Date();
+      const hh = String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0') + ':' + String(ts.getSeconds()).padStart(2, '0');
+      setConsoleLines(l => [...l, { type: type || 'out', text, ts: hh }]);
+    }
+    // Toast notifications: transient success/error/info messages pinned to the
+    // bottom-right. A single CSS keyframe drives fade-in, hold and fade-out, so
+    // the JS only needs to mount the toast and unmount it after the animation.
+    const [toasts, setToasts] = useState([]);
+    const toastIdRef = useRef(0);
+    function showToast(text, kind, action) {
+      const id = ++toastIdRef.current;
+      setToasts(function (t) { return t.concat([{ id: id, text: text, kind: kind || 'info', action: action || null }]); });
+      // A toast carrying an action (e.g. Revert) needs time to be clicked.
+      setTimeout(function () { setToasts(function (t) { return t.filter(function (to) { return to.id !== id; }); }); }, action ? 7000 : 2400);
+    }
+    return { consoleLines, setConsoleLines, addConsole, consoleEndRef, toasts, setToasts, showToast };
+  }
+
+  function useEditorApply(opts) {
+    opts = opts || {};
+    // Programmatic writes into the editor (AI apply, review apply, blocks
+    // insert, skill insert) plus the one-click Revert. P7/A9: every write
+    // snapshots the buffer it is about to overwrite and offers a Revert toast,
+    // so applying a rewrite is never destructive. Moved VERBATIM from App. The
+    // external inputs all belong to other concerns and are threaded in: the live
+    // per-lesson buffers + example programs and their setters (the write
+    // targets), the current-lesson ref and active tab (WHICH buffer to write),
+    // showToast + addConsole (feedback), and the reduced-motion probe (snap vs
+    // typewriter). typeRef / undoRef are this concern's own refs.
+    const lessonBuffers = opts.lessonBuffers || {};
+    const programs = opts.programs || {};
+    const setLessonBuffers = opts.setLessonBuffers || function () {};
+    const setPrograms = opts.setPrograms || function () {};
+    const currentLessonIdRef = opts.currentLessonIdRef || { current: null };
+    const activeTab = opts.activeTab;
+    const showToast = opts.showToast || function () {};
+    const addConsole = opts.addConsole || function () {};
+    const prefersReducedMotion = opts.prefersReducedMotion || function () { return false; };
+    const typeRef = useRef(null);
+    const undoRef = useRef(null); // { lessonId, tab, code } - the pre-apply buffer
+    function snapshotForUndo(lessonId, tab) {
+      const prior = lessonId
+        ? (lessonBuffers[lessonId] !== undefined ? lessonBuffers[lessonId] : '')
+        : (programs[tab] !== undefined ? programs[tab] : '');
+      undoRef.current = { lessonId: lessonId || null, tab: tab, code: prior };
+      showToast('Editor updated', 'info', { label: 'Revert', onClick: revertLastApply });
+    }
+    function revertLastApply() {
+      const u = undoRef.current;
+      if (!u) return;
+      undoRef.current = null;
+      if (typeRef.current) { clearInterval(typeRef.current); typeRef.current = null; }
+      if (u.lessonId) setLessonBuffers(b => ({ ...b, [u.lessonId]: u.code }));
+      else setPrograms(p => ({ ...p, [u.tab]: u.code }));
+      addConsole('Reverted the last applied code. Your previous program is back.', 'sys');
+    }
+    function typewriteCode(codeText) {
+      if (typeRef.current) { clearInterval(typeRef.current); typeRef.current = null; }
+      const lessonId = currentLessonIdRef.current;
+      // Snapshot the target tab at invocation (like lessonId) so a tab switch
+      // mid-animation cannot redirect the remaining typed code to another buffer.
+      const tab = activeTab;
+      snapshotForUndo(lessonId, tab);
+      const setCode = (v) => {
+        if (lessonId) setLessonBuffers(b => ({ ...b, [lessonId]: v }));
+        else setPrograms(p => ({ ...p, [tab]: v }));
+      };
+      if (prefersReducedMotion() || codeText.length > 4000) { setCode(codeText); return; }
+      let i = 0;
+      setCode('');
+      typeRef.current = setInterval(() => {
+        i = Math.min(codeText.length, i + 3);
+        setCode(codeText.slice(0, i));
+        if (i >= codeText.length) { clearInterval(typeRef.current); typeRef.current = null; }
+      }, 12);
+    }
+    // Skill insert (Memory panel) writes the editor through the same
+    // snapshot-then-apply path, so it is revertable like every other apply.
+    function applyProgramText(codeText) {
+      const lessonId = currentLessonIdRef.current;
+      const tab = activeTab;
+      snapshotForUndo(lessonId, tab);
+      if (lessonId) setLessonBuffers(b => ({ ...b, [lessonId]: codeText }));
+      else setPrograms(p => ({ ...p, [tab]: codeText }));
+    }
+    // Clear the typewriter interval at unmount so no stray timer fires against a
+    // torn-down tree. (App keeps the say-bubble timer cleanup; that timer
+    // belongs to the sim-engine concern, not this one.)
+    useEffect(() => () => { if (typeRef.current) clearInterval(typeRef.current); }, []);
+    return { typewriteCode, applyProgramText, revertLastApply };
+  }
+
   function useSimEngine(deps) {
     deps = deps || {};
     // The run/animation engine (V2_REVIEW M4): collisionAt / rayDistance /
@@ -851,24 +956,13 @@
       // the ramp up so momentum carries between straight segments. The endpoint
       // is exact (coverFrac(1) === 1), so distances and collisions are unchanged
       // and the headless interpreter QA, which uses its own kinematics, is too.
-      const inertia = Math.min(0.92, Math.max(0.12, (massFac - 0.6) / 1.4));
-      const carried = Math.min(1, Math.max(0, s.vel || 0));
-      let accelFrac, brakeFrac;
-      if (physR && physR.accelCmPerS2 !== undefined && physV !== null) {
-        // E-A1: real ramp time t = v/a from the motor's closed-form
-        // acceleration a = (F_stall - Crr*m*g)/m, replacing the inertia
-        // heuristic. The endpoint stays exact; only the shape changes.
-        const dur0 = (total / physV) * 1000; // unscaled ms (sim-speed invariant)
-        const rampMs = (physV / physR.accelCmPerS2) * 1000;
-        accelFrac = Math.min(0.45, rampMs / Math.max(1, dur0)) * (1 - 0.85 * carried);
-        brakeFrac = Math.min(0.45, rampMs / Math.max(1, dur0));
-      } else {
-        accelFrac = (0.18 + 0.30 * inertia) * (1 - 0.85 * carried);
-        brakeFrac = 0.16 + 0.34 * inertia;
-      }
-      if (accelFrac + brakeFrac > 0.95) { const k = 0.95 / (accelFrac + brakeFrac); accelFrac *= k; brakeFrac *= k; }
-      const cruiseFrac = Math.max(0, 1 - accelFrac - brakeFrac);
-      const profileArea = 0.5 * accelFrac + cruiseFrac + 0.5 * brakeFrac;
+      // The trapezoid SHAPE (accel/brake/cruise fractions + profile area) is
+      // pure math in the physics module (window.KodroPhysics.trapProfile); a
+      // physical build (E-A1: real ramp time t = v/a) is selected by passing its
+      // accel + physV, else the inertia heuristic runs. Byte-identical to the
+      // former inline block, so the endpoint stays exact.
+      const prof = KP.trapProfile(massFac, s.vel, physR ? physR.accelCmPerS2 : undefined, physV, total);
+      const accelFrac = prof.accelFrac, brakeFrac = prof.brakeFrac, cruiseFrac = prof.cruiseFrac, profileArea = prof.profileArea;
       // R6: the motor loop tracks the trapezoid's instantaneous speed, so the
       // ear hears the same ramp-cruise-brake the eye sees. vAt is the
       // derivative of coverFrac (normalised to cruise speed = 1).
@@ -1456,5 +1550,5 @@
     return { onRun, onStep, onReset, onTerrain, runReplLine, onCodeChange, exportReportClick };
   }
 
-  window.KodroHooks = { useAiStatus, useResizers, useBlocks, useReview, useVibeChat, useSwarm, useAsk, useTeacher, useBuild, useProjectIO, useCamera, useSimEngine };
+  window.KodroHooks = { useAiStatus, useResizers, useBlocks, useReview, useVibeChat, useSwarm, useAsk, useTeacher, useBuild, useProjectIO, useCamera, useConsoleToast, useEditorApply, useSimEngine };
 })();

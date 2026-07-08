@@ -112,10 +112,39 @@
     return profileArea > 0 ? area / profileArea : p;
   }
 
+  // The accel-cruise-brake trapezoid's SHAPE for one move: the accel/brake ramp
+  // fractions, the cruise fraction and the profile area trapCover normalises by.
+  // Pure: a heavier build (massFac) ramps slower; momentum already carried
+  // (rawVel) shortens the accel ramp; a physically-specified build (a defined
+  // physAccelCmPerS2 with a non-null physV) uses the real ramp time t = v/a,
+  // else the inertia heuristic. Moved VERBATIM from animateMove (the block that
+  // set accelFrac/brakeFrac/cruiseFrac/profileArea); the endpoint stays exact
+  // (trapCover(1, ...) === 1), so distances, collisions and battery are
+  // unchanged. Reads no React ref or setter: every input is passed in.
+  function trapProfile(massFac, rawVel, physAccelCmPerS2, physV, total) {
+    const inertia = Math.min(0.92, Math.max(0.12, (massFac - 0.6) / 1.4));
+    const carried = Math.min(1, Math.max(0, rawVel || 0));
+    let accelFrac, brakeFrac;
+    if (physAccelCmPerS2 !== undefined && physV !== null) {
+      const dur0 = (total / physV) * 1000; // unscaled ms (sim-speed invariant)
+      const rampMs = (physV / physAccelCmPerS2) * 1000;
+      accelFrac = Math.min(0.45, rampMs / Math.max(1, dur0)) * (1 - 0.85 * carried);
+      brakeFrac = Math.min(0.45, rampMs / Math.max(1, dur0));
+    } else {
+      accelFrac = (0.18 + 0.30 * inertia) * (1 - 0.85 * carried);
+      brakeFrac = 0.16 + 0.34 * inertia;
+    }
+    if (accelFrac + brakeFrac > 0.95) { const k = 0.95 / (accelFrac + brakeFrac); accelFrac *= k; brakeFrac *= k; }
+    const cruiseFrac = Math.max(0, 1 - accelFrac - brakeFrac);
+    const profileArea = 0.5 * accelFrac + cruiseFrac + 0.5 * brakeFrac;
+    return { accelFrac: accelFrac, brakeFrac: brakeFrac, cruiseFrac: cruiseFrac, profileArea: profileArea };
+  }
+
   window.KodroPhysics = {
     collisionAt: collisionAt,
     rayDistance: rayDistance,
     trapVelocity: trapVelocity,
-    trapCover: trapCover
+    trapCover: trapCover,
+    trapProfile: trapProfile
   };
 })();
