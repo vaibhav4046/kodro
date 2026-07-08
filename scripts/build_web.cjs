@@ -86,22 +86,37 @@ function emitStaticSite() {
   console.log('wrote static site/ (' + files + ' files) at ' + SITE);
 }
 
-// Stamp the emitted service worker's cache name with a short content hash of the
-// shipped bundle. The SOURCE sw.js keeps a stable 'kodro-shell-v1' placeholder
-// (clean diffs, no churn in the bundle freshness check); only this site copy is
-// stamped. A changed bundle => changed hash => changed sw.js bytes => the browser
-// installs the new SW, precaches the new shell, and drops the old cache on
-// activate -- so returning visitors stop being pinned to the first shell they
-// ever loaded. Deploys that touch only index.html/lessons.json are still picked
-// up because those are served network-first (see sw.js).
+// Stamp the emitted service worker's cache name with a short content hash of
+// EVERY cache-critical runtime asset that ships standalone -- not just
+// bundle.js. interpreter.js, bridge.js, sound.js and styles.css each load via
+// their own <script>/<link> tags (they are NOT bundled into bundle.js) and the
+// shell serves them cache-first; index.html is the shell markup itself. If the
+// stamp hashed bundle.js alone, an interpreter-only, bridge-only, sound-only or
+// CSS-only deploy would leave the cache name unchanged and pin returning
+// visitors to the stale standalone file. Hashing the concatenation means ANY
+// byte change in ANY of these shifts the hash => new sw.js bytes => the browser
+// installs the new SW, precaches the fresh shell, and drops the old cache on
+// activate. The SOURCE sw.js keeps a stable 'kodro-shell-v1' placeholder (clean
+// diffs, no churn in the freshness check); only this site copy is stamped.
+// Deploys that touch only lessons.json are still picked up network-first.
 function stampServiceWorker(siteDir) {
   const swPath = path.join(siteDir, 'sw.js');
-  const bundleFile = path.join(siteDir, 'bundle.js');
-  if (!fs.existsSync(swPath) || !fs.existsSync(bundleFile)) return;
-  const hash = crypto.createHash('sha256')
-    .update(fs.readFileSync(bundleFile))
-    .digest('hex')
-    .slice(0, 12);
+  if (!fs.existsSync(swPath)) return;
+  // Fixed order so the hash is deterministic across rebuilds. sound.js is
+  // hashed "if present" (some builds omit it); each file is tagged with its
+  // name so adding or removing an asset also shifts the fingerprint.
+  const CACHE_CRITICAL = ['bundle.js', 'interpreter.js', 'bridge.js', 'sound.js', 'styles.css', 'index.html'];
+  const h = crypto.createHash('sha256');
+  let hashedAny = false;
+  for (const name of CACHE_CRITICAL) {
+    const assetPath = path.join(siteDir, name);
+    if (!fs.existsSync(assetPath)) continue;
+    h.update(name + '\0');
+    h.update(fs.readFileSync(assetPath));
+    hashedAny = true;
+  }
+  if (!hashedAny) return; // no build assets present -- nothing to fingerprint
+  const hash = h.digest('hex').slice(0, 12);
   const sw = fs.readFileSync(swPath, 'utf8');
   const stamped = sw.replace(/kodro-shell-v\d+/, 'kodro-shell-' + hash);
   if (stamped === sw) {

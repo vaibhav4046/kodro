@@ -75,6 +75,28 @@
     return url;
   }
 
+  // Time budget for a cloud (BYOK) generate. A cloud API that hangs (network
+  // stall, provider outage, a request that never returns) would otherwise leave
+  // the vibe/review/Ask panel spinning forever, so every cloud request is
+  // wrapped in an AbortController plus timer. The timer is cleared on success
+  // AND on failure, and an aborted request surfaces one clear, honest error.
+  // Mirrors the local Ollama fetch guard (fetchTimeout) in ai-web.jsx.
+  var CLOUD_TIMEOUT_MS = 120000;
+
+  function fetchTimeout(url, options, ms) {
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, ms);
+    var opts = Object.assign({}, options || {}, { signal: ctrl.signal });
+    return fetch(url, opts).then(
+      function (r) { clearTimeout(timer); return r; },
+      function (e) {
+        clearTimeout(timer);
+        if (e && e.name === 'AbortError') throw new Error('the cloud model took too long, try again');
+        throw e;
+      }
+    );
+  }
+
   // --- cloud generate (BYOK) -------------------------------------------------
   async function anthropicGenerate(prompt, opts, key, model) {
     var body = {
@@ -84,7 +106,7 @@
     };
     if (opts.system) body.system = opts.system;
     if (opts.temperature != null) body.temperature = opts.temperature;
-    var r = await fetch(PROVIDERS.anthropic.endpoint, {
+    var r = await fetchTimeout(PROVIDERS.anthropic.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -94,7 +116,7 @@
         'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify(body),
-    });
+    }, CLOUD_TIMEOUT_MS);
     if (!r.ok) throw new Error('Anthropic ' + r.status + ': ' + (await r.text()).slice(0, 200));
     var j = await r.json();
     var parts = (j.content || []).filter(function (c) { return c && c.type === 'text'; });
@@ -109,11 +131,11 @@
     messages.push({ role: 'user', content: prompt });
     var body = { model: model, messages: messages, max_tokens: opts.num_predict || 400 };
     if (opts.temperature != null) body.temperature = opts.temperature;
-    var r = await fetch(endpoint, {
+    var r = await fetchTimeout(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
       body: JSON.stringify(body),
-    });
+    }, CLOUD_TIMEOUT_MS);
     if (!r.ok) throw new Error(label + ' ' + r.status + ': ' + (await r.text()).slice(0, 200));
     var j = await r.json();
     return (((j.choices || [])[0] || {}).message || {}).content ? j.choices[0].message.content.trim() : '';

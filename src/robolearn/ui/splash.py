@@ -36,14 +36,14 @@ def show_splash(parent: tk.Misc | None = None) -> tk.Toplevel:
     inner.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
     tk.Label(
         inner,
-        text="RoboLearn",
+        text="Kodro",
         font=("TkDefaultFont", 22, "bold"),
         fg="#58a6ff",
         bg="#161b22",
     ).pack(pady=(20, 4))
     tk.Label(
         inner,
-        text="v1.0.0-rc2 — loading lessons…",
+        text="v2.0.0 loading lessons…",
         fg="#8b949e",
         bg="#161b22",
     ).pack()

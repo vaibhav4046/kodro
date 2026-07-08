@@ -136,7 +136,7 @@ regenerate them.
 
 ### Option 1: Windows executable (no Python needed)
 
-Download `RoboLearn.exe` from the
+Download the Kodro app (`RoboLearn.exe`) from the
 [latest release](https://github.com/vaibhav4046/robolearn/releases/latest)
 and run it. It is a self contained windowed app (WebView2). Everything
 works immediately except the optional AI assistant, which needs a local

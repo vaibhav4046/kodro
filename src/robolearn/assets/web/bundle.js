@@ -17026,6 +17026,31 @@ Object.assign(window, {
     return url;
   }
 
+  // Time budget for a cloud (BYOK) generate. A cloud API that hangs (network
+  // stall, provider outage, a request that never returns) would otherwise leave
+  // the vibe/review/Ask panel spinning forever, so every cloud request is
+  // wrapped in an AbortController plus timer. The timer is cleared on success
+  // AND on failure, and an aborted request surfaces one clear, honest error.
+  // Mirrors the local Ollama fetch guard (fetchTimeout) in ai-web.jsx.
+  var CLOUD_TIMEOUT_MS = 120000;
+  function fetchTimeout(url, options, ms) {
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () {
+      ctrl.abort();
+    }, ms);
+    var opts = Object.assign({}, options || {}, {
+      signal: ctrl.signal
+    });
+    return fetch(url, opts).then(function (r) {
+      clearTimeout(timer);
+      return r;
+    }, function (e) {
+      clearTimeout(timer);
+      if (e && e.name === 'AbortError') throw new Error('the cloud model took too long, try again');
+      throw e;
+    });
+  }
+
   // --- cloud generate (BYOK) -------------------------------------------------
   async function anthropicGenerate(prompt, opts, key, model) {
     var body = {
@@ -17038,7 +17063,7 @@ Object.assign(window, {
     };
     if (opts.system) body.system = opts.system;
     if (opts.temperature != null) body.temperature = opts.temperature;
-    var r = await fetch(PROVIDERS.anthropic.endpoint, {
+    var r = await fetchTimeout(PROVIDERS.anthropic.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -17048,7 +17073,7 @@ Object.assign(window, {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify(body)
-    });
+    }, CLOUD_TIMEOUT_MS);
     if (!r.ok) throw new Error('Anthropic ' + r.status + ': ' + (await r.text()).slice(0, 200));
     var j = await r.json();
     var parts = (j.content || []).filter(function (c) {
@@ -17077,14 +17102,14 @@ Object.assign(window, {
       max_tokens: opts.num_predict || 400
     };
     if (opts.temperature != null) body.temperature = opts.temperature;
-    var r = await fetch(endpoint, {
+    var r = await fetchTimeout(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer ' + key
       },
       body: JSON.stringify(body)
-    });
+    }, CLOUD_TIMEOUT_MS);
     if (!r.ok) throw new Error(label + ' ' + r.status + ': ' + (await r.text()).slice(0, 200));
     var j = await r.json();
     return (((j.choices || [])[0] || {}).message || {}).content ? j.choices[0].message.content.trim() : '';
@@ -17292,6 +17317,38 @@ Object.assign(window, {
   }
   function bridge() {
     return typeof window !== 'undefined' && window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() ? window.RoboLearn : null;
+  }
+
+  // Explain, in one honest and origin-appropriate line, why the local Ollama
+  // server could not be reached, so EVERY assistant entry point (status, vibe
+  // chat, reviewer, Ask) gives the SAME diagnosis instead of a flat "not
+  // running". The two failure modes read very differently to the user: on a
+  // hosted page (an http/https origin that is NOT localhost) the browser blocks
+  // the request to the local Ollama server by CORS, so Ollama is likely running
+  // and just refuses this origin (the fix is to allow the origin). On a local
+  // origin (localhost, 127.0.0.1, [::1], or a file:// page) the request is
+  // allowed, so a failure means Ollama is simply not running. Returns a machine
+  // `reason` code plus a copy-pasteable, origin-aware human `hint`, with the
+  // real origin computed at runtime.
+  function ollamaUnavailableReason() {
+    let origin = '';
+    try {
+      origin = typeof window !== 'undefined' && window.location && window.location.origin || '';
+    } catch (er) {
+      void er;
+    }
+    const httpOrigin = /^https?:\/\//i.test(origin);
+    const localHost = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(origin);
+    if (httpOrigin && !localHost) {
+      return {
+        reason: 'blocked-origin',
+        hint: 'Your browser blocked the local AI (Ollama refuses this origin). Start Ollama allowing this page: set OLLAMA_ORIGINS=' + origin + ' then run ollama serve. Or use the desktop app, or connect a cloud key in the Vibe panel.'
+      };
+    }
+    return {
+      reason: 'not-running',
+      hint: 'Ollama is not running. Start the Ollama app (or run: ollama serve), then reopen this panel. Or connect a cloud key in the Vibe panel.'
+    };
   }
   let override = null;
   try {
@@ -17511,12 +17568,16 @@ Object.assign(window, {
       model = window.KodroProviders.config().cloudModel;
     } else {
       let models;
+      // Same origin-aware diagnosis as status(): a hosted page gets the
+      // OLLAMA_ORIGINS fix, a local page gets "start Ollama". The "no models"
+      // case below stays distinct (Ollama is reachable, just empty).
       try {
         models = await tags();
       } catch (e) {
+        void e;
         return {
           ok: false,
-          reason: 'Ollama is not running. Start the Ollama app, or connect a cloud key in the Vibe panel.'
+          reason: ollamaUnavailableReason().hint
         };
       }
       model = pick(models);
@@ -17754,40 +17815,19 @@ Object.assign(window, {
       };
     } catch (e) {
       void e;
-      // tags() failed. The two ways this happens read very differently to the
-      // user, so tell them apart. On a hosted page (an http origin that is NOT
-      // localhost) the browser blocks the request to the local Ollama server by
-      // CORS: Ollama is likely running, it just refuses this origin. On a local
-      // origin (localhost, 127.0.0.1, or a file:// page) the request is allowed,
-      // so a failure means Ollama is not running. The hint carries the exact,
-      // copy-pasteable fix, with the real origin computed at runtime.
-      let origin = '';
-      try {
-        origin = typeof window !== 'undefined' && window.location && window.location.origin || '';
-      } catch (er) {
-        void er;
-      }
-      const httpOrigin = /^https?:\/\//i.test(origin);
-      const localHost = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(origin);
-      if (httpOrigin && !localHost) {
-        return {
-          available: false,
-          model: null,
-          models: [],
-          override: override,
-          source: 'browser',
-          reason: 'blocked-origin',
-          hint: 'Your browser blocked the local AI. Start Ollama allowing this page: set OLLAMA_ORIGINS=' + origin + ' then run ollama serve. Or use the desktop app, or connect a cloud key below.'
-        };
-      }
+      // tags() failed. Tell the two failure modes apart via the shared
+      // ollamaUnavailableReason(), and hand the UI both the machine code
+      // (`reason`) and the copy-pasteable, origin-aware fix (`hint`, rendered by
+      // panels.jsx). The vibe chat, reviewer and Ask now surface this SAME hint.
+      const u = ollamaUnavailableReason();
       return {
         available: false,
         model: null,
         models: [],
         override: override,
         source: 'browser',
-        reason: 'not-running',
-        hint: 'Ollama is not running. Start the Ollama app (or run: ollama serve), then reopen this panel.'
+        reason: u.reason,
+        hint: u.hint
       };
     }
   }
@@ -17818,9 +17858,10 @@ Object.assign(window, {
       try {
         models = await tags();
       } catch (e) {
+        void e;
         return {
           ok: false,
-          reason: 'Ollama is not running (or connect a cloud key in the Vibe panel).'
+          reason: ollamaUnavailableReason().hint
         };
       }
       model = pick(models);
@@ -17875,9 +17916,10 @@ Object.assign(window, {
       try {
         models = await tags();
       } catch (e) {
+        void e;
         return {
           ok: false,
-          reason: 'Ollama is not running (or connect a cloud key in the Vibe panel).'
+          reason: ollamaUnavailableReason().hint
         };
       }
       model = pick(models);
@@ -20994,6 +21036,36 @@ say("Survey done")`
     return source ? source.charAt(0).toUpperCase() + source.slice(1) : 'the cloud provider';
   }
 
+  // ---- Designed empty / zero states (design MEDIUM) -------------------------
+  // One shared presentational block so every "nothing here yet" moment reads as
+  // an intentional part of the product instead of a stray line of muted text:
+  // a medallion glyph from the shared icon sprite, a display-font title, one
+  // helpful line, and an optional keyboard/action affordance. Pure function of
+  // its props: no state, no logic, no data. All colour and motion live in
+  // styles.css (.empty-state*), routed through theme tokens so contrast holds
+  // on every theme and the only motion is a decorative, reduced-motion-safe
+  // medallion entrance. `title`/`hint` accept a string or a React node.
+  function EmptyState({
+    icon,
+    title,
+    hint,
+    action,
+    tone
+  }) {
+    return /*#__PURE__*/React.createElement("div", {
+      className: 'empty-state' + (tone ? ' is-' + tone : '')
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "empty-state-icon",
+      "aria-hidden": "true"
+    }, icon ? KI(icon) : null), /*#__PURE__*/React.createElement("p", {
+      className: "empty-state-title"
+    }, title), hint ? /*#__PURE__*/React.createElement("p", {
+      className: "empty-state-hint"
+    }, hint) : null, action ? /*#__PURE__*/React.createElement("div", {
+      className: "empty-state-cta"
+    }, action) : null);
+  }
+
   // ---- Keyboard shortcuts (Help) ----
   // Pure static content; only needs a close handler.
   function HelpModal({
@@ -21298,13 +21370,18 @@ say("Survey done")`
       onClick: onClose
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
       className: "teacher-body"
-    }, browserMode && /*#__PURE__*/React.createElement("p", {
+    }, browserMode && /*#__PURE__*/React.createElement(EmptyState, {
+      icon: "report",
+      tone: "unavailable",
+      title: "Records need the desktop app",
+      hint: "In the browser, lessons still run and grade, but pupil records are not saved. Open Kodro's desktop app to keep a class register."
+    }), !browserMode && !teacherData && /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "The class register needs the desktop app. In the browser, lessons still run and grade, but pupil records are not saved."), !browserMode && !teacherData && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "Reading the class records saved on this computer\u2026"), !browserMode && teacherData && teacherData.pupils.length === 0 && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "No pupil data yet. Once pupils pass lessons, their scores show up here."), !browserMode && teacherData && teacherData.pupils.length > 0 && /*#__PURE__*/React.createElement("div", {
+    }, "Reading the class records saved on this computer\u2026"), !browserMode && teacherData && teacherData.pupils.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
+      icon: "report",
+      title: "No pupil records yet",
+      hint: "As pupils pass lessons on this computer, each idea they master fills in here, greener as it gets stronger."
+    }), !browserMode && teacherData && teacherData.pupils.length > 0 && /*#__PURE__*/React.createElement("div", {
       style: {
         overflow: 'auto',
         maxHeight: '60vh'
@@ -21397,9 +21474,12 @@ say("Survey done")`
       className: "review-issues"
     }, reviewData.issues.map((it, i) => /*#__PURE__*/React.createElement("li", {
       key: i
-    }, it))) : /*#__PURE__*/React.createElement("p", {
-      className: "review-clean"
-    }, "No problems spotted."), reviewData.revised && reviewData.code && /*#__PURE__*/React.createElement("div", {
+    }, it))) : /*#__PURE__*/React.createElement(EmptyState, {
+      icon: "review",
+      tone: "clean",
+      title: "No problems spotted",
+      hint: "The reviewer read your code and found nothing to change."
+    }), reviewData.revised && reviewData.code && /*#__PURE__*/React.createElement("div", {
       className: "review-rewrite"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
@@ -21600,9 +21680,12 @@ say("Survey done")`
       className: 'mem-refl mem-' + r.outcome
     }, /*#__PURE__*/React.createElement("span", {
       className: "mem-ctx"
-    }, (r.world || '?') + ' · ' + (r.robotType || 'robot') + ' · ' + r.outcome), r.reflection))) : /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "No runs yet. Run a program and the app writes a short note about how it went, then uses those notes to help next time.")), /*#__PURE__*/React.createElement("div", {
+    }, (r.world || '?') + ' · ' + (r.robotType || 'robot') + ' · ' + r.outcome), r.reflection))) : /*#__PURE__*/React.createElement(EmptyState, {
+      icon: "memory",
+      title: "No runs yet",
+      hint: "Run a program and the app writes a short note about how it went, then leans on those notes to help next time.",
+      action: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "Enter"), " to run a program")
+    })), /*#__PURE__*/React.createElement("div", {
       className: "mem-col"
     }, /*#__PURE__*/React.createElement("div", {
       className: "rl-label"
@@ -21658,9 +21741,11 @@ say("Survey done")`
       className: "btn-mini",
       "aria-label": 'Remove skill ' + s.name,
       onClick: () => window.KodroMemory.removeSkill(s.name)
-    }, "\u2715"))))) : /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "Save a program that worked, then reuse it on the next robot.")))));
+    }, "\u2715"))))) : /*#__PURE__*/React.createElement(EmptyState, {
+      icon: "bulb",
+      title: "No saved skills yet",
+      hint: "Save a program that worked and it lands here, ready to drop into the next robot."
+    })))));
   }
 
   // ---- Vibe coding (Code with AI) ----
@@ -21864,9 +21949,11 @@ say("Survey done")`
       role: "log",
       "aria-live": "polite",
       "aria-label": "AI conversation"
-    }, vibeMsgs.length === 0 && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-empty"
-    }, "Chat with the AI like a coding partner. It may ask a question first, e.g. try ", /*#__PURE__*/React.createElement("i", null, "\"explore the field\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"draw a star\""), "."), vibeMsgs.map((m, i) => m.kind === 'code' ? /*#__PURE__*/React.createElement("div", {
+    }, vibeMsgs.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
+      icon: "vibe",
+      title: "Describe it, the AI writes it",
+      hint: /*#__PURE__*/React.createElement(React.Fragment, null, "Chat with the AI like a coding partner. It may ask a question first, e.g. try ", /*#__PURE__*/React.createElement("i", null, "\"explore the field\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"draw a star\""), ".")
+    }), vibeMsgs.map((m, i) => m.kind === 'code' ? /*#__PURE__*/React.createElement("div", {
       key: i,
       className: "vibe-msg ai code"
     }, m.validated === false && /*#__PURE__*/React.createElement("p", {
@@ -21989,9 +22076,11 @@ say("Survey done")`
     }, "\u21A4 end block")), /*#__PURE__*/React.createElement("div", {
       className: "blocks-program",
       "aria-label": "Your program"
-    }, blocks.length === 0 && /*#__PURE__*/React.createElement("p", {
-      className: "vibe-hint"
-    }, "Click blocks above. They stack in order to form the program."), blocks.map((b, i) => /*#__PURE__*/React.createElement("div", {
+    }, blocks.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
+      icon: "blocks",
+      title: "Build your program",
+      hint: "Click blocks above. They stack in order, then turn into real Python."
+    }), blocks.map((b, i) => /*#__PURE__*/React.createElement("div", {
       key: b.id != null ? b.id : i,
       className: "block-row",
       style: {
@@ -22354,7 +22443,7 @@ say("Survey done")`
     const minProxRef = useRef(Infinity);
     const cmdCountRef = useRef(0);
 
-    // RoboLearn bridge: lessons (from Python), currently-loaded lesson id,
+    // Kodro bridge: lessons (from Python), currently-loaded lesson id,
     // pupil + verdict + hint after a graded Run. The React app stays
     // unchanged when there's no bridge (browser preview).
     // World props placed by pupil code via place(): flags, beacons, people...
@@ -24554,7 +24643,7 @@ say("Survey done")`
       insertBlocksCode: insertBlocksCode
     }), showHelp && /*#__PURE__*/React.createElement(window.KodroPanels.HelpModal, {
       onClose: () => setShowHelp(false)
-    }), buildOpen && /*#__PURE__*/React.createElement(window.KodroPanels.BuildModal, {
+    }), buildOpen && (window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() ? /*#__PURE__*/React.createElement(window.KodroPanels.BuildModal, {
       onClose: () => setBuildOpen(false),
       buildBudget: buildBudget,
       setBuildBudget: setBuildBudget,
@@ -24566,7 +24655,30 @@ say("Survey done")`
       buildPlan: buildPlan,
       robotSpec: robotSpec,
       onAdoptParts: adoptPlanParts
-    }), /*#__PURE__*/React.createElement("div", {
+    }) : /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => setBuildOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Build a real robot",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, KI('build'), "Build a real robot. What your budget can buy"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      "aria-label": "Close",
+      onClick: () => setBuildOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "build-body"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "The budget planner needs the desktop app. It uses the built-in local AI to price a real robot you could build from your current design, and that runs on your own computer rather than in the browser."), /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, "In the browser you can still design a robot in the Robot Lab, program it, and run it. To plan real hardware within a budget, open Kodro as the desktop app."))))), /*#__PURE__*/React.createElement("div", {
       className: "toast-stack",
       role: "status",
       "aria-live": "polite",

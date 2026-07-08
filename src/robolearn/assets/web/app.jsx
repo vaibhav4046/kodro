@@ -171,7 +171,7 @@
     const minProxRef = useRef(Infinity);
     const cmdCountRef = useRef(0);
 
-    // RoboLearn bridge: lessons (from Python), currently-loaded lesson id,
+    // Kodro bridge: lessons (from Python), currently-loaded lesson id,
     // pupil + verdict + hint after a graded Run. The React app stays
     // unchanged when there's no bridge (browser preview).
     // World props placed by pupil code via place(): flags, beacons, people...
@@ -1372,7 +1372,29 @@
 
         {showHelp && <window.KodroPanels.HelpModal onClose={() => setShowHelp(false)} />}
 
-        {buildOpen && <window.KodroPanels.BuildModal onClose={() => setBuildOpen(false)} buildBudget={buildBudget} setBuildBudget={setBuildBudget} buildGoal={buildGoal} setBuildGoal={setBuildGoal} buildBusy={buildBusy} runBuild={runBuild} buildErr={buildErr} buildPlan={buildPlan} robotSpec={robotSpec} onAdoptParts={adoptPlanParts} />}
+        {/* The budget planner (window.RoboLearn.budgetBuild) is desktop-only: bridge.js
+            has no browser path for it, so in the static web build the full planner could
+            only invite a budget and then fail on submit. Rather than dead end, the browser
+            build shows an honest desktop-only notice with the SAME dialog identity
+            (role="dialog" aria-label="Build a real robot") so the modal-render QA and the
+            cap.html open=build driver still resolve a Build dialog. Availability is read at
+            open time (a click), by which point pywebview has injected its API on desktop. */}
+        {buildOpen && ((window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable())
+          ? <window.KodroPanels.BuildModal onClose={() => setBuildOpen(false)} buildBudget={buildBudget} setBuildBudget={setBuildBudget} buildGoal={buildGoal} setBuildGoal={setBuildGoal} buildBusy={buildBusy} runBuild={runBuild} buildErr={buildErr} buildPlan={buildPlan} robotSpec={robotSpec} onAdoptParts={adoptPlanParts} />
+          : (
+            <div className="modal-backdrop" onClick={() => setBuildOpen(false)}>
+              <div className="modal" role="dialog" aria-modal="true" aria-label="Build a real robot" onClick={e => e.stopPropagation()}>
+                <div className="modal-head">
+                  <span className="eyebrow">{KI('build')}Build a real robot. What your budget can buy</span>
+                  <button className="btn-mini" aria-label="Close" onClick={() => setBuildOpen(false)}>✕</button>
+                </div>
+                <div className="build-body">
+                  <p className="vibe-status">The budget planner needs the desktop app. It uses the built-in local AI to price a real robot you could build from your current design, and that runs on your own computer rather than in the browser.</p>
+                  <p className="vibe-status">In the browser you can still design a robot in the Robot Lab, program it, and run it. To plan real hardware within a budget, open Kodro as the desktop app.</p>
+                </div>
+              </div>
+            </div>
+          ))}
 
         {/* Toast notifications: success / error / info, bottom-right. */}
         <div className="toast-stack" role="status" aria-live="polite" aria-atomic="false">

@@ -20,27 +20,37 @@ returns the same result, and a syntax error is reported, never raised.
 What counts as invented (the rule this module actually enforces, precisely):
 
 * a bare-name call (``fly()``) whose name is neither in ``fitted`` nor an allowed
-  builtin, and which the program neither defines itself (``def helper(): ...``)
-  nor aliases from a fitted/builtin name (``mv = move_forward``);
-* an attribute call on an object the program never created (``rover.forward()``),
-  because the fitted API is a set of bare functions and exposes no objects. An
-  attribute call on a name bound to a literal container/string is exempt ONLY
-  when the method is a real built-in container/string method (``xs.append(1)``),
-  so binding a name to ``[]``/``{}``/an f-string cannot launder an invented
-  method (``x = []; x.fly()`` is still invention);
+  builtin, and which the program does not make visible at the call site -- a
+  function or lambda it defines, or an alias chained (possibly through several
+  ``a = b`` steps) to a fitted/builtin name. Visibility is scope-aware: a helper
+  defined only inside another function does NOT exempt a call to that name in an
+  enclosing scope, so a nested ``def`` cannot launder a top-level invented call
+  (``def outer(): def fly(): ...`` does not ground a top-level ``fly()``);
+* an attribute call is invention when it invents a symbol or an object surface:
+  ``rover.forward()`` invents both an unknown ``rover`` object and an unknown
+  ``forward``. The sole exemption is a REAL builtin-type method (``append``,
+  ``upper``, ...) called on a KNOWN base -- a name bound to a literal
+  container/string (``xs.append(1)``) or a fitted/builtin name. An unknown method
+  (``move_forward.fly()``, ``range.launch()``) or any method on an unknown base
+  (``rover.forward()``, ``x = []; x.fly()``) is still invention, so a fitted
+  command's bare-function nature cannot be used as a free method surface;
 * a bare decorator (``@fly``) or attribute decorator (``@obj.fly``) that names an
   unknown symbol, because a decorator invokes the name at definition time even
   though it is not itself a call node.
 
 This resists the common evasions (assigning the object first, aliasing a
-container, hiding a call in a decorator) but is a static, best-effort check and
-not a proof: a program determined to defeat any purely syntactic analysis still
-can.
+container, chaining aliases, hiding a helper's name in an inner scope, hiding a
+call in a decorator) but is a static, best-effort check and not a proof: a
+program determined to defeat any purely syntactic analysis still can. The scope
+model is a reasonable static approximation -- a name is treated as visible if a
+``def``/lambda/alias binds it in the same or an enclosing function (or the
+module), and class scopes are treated leniently as ordinary enclosing scopes.
 """
 
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 from robolearn import rover_api
@@ -54,11 +64,11 @@ ALLOWED_BUILTINS: frozenset[str] = frozenset({"range", "len", "print"})
 FITTED_DEFAULT: frozenset[str] = frozenset(rover_api.__all__)
 
 #: Real built-in method names on Python's container/str/bytes/tuple/set/dict
-#: types. An attribute call whose base is a name bound to a literal
-#: container/string is exempt from the invention check ONLY when the method is
-#: one of these; any other method name on a container-bound base
-#: (``x = []; x.launch_missiles()``) is an invented API surface the metric must
-#: still flag, so binding to a literal cannot launder it.
+#: types. An attribute call whose method is one of these is exempt from the
+#: invention check ONLY when its base is a KNOWN name (a name bound to a literal
+#: container/string, ``x = []; x.append(1)``, or a fitted/builtin name); any
+#: other method name, or any method on an unknown base (``rover.launch()``), is
+#: an invented API surface the metric must still flag.
 _CONTAINER_METHODS: frozenset[str] = frozenset(
     {
         # list
@@ -185,6 +195,11 @@ _CONTAINER_RHS = (
     ast.JoinedStr,  # f-string
 )
 
+# Nodes that open a new naming scope. Bindings inside one of these are NOT
+# visible to an enclosing scope, so a name defined only here cannot exempt a
+# call to that name outside it.
+_SCOPE_NODES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
 
 def _is_container_rhs(value: ast.expr | None) -> bool:
     """True when ``value`` is a literal container/string (see ``_CONTAINER_RHS``)."""
@@ -221,40 +236,114 @@ def _container_names(tree: ast.AST) -> set[str]:
     return names
 
 
-def _exempt_bare_names(tree: ast.AST, allowed: frozenset[str]) -> set[str]:
-    """Bare-call names that are legitimate rather than invented.
-
-    Two kinds of name are ordinary code even though they are not themselves in
-    the fitted set, so calling them is not invention:
-
-    * functions the program defines itself -- ``def helper(): ...; helper()``;
-    * a single-level alias of a name already allowed -- ``mv = move_forward;
-      mv(3)`` (also ``mv: Callable = move_forward`` and the walrus ``(mv :=
-      move_forward)``).
-
-    Only an alias whose RHS is a plain name already in ``allowed`` counts;
-    ``bot = something`` (RHS not fitted) does NOT exempt ``bot``, so it cannot be
-    used to launder an invented surface.
-    """
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            names.add(node.name)
-        elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Name):
-            if node.value.id in allowed:
-                for target in node.targets:
-                    if isinstance(target, ast.Name):
-                        names.add(target.id)
-        elif (
-            isinstance(node, ast.AnnAssign | ast.NamedExpr)
-            and isinstance(node.target, ast.Name)
-            and isinstance(node.value, ast.Name)
-            and node.value.id in allowed
-        ):
-            # ``mv: Callable = move_forward`` (AnnAssign) and ``(mv :=
-            # move_forward)`` (walrus) both bind a single Name target.
-            names.add(node.target.id)
+def _arg_names(args: ast.arguments) -> set[str]:
+    """Every parameter name a ``def``/``lambda`` binds in its own scope."""
+    names = {a.arg for a in (*args.posonlyargs, *args.args, *args.kwonlyargs)}
+    if args.vararg is not None:
+        names.add(args.vararg.arg)
+    if args.kwarg is not None:
+        names.add(args.kwarg.arg)
     return names
+
+
+def _arg_default_values(args: ast.arguments) -> list[ast.expr]:
+    """Default-value expressions of a signature (evaluated when the def runs)."""
+    return [*args.defaults, *(d for d in args.kw_defaults if d is not None)]
+
+
+def _iter_same_scope(body: list[ast.stmt]) -> Iterator[ast.AST]:
+    """Yield every node inside ``body`` that shares its scope.
+
+    Descends through control flow (``if``/``for``/``while``/``with``/``try``)
+    but stops at a nested scope boundary (``def``/``lambda``/``class``): the
+    boundary node itself is yielded (so its bound name can be collected) but its
+    body is not, because names bound there belong to that inner scope.
+    """
+    stack: list[ast.AST] = list(body)
+    while stack:
+        node = stack.pop()
+        yield node
+        if isinstance(node, _SCOPE_NODES):
+            continue
+        stack.extend(ast.iter_child_nodes(node))
+
+
+def _scope_local(scope_node: ast.AST) -> tuple[set[str], dict[str, str]]:
+    """Names a scope binds directly: local defs/callables and single-step aliases.
+
+    Returns ``(defs, aliases)`` where ``defs`` are names bound to a callable the
+    program controls (a ``def``/``async def``/``class`` in this scope, a
+    lambda-bound name, or a parameter) and ``aliases`` maps ``name -> rhs_name``
+    for plain ``name = other_name`` bindings. Bindings inside nested scopes are
+    excluded; alias chains are resolved later against the merged scope view.
+    """
+    defs: set[str] = set()
+    aliases: dict[str, str] = {}
+    if isinstance(scope_node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        defs |= _arg_names(scope_node.args)
+    if isinstance(scope_node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        body: list[ast.stmt] = scope_node.body
+    else:  # ast.Lambda has a single expression body and binds only its parameters
+        body = []
+    for node in _iter_same_scope(body):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            defs.add(node.name)
+        elif isinstance(node, ast.Assign):
+            if isinstance(node.value, ast.Lambda):
+                defs |= {t.id for t in node.targets if isinstance(t, ast.Name)}
+            elif isinstance(node.value, ast.Name):
+                for t in node.targets:
+                    if isinstance(t, ast.Name):
+                        aliases[t.id] = node.value.id
+        elif isinstance(node, (ast.AnnAssign, ast.NamedExpr)):
+            target = node.target
+            if isinstance(target, ast.Name) and node.value is not None:
+                if isinstance(node.value, ast.Lambda):
+                    defs.add(target.id)
+                elif isinstance(node.value, ast.Name):
+                    aliases[target.id] = node.value.id
+    return defs, aliases
+
+
+def _scope_body_children(scope_node: ast.AST) -> list[ast.AST]:
+    """The child nodes whose code executes inside ``scope_node``'s own scope.
+
+    Decorators are excluded (they run in the enclosing scope and are handled by
+    the caller); default-value expressions are included because a call hidden in
+    a default still runs. A lambda's ``body`` is its single expression.
+    """
+    if isinstance(scope_node, ast.Lambda):
+        return [scope_node.body, *_arg_default_values(scope_node.args)]
+    if isinstance(scope_node, ast.ClassDef):
+        return [*scope_node.body, *scope_node.bases, *(kw.value for kw in scope_node.keywords)]
+    if isinstance(scope_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return [*scope_node.body, *_arg_default_values(scope_node.args)]
+    if isinstance(scope_node, ast.Module):
+        return list(scope_node.body)
+    return []
+
+
+def _resolve_exempt(
+    name: str, defs: set[str], aliases: dict[str, str], allowed: frozenset[str]
+) -> bool:
+    """True when a bare-call ``name`` is legitimate rather than invented.
+
+    A name is exempt if it is a fitted/builtin symbol, a callable the program
+    defines in a visible scope (``def``/lambda/parameter), or an alias that
+    chains -- through any number of ``a = b`` steps -- to one of those. Alias
+    chains are followed with a cycle guard, so ``a = move_forward; b = a; b()``
+    resolves ``b -> a -> move_forward`` and ``x = y; y = x`` terminates.
+    """
+    seen: set[str] = set()
+    current = name
+    while True:
+        if current in allowed or current in defs:
+            return True
+        if current in aliases and current not in seen:
+            seen.add(current)
+            current = aliases[current]
+            continue
+        return False
 
 
 def check_grounding(code: str, fitted: frozenset[str] = FITTED_DEFAULT) -> GroundingResult:
@@ -262,14 +351,17 @@ def check_grounding(code: str, fitted: frozenset[str] = FITTED_DEFAULT) -> Groun
 
     ``fitted`` is the build's command set (defaults to the full default-rover
     set). A symbol is invented when it is: (a) a bare call to a name outside
-    ``fitted`` and the allowed builtins that the program neither defines nor
-    aliases from a fitted/builtin name (``fly()``); (b) an attribute call on an
-    object the program never created (``rover.forward()``), unless the base is a
-    name bound to a literal container/string AND the method is a real built-in
-    container method (``xs = []; xs.append(1)``); or (c) a bare or attribute
-    decorator that names an unknown symbol (``@fly``). This resists the common
-    evasions (assigning the object first, aliasing a container, hiding the call
-    in a decorator) but is a static best-effort check, not a proof.
+    ``fitted`` and the allowed builtins that the program does not make visible at
+    the call site -- a ``def``/lambda/parameter or an alias chained to a
+    fitted/builtin name -- where visibility is scope-aware, so a name defined
+    only in an inner scope does not exempt a call in an enclosing one; (b) an
+    attribute call that invents an object surface (``rover.forward()``), unless
+    the method is a real builtin-type container/string method on a KNOWN base (a
+    name bound to a literal container/string, or a fitted/builtin name); or (c) a
+    bare or attribute decorator that names an unknown symbol (``@fly``). This
+    resists the common evasions (assigning the object first, aliasing or chaining
+    aliases, laundering a name through an inner scope, hiding the call in a
+    decorator) but is a static best-effort check, not a proof.
     """
     try:
         tree = ast.parse(code)
@@ -277,47 +369,75 @@ def check_grounding(code: str, fitted: frozenset[str] = FITTED_DEFAULT) -> Groun
         return GroundingResult(grounded=False, invented=(), called=(), syntax_error=str(exc))
     allowed = fitted | ALLOWED_BUILTINS
     containers = _container_names(tree)
-    exempt_bare = _exempt_bare_names(tree, allowed)
     called: set[str] = set()
     invented: set[str] = set()
 
-    def _record_bare(name: str) -> None:
+    def _record_bare(name: str, defs: set[str], aliases: dict[str, str]) -> None:
         called.add(name)
-        if name not in allowed and name not in exempt_bare:
+        if not _resolve_exempt(name, defs, aliases, allowed):
             invented.add(name)
 
     def _record_attr(base_id: str, method: str) -> None:
         symbol = f"{base_id}.{method}"
         called.add(symbol)
         # A method on an object the program never created is an invented API
-        # surface. The only exemption is a real container/string method on a
-        # name bound to a literal container/string; a method that is NOT a real
-        # container method is invented even on a container-bound base.
-        if (base_id in containers and method in _CONTAINER_METHODS) or base_id in allowed:
+        # surface. The only exemption is a REAL builtin-type method on a KNOWN
+        # base: a name bound to a literal container/string, or a fitted/builtin
+        # name. A fitted command is a bare function, not a free object surface,
+        # so ``move_forward.fly()`` and ``range.launch()`` stay invented.
+        if method in _CONTAINER_METHODS and (base_id in containers or base_id in allowed):
             return
         invented.add(symbol)
 
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Call):
-            func = node.func
-            if isinstance(func, ast.Name):
-                _record_bare(func.id)
-            elif isinstance(func, ast.Attribute):
-                base = func.value
-                if isinstance(base, ast.Name):
-                    _record_attr(base.id, func.attr)
-                else:
-                    called.add(func.attr)
-                    invented.add(func.attr)
-        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
-            # A decorator invokes its name at definition time. ``@deco(x)`` is an
-            # ast.Call and is already handled above; only bare ``@fly`` (Name)
-            # and ``@obj.fly`` (Attribute) decorators need catching here.
+    def _handle_call(node: ast.Call, defs: set[str], aliases: dict[str, str]) -> None:
+        func = node.func
+        if isinstance(func, ast.Name):
+            _record_bare(func.id, defs, aliases)
+        elif isinstance(func, ast.Attribute):
+            base = func.value
+            if isinstance(base, ast.Name):
+                _record_attr(base.id, func.attr)
+            else:
+                # A method on a non-name base (a call result, subscript, ...) is
+                # an object the program never created: still invention.
+                called.add(func.attr)
+                invented.add(func.attr)
+
+    def _handle_decorator(dec: ast.expr, defs: set[str], aliases: dict[str, str]) -> None:
+        # ``@fly`` (Name) and ``@obj.fly`` (Attribute) invoke a name at def time
+        # but are not Call nodes; ``@deco(...)`` IS a Call and is visited normally.
+        if isinstance(dec, ast.Name):
+            _record_bare(dec.id, defs, aliases)
+        elif isinstance(dec, ast.Attribute) and isinstance(dec.value, ast.Name):
+            _record_attr(dec.value.id, dec.attr)
+        else:
+            _visit(dec, defs, aliases)
+
+    def _enter_scope(scope_node: ast.AST, enc_defs: set[str], enc_aliases: dict[str, str]) -> None:
+        local_defs, local_aliases = _scope_local(scope_node)
+        defs = enc_defs | local_defs
+        aliases = {**enc_aliases, **local_aliases}
+        for child in _scope_body_children(scope_node):
+            _visit(child, defs, aliases)
+
+    def _visit(node: ast.AST, defs: set[str], aliases: dict[str, str]) -> None:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             for dec in node.decorator_list:
-                if isinstance(dec, ast.Name):
-                    _record_bare(dec.id)
-                elif isinstance(dec, ast.Attribute) and isinstance(dec.value, ast.Name):
-                    _record_attr(dec.value.id, dec.attr)
+                _handle_decorator(dec, defs, aliases)
+            _enter_scope(node, defs, aliases)
+            return
+        if isinstance(node, ast.Lambda):
+            _enter_scope(node, defs, aliases)
+            return
+        if isinstance(node, ast.Call):
+            _handle_call(node, defs, aliases)
+            for child in ast.iter_child_nodes(node):
+                _visit(child, defs, aliases)
+            return
+        for child in ast.iter_child_nodes(node):
+            _visit(child, defs, aliases)
+
+    _enter_scope(tree, set(), {})
 
     return GroundingResult(
         grounded=not invented,

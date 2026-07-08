@@ -1462,11 +1462,11 @@ def _ensure_entrypoint(code: str) -> str:
 def _startup_failure_message(exc: BaseException) -> str:
     """Human-readable guidance for a pywebview start failure."""
     return (
-        "RoboLearn could not open its window.\n\n"
+        "Kodro could not open its window.\n\n"
         "This usually means the Microsoft Edge WebView2 Runtime is missing. "
         "It is free and installs in under a minute:\n\n"
         "    https://developer.microsoft.com/microsoft-edge/webview2/\n\n"
-        "Install it, then start RoboLearn again. (You can also use the classic "
+        "Install it, then start Kodro again. (You can also use the classic "
         "interface with:  python -m robolearn)\n\n"
         f"Technical details: {type(exc).__name__}: {exc}"
     )
@@ -1488,7 +1488,7 @@ def _report_startup_failure(exc: BaseException) -> None:
             windll = getattr(ctypes, "windll", None)
             if windll is not None:
                 # MB_OK | MB_ICONERROR | MB_SETFOREGROUND
-                windll.user32.MessageBoxW(0, message, "RoboLearn", 0x10 | 0x10000)
+                windll.user32.MessageBoxW(0, message, "Kodro", 0x10 | 0x10000)
                 return
     sys.stderr.write(message + "\n")
 

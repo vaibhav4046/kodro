@@ -460,7 +460,17 @@
   const CONTINUE = { signal: 'continue' };
   const RETURN = { signal: 'return' };
 
-  function makeBuiltins(host) {
+  // Largest range()/list length we will materialize. Python builds ranges
+  // lazily, so `for i in range(10**9)` costs nothing there; our sim eagerly
+  // materializes the list in ONE host operation, which can OOM or hang the tab
+  // before the per-statement MAX_STEPS guard can trip. Refuse anything larger
+  // with an honest, line-numbered error instead of freezing the browser.
+  const MAX_RANGE_LEN = 1000000;
+
+  function makeBuiltins(host, lineOf) {
+    // curLine getter so builtin diagnostics carry the 1-based source line, like
+    // the rest of the interpreter's errors (defensive: null if not supplied).
+    const at = function () { return typeof lineOf === 'function' ? lineOf() : null; };
     return {
       range: function (a, b, c) {
         let start = 0, stop, step = 1;
@@ -470,10 +480,18 @@
         // the grader instead of silently iterating fractional ranges.
         for (const v of [start, stop, step]) {
           if (!Number.isInteger(Number(v))) {
-            throw new RoverError("'float' object cannot be interpreted as an integer");
+            throw new RoverError("'float' object cannot be interpreted as an integer", at());
           }
         }
-        if (step === 0) throw new RoverError('range() arg 3 must not be zero');
+        if (step === 0) throw new RoverError('range() arg 3 must not be zero', at());
+        // Reject an over-large range BEFORE building the array: compute how many
+        // elements it would yield and refuse past MAX_RANGE_LEN, so a huge count
+        // fails fast with a clear message rather than materializing a giant list.
+        const span = step > 0 ? stop - start : start - stop;
+        const count = span > 0 ? Math.ceil(span / Math.abs(step)) : 0;
+        if (count > MAX_RANGE_LEN) {
+          throw new RoverError('range() is too large (max ' + MAX_RANGE_LEN + '); use a smaller count.', at());
+        }
         const arr = [];
         if (step > 0) for (let i = start; i < stop; i += step) arr.push(i);
         else for (let i = start; i > stop; i += step) arr.push(i);
@@ -571,7 +589,7 @@
       program: program,
       // run returns a generator. host = { sensor(name,args), motion(ev) optional }
       run: function* (host) {
-        const builtins = makeBuiltins(host);
+        const builtins = makeBuiltins(host, function () { return curLine; });
         const scope = Object.create(null);
         const funcs = Object.create(null);
         let steps = 0;

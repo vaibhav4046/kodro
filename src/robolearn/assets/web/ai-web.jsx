@@ -55,6 +55,34 @@
       ? window.RoboLearn : null;
   }
 
+  // Explain, in one honest and origin-appropriate line, why the local Ollama
+  // server could not be reached, so EVERY assistant entry point (status, vibe
+  // chat, reviewer, Ask) gives the SAME diagnosis instead of a flat "not
+  // running". The two failure modes read very differently to the user: on a
+  // hosted page (an http/https origin that is NOT localhost) the browser blocks
+  // the request to the local Ollama server by CORS, so Ollama is likely running
+  // and just refuses this origin (the fix is to allow the origin). On a local
+  // origin (localhost, 127.0.0.1, [::1], or a file:// page) the request is
+  // allowed, so a failure means Ollama is simply not running. Returns a machine
+  // `reason` code plus a copy-pasteable, origin-aware human `hint`, with the
+  // real origin computed at runtime.
+  function ollamaUnavailableReason() {
+    let origin = '';
+    try { origin = (typeof window !== 'undefined' && window.location && window.location.origin) || ''; } catch (er) { void er; }
+    const httpOrigin = /^https?:\/\//i.test(origin);
+    const localHost = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(origin);
+    if (httpOrigin && !localHost) {
+      return {
+        reason: 'blocked-origin',
+        hint: 'Your browser blocked the local AI (Ollama refuses this origin). Start Ollama allowing this page: set OLLAMA_ORIGINS=' + origin + ' then run ollama serve. Or use the desktop app, or connect a cloud key in the Vibe panel.',
+      };
+    }
+    return {
+      reason: 'not-running',
+      hint: 'Ollama is not running. Start the Ollama app (or run: ollama serve), then reopen this panel. Or connect a cloud key in the Vibe panel.',
+    };
+  }
+
   let override = null;
   try { override = localStorage.getItem('kodro_web_model') || null; } catch (e) { void e; }
 
@@ -214,8 +242,11 @@
       model = window.KodroProviders.config().cloudModel;
     } else {
       let models;
+      // Same origin-aware diagnosis as status(): a hosted page gets the
+      // OLLAMA_ORIGINS fix, a local page gets "start Ollama". The "no models"
+      // case below stays distinct (Ollama is reachable, just empty).
       try { models = await tags(); }
-      catch (e) { return { ok: false, reason: 'Ollama is not running. Start the Ollama app, or connect a cloud key in the Vibe panel.' }; }
+      catch (e) { void e; return { ok: false, reason: ollamaUnavailableReason().hint }; }
       model = pick(models);
       if (!model) return { ok: false, reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b), or connect a cloud key in the Vibe panel.' };
     }
@@ -347,28 +378,15 @@
       return { available: ms.length > 0, model: chosen, models: ms, override: override, source: 'browser' };
     } catch (e) {
       void e;
-      // tags() failed. The two ways this happens read very differently to the
-      // user, so tell them apart. On a hosted page (an http origin that is NOT
-      // localhost) the browser blocks the request to the local Ollama server by
-      // CORS: Ollama is likely running, it just refuses this origin. On a local
-      // origin (localhost, 127.0.0.1, or a file:// page) the request is allowed,
-      // so a failure means Ollama is not running. The hint carries the exact,
-      // copy-pasteable fix, with the real origin computed at runtime.
-      let origin = '';
-      try { origin = (typeof window !== 'undefined' && window.location && window.location.origin) || ''; } catch (er) { void er; }
-      const httpOrigin = /^https?:\/\//i.test(origin);
-      const localHost = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(origin);
-      if (httpOrigin && !localHost) {
-        return {
-          available: false, model: null, models: [], override: override, source: 'browser',
-          reason: 'blocked-origin',
-          hint: 'Your browser blocked the local AI. Start Ollama allowing this page: set OLLAMA_ORIGINS=' + origin + ' then run ollama serve. Or use the desktop app, or connect a cloud key below.',
-        };
-      }
+      // tags() failed. Tell the two failure modes apart via the shared
+      // ollamaUnavailableReason(), and hand the UI both the machine code
+      // (`reason`) and the copy-pasteable, origin-aware fix (`hint`, rendered by
+      // panels.jsx). The vibe chat, reviewer and Ask now surface this SAME hint.
+      const u = ollamaUnavailableReason();
       return {
         available: false, model: null, models: [], override: override, source: 'browser',
-        reason: 'not-running',
-        hint: 'Ollama is not running. Start the Ollama app (or run: ollama serve), then reopen this panel.',
+        reason: u.reason,
+        hint: u.hint,
       };
     }
   }
@@ -390,7 +408,7 @@
     if (cloud) { model = window.KodroProviders.config().cloudModel; }
     else {
       let models;
-      try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running (or connect a cloud key in the Vibe panel).' }; }
+      try { models = await tags(); } catch (e) { void e; return { ok: false, reason: ollamaUnavailableReason().hint }; }
       model = pick(models);
       if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).' };
     }
@@ -419,7 +437,7 @@
     if (cloud) { model = window.KodroProviders.config().cloudModel; }
     else {
       let models;
-      try { models = await tags(); } catch (e) { return { ok: false, reason: 'Ollama is not running (or connect a cloud key in the Vibe panel).' }; }
+      try { models = await tags(); } catch (e) { void e; return { ok: false, reason: ollamaUnavailableReason().hint }; }
       model = pick(models);
       if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).' };
     }

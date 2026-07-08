@@ -1,6 +1,6 @@
 """Top-level Tk application that wires every panel into the main window.
 
-Calling :func:`launch` opens the full RoboLearn UI: the main-window
+Calling :func:`launch` opens the full Kodro UI: the main-window
 shell from :mod:`robolearn.ui.main_window` with the editor, simulation,
 sensors, lessons and console panels installed, plus the welcome wizard
 on first launch and the teacher dashboard behind ``Ctrl+Shift+T``.
@@ -310,7 +310,7 @@ def build_app(
         lessons_panel.set_completed(attempted_lesson_ids(store, pupil.id))
     sim.set_world(world, rover)
     sensors.update_from_rover(rover)
-    console.log("RoboLearn ready. Pick a lesson on the right, write code, press Run.")
+    console.log("Kodro ready. Pick a lesson on the right, write code, press Run.")
     if app.current_lesson is not None:
         _log_lesson_brief(console, app.current_lesson)
 
@@ -476,7 +476,7 @@ def _maybe_show_welcome(app: App) -> None:
             # which is also a valid TOML basic string. The display name is
             # free text, so a stray quote/newline must not corrupt the file.
             WELCOME_SENTINEL.write_text(
-                "# RoboLearn local profile (no cloud, no account).\n"
+                "# Kodro local profile (no cloud, no account).\n"
                 f"display_name = {json.dumps(result.display_name)}\n"
                 f"age_band = {json.dumps(result.age_band)}\n"
                 f"key_stage = {json.dumps(result.key_stage)}\n"

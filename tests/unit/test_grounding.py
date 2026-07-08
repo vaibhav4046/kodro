@@ -112,6 +112,76 @@ def test_alias_of_fitted_command_is_not_invention() -> None:
     assert result.invented == ()
 
 
+def test_nested_def_does_not_launder_a_top_level_call() -> None:
+    # Scope-blindness evasion: fly is defined ONLY inside helper's scope, then
+    # called at module scope where it is NOT visible. A name laundered through an
+    # inner scope must still be flagged as invented.
+    code = "def helper():\n    def fly():\n        pass\nfly()\n"
+    result = check_grounding(code)
+    assert result.grounded is False
+    assert "fly" in result.invented
+
+
+def test_helper_visible_from_an_enclosing_scope_is_not_invention() -> None:
+    # The counterpart guard: a helper defined in the enclosing scope IS visible
+    # to a sibling inner scope, so calling it there is not a false positive.
+    code = (
+        "def outer():\n"
+        "    def helper():\n"
+        "        move_forward(1)\n"
+        "    def runner():\n"
+        "        helper()\n"
+        "    runner()\n"
+        "outer()\n"
+    )
+    result = check_grounding(code)
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_lambda_bound_helper_call_is_not_invention() -> None:
+    # A name bound to a lambda is a callable the program defines, so calling it
+    # is ordinary code, not invention.
+    result = check_grounding("f = lambda: move_forward(1)\nf()\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_multi_level_alias_is_not_invention() -> None:
+    # Aliases chained through several name = name steps resolve to a fitted
+    # command, so the final call is grounded.
+    result = check_grounding("a = move_forward\nb = a\nb(3)\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_attribute_call_on_a_fitted_command_is_invention() -> None:
+    # A fitted command is a bare function, not an object: an attribute call whose
+    # method is not a real builtin-type method invents an attribute surface and
+    # must be flagged, exactly like rover.forward().
+    result = check_grounding("move_forward.foo()\n")
+    assert result.grounded is False
+    assert "move_forward.foo" in result.invented
+
+
+def test_attribute_call_on_a_builtin_name_is_invention() -> None:
+    # The same closes the launder-through-a-builtin evasion: hiding an invented
+    # method behind a builtin name does not exempt it.
+    result = check_grounding("range.launch_missiles()\n")
+    assert result.grounded is False
+    assert "range.launch_missiles" in result.invented
+
+
+def test_real_builtin_method_on_a_known_base_is_not_invention() -> None:
+    # The one exemption, locked so it cannot silently drift: a REAL builtin-type
+    # method (here the str method upper) on a KNOWN base -- a fitted/builtin name
+    # -- is a known symbol, not an invented one, so it is not flagged. An unknown
+    # method on the same base (previous test) still is.
+    result = check_grounding("print.upper()\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
 def test_syntax_error_is_reported_not_raised() -> None:
     result = check_grounding("move_forward(\n")
     assert result.grounded is False

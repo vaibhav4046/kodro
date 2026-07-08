@@ -1138,6 +1138,46 @@ kbd {
 .build-note{ font-size:10.5px; color:var(--fg-3); font-style:italic; margin:0; }
 
 /* ============================================================================
+   EMPTY STATES - designed zero-states shared across the panels.
+   A "nothing here yet" moment (no runs, no pupils, no saved skills, an
+   unstarted chat or block program, a clean review) renders as an intentional
+   block: a medallion glyph from the shared icon sprite, a display-font title
+   and one helpful line, plus an optional keyboard affordance. The composition
+   is borderless so it sits cleanly BOTH on the modal's gradient and inside a
+   recessed surface (the vibe thread, the blocks tray) without nesting panels.
+   Every colour routes through a theme token, so the >=4.5:1 the theme blocks
+   below compute for fg-1 (title) and fg-2 (hint) holds on every theme; the
+   only motion is a decorative medallion entrance, which the global
+   reduced-motion rule freezes at its final frame. */
+.empty-state {
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+  gap:9px; padding:22px 18px; margin:2px 0;
+}
+.empty-state-icon {
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:52px; height:52px; border-radius:50%;
+  color:var(--cyan); background:var(--navy-3);
+  border:1px solid var(--border); box-shadow:var(--shadow-card);
+  animation:empty-pop 320ms var(--ease) both;
+}
+.empty-state-icon .ki { width:24px; height:24px; vertical-align:0; }
+.empty-state.is-clean .empty-state-icon { color:var(--success); }
+.empty-state.is-unavailable .empty-state-icon { color:var(--brass); }
+.empty-state-title {
+  margin:0; font-family:var(--font-display); font-size:19px; font-weight:600;
+  line-height:1.2; letter-spacing:0.01em; color:var(--fg-1);
+}
+.empty-state-hint {
+  margin:0; max-width:36ch; font-size:12.5px; line-height:1.6; color:var(--fg-2);
+}
+.empty-state-hint i { color:var(--fg-1); font-style:italic; }
+.empty-state-cta {
+  display:inline-flex; align-items:center; gap:6px; margin-top:3px;
+  font-size:11px; color:var(--fg-3);
+}
+@keyframes empty-pop { from{ opacity:0; transform:scale(0.9); } to{ opacity:1; transform:none; } }
+
+/* ============================================================================
    THEMES - full repaints via [data-theme] token swaps.
    Default (no attribute) is the dark mission-control look above. Every theme
    below only re-declares the core tokens; the whole UI inherits the change.

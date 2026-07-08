@@ -49,7 +49,7 @@ class WelcomeWizard:
         """Build the wizard."""
         self._on_complete = on_complete
         self._window = tk.Toplevel(parent)
-        self._window.title("Welcome to RoboLearn")
+        self._window.title("Welcome to Kodro")
         self._window.transient(parent.winfo_toplevel())
         self._result: WizardResult | None = None
         self._step: StepId = 0

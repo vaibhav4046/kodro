@@ -39,6 +39,26 @@
     return source ? (source.charAt(0).toUpperCase() + source.slice(1)) : 'the cloud provider';
   }
 
+  // ---- Designed empty / zero states (design MEDIUM) -------------------------
+  // One shared presentational block so every "nothing here yet" moment reads as
+  // an intentional part of the product instead of a stray line of muted text:
+  // a medallion glyph from the shared icon sprite, a display-font title, one
+  // helpful line, and an optional keyboard/action affordance. Pure function of
+  // its props: no state, no logic, no data. All colour and motion live in
+  // styles.css (.empty-state*), routed through theme tokens so contrast holds
+  // on every theme and the only motion is a decorative, reduced-motion-safe
+  // medallion entrance. `title`/`hint` accept a string or a React node.
+  function EmptyState({ icon, title, hint, action, tone }) {
+    return (
+      <div className={'empty-state' + (tone ? ' is-' + tone : '')}>
+        <span className="empty-state-icon" aria-hidden="true">{icon ? KI(icon) : null}</span>
+        <p className="empty-state-title">{title}</p>
+        {hint ? <p className="empty-state-hint">{hint}</p> : null}
+        {action ? <div className="empty-state-cta">{action}</div> : null}
+      </div>
+    );
+  }
+
   // ---- Keyboard shortcuts (Help) ----
   // Pure static content; only needs a close handler.
   function HelpModal({ onClose }) {
@@ -240,11 +260,20 @@
           </div>
           <div className="teacher-body">
             {browserMode && (
-              <p className="vibe-status">The class register needs the desktop app. In the browser, lessons still run and grade, but pupil records are not saved.</p>
+              <EmptyState
+                icon="report"
+                tone="unavailable"
+                title="Records need the desktop app"
+                hint="In the browser, lessons still run and grade, but pupil records are not saved. Open Kodro's desktop app to keep a class register."
+              />
             )}
             {!browserMode && !teacherData && <p className="vibe-status">Reading the class records saved on this computer…</p>}
             {!browserMode && teacherData && teacherData.pupils.length === 0 && (
-              <p className="vibe-status">No pupil data yet. Once pupils pass lessons, their scores show up here.</p>
+              <EmptyState
+                icon="report"
+                title="No pupil records yet"
+                hint="As pupils pass lessons on this computer, each idea they master fills in here, greener as it gets stronger."
+              />
             )}
             {!browserMode && teacherData && teacherData.pupils.length > 0 && (
               <div style={{ overflow: 'auto', maxHeight: '60vh' }}>
@@ -315,7 +344,12 @@
                     {reviewData.issues.map((it, i) => <li key={i}>{it}</li>)}
                   </ul>
                 ) : (
-                  <p className="review-clean">No problems spotted.</p>
+                  <EmptyState
+                    icon="review"
+                    tone="clean"
+                    title="No problems spotted"
+                    hint="The reviewer read your code and found nothing to change."
+                  />
                 )}
                 {reviewData.revised && reviewData.code && (
                   <div className="review-rewrite">
@@ -440,7 +474,12 @@
                       </li>
                     ))}
                   </ul>
-                : <p className="vibe-status">No runs yet. Run a program and the app writes a short note about how it went, then uses those notes to help next time.</p>}
+                : <EmptyState
+                    icon="memory"
+                    title="No runs yet"
+                    hint="Run a program and the app writes a short note about how it went, then leans on those notes to help next time."
+                    action={<><kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run a program</>}
+                  />}
             </div>
             <div className="mem-col">
               <div className="rl-label">Skill library. Programs that worked, saved for reuse</div>
@@ -458,7 +497,11 @@
                       </li>
                     ))}
                   </ul>
-                : <p className="vibe-status">Save a program that worked, then reuse it on the next robot.</p>}
+                : <EmptyState
+                    icon="bulb"
+                    title="No saved skills yet"
+                    hint="Save a program that worked and it lands here, ready to drop into the next robot."
+                  />}
             </div>
           </div>
         </div>
@@ -538,7 +581,11 @@
               )}
               <div className="vibe-thread" role="log" aria-live="polite" aria-label="AI conversation">
                 {vibeMsgs.length === 0 && (
-                  <p className="vibe-empty">Chat with the AI like a coding partner. It may ask a question first, e.g. try <i>"explore the field"</i> or <i>"draw a star"</i>.</p>
+                  <EmptyState
+                    icon="vibe"
+                    title="Describe it, the AI writes it"
+                    hint={<>Chat with the AI like a coding partner. It may ask a question first, e.g. try <i>"explore the field"</i> or <i>"draw a star"</i>.</>}
+                  />
                 )}
                 {vibeMsgs.map((m, i) => m.kind === 'code' ? (
                   <div key={i} className="vibe-msg ai code">
@@ -627,7 +674,13 @@
             <button className="block-chip block-end" onClick={endBlock} disabled={blockIndent === 0}>↤ end block</button>
           </div>
           <div className="blocks-program" aria-label="Your program">
-            {blocks.length === 0 && <p className="vibe-hint">Click blocks above. They stack in order to form the program.</p>}
+            {blocks.length === 0 && (
+              <EmptyState
+                icon="blocks"
+                title="Build your program"
+                hint="Click blocks above. They stack in order, then turn into real Python."
+              />
+            )}
             {blocks.map((b, i) => (
               <div key={b.id != null ? b.id : i} className="block-row" style={{ marginLeft: (b.indent * 22) + 'px', borderLeftColor: b.color }}>
                 <span>{b.label}</span>

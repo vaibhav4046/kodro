@@ -45,12 +45,12 @@ def main(argv: list[str] | None = None) -> int:
             root = tk.Tk()
             root.withdraw()
             messagebox.showerror(
-                "RoboLearn",
-                (f"RoboLearn failed to start.\n\n{type(exc).__name__}: {exc}\n\nSee {log_path}"),
+                "Kodro",
+                (f"Kodro failed to start.\n\n{type(exc).__name__}: {exc}\n\nSee {log_path}"),
             )
             root.destroy()
         except Exception:
-            sys.stderr.write(f"RoboLearn failed: {exc}\n")
+            sys.stderr.write(f"Kodro failed: {exc}\n")
             sys.stderr.write(traceback.format_exc())
         return 1
 
