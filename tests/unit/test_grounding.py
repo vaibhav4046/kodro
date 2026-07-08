@@ -198,3 +198,105 @@ def test_default_fitted_set_matches_rover_api() -> None:
 
     assert frozenset(rover_api.__all__) == FITTED_DEFAULT
     assert "move_forward" in FITTED_DEFAULT and len(FITTED_DEFAULT) >= 20
+
+
+# --- Genuinely-bound locals must not be misreported as invented (false positives
+# that would inflate the headline invention_rate). Each form below binds a name
+# by iteration/context/unpacking, so a bare or method call on it is ordinary code.
+
+
+def test_for_loop_target_bare_call_is_not_invention() -> None:
+    # A name bound by a for-loop is a real local; calling it is not invention.
+    result = check_grounding("for f in [move_forward]:\n    f(1)\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_for_loop_target_method_call_is_not_invention() -> None:
+    # A method call on a for-loop variable is ordinary code (the base is a bound
+    # local of unknown type), even for a method that is not a container method.
+    result = check_grounding("xs = []\nfor x in xs:\n    x.foo()\nmove_forward(1)\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_for_loop_unpacking_targets_are_not_invention() -> None:
+    # Tuple unpacking in a for-loop binds both names locally.
+    result = check_grounding("items = []\nfor a, b in items:\n    a.step()\n    b()\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_with_as_target_is_not_invention() -> None:
+    # A `with ... as name` binding is a real local; method and bare calls on it
+    # are ordinary code, not invention.
+    code = "def cm():\n    return None\nwith cm() as h:\n    h.read()\n    h()\n"
+    result = check_grounding(code)
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_except_as_target_is_not_invention() -> None:
+    # An `except ... as name` binding is a real local.
+    code = "try:\n    move_forward(1)\nexcept Exception as err:\n    err.log()\n"
+    result = check_grounding(code)
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_comprehension_variable_method_call_is_not_invention() -> None:
+    # The comprehension loop variable is a bound local; its method calls are not
+    # invented symbols the program invented (the task's canonical case).
+    result = check_grounding("xs = []\nout = [x.foo() for x in xs]\nmove_forward(1)\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_comprehension_variants_bind_their_targets() -> None:
+    # set/dict/generator comprehensions and multi-target generators all bind.
+    code = (
+        "xs = []\n"
+        "items = []\n"
+        "s = {x.foo() for x in xs}\n"
+        "d = {k: v.bar() for k, v in items}\n"
+        "g = [y() for y in xs]\n"
+    )
+    result = check_grounding(code)
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_tuple_unpacking_to_call_binds_locals() -> None:
+    # `(x, y) = f()` binds x and y as real locals, so a method or bare call on
+    # them is not invention -- unlike a single `rover = spawn()` (see
+    # test_binding_the_base_name_does_not_launder_an_invented_api), which stays
+    # flagged. Unpacking a call result is a genuine binding, not that evasion.
+    code = "def f():\n    return 1, 2\n(x, y) = f()\nx.run()\ny()\n"
+    result = check_grounding(code)
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_starred_unpacking_target_is_not_invention() -> None:
+    # A starred capture (`a, *rest = ...`) binds rest as a real local.
+    result = check_grounding("a, *rest = move_forward, turn_left, turn_right\nrest.pop()\n")
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_unpacking_to_literal_containers_exempts_container_methods() -> None:
+    # `a, b = [], {}` makes a a list and b a dict (matched positionally), so real
+    # container methods on them are ordinary code.
+    code = "a, b = [], {}\na.append(1)\nb.setdefault(1, 2)\nmove_forward(1)\n"
+    result = check_grounding(code)
+    assert result.grounded is True
+    assert result.invented == ()
+
+
+def test_unpacking_container_launder_is_still_caught() -> None:
+    # The launder guard survives unpacking: a is positionally a list, but
+    # launch_missiles is not a real container method, so it stays invention --
+    # the literal-container base is method-restricted, never any-method exempt.
+    result = check_grounding("a, b = [], {}\na.launch_missiles()\n")
+    assert result.grounded is False
+    assert "a.launch_missiles" in result.invented

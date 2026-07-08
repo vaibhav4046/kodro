@@ -497,7 +497,15 @@
         else for (let i = start; i > stop; i += step) arr.push(i);
         return arr;
       },
-      len: x => { if (x && x.length != null) return x.length; throw new RoverError('len() needs a list or text.'); },
+      // CPython len(): strings and lists/tuples report their length, and an
+      // EMPTY one is 0 -- len("") == 0, len([]) == 0 -- not an error. The old
+      // truthiness guard (`x && ...`) treated the empty string as falsy and
+      // threw, diverging from the grader (which runs real `len`). Test by TYPE
+      // so a zero-length size passes through instead of tripping the guard.
+      len: x => {
+        if (typeof x === 'string' || Array.isArray(x)) return x.length;
+        throw new RoverError('len() needs a list or text.', at());
+      },
       int: x => pyInt(x),
       float: x => pyFloat(x),
       str: x => pyStr(x),
@@ -736,8 +744,17 @@
             }
             case 'for': {
               const iter = evalExpr(s.iter);
-              // Strings are iterable in Python (for ch in word), so iterate their characters.
-              const list = Array.isArray(iter) ? iter : (typeof iter === 'string' ? iter.split('') : []);
+              // Strings are iterable in Python (for ch in word), so iterate
+              // their characters; lists/tuples/range() are already arrays.
+              // Anything else -- a number, None, a bool -- is NOT iterable:
+              // CPython raises "TypeError: 'int' object is not iterable". The
+              // old code silently coerced it to an empty list and no-op'd the
+              // loop, diverging from the grader; raise instead, line-numbered
+              // like the subscript diagnostic (pyTypeName gives 'int'/'NoneType').
+              let list;
+              if (Array.isArray(iter)) list = iter;
+              else if (typeof iter === 'string') list = iter.split('');
+              else throw new RoverError("'" + pyTypeName(iter) + "' object is not iterable", s.line);
               for (let i = 0; i < list.length; i++) {
                 scope[s.varName] = list[i];
                 yield { type: 'step', line: s.line };

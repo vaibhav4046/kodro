@@ -185,7 +185,12 @@
     const [photoUrl, setPhotoUrl] = useState(null);
     async function pickPhotoClick() {
       if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
-        addConsole('Photo props need the desktop app.', 'err');
+        // Desktop-only capture. Give an immediate, visible, honest response (a
+        // toast) rather than only a console line that scrolls away, matching the
+        // Swarm/Teacher desktop-only pattern. We invent no photo.
+        const msg = 'Photo props need the desktop app. In the browser you can still design, program, and run your robot.';
+        showToast(msg, 'info');
+        addConsole(msg, 'info');
         return;
       }
       try {
@@ -896,6 +901,12 @@
     const chipType = (robotSpec && robotSpec.type) || null;
     const chipMass = (robotSpec && robotSpec.mass) || null;
 
+    // Static web build: the RoboLearn bridge is present but pywebview is not, so
+    // isAvailable() is false. The budget planner and the photo picker are
+    // desktop-only (bridge.js has no browser path), so the controls that trigger
+    // them say so up front instead of inviting an action that cannot finish here.
+    const browserMode = !!(window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable());
+
     return (
       <div className="app">
         <a className="skip-link" href="#editor-main">Skip to code editor</a>
@@ -946,7 +957,7 @@
           </button>
           <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab — design a custom robot" onClick={() => setRobotLabOpen(true)}>{KI('lab')}<span className="icon-btn-label">Robot Lab</span></button>
           <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills — what the system learned, and your skill library" onClick={() => setMemoryOpen(true)}>{KI('memory')}<span className="icon-btn-label">Memory</span></button>
-          <button className="icon-btn" title="Build a real robot on a budget" aria-label="Build a real robot — design one on a budget" onClick={openBuildReal}>{KI('build')}<span className="icon-btn-label">Build</span></button>
+          <button className="icon-btn" title={browserMode ? 'Build a real robot on a budget (desktop app)' : 'Build a real robot on a budget'} aria-label={browserMode ? 'Build a real robot. Design one on a budget. Desktop app only.' : 'Build a real robot. Design one on a budget.'} onClick={openBuildReal}>{KI('build')}<span className="icon-btn-label">{browserMode ? 'Build (desktop app)' : 'Build'}</span></button>
           <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts — press question mark to see all shortcuts" onClick={() => setShowHelp(true)}>?<span className="icon-btn-label">Help</span></button>
           <input ref={projectFileRef} type="file" accept=".kodro,.json,application/json" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} onChange={onProjectFilePicked} />
           <div className="settings-wrap">
@@ -1010,7 +1021,7 @@
                   <span>Project · Open…</span><span className="set-val">&rarr;</span>
                 </button>
                 <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); pickPhotoClick(); }}>
-                  <span>Photo prop · place("photo")</span><span className="set-val">{photoUrl ? 'Loaded' : 'Pick…'}</span>
+                  <span>Photo prop · place("photo")</span><span className="set-val">{browserMode ? 'Desktop app' : (photoUrl ? 'Loaded' : 'Pick…')}</span>
                 </button>
                 {classroom && (
                   <button className="set-row set-btn" onClick={openTeacher}>

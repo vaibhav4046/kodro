@@ -28,12 +28,21 @@ What counts as invented (the rule this module actually enforces, precisely):
   (``def outer(): def fly(): ...`` does not ground a top-level ``fly()``);
 * an attribute call is invention when it invents a symbol or an object surface:
   ``rover.forward()`` invents both an unknown ``rover`` object and an unknown
-  ``forward``. The sole exemption is a REAL builtin-type method (``append``,
-  ``upper``, ...) called on a KNOWN base -- a name bound to a literal
-  container/string (``xs.append(1)``) or a fitted/builtin name. An unknown method
-  (``move_forward.fly()``, ``range.launch()``) or any method on an unknown base
-  (``rover.forward()``, ``x = []; x.fly()``) is still invention, so a fitted
-  command's bare-function nature cannot be used as a free method surface;
+  ``forward``. There are two exemptions. (1) A REAL builtin-type method
+  (``append``, ``upper``, ...) called on a KNOWN base -- a name bound to a literal
+  container/string (``xs.append(1)``) or a fitted/builtin name. (2) ANY method on
+  a genuinely-bound LOCAL base -- a name the program binds by iteration or
+  context rather than conjures: a ``for``/``with``/``except`` target, a
+  comprehension variable, or a tuple-unpacking target (``for s in xs:
+  s.strip()``, ``a, b = f(); a.run()``). Such a base is a real local of unknown
+  type, not an invented object surface. An unknown method on a fitted/builtin
+  base (``move_forward.fly()``, ``range.launch()``), any method on an UNBOUND
+  base (``rover.forward()``), a method on a name bound only by a plain
+  ``x = <call/name>`` assignment (``rover = spawn(); rover.forward()`` -- the
+  assign-the-object evasion), and a non-container method on a literal-container
+  base (``x = []; x.fly()``) are all still invention, so neither a fitted
+  command's bare-function nature nor a laundered base can be used as a free
+  method surface;
 * a bare decorator (``@fly``) or attribute decorator (``@obj.fly``) that names an
   unknown symbol, because a decorator invokes the name at definition time even
   though it is not itself a call node.
@@ -45,6 +54,10 @@ program determined to defeat any purely syntactic analysis still can. The scope
 model is a reasonable static approximation -- a name is treated as visible if a
 ``def``/lambda/alias binds it in the same or an enclosing function (or the
 module), and class scopes are treated leniently as ordinary enclosing scopes.
+Genuinely-bound locals (loop/with/except/comprehension/unpacking targets) are
+tracked leniently, scope-blind like the container set, so a name the program
+really does bind is not misreported as invented; this trades a little precision
+for a lower false-positive rate on the headline invention metric.
 """
 
 from __future__ import annotations
@@ -210,29 +223,113 @@ def _is_container_rhs(value: ast.expr | None) -> bool:
     return isinstance(value, ast.Constant) and isinstance(value.value, str | bytes)
 
 
+def _target_names(target: ast.expr) -> set[str]:
+    """Every ``Name`` a binding target introduces, descending unpacking.
+
+    Handles a bare ``Name`` (``x``), a ``Starred`` capture (``*rest``), and
+    arbitrarily nested tuple/list unpacking (``(a, [b, *c]) = ...``). Anything
+    else (an attribute or subscript store target, ``obj.attr = ...``) binds no
+    plain local name and contributes nothing.
+    """
+    if isinstance(target, ast.Name):
+        return {target.id}
+    if isinstance(target, ast.Starred):
+        return _target_names(target.value)
+    if isinstance(target, (ast.Tuple, ast.List)):
+        names: set[str] = set()
+        for elt in target.elts:
+            names |= _target_names(elt)
+        return names
+    return set()
+
+
+def _unpack_container_names(target: ast.expr, value: ast.expr | None) -> set[str]:
+    """Unpacking-target names whose POSITIONAL right-hand side is a literal container.
+
+    ``a, b = [], {}`` binds ``a`` and ``b`` to a list and a dict, so both are
+    containers; ``a, b = [], f()`` makes only ``a`` one. Matching is positional
+    and only attempted when both sides are same-length tuples/lists with no
+    ``Starred`` element (which would break the position mapping); otherwise no
+    name is claimed as a container here (the names are still tracked as
+    genuinely-bound locals elsewhere).
+    """
+    if (
+        isinstance(target, (ast.Tuple, ast.List))
+        and isinstance(value, (ast.Tuple, ast.List))
+        and len(target.elts) == len(value.elts)
+        and not any(isinstance(e, ast.Starred) for e in target.elts)
+    ):
+        names: set[str] = set()
+        for t_elt, v_elt in zip(target.elts, value.elts, strict=True):
+            if isinstance(t_elt, ast.Name):
+                if _is_container_rhs(v_elt):
+                    names.add(t_elt.id)
+            else:
+                names |= _unpack_container_names(t_elt, v_elt)
+        return names
+    return set()
+
+
 def _container_names(tree: ast.AST) -> set[str]:
     """Names bound to a literal container/string.
 
     A name in this set exempts attribute calls on it from the invention check,
     but only for real container methods (``xs = []; xs.append(1)``); an object
     minted from an unknown call (``rover = spawn(); rover.forward()``) is still
-    flagged. Assignments with a non-container RHS, or with anything other than a
-    single ``Name`` target (tuple unpacking, ``with`` items, ``for`` targets),
-    are treated conservatively as non-containers.
+    flagged. Single-``Name`` targets (``x = []``, ``x = y = {}``) and annotated
+    assignments (``x: list = []``) are matched directly; tuple/list unpacking is
+    matched positionally against a literal tuple/list RHS (``a, b = [], {}``). A
+    non-container RHS binds no container name.
     """
     names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
-            if _is_container_rhs(node.value):
-                for target in node.targets:
-                    if isinstance(target, ast.Name):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    if _is_container_rhs(node.value):
                         names.add(target.id)
+                else:
+                    names |= _unpack_container_names(target, node.value)
         elif (
             isinstance(node, ast.AnnAssign)
             and isinstance(node.target, ast.Name)
             and _is_container_rhs(node.value)
         ):
             names.add(node.target.id)
+    return names
+
+
+def _bound_local_names(tree: ast.AST) -> set[str]:
+    """Names the program genuinely binds by iteration or context, not by conjuring.
+
+    These are the ``for``/``with``/``except`` targets, comprehension variables,
+    and tuple/list unpacking targets whose RHS is not a literal container. Such a
+    name is a real local of unknown type, so a bare call to it, or a method call
+    on it, is ordinary code rather than an invented symbol -- unlike an UNBOUND
+    base (``rover.forward()``) or a name bound only by a plain ``x = <call>``
+    assignment (the assign-the-object evasion), which stay flagged. Names that
+    unpack positionally to a literal container are deliberately excluded here so
+    they remain in the method-restricted container set (``a, b = [], {}`` keeps
+    ``a.launch()`` an invention). The walk is scope-blind, matching the container
+    set: a lenient over-approximation that lowers false positives.
+    """
+    names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.For, ast.AsyncFor)):
+            names |= _target_names(node.target)
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            for item in node.items:
+                if item.optional_vars is not None:
+                    names |= _target_names(item.optional_vars)
+        elif isinstance(node, ast.ExceptHandler):
+            if node.name:
+                names.add(node.name)
+        elif isinstance(node, ast.comprehension):
+            names |= _target_names(node.target)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, (ast.Tuple, ast.List)):
+                    names |= _target_names(target) - _unpack_container_names(target, node.value)
     return names
 
 
@@ -324,12 +421,17 @@ def _scope_body_children(scope_node: ast.AST) -> list[ast.AST]:
 
 
 def _resolve_exempt(
-    name: str, defs: set[str], aliases: dict[str, str], allowed: frozenset[str]
+    name: str,
+    defs: set[str],
+    aliases: dict[str, str],
+    allowed: frozenset[str],
+    bound_locals: set[str],
 ) -> bool:
     """True when a bare-call ``name`` is legitimate rather than invented.
 
     A name is exempt if it is a fitted/builtin symbol, a callable the program
-    defines in a visible scope (``def``/lambda/parameter), or an alias that
+    defines in a visible scope (``def``/lambda/parameter), a genuinely-bound
+    local (a loop/with/except/comprehension/unpacking target), or an alias that
     chains -- through any number of ``a = b`` steps -- to one of those. Alias
     chains are followed with a cycle guard, so ``a = move_forward; b = a; b()``
     resolves ``b -> a -> move_forward`` and ``x = y; y = x`` terminates.
@@ -337,7 +439,7 @@ def _resolve_exempt(
     seen: set[str] = set()
     current = name
     while True:
-        if current in allowed or current in defs:
+        if current in allowed or current in defs or current in bound_locals:
             return True
         if current in aliases and current not in seen:
             seen.add(current)
@@ -369,23 +471,31 @@ def check_grounding(code: str, fitted: frozenset[str] = FITTED_DEFAULT) -> Groun
         return GroundingResult(grounded=False, invented=(), called=(), syntax_error=str(exc))
     allowed = fitted | ALLOWED_BUILTINS
     containers = _container_names(tree)
+    bound_locals = _bound_local_names(tree)
     called: set[str] = set()
     invented: set[str] = set()
 
     def _record_bare(name: str, defs: set[str], aliases: dict[str, str]) -> None:
         called.add(name)
-        if not _resolve_exempt(name, defs, aliases, allowed):
+        if not _resolve_exempt(name, defs, aliases, allowed, bound_locals):
             invented.add(name)
 
     def _record_attr(base_id: str, method: str) -> None:
         symbol = f"{base_id}.{method}"
         called.add(symbol)
         # A method on an object the program never created is an invented API
-        # surface. The only exemption is a REAL builtin-type method on a KNOWN
+        # surface. Two exemptions. (1) A REAL builtin-type method on a KNOWN
         # base: a name bound to a literal container/string, or a fitted/builtin
-        # name. A fitted command is a bare function, not a free object surface,
-        # so ``move_forward.fly()`` and ``range.launch()`` stay invented.
+        # name -- a fitted command is a bare function, not a free object surface,
+        # so ``move_forward.fly()`` and ``range.launch()`` stay invented, and a
+        # non-container method like ``x = []; x.launch()`` stays invented too.
+        # (2) ANY method on a genuinely-bound LOCAL base (a loop/with/except/
+        # comprehension/unpacking target): a real local of unknown type, not a
+        # conjured surface -- but an unbound base (``rover.forward()``) or one
+        # bound only by ``rover = spawn()`` is not, so those stay invented.
         if method in _CONTAINER_METHODS and (base_id in containers or base_id in allowed):
+            return
+        if base_id in bound_locals:
             return
         invented.add(symbol)
 

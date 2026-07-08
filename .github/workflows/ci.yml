@@ -69,6 +69,15 @@ jobs:
       - name: Mypy
         run: mypy src/robolearn
 
+      # Bundle-freshness gate: the shipped bundle.js is prebuilt from the .jsx
+      # sources, and build_web.cjs --check exits 1 when the two drift. Without
+      # this, a PR that edits a .jsx but forgets to rebuild would land a STALE
+      # bundle (the app runs old code while the sources say otherwise). Pure
+      # node, fast, cross-platform, and it also compiles every .jsx through the
+      # vendored Babel -- so a syntax error in a source is caught here too.
+      - name: Web bundle freshness
+        run: node scripts/build_web.cjs --check
+
       # Cross-engine interpreter gate: builds the bundle and runs the RoverLang
       # parity suite in Node (no browser needed), so a JS-engine regression is
       # caught in CI, not only locally.
@@ -88,6 +97,15 @@ jobs:
       # React run engine.
       - name: Web physics gate
         run: node scripts/qa_physics.mjs
+
+      # AI-facade gate: unit coverage for the browser assistant's pure string
+      # logic in ai-web.jsx (normalizeApi / extractCode / stripFences /
+      # looksLikeCode) -- the rover.X(cm) -> bare-metre rewrite, fence
+      # extraction, prose stripping, and code-vs-question routing. Loads the
+      # shipped facade under a window/fetch shim (no browser, no network) and
+      # asserts its behaviour through the public surface. Pure node, all legs.
+      - name: Web AI facade gate
+        run: node scripts/qa_ai_web.mjs
 
       # Browser boot + privacy gate (qa_web): the ONLY browser-driven gate wired
       # into CI, and only on Linux. It builds the static web bundle and loads it

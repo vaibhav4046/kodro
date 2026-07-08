@@ -22612,7 +22612,12 @@ say("Survey done")`
     const [photoUrl, setPhotoUrl] = useState(null);
     async function pickPhotoClick() {
       if (!window.RoboLearn || !window.RoboLearn.isAvailable()) {
-        addConsole('Photo props need the desktop app.', 'err');
+        // Desktop-only capture. Give an immediate, visible, honest response (a
+        // toast) rather than only a console line that scrolls away, matching the
+        // Swarm/Teacher desktop-only pattern. We invent no photo.
+        const msg = 'Photo props need the desktop app. In the browser you can still design, program, and run your robot.';
+        showToast(msg, 'info');
+        addConsole(msg, 'info');
         return;
       }
       try {
@@ -23845,6 +23850,12 @@ say("Survey done")`
     const chipName = robotSpec && robotSpec.name || 'Robot';
     const chipType = robotSpec && robotSpec.type || null;
     const chipMass = robotSpec && robotSpec.mass || null;
+
+    // Static web build: the RoboLearn bridge is present but pywebview is not, so
+    // isAvailable() is false. The budget planner and the photo picker are
+    // desktop-only (bridge.js has no browser path), so the controls that trigger
+    // them say so up front instead of inviting an action that cannot finish here.
+    const browserMode = !!(window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable());
     return /*#__PURE__*/React.createElement("div", {
       className: "app"
     }, /*#__PURE__*/React.createElement("a", {
@@ -23943,12 +23954,12 @@ say("Survey done")`
       className: "icon-btn-label"
     }, "Memory")), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
-      title: "Build a real robot on a budget",
-      "aria-label": "Build a real robot \u2014 design one on a budget",
+      title: browserMode ? 'Build a real robot on a budget (desktop app)' : 'Build a real robot on a budget',
+      "aria-label": browserMode ? 'Build a real robot. Design one on a budget. Desktop app only.' : 'Build a real robot. Design one on a budget.',
       onClick: openBuildReal
     }, KI('build'), /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
-    }, "Build")), /*#__PURE__*/React.createElement("button", {
+    }, browserMode ? 'Build (desktop app)' : 'Build')), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn",
       title: "Keyboard shortcuts (?)",
       "aria-label": "Keyboard shortcuts \u2014 press question mark to see all shortcuts",
@@ -24076,7 +24087,7 @@ say("Survey done")`
       }
     }, /*#__PURE__*/React.createElement("span", null, "Photo prop \xB7 place(\"photo\")"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
-    }, photoUrl ? 'Loaded' : 'Pick…')), classroom && /*#__PURE__*/React.createElement("button", {
+    }, browserMode ? 'Desktop app' : photoUrl ? 'Loaded' : 'Pick…')), classroom && /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
       onClick: openTeacher
     }, /*#__PURE__*/React.createElement("span", null, "Teacher dashboard"), /*#__PURE__*/React.createElement("span", {
