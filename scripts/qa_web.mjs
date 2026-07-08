@@ -50,6 +50,13 @@ const BROWSER_TELEMETRY = [
   'google.com', 'googleapis.com', 'gstatic.com', 'withgoogle.com',
   'googleusercontent.com', 'gvt1.com', 'gvt2.com', 'google-analytics.com',
   'doubleclick.net', 'chrome.com',
+  // Google-owned hosts some Chrome builds ping on their own (media-engagement
+  // and field-trial components fetch from youtube; observed only on the Linux
+  // runner's Chrome, never from app code). The app ships zero youtube references
+  // (proven by tests/unit/test_web_offline.py's source scan), so a request here
+  // is the browser, not Kodro. Classifying them as telemetry keeps the gate
+  // measuring the app across Chrome versions.
+  'youtube.com', 'youtube-nocookie.com', 'ytimg.com', 'ggpht.com',
 ];
 
 function log(pass, name, detail) {
