@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -29,6 +30,14 @@ _NODE_SUBPROCESS_TESTS = {
 }
 
 
+def _needs_local_node_no_cover_marker() -> bool:
+    return (
+        os.name == "nt"
+        and sys.version_info >= (3, 13)
+        and os.environ.get("CI", "").lower() != "true"
+    )
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Keep the isolated web-offline gate from failing on whole-repo coverage.
 
@@ -37,10 +46,11 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     whole-package threshold there makes a passing offline check exit 1.
     """
     collected: set[str] = set()
+    mark_node_subprocesses_no_cover = _needs_local_node_no_cover_marker()
     for item in items:
         filename = Path(str(item.fspath)).name
         collected.add(filename)
-        if filename in _NODE_SUBPROCESS_TESTS:
+        if mark_node_subprocesses_no_cover and filename in _NODE_SUBPROCESS_TESTS:
             item.add_marker(pytest.mark.no_cover)
 
     if collected == {"test_web_offline.py"}:

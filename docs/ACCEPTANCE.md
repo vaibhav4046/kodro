@@ -6,13 +6,13 @@ honest, reproducible and shippable; the judge panel scores subjective product
 quality and should not be forced to 10/10.
 
 Last measured locally on 2026-07-09 from the current release-readiness
-checkout. The release vehicle for this pass is `v2.0.1`.
+checkout. The release vehicle for this pass is `v2.0.2`.
 
 ## Criteria
 
 | # | Criterion | How reproduced | Result |
 |---|-----------|----------------|--------|
-| 1 | No confirmed HIGH defects remain in the audited scope | Requested audit plus gate failures | Pass after fixing the isolated offline gate and Windows release packaging collision |
+| 1 | No confirmed HIGH defects remain in the audited scope | Requested audit plus gate failures | Pass after fixing the isolated offline gate, CI coverage-marker regression, Windows release packaging collision and README asset-name mismatch |
 | 2 | Bundle freshness | `node scripts/build_web.cjs --check` | Pass: `bundle.js is up to date.` |
 | 3 | Interpreter conformance | `node scripts/qa_interpreter.mjs` | Pass: 157 passed, 0 failed |
 | 4 | Lesson-grader parity | `node scripts/qa_grader.mjs` | Pass: 34 passed, 0 failed |
@@ -25,7 +25,7 @@ checkout. The release vehicle for this pass is `v2.0.1`.
 | 11 | Lint, format, types | `ruff check .`; `ruff format --check .`; `mypy src` | Pass on all three local gates |
 | 12 | Offline web guard can run alone | `python -m pytest tests/unit/test_web_offline.py` | Pass: 4 passed; isolated run no longer fails only because whole-repo coverage is below 85% |
 | 13 | Source app constructs | `python -c "from robolearn.web.app import build_app; app = build_app(); print(app.window.title)"` | Pass: prints `Kodro` |
-| 14 | Live hosted web reachable and CI-gated deploy exists | `Invoke-WebRequest https://vaibhav4046.github.io/robolearn/`; `gh run list --branch main --workflow CI` | Pass: HTTP 200; latest listed CI run for `e78112c25f95` succeeded |
+| 14 | Live hosted web reachable and CI-gated deploy exists | `Invoke-WebRequest https://vaibhav4046.github.io/robolearn/`; `gh run list --branch main --workflow CI` | Pass: HTTP 200; main/release GitHub Actions remain part of the shipping gate |
 | 15 | Windows installer/release packaging | `python scripts/build_exe.py --clean` | Pass: produced distinct `dist/RoboLearn.exe` and `dist/robolearn-tk.exe`; release workflow now packages the distinct fallback binary |
 
 ## Release Artifacts
@@ -37,10 +37,11 @@ Local Windows build outputs from this pass:
 | `dist/RoboLearn.exe` | 75,781,082 bytes | `99B3372BC4EC77A4F9C1993968611E7D74BDC71AC14169CD38BAB130C7A8E3F6` |
 | `dist/robolearn-tk.exe` | 75,495,392 bytes | `9FE51DF7ED45A60295D0C99466FA14927B050E7621FA09F9D4E75FDABFD7EF95` |
 
-The previous latest GitHub release was `v2.0.0`, tagged at
+The previous latest GitHub release before this audit was `v2.0.0`, tagged at
 `9ed5f4680c6dab41fa709f529d2477d1de252e6b`, while current `main` had advanced
 to `e78112c25f95ff30494c68764712e38e1c9c68ac`. That was treated as a HIGH
-shipping defect. The `v2.0.1` release is the required current-release vehicle.
+shipping defect. `v2.0.1` exposed a CI-only pytest-cov marker regression, so
+`v2.0.2` is the required current-release vehicle.
 
 ## Verdict
 
