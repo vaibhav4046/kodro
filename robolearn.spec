@@ -1,16 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
+
 from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_submodules
 
-datas = [('D:/project/robolearn/src/robolearn/lessons/library', 'robolearn/lessons/library')]
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "src"
+
+datas = [(str(SRC / "robolearn" / "lessons" / "library"), "robolearn/lessons/library")]
 hiddenimports = ['robolearn.app']
 datas += collect_data_files('robolearn')
 hiddenimports += collect_submodules('robolearn')
 
 
 a = Analysis(
-    ['D:/project/robolearn/src/robolearn/__main__.py'],
-    pathex=['D:/project/robolearn/src'],
+    [str(SRC / "robolearn" / "__main__.py")],
+    pathex=[str(SRC)],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,

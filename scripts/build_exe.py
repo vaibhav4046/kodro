@@ -22,6 +22,7 @@ from pathlib import Path
 REPO_ROOT: Path = Path(__file__).resolve().parent.parent
 DIST_DIR: Path = REPO_ROOT / "dist"
 BUILD_DIR: Path = REPO_ROOT / "build"
+SPEC_DIR: Path = BUILD_DIR / "spec"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,6 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     library_src = (REPO_ROOT / "src" / "robolearn" / "lessons" / "library").as_posix()
     add_data = f"{library_src}{pathsep}robolearn/lessons/library"
 
+    tk_binary_name = "robolearn-tk" if sys.platform.startswith("win") else "robolearn"
     cmd = [
         sys.executable,
         "-m",
@@ -50,7 +52,9 @@ def main(argv: list[str] | None = None) -> int:
         "--noconfirm",
         "--onefile",
         "--name",
-        "robolearn",
+        tk_binary_name,
+        "--specpath",
+        SPEC_DIR.as_posix(),
         "--paths",
         (REPO_ROOT / "src").as_posix(),
         "--add-data",
@@ -109,7 +113,9 @@ def _build_web_app() -> int:
 def _resolve_binary_path() -> Path | None:
     """Return the path to the binary PyInstaller produced (if any)."""
     candidates = (
+        DIST_DIR / "robolearn-tk.exe",
         DIST_DIR / "robolearn.exe",
+        DIST_DIR / "robolearn-tk",
         DIST_DIR / "robolearn",
     )
     for candidate in candidates:

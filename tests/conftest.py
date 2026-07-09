@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -14,6 +15,40 @@ import pytest
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
 from robolearn.runtime import tracer as _tracer
+
+_NODE_SUBPROCESS_TESTS = {
+    "test_golden_traces.py",
+    "test_motion_model_conformance.py",
+    "test_physical_golden_trace.py",
+    "test_qa_interpreter.py",
+    "test_web_bundle.py",
+    "test_web_interpreter.py",
+    "test_web_jsx_valid.py",
+    "test_web_lesson_parity.py",
+    "test_web_render.py",
+}
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Keep the isolated web-offline gate from failing on whole-repo coverage.
+
+    ``python -m pytest`` remains the coverage gate. The documented offline
+    command exercises four static web-asset tests, so applying the same 85%
+    whole-package threshold there makes a passing offline check exit 1.
+    """
+    collected: set[str] = set()
+    for item in items:
+        filename = Path(str(item.fspath)).name
+        collected.add(filename)
+        if filename in _NODE_SUBPROCESS_TESTS:
+            item.add_marker(pytest.mark.no_cover)
+
+    if collected == {"test_web_offline.py"}:
+        config.option.cov_fail_under = 0
+        cov_plugin = config.pluginmanager.getplugin("_cov")
+        cov_options = getattr(cov_plugin, "options", None)
+        if cov_options is not None:
+            cov_options.cov_fail_under = 0
 
 
 @pytest.fixture(autouse=True)
