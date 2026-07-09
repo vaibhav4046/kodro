@@ -13,10 +13,11 @@ statement that the product is unfinished. This file is the opposite: an
 objective, auditable "is it correct, honest, and shippable" checklist. Both
 numbers are reported so nothing is hidden.
 
-Last verified against commit `ca43dda` (branch `kodro-identity-pass` = `main`).
-Every result below was measured, not asserted.
+Last measured against product-code commit `ca43dda` (branch `kodro-identity-pass` = `main`).
+This acceptance note is documentation-only; later edits to this file do not
+change the measured product code. Every result below was measured, not asserted.
 
-## Criteria (10 of 10 met)
+## Criteria (15 of 15 met)
 
 | # | Criterion | How to reproduce | Result |
 |---|-----------|------------------|--------|
