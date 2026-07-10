@@ -661,6 +661,49 @@ textarea:focus-visible, input:focus-visible, [tabindex]:focus-visible,
 }
 .lesson-select:hover { border-color:var(--fg-3); }
 
+/* ============================================================================
+   Menus, dropdowns and native selects - readable on every theme.
+   A native <option> popup otherwise inherits OS colours (a light popup plus the
+   select's light fg-1 text), which rendered the Theme / Mode / Pupil / lesson /
+   mission-site / render-quality / time-of-day (NOON DAWN DUSK NIGHT) / weather
+   and AI provider/model lists as near-invisible grey-on-white. Pinning BOTH
+   surfaces to theme tokens (fg-1 text on the navy-2 card surface) fixes it:
+   fg-1 and navy-2 are the guaranteed body-text / card pair in every theme, so
+   the list clears >= 9:1 in dark, light, lego, chatgpt, contrast, matrix,
+   pixel, game, abstract and wiki. Never fg-3 here - it must be read.
+   The focus-visible ring (select:focus-visible, defined above) is untouched. */
+select {
+  color:var(--fg-1);
+  background-color:var(--navy-2);
+}
+option, optgroup {
+  background-color:var(--navy-2);
+  color:var(--fg-1);
+}
+optgroup { font-weight:700; }
+/* Selected / hovered option: distinct surface, still fg-1 so contrast holds
+   (honoured by Firefox and Chromium where the platform allows option styling). */
+option:checked, option:hover {
+  background-color:var(--navy-3);
+  color:var(--fg-1);
+}
+/* The viewport toolbar selects (render quality, time of day, weather) reuse the
+   .terrain-btn sizing but were transparent with dim fg-3 text. The terrain bar
+   is a FIXED dark translucent surface in every theme, so dark fg-1 text on it
+   would vanish in the light themes; give each select its own opaque navy-2 chip
+   (as the mission-site select already has) so the current value reads on every
+   theme. Higher specificity than .terrain-btn, so it wins in any source order. */
+select.terrain-btn {
+  background-color:var(--navy-2);
+  color:var(--fg-1);
+  border:1px solid var(--border);
+}
+select.terrain-btn:hover {
+  color:var(--fg-1);
+  background-color:var(--navy-3);
+  border-color:var(--fg-3);
+}
+
 /* Readable minimum type (QA #10: 8.5-11px caps were sub-legible). */
 .api-hint { font-size:var(--text-sm) !important; line-height:1.5; }
 .cline { font-size:var(--text-md); }
@@ -1027,11 +1070,16 @@ kbd {
 
 .settings-wrap { position:relative; }
 .settings-pop {
-  position:absolute; top:38px; right:0; z-index:90; width:248px;
+  /* z-index sits above the editor tab strip and panel toolbars (z 20 to 30) so
+     the popover floats OVER the content instead of bleeding into the tab strip.
+     The background is a single SOLID opaque theme surface (not a translucent or
+     gradient fill) so the tabs can never show through and every row sits on the
+     same navy-2 surface the contrast ratios below were computed against. */
+  position:absolute; top:38px; right:0; z-index:200; width:248px;
   /* Cap to the viewport and scroll internally so the popover can never run
      past the bottom edge on a short (800px) laptop screen (bugs D1). */
   max-height:calc(100vh - 80px); overflow-y:auto;
-  background:linear-gradient(180deg,var(--navy-2),var(--navy));
+  background:var(--navy-2);
   border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:var(--shadow-menu);
   padding:6px; display:flex; flex-direction:column; gap:2px;
   animation:pop-in 140ms var(--ease);

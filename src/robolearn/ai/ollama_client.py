@@ -24,8 +24,20 @@ DEFAULT_MODEL: str = "llama3.2:3b"
 #: Connection / read timeout in seconds for non-streaming calls.
 DEFAULT_TIMEOUT_S: float = 120.0
 
-#: Short timeout used only by the availability probe.
-PROBE_TIMEOUT_S: float = 2.0
+#: Timeout (seconds) for the availability probe. The probe hits ``/api/tags``,
+#: which Ollama can answer slowly when it is cold or busy loading a model into
+#: memory. A tight window here made the desktop app report "Ollama not
+#: connected" while a perfectly healthy server was mid-load, so this is generous
+#: enough to ride out a busy server while still staying well under
+#: :data:`DEFAULT_TIMEOUT_S`. A genuinely down server fails fast (connection
+#: refused) regardless of this value, so raising it never masks a real outage.
+PROBE_TIMEOUT_S: float = 6.0
+
+#: How many times :meth:`OllamaClient.available` probes before concluding the
+#: server is offline. A cold or busy Ollama can miss the first probe; a second
+#: attempt costs nothing when the server is truly down (a refused connection
+#: returns immediately) but rescues the false-offline case.
+PROBE_ATTEMPTS: int = 2
 
 
 class OllamaError(RuntimeError):
@@ -65,12 +77,22 @@ class OllamaClient:
     # --- availability -------------------------------------------------------
 
     def available(self) -> bool:
-        """Return True if the server answers ``/api/tags`` quickly."""
-        try:
-            self._get("/api/tags", timeout_s=PROBE_TIMEOUT_S)
-            return True
-        except OllamaError:
-            return False
+        """Return True if the server answers ``/api/tags`` within the probe window.
+
+        A cold or busy Ollama can miss a single probe while it loads a model, so
+        this retries once (see :data:`PROBE_ATTEMPTS`) before concluding the
+        server is offline. A genuinely unreachable server still returns False:
+        each attempt fails fast on a refused connection, so the retry adds no
+        meaningful latency when Ollama is really down.
+        """
+        for attempt in range(PROBE_ATTEMPTS):
+            try:
+                self._get("/api/tags", timeout_s=PROBE_TIMEOUT_S)
+                return True
+            except OllamaError:
+                if attempt + 1 >= PROBE_ATTEMPTS:
+                    return False
+        return False
 
     def models(self) -> list[str]:
         """Return the names of every locally-installed model (or ``[]``)."""

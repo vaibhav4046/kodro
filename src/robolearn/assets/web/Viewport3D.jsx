@@ -614,7 +614,10 @@
         const rock = new THREE.Mesh(geo, rockMat);
         rock.position.set(px, groundY(px, pz) + r * 0.5, pz);
         rock.rotation.set(v * 3, rot || 0, v * 2);
-        rock.scale.set(1 + v * 0.4, 0.7 + v * 0.5, 1 + (1 - v) * 0.4);
+        // Keep the HORIZONTAL footprint close to o.r so the visible rock edge
+        // lines up with the collision circle (the robot noses up to it instead
+        // of sinking into an oversized boulder); height still varies for relief.
+        rock.scale.set(1 + v * 0.18, 0.7 + v * 0.5, 1 + (1 - v) * 0.18);
         rock.castShadow = true; rock.receiveShadow = true;
         scene.add(rock);
       };
@@ -755,7 +758,7 @@
         if (propKit && o.v >= 0.4) {
           if (kitProp(propKit, o, r, px, pz)) { kitCount++; return; }
           mkRock(r, px, pz, o.v, o.rot);
-        } else if (!propKit && id === 'earth' && o.v >= 0.5) {
+        } else if (!propKit && id === 'earth' && (o.v >= 0.5 || o.kind === 'tree')) {
           // tree: trunk + canopy
           const tree = new THREE.Group();
           const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.18, r * 0.24, r * 1.4, 6), trunkMat);

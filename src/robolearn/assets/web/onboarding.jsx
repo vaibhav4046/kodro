@@ -216,6 +216,9 @@
   .konb-rec .rec-label{ font-family:var(--font-mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--fg-3); }
   .konb-world{ font-family:var(--font-display); font-size:clamp(26px,3.4vw,34px); font-weight:600; color:var(--cyan); line-height:1.04; margin:3px 0 6px; }
   .konb-why{ color:var(--fg-2); font-size:13.5px; line-height:1.5; }
+  .konb-note{ color:var(--fg-2); font-size:12.5px; line-height:1.5; margin:12px 0 0;
+    padding:9px 12px; border-radius:10px; background:rgba(92,224,216,.07);
+    border:0.5px solid rgba(92,224,216,.28); }
   .konb-built{ display:flex; flex-wrap:wrap; gap:6px; margin:14px 0 0; }
   .konb-chip{ font-family:var(--font-mono); font-size:11px; color:var(--cyan);
     background:rgba(92,224,216,.08); border:0.5px solid rgba(92,224,216,.3); border-radius:99px; padding:4px 11px; }
@@ -448,6 +451,9 @@
                     <div className="rec-label">Recommended world</div>
                     <div className="konb-world">{worldName}</div>
                     <div className="konb-why">{cap(rec.why) || "Start in the busy city, then try the others."}</div>
+                    {built && built.understood === false && built.note && (
+                      <div className="konb-note" role="status">{built.note}</div>
+                    )}
                     {built && built.spec && (
                       <div className="konb-built" aria-label="Parts the assistant fitted">
                         {[built.spec.board].concat(built.spec.sensors || [], built.spec.actuators || []).map((p, i) => (

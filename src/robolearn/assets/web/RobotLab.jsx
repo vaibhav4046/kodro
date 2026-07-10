@@ -585,6 +585,11 @@
     return spec;
   };
 
+  // Honest copy shown when a free-text description carried no recognisable
+  // robot signal: we default to a general rover rather than force a bogus match
+  // on an accidental substring, and say so plainly.
+  const NL_FALLBACK_NOTE = 'I could not map that to specific parts, so I built a general rover you can customise in the Robot Lab.';
+
   // ---- onboarding agent: natural language -> a validated RobotSpec ----------
   // The starting-page agent maps a spoken or typed description onto the SAME
   // parts catalogue, so it can only ever produce a buildable robot. It never
@@ -595,37 +600,49 @@
   function robotFromText(text) {
     const t = String(text || '').toLowerCase();
     let type = 'rover';
-    if (/(car|vehicle|self.?driv|autonomous|road|traffic)/.test(t)) type = 'car';
-    else if (/(robotic arm|\barm\b|manipulat|pick and place)/.test(t)) type = 'arm';
-    else if (/(home|companion|personal|indoor|assistant|helper|house)/.test(t)) type = 'home';
-    else if (/(rover|explor|terrain|outdoor|mars|moon|planet|rough)/.test(t)) type = 'rover';
+    // `understood` tracks whether the text carried ANY recognisable robot
+    // signal (a type, part, sensor or board keyword). If nothing matches -- a
+    // name or nonsense like "carl johnson in gta" -- we still return a sensible
+    // default rover, but flag it so the caller can be honest that it guessed a
+    // general build instead of silently pretending it understood.
+    let understood = false;
+    // Keyword tokens must match on a word boundary, not as an accidental
+    // substring: "car" must fire on "a car" / "car robot" but NOT on "carl".
+    // The same guard protects "road" (which used to fire inside "broad").
+    if (/\bcars?\b|vehicle|self.?driv|autonomous|\broad\b|traffic/.test(t)) { type = 'car'; understood = true; }
+    else if (/robotic arm|\barm\b|manipulat|pick and place/.test(t)) { type = 'arm'; understood = true; }
+    else if (/home|companion|personal|indoor|assistant|helper|house/.test(t)) { type = 'home'; understood = true; }
+    else if (/rover|explor|terrain|outdoor|mars|moon|planet|rough/.test(t)) { type = 'rover'; understood = true; }
     const spec = specFromType(type, null);
     const sensors = spec.sensors.slice();
     const actuators = spec.actuators.slice();
     function add(list, id) { if (list.indexOf(id) < 0) list.push(id); }
     function drop(list, id) { const i = list.indexOf(id); if (i >= 0) list.splice(i, 1); }
-    if (/(camera|vision|\bsee\b|marker|look)/.test(t)) add(sensors, 'camera');
-    if (/(ultrasonic|distance|obstacle|avoid|range|sonar)/.test(t)) add(sensors, 'ultrasonic');
-    if (/(imu|gyro|balance|tilt|orient|accelerom)/.test(t)) add(sensors, 'imu');
-    if (/(gps|location|position|navigat)/.test(t)) add(sensors, 'gps');
-    if (/(line follow|follow.?line|\bline\b|track)/.test(t)) add(sensors, 'line');
-    if (/(bumper|touch|contact|switch)/.test(t)) add(sensors, 'bumper');
-    if (/(gripper|grab|grip|claw|\bpick\b)/.test(t)) add(actuators, 'gripper');
-    if (/(four wheel|4 wheel|4wd|four.?motor|all.?wheel)/.test(t)) { add(actuators, 'motors4'); drop(actuators, 'motors2'); }
-    if (/(steer|servo|ackermann)/.test(t)) add(actuators, 'servos');
+    if (/camera|vision|\bsee\b|marker|look/.test(t)) { add(sensors, 'camera'); understood = true; }
+    if (/ultrasonic|distance|obstacle|avoid|range|sonar/.test(t)) { add(sensors, 'ultrasonic'); understood = true; }
+    if (/imu|gyro|balance|tilt|orient|accelerom/.test(t)) { add(sensors, 'imu'); understood = true; }
+    if (/gps|location|position|navigat/.test(t)) { add(sensors, 'gps'); understood = true; }
+    if (/line follow|follow.?line|\bline\b|track/.test(t)) { add(sensors, 'line'); understood = true; }
+    if (/bumper|touch|contact|switch/.test(t)) { add(sensors, 'bumper'); understood = true; }
+    if (/gripper|grab|grip|claw|\bpick\b/.test(t)) { add(actuators, 'gripper'); understood = true; }
+    if (/four wheel|4 wheel|4wd|four.?motor|all.?wheel/.test(t)) { add(actuators, 'motors4'); drop(actuators, 'motors2'); understood = true; }
+    if (/steer|servo|ackermann/.test(t)) { add(actuators, 'servos'); understood = true; }
     let board = spec.board;
-    if (/arduino|uno/.test(t)) board = 'uno';
-    else if (/micro.?bit/.test(t)) board = 'microbit';
-    else if (/pico|raspberry/.test(t)) board = 'pico';
-    else if (/esp32|\besp\b/.test(t)) board = 'esp32';
+    if (/arduino|uno/.test(t)) { board = 'uno'; understood = true; }
+    else if (/micro.?bit/.test(t)) { board = 'microbit'; understood = true; }
+    else if (/pico|raspberry/.test(t)) { board = 'pico'; understood = true; }
+    else if (/esp32|\besp\b/.test(t)) { board = 'esp32'; understood = true; }
     // Validate every field against the catalogue: drop anything unknown.
     const vs = sensors.filter(function (s) { return SENSORS[s]; });
     const va = actuators.filter(function (a) { return ACTUATORS[a]; });
     const vb = BOARDS[board] ? board : 'esp32';
     const name = (TYPES[type] && TYPES[type].name) || 'My Robot';
-    return { type: type, name: name, board: vb, sensors: vs, actuators: va };
+    return { type: type, name: name, board: vb, sensors: vs, actuators: va, understood: understood };
   }
   RobotLab.fromText = robotFromText;
+  // Canonical honest copy for the not-understood case, exposed so a consumer can
+  // render the same wording buildFromText returns in its `note` field.
+  RobotLab.NL_FALLBACK_NOTE = NL_FALLBACK_NOTE;
   // Apply an arbitrary spec, validated against the catalogue and saved. Used by
   // the guided demo to add or remove a part and show the command registry react.
   RobotLab.applySpec = function (spec) {
@@ -638,9 +655,17 @@
     return { spec: clean, derived: derive(clean), world: (WORLD_FOR[clean.type] || {}) };
   };
   RobotLab.buildFromText = function (text) {
-    const spec = robotFromText(text);
+    const parsed = robotFromText(text);
+    // Keep the persisted RobotSpec clean: `understood` is mapping metadata for
+    // the caller's UI, not a part of the robot, so it rides in the envelope and
+    // never lands in localStorage or the sim's KODRO_ROBOT.
+    const spec = { type: parsed.type, name: parsed.name, board: parsed.board, sensors: parsed.sensors, actuators: parsed.actuators };
     save(spec);
-    return { spec: spec, derived: derive(spec), world: (WORLD_FOR[spec.type] || {}) };
+    // `note` is a ready-to-display honest line for the not-understood case, so
+    // any consumer (onboarding agent, plan-parts adopt) can surface it with a
+    // single render instead of silently shipping a guessed build.
+    const note = parsed.understood ? null : NL_FALLBACK_NOTE;
+    return { spec: spec, derived: derive(spec), world: (WORLD_FOR[spec.type] || {}), understood: parsed.understood, note: note };
   };
   // SI1: apply a KRS spec from raw JSON text - the SAME validate-then-save
   // path the Lab's Import button drives after reading the file, exposed so

@@ -2323,6 +2323,47 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     return out;
   }
 
+  // Big, drive-into-able props (trees) are REAL obstacles, not decoration, so
+  // what the pupil sees standing on the ground is exactly what the robot
+  // collides with. A deterministic grove of collidable trees scattered across
+  // the field, kept well clear of a central corridor (clearR) so the default
+  // patrol never meets one, and non-overlapping with each other or the base
+  // obstacle field. Tagged kind:'tree' and given a v inside the tree band so
+  // both the 2.5D and 3D renderers draw a tree at the SAME centre and footprint
+  // the collision test uses. This is the fix for "the robot drove through the
+  // tree": the tree the user drives into is now a genuine obstacle.
+  function genGrove(seed, count, minR, maxR, clearR, existing) {
+    const r = rng(seed);
+    const out = [];
+    const others = (existing || []).slice();
+    let guard = 0;
+    while (out.length < count && guard++ < 3000) {
+      const ang = r() * Math.PI * 2;
+      const dist = clearR + r() * (WALL - 120 - clearR);
+      const x = Math.cos(ang) * dist;
+      const y = Math.sin(ang) * dist;
+      const rad = minR + r() * (maxR - minR);
+      if (Math.hypot(x, y) < clearR) continue; // keep the starting corridor clear
+      let ok = true;
+      for (const o of others) if (Math.hypot(o.x - x, o.y - y) < o.r + rad + 50) {
+        ok = false;
+        break;
+      }
+      if (!ok) continue;
+      const t = {
+        x,
+        y,
+        r: rad,
+        rot: r() * 360,
+        v: 0.5 + r() * 0.13,
+        kind: 'tree'
+      };
+      out.push(t);
+      others.push(t);
+    }
+    return out;
+  }
+
   // City street: real, collidable furniture (buildings along the edges, parked
   // cars beside the road) laid out around a cross roads with the rover's start
   // clear. Pedestrians and a moving car are added on top as live agents.
@@ -2455,7 +2496,14 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       },
       traction: 1.0,
       obstacleLabel: 'BOULDER',
-      obstacles: genObstacles(7, 14, 46, 96),
+      // Base Earth now carries a collidable grove ON TOP of the rock/boulder
+      // field, so the prominent trees the user sees standing on the ground are
+      // real obstacles the robot noses up to (clearR 460 > the default patrol's
+      // ~330cm reach, so the starter demo still runs clean).
+      obstacles: function () {
+        const base = genObstacles(7, 14, 46, 96);
+        return base.concat(genGrove(313, 16, 40, 85, 460, base));
+      }(),
       decor: genDecor(101, 44),
       backdrop: 'earth'
     },
@@ -3638,9 +3686,9 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     // Earth reads like a game map: most stand-up features are trees and
     // bushes rather than bare rocks. Collision still uses o.r, so the world
     // the grader sees is unchanged -- only the picture differs.
-    if (id === 'earth' && o.v >= 0.32) {
+    if (id === 'earth' && (o.v >= 0.32 || o.kind === 'tree')) {
       const h = size * 1.35;
-      if (o.v < 0.66) {
+      if (o.kind === 'tree' || o.v < 0.66) {
         // tree: a trunk under a layered canopy
         const cw = size * 1.15;
         return /*#__PURE__*/React.createElement("div", {
@@ -3973,10 +4021,18 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           row: 20 + r() * 120
         });
       }
+      // These forest canopies are DECORATIVE (they never collide), so they are
+      // pushed to a distant treeline OUTSIDE the +/-WALL play area where the
+      // rover can never reach them. The stand-up trees the robot drives INTO
+      // are the collidable grove in the obstacle field, not this backdrop --
+      // that is what kills the "drove straight through the tree" break while
+      // keeping the base Earth lush with a forest on the horizon.
       const fo = [];
       for (let i = 0; i < 8; i++) {
-        const cx = 200 + r() * (GROUND - 400),
-          cy = 200 + r() * (GROUND - 400);
+        const a0 = i / 8 * Math.PI * 2 + r() * 0.6;
+        const ring = WALL + 210 + r() * 180; // just beyond the arena wall (closest tree still > WALL)
+        const cx = GROUND / 2 + Math.cos(a0) * ring,
+          cy = GROUND / 2 + Math.sin(a0) * ring;
         const trees = [];
         const n = 12 + (r() * 10 | 0);
         for (let t = 0; t < n; t++) {
@@ -8277,7 +8333,10 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         const rock = new THREE.Mesh(geo, rockMat);
         rock.position.set(px, groundY(px, pz) + r * 0.5, pz);
         rock.rotation.set(v * 3, rot || 0, v * 2);
-        rock.scale.set(1 + v * 0.4, 0.7 + v * 0.5, 1 + (1 - v) * 0.4);
+        // Keep the HORIZONTAL footprint close to o.r so the visible rock edge
+        // lines up with the collision circle (the robot noses up to it instead
+        // of sinking into an oversized boulder); height still varies for relief.
+        rock.scale.set(1 + v * 0.18, 0.7 + v * 0.5, 1 + (1 - v) * 0.18);
         rock.castShadow = true;
         rock.receiveShadow = true;
         scene.add(rock);
@@ -8538,7 +8597,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
             return;
           }
           mkRock(r, px, pz, o.v, o.rot);
-        } else if (!propKit && id === 'earth' && o.v >= 0.5) {
+        } else if (!propKit && id === 'earth' && (o.v >= 0.5 || o.kind === 'tree')) {
           // tree: trunk + canopy
           const tree = new THREE.Group();
           const trunk = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.18, r * 0.24, r * 1.4, 6), trunkMat);
@@ -13595,6 +13654,11 @@ Object.assign(window, {
     return spec;
   };
 
+  // Honest copy shown when a free-text description carried no recognisable
+  // robot signal: we default to a general rover rather than force a bogus match
+  // on an accidental substring, and say so plainly.
+  const NL_FALLBACK_NOTE = 'I could not map that to specific parts, so I built a general rover you can customise in the Robot Lab.';
+
   // ---- onboarding agent: natural language -> a validated RobotSpec ----------
   // The starting-page agent maps a spoken or typed description onto the SAME
   // parts catalogue, so it can only ever produce a buildable robot. It never
@@ -13605,7 +13669,28 @@ Object.assign(window, {
   function robotFromText(text) {
     const t = String(text || '').toLowerCase();
     let type = 'rover';
-    if (/(car|vehicle|self.?driv|autonomous|road|traffic)/.test(t)) type = 'car';else if (/(robotic arm|\barm\b|manipulat|pick and place)/.test(t)) type = 'arm';else if (/(home|companion|personal|indoor|assistant|helper|house)/.test(t)) type = 'home';else if (/(rover|explor|terrain|outdoor|mars|moon|planet|rough)/.test(t)) type = 'rover';
+    // `understood` tracks whether the text carried ANY recognisable robot
+    // signal (a type, part, sensor or board keyword). If nothing matches -- a
+    // name or nonsense like "carl johnson in gta" -- we still return a sensible
+    // default rover, but flag it so the caller can be honest that it guessed a
+    // general build instead of silently pretending it understood.
+    let understood = false;
+    // Keyword tokens must match on a word boundary, not as an accidental
+    // substring: "car" must fire on "a car" / "car robot" but NOT on "carl".
+    // The same guard protects "road" (which used to fire inside "broad").
+    if (/\bcars?\b|vehicle|self.?driv|autonomous|\broad\b|traffic/.test(t)) {
+      type = 'car';
+      understood = true;
+    } else if (/robotic arm|\barm\b|manipulat|pick and place/.test(t)) {
+      type = 'arm';
+      understood = true;
+    } else if (/home|companion|personal|indoor|assistant|helper|house/.test(t)) {
+      type = 'home';
+      understood = true;
+    } else if (/rover|explor|terrain|outdoor|mars|moon|planet|rough/.test(t)) {
+      type = 'rover';
+      understood = true;
+    }
     const spec = specFromType(type, null);
     const sensors = spec.sensors.slice();
     const actuators = spec.actuators.slice();
@@ -13616,20 +13701,57 @@ Object.assign(window, {
       const i = list.indexOf(id);
       if (i >= 0) list.splice(i, 1);
     }
-    if (/(camera|vision|\bsee\b|marker|look)/.test(t)) add(sensors, 'camera');
-    if (/(ultrasonic|distance|obstacle|avoid|range|sonar)/.test(t)) add(sensors, 'ultrasonic');
-    if (/(imu|gyro|balance|tilt|orient|accelerom)/.test(t)) add(sensors, 'imu');
-    if (/(gps|location|position|navigat)/.test(t)) add(sensors, 'gps');
-    if (/(line follow|follow.?line|\bline\b|track)/.test(t)) add(sensors, 'line');
-    if (/(bumper|touch|contact|switch)/.test(t)) add(sensors, 'bumper');
-    if (/(gripper|grab|grip|claw|\bpick\b)/.test(t)) add(actuators, 'gripper');
-    if (/(four wheel|4 wheel|4wd|four.?motor|all.?wheel)/.test(t)) {
+    if (/camera|vision|\bsee\b|marker|look/.test(t)) {
+      add(sensors, 'camera');
+      understood = true;
+    }
+    if (/ultrasonic|distance|obstacle|avoid|range|sonar/.test(t)) {
+      add(sensors, 'ultrasonic');
+      understood = true;
+    }
+    if (/imu|gyro|balance|tilt|orient|accelerom/.test(t)) {
+      add(sensors, 'imu');
+      understood = true;
+    }
+    if (/gps|location|position|navigat/.test(t)) {
+      add(sensors, 'gps');
+      understood = true;
+    }
+    if (/line follow|follow.?line|\bline\b|track/.test(t)) {
+      add(sensors, 'line');
+      understood = true;
+    }
+    if (/bumper|touch|contact|switch/.test(t)) {
+      add(sensors, 'bumper');
+      understood = true;
+    }
+    if (/gripper|grab|grip|claw|\bpick\b/.test(t)) {
+      add(actuators, 'gripper');
+      understood = true;
+    }
+    if (/four wheel|4 wheel|4wd|four.?motor|all.?wheel/.test(t)) {
       add(actuators, 'motors4');
       drop(actuators, 'motors2');
+      understood = true;
     }
-    if (/(steer|servo|ackermann)/.test(t)) add(actuators, 'servos');
+    if (/steer|servo|ackermann/.test(t)) {
+      add(actuators, 'servos');
+      understood = true;
+    }
     let board = spec.board;
-    if (/arduino|uno/.test(t)) board = 'uno';else if (/micro.?bit/.test(t)) board = 'microbit';else if (/pico|raspberry/.test(t)) board = 'pico';else if (/esp32|\besp\b/.test(t)) board = 'esp32';
+    if (/arduino|uno/.test(t)) {
+      board = 'uno';
+      understood = true;
+    } else if (/micro.?bit/.test(t)) {
+      board = 'microbit';
+      understood = true;
+    } else if (/pico|raspberry/.test(t)) {
+      board = 'pico';
+      understood = true;
+    } else if (/esp32|\besp\b/.test(t)) {
+      board = 'esp32';
+      understood = true;
+    }
     // Validate every field against the catalogue: drop anything unknown.
     const vs = sensors.filter(function (s) {
       return SENSORS[s];
@@ -13644,10 +13766,14 @@ Object.assign(window, {
       name: name,
       board: vb,
       sensors: vs,
-      actuators: va
+      actuators: va,
+      understood: understood
     };
   }
   RobotLab.fromText = robotFromText;
+  // Canonical honest copy for the not-understood case, exposed so a consumer can
+  // render the same wording buildFromText returns in its `note` field.
+  RobotLab.NL_FALLBACK_NOTE = NL_FALLBACK_NOTE;
   // Apply an arbitrary spec, validated against the catalogue and saved. Used by
   // the guided demo to add or remove a part and show the command registry react.
   RobotLab.applySpec = function (spec) {
@@ -13674,12 +13800,28 @@ Object.assign(window, {
     };
   };
   RobotLab.buildFromText = function (text) {
-    const spec = robotFromText(text);
+    const parsed = robotFromText(text);
+    // Keep the persisted RobotSpec clean: `understood` is mapping metadata for
+    // the caller's UI, not a part of the robot, so it rides in the envelope and
+    // never lands in localStorage or the sim's KODRO_ROBOT.
+    const spec = {
+      type: parsed.type,
+      name: parsed.name,
+      board: parsed.board,
+      sensors: parsed.sensors,
+      actuators: parsed.actuators
+    };
     save(spec);
+    // `note` is a ready-to-display honest line for the not-understood case, so
+    // any consumer (onboarding agent, plan-parts adopt) can surface it with a
+    // single render instead of silently shipping a guessed build.
+    const note = parsed.understood ? null : NL_FALLBACK_NOTE;
     return {
       spec: spec,
       derived: derive(spec),
-      world: WORLD_FOR[spec.type] || {}
+      world: WORLD_FOR[spec.type] || {},
+      understood: parsed.understood,
+      note: note
     };
   };
   // SI1: apply a KRS spec from raw JSON text - the SAME validate-then-save
@@ -16592,6 +16734,9 @@ Object.assign(window, {
   .konb-rec .rec-label{ font-family:var(--font-mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--fg-3); }
   .konb-world{ font-family:var(--font-display); font-size:clamp(26px,3.4vw,34px); font-weight:600; color:var(--cyan); line-height:1.04; margin:3px 0 6px; }
   .konb-why{ color:var(--fg-2); font-size:13.5px; line-height:1.5; }
+  .konb-note{ color:var(--fg-2); font-size:12.5px; line-height:1.5; margin:12px 0 0;
+    padding:9px 12px; border-radius:10px; background:rgba(92,224,216,.07);
+    border:0.5px solid rgba(92,224,216,.28); }
   .konb-built{ display:flex; flex-wrap:wrap; gap:6px; margin:14px 0 0; }
   .konb-chip{ font-family:var(--font-mono); font-size:11px; color:var(--cyan);
     background:rgba(92,224,216,.08); border:0.5px solid rgba(92,224,216,.3); border-radius:99px; padding:4px 11px; }
@@ -16897,7 +17042,10 @@ Object.assign(window, {
       className: "konb-world"
     }, worldName), /*#__PURE__*/React.createElement("div", {
       className: "konb-why"
-    }, cap(rec.why) || "Start in the busy city, then try the others."), built && built.spec && /*#__PURE__*/React.createElement("div", {
+    }, cap(rec.why) || "Start in the busy city, then try the others."), built && built.understood === false && built.note && /*#__PURE__*/React.createElement("div", {
+      className: "konb-note",
+      role: "status"
+    }, built.note), built && built.spec && /*#__PURE__*/React.createElement("div", {
       className: "konb-built",
       "aria-label": "Parts the assistant fitted"
     }, [built.spec.board].concat(built.spec.sensors || [], built.spec.actuators || []).map((p, i) => /*#__PURE__*/React.createElement("span", {
@@ -24027,7 +24175,11 @@ say("Survey done")`
     }, I.step, "Step"), /*#__PURE__*/React.createElement("button", {
       className: "ctrl ctrl-stop",
       onClick: onReset
-    }, I.reset, "Reset")), /*#__PURE__*/React.createElement("div", {
+    }, I.reset, "Reset"), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl",
+      title: "Validate this program across 5 randomised seeds",
+      onClick: runValidation
+    }, KI('target'), "Validate")), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "speed-ctrl"
@@ -24298,10 +24450,6 @@ say("Survey done")`
       title: aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)',
       onClick: runReview
     }, KI('review'), "Review"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      title: "Validate this program across 5 randomised seeds",
-      onClick: runValidation
-    }, KI('target'), "Validate"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Realism dashboard: how the build drives the simulation",
       onClick: () => setRealismOpen(true)

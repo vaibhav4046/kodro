@@ -886,6 +886,17 @@
             </button>
             <button className="ctrl" onClick={onStep} disabled={runState === 'running'}>{I.step}Step</button>
             <button className="ctrl ctrl-stop" onClick={onReset}>{I.reset}Reset</button>
+            {/* Validate lives in the main run bar, next to Run, because it is a
+                run-family action (it drives the program across 5 seeds) and a
+                real user reported they could not find it when it was buried as
+                one of eight dim, uppercase micro-buttons in the editor header
+                that wrapped onto a second row (color:var(--fg-3), 44% opacity).
+                Here it is a full-contrast, clearly-labelled .ctrl the eye lands
+                on beside Run/Step/Reset. The title is preserved VERBATIM because
+                the cap.html modal-coverage driver opens it via
+                clickTitleStartsWith('Validate this program across 5 randomised
+                seeds'); qa_ui's modal-validate assert depends on that string. */}
+            <button className="ctrl" title="Validate this program across 5 randomised seeds" onClick={runValidation}>{KI('target')}Validate</button>
           </div>
           <div className="bar-divider"></div>
           <div className="speed-ctrl">
@@ -1027,7 +1038,9 @@
                   <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>{KI('vibe')}Vibe</button>
                   <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>{KI('blocks')}Blocks</button>
                   <button className="btn-mini" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)'} onClick={runReview}>{KI('review')}Review</button>
-                  <button className="btn-mini" title="Validate this program across 5 randomised seeds" onClick={runValidation}>{KI('target')}Validate</button>
+                  {/* Validate was moved to the main run bar (next to Run) so it is
+                      not lost among these dim, wrapped micro-buttons. See the
+                      run-controls group above. */}
                   <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>{KI('gauge')}Realism</button>
                   <button className="btn-mini" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}>{KI('demo')}Demo</button>
                   <button className="btn-mini" title={aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs local Ollama)'} onClick={() => { setAskOpen(true); setAskData(null); }}>{KI('ask')}Ask</button>

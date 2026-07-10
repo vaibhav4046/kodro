@@ -57,6 +57,36 @@
     return out;
   }
 
+  // Big, drive-into-able props (trees) are REAL obstacles, not decoration, so
+  // what the pupil sees standing on the ground is exactly what the robot
+  // collides with. A deterministic grove of collidable trees scattered across
+  // the field, kept well clear of a central corridor (clearR) so the default
+  // patrol never meets one, and non-overlapping with each other or the base
+  // obstacle field. Tagged kind:'tree' and given a v inside the tree band so
+  // both the 2.5D and 3D renderers draw a tree at the SAME centre and footprint
+  // the collision test uses. This is the fix for "the robot drove through the
+  // tree": the tree the user drives into is now a genuine obstacle.
+  function genGrove(seed, count, minR, maxR, clearR, existing) {
+    const r = rng(seed);
+    const out = [];
+    const others = (existing || []).slice();
+    let guard = 0;
+    while (out.length < count && guard++ < 3000) {
+      const ang = r() * Math.PI * 2;
+      const dist = clearR + r() * (WALL - 120 - clearR);
+      const x = Math.cos(ang) * dist;
+      const y = Math.sin(ang) * dist;
+      const rad = minR + r() * (maxR - minR);
+      if (Math.hypot(x, y) < clearR) continue; // keep the starting corridor clear
+      let ok = true;
+      for (const o of others) if (Math.hypot(o.x - x, o.y - y) < o.r + rad + 50) { ok = false; break; }
+      if (!ok) continue;
+      const t = { x, y, r: rad, rot: r() * 360, v: 0.5 + r() * 0.13, kind: 'tree' };
+      out.push(t); others.push(t);
+    }
+    return out;
+  }
+
   // City street: real, collidable furniture (buildings along the edges, parked
   // cars beside the road) laid out around a cross roads with the rover's start
   // clear. Pedestrians and a moving car are added on top as live agents.
@@ -113,7 +143,11 @@
       accent: '#7cc49b', dot: '#7cc49b',
       env: { gravity: 9.81, temp: 18, tempLabel: 'AIR TEMP', pressure: 1.0, pressureLabel: 'PRESSURE', pressureUnit: 'atm', light: 92 },
       traction: 1.0, obstacleLabel: 'BOULDER',
-      obstacles: genObstacles(7, 14, 46, 96),
+      // Base Earth now carries a collidable grove ON TOP of the rock/boulder
+      // field, so the prominent trees the user sees standing on the ground are
+      // real obstacles the robot noses up to (clearR 460 > the default patrol's
+      // ~330cm reach, so the starter demo still runs clean).
+      obstacles: (function () { const base = genObstacles(7, 14, 46, 96); return base.concat(genGrove(313, 16, 40, 85, 460, base)); })(),
       decor: genDecor(101, 44),
       backdrop: 'earth'
     },
@@ -693,9 +727,9 @@
     // Earth reads like a game map: most stand-up features are trees and
     // bushes rather than bare rocks. Collision still uses o.r, so the world
     // the grader sees is unchanged -- only the picture differs.
-    if (id === 'earth' && o.v >= 0.32) {
+    if (id === 'earth' && (o.v >= 0.32 || o.kind === 'tree')) {
       const h = size * 1.35;
-      if (o.v < 0.66) {
+      if (o.kind === 'tree' || o.v < 0.66) {
         // tree: a trunk under a layered canopy
         const cw = size * 1.15;
         return (
@@ -811,9 +845,17 @@
         if (Math.abs(x + w / 2 - GROUND / 2) < 260 && Math.abs(y + h / 2 - GROUND / 2) < 260) continue;
         fl.push({ x, y, w, h, c: FIELD_FILL[(r() * FIELD_FILL.length) | 0], rot: (r() - 0.5) * 8, row: 20 + r() * 120 });
       }
+      // These forest canopies are DECORATIVE (they never collide), so they are
+      // pushed to a distant treeline OUTSIDE the +/-WALL play area where the
+      // rover can never reach them. The stand-up trees the robot drives INTO
+      // are the collidable grove in the obstacle field, not this backdrop --
+      // that is what kills the "drove straight through the tree" break while
+      // keeping the base Earth lush with a forest on the horizon.
       const fo = [];
       for (let i = 0; i < 8; i++) {
-        const cx = 200 + r() * (GROUND - 400), cy = 200 + r() * (GROUND - 400);
+        const a0 = (i / 8) * Math.PI * 2 + r() * 0.6;
+        const ring = WALL + 210 + r() * 180; // just beyond the arena wall (closest tree still > WALL)
+        const cx = GROUND / 2 + Math.cos(a0) * ring, cy = GROUND / 2 + Math.sin(a0) * ring;
         const trees = [];
         const n = 12 + ((r() * 10) | 0);
         for (let t = 0; t < n; t++) {
