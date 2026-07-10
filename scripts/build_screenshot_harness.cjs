@@ -164,7 +164,7 @@ const CAP = `<!DOCTYPE html>
           }]));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview') };
     })();
   </script>
   <div id="root"></div>
@@ -422,6 +422,11 @@ const CAP = `<!DOCTYPE html>
         if (opener) {
           setTimeout(function () { try { opener(); } catch (e) { void e; } }, 1000);
           setTimeout(function () { try { if (!document.querySelector('[role="dialog"]')) must(opener(), 'open=' + C.open); } catch (e) { void e; } }, 1600);
+          // memview=graph: after the Memory dialog is open, click its Graph
+          // toggle so the relationship-graph view is what the capture sees.
+          if (C.memview === 'graph') {
+            setTimeout(function () { try { var g = document.querySelector('[data-mem-graph]'); if (g) g.click(); } catch (e) { void e; } }, 2000);
+          }
         } else {
           must(false, 'open=' + C.open + ' (unknown opener name)');
         }

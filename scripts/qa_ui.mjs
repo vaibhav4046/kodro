@@ -613,6 +613,31 @@ function checkMemoryExport(chrome) {
   return { pass: false, reason: 'no Export control in the open Memory panel' };
 }
 
+// MEMORY GRAPH (F-graph) — the Memory panel's Graph view renders a real SVG
+// relationship graph derived from the seeded reflection: at least one world hub,
+// one robot hub and one item node, wired by edges. seedmem plants a fixture
+// reflection (earth/rover); memview=graph clicks the Graph toggle after open.
+function checkMemoryGraph(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&seedmem=1&open=memory&memview=graph`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_mem_graph', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/aria-label="Memory and skills"/.test(dom)) {
+    return { pass: false, reason: 'Memory panel never opened, so the graph claim would be vacuous' };
+  }
+  if (!/class="mem-graph"/.test(dom)) {
+    return { pass: false, reason: 'Graph view did not render its SVG (mem-graph) after toggling to Graph' };
+  }
+  const worlds = (dom.match(/mem-graph-world/g) || []).length;
+  const nodes = (dom.match(/mem-graph-node/g) || []).length;
+  const edges = (dom.match(/mem-graph-edge/g) || []).length;
+  if (worlds >= 1 && nodes >= 2 && edges >= 1) {
+    return { pass: true, reason: `Memory graph rendered from seeded memory (${nodes} nodes, ${edges} edges, world hub present)` };
+  }
+  return { pass: false, reason: `Memory graph SVG present but sparse (nodes ${nodes}, edges ${edges}, worlds ${worlds}) — expected >=2 nodes, >=1 edge` };
+}
+
 // STUDIO MODE (A1) — the default profile is the professional studio: the
 // Settings popover must carry the Mode control but NONE of the classroom
 // furniture (teacher dashboard, progress-report export, novelty themes).
@@ -970,6 +995,11 @@ function cleanup() {
   const memExport = checkMemoryExport(chrome);
   behaviour.push(memExport.pass);
   console.log(`${memExport.pass ? 'PASS' : 'FAIL'}  ${'memory-export'.padEnd(20)} ${memExport.reason}`);
+  gap();
+
+  const memGraph = checkMemoryGraph(chrome);
+  behaviour.push(memGraph.pass);
+  console.log(`${memGraph.pass ? 'PASS' : 'FAIL'}  ${'memory-graph'.padEnd(20)} ${memGraph.reason}`);
   gap();
 
   const goalMarker = checkGoalMarker(chrome);

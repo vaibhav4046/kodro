@@ -2251,6 +2251,131 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
 })();
 
 ;(function () {
+/* Memory graph builder. Turns the flat KodroMemory store (reflections + skills)
+ * into a small relationship graph so the learner can SEE what the app has tied
+ * together, instead of two flat lists.
+ *
+ * Honest by construction: every node and edge is derived from real stored data.
+ * Hubs are the worlds and robot types the learner actually used; item nodes are
+ * their saved skills and past-run reflections, each linked to the world and
+ * robot type it was recorded under. Nothing is invented, and the layout is
+ * deterministic (no physics/randomness) so it is testable and stable.
+ */
+(function () {
+  'use strict';
+
+  var WIDTH = 640;
+  var HEIGHT = 380;
+  var PAD_Y = 34;
+  var X_WORLD = 96;
+  var X_ITEM = 320;
+  var X_ROBOT = 544;
+  function colY(i, n) {
+    if (n <= 1) return HEIGHT / 2;
+    return PAD_Y + (HEIGHT - 2 * PAD_Y) * i / (n - 1);
+  }
+  function shortLabel(text, max) {
+    text = String(text || '');
+    return text.length > max ? text.slice(0, max - 1) + '…' : text;
+  }
+
+  // build({reflections, skills}, {maxItems}) -> {nodes, edges, width, height, stats, truncated}
+  function build(mem, opts) {
+    mem = mem || {};
+    opts = opts || {};
+    var maxItems = opts.maxItems || 8; // per kind, keeps the picture readable
+
+    var allSkills = Array.isArray(mem.skills) ? mem.skills : [];
+    var allReflections = Array.isArray(mem.reflections) ? mem.reflections : [];
+    var skills = allSkills.slice(0, maxItems);
+    var reflections = allReflections.slice(0, maxItems);
+    var truncated = allSkills.length > skills.length || allReflections.length > reflections.length;
+
+    // Collect the world and robot-type hubs actually referenced by shown items.
+    var worldSet = {},
+      robotSet = {};
+    function note(it) {
+      if (it && it.world) worldSet[it.world] = true;
+      if (it && it.robotType) robotSet[it.robotType] = true;
+    }
+    skills.forEach(note);
+    reflections.forEach(note);
+    var worlds = Object.keys(worldSet).sort();
+    var robots = Object.keys(robotSet).sort();
+    var nodes = [];
+    var edges = [];
+    worlds.forEach(function (w, i) {
+      nodes.push({
+        id: 'world:' + w,
+        label: w,
+        kind: 'world',
+        x: X_WORLD,
+        y: colY(i, worlds.length)
+      });
+    });
+    robots.forEach(function (t, i) {
+      nodes.push({
+        id: 'robot:' + t,
+        label: t,
+        kind: 'robot',
+        x: X_ROBOT,
+        y: colY(i, robots.length)
+      });
+    });
+    var items = [];
+    skills.forEach(function (s, i) {
+      items.push({
+        id: 'skill:' + i + ':' + String(s.name || ''),
+        label: shortLabel(s.name || 'skill', 18),
+        kind: 'skill',
+        world: s.world,
+        robotType: s.robotType
+      });
+    });
+    reflections.forEach(function (r, i) {
+      items.push({
+        id: 'refl:' + i,
+        label: shortLabel(r.outcome || 'run', 18),
+        kind: 'reflection',
+        world: r.world,
+        robotType: r.robotType
+      });
+    });
+    items.forEach(function (it, i) {
+      it.x = X_ITEM;
+      it.y = colY(i, items.length);
+      nodes.push(it);
+      if (it.world && worldSet[it.world]) edges.push({
+        from: it.id,
+        to: 'world:' + it.world
+      });
+      if (it.robotType && robotSet[it.robotType]) edges.push({
+        from: it.id,
+        to: 'robot:' + it.robotType
+      });
+    });
+    return {
+      nodes: nodes,
+      edges: edges,
+      width: WIDTH,
+      height: HEIGHT,
+      truncated: truncated,
+      stats: {
+        worlds: worlds.length,
+        robots: robots.length,
+        skills: skills.length,
+        reflections: reflections.length,
+        edges: edges.length
+      }
+    };
+  }
+  window.KodroMemoryGraph = {
+    build: build
+  };
+})();
+})();
+
+;(function () {
 /* ============================================================================
    KODRO — terrains
    Each terrain defines: accent color, telemetry environment (gravity, temp,
@@ -22160,6 +22285,72 @@ say("Survey done")`
       };
       rd.readAsText(f);
     }
+    // List (default) vs graph view of the same stored memory. The graph is
+    // derived from the real reflections + skills, so it never shows more than
+    // the lists do -- it just draws the ties between worlds, robots and items.
+    const [memView, setMemView] = React.useState('list');
+    const memGraph = memView === 'graph' && window.KodroMemoryGraph ? window.KodroMemoryGraph.build({
+      reflections: window.KodroMemory ? window.KodroMemory.reflections() : [],
+      skills: window.KodroMemory ? window.KodroMemory.skills() : []
+    }) : null;
+    function graphBody() {
+      if (!memGraph || !memGraph.nodes.length) {
+        return /*#__PURE__*/React.createElement("div", {
+          className: "mem-body"
+        }, /*#__PURE__*/React.createElement(EmptyState, {
+          icon: "memory",
+          title: "No connections yet",
+          hint: "Run a few programs and save a skill or two. The graph then links each world to the robots and skills you used there."
+        }));
+      }
+      const pos = {};
+      memGraph.nodes.forEach(n => {
+        pos[n.id] = n;
+      });
+      return /*#__PURE__*/React.createElement("div", {
+        className: "mem-graph-wrap",
+        "data-mem-graph-svg": true
+      }, /*#__PURE__*/React.createElement("svg", {
+        className: "mem-graph",
+        viewBox: '0 0 ' + memGraph.width + ' ' + memGraph.height,
+        preserveAspectRatio: "xMidYMid meet",
+        role: "img",
+        "aria-label": "Memory graph linking worlds, robots, skills and run notes"
+      }, memGraph.edges.map((e, i) => {
+        const a = pos[e.from],
+          b = pos[e.to];
+        return a && b ? /*#__PURE__*/React.createElement("line", {
+          key: 'e' + i,
+          className: "mem-graph-edge",
+          x1: a.x,
+          y1: a.y,
+          x2: b.x,
+          y2: b.y
+        }) : null;
+      }), memGraph.nodes.map((n, i) => /*#__PURE__*/React.createElement("g", {
+        key: 'n' + i,
+        className: 'mem-graph-node mem-graph-' + n.kind,
+        transform: 'translate(' + n.x + ',' + n.y + ')'
+      }, /*#__PURE__*/React.createElement("circle", {
+        r: n.kind === 'world' || n.kind === 'robot' ? 8 : 5
+      }), /*#__PURE__*/React.createElement("text", {
+        x: n.kind === 'world' ? -12 : n.kind === 'robot' ? 12 : 9,
+        y: 4,
+        textAnchor: n.kind === 'world' ? 'end' : 'start'
+      }, n.label)))), /*#__PURE__*/React.createElement("p", {
+        className: "mem-graph-legend"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "mem-graph-key world"
+      }, "World"), /*#__PURE__*/React.createElement("span", {
+        className: "mem-graph-key robot"
+      }, "Robot"), /*#__PURE__*/React.createElement("span", {
+        className: "mem-graph-key skill"
+      }, "Skill"), /*#__PURE__*/React.createElement("span", {
+        className: "mem-graph-key reflection"
+      }, "Run note"), memGraph.truncated ? /*#__PURE__*/React.createElement("span", {
+        className: "mem-graph-more"
+      }, "\xB7 showing the most recent items") : null));
+    }
     return /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => setMemoryOpen(false)
@@ -22175,6 +22366,19 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
     }, KI('memory'), "Memory. What the app has learned from your runs, saved on this computer"), /*#__PURE__*/React.createElement("span", {
+      className: "mem-viewtoggle",
+      role: "group",
+      "aria-label": "Memory view"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: 'btn-mini' + (memView === 'list' ? ' is-on' : ''),
+      "aria-pressed": memView === 'list',
+      onClick: () => setMemView('list')
+    }, "List"), /*#__PURE__*/React.createElement("button", {
+      className: 'btn-mini' + (memView === 'graph' ? ' is-on' : ''),
+      "aria-pressed": memView === 'graph',
+      "data-mem-graph": true,
+      onClick: () => setMemView('graph')
+    }, "Graph")), /*#__PURE__*/React.createElement("span", {
       className: "mem-io"
     }, /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
@@ -22196,7 +22400,7 @@ say("Survey done")`
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setMemoryOpen(false)
-    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+    }, "\u2715")), memView === 'graph' ? graphBody() : /*#__PURE__*/React.createElement("div", {
       className: "mem-body"
     }, /*#__PURE__*/React.createElement("div", {
       className: "mem-col"

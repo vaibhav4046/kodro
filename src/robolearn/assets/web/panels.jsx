@@ -448,11 +448,62 @@
       };
       rd.readAsText(f);
     }
+    // List (default) vs graph view of the same stored memory. The graph is
+    // derived from the real reflections + skills, so it never shows more than
+    // the lists do -- it just draws the ties between worlds, robots and items.
+    const [memView, setMemView] = React.useState('list');
+    const memGraph = (memView === 'graph' && window.KodroMemoryGraph)
+      ? window.KodroMemoryGraph.build({
+          reflections: window.KodroMemory ? window.KodroMemory.reflections() : [],
+          skills: window.KodroMemory ? window.KodroMemory.skills() : [],
+        })
+      : null;
+    function graphBody() {
+      if (!memGraph || !memGraph.nodes.length) {
+        return (
+          <div className="mem-body">
+            <EmptyState icon="memory" title="No connections yet"
+              hint="Run a few programs and save a skill or two. The graph then links each world to the robots and skills you used there." />
+          </div>
+        );
+      }
+      const pos = {};
+      memGraph.nodes.forEach(n => { pos[n.id] = n; });
+      return (
+        <div className="mem-graph-wrap" data-mem-graph-svg>
+          <svg className="mem-graph" viewBox={'0 0 ' + memGraph.width + ' ' + memGraph.height} preserveAspectRatio="xMidYMid meet"
+            role="img" aria-label="Memory graph linking worlds, robots, skills and run notes">
+            {memGraph.edges.map((e, i) => {
+              const a = pos[e.from], b = pos[e.to];
+              return (a && b) ? <line key={'e' + i} className="mem-graph-edge" x1={a.x} y1={a.y} x2={b.x} y2={b.y} /> : null;
+            })}
+            {memGraph.nodes.map((n, i) => (
+              <g key={'n' + i} className={'mem-graph-node mem-graph-' + n.kind} transform={'translate(' + n.x + ',' + n.y + ')'}>
+                <circle r={(n.kind === 'world' || n.kind === 'robot') ? 8 : 5} />
+                <text x={n.kind === 'world' ? -12 : (n.kind === 'robot' ? 12 : 9)} y={4}
+                  textAnchor={n.kind === 'world' ? 'end' : 'start'}>{n.label}</text>
+              </g>
+            ))}
+          </svg>
+          <p className="mem-graph-legend">
+            <span className="mem-graph-key world">World</span>
+            <span className="mem-graph-key robot">Robot</span>
+            <span className="mem-graph-key skill">Skill</span>
+            <span className="mem-graph-key reflection">Run note</span>
+            {memGraph.truncated ? <span className="mem-graph-more">· showing the most recent items</span> : null}
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="modal-backdrop" onClick={() => setMemoryOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Memory and skills" data-tick={memTick} onClick={e => e.stopPropagation()}>
           <div className="modal-head">
             <span className="eyebrow">{KI('memory')}Memory. What the app has learned from your runs, saved on this computer</span>
+            <span className="mem-viewtoggle" role="group" aria-label="Memory view">
+              <button className={'btn-mini' + (memView === 'list' ? ' is-on' : '')} aria-pressed={memView === 'list'} onClick={() => setMemView('list')}>List</button>
+              <button className={'btn-mini' + (memView === 'graph' ? ' is-on' : '')} aria-pressed={memView === 'graph'} data-mem-graph onClick={() => setMemView('graph')}>Graph</button>
+            </span>
             <span className="mem-io">
               <button className="btn-mini" data-mem-export title="Download reflections and skills as a JSON backup" onClick={exportMemory}>Export</button>
               <label className="btn-mini mem-import" title="Restore reflections and skills from a JSON backup">
@@ -462,6 +513,7 @@
             </span>
             <button className="btn-mini" aria-label="Close" onClick={() => setMemoryOpen(false)}>✕</button>
           </div>
+          {memView === 'graph' ? graphBody() : (
           <div className="mem-body">
             <div className="mem-col">
               <div className="rl-label">Notes from past runs</div>
@@ -504,6 +556,7 @@
                   />}
             </div>
           </div>
+          )}
         </div>
       </div>
     );

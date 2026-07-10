@@ -1532,6 +1532,27 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 /* Memory / self-refinement panel */
 .mem-body { display:grid; grid-template-columns:1fr 1fr; gap:16px; max-height:64vh; overflow:auto; }
 .mem-col { display:flex; flex-direction:column; gap:8px; }
+/* Memory: List/Graph view toggle + the relationship graph */
+.mem-viewtoggle { display:inline-flex; gap:2px; margin-right:8px; }
+.mem-viewtoggle .btn-mini.is-on { background:var(--cyan); color:var(--navy-1); border-color:var(--cyan); }
+.mem-graph-wrap { display:flex; flex-direction:column; gap:8px; max-height:64vh; overflow:auto; }
+.mem-graph { width:100%; height:auto; background:var(--navy-2); border:1px solid var(--border); border-radius:var(--radius-md); }
+.mem-graph-edge { stroke:var(--border); stroke-width:1.4; }
+.mem-graph-node text { font-size:12px; fill:var(--fg-2); paint-order:stroke; }
+.mem-graph-node circle { stroke:var(--navy-1); stroke-width:1.5; }
+.mem-graph-world circle { fill:var(--cyan); }
+.mem-graph-robot circle { fill:var(--gold, #e0a23a); }
+.mem-graph-skill circle { fill:var(--green, #3ec27a); }
+.mem-graph-reflection circle { fill:var(--fg-3, #8aa); }
+.mem-graph-world text, .mem-graph-robot text { fill:var(--fg-1); font-weight:600; }
+.mem-graph-legend { display:flex; flex-wrap:wrap; gap:12px; font-size:var(--text-sm); color:var(--fg-2); margin:0; }
+.mem-graph-key { display:inline-flex; align-items:center; gap:5px; }
+.mem-graph-key::before { content:''; width:10px; height:10px; border-radius:50%; display:inline-block; }
+.mem-graph-key.world::before { background:var(--cyan); }
+.mem-graph-key.robot::before { background:var(--gold, #e0a23a); }
+.mem-graph-key.skill::before { background:var(--green, #3ec27a); }
+.mem-graph-key.reflection::before { background:var(--fg-3, #8aa); }
+.mem-graph-more { color:var(--fg-3); font-style:italic; }
 .mem-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; }
 .mem-refl { font-size:var(--text-md); color:var(--fg-1); padding:8px 10px; border-radius:var(--radius-md);
   border:1px solid var(--border); border-left:3px solid var(--fg-3); background:rgba(245,240,228,0.02); }
