@@ -626,13 +626,14 @@
             </div>
           </div>
           <ProviderPicker onChange={refreshAiStatus} />
-          {aiInfo.available ? (
-            <div className="vibe-body">
-              {providerIsLocal(aiInfo.source)
-                ? <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
-                : <p className="vibe-status">Cloud model: <b>{aiInfo.model}</b> · via {providerName(aiInfo.source)}, your prompt is sent to {providerName(aiInfo.source)}.</p>}
+          <div className="vibe-body">
+              {aiInfo.available
+                ? (providerIsLocal(aiInfo.source)
+                    ? <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
+                    : <p className="vibe-status">Cloud model: <b>{aiInfo.model}</b> · via {providerName(aiInfo.source)}, your prompt is sent to {providerName(aiInfo.source)}.</p>)
+                : <p className="vibe-status">{aiInfo.hint || 'No AI model is running.'} You can still say <i>"build a mars rover"</i> or <i>"go to the ocean"</i> and Kodro will do it — only writing code needs a local model.</p>}
               {ctxChip}
-              {aiInfo.models && aiInfo.models.length > 1 && (
+              {aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 12.5, color: 'var(--fg-2)' }}>Use model</span>
                   <select value={aiInfo.override || aiInfo.model || ''} onChange={e => pickModel(e.target.value)} aria-label="AI model"
@@ -661,6 +662,8 @@
                       <button className="btn-mini" onClick={() => { setVibeMsgs(ms => [...ms, { role: 'user', kind: 'text', text: '(discarded, try again)' }]); }}>Discard</button>
                     </div>
                   </div>
+                ) : m.kind === 'action' ? (
+                  <div key={i} className="vibe-msg ai action" role="status"><span className="vibe-action-badge">Done</span><span>{m.text}</span></div>
                 ) : (
                   <div key={i} className={'vibe-msg ' + m.role}><span>{m.text}</span></div>
                 ))}
@@ -686,27 +689,14 @@
                 <button className="ctrl ctrl-run" disabled={vibeBusy || !vibePrompt.trim()} onClick={vibeSend}>Send</button>
               </div>
               <span className="vibe-hint">Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time.</span>
-            </div>
-          ) : (
-            <div className="vibe-body">
-              {aiInfo.hint ? (
-                <>
-                  <p className="vibe-status">{aiInfo.hint}</p>
-                  {ctxChip}
-                </>
-              ) : (
-                <>
-                  <p className="vibe-status">AI is offline. Vibe coding uses a <b>local</b> model (no cloud, no account):</p>
-                  {ctxChip}
-                  <ol className="vibe-steps">
-                    <li>Install Ollama from ollama.com (free, offline after install)</li>
-                    <li>Run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
-                    <li>Reopen Kodro. This panel lights up automatically</li>
-                  </ol>
-                </>
+              {!aiInfo.available && (
+                <ol className="vibe-steps">
+                  <li>Writing code needs a <b>local</b> model (no cloud, no account). Install Ollama from ollama.com (free, offline after install)</li>
+                  <li>Run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
+                  <li>Reopen Kodro. Code writing lights up automatically</li>
+                </ol>
               )}
             </div>
-          )}
         </div>
       </div>
     );

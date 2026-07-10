@@ -1142,6 +1142,9 @@ kbd {
 }
 .vibe-msg.ai.code { max-width:100%; width:100%; padding:0; background:transparent; border:none; }
 .vibe-msg.ai.thinking span { color:var(--fg-3); font-style:italic; }
+/* Action line: the chat actually built a robot or switched world */
+.vibe-msg.ai.action { max-width:100%; display:flex; align-items:center; gap:8px; background:color-mix(in oklab, var(--cyan) 14%, var(--navy-2)); border:1px solid color-mix(in oklab, var(--cyan) 40%, transparent); border-radius:var(--radius-md); padding:8px 11px; }
+.vibe-action-badge { flex:none; font-size:var(--text-sm); font-weight:700; color:var(--navy-1); background:var(--cyan); border-radius:999px; padding:2px 8px; }
 .vibe-code {
   font-family:var(--font-mono); font-size:var(--text-md); line-height:1.55; color:var(--fg-1);
   background:var(--void); border:1px solid var(--border); border-radius:var(--radius-md) var(--radius-md) 0 0;

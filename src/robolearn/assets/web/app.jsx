@@ -388,7 +388,7 @@
       vibeError, setVibeError, vibeMsgs, setVibeMsgs, vibeEndRef, vibeLive,
       setVibeLive, vibeCancelRef, vibeSend, vibeClear,
     } = (window.KodroHooks && window.KodroHooks.useVibeChat)
-      ? window.KodroHooks.useVibeChat({ terrain, currentLessonIdRef })
+      ? window.KodroHooks.useVibeChat({ terrain, currentLessonIdRef, dispatchWorldAction })
       : {
         vibeOpen: false, setVibeOpen: function () {}, vibePrompt: '', setVibePrompt: function () {},
         vibeBusy: false, setVibeBusy: function () {}, vibeError: null, setVibeError: function () {},
@@ -548,6 +548,39 @@
       addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
       typewriteCode(code);
       selfTestReport(code);
+    }
+
+    // Short human description of a freshly built robot for the chat's action line.
+    function describeSpec(spec) {
+      if (!spec) return 'a robot';
+      const n = (spec.sensors || []).length;
+      let s = 'a ' + (spec.type || 'robot');
+      if (n) s += ' with ' + n + ' sensor' + (n === 1 ? '' : 's');
+      return s;
+    }
+
+    // Chat that acts on the world: when a Vibe message is a clear command to
+    // BUILD a robot or MOVE to a place (decided by the conservative
+    // KodroChatIntent parser -- questions and "make THE rover faster" never
+    // fire), actually do it and return a one-line summary for the thread. Runs
+    // even with no AI model available, so the build/move works offline; the
+    // model still gets called afterwards to write code for the new robot.
+    function dispatchWorldAction(text) {
+      if (!window.KodroChatIntent) return null;
+      const intent = window.KodroChatIntent.parse(text);
+      if (!intent || !intent.isCommand) return null;
+      const parts = [];
+      if (intent.build && window.RobotLab && window.RobotLab.buildFromText) {
+        const r = window.RobotLab.buildFromText(text); // builds + commits (fires kodro-robot)
+        if (r && r.understood) parts.push('Built ' + describeSpec(r.spec) + '.');
+        else parts.push('Built a general rover — I could not tell a specific robot from that, so say "rover", "car" or "arm" to be exact.');
+      }
+      if (intent.world && typeof onTerrain === 'function') {
+        onTerrain(intent.world.id); // explicit world wins over buildFromText's type-coarse auto-switch
+        parts.push('Moved to ' + intent.world.label + '.');
+      }
+      if (!parts.length) return null;
+      return { message: parts.join(' ') };
     }
 
     // runReview / applyReview moved to window.KodroHooks.useReview (hooks.jsx).

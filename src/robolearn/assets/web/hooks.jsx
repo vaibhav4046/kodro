@@ -264,7 +264,7 @@
       return arr
         .filter(m => m && typeof m.text === 'string' && (m.role === 'user' || m.role === 'ai'))
         .map(m => ({
-          role: m.role, kind: m.kind === 'code' ? 'code' : 'text', text: m.text,
+          role: m.role, kind: (m.kind === 'code' || m.kind === 'action') ? m.kind : 'text', text: m.text,
           model: m.model, validated: m.validated, validationError: m.validationError,
         }));
     } catch (_e) { return []; }
@@ -316,6 +316,14 @@
       if (vibeBusy || !text) return;
       const next = [...vibeMsgs, { role: 'user', kind: 'text', text }];
       setVibeMsgs(next); setVibePrompt(''); setVibeBusy(true); setVibeError(null); setVibeLive(''); vibeCancelRef.current = false;
+      // Chat that acts on the world: if this message is a clear build/move
+      // command, perform it NOW (before the model runs) so the robot grounding
+      // the model sees is the new robot. Works even when no AI model is present.
+      let actionMsg = null;
+      try { actionMsg = opts.dispatchWorldAction ? opts.dispatchWorldAction(text) : null; } catch (_e) { actionMsg = null; }
+      if (actionMsg && actionMsg.message) {
+        setVibeMsgs(m => [...m, { role: 'ai', kind: 'action', text: actionMsg.message }]);
+      }
       try {
         const history = next.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
         // Self-refinement in action: feed the lesson the system remembers from

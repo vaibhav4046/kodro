@@ -638,6 +638,28 @@ function checkMemoryGraph(chrome) {
   return { pass: false, reason: `Memory graph SVG present but sparse (nodes ${nodes}, edges ${edges}, worlds ${worlds}) — expected >=2 nodes, >=1 edge` };
 }
 
+// CHAT BUILDS THE WORLD (F-chat) — a Vibe message that is a clear build/move
+// command actually builds the robot and switches the world, and posts a visible
+// action line. This runs the real dispatch (KodroChatIntent -> RobotLab.build +
+// onTerrain) with NO model needed, so it works headless: "build a mars rover"
+// must produce an action bubble that names Mars and reports a built robot.
+function checkVibeBuild(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&vibe=${encodeURIComponent('build a mars rover')}`;
+  const { dom, error } = dumpDom(chrome, 'behaviour_vibe_build', url, { vtime: 12000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (!/class="vibe-msg ai action"/.test(dom)) {
+    return { pass: false, reason: 'no action line in the Vibe thread after a build command (chat did not act on the world)' };
+  }
+  if (!/Moved to Mars/.test(dom)) {
+    return { pass: false, reason: 'action line present but it did not move the world to Mars' };
+  }
+  if (!/Built a rover|Built a general rover/.test(dom)) {
+    return { pass: false, reason: 'world moved but no robot was built from the chat command' };
+  }
+  return { pass: true, reason: 'a "build a mars rover" chat command built the robot and moved the world to Mars (visible action line)' };
+}
+
 // STUDIO MODE (A1) — the default profile is the professional studio: the
 // Settings popover must carry the Mode control but NONE of the classroom
 // furniture (teacher dashboard, progress-report export, novelty themes).
@@ -1000,6 +1022,11 @@ function cleanup() {
   const memGraph = checkMemoryGraph(chrome);
   behaviour.push(memGraph.pass);
   console.log(`${memGraph.pass ? 'PASS' : 'FAIL'}  ${'memory-graph'.padEnd(20)} ${memGraph.reason}`);
+  gap();
+
+  const vibeBuild = checkVibeBuild(chrome);
+  behaviour.push(vibeBuild.pass);
+  console.log(`${vibeBuild.pass ? 'PASS' : 'FAIL'}  ${'chat-build'.padEnd(20)} ${vibeBuild.reason}`);
   gap();
 
   const goalMarker = checkGoalMarker(chrome);

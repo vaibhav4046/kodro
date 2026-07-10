@@ -18253,6 +18253,155 @@ Object.assign(window, {
 })();
 
 ;(function () {
+/* Chat intent parser for the Vibe assistant. Decides whether a chat message is
+ * a COMMAND to build a robot or move to a world/site, versus an ordinary
+ * request the model should answer with code or words.
+ *
+ * Deliberately CONSERVATIVE: a coding question like "how do I make the rover go
+ * faster?" must NOT trigger a rebuild. Only clear imperative build/move phrasing
+ * fires an action; everything else falls through to the normal chat path. Pure
+ * and deterministic so it can be unit-tested without a browser.
+ */
+(function () {
+  'use strict';
+
+  // Natural-language -> world / site id, with a human label for the reply.
+  // Base worlds: city, room, earth, mars, underwater, space. The rest are sites.
+  var WORLDS = [{
+    re: /\bmars\b|\bmartian\b|\bred planet\b/,
+    id: 'mars',
+    label: 'Mars'
+  }, {
+    re: /\bolympus\b/,
+    id: 'olympus',
+    label: 'Olympus Mons, Mars'
+  }, {
+    re: /\bunderwater\b|\bocean\b|\bsea ?floor\b|\bunder the sea\b|\bseabed\b/,
+    id: 'underwater',
+    label: 'the ocean floor'
+  }, {
+    re: /\breef\b|\bcoral\b/,
+    id: 'reef',
+    label: 'a coral reef'
+  }, {
+    re: /\bmariana\b|\bdeep ?sea\b|\babyss\b/,
+    id: 'mariana',
+    label: 'the Mariana Trench'
+  }, {
+    re: /\bmoon\b|\blunar\b|\btycho\b/,
+    id: 'space',
+    label: 'the Moon'
+  }, {
+    re: /\beuropa\b/,
+    id: 'europa',
+    label: 'Europa'
+  }, {
+    re: /\bwarehouse\b/,
+    id: 'warehouse',
+    label: 'the warehouse'
+  }, {
+    re: /\blab\b|\blaboratory\b|\btest bay\b/,
+    id: 'lab',
+    label: 'the robotics lab'
+  }, {
+    re: /\bcity\b|\bstreet\b|\broad\b|\btraffic\b|\burban\b/,
+    id: 'city',
+    label: 'the city streets'
+  }, {
+    re: /\broom\b|\bhome\b|\bhouse\b|\bindoor\b/,
+    id: 'room',
+    label: 'a home room'
+  }, {
+    re: /\bsahara\b|\bdesert\b/,
+    id: 'sahara',
+    label: 'the Sahara'
+  }, {
+    re: /\bamazon\b|\bjungle\b|\brainforest\b/,
+    id: 'amazon',
+    label: 'the Amazon'
+  }, {
+    re: /\bantarctica\b|\bantarctic\b|\bice\b/,
+    id: 'antarctica',
+    label: 'Antarctica'
+  }, {
+    re: /\bindia\b/,
+    id: 'india',
+    label: 'India'
+  }, {
+    re: /\bkenya\b|\bsavann?ah?\b/,
+    id: 'kenya',
+    label: 'Kenya'
+  }, {
+    re: /\bjapan\b|\btokyo\b/,
+    id: 'japan',
+    label: 'Japan'
+  }, {
+    re: /\begypt\b|\bpyramid\b/,
+    id: 'egypt',
+    label: 'Egypt'
+  }, {
+    re: /\biceland\b|\bvolcan/,
+    id: 'iceland',
+    label: 'Iceland'
+  }, {
+    re: /\bnepal\b|\bhimalaya|\bmountain\b/,
+    id: 'nepal',
+    label: 'Nepal'
+  }, {
+    re: /\bearth\b|\bgrass\b|\bfield\b/,
+    id: 'earth',
+    label: 'Earth'
+  }];
+
+  // A message that clearly asks a question is never treated as a command.
+  var QUESTION_RE = /^\s*(how|what|why|when|where|which|who|can|could|should|would|does|do|is|are|will|explain|tell me)\b/i;
+
+  // A build command needs the verb, an INDEFINITE article (a/an/new/another/…),
+  // then a robot noun. The article is what separates "make A rover" (build) from
+  // "make THE rover spin" (a coding request about the existing robot).
+  var BUILD_CMD_RE = /\b(build|make|create|design|assemble|construct|spawn|give me|i want|i need|let'?s build)\b[^.?!]*?\b(a|an|another|new|some|\d+)\b[^.?!]*?\b(rover|robot|car|vehicle|arm|manipulator|drone|bot|crawler|buggy|machine)\b/i;
+  var MOVE_VERB = /\b(go to|take me to|take us to|switch to|move to|drive to|send (me|it|us) to|put (me|it|us) (on|in)|set the world to|explore|deploy (on|in|to)|visit|travel to)\b/i;
+  function findWorld(t) {
+    for (var i = 0; i < WORLDS.length; i++) {
+      if (WORLDS[i].re.test(t)) return {
+        id: WORLDS[i].id,
+        label: WORLDS[i].label
+      };
+    }
+    return null;
+  }
+
+  // parse(text) -> { build, world, isCommand }
+  //   build: true when the text is an imperative to build/create a robot.
+  //   world: {id,label} when the text names a place to move to, else null.
+  //   isCommand: build || !!world  (whether any world/robot action should run).
+  function parse(text) {
+    var raw = String(text || '');
+    var t = raw.toLowerCase();
+    var isQuestion = QUESTION_RE.test(raw);
+    var named = findWorld(t);
+    // Never act on a question ("how do I make the rover faster?", "why crash on mars?").
+    var build = !isQuestion && BUILD_CMD_RE.test(t);
+
+    // Honour a named world when the message either moves explicitly ("go to
+    // mars", "on the moon") OR is itself a build command ("build a mars rover"
+    // -> put it on Mars). A bare place phrase ("on/to/in <place>") also counts.
+    var explicitMove = !!named && (MOVE_VERB.test(t) || /\b(on|to|in)\s+(the\s+)?[a-z]/.test(t));
+    var world = !isQuestion && named && (explicitMove || build) ? named : null;
+    return {
+      build: build,
+      world: world,
+      isCommand: build || !!world
+    };
+  }
+  window.KodroChatIntent = {
+    parse: parse,
+    findWorld: findWorld
+  };
+})();
+})();
+
+;(function () {
 /* ============================================================================
    KODRO - pure simulation physics (extracted from useSimEngine, hooks.jsx)
 
@@ -18790,7 +18939,7 @@ Object.assign(window, {
       if (!Array.isArray(arr)) return [];
       return arr.filter(m => m && typeof m.text === 'string' && (m.role === 'user' || m.role === 'ai')).map(m => ({
         role: m.role,
-        kind: m.kind === 'code' ? 'code' : 'text',
+        kind: m.kind === 'code' || m.kind === 'action' ? m.kind : 'text',
         text: m.text,
         model: m.model,
         validated: m.validated,
@@ -18867,6 +19016,22 @@ Object.assign(window, {
       setVibeError(null);
       setVibeLive('');
       vibeCancelRef.current = false;
+      // Chat that acts on the world: if this message is a clear build/move
+      // command, perform it NOW (before the model runs) so the robot grounding
+      // the model sees is the new robot. Works even when no AI model is present.
+      let actionMsg = null;
+      try {
+        actionMsg = opts.dispatchWorldAction ? opts.dispatchWorldAction(text) : null;
+      } catch (_e) {
+        actionMsg = null;
+      }
+      if (actionMsg && actionMsg.message) {
+        setVibeMsgs(m => [...m, {
+          role: 'ai',
+          kind: 'action',
+          text: actionMsg.message
+        }]);
+      }
       try {
         const history = next.map(m => ({
           role: m.role === 'user' ? 'user' : 'assistant',
@@ -22663,13 +22828,15 @@ say("Survey done")`
       }
     }, "\u2715"))), /*#__PURE__*/React.createElement(ProviderPicker, {
       onChange: refreshAiStatus
-    }), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
+    }), /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
-    }, providerIsLocal(aiInfo.source) ? /*#__PURE__*/React.createElement("p", {
+    }, aiInfo.available ? providerIsLocal(aiInfo.source) ? /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
     }, "Local model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 runs entirely on this machine, nothing leaves it.") : /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "Cloud model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 via ", providerName(aiInfo.source), ", your prompt is sent to ", providerName(aiInfo.source), "."), ctxChip, aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
+    }, "Cloud model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 via ", providerName(aiInfo.source), ", your prompt is sent to ", providerName(aiInfo.source), ".") : /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, aiInfo.hint || 'No AI model is running.', " You can still say ", /*#__PURE__*/React.createElement("i", null, "\"build a mars rover\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"go to the ocean\""), " and Kodro will do it \u2014 only writing code needs a local model."), ctxChip, aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -22732,7 +22899,13 @@ say("Survey done")`
           text: '(discarded, try again)'
         }]);
       }
-    }, "Discard"))) : /*#__PURE__*/React.createElement("div", {
+    }, "Discard"))) : m.kind === 'action' ? /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "vibe-msg ai action",
+      role: "status"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "vibe-action-badge"
+    }, "Done"), /*#__PURE__*/React.createElement("span", null, m.text)) : /*#__PURE__*/React.createElement("div", {
       key: i,
       className: 'vibe-msg ' + m.role
     }, /*#__PURE__*/React.createElement("span", null, m.text))), vibeBusy && /*#__PURE__*/React.createElement("div", {
@@ -22766,15 +22939,9 @@ say("Survey done")`
       onClick: vibeSend
     }, "Send")), /*#__PURE__*/React.createElement("span", {
       className: "vibe-hint"
-    }, "Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time.")) : /*#__PURE__*/React.createElement("div", {
-      className: "vibe-body"
-    }, aiInfo.hint ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, aiInfo.hint), ctxChip) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "AI is offline. Vibe coding uses a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account):"), ctxChip, /*#__PURE__*/React.createElement("ol", {
+    }, "Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time."), !aiInfo.available && /*#__PURE__*/React.createElement("ol", {
       className: "vibe-steps"
-    }, /*#__PURE__*/React.createElement("li", null, "Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. This panel lights up automatically"))))));
+    }, /*#__PURE__*/React.createElement("li", null, "Writing code needs a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account). Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. Code writing lights up automatically")))));
   }
 
   // ---- Blocks (visual block editor) ----
@@ -23512,7 +23679,8 @@ say("Survey done")`
       vibeClear
     } = window.KodroHooks && window.KodroHooks.useVibeChat ? window.KodroHooks.useVibeChat({
       terrain,
-      currentLessonIdRef
+      currentLessonIdRef,
+      dispatchWorldAction
     }) : {
       vibeOpen: false,
       setVibeOpen: function () {},
@@ -23784,6 +23952,40 @@ say("Survey done")`
       addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
       typewriteCode(code);
       selfTestReport(code);
+    }
+
+    // Short human description of a freshly built robot for the chat's action line.
+    function describeSpec(spec) {
+      if (!spec) return 'a robot';
+      const n = (spec.sensors || []).length;
+      let s = 'a ' + (spec.type || 'robot');
+      if (n) s += ' with ' + n + ' sensor' + (n === 1 ? '' : 's');
+      return s;
+    }
+
+    // Chat that acts on the world: when a Vibe message is a clear command to
+    // BUILD a robot or MOVE to a place (decided by the conservative
+    // KodroChatIntent parser -- questions and "make THE rover faster" never
+    // fire), actually do it and return a one-line summary for the thread. Runs
+    // even with no AI model available, so the build/move works offline; the
+    // model still gets called afterwards to write code for the new robot.
+    function dispatchWorldAction(text) {
+      if (!window.KodroChatIntent) return null;
+      const intent = window.KodroChatIntent.parse(text);
+      if (!intent || !intent.isCommand) return null;
+      const parts = [];
+      if (intent.build && window.RobotLab && window.RobotLab.buildFromText) {
+        const r = window.RobotLab.buildFromText(text); // builds + commits (fires kodro-robot)
+        if (r && r.understood) parts.push('Built ' + describeSpec(r.spec) + '.');else parts.push('Built a general rover — I could not tell a specific robot from that, so say "rover", "car" or "arm" to be exact.');
+      }
+      if (intent.world && typeof onTerrain === 'function') {
+        onTerrain(intent.world.id); // explicit world wins over buildFromText's type-coarse auto-switch
+        parts.push('Moved to ' + intent.world.label + '.');
+      }
+      if (!parts.length) return null;
+      return {
+        message: parts.join(' ')
+      };
     }
 
     // runReview / applyReview moved to window.KodroHooks.useReview (hooks.jsx).
