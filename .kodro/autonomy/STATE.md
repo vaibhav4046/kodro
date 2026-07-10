@@ -9,7 +9,7 @@ Execute the Codex master prompt: drive Kodro toward an honestly-accepted release
 via the loop Measure -> Judge -> Reproduce -> Prioritise -> Patch -> Regress ->
 Integrate -> Verify -> Rejudge -> Record. No audit-only stop.
 
-## Verified baseline (rerun, not quoted) at commit e801511
+## Verified baseline at commit c6375bc (CI green 3 OSes, deployed, live 200)
 - git: clean tree, origin/main == origin/kodro-identity-pass == e801511
 - bundle.js fresh (build_web.cjs --check)
 - qa_interpreter 157/0 | qa_grader 34/0 | qa_physics 20/0 | qa_ai_web 19/0
@@ -20,8 +20,10 @@ Integrate -> Verify -> Rejudge -> Record. No audit-only stop.
   auto-starts+warms it via ollama_client.ensure_server().
 
 ## Active slice
-Root-cause + fix the highest-severity VERIFIED defects from the parallel judge
-pass (agents running). Then next-highest opportunity from the scout map.
+Judge round c6375bc DONE + LIVE. NEXT: OPP-1 (in-browser pupil records store) --
+web Teacher Dashboard is a dead empty-state; see BACKLOG.json for slice + gate.
+Watch: local qa_ui/qa_worlds flake on chrome-spawn ETIMEDOUT under sustained
+local load; rerun after cooldown or lean on CI (which does not run qa_ui).
 
 ## Exact next command on resume
     cd /d/project/robolearn && node scripts/qa_interpreter.mjs | tail -1   # confirm green
