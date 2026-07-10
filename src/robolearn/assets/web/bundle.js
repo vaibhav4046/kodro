@@ -2304,23 +2304,30 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     var robots = Object.keys(robotSet).sort();
     var nodes = [];
     var edges = [];
+    var hubById = {};
     worlds.forEach(function (w, i) {
-      nodes.push({
+      var n = {
         id: 'world:' + w,
         label: w,
         kind: 'world',
+        degree: 0,
         x: X_WORLD,
         y: colY(i, worlds.length)
-      });
+      };
+      hubById[n.id] = n;
+      nodes.push(n);
     });
     robots.forEach(function (t, i) {
-      nodes.push({
+      var n = {
         id: 'robot:' + t,
         label: t,
         kind: 'robot',
+        degree: 0,
         x: X_ROBOT,
         y: colY(i, robots.length)
-      });
+      };
+      hubById[n.id] = n;
+      nodes.push(n);
     });
     var items = [];
     skills.forEach(function (s, i) {
@@ -2341,18 +2348,33 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         robotType: r.robotType
       });
     });
+    // Sort items by (world, robotType) so edges to the same hubs leave from
+    // neighbouring rows -- far fewer crossings than insertion order.
+    items.sort(function (a, b) {
+      var k1 = (a.world || '~') + '|' + (a.robotType || '~');
+      var k2 = (b.world || '~') + '|' + (b.robotType || '~');
+      return k1 < k2 ? -1 : k1 > k2 ? 1 : 0;
+    });
     items.forEach(function (it, i) {
       it.x = X_ITEM;
       it.y = colY(i, items.length);
       nodes.push(it);
-      if (it.world && worldSet[it.world]) edges.push({
-        from: it.id,
-        to: 'world:' + it.world
-      });
-      if (it.robotType && robotSet[it.robotType]) edges.push({
-        from: it.id,
-        to: 'robot:' + it.robotType
-      });
+      if (it.world && worldSet[it.world]) {
+        edges.push({
+          from: it.id,
+          to: 'world:' + it.world,
+          kind: 'world'
+        });
+        hubById['world:' + it.world].degree += 1;
+      }
+      if (it.robotType && robotSet[it.robotType]) {
+        edges.push({
+          from: it.id,
+          to: 'robot:' + it.robotType,
+          kind: 'robot'
+        });
+        hubById['robot:' + it.robotType].degree += 1;
+      }
     });
     return {
       nodes: nodes,
@@ -7701,7 +7723,12 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       // the LIGHT gauge, the light() sensor and this picture agree. Low tier
       // keeps noon/clear (med+ static per the plan); a preset change remounts
       // the viewport through the app-side key, so this is build-time only.
-      const _tod = !indoor && Q !== 'low' && terrain && terrain.tod || 'noon';
+      // Time-of-day applies at EVERY quality tier: the app-side applyTod
+      // already scaled env.light (the LIGHT gauge and the light() sensor), so
+      // gating the visuals on quality left Low users with a noon-bright scene
+      // while their gauge read 20% -- picture and instruments must agree. The
+      // tod light maths is cheap; only the streetlamp cones stay gated below.
+      const _tod = !indoor && terrain && terrain.tod || 'noon';
       const todAdj = _tod !== 'noon' && window.KodroWorldFX && window.KodroWorldFX.todShift ? window.KodroWorldFX.todShift(_tod) : null;
       const _weather = !indoor && terrain && terrain.weather || 'clear';
       const storm = _weather === 'storm' && id === 'mars' && Q !== 'low';
@@ -8986,10 +9013,12 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           const tyre = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.36, 18), wM);
           tyre.rotation.x = Math.PI / 2;
           tyre.castShadow = true;
+          // The faceted rim is a CHILD of the tyre so it inherits the roll spin
+          // (as a sibling it stayed frozen, and the smooth tyre alone shows no
+          // visible rotation -- wheels looked motionless while driving).
           const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.4, 8), rimM);
-          rim.rotation.x = Math.PI / 2;
+          tyre.add(rim);
           wheel.add(tyre);
-          wheel.add(rim);
           wheel.position.set(p[0], 0.5, p[1]);
           parent.add(wheel);
           if (register) register(wheel, tyre, p[0] > 0);
@@ -9143,7 +9172,9 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
               mesh.rotation.y = Math.atan2(a.dy, a.dx);
               if (ag.kind === 'person' && mesh._legs) posePerson(mesh, a);else if (ag.kind === 'car' && mesh._tyres) {
                 spin += (a.speed || 0) * SCALE * 2 * (dts || 0); // v/r, r=0.5
-                for (let k = 0; k < mesh._tyres.length; k++) mesh._tyres[k].rotation.y = spin;
+                // Negative: the axle is the tyre's local +Y (parent +Z), and a
+                // positive turn about it rolls the wheel BACKWARD for +x travel.
+                for (let k = 0; k < mesh._tyres.length; k++) mesh._tyres[k].rotation.y = -spin;
                 // R4: brake lights flare while the car is slowing or held
                 if (mesh._tailM) mesh._tailM.emissiveIntensity = a.vel != null && a.base && a.vel < a.base * 0.6 ? 1.9 : 0.8;
               }
@@ -10068,21 +10099,31 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           const tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.32, 16), wm);
           tyre.rotation.x = Math.PI / 2;
           tyre.castShadow = true;
+          // The 8-facet hub is a CHILD of the tyre so it spins with the roll;
+          // as a sibling it stayed frozen and the smooth tyre alone reads as a
+          // motionless wheel.
           const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.42, r * 0.42, 0.34, 8), hubM);
-          hub.rotation.x = Math.PI / 2;
+          tyre.add(hub);
           tyre.userData.side = p[1] >= 0 ? 1 : -1; // R9: left/right for counter-rotation
           wheel.add(tyre);
-          wheel.add(hub);
           wheel.position.set(p[0], r, p[1]);
           rov.add(wheel);
           wheels.push(tyre);
           if (p[0] > 0) steer.push(wheel); // front axle steers
         });
       };
-      const arrow = y => {
-        const a = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 4), accMat);
+      // Heading indicator: a flat chevron painted on the robot's NOSE, apex
+      // forward (+x). The old version was a pyramid floating at mast height,
+      // which read as a light beam spraying BACKWARD out of the mast bulb (a
+      // real user reported exactly that). Painted on the body surface at the
+      // front, it reads as direction and nothing else. rotation.z = -PI/2
+      // points the cone's +Y axis along +x; scale.x then flattens the local X
+      // axis (vertical after that rotation) so it lies like a decal.
+      const arrow = (x, y) => {
+        const a = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.7, 3), accMat);
         a.rotation.z = -Math.PI / 2;
-        a.position.set(0.2, y, 0);
+        a.scale.x = 0.22;
+        a.position.set(x, y, 0);
         body.add(a);
       };
       if (rType === 'car') {
@@ -10091,7 +10132,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           wheels.push(tyre);
           if (front) steer.push(wheel);
         });
-        arrow(2.05);
+        arrow(1.1, 1.26);
         // Headlights as real spotlights (children of rov so they track the car).
         // Forward is +x; only the left one casts a shadow to keep the cost down.
         [[0.55], [-0.55]].forEach((zArr, idx) => {
@@ -10170,7 +10211,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         // wheels pushed out past the base skirt so they are actually visible
         // (at the old 0.55 they were buried inside the ~1.0-radius base).
         addWheels([[0, 1.05], [0, -1.05]], 0.32);
-        arrow(3.5);
+        arrow(0.6, 0.56);
       } else if (rType === 'arm') {
         const armM = new THREE.MeshStandardMaterial({
           color: 0xc7ccd4,
@@ -10211,7 +10252,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM);
         g2.position.set(2.7, 3.7, -0.22);
         body.add(g2);
-        arrow(1.3);
+        arrow(0.68, 0.74);
       } else {
         // rover (and custom): chassis, solar deck, sensor mast with a camera eye.
         const bodyMat = new THREE.MeshStandardMaterial({
@@ -10263,7 +10304,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           body.add(l);
         });
         addWheels([[0.95, 0.95], [0.95, -0.95], [-0.95, 0.95], [-0.95, -0.95]], 0.5);
-        arrow(2.05);
+        arrow(1.02, 1.32);
       }
       // Sensor attachments: small modules on the body reflecting the FITTED
       // parts, so the robot the user designed is visible. Mounted on `body` so
@@ -10617,7 +10658,10 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         // moves (it was crabbing 90deg before). Matches how the agents face.
         rov.rotation.y = curHeading - Math.PI / 2;
         const moved = Math.hypot(cur.x - px0, cur.z - pz0);
-        if (moved > 0.001) wheels.forEach(wh => wh.rotateY(moved * 1.6));
+        // Negative: a positive turn about the axle (tyre local +Y, parent +Z)
+        // rolls the wheel backward relative to +x travel; wheels were spinning
+        // the wrong way (same sign family as the backward-reading heading cone).
+        if (moved > 0.001) wheels.forEach(wh => wh.rotateY(-moved * 1.6));
         // Rover status LED: pulses on a slow sine and tracks the live LED colour
         // (s.led is a hex string set by led("cyan") etc.), falling back to accent.
         if (ledIndicator) {
@@ -10656,7 +10700,10 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           }
         }
         // pitch: nose lifts under acceleration, dips under braking (about the lateral axis = local z)
-        bodyPitch += (clamp(-accel * 7, -0.16, 0.16) * feel.pitch - bodyPitch) * 0.18;
+        // Positive: rotation.z > 0 lifts the nose (+x toward +y), and real
+        // weight transfer lifts the nose under acceleration, dips it braking.
+        // The old -accel had it exactly backwards.
+        bodyPitch += (clamp(accel * 7, -0.16, 0.16) * feel.pitch - bodyPitch) * 0.18;
         // roll: lean into the turn (about the forward axis = local x), more at speed
         bodyRoll += (clamp(turn * 9 + turn * vsmooth * 22, -0.24, 0.24) * feel.roll - bodyRoll) * 0.16;
         // suspension: a small settle driven by acceleration, eased back to rest
@@ -10928,6 +10975,15 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       }
     }, [focusKey]);
 
+    // Keep the canvas's screen-reader label honest per camera mode: orbit and
+    // zoom only exist in third person; in first person those inputs no-op, so
+    // promising them (in the label or the caption below) is a lie.
+    useEffect(() => {
+      const cv = mountRef.current && mountRef.current.querySelector('canvas');
+      if (!cv) return;
+      cv.setAttribute('aria-label', fpv ? 'Three dimensional world, first person view riding the robot.' : 'Three dimensional world. Drag or use the arrow keys to orbit, plus and minus to zoom.');
+    }, [fpv]);
+
     // A caption that surfaces the keyboard controls. It is hidden until the
     // canvas is focused (see .vp3d-help in styles.css), so sighted keyboard
     // users get a visible hint the moment they tab in, without cluttering the
@@ -10941,7 +10997,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }, React.createElement('div', {
       className: 'vp3d-help',
       'aria-hidden': 'true'
-    }, 'Arrow keys orbit  ·  +/- zoom  ·  drag to look'), terrain && terrain.name ? React.createElement('div', {
+    }, fpv ? 'First person · riding the robot' : 'Arrow keys orbit  ·  +/- zoom  ·  drag to look'), terrain && terrain.name ? React.createElement('div', {
       className: 'vp3d-site'
     }, React.createElement('span', {
       className: 'vp3d-site-name'
@@ -15821,6 +15877,42 @@ Object.assign(window, {
     return null;
   }
 
+  // --- learner-facing goal checklist helpers --------------------------------
+  // The lesson card shows each criterion as a goal the pupil can read BEFORE
+  // running, then ticks or crosses it against the verdict. describeCriterion
+  // turns the machine criterion into plain English; criterionFailedIn says
+  // whether a verdict reason belongs to this criterion (the patterns mirror
+  // the exact message templates in checkCriterion above -- change one, change
+  // the other).
+  var CONSTRUCT_LABEL = {
+    for: 'a for loop',
+    while: 'a while loop',
+    if: 'an if statement',
+    function_def: 'a function (def)',
+    recursion: 'recursion'
+  };
+  function describeCriterion(c) {
+    if (!c) return '';
+    if (c.samples_collected !== undefined) return 'Collect ' + c.samples_collected + ' sample' + (c.samples_collected === 1 ? '' : 's');
+    if (c.no_collisions === true) return 'Do not hit anything';
+    if (c.max_battery_used !== undefined) return 'Use at most ' + c.max_battery_used + '% battery';
+    if (c.uses_construct !== undefined) return 'Use ' + (CONSTRUCT_LABEL[c.uses_construct] || "'" + c.uses_construct + "'");
+    if (c.returns_to_base === true) return 'Return to base';
+    if (c.max_steps !== undefined) return 'Use at most ' + c.max_steps + ' commands';
+    if (c.min_distance_travelled !== undefined) return 'Travel at least ' + c.min_distance_travelled + ' m';
+    return Object.keys(c).join(', ');
+  }
+  function criterionFailedIn(c, reasons) {
+    if (!c || !reasons || !reasons.length) return false;
+    var re = null;
+    if (c.samples_collected !== undefined) re = /^Collected \d+ of \d+ samples\./;else if (c.no_collisions === true) re = /collision/;else if (c.max_battery_used !== undefined) re = /^Battery used /;else if (c.uses_construct !== undefined) re = new RegExp("did not use the required '" + c.uses_construct + "'");else if (c.returns_to_base === true) re = /did not return to base/;else if (c.max_steps !== undefined) re = /API calls \(limit/;else if (c.min_distance_travelled !== undefined) re = /^Travelled [\s\S]*minimum/;
+    if (!re) return false;
+    for (var i = 0; i < reasons.length; i++) {
+      if (re.test(String(reasons[i]))) return true;
+    }
+    return false;
+  }
+
   // --- public API -------------------------------------------------------------
 
   function firstHint(entry, passed) {
@@ -15893,6 +15985,8 @@ Object.assign(window, {
     },
     gradeSync: gradeSync,
     sourceUses: sourceUses,
+    describeCriterion: describeCriterion,
+    criterionFailedIn: criterionFailedIn,
     LESSON_DATA: LESSON_DATA
   };
 })();
@@ -16435,8 +16529,10 @@ Object.assign(window, {
       // (with the shared PASS_RATE fallback for older reports), so the demo
       // agrees with the studio and the dashboard instead of its own threshold.
       const passed = g.passed != null ? g.passed : (g.successRate || 0) >= (window.KodroScenario && window.KodroScenario.PASS_RATE || 0.6);
+      // Honest about the store: SQLite only exists under the desktop bridge;
+      // the browser build persists to on-device memory (localStorage).
       return {
-        text: 'Success ' + Math.round((g.successRate || 0) * 100) + '% (' + g.successCount + '/' + g.seeds + '), mean collisions ' + g.meanCollisions + ', mean battery ' + g.meanBattery + '%, mean score ' + g.meanScore + '. Saved to memory and SQLite.',
+        text: 'Success ' + Math.round((g.successRate || 0) * 100) + '% (' + g.successCount + '/' + g.seeds + '), mean collisions ' + g.meanCollisions + ', mean battery ' + g.meanBattery + '%, mean score ' + g.meanScore + '. Saved to memory' + (window.pywebview ? ' and SQLite' : ' on this device') + '.',
         tone: passed ? 'ok' : 'warn'
       };
     }
@@ -22339,7 +22435,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, KI('ask'), "Ask. ", askData && !providerIsLocal(askData.source) ? 'Answered by ' + providerName(askData.source) + ' (your key); your question is sent to ' + providerName(askData.source) : askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Answers come from the built-in lesson notes when they cover it'), /*#__PURE__*/React.createElement("button", {
+    }, KI('ask'), "Ask. ", askData && !providerIsLocal(askData.source) ? 'Answered by ' + providerName(askData.source) + ' (your key); your question is sent to ' + providerName(askData.source) : askData && askData.grounded === false ? 'Answered by the local model on this machine' : window.pywebview ? 'Answers come from the built-in lesson notes when they cover it' : 'Answered by the AI model on this machine'), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => setAskOpen(false)
@@ -22484,25 +22580,33 @@ say("Survey done")`
       }, memGraph.edges.map((e, i) => {
         const a = pos[e.from],
           b = pos[e.to];
-        return a && b ? /*#__PURE__*/React.createElement("line", {
+        if (!a || !b) return null;
+        // Quadratic curve bowing toward the hub column: reads as a link,
+        // not a scatter of straight wires crossing the middle.
+        const mx = (a.x + b.x) / 2,
+          my = (a.y + b.y) / 2 + (b.y === a.y ? 0 : b.y > a.y ? 14 : -14);
+        return /*#__PURE__*/React.createElement("path", {
           key: 'e' + i,
-          className: "mem-graph-edge",
-          x1: a.x,
-          y1: a.y,
-          x2: b.x,
-          y2: b.y
-        }) : null;
-      }), memGraph.nodes.map((n, i) => /*#__PURE__*/React.createElement("g", {
-        key: 'n' + i,
-        className: 'mem-graph-node mem-graph-' + n.kind,
-        transform: 'translate(' + n.x + ',' + n.y + ')'
-      }, /*#__PURE__*/React.createElement("circle", {
-        r: n.kind === 'world' || n.kind === 'robot' ? 8 : 5
-      }), /*#__PURE__*/React.createElement("text", {
-        x: n.kind === 'world' ? -12 : n.kind === 'robot' ? 12 : 9,
-        y: 4,
-        textAnchor: n.kind === 'world' ? 'end' : 'start'
-      }, n.label)))), /*#__PURE__*/React.createElement("p", {
+          className: 'mem-graph-edge ' + (e.kind || ''),
+          d: 'M' + a.x + ' ' + a.y + ' Q' + mx + ' ' + my + ' ' + b.x + ' ' + b.y,
+          fill: "none"
+        });
+      }), memGraph.nodes.map((n, i) => {
+        const isHub = n.kind === 'world' || n.kind === 'robot';
+        const r = isHub ? 7 + Math.min(6, (n.degree || 0) * 1.4) : 5;
+        const tip = isHub ? n.label + ' — ' + (n.kind === 'world' ? 'world' : 'robot type') + ', ' + (n.degree || 0) + ' linked memor' + ((n.degree || 0) === 1 ? 'y' : 'ies') : n.label + ' — ' + (n.kind === 'skill' ? 'saved skill' : 'run note');
+        return /*#__PURE__*/React.createElement("g", {
+          key: 'n' + i,
+          className: 'mem-graph-node mem-graph-' + n.kind,
+          transform: 'translate(' + n.x + ',' + n.y + ')'
+        }, /*#__PURE__*/React.createElement("title", null, tip), /*#__PURE__*/React.createElement("circle", {
+          r: r
+        }), /*#__PURE__*/React.createElement("text", {
+          x: n.kind === 'world' ? -(r + 5) : n.kind === 'robot' ? r + 5 : r + 4,
+          y: 4,
+          textAnchor: n.kind === 'world' ? 'end' : 'start'
+        }, n.label));
+      })), /*#__PURE__*/React.createElement("p", {
         className: "mem-graph-legend"
       }, /*#__PURE__*/React.createElement("span", {
         className: "mem-graph-key world"
@@ -22836,7 +22940,7 @@ say("Survey done")`
       className: "vibe-status"
     }, "Cloud model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 via ", providerName(aiInfo.source), ", your prompt is sent to ", providerName(aiInfo.source), ".") : /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, aiInfo.hint || 'No AI model is running.', " You can still say ", /*#__PURE__*/React.createElement("i", null, "\"build a mars rover\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"go to the ocean\""), " and Kodro will do it \u2014 only writing code needs a local model."), ctxChip, aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
+    }, aiInfo.hint || 'No AI model is running.', " You can still say ", /*#__PURE__*/React.createElement("i", null, "\"build a mars rover\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"go to the ocean\""), " and Kodro will do it \u2014 only writing code needs an AI (a local model, or a cloud key above)."), ctxChip, aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -22893,11 +22997,11 @@ say("Survey done")`
     }, "\u2713 Apply to editor"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       onClick: () => {
-        setVibeMsgs(ms => [...ms, {
-          role: 'user',
-          kind: 'text',
-          text: '(discarded, try again)'
-        }]);
+        // Discard means discard: drop THIS code block from the
+        // thread (and so from storage and the model's history),
+        // instead of appending a fake user bubble that left the
+        // rejected code and its Apply button live.
+        setVibeMsgs(ms => ms.filter((_, j) => j !== i));
       }
     }, "Discard"))) : m.kind === 'action' ? /*#__PURE__*/React.createElement("div", {
       key: i,
@@ -22912,7 +23016,7 @@ say("Survey done")`
       className: "vibe-msg ai thinking"
     }, vibeLive ? /*#__PURE__*/React.createElement("pre", {
       className: "vibe-live"
-    }, vibeLive) : /*#__PURE__*/React.createElement("span", null, "Thinking\u2026")), /*#__PURE__*/React.createElement("div", {
+    }, vibeLive.length > 700 ? '…' + vibeLive.slice(-700) : vibeLive) : /*#__PURE__*/React.createElement("span", null, "Thinking\u2026")), /*#__PURE__*/React.createElement("div", {
       ref: vibeEndRef
     })), vibeError && /*#__PURE__*/React.createElement("p", {
       className: "vibe-error",
@@ -22941,7 +23045,7 @@ say("Survey done")`
       className: "vibe-hint"
     }, "Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time."), !aiInfo.available && /*#__PURE__*/React.createElement("ol", {
       className: "vibe-steps"
-    }, /*#__PURE__*/React.createElement("li", null, "Writing code needs a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account). Install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. Code writing lights up automatically")))));
+    }, /*#__PURE__*/React.createElement("li", null, "Writing code needs an AI. The private way is a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account): install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. Code writing lights up automatically. Or pick a cloud provider above and paste your own key")))));
   }
 
   // ---- Blocks (visual block editor) ----
@@ -23483,6 +23587,11 @@ say("Survey done")`
       }
     }); // per-lesson editable code
     const [lessonVerdict, setLessonVerdict] = useState(null); // {passed,score,reasons,hint}
+    // Learner scaffolding: how many consecutive fails on this lesson (drives
+    // the "the app noticed you are stuck" nudge) and how many extra hints the
+    // pupil has revealed from the lesson's hint bank (progressive help).
+    const [lessonAttempts, setLessonAttempts] = useState(0);
+    const [extraHints, setExtraHints] = useState(0);
     // The editor's current source: a lesson's own buffer when one is loaded,
     // otherwise the active example tab. (Declared AFTER the state above to
     // avoid a temporal-dead-zone ReferenceError.)
@@ -24088,6 +24197,8 @@ say("Survey done")`
       if (!lesson) return;
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
+      setLessonAttempts(0);
+      setExtraHints(0);
       // Render the rover on the SAME world it is graded against. Without this
       // the viewport could show a persisted Mars while the grader ran the
       // lesson's real terrain, so a pass looked like it happened elsewhere.
@@ -24139,6 +24250,24 @@ say("Survey done")`
           if (classroom) celebrate();
         } else {
           sfx('fail');
+        }
+        // Stuck detection: on the second consecutive fail, reveal the lesson's
+        // second hint automatically and say so, instead of repeating hint one
+        // forever. Attempts reset on pass and on switching lesson.
+        if (r.passed) {
+          setLessonAttempts(0);
+        } else {
+          setLessonAttempts(a => {
+            const n = a + 1;
+            if (n === 2) {
+              setExtraHints(x => Math.max(x, 1));
+              setConsoleLines(l => [...l, {
+                type: 'sys',
+                text: 'Still stuck? I have opened another hint in the lesson card. The Ask button can also explain this error.'
+              }]);
+            }
+            return n;
+          });
         }
         const tag = r.passed ? 'ok' : 'err';
         setConsoleLines(l => {
@@ -24902,7 +25031,7 @@ say("Survey done")`
       className: "panel-actions"
     }, /*#__PURE__*/React.createElement("button", {
       className: "btn-mini btn-vibe",
-      title: aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)',
+      title: aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs a local model or a cloud key)',
       onClick: () => setVibeOpen(true)
     }, KI('vibe'), "Vibe"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
@@ -24910,7 +25039,7 @@ say("Survey done")`
       onClick: () => setBlocksOpen(true)
     }, KI('blocks'), "Blocks"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      title: aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)',
+      title: aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)',
       onClick: runReview
     }, KI('review'), "Review"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
@@ -24922,7 +25051,7 @@ say("Survey done")`
       onClick: () => setDemoOpen(true)
     }, KI('demo'), "Demo"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      title: aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs local Ollama)',
+      title: aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs a local model or a cloud key)',
       onClick: () => {
         setAskOpen(true);
         setAskData(null);
@@ -24965,6 +25094,18 @@ say("Survey done")`
       if (!classroom) return null; // lessons are classroom furniture (A1)
       const lesson = lessons.find(l => l.id === currentLessonId);
       if (!lesson) return null;
+      // Goal checklist + progressive hints, powered by the grader's
+      // own per-lesson data (criteria + the full hint bank), so the
+      // card promises exactly what the grader will check.
+      const G = window.KodroLessonGrader;
+      const ldata = G && G.LESSON_DATA && G.LESSON_DATA[lesson.id] || null;
+      const goals = ldata && ldata.criteria || [];
+      const hintBank = ldata && ldata.hints && ldata.hints.onFailure || [];
+      const lessonFailed = !!(lessonVerdict && !lessonVerdict.passed);
+      const hintsShownByVerdict = lessonFailed && lessonVerdict.hint && lessonVerdict.hint.message ? 1 : 0;
+      const revealedHints = hintBank.slice(hintsShownByVerdict, hintsShownByVerdict + extraHints);
+      const moreHintsLeft = hintsShownByVerdict + extraHints < hintBank.length;
+      const nextLesson = lessonVerdict && lessonVerdict.passed ? lessons[lessons.findIndex(l => l.id === lesson.id) + 1] || null : null;
       return /*#__PURE__*/React.createElement("section", {
         className: "lesson-card",
         "aria-label": "Current lesson"
@@ -24983,7 +25124,19 @@ say("Survey done")`
         "aria-hidden": "true"
       }, lessonVerdict.passed ? '✓' : '✗'), " ", lessonVerdict.passed ? 'Complete' : 'Not yet', " \xB7 ", lessonVerdict.score, "/100")), lesson.intro ? /*#__PURE__*/React.createElement("p", {
         className: "lesson-intro"
-      }, lesson.intro.trim()) : null, lesson.glossary && Object.keys(lesson.glossary).length > 0 && /*#__PURE__*/React.createElement("dl", {
+      }, lesson.intro.trim()) : null, goals.length > 0 && /*#__PURE__*/React.createElement("ul", {
+        className: "lesson-goals",
+        "aria-label": "Lesson goals"
+      }, goals.map((c, i) => {
+        const st = !lessonVerdict ? 'todo' : G.criterionFailedIn(c, lessonVerdict.reasons) ? 'fail' : 'done';
+        return /*#__PURE__*/React.createElement("li", {
+          key: i,
+          className: 'goal ' + st
+        }, /*#__PURE__*/React.createElement("span", {
+          className: "goal-mark",
+          "aria-hidden": "true"
+        }, st === 'done' ? '✓' : st === 'fail' ? '✗' : ''), G.describeCriterion(c));
+      })), lesson.glossary && Object.keys(lesson.glossary).length > 0 && /*#__PURE__*/React.createElement("dl", {
         className: "lesson-glossary"
       }, Object.keys(lesson.glossary).map(term => /*#__PURE__*/React.createElement("div", {
         key: term,
@@ -24994,7 +25147,24 @@ say("Survey done")`
         key: i
       }, r))), lessonVerdict && lessonVerdict.hint && lessonVerdict.hint.message && /*#__PURE__*/React.createElement("p", {
         className: "lesson-hint"
-      }, KI('bulb'), " ", lessonVerdict.hint.message));
+      }, KI('bulb'), " ", lessonVerdict.hint.message), revealedHints.map((h, i) => /*#__PURE__*/React.createElement("p", {
+        key: 'xh' + i,
+        className: "lesson-hint"
+      }, KI('bulb'), " ", h)), (moreHintsLeft || lessonFailed || nextLesson) && /*#__PURE__*/React.createElement("div", {
+        className: "lesson-actions"
+      }, moreHintsLeft && /*#__PURE__*/React.createElement("button", {
+        className: "btn-mini lesson-hint-more",
+        onClick: () => setExtraHints(x => x + 1)
+      }, hintsShownByVerdict + extraHints === 0 ? 'Need a hint?' : 'Need another hint?'), lessonFailed && lessonVerdict.reasons.length > 0 && /*#__PURE__*/React.createElement("button", {
+        className: "btn-mini lesson-ask-why",
+        onClick: () => {
+          setAskQuery('In the lesson "' + lesson.title + '": ' + lessonVerdict.reasons[0] + ' Why did this happen and what should I try?');
+          setAskOpen(true);
+        }
+      }, "Ask why this failed"), nextLesson && /*#__PURE__*/React.createElement("button", {
+        className: "ctrl ctrl-run lesson-next",
+        onClick: () => loadLesson(nextLesson)
+      }, "Next lesson: ", nextLesson.title)));
     })()), /*#__PURE__*/React.createElement("div", {
       className: "resizer-row",
       role: "separator",

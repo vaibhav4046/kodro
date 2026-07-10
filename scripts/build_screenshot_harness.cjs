@@ -164,7 +164,7 @@ const CAP = `<!DOCTYPE html>
           }]));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson') };
     })();
   </script>
   <div id="root"></div>
@@ -334,6 +334,36 @@ const CAP = `<!DOCTYPE html>
           // text match misses it; open it by its unambiguous title instead.
           else if (C.panel === 'blocks') must(clickTitle('Build the program from blocks'), 'panel=blocks (title "Build the program from blocks")');
         }, 1000);
+      }
+      if (!C.onb && C.lesson) {
+        // lesson=<id>: pick a lesson through the REAL classroom dropdown (needs
+        // mode=classroom so the picker is on screen). React-controlled select:
+        // native value setter + a bubbling change event, mirroring setTextarea.
+        // The lessons list loads async (listLessons), so fire quietly first and
+        // only self-check on the RETRY -- the same pattern the open= driver uses.
+        var pickLesson = function () {
+          var sel = document.getElementById('lesson-select');
+          if (!sel) return false;
+          try {
+            var setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+            setter.call(sel, C.lesson);
+            sel.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+          } catch (e) { return false; }
+        };
+        // Quiet retry loop: the lessons list arrives over a REAL network fetch,
+        // which virtual time races ahead of, so a fixed-delay must() fired
+        // noise before the picker could exist. Keep trying silently; only the
+        // very last attempt self-checks loudly.
+        var lessonTries = 0;
+        var lessonTimer = setInterval(function () {
+          lessonTries += 1;
+          if (document.querySelector('.lesson-card') || pickLesson()) { clearInterval(lessonTimer); return; }
+          if (lessonTries >= 10) {
+            clearInterval(lessonTimer);
+            must(false, 'lesson=' + C.lesson + ' (#lesson-select present; needs mode=classroom)');
+          }
+        }, 700);
       }
       if (!C.onb && C.blockstest) {
         // Behaviour driver for the UI harness (gated behind blockstest=1 so it

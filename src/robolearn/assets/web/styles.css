@@ -811,6 +811,19 @@ select.terrain-btn:hover {
 .lesson-reasons { margin:6px 0 0 16px; font-size:var(--text-md); color:var(--warning); }
 .lesson-reasons li { margin:2px 0; }
 .lesson-hint { margin-top:6px; font-size:var(--text-md); color:var(--cyan); }
+/* Lesson goal checklist: what the grader will check, visible BEFORE running,
+   ticked/crossed against the verdict after. */
+.lesson-goals { list-style:none; margin:8px 0 2px; padding:0; display:flex; flex-direction:column; gap:5px; }
+.lesson-goals .goal { display:flex; align-items:center; gap:8px; font-size:var(--text-md); color:var(--fg-1); }
+.lesson-goals .goal-mark { flex:none; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; font-size:11px; font-weight:700; }
+.lesson-goals .goal.todo .goal-mark { border:1.5px solid var(--fg-3); }
+.lesson-goals .goal.done .goal-mark { background:var(--ok, #3ec27a); color:var(--void); }
+.lesson-goals .goal.fail .goal-mark { background:var(--warning); color:var(--void); }
+.lesson-goals .goal.done { color:var(--fg-2); }
+.lesson-goals .goal.fail { color:var(--warning); }
+/* Lesson help row: progressive hint, ask-why, and the next-lesson chip */
+.lesson-actions { display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.lesson-actions .lesson-next { margin-left:auto; }
 
 /* Dyslexia-friendly / larger reading text (QA re-score rank 4). Scoped to the
    reading + code surfaces so the fixed app grid is unaffected. Atkinson
@@ -880,6 +893,9 @@ body.a11y-readable .api-hint { font-size:var(--text-md) !important; }
   width:min(420px,92vw); background:linear-gradient(180deg,var(--navy-2),var(--navy));
   border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-modal);
   padding:18px 20px; animation:pop-in 180ms var(--ease);
+  /* Never taller than the viewport: on short displays the Vibe stack used to
+     push Send and the close button off-screen with no way to scroll to them. */
+  max-height:calc(100vh - 48px); overflow:auto;
 }
 .modal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
 .shortcut-list { display:flex; flex-direction:column; gap:9px; }
@@ -1131,7 +1147,7 @@ kbd {
   display:flex; flex-direction:column; gap:8px; padding:4px 2px; margin:10px 0;
 }
 .vibe-empty { color:var(--fg-3); font-size:var(--text-lg); line-height:1.6; margin:8px 4px; }
-.vibe-msg { max-width:86%; font-size:var(--text-lg); line-height:1.55; }
+.vibe-msg { max-width:86%; font-size:var(--text-lg); line-height:1.55; overflow-wrap:anywhere; }
 .vibe-msg.user {
   align-self:flex-end; background:rgba(92,224,216,0.12); color:var(--fg-1);
   border:1px solid rgba(92,224,216,0.25); border-radius:var(--radius-lg) var(--radius-lg) 2px var(--radius-lg); padding:7px 11px;
@@ -1144,7 +1160,7 @@ kbd {
 .vibe-msg.ai.thinking span { color:var(--fg-3); font-style:italic; }
 /* Action line: the chat actually built a robot or switched world */
 .vibe-msg.ai.action { max-width:100%; display:flex; align-items:center; gap:8px; background:color-mix(in oklab, var(--cyan) 14%, var(--navy-2)); border:1px solid color-mix(in oklab, var(--cyan) 40%, transparent); border-radius:var(--radius-md); padding:8px 11px; }
-.vibe-action-badge { flex:none; font-size:var(--text-sm); font-weight:700; color:var(--navy-1); background:var(--cyan); border-radius:999px; padding:2px 8px; }
+.vibe-action-badge { flex:none; font-size:var(--text-sm); font-weight:700; color:var(--void); background:var(--cyan); border-radius:999px; padding:2px 8px; }
 .vibe-code {
   font-family:var(--font-mono); font-size:var(--text-md); line-height:1.55; color:var(--fg-1);
   background:var(--void); border:1px solid var(--border); border-radius:var(--radius-md) var(--radius-md) 0 0;
@@ -1537,12 +1553,17 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .mem-col { display:flex; flex-direction:column; gap:8px; }
 /* Memory: List/Graph view toggle + the relationship graph */
 .mem-viewtoggle { display:inline-flex; gap:2px; margin-right:8px; }
-.mem-viewtoggle .btn-mini.is-on { background:var(--cyan); color:var(--navy-1); border-color:var(--cyan); }
+.mem-viewtoggle .btn-mini.is-on { background:var(--cyan); color:var(--void); border-color:var(--cyan); }
 .mem-graph-wrap { display:flex; flex-direction:column; gap:8px; max-height:64vh; overflow:auto; }
 .mem-graph { width:100%; height:auto; background:var(--navy-2); border:1px solid var(--border); border-radius:var(--radius-md); }
-.mem-graph-edge { stroke:var(--border); stroke-width:1.4; }
-.mem-graph-node text { font-size:12px; fill:var(--fg-2); paint-order:stroke; }
-.mem-graph-node circle { stroke:var(--navy-1); stroke-width:1.5; }
+.mem-graph-edge { stroke:var(--border); stroke-width:1.4; opacity:0.85; }
+.mem-graph-edge.world { stroke:color-mix(in oklab, var(--cyan) 45%, var(--border)); }
+.mem-graph-edge.robot { stroke:color-mix(in oklab, var(--gold, #e0a23a) 45%, var(--border)); }
+.mem-graph-node { cursor:default; }
+.mem-graph-node:hover circle { stroke:var(--cyan); stroke-width:2.5; }
+.mem-graph-node:hover text { fill:var(--fg-1); }
+.mem-graph-node text { font-size:12px; fill:var(--fg-2); paint-order:stroke; stroke:var(--navy-2); stroke-width:3px; stroke-linejoin:round; }
+.mem-graph-node circle { stroke:var(--void); stroke-width:1.5; }
 .mem-graph-world circle { fill:var(--cyan); }
 .mem-graph-robot circle { fill:var(--gold, #e0a23a); }
 .mem-graph-skill circle { fill:var(--green, #3ec27a); }

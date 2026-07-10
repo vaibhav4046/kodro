@@ -188,7 +188,12 @@
       // the LIGHT gauge, the light() sensor and this picture agree. Low tier
       // keeps noon/clear (med+ static per the plan); a preset change remounts
       // the viewport through the app-side key, so this is build-time only.
-      const _tod = (!indoor && Q !== 'low' && terrain && terrain.tod) || 'noon';
+      // Time-of-day applies at EVERY quality tier: the app-side applyTod
+      // already scaled env.light (the LIGHT gauge and the light() sensor), so
+      // gating the visuals on quality left Low users with a noon-bright scene
+      // while their gauge read 20% -- picture and instruments must agree. The
+      // tod light maths is cheap; only the streetlamp cones stay gated below.
+      const _tod = (!indoor && terrain && terrain.tod) || 'noon';
       const todAdj = (_tod !== 'noon' && window.KodroWorldFX && window.KodroWorldFX.todShift) ? window.KodroWorldFX.todShift(_tod) : null;
       const _weather = (!indoor && terrain && terrain.weather) || 'clear';
       const storm = _weather === 'storm' && id === 'mars' && Q !== 'low';
@@ -893,8 +898,12 @@
         [[1.15, 0.92], [1.15, -0.92], [-1.15, 0.92], [-1.15, -0.92]].forEach((p) => {
           const wheel = new THREE.Group();
           const tyre = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.36, 18), wM); tyre.rotation.x = Math.PI / 2; tyre.castShadow = true;
-          const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.4, 8), rimM); rim.rotation.x = Math.PI / 2;
-          wheel.add(tyre); wheel.add(rim); wheel.position.set(p[0], 0.5, p[1]); parent.add(wheel);
+          // The faceted rim is a CHILD of the tyre so it inherits the roll spin
+          // (as a sibling it stayed frozen, and the smooth tyre alone shows no
+          // visible rotation -- wheels looked motionless while driving).
+          const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.4, 8), rimM);
+          tyre.add(rim);
+          wheel.add(tyre); wheel.position.set(p[0], 0.5, p[1]); parent.add(wheel);
           if (register) register(wheel, tyre, p[0] > 0);
         });
       }
@@ -1000,7 +1009,9 @@
             if (ag.kind === 'person' && mesh._legs) posePerson(mesh, a);
             else if (ag.kind === 'car' && mesh._tyres) {
               spin += (a.speed || 0) * SCALE * 2 * (dts || 0); // v/r, r=0.5
-              for (let k = 0; k < mesh._tyres.length; k++) mesh._tyres[k].rotation.y = spin;
+              // Negative: the axle is the tyre's local +Y (parent +Z), and a
+              // positive turn about it rolls the wheel BACKWARD for +x travel.
+              for (let k = 0; k < mesh._tyres.length; k++) mesh._tyres[k].rotation.y = -spin;
               // R4: brake lights flare while the car is slowing or held
               if (mesh._tailM) mesh._tailM.emissiveIntensity = (a.vel != null && a.base && a.vel < a.base * 0.6) ? 1.9 : 0.8;
             }
@@ -1468,17 +1479,34 @@
         positions.forEach((p) => {
           const wheel = new THREE.Group();
           const tyre = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.32, 16), wm); tyre.rotation.x = Math.PI / 2; tyre.castShadow = true;
-          const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.42, r * 0.42, 0.34, 8), hubM); hub.rotation.x = Math.PI / 2;
+          // The 8-facet hub is a CHILD of the tyre so it spins with the roll;
+          // as a sibling it stayed frozen and the smooth tyre alone reads as a
+          // motionless wheel.
+          const hub = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.42, r * 0.42, 0.34, 8), hubM);
+          tyre.add(hub);
           tyre.userData.side = p[1] >= 0 ? 1 : -1; // R9: left/right for counter-rotation
-          wheel.add(tyre); wheel.add(hub); wheel.position.set(p[0], r, p[1]); rov.add(wheel); wheels.push(tyre);
+          wheel.add(tyre); wheel.position.set(p[0], r, p[1]); rov.add(wheel); wheels.push(tyre);
           if (p[0] > 0) steer.push(wheel); // front axle steers
         });
       };
-      const arrow = (y) => { const a = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.85, 4), accMat); a.rotation.z = -Math.PI / 2; a.position.set(0.2, y, 0); body.add(a); };
+      // Heading indicator: a flat chevron painted on the robot's NOSE, apex
+      // forward (+x). The old version was a pyramid floating at mast height,
+      // which read as a light beam spraying BACKWARD out of the mast bulb (a
+      // real user reported exactly that). Painted on the body surface at the
+      // front, it reads as direction and nothing else. rotation.z = -PI/2
+      // points the cone's +Y axis along +x; scale.x then flattens the local X
+      // axis (vertical after that rotation) so it lies like a decal.
+      const arrow = (x, y) => {
+        const a = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.7, 3), accMat);
+        a.rotation.z = -Math.PI / 2;
+        a.scale.x = 0.22;
+        a.position.set(x, y, 0);
+        body.add(a);
+      };
       if (rType === 'car') {
         carBody(body, 0x2c6fb0);
         carWheels(rov, (wheel, tyre, front) => { wheels.push(tyre); if (front) steer.push(wheel); });
-        arrow(2.05);
+        arrow(1.1, 1.26);
         // Headlights as real spotlights (children of rov so they track the car).
         // Forward is +x; only the left one casts a shadow to keep the cost down.
         [[0.55], [-0.55]].forEach((zArr, idx) => {
@@ -1509,7 +1537,7 @@
         // wheels pushed out past the base skirt so they are actually visible
         // (at the old 0.55 they were buried inside the ~1.0-radius base).
         addWheels([[0, 1.05], [0, -1.05]], 0.32);
-        arrow(3.5);
+        arrow(0.6, 0.56);
       } else if (rType === 'arm') {
         const armM = new THREE.MeshStandardMaterial({ color: 0xc7ccd4, roughness: 0.35, metalness: 0.6 });
         const jointM = accMat;
@@ -1522,7 +1550,7 @@
         const j3 = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), jointM); j3.position.set(2.55, 3.62, 0); body.add(j3);
         const g1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM); g1.position.set(2.7, 3.7, 0.22); body.add(g1);
         const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.3), armM); g2.position.set(2.7, 3.7, -0.22); body.add(g2);
-        arrow(1.3);
+        arrow(0.68, 0.74);
       } else {
         // rover (and custom): chassis, solar deck, sensor mast with a camera eye.
         const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2b2f3a, roughness: 0.42, metalness: 0.45, envMapIntensity: 1.15 });
@@ -1539,7 +1567,7 @@
         const litM = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xfff0c0, emissiveIntensity: 0.9 });
         [[1.3, 0.55], [1.3, -0.55]].forEach((p) => { const l = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.28), litM); l.position.set(p[0], 0.85, p[1]); body.add(l); });
         addWheels([[0.95, 0.95], [0.95, -0.95], [-0.95, 0.95], [-0.95, -0.95]], 0.5);
-        arrow(2.05);
+        arrow(1.02, 1.32);
       }
       // Sensor attachments: small modules on the body reflecting the FITTED
       // parts, so the robot the user designed is visible. Mounted on `body` so
@@ -1785,7 +1813,10 @@
         // moves (it was crabbing 90deg before). Matches how the agents face.
         rov.rotation.y = curHeading - Math.PI / 2;
         const moved = Math.hypot(cur.x - px0, cur.z - pz0);
-        if (moved > 0.001) wheels.forEach((wh) => wh.rotateY(moved * 1.6));
+        // Negative: a positive turn about the axle (tyre local +Y, parent +Z)
+        // rolls the wheel backward relative to +x travel; wheels were spinning
+        // the wrong way (same sign family as the backward-reading heading cone).
+        if (moved > 0.001) wheels.forEach((wh) => wh.rotateY(-moved * 1.6));
         // Rover status LED: pulses on a slow sine and tracks the live LED colour
         // (s.led is a hex string set by led("cyan") etc.), falling back to accent.
         if (ledIndicator) {
@@ -1821,7 +1852,10 @@
           }
         }
         // pitch: nose lifts under acceleration, dips under braking (about the lateral axis = local z)
-        bodyPitch += (clamp(-accel * 7, -0.16, 0.16) * feel.pitch - bodyPitch) * 0.18;
+        // Positive: rotation.z > 0 lifts the nose (+x toward +y), and real
+        // weight transfer lifts the nose under acceleration, dips it braking.
+        // The old -accel had it exactly backwards.
+        bodyPitch += (clamp(accel * 7, -0.16, 0.16) * feel.pitch - bodyPitch) * 0.18;
         // roll: lean into the turn (about the forward axis = local x), more at speed
         bodyRoll += (clamp(turn * 9 + turn * vsmooth * 22, -0.24, 0.24) * feel.roll - bodyRoll) * 0.16;
         // suspension: a small settle driven by acceleration, eased back to rest
@@ -2022,6 +2056,17 @@
       if (cv && cv.focus) { try { cv.focus(); } catch (e) { void e; } }
     }, [focusKey]);
 
+    // Keep the canvas's screen-reader label honest per camera mode: orbit and
+    // zoom only exist in third person; in first person those inputs no-op, so
+    // promising them (in the label or the caption below) is a lie.
+    useEffect(() => {
+      const cv = mountRef.current && mountRef.current.querySelector('canvas');
+      if (!cv) return;
+      cv.setAttribute('aria-label', fpv
+        ? 'Three dimensional world, first person view riding the robot.'
+        : 'Three dimensional world. Drag or use the arrow keys to orbit, plus and minus to zoom.');
+    }, [fpv]);
+
     // A caption that surfaces the keyboard controls. It is hidden until the
     // canvas is focused (see .vp3d-help in styles.css), so sighted keyboard
     // users get a visible hint the moment they tab in, without cluttering the
@@ -2031,7 +2076,8 @@
     // the 2.5D view, so a 3D mission site never says where it is.
     return React.createElement(
       'div', { className: 'viewport3d', ref: mountRef },
-      React.createElement('div', { className: 'vp3d-help', 'aria-hidden': 'true' }, 'Arrow keys orbit  ·  +/- zoom  ·  drag to look'),
+      React.createElement('div', { className: 'vp3d-help', 'aria-hidden': 'true' },
+        fpv ? 'First person · riding the robot' : 'Arrow keys orbit  ·  +/- zoom  ·  drag to look'),
       (terrain && terrain.name) ? React.createElement(
         'div', { className: 'vp3d-site' },
         React.createElement('span', { className: 'vp3d-site-name' }, terrain.name),

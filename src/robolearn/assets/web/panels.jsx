@@ -376,7 +376,7 @@
       <div className="modal-backdrop" onClick={() => !askBusy && setAskOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="Ask a question" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('ask')}Ask. {askData && !providerIsLocal(askData.source) ? 'Answered by ' + providerName(askData.source) + ' (your key); your question is sent to ' + providerName(askData.source) : (askData && askData.grounded === false ? 'Answered by the local model on this machine' : 'Answers come from the built-in lesson notes when they cover it')}</span>
+            <span className="eyebrow">{KI('ask')}Ask. {askData && !providerIsLocal(askData.source) ? 'Answered by ' + providerName(askData.source) + ' (your key); your question is sent to ' + providerName(askData.source) : (askData && askData.grounded === false ? 'Answered by the local model on this machine' : (window.pywebview ? 'Answers come from the built-in lesson notes when they cover it' : 'Answered by the AI model on this machine'))}</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setAskOpen(false)}>✕</button>
           </div>
           <div className="ask-body" role="status" aria-live="polite">
@@ -475,15 +475,27 @@
             role="img" aria-label="Memory graph linking worlds, robots, skills and run notes">
             {memGraph.edges.map((e, i) => {
               const a = pos[e.from], b = pos[e.to];
-              return (a && b) ? <line key={'e' + i} className="mem-graph-edge" x1={a.x} y1={a.y} x2={b.x} y2={b.y} /> : null;
+              if (!a || !b) return null;
+              // Quadratic curve bowing toward the hub column: reads as a link,
+              // not a scatter of straight wires crossing the middle.
+              const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 + (b.y === a.y ? 0 : (b.y > a.y ? 14 : -14));
+              return <path key={'e' + i} className={'mem-graph-edge ' + (e.kind || '')} d={'M' + a.x + ' ' + a.y + ' Q' + mx + ' ' + my + ' ' + b.x + ' ' + b.y} fill="none" />;
             })}
-            {memGraph.nodes.map((n, i) => (
-              <g key={'n' + i} className={'mem-graph-node mem-graph-' + n.kind} transform={'translate(' + n.x + ',' + n.y + ')'}>
-                <circle r={(n.kind === 'world' || n.kind === 'robot') ? 8 : 5} />
-                <text x={n.kind === 'world' ? -12 : (n.kind === 'robot' ? 12 : 9)} y={4}
-                  textAnchor={n.kind === 'world' ? 'end' : 'start'}>{n.label}</text>
-              </g>
-            ))}
+            {memGraph.nodes.map((n, i) => {
+              const isHub = n.kind === 'world' || n.kind === 'robot';
+              const r = isHub ? 7 + Math.min(6, (n.degree || 0) * 1.4) : 5;
+              const tip = isHub
+                ? n.label + ' — ' + (n.kind === 'world' ? 'world' : 'robot type') + ', ' + (n.degree || 0) + ' linked memor' + ((n.degree || 0) === 1 ? 'y' : 'ies')
+                : n.label + ' — ' + (n.kind === 'skill' ? 'saved skill' : 'run note');
+              return (
+                <g key={'n' + i} className={'mem-graph-node mem-graph-' + n.kind} transform={'translate(' + n.x + ',' + n.y + ')'}>
+                  <title>{tip}</title>
+                  <circle r={r} />
+                  <text x={n.kind === 'world' ? -(r + 5) : (n.kind === 'robot' ? (r + 5) : (r + 4))} y={4}
+                    textAnchor={n.kind === 'world' ? 'end' : 'start'}>{n.label}</text>
+                </g>
+              );
+            })}
           </svg>
           <p className="mem-graph-legend">
             <span className="mem-graph-key world">World</span>
@@ -631,7 +643,7 @@
                 ? (providerIsLocal(aiInfo.source)
                     ? <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
                     : <p className="vibe-status">Cloud model: <b>{aiInfo.model}</b> · via {providerName(aiInfo.source)}, your prompt is sent to {providerName(aiInfo.source)}.</p>)
-                : <p className="vibe-status">{aiInfo.hint || 'No AI model is running.'} You can still say <i>"build a mars rover"</i> or <i>"go to the ocean"</i> and Kodro will do it — only writing code needs a local model.</p>}
+                : <p className="vibe-status">{aiInfo.hint || 'No AI model is running.'} You can still say <i>"build a mars rover"</i> or <i>"go to the ocean"</i> and Kodro will do it — only writing code needs an AI (a local model, or a cloud key above).</p>}
               {ctxChip}
               {aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
@@ -659,7 +671,13 @@
                     <pre className="vibe-code">{m.text}</pre>
                     <div className="vibe-code-actions">
                       <button className="ctrl ctrl-run" onClick={() => vibeApply(m.text, m.model)}>✓ Apply to editor</button>
-                      <button className="btn-mini" onClick={() => { setVibeMsgs(ms => [...ms, { role: 'user', kind: 'text', text: '(discarded, try again)' }]); }}>Discard</button>
+                      <button className="btn-mini" onClick={() => {
+                        // Discard means discard: drop THIS code block from the
+                        // thread (and so from storage and the model's history),
+                        // instead of appending a fake user bubble that left the
+                        // rejected code and its Apply button live.
+                        setVibeMsgs(ms => ms.filter((_, j) => j !== i));
+                      }}>Discard</button>
                     </div>
                   </div>
                 ) : m.kind === 'action' ? (
@@ -669,7 +687,10 @@
                 ))}
                 {vibeBusy && (
                   <div className="vibe-msg ai thinking">
-                    {vibeLive ? <pre className="vibe-live">{vibeLive}</pre> : <span>Thinking…</span>}
+                    {/* Show the TAIL of the stream: the live box is capped at
+                        ~7 lines, so a long generation used to look frozen
+                        mid-sentence while text piled up out of view below. */}
+                    {vibeLive ? <pre className="vibe-live">{vibeLive.length > 700 ? '…' + vibeLive.slice(-700) : vibeLive}</pre> : <span>Thinking…</span>}
                   </div>
                 )}
                 <div ref={vibeEndRef}></div>
@@ -691,9 +712,9 @@
               <span className="vibe-hint">Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time.</span>
               {!aiInfo.available && (
                 <ol className="vibe-steps">
-                  <li>Writing code needs a <b>local</b> model (no cloud, no account). Install Ollama from ollama.com (free, offline after install)</li>
+                  <li>Writing code needs an AI. The private way is a <b>local</b> model (no cloud, no account): install Ollama from ollama.com (free, offline after install)</li>
                   <li>Run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
-                  <li>Reopen Kodro. Code writing lights up automatically</li>
+                  <li>Reopen Kodro. Code writing lights up automatically. Or pick a cloud provider above and paste your own key</li>
                 </ol>
               )}
             </div>

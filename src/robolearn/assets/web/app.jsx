@@ -253,6 +253,11 @@
       try { return JSON.parse(lsGet('or_lesson_buffers')) || {}; } catch (e) { return {}; }
     });  // per-lesson editable code
     const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
+    // Learner scaffolding: how many consecutive fails on this lesson (drives
+    // the "the app noticed you are stuck" nudge) and how many extra hints the
+    // pupil has revealed from the lesson's hint bank (progressive help).
+    const [lessonAttempts, setLessonAttempts] = useState(0);
+    const [extraHints, setExtraHints] = useState(0);
     // The editor's current source: a lesson's own buffer when one is loaded,
     // otherwise the active example tab. (Declared AFTER the state above to
     // avoid a temporal-dead-zone ReferenceError.)
@@ -640,6 +645,8 @@
       if (!lesson) return;
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
+      setLessonAttempts(0);
+      setExtraHints(0);
       // Render the rover on the SAME world it is graded against. Without this
       // the viewport could show a persisted Mars while the grader ran the
       // lesson's real terrain, so a pass looked like it happened elsewhere.
@@ -671,6 +678,21 @@
         // Confetti is a classroom register; the studio celebrates with the
         // verdict chip and the pass tone only (A1).
         if (r.passed) { sfx('pass'); if (classroom) celebrate(); } else { sfx('fail'); }
+        // Stuck detection: on the second consecutive fail, reveal the lesson's
+        // second hint automatically and say so, instead of repeating hint one
+        // forever. Attempts reset on pass and on switching lesson.
+        if (r.passed) {
+          setLessonAttempts(0);
+        } else {
+          setLessonAttempts(a => {
+            const n = a + 1;
+            if (n === 2) {
+              setExtraHints(x => Math.max(x, 1));
+              setConsoleLines(l => [...l, { type: 'sys', text: 'Still stuck? I have opened another hint in the lesson card. The Ask button can also explain this error.' }]);
+            }
+            return n;
+          });
+        }
         const tag = r.passed ? 'ok' : 'err';
         setConsoleLines(l => {
           const lines = [...l, { type: tag, text: (r.passed ? '✓ PASS' : '✗ NOT YET') + '  Score: ' + r.score + '/100' }];
@@ -1069,15 +1091,15 @@
                   </div>
                 )}
                 <div className="panel-actions">
-                  <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs local Ollama)'} onClick={() => setVibeOpen(true)}>{KI('vibe')}Vibe</button>
+                  <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs a local model or a cloud key)'} onClick={() => setVibeOpen(true)}>{KI('vibe')}Vibe</button>
                   <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>{KI('blocks')}Blocks</button>
-                  <button className="btn-mini" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs local Ollama)'} onClick={runReview}>{KI('review')}Review</button>
+                  <button className="btn-mini" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)'} onClick={runReview}>{KI('review')}Review</button>
                   {/* Validate was moved to the main run bar (next to Run) so it is
                       not lost among these dim, wrapped micro-buttons. See the
                       run-controls group above. */}
                   <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>{KI('gauge')}Realism</button>
                   <button className="btn-mini" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}>{KI('demo')}Demo</button>
-                  <button className="btn-mini" title={aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs local Ollama)'} onClick={() => { setAskOpen(true); setAskData(null); }}>{KI('ask')}Ask</button>
+                  <button className="btn-mini" title={aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs a local model or a cloud key)'} onClick={() => { setAskOpen(true); setAskData(null); }}>{KI('ask')}Ask</button>
                   <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>{KI('swarm')}Swarm</button>
                 </div>
               </div>
@@ -1121,6 +1143,20 @@
                 if (!classroom) return null;  // lessons are classroom furniture (A1)
                 const lesson = lessons.find(l => l.id === currentLessonId);
                 if (!lesson) return null;
+                // Goal checklist + progressive hints, powered by the grader's
+                // own per-lesson data (criteria + the full hint bank), so the
+                // card promises exactly what the grader will check.
+                const G = window.KodroLessonGrader;
+                const ldata = (G && G.LESSON_DATA && G.LESSON_DATA[lesson.id]) || null;
+                const goals = (ldata && ldata.criteria) || [];
+                const hintBank = (ldata && ldata.hints && ldata.hints.onFailure) || [];
+                const lessonFailed = !!(lessonVerdict && !lessonVerdict.passed);
+                const hintsShownByVerdict = (lessonFailed && lessonVerdict.hint && lessonVerdict.hint.message) ? 1 : 0;
+                const revealedHints = hintBank.slice(hintsShownByVerdict, hintsShownByVerdict + extraHints);
+                const moreHintsLeft = hintsShownByVerdict + extraHints < hintBank.length;
+                const nextLesson = (lessonVerdict && lessonVerdict.passed)
+                  ? lessons[lessons.findIndex(l => l.id === lesson.id) + 1] || null
+                  : null;
                 return (
                   <section className="lesson-card" aria-label="Current lesson">
                     <div className="lesson-card-head">
@@ -1134,6 +1170,19 @@
                       )}
                     </div>
                     {lesson.intro ? <p className="lesson-intro">{lesson.intro.trim()}</p> : null}
+                    {goals.length > 0 && (
+                      <ul className="lesson-goals" aria-label="Lesson goals">
+                        {goals.map((c, i) => {
+                          const st = !lessonVerdict ? 'todo' : (G.criterionFailedIn(c, lessonVerdict.reasons) ? 'fail' : 'done');
+                          return (
+                            <li key={i} className={'goal ' + st}>
+                              <span className="goal-mark" aria-hidden="true">{st === 'done' ? '✓' : st === 'fail' ? '✗' : ''}</span>
+                              {G.describeCriterion(c)}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                     {lesson.glossary && Object.keys(lesson.glossary).length > 0 && (
                       <dl className="lesson-glossary">
                         {Object.keys(lesson.glossary).map(term => (
@@ -1150,6 +1199,30 @@
                     )}
                     {lessonVerdict && lessonVerdict.hint && lessonVerdict.hint.message && (
                       <p className="lesson-hint">{KI('bulb')} {lessonVerdict.hint.message}</p>
+                    )}
+                    {revealedHints.map((h, i) => (
+                      <p key={'xh' + i} className="lesson-hint">{KI('bulb')} {h}</p>
+                    ))}
+                    {(moreHintsLeft || lessonFailed || nextLesson) && (
+                      <div className="lesson-actions">
+                        {moreHintsLeft && (
+                          <button className="btn-mini lesson-hint-more" onClick={() => setExtraHints(x => x + 1)}>
+                            {hintsShownByVerdict + extraHints === 0 ? 'Need a hint?' : 'Need another hint?'}
+                          </button>
+                        )}
+                        {lessonFailed && lessonVerdict.reasons.length > 0 && (
+                          <button className="btn-mini lesson-ask-why"
+                            onClick={() => {
+                              setAskQuery('In the lesson "' + lesson.title + '": ' + lessonVerdict.reasons[0] + ' Why did this happen and what should I try?');
+                              setAskOpen(true);
+                            }}>Ask why this failed</button>
+                        )}
+                        {nextLesson && (
+                          <button className="ctrl ctrl-run lesson-next" onClick={() => loadLesson(nextLesson)}>
+                            Next lesson: {nextLesson.title}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </section>
                 );

@@ -54,11 +54,14 @@
     var nodes = [];
     var edges = [];
 
+    var hubById = {};
     worlds.forEach(function (w, i) {
-      nodes.push({ id: 'world:' + w, label: w, kind: 'world', x: X_WORLD, y: colY(i, worlds.length) });
+      var n = { id: 'world:' + w, label: w, kind: 'world', degree: 0, x: X_WORLD, y: colY(i, worlds.length) };
+      hubById[n.id] = n; nodes.push(n);
     });
     robots.forEach(function (t, i) {
-      nodes.push({ id: 'robot:' + t, label: t, kind: 'robot', x: X_ROBOT, y: colY(i, robots.length) });
+      var n = { id: 'robot:' + t, label: t, kind: 'robot', degree: 0, x: X_ROBOT, y: colY(i, robots.length) };
+      hubById[n.id] = n; nodes.push(n);
     });
 
     var items = [];
@@ -68,12 +71,25 @@
     reflections.forEach(function (r, i) {
       items.push({ id: 'refl:' + i, label: shortLabel(r.outcome || 'run', 18), kind: 'reflection', world: r.world, robotType: r.robotType });
     });
+    // Sort items by (world, robotType) so edges to the same hubs leave from
+    // neighbouring rows -- far fewer crossings than insertion order.
+    items.sort(function (a, b) {
+      var k1 = (a.world || '~') + '|' + (a.robotType || '~');
+      var k2 = (b.world || '~') + '|' + (b.robotType || '~');
+      return k1 < k2 ? -1 : k1 > k2 ? 1 : 0;
+    });
     items.forEach(function (it, i) {
       it.x = X_ITEM;
       it.y = colY(i, items.length);
       nodes.push(it);
-      if (it.world && worldSet[it.world]) edges.push({ from: it.id, to: 'world:' + it.world });
-      if (it.robotType && robotSet[it.robotType]) edges.push({ from: it.id, to: 'robot:' + it.robotType });
+      if (it.world && worldSet[it.world]) {
+        edges.push({ from: it.id, to: 'world:' + it.world, kind: 'world' });
+        hubById['world:' + it.world].degree += 1;
+      }
+      if (it.robotType && robotSet[it.robotType]) {
+        edges.push({ from: it.id, to: 'robot:' + it.robotType, kind: 'robot' });
+        hubById['robot:' + it.robotType].degree += 1;
+      }
     });
 
     return {

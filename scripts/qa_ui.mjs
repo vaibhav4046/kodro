@@ -660,6 +660,34 @@ function checkVibeBuild(chrome) {
   return { pass: true, reason: 'a "build a mars rover" chat command built the robot and moved the world to Mars (visible action line)' };
 }
 
+// LESSON GOALS (F-learn) — the classroom lesson card shows the grader's own
+// criteria as a goal checklist BEFORE any run, plus help-on-request. Drives
+// mode=classroom and picks a lesson through the REAL dropdown (lesson= driver).
+// 00_first_drive's criteria are min_distance 3 + no_collisions, so the exact
+// goal strings are asserted, not just the container.
+function checkLessonGoals(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&lesson=00_first_drive`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_goals', url, { vtime: 12000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  // DOM truth first: the lessons list arrives over a real fetch that virtual
+  // time races ahead of, so the driver may log a retry error even though the
+  // card renders fine moments later. Console noise is only decisive when the
+  // DOM evidence ALSO says the card is missing (a real crash fails both).
+  const cardOk = /class="lesson-card"/.test(dom);
+  const goalsOk = /class="lesson-goals"/.test(dom);
+  const textOk = /Travel at least 3/.test(dom) && /Do not hit anything/.test(dom);
+  const hintOk = /Need a hint\?/.test(dom);
+  if (cardOk && goalsOk && textOk && hintOk) {
+    return { pass: true, reason: 'lesson card shows the grader criteria as a goal checklist pre-run, with help on request' };
+  }
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!cardOk) return { pass: false, reason: 'lesson card never rendered (classroom mode or lesson= driver failed)' };
+  if (!goalsOk) return { pass: false, reason: 'lesson card has no goal checklist (lesson-goals missing)' };
+  if (!textOk) return { pass: false, reason: 'goal checklist present but the plain-English criteria are wrong or missing' };
+  return { pass: false, reason: 'no "Need a hint?" help-on-request button before the first run' };
+}
+
 // STUDIO MODE (A1) — the default profile is the professional studio: the
 // Settings popover must carry the Mode control but NONE of the classroom
 // furniture (teacher dashboard, progress-report export, novelty themes).
@@ -1027,6 +1055,11 @@ function cleanup() {
   const vibeBuild = checkVibeBuild(chrome);
   behaviour.push(vibeBuild.pass);
   console.log(`${vibeBuild.pass ? 'PASS' : 'FAIL'}  ${'chat-build'.padEnd(20)} ${vibeBuild.reason}`);
+  gap();
+
+  const lessonGoals = checkLessonGoals(chrome);
+  behaviour.push(lessonGoals.pass);
+  console.log(`${lessonGoals.pass ? 'PASS' : 'FAIL'}  ${'lesson-goals'.padEnd(20)} ${lessonGoals.reason}`);
   gap();
 
   const goalMarker = checkGoalMarker(chrome);

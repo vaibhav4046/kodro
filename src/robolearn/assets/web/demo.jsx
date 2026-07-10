@@ -56,7 +56,9 @@
         // (with the shared PASS_RATE fallback for older reports), so the demo
         // agrees with the studio and the dashboard instead of its own threshold.
         const passed = g.passed != null ? g.passed : (g.successRate || 0) >= ((window.KodroScenario && window.KodroScenario.PASS_RATE) || 0.6);
-        return { text: 'Success ' + Math.round((g.successRate || 0) * 100) + '% (' + g.successCount + '/' + g.seeds + '), mean collisions ' + g.meanCollisions + ', mean battery ' + g.meanBattery + '%, mean score ' + g.meanScore + '. Saved to memory and SQLite.', tone: passed ? 'ok' : 'warn' };
+        // Honest about the store: SQLite only exists under the desktop bridge;
+        // the browser build persists to on-device memory (localStorage).
+        return { text: 'Success ' + Math.round((g.successRate || 0) * 100) + '% (' + g.successCount + '/' + g.seeds + '), mean collisions ' + g.meanCollisions + ', mean battery ' + g.meanBattery + '%, mean score ' + g.meanScore + '. Saved to memory' + (window.pywebview ? ' and SQLite' : ' on this device') + '.', tone: passed ? 'ok' : 'warn' };
       },
     },
     {

@@ -600,6 +600,43 @@
     return null;
   }
 
+  // --- learner-facing goal checklist helpers --------------------------------
+  // The lesson card shows each criterion as a goal the pupil can read BEFORE
+  // running, then ticks or crosses it against the verdict. describeCriterion
+  // turns the machine criterion into plain English; criterionFailedIn says
+  // whether a verdict reason belongs to this criterion (the patterns mirror
+  // the exact message templates in checkCriterion above -- change one, change
+  // the other).
+  var CONSTRUCT_LABEL = {
+    for: 'a for loop', while: 'a while loop', if: 'an if statement',
+    function_def: 'a function (def)', recursion: 'recursion',
+  };
+  function describeCriterion(c) {
+    if (!c) return '';
+    if (c.samples_collected !== undefined) return 'Collect ' + c.samples_collected + ' sample' + (c.samples_collected === 1 ? '' : 's');
+    if (c.no_collisions === true) return 'Do not hit anything';
+    if (c.max_battery_used !== undefined) return 'Use at most ' + c.max_battery_used + '% battery';
+    if (c.uses_construct !== undefined) return 'Use ' + (CONSTRUCT_LABEL[c.uses_construct] || "'" + c.uses_construct + "'");
+    if (c.returns_to_base === true) return 'Return to base';
+    if (c.max_steps !== undefined) return 'Use at most ' + c.max_steps + ' commands';
+    if (c.min_distance_travelled !== undefined) return 'Travel at least ' + c.min_distance_travelled + ' m';
+    return Object.keys(c).join(', ');
+  }
+  function criterionFailedIn(c, reasons) {
+    if (!c || !reasons || !reasons.length) return false;
+    var re = null;
+    if (c.samples_collected !== undefined) re = /^Collected \d+ of \d+ samples\./;
+    else if (c.no_collisions === true) re = /collision/;
+    else if (c.max_battery_used !== undefined) re = /^Battery used /;
+    else if (c.uses_construct !== undefined) re = new RegExp("did not use the required '" + c.uses_construct + "'");
+    else if (c.returns_to_base === true) re = /did not return to base/;
+    else if (c.max_steps !== undefined) re = /API calls \(limit/;
+    else if (c.min_distance_travelled !== undefined) re = /^Travelled [\s\S]*minimum/;
+    if (!re) return false;
+    for (var i = 0; i < reasons.length; i++) { if (re.test(String(reasons[i]))) return true; }
+    return false;
+  }
+
   // --- public API -------------------------------------------------------------
 
   function firstHint(entry, passed) {
@@ -654,6 +691,8 @@
     },
     gradeSync: gradeSync,
     sourceUses: sourceUses,
+    describeCriterion: describeCriterion,
+    criterionFailedIn: criterionFailedIn,
     LESSON_DATA: LESSON_DATA,
   };
 })();
