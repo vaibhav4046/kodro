@@ -294,10 +294,12 @@ def find_ollama_exe() -> str | None:
 def _spawn_server(exe: str) -> bool:
     """Launch ``ollama serve`` detached; True if the process was started."""
     try:
-        creationflags = 0
-        if os.name == "nt":
-            # Detach fully: no console window, survives the parent exiting.
-            creationflags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+        # Detach fully on Windows: no console window, survives the parent
+        # exiting. The flags only exist in the Windows typeshed, so getattr
+        # keeps mypy green on the posix CI legs; both resolve to 0 there.
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0) | getattr(
+            subprocess, "CREATE_NEW_PROCESS_GROUP", 0
+        )
         subprocess.Popen(  # nosec B603 - fixed local binary, no shell
             [exe, "serve"],
             stdout=subprocess.DEVNULL,
