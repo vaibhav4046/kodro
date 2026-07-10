@@ -106,3 +106,39 @@ def test_format_spec_only_formatting_is_allowed() -> None:
     """A format spec (after ':') is not a field name and must not be flagged."""
     assert is_safe("'{:.3f}'.format(3.14159)")
     assert find_violations("'{:.3f}'.format(3.14159)") == []
+
+
+# --- oversized-power (bignum-bomb exponent) --------------------------------
+# 10 ** 10 ** 7 builds a ten-million-digit int in one GIL-holding op that the
+# thread-based wall-clock timeout cannot interrupt, and the over-budget run was
+# graded as a clean pass. The AST walker now rejects a constant-foldable
+# exponent above MAX_POW_EXP while leaving ordinary powers alone.
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "x = 10 ** 10 ** 7",
+        "x = 10 ** 10000000",
+        "x = 2 ** 999999",
+        "x = 2 ** (10 ** 6 + 5)",
+    ],
+)
+def test_sandbox_rejects_bignum_power(source: str) -> None:
+    kinds = {v.kind for v in find_violations(source)}
+    assert "oversized-power" in kinds, f"{source!r} should be rejected"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "x = 2 ** 2 ** 3",  # == 256, legitimate
+        "x = 2 ** 64",  # bit math
+        "x = 10 ** 3",  # 1000
+        "x = base ** 2",  # runtime-computed base, small literal exponent
+        "n = 5\nx = 2 ** n",  # runtime exponent stays a documented residual, not flagged
+    ],
+)
+def test_sandbox_allows_ordinary_power(source: str) -> None:
+    kinds = {v.kind for v in find_violations(source)}
+    assert "oversized-power" not in kinds, f"{source!r} should be allowed"

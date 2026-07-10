@@ -1,4 +1,4 @@
-"""Pupil-code executor with a 30-second hard timeout.
+"""Pupil-code executor with a wall-clock timeout.
 
 Section 9 of the spec asks for a "subprocess executor" but the rest of the
 specification — tracer integration, GUI eventing, replay — assumes the
@@ -6,7 +6,18 @@ pupil code runs in the same Python process. We therefore execute inside a
 **daemon thread** with a wall-clock timeout. The thread cannot be hard-
 killed (Python has no public API for that), but flagging it as daemon
 guarantees it does not block process exit, and the executor returns to its
-caller as soon as the timeout fires.
+caller as soon as the timeout fires FOR NORMAL PYTHON CODE.
+
+Honest limit: the timeout is NOT hard against a single bytecode op that holds
+the GIL for longer than the budget (e.g. a giant-integer ``**`` or ``*``). The
+join cannot wake and ``SetAsyncExc`` cannot fire until that op completes, so an
+over-budget bignum op would otherwise run to completion and be graded as a
+clean pass. The AST sandbox therefore rejects the constant-foldable forms of
+these bombs BEFORE execution (see :data:`robolearn.runtime.sandbox.MAX_POW_EXP`
+and :data:`MAX_LITERAL_REPEAT`). A size computed at runtime from a variable
+remains a documented residual that only a true out-of-process executor could
+hard-cap; the design deliberately declined that in favour of same-process
+tracing.
 
 The executor itself is thin: it asks the sandbox to walk the AST, then
 compiles and runs the snippet in a restricted globals mapping, capturing

@@ -467,6 +467,24 @@
   // with an honest, line-numbered error instead of freezing the browser.
   const MAX_RANGE_LEN = 1000000;
 
+  // Cap on the length of any string/list built by repeat (`*`) or concat (`+`).
+  // The browser has no per-process memory limit the way the desktop Python
+  // sandbox does (MAX_LITERAL_REPEAT), so an unbounded `'x' * 5e7` or a
+  // `s = s + s` doubling loop could allocate gigabytes and hang the tab before
+  // MAX_STEPS trips (each is one step). Matching MAX_RANGE_LEN keeps a
+  // teaching program (tiny sequences) unaffected while refusing the abuse with
+  // an honest, line-numbered error.
+  const MAX_SEQ_LEN = 1000000;
+  function capSeqLen(len, line) {
+    if (len > MAX_SEQ_LEN) {
+      throw new RoverError(
+        'sequence too large (' + len + ' items; limit ' + MAX_SEQ_LEN + '). Build smaller sequences.',
+        line,
+      );
+    }
+    return len;
+  }
+
   function makeBuiltins(host, lineOf) {
     // curLine getter so builtin diagnostics carry the 1-based source line, like
     // the rest of the interpreter's errors (defensive: null if not supplied).
@@ -956,8 +974,15 @@
 
   function binop(op, l, r, line) {
     if (op === '+') {
-      if (typeof l === 'string' || typeof r === 'string') return pyStr(l) + pyStr(r);
-      if (Array.isArray(l) && Array.isArray(r)) return l.concat(r);
+      if (typeof l === 'string' || typeof r === 'string') {
+        const s = pyStr(l) + pyStr(r);
+        capSeqLen(s.length, line); // F1: refuse a `s = s + s` doubling-to-OOM loop
+        return s;
+      }
+      if (Array.isArray(l) && Array.isArray(r)) {
+        capSeqLen(l.length + r.length, line);
+        return l.concat(r);
+      }
       return l + r;
     }
     // Python raises ZeroDivisionError for /, // and % by zero; JS would give
@@ -974,13 +999,23 @@
         // a float multiplier raises like range() does ('x'*2.5 -> TypeError in
         // CPython) rather than silently truncating.
         var lStr = typeof l === 'string', rStr = typeof r === 'string';
-        if (lStr || rStr) {
-          if (lStr && rStr) throw new RoverError("can't multiply sequence by non-int of type 'str'", line);
-          var seq = lStr ? l : r;
-          var n = lStr ? r : l;
+        var lArr = Array.isArray(l), rArr = Array.isArray(r);
+        if (lStr || rStr || lArr || rArr) {
+          if ((lStr && rStr) || (lArr && rArr)) throw new RoverError("can't multiply sequence by non-int of type 'str'", line);
+          var seq = (lStr || lArr) ? l : r;
+          var n = (lStr || lArr) ? r : l;
           if (typeof n === 'boolean') n = n ? 1 : 0;
           if (typeof n !== 'number' || !Number.isInteger(n)) throw new RoverError("can't multiply sequence by non-int of type 'float'", line);
-          return seq.repeat(Math.max(0, n));
+          n = Math.max(0, n);
+          // F1: bound the allocation BEFORE building the sequence.
+          capSeqLen(seq.length * n, line);
+          if (typeof seq === 'string') return seq.repeat(n);
+          // F2: list/tuple repeat -- Python builds [x]*3 -> [x,x,x]; the old
+          // branch fell through to `l * r` (NaN / numeric coercion), silently
+          // disagreeing with the desktop grader.
+          var out = [];
+          for (var i = 0; i < n; i++) out = out.concat(seq);
+          return out;
         }
         return l * r;
       }

@@ -53,7 +53,6 @@ world:
 success_criteria:
   - samples_collected: 3
   - returns_to_base: true
-  - min_distance_travelled: 0.0
   - max_battery_used: 70.0
 hints:
   on_failure:

@@ -60,6 +60,52 @@ FORBIDDEN_NAMES: frozenset[str] = frozenset(
 #: stays a documented residual rather than a false guarantee.
 MAX_LITERAL_REPEAT: int = 1_000_000
 
+#: Largest constant exponent allowed in a ``**`` expression. ``10 ** 10 ** 7``
+#: builds a ten-million-digit integer in a single bytecode op that holds the
+#: GIL, so the thread-based wall-clock timeout cannot interrupt it and an
+#: over-budget run is graded as a clean pass. A teaching program never needs an
+#: exponent past a few hundred (``2 ** 64`` bit math is fine), so we reject a
+#: constant-foldable exponent above this bound at parse time. A runtime-computed
+#: exponent (``e = 10_000_000; 10 ** e``) stays a documented residual, like the
+#: runtime-computed repeat above -- a true hard cap needs the out-of-process
+#: executor the design deliberately declined.
+MAX_POW_EXP: int = 4096
+
+
+def _fold_const_int(node: ast.expr) -> int | None:
+    """Fold a constant integer arithmetic subtree, or return ``None``.
+
+    Used only to inspect a ``**`` exponent. It SHORT-CIRCUITS: any intermediate
+    value whose magnitude exceeds :data:`MAX_POW_EXP` returns that magnitude
+    immediately, so this never materialises the very bignum it exists to forbid.
+    Returns ``None`` when the subtree references a name/call (not constant).
+    """
+    if isinstance(node, ast.Constant):
+        return (
+            node.value if isinstance(node.value, int) and not isinstance(node.value, bool) else None
+        )
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+        inner = _fold_const_int(node.operand)
+        return None if inner is None else -inner
+    if isinstance(node, ast.BinOp):
+        left = _fold_const_int(node.left)
+        right = _fold_const_int(node.right)
+        if left is None or right is None:
+            return None
+        if abs(left) > MAX_POW_EXP or abs(right) > MAX_POW_EXP:
+            return MAX_POW_EXP + 1  # already too big; do not compute further
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if isinstance(node.op, ast.Pow):
+            if right < 0 or right > 32:
+                return MAX_POW_EXP + 1
+            return int(left**right)  # right >= 0 guaranteed, so this is an int
+    return None
+
 
 @dataclass(frozen=True, slots=True)
 class SandboxViolation:
@@ -117,6 +163,17 @@ class _SandboxWalker(ast.NodeVisitor):
                     self.violations.append(
                         SandboxViolation("oversized-repeat", str(operand.value), node.lineno)
                     )
+        # Reject a bignum-bomb exponent (``10 ** 10 ** 7``): a constant-foldable
+        # exponent above MAX_POW_EXP allocates a giant integer in one GIL-holding
+        # op that the wall-clock timeout cannot interrupt.
+        elif isinstance(node.op, ast.Pow):
+            folded = _fold_const_int(node.right)
+            if folded is not None and abs(folded) > MAX_POW_EXP:
+                self.violations.append(
+                    SandboxViolation(
+                        "oversized-power", str(node.right.__class__.__name__), node.lineno
+                    )
+                )
         self.generic_visit(node)
 
     # --- format-string field specs ------------------------------------------

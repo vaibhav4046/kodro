@@ -182,6 +182,18 @@ check('string concat "hello"+" "+"world"', printsOf('print("hello" + " " + "worl
 // where [1,2,3][0] is 1, so the browser sim must agree (was a defect: the old
 // parser ignored '[' and raised a confusing 'Expected ")"').
 check('[1,2,3][0] indexes to 1 (real [] indexing)', printsOf('print([1,2,3][0])')[0] === '1', printsOf('print([1,2,3][0])')[0]);
+// Sequence repetition builds a real list (parity F2: the old branch fell to
+// numeric coercion, [0]*3 -> 0 / [1,2]*2 -> NaN, silently disagreeing with the
+// Python grader). Both operand orders.
+check('[0] * 3 == [0, 0, 0] (list repeat)', printsOf('print([0] * 3)')[0] === '[0, 0, 0]', printsOf('print([0] * 3)')[0]);
+check('[1, 2] * 2 == [1, 2, 1, 2]', printsOf('print([1, 2] * 2)')[0] === '[1, 2, 1, 2]', printsOf('print([1, 2] * 2)')[0]);
+check('3 * [7] == [7, 7, 7] (int on the left)', printsOf('print(3 * [7])')[0] === '[7, 7, 7]', printsOf('print(3 * [7])')[0]);
+check('for i in [0]*3 iterates 3 times', run('for i in [0] * 3:\n    move_forward(1)').moves === 3, run('for i in [0] * 3:\n    move_forward(1)').moves + ' moves');
+// Allocation guard (F1): the browser has no per-process memory cap the desktop
+// Python sandbox has, so an unbounded repeat or a doubling-to-OOM loop must be
+// refused with an honest error instead of hanging the tab.
+check("'x' * 5000000 refused (repeat allocation cap)", runThrows('s = "x" * 5000000') !== null, String(runThrows('s = "x" * 5000000')).slice(0, 44));
+check('s = s + s doubling refused (concat allocation cap)', runThrows('s = "x" * 900000\nfor i in range(9):\n    s = s + s') !== null, String(runThrows('s = "x" * 900000\nfor i in range(9):\n    s = s + s')).slice(0, 44));
 // Math builtins
 check('abs(-5) == 5', printsOf('print(abs(-5))')[0] === '5', printsOf('print(abs(-5))')[0]);
 check('round(3.7) == 4', printsOf('print(round(3.7))')[0] === '4', printsOf('print(round(3.7))')[0]);

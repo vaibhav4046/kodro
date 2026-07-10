@@ -1,86 +1,176 @@
 {
   "schema": "kodro-backlog/1",
-  "updated_commit": "e801511",
+  "updated_commit": "pending-judge-fix-round",
   "note": "severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED. OPP-* are scout opportunities (impact x feasibility / complexity); K-* are defects.",
   "items": [
     {
       "id": "K-001",
       "title": "Desktop boot: bottle asset() TypeError traceback (pywebview /route bug)",
-      "severity": "P3", "status": "DISCLOSED", "owner": "release",
+      "severity": "P3",
+      "status": "DISCLOSED",
+      "owner": "release",
       "evidence": "webview/http.py asset(file) also bound to @app.route('/') with no file arg. bottle 0.13.4 + pywebview 6.2.1. exe console=False so stderr invisible to users. Harmless.",
-      "acceptance": "Keep DISCLOSED, or pin a pywebview/bottle combo without the /route arity bug.", "deps": []
+      "acceptance": "Keep DISCLOSED, or pin a pywebview/bottle combo without the /route arity bug.",
+      "deps": []
     },
     {
       "id": "K-002",
       "title": "CODEX_HANDOFF.md/known-limitations undersold shipped features (honesty)",
-      "severity": "P2", "status": "FIXED", "owner": "lead",
-      "evidence": "Listed KodroBench, CLI, URDF I/O as absent though shipped (kodrobench.py, pyproject scripts, interop/urdf_io.py). i18n said 'partial' but absent. Corrected §9 to verified state.",
-      "acceptance": "Doc gaps match `grep` reality.", "deps": []
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "lead",
+      "evidence": "Listed KodroBench, CLI, URDF I/O as absent though shipped (kodrobench.py, pyproject scripts, interop/urdf_io.py). i18n said 'partial' but absent. Corrected \u00a79 to verified state.",
+      "acceptance": "Doc gaps match `grep` reality.",
+      "deps": []
     },
     {
       "id": "OPP-1",
       "title": "In-browser pupil records store (web Teacher Dashboard is dead empty-state)",
-      "severity": "P1", "status": "OPEN", "owner": "teacher",
+      "severity": "P1",
+      "status": "OPEN",
+      "owner": "teacher",
       "evidence": "panels.jsx TeacherModal: 'Browser mode has no persistent pupil store'. Kills hosted/$0 classroom value; KS1-KS4 story is desktop-only.",
       "build_on": "TeacherModal renderer + empty-states; localStorage pattern (runreport.js, memory.jsx); mirror Python SQLite pupil/concept-strength schema.",
       "slice": "localStorage pupil+concept-strength store, written on each lesson pass, read by TeacherModal in browserMode.",
-      "gate": "qa_ui.mjs: simulate a lesson pass, assert dashboard shows a seeded pupil row + non-zero concept cell (not empty-state).", "deps": []
+      "gate": "qa_ui.mjs: simulate a lesson pass, assert dashboard shows a seeded pupil row + non-zero concept cell (not empty-state).",
+      "deps": []
     },
     {
       "id": "OPP-2",
       "title": "Run replay + seed/event enrichment",
-      "severity": "P2", "status": "OPEN", "owner": "runtime",
+      "severity": "P2",
+      "status": "OPEN",
+      "owner": "runtime",
       "evidence": "runreport.js stores summary metrics only; no seed/hash/event trace; no replay in web assets.",
       "slice": "persist seed + command list per run; a Replay button re-drives deterministically from stored seed.",
-      "gate": "assert replay reproduces byte-identical final distance/battery/min-proximity.", "deps": []
+      "gate": "assert replay reproduces byte-identical final distance/battery/min-proximity.",
+      "deps": []
     },
     {
       "id": "OPP-3",
       "title": "Gymnasium KodroEnv-v0 over bench.py",
-      "severity": "P2", "status": "OPEN", "owner": "ai",
+      "severity": "P2",
+      "status": "OPEN",
+      "owner": "ai",
       "evidence": "KodroBench shipped; no gymnasium/KodroEnv in src. Research/dissertation leverage.",
       "slice": "gymnasium.Env wrapping engine (discrete actions, reset/step, seeded), register KodroEnv-v0; one KodroBench adapter drives through it.",
-      "gate": "pytest deterministic episode + golden return.", "deps": []
+      "gate": "pytest deterministic episode + golden return.",
+      "deps": []
     },
     {
       "id": "OPP-4",
       "title": "Full sensor command bindings (line-follower first)",
-      "severity": "P2", "status": "OPEN", "owner": "robotics",
+      "severity": "P2",
+      "status": "OPEN",
+      "owner": "robotics",
       "evidence": "camera/gps/bumper/line/gripper fitted but no runnable command; gating exists only for distance()/heading().",
       "slice": "on_line() ground-colour read for line follower, gated when part absent.",
-      "gate": "qa_interpreter binding case + grounding refusal when unfitted.", "deps": []
+      "gate": "qa_interpreter binding case + grounding refusal when unfitted.",
+      "deps": []
     },
     {
       "id": "OPP-5",
       "title": "URDF -> KRS import into the web Lab",
-      "severity": "P2", "status": "OPEN", "owner": "robotics",
+      "severity": "P2",
+      "status": "OPEN",
+      "owner": "robotics",
       "evidence": "urdf_io.py (URDF->KodroRobotSpec) + specschema.js KRS both exist; no bridge. Desktop-only extra (offline rule keeps web on KRS).",
       "slice": "KodroRobotSpec->KRS(physical) converter so desktop Import spec accepts .urdf.",
-      "gate": "pytest golden URDF -> expected mass/top-speed KRS fields.", "deps": []
+      "gate": "pytest golden URDF -> expected mass/top-speed KRS fields.",
+      "deps": []
     },
     {
       "id": "OPP-6",
       "title": "World/mission authoring: data schema + minimal creator",
-      "severity": "P2", "status": "OPEN", "owner": "robotics",
+      "severity": "P2",
+      "status": "OPEN",
+      "owner": "robotics",
       "evidence": "worlds code-only (terrains.jsx SITES + generators parameterized by seed/count/traction); no creator UI.",
       "slice": "Custom world built at runtime from seed + density + traction controls (no persistence v1).",
-      "gate": "qa_worlds render sweep + qa_ui density slider changes obstacle count.", "deps": []
+      "gate": "qa_worlds render sweep + qa_ui density slider changes obstacle count.",
+      "deps": []
     },
     {
       "id": "OPP-7",
       "title": "Bounded AI tool/function-calling loop",
-      "severity": "P2", "status": "OPEN", "owner": "ai",
+      "severity": "P2",
+      "status": "OPEN",
+      "owner": "ai",
       "evidence": "chat-builds-world is conservative regex intent-parse (chat-intent.js).",
       "slice": "one whitelisted tool (set_world/set_part) with arg validation; refuse invalid, apply valid, fall back to intent-parse on model failure.",
-      "gate": "qa_ai_web: invalid arg refused readably; valid call mutates state.", "deps": []
+      "gate": "qa_ai_web: invalid arg refused readably; valid call mutates state.",
+      "deps": []
     },
     {
       "id": "OPP-8",
       "title": "RobotSpec v0->v1 migration step",
-      "severity": "P3", "status": "OPEN", "owner": "robotics",
+      "severity": "P3",
+      "status": "OPEN",
+      "owner": "robotics",
       "evidence": "specschema.js reads version with a warning but has no migrate() step.",
       "slice": "explicit migrate(raw) upgrading older saves to v1 with recorded notes.",
-      "gate": "unit test: older save migrates + round-trips validate/exportKrs.", "deps": []
+      "gate": "unit test: older save migrates + round-trips validate/exportKrs.",
+      "deps": []
+    },
+    {
+      "id": "F1",
+      "title": "Browser interpreter: no allocation cap on repeat/concat (tab OOM)",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "security",
+      "evidence": "interpreter.js binop capSeqLen(MAX_SEQ_LEN=1e6) on string/list * and +; 'x'*5e6 and s=s+s doubling now throw RoverError. qa_interpreter cases added.",
+      "acceptance": "'x'*5000000 refused; doubling loop refused.",
+      "deps": []
+    },
+    {
+      "id": "F2",
+      "title": "Browser interpreter: list*int silently coerced (parity)",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "runtime",
+      "evidence": "binop('*') now handles Array x int both orders; [0]*3->[0,0,0], [1,2]*2->[1,2,1,2], 3*[7]->[7,7,7]. Matches Python grader. qa_interpreter 163.",
+      "acceptance": "[0]*3 == [0,0,0] in browser.",
+      "deps": []
+    },
+    {
+      "id": "F3",
+      "title": "README telemetry 'samples collected' false claim",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "lead",
+      "evidence": "Telemetry.jsx has no samples readout; README bullet changed to 'traction'.",
+      "acceptance": "README telemetry matches Telemetry.jsx.",
+      "deps": []
+    },
+    {
+      "id": "F4",
+      "title": "Python 'hard timeout' not hard vs GIL-holding bignum; over-budget graded SUCCESS",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "security",
+      "evidence": "sandbox.py rejects constant-foldable ** exponent > MAX_POW_EXP=4096 (short-circuit fold, no bignum materialised). execute('10**10**7') now error_kind=sandbox in 0.00s (was 8.1s SUCCESS). 2**2**3=256 allowed. 8 sandbox tests.",
+      "acceptance": "10**10**7 refused fast; 2**64 allowed.",
+      "deps": []
+    },
+    {
+      "id": "F5",
+      "title": "Lesson 10 vacuous criterion 'Travel at least 0 m'",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "teacher",
+      "evidence": "Removed min_distance_travelled:0.0 from 10_optimisation.yaml + JS LESSON_DATA mirror (always-true no-op that rendered a nonsense goal). Lesson keeps samples+return+battery. grader QA 34.",
+      "acceptance": "No 'Travel at least 0 m' goal.",
+      "deps": []
+    },
+    {
+      "id": "F6",
+      "title": "TweaksPanel renders but never shows (design-tool scaffold)",
+      "severity": "P3",
+      "status": "OPEN",
+      "owner": "design",
+      "evidence": "tweaks-panel.jsx opens only on __activate_edit_mode postMessage nothing sends; grid/ambientFx/trail frozen at defaults. Never visible to users so effectively absent (not a lying control users see). Deferred: remove render or wire a real toggle.",
+      "acceptance": "Either a real toggle opens it, or the dead render is removed.",
+      "deps": []
     }
   ]
 }

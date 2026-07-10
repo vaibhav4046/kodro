@@ -99,8 +99,8 @@ What actually ships in this repository, verified against the test suite:
 - **Self refinement memory.** A localStorage memory of reflections and
   saved skills that informs later sessions. No cloud, no accounts, no
   model retraining.
-- **Telemetry.** Live heading, battery, LIDAR distance and samples
-  collected, plus a compass dial and arc gauges in the sensors rail.
+- **Telemetry.** Live heading, battery, LIDAR distance and traction, plus a
+  compass dial and arc gauges in the sensors rail.
 - **Procedural sound effects.** Every cue (drive, turn, scan, LED,
   speech, pass, fail, crash) is synthesised at runtime with the Web
   Audio API or the standard library. No audio files, no network.

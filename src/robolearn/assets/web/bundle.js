@@ -15128,8 +15128,6 @@ Object.assign(window, {
       }, {
         "returns_to_base": true
       }, {
-        "min_distance_travelled": 0
-      }, {
         "max_battery_used": 70
       }],
       "hints": {
