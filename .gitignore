@@ -60,3 +60,6 @@ src/robolearn/assets/web/harness.html
 src/robolearn/assets/web/studio_harness.html
 src/robolearn/assets/web/harness_bundle.js
 src/robolearn/assets/web/cap.html
+
+# Kodro autonomy: track handoff, ignore local evidence stream
+.kodro/autonomy/EVIDENCE.jsonl

@@ -1,0 +1,17 @@
+{
+  "schema": "kodro-backlog/1",
+  "updated_commit": "e801511",
+  "note": "Populated by the adversarial judge + research scout. severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED.",
+  "items": [
+    {
+      "id": "K-001",
+      "title": "Desktop boot: bottle asset() TypeError traceback (pywebview /route bug)",
+      "severity": "P3",
+      "status": "DISCLOSED",
+      "owner": "release",
+      "evidence": "webview/http.py:121-129 registers @app.route('/') + '/<file:path>' both on asset(file); a '/' request calls asset() with no file arg. bottle 0.13.4 + pywebview 6.2.1. exe is console=False so stderr is invisible to end users; app prints 'UI ready' immediately after. Harmless.",
+      "acceptance": "Either pin a pywebview/bottle combo without the /route arity bug, or keep DISCLOSED (users never see it in the windowed exe).",
+      "deps": []
+    }
+  ]
+}
