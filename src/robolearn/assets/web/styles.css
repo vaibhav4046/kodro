@@ -12,6 +12,12 @@
   --mars:#c8685a; --brass:#c9a86a;
   --success:#7cc49b; --warning:#e0b45c; --danger:#d06a6a;
   --fg-1:#f5f0e4; --fg-2:rgba(245,240,228,0.68); --fg-3:rgba(245,240,228,0.44); --fg-4:rgba(245,240,228,0.22);
+  /* HUD text: the viewport overlays (terrain switch, telemetry, orbit hint,
+     site chip, 3D help) sit on a FIXED dark-glass surface in EVERY theme, so
+     their text must stay light regardless of theme. Theme blocks redefine
+     --fg-* but deliberately NOT these, so the HUD never goes dark-on-dark
+     (the light/pixel themes flip --fg-* dark, which vanished on the glass). */
+  --hud-fg-1:#f5f0e4; --hud-fg-2:rgba(245,240,228,0.74); --hud-fg-3:rgba(245,240,228,0.54);
   --border:rgba(245,240,228,0.12); --border-2:rgba(245,240,228,0.06);
   --font-display:'Cormorant Garamond',Garamond,serif;
   --font-body:'Inter Tight',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
@@ -297,11 +303,11 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
   display:flex; align-items:center; gap:7px;
   font-family:var(--font-mono); font-size:var(--text-sm); letter-spacing:0.1em; text-transform:uppercase;
   padding:7px 13px; border-radius:var(--radius-sm); cursor:pointer; border:1px solid transparent;
-  color:var(--fg-3); background:transparent; transition:all 200ms var(--ease);
+  color:var(--hud-fg-3); background:transparent; transition:all 200ms var(--ease);
 }
 .terrain-btn .tdot { width:8px; height:8px; border-radius:99px; flex:none; transition:all 200ms var(--ease); }
-.terrain-btn:hover { color:var(--fg-1); background:rgba(245,240,228,0.04); }
-.terrain-btn.active { color:var(--fg-1); background:rgba(245,240,228,0.06); border-color:var(--border); }
+.terrain-btn:hover { color:var(--hud-fg-1); background:rgba(245,240,228,0.08); }
+.terrain-btn.active { color:var(--hud-fg-1); background:rgba(245,240,228,0.12); border-color:rgba(245,240,228,0.24); }
 
 .viewport { position:absolute; inset:0; overflow:hidden; perspective:1500px; perspective-origin:50% 40%; cursor:grab; }
 .viewport:active { cursor:grabbing; }
@@ -347,7 +353,7 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .hud-bl {
   position:absolute; left:14px; bottom:14px; z-index:14;
   font-family:var(--font-mono); font-size:var(--text-xs); letter-spacing:0.12em;
-  color:var(--fg-2); background:rgba(8,9,15,0.62); backdrop-filter:blur(8px);
+  color:var(--hud-fg-2); background:rgba(8,9,15,0.62); backdrop-filter:blur(8px);
   border:0.5px solid var(--border); border-radius:var(--radius-md); padding:9px 12px;
   display:flex; flex-direction:column; gap:5px; min-width:148px;
 }
@@ -588,7 +594,7 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .orbit-hint {
   position:absolute; left:50%; bottom:16px; transform:translateX(-50%); z-index:13;
   font-family:var(--font-mono); font-size:var(--text-xs); letter-spacing:0.14em; text-transform:uppercase;
-  color:var(--fg-3); background:rgba(8,9,15,0.5); backdrop-filter:blur(6px);
+  color:var(--hud-fg-3); background:rgba(8,9,15,0.5); backdrop-filter:blur(6px);
   border:0.5px solid var(--border-2); border-radius:999px; padding:5px 12px; pointer-events:none;
   opacity:0; animation:hintfade 5s var(--ease) forwards;
 }
@@ -1484,7 +1490,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 /* Keyboard-control caption: hidden until the canvas (a descendant) is focused,
    so sighted keyboard users get a visible hint without cluttering the view. */
 .vp3d-help{ position:absolute; left:50%; bottom:12px; transform:translateX(-50%); padding:5px 12px; border-radius:99px;
-  background:rgba(8,10,14,.72); color:var(--fg-1); font-family:var(--font-mono); font-size:var(--text-sm); letter-spacing:.02em;
+  background:rgba(8,10,14,.72); color:var(--hud-fg-1); font-family:var(--font-mono); font-size:var(--text-sm); letter-spacing:.02em;
   white-space:nowrap; pointer-events:none; opacity:0; transition:opacity var(--duration-normal,.3s) var(--ease,ease); }
 .viewport3d:focus-within .vp3d-help{ opacity:1; }
 @media (prefers-reduced-motion: reduce){ .vp3d-help{ transition:none; } }
@@ -1492,8 +1498,8 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
    coordinates), matching the overlay the 2.5D view has always had. */
 .vp3d-site{ position:absolute; left:12px; bottom:12px; display:flex; flex-direction:column; gap:1px;
   padding:6px 10px; border-radius:var(--radius-md); background:rgba(8,10,14,.6); pointer-events:none; }
-.vp3d-site-name{ color:var(--fg-1); font-size:var(--text-md); font-weight:600; letter-spacing:.02em; }
-.vp3d-site-coord{ color:var(--fg-2); font-family:var(--font-mono); font-size:var(--text-xs); letter-spacing:.04em; }
+.vp3d-site-name{ color:var(--hud-fg-1); font-size:var(--text-md); font-weight:600; letter-spacing:.02em; }
+.vp3d-site-coord{ color:var(--hud-fg-2); font-family:var(--font-mono); font-size:var(--text-xs); letter-spacing:.04em; }
 /* Compact focus ring for dense toolbar clusters: the default 3px/2px ring
    overlaps neighbouring controls inside the pill toolbars, so these use a
    deliberate 2px/1px variant (same colour, still >=3:1 against both the

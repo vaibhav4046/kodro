@@ -153,6 +153,7 @@ const CAP = `<!DOCTYPE html>
         var td = q.get('tod'); if (td) localStorage.setItem('kodro_tod', td);
         var wx = q.get('weather'); if (wx) localStorage.setItem('kodro_weather', wx);
         var md = q.get('mode'); if (md) localStorage.setItem('kodro_mode', md);
+        var th = q.get('theme'); if (th) localStorage.setItem('or_theme', th);
         var vw = q.get('view');
         if (vw === '2d') localStorage.setItem('or_view3d', '0');
         else if (vw === '3d') localStorage.setItem('or_view3d', '1');
@@ -164,7 +165,7 @@ const CAP = `<!DOCTYPE html>
           }]));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe') };
     })();
   </script>
   <div id="root"></div>
@@ -300,6 +301,30 @@ const CAP = `<!DOCTYPE html>
             var sw = Math.max(document.documentElement.scrollWidth, document.body ? document.body.scrollWidth : 0);
             d.setAttribute('data-scroll-w', String(sw));
             d.setAttribute('data-inner-w', String(window.innerWidth));
+            d.style.display = 'none';
+            document.body.appendChild(d);
+          } catch (e) { void e; }
+        }, 2600);
+      }
+      if (C.contrastprobe) {
+        // Contrast probe: the viewport HUD (world switch, telemetry, orbit hint,
+        // site chip) is a FIXED dark-glass surface in every theme, so its text
+        // must stay LIGHT even in the light/pixel themes. Record the measured
+        // relative luminance of each HUD text colour so a DOM dump can assert it
+        // is light (a regression to a theme --fg token would read dark here).
+        setTimeout(function () {
+          try {
+            function colOf(sel) {
+              var el = document.querySelector(sel);
+              return el ? getComputedStyle(el).color : '';
+            }
+            var d = document.createElement('div');
+            d.id = 'contrast-probe';
+            d.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') || 'dark');
+            // Raw computed colours; luminance is computed by the qa_ui reader so
+            // the parsing lives in one place and cannot silently NaN in-page.
+            d.setAttribute('data-terrain-col', colOf('.terrain-switch button.terrain-btn'));
+            d.setAttribute('data-orbit-col', colOf('.orbit-hint'));
             d.style.display = 'none';
             document.body.appendChild(d);
           } catch (e) { void e; }

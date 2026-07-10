@@ -660,6 +660,39 @@ function checkVibeBuild(chrome) {
   return { pass: true, reason: 'a "build a mars rover" chat command built the robot and moved the world to Mars (visible action line)' };
 }
 
+// LIGHT-THEME HUD READABILITY (F-light) — the viewport HUD is a fixed
+// dark-glass surface in every theme, so its text must stay LIGHT even in the
+// light theme (where the --fg tokens flip dark and used to vanish). The probe
+// records the measured relative luminance of the world-switch button and the
+// telemetry HUD text; both must read light (> 0.5) on the dark glass.
+function relLum(colStr) {
+  const m = /rgba?\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)/.exec(String(colStr));
+  if (!m) return -1;
+  const f = [m[1], m[2], m[3]].map(v => {
+    v = parseFloat(v) / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2];
+}
+function checkLightHud(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&theme=light&contrastprobe=1`;
+  const { dom, error } = dumpDom(chrome, 'behaviour_light_hud', url, { vtime: 4000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  const m = /id="contrast-probe"[^>]*data-theme="([^"]*)"[^>]*data-terrain-col="([^"]*)"[^>]*data-orbit-col="([^"]*)"/.exec(dom);
+  if (!m) return { pass: false, reason: 'contrast probe missing from DOM (driver did not run)' };
+  if (m[1] !== 'light') return { pass: false, reason: `light theme did not apply (data-theme="${m[1]}")` };
+  const terrainLum = relLum(m[2]);
+  if (terrainLum < 0) return { pass: false, reason: 'could not read the world-switch text colour (selector missed)' };
+  if (terrainLum < 0.5) return { pass: false, reason: `world-switch text is DARK in light theme (luminance ${terrainLum.toFixed(2)}) on the dark HUD — unreadable` };
+  // The orbit hint only exists in the 2.5D view; treat a missing one as N/A.
+  const orbitLum = relLum(m[3]);
+  if (orbitLum >= 0 && orbitLum < 0.5) {
+    return { pass: false, reason: `orbit hint text is DARK in light theme (luminance ${orbitLum.toFixed(2)}) on the dark HUD` };
+  }
+  return { pass: true, reason: `light-theme HUD text stays light on the dark glass (world-switch luminance ${terrainLum.toFixed(2)})` };
+}
+
 // LESSON GOALS (F-learn) — the classroom lesson card shows the grader's own
 // criteria as a goal checklist BEFORE any run, plus help-on-request. Drives
 // mode=classroom and picks a lesson through the REAL dropdown (lesson= driver).
@@ -1060,6 +1093,11 @@ function cleanup() {
   const lessonGoals = checkLessonGoals(chrome);
   behaviour.push(lessonGoals.pass);
   console.log(`${lessonGoals.pass ? 'PASS' : 'FAIL'}  ${'lesson-goals'.padEnd(20)} ${lessonGoals.reason}`);
+  gap();
+
+  const lightHud = checkLightHud(chrome);
+  behaviour.push(lightHud.pass);
+  console.log(`${lightHud.pass ? 'PASS' : 'FAIL'}  ${'light-hud'.padEnd(20)} ${lightHud.reason}`);
   gap();
 
   const goalMarker = checkGoalMarker(chrome);
