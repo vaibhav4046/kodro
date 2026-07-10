@@ -10,10 +10,15 @@ wrapped so a missing / unreachable server surfaces as :class:`OllamaError`
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess  # nosec B404 - used only to launch the local ollama binary
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
 from dataclasses import dataclass
+from pathlib import Path
 
 #: Base URL of the local Ollama server. Localhost only — never a remote host.
 DEFAULT_BASE_URL: str = "http://localhost:11434"
@@ -246,3 +251,110 @@ def is_available(base_url: str = DEFAULT_BASE_URL) -> bool:
 def list_models(base_url: str = DEFAULT_BASE_URL) -> list[str]:
     """Return locally-installed model names, or ``[]`` if the server is down."""
     return OllamaClient(base_url=base_url).models()
+
+
+# --- auto-start (desktop app) -----------------------------------------------
+
+#: Model preference order for the desktop warm-up, mirroring the web facade's
+#: pick() so both surfaces land on the same model. First installed name wins.
+PREFERRED_MODELS: tuple[str, ...] = (
+    "kodro-fast:latest",
+    "kodro-coder:latest",
+    "kodro-tutor:latest",
+    "robolearn-fast:latest",
+    "llama3.2:3b",
+    "gemma3:1b",
+)
+
+#: How long the auto-started server may take to answer its first probe. Spawning
+#: the binary is instant; the server binds the port within a few seconds.
+START_WAIT_S: float = 12.0
+
+
+def find_ollama_exe() -> str | None:
+    """Return the path to the local ``ollama`` binary, or ``None`` if absent.
+
+    Checked in order: the ``OLLAMA_EXE`` env override, PATH, then the default
+    per-user Windows install location. Never downloads anything.
+    """
+    override = os.environ.get("OLLAMA_EXE", "").strip()
+    if override and Path(override).is_file():
+        return override
+    on_path = shutil.which("ollama")
+    if on_path:
+        return on_path
+    local = os.environ.get("LOCALAPPDATA", "")
+    if local:
+        candidate = Path(local) / "Programs" / "Ollama" / "ollama.exe"
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def _spawn_server(exe: str) -> bool:
+    """Launch ``ollama serve`` detached; True if the process was started."""
+    try:
+        creationflags = 0
+        if os.name == "nt":
+            # Detach fully: no console window, survives the parent exiting.
+            creationflags = subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+        subprocess.Popen(  # nosec B603 - fixed local binary, no shell
+            [exe, "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            creationflags=creationflags,
+            close_fds=True,
+        )
+        return True
+    except OSError:
+        return False
+
+
+def _warm_preferred_model(client: OllamaClient) -> str | None:
+    """Load the preferred model into memory so the first real reply is fast.
+
+    A 1-token generate with a long ``keep_alive`` makes Ollama page the model
+    in now and hold it, instead of paying the multi-second load on the user's
+    first Vibe message. Returns the warmed model name, or ``None``.
+    """
+    installed = set(client.models())
+    chosen = next((m for m in PREFERRED_MODELS if m in installed), None)
+    if chosen is None:
+        return None
+    try:
+        client.generate("hi", model=chosen, num_predict=1, keep_alive="60m")
+    except OllamaError:
+        return None
+    return chosen
+
+
+def ensure_server(base_url: str = DEFAULT_BASE_URL, *, warm: bool = True) -> bool:
+    """Make sure a local Ollama server is up; start and warm it if needed.
+
+    Called by the desktop app on startup so opening Kodro also brings Ollama
+    up, with the preferred model pre-loaded. Safe to call unconditionally:
+
+    - server already running: probe succeeds, optional warm-up, no spawn;
+    - Ollama not installed: returns False, the app's normal "AI offline"
+      messaging stands;
+    - server down but installed: spawn ``ollama serve`` detached and wait up
+      to :data:`START_WAIT_S` for it to answer.
+
+    Returns True when a server is reachable by the time this returns.
+    """
+    client = OllamaClient(base_url=base_url)
+    if not client.available():
+        exe = find_ollama_exe()
+        if exe is None or not _spawn_server(exe):
+            return False
+        deadline = time.monotonic() + START_WAIT_S
+        while time.monotonic() < deadline:
+            if client.available():
+                break
+            time.sleep(0.5)
+        else:
+            return False
+    if warm:
+        _warm_preferred_model(client)
+    return True

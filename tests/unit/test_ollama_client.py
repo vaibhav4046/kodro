@@ -141,3 +141,99 @@ def test_embed_error_returns_empty(mock_urlopen: MagicMock) -> None:
     mock_urlopen.side_effect = urllib.error.URLError("conn refused")
     client = OllamaClient()
     assert client.embed("test text") == []
+
+
+# --- ensure_server / auto-start ----------------------------------------------
+
+
+def test_find_ollama_exe_env_override(tmp_path, monkeypatch) -> None:
+    from robolearn.ai import ollama_client as oc
+
+    fake = tmp_path / "ollama.exe"
+    fake.write_bytes(b"")
+    monkeypatch.setenv("OLLAMA_EXE", str(fake))
+    assert oc.find_ollama_exe() == str(fake)
+
+
+def test_find_ollama_exe_absent(monkeypatch) -> None:
+    from robolearn.ai import ollama_client as oc
+
+    monkeypatch.delenv("OLLAMA_EXE", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", "C:\nonexistent\nowhere")
+    monkeypatch.setattr("shutil.which", lambda _name: None)
+    assert oc.find_ollama_exe() is None
+
+
+def test_ensure_server_already_up_warms_and_returns_true(monkeypatch) -> None:
+    from robolearn.ai import ollama_client as oc
+
+    monkeypatch.setattr(oc.OllamaClient, "available", lambda self: True)
+    warmed: list[str] = []
+    monkeypatch.setattr(
+        oc, "_warm_preferred_model", lambda client: warmed.append("yes") or "kodro-fast:latest"
+    )
+    spawned: list[str] = []
+    monkeypatch.setattr(oc, "_spawn_server", lambda exe: spawned.append(exe) or True)
+    assert oc.ensure_server() is True
+    assert warmed == ["yes"]
+    assert spawned == []  # never spawns when the server already answers
+
+
+def test_ensure_server_not_installed_returns_false(monkeypatch) -> None:
+    from robolearn.ai import ollama_client as oc
+
+    monkeypatch.setattr(oc.OllamaClient, "available", lambda self: False)
+    monkeypatch.setattr(oc, "find_ollama_exe", lambda: None)
+    assert oc.ensure_server() is False
+
+
+def test_ensure_server_spawns_and_waits_for_probe(monkeypatch) -> None:
+    from robolearn.ai import ollama_client as oc
+
+    # First probe (pre-spawn) fails; post-spawn polling succeeds on the 2nd try.
+    calls = {"n": 0}
+
+    def fake_available(self) -> bool:
+        calls["n"] += 1
+        return calls["n"] >= 3
+
+    monkeypatch.setattr(oc.OllamaClient, "available", fake_available)
+    monkeypatch.setattr(oc, "find_ollama_exe", lambda: "C:\fake\\ollama.exe")
+    spawned: list[str] = []
+    monkeypatch.setattr(oc, "_spawn_server", lambda exe: spawned.append(exe) or True)
+    monkeypatch.setattr(oc.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(oc, "_warm_preferred_model", lambda client: None)
+    assert oc.ensure_server() is True
+    assert spawned == ["C:\fake\\ollama.exe"]
+
+
+def test_ensure_server_spawn_fails_returns_false(monkeypatch) -> None:
+    from robolearn.ai import ollama_client as oc
+
+    monkeypatch.setattr(oc.OllamaClient, "available", lambda self: False)
+    monkeypatch.setattr(oc, "find_ollama_exe", lambda: "C:\fake\\ollama.exe")
+    monkeypatch.setattr(oc, "_spawn_server", lambda exe: False)
+    assert oc.ensure_server() is False
+
+
+def test_warm_preferred_model_picks_first_installed(monkeypatch) -> None:
+    from robolearn.ai import ollama_client as oc
+
+    client = OllamaClient()
+    monkeypatch.setattr(oc.OllamaClient, "models", lambda self: ["gemma3:1b", "kodro-coder:latest"])
+    seen: dict[str, object] = {}
+
+    def fake_generate(self, prompt, *, model=None, num_predict=None, keep_alive=None, **kw):
+        seen.update({"model": model, "num_predict": num_predict, "keep_alive": keep_alive})
+        return "ok"
+
+    monkeypatch.setattr(oc.OllamaClient, "generate", fake_generate)
+    assert oc._warm_preferred_model(client) == "kodro-coder:latest"
+    assert seen == {"model": "kodro-coder:latest", "num_predict": 1, "keep_alive": "60m"}
+
+
+def test_warm_preferred_model_none_installed(monkeypatch) -> None:
+    from robolearn.ai import ollama_client as oc
+
+    monkeypatch.setattr(oc.OllamaClient, "models", lambda self: [])
+    assert oc._warm_preferred_model(OllamaClient()) is None

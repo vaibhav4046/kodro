@@ -1498,6 +1498,19 @@ def launch(*, db_path: Path | None = None, debug: bool = False) -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     with contextlib.suppress(Exception):
         _ = json  # keep json imported (used implicitly by pywebview)
+
+    # Opening Kodro also brings the local AI up: if Ollama is installed but its
+    # server is down, start it and pre-load the preferred model so the first
+    # Vibe reply is fast. Runs on a daemon thread so the window NEVER waits on
+    # it, and failure is silent by design -- the app's normal "AI offline"
+    # messaging (with install steps) already covers the not-installed case.
+    def _boot_ollama() -> None:
+        with contextlib.suppress(Exception):
+            from robolearn.ai import ollama_client
+
+            ollama_client.ensure_server()
+
+    threading.Thread(target=_boot_ollama, name="ollama-autostart", daemon=True).start()
     try:
         # build_app loads the bundled lesson library and the index HTML; a
         # missing or corrupt bundled asset raises here, BEFORE webview.start.
