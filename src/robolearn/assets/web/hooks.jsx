@@ -252,6 +252,24 @@
     return { reviewOpen, setReviewOpen, reviewBusy, reviewData, reviewErr, runReview, applyReview };
   }
 
+  // Read a persisted vibe conversation back from localStorage, tolerating a
+  // missing/corrupt/foreign value by falling back to an empty thread. Only the
+  // fields the thread renders are kept, so a tampered store cannot inject markup.
+  function loadVibeThread(key) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .filter(m => m && typeof m.text === 'string' && (m.role === 'user' || m.role === 'ai'))
+        .map(m => ({
+          role: m.role, kind: m.kind === 'code' ? 'code' : 'text', text: m.text,
+          model: m.model, validated: m.validated, validationError: m.validationError,
+        }));
+    } catch (_e) { return []; }
+  }
+
   function useVibeChat(opts) {
     opts = opts || {};
     // Inputs owned by other concerns and threaded in: the live world (for the
@@ -267,10 +285,24 @@
     const [vibePrompt, setVibePrompt] = useState('');
     const [vibeBusy, setVibeBusy] = useState(false);
     const [vibeError, setVibeError] = useState(null);
-    // Chat thread: [{role:'user'|'ai', kind:'text'|'code', text}]
-    const [vibeMsgs, setVibeMsgs] = useState([]);
+    // Chat thread: [{role:'user'|'ai', kind:'text'|'code', text}]. The thread is
+    // persisted to localStorage so a conversation survives a reload and reads as
+    // one long, continuing chat instead of resetting every visit. Same offline,
+    // on-device store the memory panel already uses -- nothing leaves the machine.
+    const VIBE_KEY = 'kodro_vibe_thread_v1';
+    const VIBE_CAP = 60; // keep the last N turns; older ones age out of storage
+    const [vibeMsgs, setVibeMsgs] = useState(() => loadVibeThread(VIBE_KEY));
     const vibeEndRef = useRef(null);
     useEffect(() => { if (vibeEndRef.current) vibeEndRef.current.scrollIntoView({ block: 'end' }); }, [vibeMsgs, vibeBusy]);
+    // Persist every change so the next visit resumes the same conversation.
+    useEffect(() => {
+      try { window.localStorage.setItem(VIBE_KEY, JSON.stringify(vibeMsgs.slice(-VIBE_CAP))); } catch (_e) { /* storage full or blocked: chat still works in-memory */ }
+    }, [vibeMsgs]);
+    // Start a fresh conversation and forget the saved one.
+    function vibeClear() {
+      setVibeMsgs([]); setVibeError(null); setVibeLive('');
+      try { window.localStorage.removeItem(VIBE_KEY); } catch (_e) { /* ignore */ }
+    }
 
     // Streamed reply: start a job, poll ~4x/s, and show the model's text live
     // in the thread while it thinks (the response feels instant instead of a
@@ -330,7 +362,7 @@
     return {
       vibeOpen, setVibeOpen, vibePrompt, setVibePrompt, vibeBusy, setVibeBusy,
       vibeError, setVibeError, vibeMsgs, setVibeMsgs, vibeEndRef, vibeLive,
-      setVibeLive, vibeCancelRef, vibeSend,
+      setVibeLive, vibeCancelRef, vibeSend, vibeClear,
     };
   }
 

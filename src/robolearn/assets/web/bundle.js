@@ -18653,6 +18653,28 @@ Object.assign(window, {
       applyReview
     };
   }
+
+  // Read a persisted vibe conversation back from localStorage, tolerating a
+  // missing/corrupt/foreign value by falling back to an empty thread. Only the
+  // fields the thread renders are kept, so a tampered store cannot inject markup.
+  function loadVibeThread(key) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      return arr.filter(m => m && typeof m.text === 'string' && (m.role === 'user' || m.role === 'ai')).map(m => ({
+        role: m.role,
+        kind: m.kind === 'code' ? 'code' : 'text',
+        text: m.text,
+        model: m.model,
+        validated: m.validated,
+        validationError: m.validationError
+      }));
+    } catch (_e) {
+      return [];
+    }
+  }
   function useVibeChat(opts) {
     opts = opts || {};
     // Inputs owned by other concerns and threaded in: the live world (for the
@@ -18670,14 +18692,34 @@ Object.assign(window, {
     const [vibePrompt, setVibePrompt] = useState('');
     const [vibeBusy, setVibeBusy] = useState(false);
     const [vibeError, setVibeError] = useState(null);
-    // Chat thread: [{role:'user'|'ai', kind:'text'|'code', text}]
-    const [vibeMsgs, setVibeMsgs] = useState([]);
+    // Chat thread: [{role:'user'|'ai', kind:'text'|'code', text}]. The thread is
+    // persisted to localStorage so a conversation survives a reload and reads as
+    // one long, continuing chat instead of resetting every visit. Same offline,
+    // on-device store the memory panel already uses -- nothing leaves the machine.
+    const VIBE_KEY = 'kodro_vibe_thread_v1';
+    const VIBE_CAP = 60; // keep the last N turns; older ones age out of storage
+    const [vibeMsgs, setVibeMsgs] = useState(() => loadVibeThread(VIBE_KEY));
     const vibeEndRef = useRef(null);
     useEffect(() => {
       if (vibeEndRef.current) vibeEndRef.current.scrollIntoView({
         block: 'end'
       });
     }, [vibeMsgs, vibeBusy]);
+    // Persist every change so the next visit resumes the same conversation.
+    useEffect(() => {
+      try {
+        window.localStorage.setItem(VIBE_KEY, JSON.stringify(vibeMsgs.slice(-VIBE_CAP)));
+      } catch (_e) {/* storage full or blocked: chat still works in-memory */}
+    }, [vibeMsgs]);
+    // Start a fresh conversation and forget the saved one.
+    function vibeClear() {
+      setVibeMsgs([]);
+      setVibeError(null);
+      setVibeLive('');
+      try {
+        window.localStorage.removeItem(VIBE_KEY);
+      } catch (_e) {/* ignore */}
+    }
 
     // Streamed reply: start a job, poll ~4x/s, and show the model's text live
     // in the thread while it thinks (the response feels instant instead of a
@@ -18797,7 +18839,8 @@ Object.assign(window, {
       vibeLive,
       setVibeLive,
       vibeCancelRef,
-      vibeSend
+      vibeSend,
+      vibeClear
     };
   }
   function useSwarm(opts) {
@@ -22368,6 +22411,7 @@ say("Survey done")`
     vibePrompt,
     setVibePrompt,
     vibeSend,
+    vibeClear,
     vibeContext
   }) {
     // The reflection the assistant is fed from past runs in this world,
@@ -22394,7 +22438,18 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, KI('vibe'), "Vibe coding. Describe it, the AI writes it"), /*#__PURE__*/React.createElement("button", {
+    }, KI('vibe'), "Vibe coding. Describe it, the AI writes it"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, vibeMsgs.length > 0 && /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: vibeBusy,
+      onClick: () => vibeClear && vibeClear(),
+      title: "Start a new conversation. This clears the saved chat on this device."
+    }, "New chat"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: () => {
@@ -22402,7 +22457,7 @@ say("Survey done")`
         setVibeBusy(false);
         setVibeOpen(false);
       }
-    }, "\u2715")), /*#__PURE__*/React.createElement(ProviderPicker, {
+    }, "\u2715"))), /*#__PURE__*/React.createElement(ProviderPicker, {
       onChange: refreshAiStatus
     }), aiInfo.available ? /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
@@ -22507,7 +22562,7 @@ say("Survey done")`
       onClick: vibeSend
     }, "Send")), /*#__PURE__*/React.createElement("span", {
       className: "vibe-hint"
-    }, "Apply types the code into the editor. Nothing runs until you press Run.")) : /*#__PURE__*/React.createElement("div", {
+    }, "Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time.")) : /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
     }, aiInfo.hint ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
@@ -23249,7 +23304,8 @@ say("Survey done")`
       vibeLive,
       setVibeLive,
       vibeCancelRef,
-      vibeSend
+      vibeSend,
+      vibeClear
     } = window.KodroHooks && window.KodroHooks.useVibeChat ? window.KodroHooks.useVibeChat({
       terrain,
       currentLessonIdRef
@@ -23272,7 +23328,8 @@ say("Survey done")`
       vibeCancelRef: {
         current: false
       },
-      vibeSend: function () {}
+      vibeSend: function () {},
+      vibeClear: function () {}
     };
     // --- AI status (local Ollama: Qwen/Gemma; graceful when absent) ---
     // window.KodroHooks.useAiStatus (hooks.jsx): owns aiInfo plus the
@@ -25050,6 +25107,7 @@ say("Survey done")`
       vibePrompt: vibePrompt,
       setVibePrompt: setVibePrompt,
       vibeSend: vibeSend,
+      vibeClear: vibeClear,
       vibeContext: window.KodroMemory && window.KodroMemory.lessonFor ? window.KodroMemory.lessonFor(terrain.id) : null
     }), blocksOpen && /*#__PURE__*/React.createElement(window.KodroPanels.BlocksModal, {
       setBlocksOpen: setBlocksOpen,

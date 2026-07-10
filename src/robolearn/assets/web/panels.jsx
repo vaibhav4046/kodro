@@ -549,7 +549,7 @@
     );
   }
 
-  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, refreshAiStatus, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeContext }) {
+  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, refreshAiStatus, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeClear, vibeContext }) {
     // The reflection the assistant is fed from past runs in this world,
     // rendered as a VISIBLE chip instead of an invisible prompt injection
     // (product-coherence D7: the memory loop must be seen to be believed).
@@ -564,7 +564,13 @@
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
             <span className="eyebrow">{KI('vibe')}Vibe coding. Describe it, the AI writes it</span>
-            <button className="btn-mini" aria-label="Close" onClick={() => { vibeCancelRef.current = true; setVibeBusy(false); setVibeOpen(false); }}>✕</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {vibeMsgs.length > 0 && (
+                <button className="btn-mini" disabled={vibeBusy} onClick={() => vibeClear && vibeClear()}
+                  title="Start a new conversation. This clears the saved chat on this device.">New chat</button>
+              )}
+              <button className="btn-mini" aria-label="Close" onClick={() => { vibeCancelRef.current = true; setVibeBusy(false); setVibeOpen(false); }}>✕</button>
+            </div>
           </div>
           <ProviderPicker onChange={refreshAiStatus} />
           {aiInfo.available ? (
@@ -626,7 +632,7 @@
                 />
                 <button className="ctrl ctrl-run" disabled={vibeBusy || !vibePrompt.trim()} onClick={vibeSend}>Send</button>
               </div>
-              <span className="vibe-hint">Apply types the code into the editor. Nothing runs until you press Run.</span>
+              <span className="vibe-hint">Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time.</span>
             </div>
           ) : (
             <div className="vibe-body">

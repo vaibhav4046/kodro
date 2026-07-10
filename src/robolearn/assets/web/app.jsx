@@ -386,7 +386,7 @@
     const {
       vibeOpen, setVibeOpen, vibePrompt, setVibePrompt, vibeBusy, setVibeBusy,
       vibeError, setVibeError, vibeMsgs, setVibeMsgs, vibeEndRef, vibeLive,
-      setVibeLive, vibeCancelRef, vibeSend,
+      setVibeLive, vibeCancelRef, vibeSend, vibeClear,
     } = (window.KodroHooks && window.KodroHooks.useVibeChat)
       ? window.KodroHooks.useVibeChat({ terrain, currentLessonIdRef })
       : {
@@ -394,6 +394,7 @@
         vibeBusy: false, setVibeBusy: function () {}, vibeError: null, setVibeError: function () {},
         vibeMsgs: [], setVibeMsgs: function () {}, vibeEndRef: { current: null }, vibeLive: '',
         setVibeLive: function () {}, vibeCancelRef: { current: false }, vibeSend: function () {},
+        vibeClear: function () {},
       };
     // --- AI status (local Ollama: Qwen/Gemma; graceful when absent) ---
     // window.KodroHooks.useAiStatus (hooks.jsx): owns aiInfo plus the
@@ -1331,7 +1332,7 @@
 
         {realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, { onClose: () => setRealismOpen(false), terrain: terrain })}
         {demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, { onClose: () => setDemoOpen(false) })}
-        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} />}
+        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} />}
 
         {blocksOpen && <window.KodroPanels.BlocksModal setBlocksOpen={setBlocksOpen} BLOCK_DEFS={BLOCK_DEFS} robotSpec={robotSpec} addBlock={addBlock} endBlock={endBlock} blockIndent={blockIndent} setBlockIndent={setBlockIndent} blocks={blocks} setBlocks={setBlocks} moveBlock={moveBlock} removeBlock={removeBlock} insertBlocksCode={insertBlocksCode} />}
 
