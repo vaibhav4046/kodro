@@ -100,12 +100,24 @@ checklist, progressive hints, ask-why, stuck-detection, next-lesson); round-2
 direction/motion + honesty fixes; light-theme HUD readability (fixed --hud-fg
 tokens; qa_ui light-hud assert; world-switch text luminance 0.87 on dark glass).
 
-## 9. Gaps / god-tier targets (see docs/roadmap.md, known-limitations.md)
-app.jsx God-component decomposition; web teacher dashboard is empty-state (no
-in-browser pupil records); no kodro-core pip package / CLI; no Gymnasium
-KodroEnv-v0 + KodroBench; no sim-to-real export pack; OSS launch kit; AI has no
-tool/function-calling loop beyond intent parsing; accessibility, i18n,
-mobile/touch, and full element-by-element light/dark parity are partial.
+## 9. Gaps / god-tier targets (verified against source at e801511)
+ALREADY SHIPPED (do not list as gaps): KodroBench (src/robolearn/kodrobench.py,
+bench.py, results/kodrobench-v0.1.json), CLI console scripts (robolearn, kodro,
+kodrobench in pyproject.toml), URDF import+export (src/robolearn/interop/urdf_io.py,
+[interop] extra), seeded domain randomization (bench.py), model picker.
+GENUINELY OPEN, highest leverage first: (1) in-browser pupil records store -- the
+web Teacher Dashboard is a self-admitted empty-state (panels.jsx TeacherModal),
+killing the hosted/$0 classroom value; (2) run replay + seed/event enrichment
+(runreport.js stores summaries only, no seed/trace); (3) Gymnasium KodroEnv-v0 over
+bench.py (KodroBench shipped, the Env wrapper did not); (4) full sensor command
+bindings (camera/gps/bumper/line/gripper are fitted but have no runnable command;
+gating exists only for distance()/heading()); (5) URDF->KRS import into the web Lab
+(both ends exist, no bridge); (6) world/mission authoring UI (worlds are code-only);
+(7) bounded AI tool/function-calling loop (chat-builds-world is regex intent-parse);
+(8) RobotSpec v0->v1 migration step. STILL PARTIAL/ABSENT: app.jsx God-component
+decomposition (partial); packaged glTF/Webots/ROS export bundle (absent, glTF blocked
+by offline rule); i18n (absent, not partial); Pymunk-into-runtime (largest single
+change); accessibility + mobile/touch + full element-by-element theme parity (partial).
 
 ## 10. Codex output
 Produce ONE copy-paste Fable 5 prompt that: (a) restates identity, repo,

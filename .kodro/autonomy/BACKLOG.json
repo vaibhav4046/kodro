@@ -1,17 +1,86 @@
 {
   "schema": "kodro-backlog/1",
   "updated_commit": "e801511",
-  "note": "Populated by the adversarial judge + research scout. severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED.",
+  "note": "severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED. OPP-* are scout opportunities (impact x feasibility / complexity); K-* are defects.",
   "items": [
     {
       "id": "K-001",
       "title": "Desktop boot: bottle asset() TypeError traceback (pywebview /route bug)",
-      "severity": "P3",
-      "status": "DISCLOSED",
-      "owner": "release",
-      "evidence": "webview/http.py:121-129 registers @app.route('/') + '/<file:path>' both on asset(file); a '/' request calls asset() with no file arg. bottle 0.13.4 + pywebview 6.2.1. exe is console=False so stderr is invisible to end users; app prints 'UI ready' immediately after. Harmless.",
-      "acceptance": "Either pin a pywebview/bottle combo without the /route arity bug, or keep DISCLOSED (users never see it in the windowed exe).",
-      "deps": []
+      "severity": "P3", "status": "DISCLOSED", "owner": "release",
+      "evidence": "webview/http.py asset(file) also bound to @app.route('/') with no file arg. bottle 0.13.4 + pywebview 6.2.1. exe console=False so stderr invisible to users. Harmless.",
+      "acceptance": "Keep DISCLOSED, or pin a pywebview/bottle combo without the /route arity bug.", "deps": []
+    },
+    {
+      "id": "K-002",
+      "title": "CODEX_HANDOFF.md/known-limitations undersold shipped features (honesty)",
+      "severity": "P2", "status": "FIXED", "owner": "lead",
+      "evidence": "Listed KodroBench, CLI, URDF I/O as absent though shipped (kodrobench.py, pyproject scripts, interop/urdf_io.py). i18n said 'partial' but absent. Corrected §9 to verified state.",
+      "acceptance": "Doc gaps match `grep` reality.", "deps": []
+    },
+    {
+      "id": "OPP-1",
+      "title": "In-browser pupil records store (web Teacher Dashboard is dead empty-state)",
+      "severity": "P1", "status": "OPEN", "owner": "teacher",
+      "evidence": "panels.jsx TeacherModal: 'Browser mode has no persistent pupil store'. Kills hosted/$0 classroom value; KS1-KS4 story is desktop-only.",
+      "build_on": "TeacherModal renderer + empty-states; localStorage pattern (runreport.js, memory.jsx); mirror Python SQLite pupil/concept-strength schema.",
+      "slice": "localStorage pupil+concept-strength store, written on each lesson pass, read by TeacherModal in browserMode.",
+      "gate": "qa_ui.mjs: simulate a lesson pass, assert dashboard shows a seeded pupil row + non-zero concept cell (not empty-state).", "deps": []
+    },
+    {
+      "id": "OPP-2",
+      "title": "Run replay + seed/event enrichment",
+      "severity": "P2", "status": "OPEN", "owner": "runtime",
+      "evidence": "runreport.js stores summary metrics only; no seed/hash/event trace; no replay in web assets.",
+      "slice": "persist seed + command list per run; a Replay button re-drives deterministically from stored seed.",
+      "gate": "assert replay reproduces byte-identical final distance/battery/min-proximity.", "deps": []
+    },
+    {
+      "id": "OPP-3",
+      "title": "Gymnasium KodroEnv-v0 over bench.py",
+      "severity": "P2", "status": "OPEN", "owner": "ai",
+      "evidence": "KodroBench shipped; no gymnasium/KodroEnv in src. Research/dissertation leverage.",
+      "slice": "gymnasium.Env wrapping engine (discrete actions, reset/step, seeded), register KodroEnv-v0; one KodroBench adapter drives through it.",
+      "gate": "pytest deterministic episode + golden return.", "deps": []
+    },
+    {
+      "id": "OPP-4",
+      "title": "Full sensor command bindings (line-follower first)",
+      "severity": "P2", "status": "OPEN", "owner": "robotics",
+      "evidence": "camera/gps/bumper/line/gripper fitted but no runnable command; gating exists only for distance()/heading().",
+      "slice": "on_line() ground-colour read for line follower, gated when part absent.",
+      "gate": "qa_interpreter binding case + grounding refusal when unfitted.", "deps": []
+    },
+    {
+      "id": "OPP-5",
+      "title": "URDF -> KRS import into the web Lab",
+      "severity": "P2", "status": "OPEN", "owner": "robotics",
+      "evidence": "urdf_io.py (URDF->KodroRobotSpec) + specschema.js KRS both exist; no bridge. Desktop-only extra (offline rule keeps web on KRS).",
+      "slice": "KodroRobotSpec->KRS(physical) converter so desktop Import spec accepts .urdf.",
+      "gate": "pytest golden URDF -> expected mass/top-speed KRS fields.", "deps": []
+    },
+    {
+      "id": "OPP-6",
+      "title": "World/mission authoring: data schema + minimal creator",
+      "severity": "P2", "status": "OPEN", "owner": "robotics",
+      "evidence": "worlds code-only (terrains.jsx SITES + generators parameterized by seed/count/traction); no creator UI.",
+      "slice": "Custom world built at runtime from seed + density + traction controls (no persistence v1).",
+      "gate": "qa_worlds render sweep + qa_ui density slider changes obstacle count.", "deps": []
+    },
+    {
+      "id": "OPP-7",
+      "title": "Bounded AI tool/function-calling loop",
+      "severity": "P2", "status": "OPEN", "owner": "ai",
+      "evidence": "chat-builds-world is conservative regex intent-parse (chat-intent.js).",
+      "slice": "one whitelisted tool (set_world/set_part) with arg validation; refuse invalid, apply valid, fall back to intent-parse on model failure.",
+      "gate": "qa_ai_web: invalid arg refused readably; valid call mutates state.", "deps": []
+    },
+    {
+      "id": "OPP-8",
+      "title": "RobotSpec v0->v1 migration step",
+      "severity": "P3", "status": "OPEN", "owner": "robotics",
+      "evidence": "specschema.js reads version with a warning but has no migrate() step.",
+      "slice": "explicit migrate(raw) upgrading older saves to v1 with recorded notes.",
+      "gate": "unit test: older save migrates + round-trips validate/exportKrs.", "deps": []
     }
   ]
 }
