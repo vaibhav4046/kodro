@@ -53,7 +53,12 @@
   }
 
   // Ray from (x,y) along heading to the nearest obstacle or wall, in cm.
-  function rayDistance(x, y, headingDeg, obstacles) {
+  // R is the rover collision radius: the live sensor host (sim-physics.js
+  // rayDistance) grows each obstacle by R so distance() reads the gap to where
+  // the BODY would touch, not the point path. The validator must match, or a
+  // program branching on distance() takes a different branch than it runs.
+  function rayDistance(x, y, headingDeg, obstacles, R) {
+    R = R || 0;
     const a = headingDeg * Math.PI / 180;
     const dx = Math.sin(a), dy = -Math.cos(a);
     let best = Infinity;
@@ -67,7 +72,7 @@
       const tca = ox * dx + oy * dy;
       if (tca < 0) continue;
       const d2 = ox * ox + oy * oy - tca * tca;
-      const rr = o.r * o.r;
+      const rr = (o.r + R) * (o.r + R);
       if (d2 > rr) continue;
       const t = tca - Math.sqrt(rr - d2);
       if (t > 0) best = Math.min(best, t);
@@ -131,10 +136,17 @@
       return { x: o.x + (rng() * 2 - 1) * jitter, y: o.y + (rng() * 2 - 1) * jitter, r: o.r };
     });
 
+    // Rover collision radius, resolved exactly like the live host (hooks.jsx):
+    // an imported build's measured body circle, else the shared model default.
+    // Threaded into every obstacle test so the validator collides, senses and
+    // measures clearance against the BODY, not a dimensionless point.
+    const KMc = window.KodroMotion;
+    const R = (robot && robot.phys && robot.phys.collisionRadiusCm) || (KMc && KMc.MODEL && KMc.MODEL.roverRadiusCm) || 30;
+
     const s = { x: start.x, y: start.y, heading: start.heading || 0, speed: 50, battery: 100 };
     let minObstacleDistance = Infinity;
     function noteClearance() {
-      for (const o of obstacles) { const d = Math.hypot(s.x - o.x, s.y - o.y) - o.r; if (d < minObstacleDistance) minObstacleDistance = d; }
+      for (const o of obstacles) { const d = Math.hypot(s.x - o.x, s.y - o.y) - (o.r + R); if (d < minObstacleDistance) minObstacleDistance = d; }
     }
     noteClearance();
 
@@ -157,9 +169,9 @@
             const sp = robot && robot.phys && robot.phys.sensor;
             if (sp && window.KodroMotion) {
               const pose = window.KodroMotion.sensorPose(s.x, s.y, s.heading, sp.fwdCm, sp.leftCm, sp.yawDeg);
-              d = Math.min(sp.rangeCm, rayDistance(pose.x, pose.y, pose.heading, obstacles));
+              d = Math.min(sp.rangeCm, rayDistance(pose.x, pose.y, pose.heading, obstacles, R));
             } else {
-              d = rayDistance(s.x, s.y, s.heading, obstacles);
+              d = rayDistance(s.x, s.y, s.heading, obstacles, R);
             }
             if (noiseCm) { d += (rng() * 2 - 1) * noiseCm; if (d < 0) { d = 0; sensorFailures++; } }
             return Math.round(d);
@@ -216,12 +228,16 @@
           // Collision: did the swept segment clip any obstacle?
           let hitAt = null;
           for (const o of obstacles) {
-            if (segPointDist(s.x, s.y, nx, ny, o.x, o.y) <= o.r) { hitAt = o; break; }
+            // Body vs obstacle: the swept centre path clips when it comes within
+            // (o.r + R), matching the live sim's collisionAt (o.r + R). A bare
+            // o.r test let the body corner-cut ~R cm into an obstacle and still
+            // pass, so a program grazing obstacles validated but crashed on run.
+            if (segPointDist(s.x, s.y, nx, ny, o.x, o.y) <= o.r + R) { hitAt = o; break; }
           }
           if (hitAt) {
             collisions++;
-            // Stop just short of the obstacle centre, along the heading.
-            const back = hitAt.r + 6;
+            // Stop with the body just short of the obstacle, along the heading.
+            const back = hitAt.r + R + 6;
             const tx = hitAt.x - Math.sin(a) * back, ty = hitAt.y + Math.cos(a) * back;
             s.x = tx; s.y = ty;
           } else if (Math.abs(nx) > WALL || Math.abs(ny) > WALL) {
