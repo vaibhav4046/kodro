@@ -24,7 +24,7 @@ from functools import partial
 
 from robolearn.engine.rover import Rover, RoverState
 from robolearn.engine.world import World
-from robolearn.runtime.binding import set_active_rover, set_active_world
+from robolearn.runtime.binding import binding_lock, set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
 from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
 
@@ -82,13 +82,17 @@ def run_swarm(
         heading = (360.0 * i / count) % 360.0
         rover = Rover(world, state=RoverState(x=start_x, y=start_y, heading_deg=heading))
         tracer = Tracer()
-        set_active(tracer)
-        set_active_rover(rover)
-        set_active_world(world)
-        # partial binds this iteration's rover immediately, so the provider
-        # always snapshots the right vehicle (and avoids a late-binding closure).
-        set_state_provider(partial(_snap, rover))
-        run_pupil_code(source or "", timeout_s=timeout_s)
+        # Hold the shared binding lock per fleet member so a concurrent
+        # AI-validation run cannot rebind the engine mid-run (same process
+        # global the web submission path guards).
+        with binding_lock:
+            set_active(tracer)
+            set_active_rover(rover)
+            set_active_world(world)
+            # partial binds this iteration's rover immediately, so the provider
+            # always snapshots the right vehicle (and avoids a late-binding closure).
+            set_state_provider(partial(_snap, rover))
+            run_pupil_code(source or "", timeout_s=timeout_s)
         path: list[tuple[float, float]] = [(start_x, start_y)]
         for event in tracer.events():
             rs = event.rover_state

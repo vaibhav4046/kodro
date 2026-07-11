@@ -1441,6 +1441,10 @@
       odoRef.current = 0; setOdo(0);
       minProxRef.current = Infinity;
       cmdCountRef.current = 0;
+      // Clear the measured-speed anchor so a later step-through (which reads
+      // wallMs before a fresh run sets this) cannot inherit a prior run's start
+      // time and report a wildly inflated elapsed-wall figure.
+      runStartRef.current = 0;
       setSensorDist(600);
       setActiveLine(0);
       setSay('');

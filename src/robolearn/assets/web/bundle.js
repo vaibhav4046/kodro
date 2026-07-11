@@ -13418,9 +13418,12 @@ Object.assign(window, {
     // pedestal, so the four locomotion verbs are refused for an arm build
     // rather than quietly driving 3.4 m across the room. Returns {ok:true} for
     // any command that is not a drive verb, or for a build that actually has a
-    // drive actuator fitted; else {ok:false, reason}. This is the SAME source
-    // of truth the visible run and the grader both read, so an arm is honest on
-    // screen and cannot pass a driving lesson it never physically performed.
+    // drive actuator fitted; else {ok:false, reason}. Enforced by the live
+    // run-pump (hooks.jsx) and the scenario validator (scenario.jsx), which
+    // refuse the verb so no motion event is produced. The lesson grader does
+    // NOT call driveCheck directly; it grades the events the run produced, so a
+    // refused arm records no drive and therefore still cannot satisfy a driving
+    // lesson it never physically performed.
     driveCheck: function (robot, cmdName) {
       if (!DRIVE_COMMANDS[cmdName]) return {
         ok: true
@@ -20865,6 +20868,10 @@ Object.assign(window, {
       setOdo(0);
       minProxRef.current = Infinity;
       cmdCountRef.current = 0;
+      // Clear the measured-speed anchor so a later step-through (which reads
+      // wallMs before a fresh run sets this) cannot inherit a prior run's start
+      // time and report a wildly inflated elapsed-wall figure.
+      runStartRef.current = 0;
       setSensorDist(600);
       setActiveLine(0);
       setSay('');

@@ -13,7 +13,7 @@ from robolearn.engine.rover import (
     Rover,
 )
 from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, Sample, World
+from robolearn.engine.world import ArenaBounds, Obstacle, Sample, World
 
 
 def _world() -> World:
@@ -168,3 +168,55 @@ def test_heading_radians_matches_degrees() -> None:
     r = Rover(_world())
     r.turn(180.0)
     assert r.heading_radians() == pytest.approx(math.pi)
+
+
+def _open_world(obstacles: list[Obstacle]) -> World:
+    """A wide, obstacle-carrying arena for the collision-geometry regressions."""
+    return World(
+        terrain=Terrain.EARTH,
+        base=(5.0, 5.0),
+        bounds=ArenaBounds(width=30.0, height=30.0),
+        obstacles=obstacles,
+    )
+
+
+def test_move_stops_at_nearest_obstacle_regardless_of_list_order() -> None:
+    """A farther obstacle listed FIRST must not let the rover cut into a nearer one.
+
+    Regression: the old sweep shortened the target inside the loop yet rescaled
+    by the full ideal displacement, so an earlier-listed farther obstacle made
+    the rover overshoot the true nearer contact and end up inside it. Ordering
+    must not change where the body stops. Near obstacle surface (grown by the
+    rover radius 0.3) sits at x = 7 - (0.3 + 0.3) = 6.4.
+    """
+    near = Obstacle(7.0, 5.0, 0.3)
+    far = Obstacle(9.0, 5.0, 0.3)
+    r = Rover(_open_world([far, near]))  # farther one FIRST on purpose
+    r.move(6.0)  # east, far enough to reach both
+    assert r.state.x == pytest.approx(6.4, abs=0.02)  # stopped AT the nearer body
+    assert r.state.collisions >= 1
+
+
+def test_touching_rover_can_reverse_away_and_is_not_trapped() -> None:
+    """A rover in contact with an obstacle may back off; only driving deeper hits.
+
+    Regression: segment_circle_hit returned t=0 for ANY move starting inside the
+    grown radius, so a touching rover was trapped forever, every move (even one
+    pointed straight away) reporting an immediate collision.
+    """
+    obstacle = Obstacle(5.4, 5.0, 0.2)  # grown radius 0.5; rover at (5,5) is inside
+    r = Rover(_open_world([obstacle]))
+    collisions_before = r.state.collisions
+    r.move(-1.0)  # reverse WEST, straight away from the east obstacle
+    assert r.state.x == pytest.approx(4.0, abs=1e-6)  # moved fully, not trapped
+    assert r.state.collisions == collisions_before  # backing off is not a hit
+
+
+def test_touching_rover_driving_deeper_still_collides() -> None:
+    """Backing off is free, but driving INTO the obstacle still registers a hit."""
+    obstacle = Obstacle(5.4, 5.0, 0.2)  # grown 0.5; rover at (5,5) inside
+    r = Rover(_open_world([obstacle]))
+    before = r.state.collisions
+    r.move(1.0)  # east, straight into the obstacle centre
+    assert r.state.collisions == before + 1
+    assert r.state.x == pytest.approx(5.0, abs=1e-6)  # held at the contact point

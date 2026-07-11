@@ -118,8 +118,15 @@ class Rover:
         start_x, start_y = self.state.x, self.state.y
         target_x = start_x + ideal_dx
         target_y = start_y + ideal_dy
-        # Obstacle sweep: stop at the first contact along the segment.
+        # Obstacle sweep: stop at the FIRST contact along the segment, i.e.
+        # the minimum t across all obstacles tested against the ORIGINAL
+        # segment. The old loop shortened the target inside the loop while
+        # still scaling by the full ideal displacement, so when a farther
+        # obstacle appeared earlier in world.obstacles its rescaled fraction
+        # overshot the true nearer contact and left the rover inside the
+        # nearer obstacle (order-dependent).
         hit_obstacle = False
+        first_t: float | None = None
         for obstacle in self.world.obstacles:
             t = segment_circle_hit(
                 start_x,
@@ -130,10 +137,12 @@ class Rover:
                 obstacle.y,
                 obstacle.radius + ROVER_RADIUS_M,
             )
-            if t is not None:
-                target_x = start_x + ideal_dx * t
-                target_y = start_y + ideal_dy * t
-                hit_obstacle = True
+            if t is not None and (first_t is None or t < first_t):
+                first_t = t
+        if first_t is not None:
+            target_x = start_x + ideal_dx * first_t
+            target_y = start_y + ideal_dy * first_t
+            hit_obstacle = True
         bounds = self.world.bounds
         self.state.x = min(max(target_x, 0.0), bounds.width)
         self.state.y = min(max(target_y, 0.0), bounds.height)

@@ -312,11 +312,20 @@ def segment_circle_hit(
     dx, dy = bx - ax, by - ay
     fx, fy = ax - cx, ay - cy
     a = dx * dx + dy * dy
+    c = fx * fx + fy * fy - radius * radius
     if a <= 1e-12:
         # Degenerate (zero-length) move: report contact only if already inside.
-        return 0.0 if (fx * fx + fy * fy) <= radius * radius else None
+        return 0.0 if c <= 0.0 else None
     b = 2.0 * (fx * dx + fy * dy)
-    c = fx * fx + fy * fy - radius * radius
+    if c <= 0.0:
+        # The segment STARTS inside (or exactly on) the grown circle, which is
+        # precisely where a previous swept stop leaves the rover. Blocking
+        # unconditionally here (the old ``max(0.0, t1)`` collapsed this case
+        # to t=0) trapped a touching rover forever: every later move,
+        # including one pointed straight AWAY from the obstacle, reported an
+        # immediate hit. Physically the rover may back off: moving away or
+        # tangentially is free; only moving deeper in is an immediate contact.
+        return 0.0 if b < 0.0 else None
     disc = b * b - 4.0 * a * c
     if disc < 0.0:
         return None

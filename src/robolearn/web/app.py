@@ -40,7 +40,12 @@ from robolearn.memory.pupil_model import (
     update_on_submission,
 )
 from robolearn.memory.store import Store
-from robolearn.runtime.binding import set_active_rover, set_active_world
+from robolearn.runtime.binding import (
+    active_engine,
+    binding_lock,
+    set_active_rover,
+    set_active_world,
+)
 from robolearn.runtime.executor import execute as run_pupil_code
 from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
 
@@ -234,20 +239,24 @@ class BridgeAPI:
         world = _world_from_lesson(lesson)
         rover = Rover(world)
         tracer = Tracer()
-        set_active(tracer)
-        set_active_rover(rover)
-        set_active_world(world)
-        set_state_provider(lambda: _snapshot(rover))
+        # Hold the binding lock for the whole bind -> run -> detach window so a
+        # concurrent AI-validation or swarm run on another thread cannot rebind
+        # the engine mid-submission and hijack whose rover the pupil drives.
+        with binding_lock:
+            set_active(tracer)
+            set_active_rover(rover)
+            set_active_world(world)
+            set_state_provider(lambda: _snapshot(rover))
 
-        result = run_pupil_code(source or "", timeout_s=5.0)
-        events = tracer.events()
-        # Detach the global tracer/engine bindings now the run is captured (the
-        # grader takes the tracer object directly), so a later read never sees
-        # this submission's stale rover/world/tracer.
-        set_active(None)
-        set_active_rover(None)
-        set_active_world(None)
-        set_state_provider(None)
+            result = run_pupil_code(source or "", timeout_s=5.0)
+            events = tracer.events()
+            # Detach the global tracer/engine bindings now the run is captured
+            # (the grader takes the tracer object directly), so a later read
+            # never sees this submission's stale rover/world/tracer.
+            set_active(None)
+            set_active_rover(None)
+            set_active_world(None)
+            set_state_provider(None)
 
         # Even on a runtime error we grade against whatever the tracer
         # captured -- the design's React console can still show partial
@@ -283,6 +292,13 @@ class BridgeAPI:
         if not verdict.passed and hint is not None:
             self._store.set_pending_hint(self._pupil_id, lesson.id, hint.rule_name)
 
+        # PRIOR history, read BEFORE recording this submission. The achievement
+        # predicates take a history that EXCLUDES the current submission (they
+        # append c.submission themselves, e.g. `(*c.history, c.submission)`).
+        # Reading it after the record below double-counted the current pass, so
+        # "three in a row" fired on only two consecutive passes.
+        history = tuple(self._store.list_submissions(pupil_id=self._pupil_id))
+
         submission = self._store.record_submission(
             pupil_id=self._pupil_id,
             lesson_id=lesson.id,
@@ -302,7 +318,6 @@ class BridgeAPI:
         update_on_submission(
             self._store, pupil_id=self._pupil_id, lesson=lesson, passed=verdict.passed
         )
-        history = tuple(self._store.list_submissions(pupil_id=self._pupil_id))
         pctx = PupilContext(
             pupil_id=self._pupil_id, lesson=lesson, submission=submission, history=history
         )
@@ -339,16 +354,17 @@ class BridgeAPI:
         world = _world_from_lesson(lesson)
         rover = Rover(world)
         tracer = Tracer()
-        set_active(tracer)
-        set_active_rover(rover)
-        set_active_world(world)
-        set_state_provider(lambda: _snapshot(rover))
-        run_pupil_code(source or "", timeout_s=5.0)
-        events = tuple(tracer.events())
-        set_active(None)
-        set_active_rover(None)
-        set_active_world(None)
-        set_state_provider(None)
+        with binding_lock:
+            set_active(tracer)
+            set_active_rover(rover)
+            set_active_world(world)
+            set_state_provider(lambda: _snapshot(rover))
+            run_pupil_code(source or "", timeout_s=5.0)
+            events = tuple(tracer.events())
+            set_active(None)
+            set_active_rover(None)
+            set_active_world(None)
+            set_state_provider(None)
         verdict = grade(lesson, tracer, source or "")
         ctx = HintContext(lesson=lesson, source=source or "", events=events, grade_result=verdict)
         # Read-only preview: rank by learned effectiveness, no outcome recorded.
@@ -816,8 +832,16 @@ class BridgeAPI:
 
     @staticmethod
     def _validate_generated(code: str) -> str | None:
-        """Run AI code through the sandboxed executor; return the error or None."""
-        result = run_pupil_code(code, timeout_s=5.0)
+        """Run AI code through the sandbox in an ISOLATED engine; return err/None.
+
+        Binds a throwaway rover/world under the binding lock so this validation
+        run can never drive (or be driven by) a live pupil submission on another
+        thread. Previously it called the executor with no binding, so it ran
+        against whatever engine happened to be active.
+        """
+        world = World(terrain=Terrain("earth"), base=(0.0, 0.0))
+        with active_engine(Rover(world), world):
+            result = run_pupil_code(code, timeout_s=5.0)
         if result.success:
             return None
         return f"{result.error_kind}: {result.error_message} (line {result.error_line})"
