@@ -718,8 +718,9 @@
       out.badges.acceleration = 'approximated';
       out.badges.slope = 'notSimulated';
     }
-    // Energy-true battery (E-A2).
-    if (p.battery) {
+    // Energy-true battery (E-A2). Plain-object check: a corrupt battery field
+    // (number/string) would silently derive NaN runtime numbers.
+    if (p.battery && typeof p.battery === 'object' && !Array.isArray(p.battery)) {
       out.energyWh = KM.physEnergyWh(p.battery.mAh, p.battery.voltage, p.battery.usableFraction);
       var vNom = out.vMaxSimCmPerS || (cat && cat.speedFactor ? M.baseSpeedCmPerS * cat.speedFactor : M.baseSpeedCmPerS);
       out.drainPctPerCmNominal = KM.physDrainPctPerCm(massKg, out.energyWh, vNom, M.gravityEarthMps2, 1);
@@ -736,8 +737,13 @@
       }
     }
     // Sensor mount geometry (HONOURED; first ultrasonic drives the ray).
-    var us = (p.sensors || []).filter(function (s) {
-      return s.kind === 'ultrasonic';
+    // Defensive: a hand-edited .kodro can carry physical.sensors as a non-array
+    // ({} passes a truthy check but has no .filter), and this function runs on
+    // the BOOT path via RobotLab.load() -> derive(). A throw here used to brick
+    // the studio until localStorage was cleared, so never trust the shape.
+    var sensorList = Array.isArray(p.sensors) ? p.sensors : [];
+    var us = sensorList.filter(function (s) {
+      return s && s.kind === 'ultrasonic';
     })[0];
     if (us) {
       out.sensor = {
@@ -1029,6 +1035,33 @@
           spec[k] = [];
         }
       });
+      // The measured (KRS) physical block is written RAW by apply() and then
+      // consumed at BOOT by RobotLab.load() -> deriveFromPhysical(), so a
+      // malformed block here is a persistent boot brick, not a soft warning.
+      // Validate it as a typed shape: the block itself and its object fields
+      // must be plain objects, and physical.sensors must be a list.
+      if (spec.physical !== undefined && spec.physical !== null) {
+        if (!isPlainObject(spec.physical)) {
+          errors.push('"spec.physical" must be an object (a measured KRS block).');
+        } else {
+          var phys = Object.assign({}, spec.physical);
+          if (phys.sensors !== undefined && !Array.isArray(phys.sensors)) {
+            warnings.push('"spec.physical.sensors" is not a list; reset to empty.');
+            phys.sensors = [];
+          }
+          ['bodyCm', 'drive', 'battery', 'declared'].forEach(function (k) {
+            if (phys[k] !== undefined && !isPlainObject(phys[k])) {
+              warnings.push('"spec.physical.' + k + '" is not an object; dropped.');
+              delete phys[k];
+            }
+          });
+          if (phys.massKg !== undefined && (typeof phys.massKg !== 'number' || !isFinite(phys.massKg) || phys.massKg <= 0)) {
+            warnings.push('"spec.physical.massKg" is not a positive number; dropped.');
+            delete phys.massKg;
+          }
+          spec.physical = phys;
+        }
+      }
       doc.spec = spec;
     }
 
@@ -2260,26 +2293,47 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
  * their saved skills and past-run reflections, each linked to the world and
  * robot type it was recorded under. Nothing is invented, and the layout is
  * deterministic (no physics/randomness) so it is testable and stable.
+ *
+ * The builder is data-only: it computes node positions, edges, an adjacency map
+ * (for neighbour highlighting), per-column headers and summary stats, and it
+ * carries each node's real detail (a reflection's text/outcome, a skill's code
+ * and use count) so the panel can render an inspector without re-querying the
+ * store. All interaction (select, hover, layer filtering) is a rendering concern
+ * layered on top of this stable graph, so toggling a layer never reflows it.
+ *
+ *   build({reflections, skills}, {maxItems})
+ *     -> {nodes, edges, adjacency, columns, width, height, truncated, stats}
  */
 (function () {
   'use strict';
 
-  var WIDTH = 640;
-  var HEIGHT = 380;
-  var PAD_Y = 34;
-  var X_WORLD = 96;
-  var X_ITEM = 320;
-  var X_ROBOT = 544;
-  function colY(i, n) {
-    if (n <= 1) return HEIGHT / 2;
-    return PAD_Y + (HEIGHT - 2 * PAD_Y) * i / (n - 1);
+  var WIDTH = 680;
+  var X_WORLD = 120;
+  var X_ITEM = 340;
+  var X_ROBOT = 560;
+  var PAD_TOP = 52; // headroom for the column headers
+  var PAD_BOT = 26; // breathing room under the last row
+  var ROW_GAP = 34; // vertical spacing between rows in the tallest column
+  var MIN_H = 300;
+  var MAX_H = 700;
+  function clamp(v, lo, hi) {
+    return v < lo ? lo : v > hi ? hi : v;
+  }
+  function colY(i, n, height) {
+    if (n <= 1) return (PAD_TOP + height - PAD_BOT) / 2;
+    return PAD_TOP + (height - PAD_TOP - PAD_BOT) * i / (n - 1);
   }
   function shortLabel(text, max) {
     text = String(text || '');
     return text.length > max ? text.slice(0, max - 1) + '…' : text;
   }
+  function firstLines(code, n) {
+    var lines = String(code || '').replace(/\r\n/g, '\n').split('\n');
+    var head = lines.slice(0, n).join('\n');
+    return lines.length > n ? head + '\n…' : head;
+  }
 
-  // build({reflections, skills}, {maxItems}) -> {nodes, edges, width, height, stats, truncated}
+  // build({reflections, skills}, {maxItems}) -> graph model (see file header)
   function build(mem, opts) {
     mem = mem || {};
     opts = opts || {};
@@ -2302,50 +2356,34 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     reflections.forEach(note);
     var worlds = Object.keys(worldSet).sort();
     var robots = Object.keys(robotSet).sort();
-    var nodes = [];
-    var edges = [];
-    var hubById = {};
-    worlds.forEach(function (w, i) {
-      var n = {
-        id: 'world:' + w,
-        label: w,
-        kind: 'world',
-        degree: 0,
-        x: X_WORLD,
-        y: colY(i, worlds.length)
-      };
-      hubById[n.id] = n;
-      nodes.push(n);
-    });
-    robots.forEach(function (t, i) {
-      var n = {
-        id: 'robot:' + t,
-        label: t,
-        kind: 'robot',
-        degree: 0,
-        x: X_ROBOT,
-        y: colY(i, robots.length)
-      };
-      hubById[n.id] = n;
-      nodes.push(n);
-    });
     var items = [];
     skills.forEach(function (s, i) {
       items.push({
         id: 'skill:' + i + ':' + String(s.name || ''),
         label: shortLabel(s.name || 'skill', 18),
+        full: String(s.name || 'skill'),
         kind: 'skill',
-        world: s.world,
-        robotType: s.robotType
+        world: s.world || '',
+        robotType: s.robotType || '',
+        uses: s.uses || 0,
+        code: String(s.code || ''),
+        preview: firstLines(s.code, 5),
+        ts: s.ts || 0
       });
     });
     reflections.forEach(function (r, i) {
+      var outcome = String(r.outcome || '');
       items.push({
         id: 'refl:' + i,
-        label: shortLabel(r.outcome || 'run', 18),
+        label: shortLabel(r.reflection || r.outcome || 'run', 22),
+        full: String(r.reflection || r.outcome || 'run note'),
         kind: 'reflection',
-        world: r.world,
-        robotType: r.robotType
+        tone: outcome,
+        outcome: outcome,
+        detail: String(r.detail || ''),
+        world: r.world || '',
+        robotType: r.robotType || '',
+        ts: r.ts || 0
       });
     });
     // Sort items by (world, robotType) so edges to the same hubs leave from
@@ -2355,39 +2393,116 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       var k2 = (b.world || '~') + '|' + (b.robotType || '~');
       return k1 < k2 ? -1 : k1 > k2 ? 1 : 0;
     });
+
+    // Height grows with the tallest column so a busy memory does not cram its
+    // rows together; a sparse one stays compact. Deterministic given the data.
+    var rows = Math.max(worlds.length, items.length, robots.length, 1);
+    var height = clamp(PAD_TOP + PAD_BOT + (rows > 1 ? (rows - 1) * ROW_GAP : ROW_GAP), MIN_H, MAX_H);
+    var nodes = [];
+    var edges = [];
+    var adjacency = {};
+    var hubById = {};
+    function link(aId, bId) {
+      (adjacency[aId] || (adjacency[aId] = [])).push(bId);
+      (adjacency[bId] || (adjacency[bId] = [])).push(aId);
+    }
+    worlds.forEach(function (w, i) {
+      var n = {
+        id: 'world:' + w,
+        label: shortLabel(w, 16),
+        full: String(w),
+        kind: 'world',
+        degree: 0,
+        items: [],
+        x: X_WORLD,
+        y: colY(i, worlds.length, height)
+      };
+      hubById[n.id] = n;
+      nodes.push(n);
+    });
+    robots.forEach(function (t, i) {
+      var n = {
+        id: 'robot:' + t,
+        label: shortLabel(t, 16),
+        full: String(t),
+        kind: 'robot',
+        degree: 0,
+        items: [],
+        x: X_ROBOT,
+        y: colY(i, robots.length, height)
+      };
+      hubById[n.id] = n;
+      nodes.push(n);
+    });
     items.forEach(function (it, i) {
       it.x = X_ITEM;
-      it.y = colY(i, items.length);
+      it.y = colY(i, items.length, height);
       nodes.push(it);
-      if (it.world && worldSet[it.world]) {
+      var wHub = hubById['world:' + it.world];
+      if (wHub) {
         edges.push({
           from: it.id,
-          to: 'world:' + it.world,
+          to: wHub.id,
           kind: 'world'
         });
-        hubById['world:' + it.world].degree += 1;
+        wHub.degree += 1;
+        wHub.items.push(it.id);
+        link(it.id, wHub.id);
       }
-      if (it.robotType && robotSet[it.robotType]) {
+      var rHub = hubById['robot:' + it.robotType];
+      if (rHub) {
         edges.push({
           from: it.id,
-          to: 'robot:' + it.robotType,
+          to: rHub.id,
           kind: 'robot'
         });
-        hubById['robot:' + it.robotType].degree += 1;
+        rHub.degree += 1;
+        rHub.items.push(it.id);
+        link(it.id, rHub.id);
       }
+    });
+    var outcomes = {
+      done: 0,
+      crash: 0,
+      flat: 0,
+      other: 0
+    };
+    reflections.forEach(function (r) {
+      var o = String(r.outcome || '');
+      if (o === 'done' || o === 'crash' || o === 'flat') outcomes[o] += 1;else outcomes.other += 1;
     });
     return {
       nodes: nodes,
       edges: edges,
+      adjacency: adjacency,
+      columns: [{
+        kind: 'world',
+        x: X_WORLD,
+        label: 'Worlds',
+        count: worlds.length
+      }, {
+        kind: 'item',
+        x: X_ITEM,
+        label: 'Memories',
+        count: items.length
+      }, {
+        kind: 'robot',
+        x: X_ROBOT,
+        label: 'Robots',
+        count: robots.length
+      }],
       width: WIDTH,
-      height: HEIGHT,
+      height: height,
       truncated: truncated,
       stats: {
         worlds: worlds.length,
         robots: robots.length,
         skills: skills.length,
         reflections: reflections.length,
-        edges: edges.length
+        edges: edges.length,
+        totalSkills: allSkills.length,
+        totalReflections: allReflections.length,
+        outcomes: outcomes
       }
     };
   }
@@ -13130,13 +13245,26 @@ Object.assign(window, {
     // energy-true battery, real mass). Catalogue builds return exactly the
     // block above - byte-identical to the pre-SI2 behaviour.
     if (spec.physical && window.KodroSpecSchema) {
-      const ph = window.KodroSpecSchema.deriveFromPhysical(spec, out);
-      if (ph) {
-        out.phys = ph;
-        if (ph.massKg !== undefined) out.mass = Math.round(ph.massKg * 1000);
-        if (ph.massFactor !== undefined) out.massFactor = ph.massFactor;
-        if (ph.speedFactor !== undefined) out.speedFactor = ph.speedFactor;
-        if (ph.runtimeMin !== undefined) out.runtimeMin = ph.runtimeMin;
+      // derive() runs on the BOOT path (getKodroRobot() at module init), so a
+      // corrupt physical block must degrade to the catalogue proxies above,
+      // never throw: a throw here bricks the studio until localStorage is
+      // cleared. The block is schema-validated on import and project-load,
+      // but localStorage can still hold anything a user (or old bug) wrote.
+      try {
+        const ph = window.KodroSpecSchema.deriveFromPhysical(spec, out);
+        if (ph) {
+          out.phys = ph;
+          if (ph.massKg !== undefined) out.mass = Math.round(ph.massKg * 1000);
+          if (ph.massFactor !== undefined) out.massFactor = ph.massFactor;
+          if (ph.speedFactor !== undefined) out.speedFactor = ph.speedFactor;
+          if (ph.runtimeMin !== undefined) out.runtimeMin = ph.runtimeMin;
+        }
+      } catch (e) {
+        try {
+          console.warn('Kodro: corrupt physical block ignored (catalogue numbers used):', e && e.message);
+        } catch (e2) {
+          void e2;
+        }
       }
     }
     return out;
@@ -13256,6 +13384,12 @@ Object.assign(window, {
   function partLabel(id) {
     return SENSORS[id] && SENSORS[id].name || ACTUATORS[id] && ACTUATORS[id].name || id;
   }
+  // "a"/"an" by leading vowel sound, so refusals read "an IMU"/"an Ultrasonic"
+  // rather than "a IMU". Covers the part labels in the catalogue (vowel-letter
+  // heuristic is correct for IMU, Ultrasonic, Arm, Camera, Gripper, LiDAR).
+  function article(label) {
+    return /^[aeiou]/i.test(String(label || '')) ? 'an' : 'a';
+  }
   function fittedParts(robot) {
     if (!robot) return null; // no build context (e.g. headless QA): do not gate
     return [].concat(robot.sensors || [], robot.actuators || []);
@@ -13277,7 +13411,7 @@ Object.assign(window, {
         ok: false,
         part: part,
         label: partLabel(part),
-        reason: 'This robot has no ' + partLabel(part) + ', so ' + cmdName + '() is not available. Fit a ' + partLabel(part) + ' in the Robot Lab to use it.'
+        reason: 'This robot has no ' + partLabel(part) + ', so ' + cmdName + '() is not available. Fit ' + article(partLabel(part)) + ' ' + partLabel(part) + ' in the Robot Lab to use it.'
       };
     },
     // Drive honesty (A13, bugs D4): a fixed-base arm cannot translate its
@@ -21372,6 +21506,7 @@ def signal(signal_col, signal_beeps):
     beep(signal_beeps)
 
 def safe_forward(safe_m):
+    global holds, last_moved, metres
     # Drive forward ONLY when the range sensor says there is room, so the robot
     # can never hit the arena wall or an obstacle. Writes last_moved with the
     # metres actually driven (0 if it had to hold), keeping the odometer honest.
@@ -21385,6 +21520,7 @@ def safe_forward(safe_m):
         last_moved = safe_m
 
 def station(station_col):
+    global stations, flags
     # A survey station: face-scan, drop a flag, log the find.
     signal(station_col, 2)
     scan()
@@ -21394,6 +21530,7 @@ def station(station_col):
     flags = flags + 1
 
 def survey_out(out_m, out_steps):
+    global lane_out
     # Drive OUT along a spoke, pausing at a scan station, until the lane is
     # blocked or the step budget is spent. Writes lane_out with the metres
     # actually driven out, so the return leg can retrace the same distance.
@@ -22548,10 +22685,41 @@ say("Survey done")`
     // derived from the real reflections + skills, so it never shows more than
     // the lists do -- it just draws the ties between worlds, robots and items.
     const [memView, setMemView] = React.useState('list');
+    // Graph interaction state. Selection/hover/hidden-layers are pure rendering
+    // concerns layered over the stable graph model, so toggling a layer or
+    // picking a node never reflows the layout.
+    const [memSel, setMemSel] = React.useState(null); // clicked node id (sticky)
+    const [memHover, setMemHover] = React.useState(null); // hovered/focused node id
+    const [memHidden, setMemHidden] = React.useState({}); // { kind: true } => layer hidden
+    const [memShowAll, setMemShowAll] = React.useState(false);
     const memGraph = memView === 'graph' && window.KodroMemoryGraph ? window.KodroMemoryGraph.build({
       reflections: window.KodroMemory ? window.KodroMemory.reflections() : [],
       skills: window.KodroMemory ? window.KodroMemory.skills() : []
+    }, {
+      maxItems: memShowAll ? 40 : 8
     }) : null;
+    // Drop a program into the editor / lesson buffer, closing the panel. Shared
+    // by the skill list and the graph's node inspector so both insert the same way.
+    function insertSkillCode(cd) {
+      if (cd == null) return;
+      if (applyCode) applyCode(cd);else if (currentLessonId) setLessonBuffers(b => ({
+        ...b,
+        [currentLessonId]: cd
+      }));else setPrograms(p => ({
+        ...p,
+        [activeTab]: cd
+      }));
+      setMemoryOpen(false);
+    }
+    // Human-readable tooltip / accessible name for a node.
+    function memTip(n) {
+      if (n.kind === 'world' || n.kind === 'robot') {
+        const kindWord = n.kind === 'world' ? 'world' : 'robot type';
+        return n.full + ' — ' + kindWord + ', ' + (n.degree || 0) + ' linked memor' + ((n.degree || 0) === 1 ? 'y' : 'ies');
+      }
+      if (n.kind === 'skill') return n.full + ' — saved skill, used ' + (n.uses || 0) + '×';
+      return n.full + ' — run note' + (n.outcome ? ' (' + n.outcome + ')' : '');
+    }
     function graphBody() {
       if (!memGraph || !memGraph.nodes.length) {
         return /*#__PURE__*/React.createElement("div", {
@@ -22566,63 +22734,231 @@ say("Survey done")`
       memGraph.nodes.forEach(n => {
         pos[n.id] = n;
       });
+      const adj = memGraph.adjacency || {};
+      const st = memGraph.stats || {};
+      const isHiddenKind = k => !!memHidden[k];
+      const isHidden = n => isHiddenKind(n.kind);
+      const selNode = memSel && pos[memSel] && !isHidden(pos[memSel]) ? pos[memSel] : null;
+      const focusId = selNode ? selNode.id : memHover && pos[memHover] && !isHidden(pos[memHover]) ? memHover : null;
+      const near = focusId ? new Set([focusId].concat(adj[focusId] || [])) : null;
+      const KINDS = [{
+        kind: 'world',
+        label: 'Worlds',
+        count: st.worlds || 0
+      }, {
+        kind: 'robot',
+        label: 'Robots',
+        count: st.robots || 0
+      }, {
+        kind: 'skill',
+        label: 'Skills',
+        count: st.skills || 0
+      }, {
+        kind: 'reflection',
+        label: 'Run notes',
+        count: st.reflections || 0
+      }];
+      const toggleKind = k => setMemHidden(h => ({
+        ...h,
+        [k]: !h[k]
+      }));
+      const pick = id => setMemSel(s => s === id ? null : id);
+      function nodeClass(n) {
+        let c = 'mem-graph-node mem-graph-' + n.kind + (n.tone ? ' tone-' + n.tone : '');
+        if (isHidden(n)) return c + ' is-hidden';
+        if (memSel === n.id) return c + ' is-active';
+        if (near) c += near.has(n.id) ? ' is-linked' : ' is-faded';
+        return c;
+      }
+      function edgeClass(e) {
+        const a = pos[e.from],
+          b = pos[e.to];
+        let c = 'mem-graph-edge ' + (e.kind || '');
+        if (!a || !b || isHidden(a) || isHidden(b)) return c + ' is-hidden';
+        if (near) c += near.has(e.from) && near.has(e.to) ? ' is-linked' : ' is-faded';
+        return c;
+      }
+      const outcomeTones = memGraph.stats && memGraph.stats.reflections ? [['done', 'reached goal'], ['crash', 'collision'], ['flat', 'battery flat']].filter(([o]) => (st.outcomes && st.outcomes[o]) > 0) : [];
       return /*#__PURE__*/React.createElement("div", {
         className: "mem-graph-wrap",
         "data-mem-graph-svg": true
-      }, /*#__PURE__*/React.createElement("svg", {
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "mem-graph-bar"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "mem-graph-count"
+      }, st.worlds || 0, " world", (st.worlds || 0) === 1 ? '' : 's', " \xB7 ", st.robots || 0, " robot", (st.robots || 0) === 1 ? '' : 's', " \xB7 ", st.skills || 0, " skill", (st.skills || 0) === 1 ? '' : 's', " \xB7 ", st.reflections || 0, " run note", (st.reflections || 0) === 1 ? '' : 's', " \xB7 ", st.edges || 0, " link", (st.edges || 0) === 1 ? '' : 's'), /*#__PURE__*/React.createElement("span", {
+        className: "mem-graph-layers",
+        role: "group",
+        "aria-label": "Show or hide layers"
+      }, KINDS.map(k => /*#__PURE__*/React.createElement("button", {
+        key: k.kind,
+        type: "button",
+        className: 'mem-layer-btn ' + k.kind + (memHidden[k.kind] ? '' : ' is-on'),
+        "aria-pressed": !memHidden[k.kind],
+        title: (memHidden[k.kind] ? 'Show ' : 'Hide ') + k.label.toLowerCase() + ' (' + k.count + ')',
+        onClick: () => toggleKind(k.kind)
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "mem-layer-dot",
+        "aria-hidden": "true"
+      }), k.label, /*#__PURE__*/React.createElement("span", {
+        className: "mem-layer-n"
+      }, k.count)))), memGraph.truncated || memShowAll ? /*#__PURE__*/React.createElement("button", {
+        type: "button",
+        className: "btn-mini mem-graph-showall",
+        "aria-pressed": memShowAll,
+        onClick: () => {
+          setMemSel(null);
+          setMemShowAll(v => !v);
+        }
+      }, memShowAll ? 'Show recent' : 'Show all (' + (st.totalReflections + st.totalSkills) + ')') : null), /*#__PURE__*/React.createElement("svg", {
         className: "mem-graph",
         viewBox: '0 0 ' + memGraph.width + ' ' + memGraph.height,
         preserveAspectRatio: "xMidYMid meet",
-        role: "img",
-        "aria-label": "Memory graph linking worlds, robots, skills and run notes"
-      }, memGraph.edges.map((e, i) => {
+        role: "group",
+        "aria-label": "Interactive memory graph linking worlds, robots, skills and run notes. Select a node to trace its links."
+      }, /*#__PURE__*/React.createElement("rect", {
+        className: "mem-graph-bg",
+        x: "0",
+        y: "0",
+        width: memGraph.width,
+        height: memGraph.height,
+        onClick: () => setMemSel(null)
+      }), memGraph.columns.map(col => /*#__PURE__*/React.createElement("g", {
+        key: 'col' + col.kind
+      }, /*#__PURE__*/React.createElement("line", {
+        className: "mem-graph-guide",
+        x1: col.x,
+        y1: "34",
+        x2: col.x,
+        y2: memGraph.height - 12
+      }), /*#__PURE__*/React.createElement("text", {
+        className: "mem-graph-col-head",
+        x: col.x,
+        y: "22",
+        textAnchor: "middle"
+      }, col.label))), memGraph.edges.map((e, i) => {
         const a = pos[e.from],
           b = pos[e.to];
         if (!a || !b) return null;
-        // Quadratic curve bowing toward the hub column: reads as a link,
-        // not a scatter of straight wires crossing the middle.
         const mx = (a.x + b.x) / 2,
           my = (a.y + b.y) / 2 + (b.y === a.y ? 0 : b.y > a.y ? 14 : -14);
         return /*#__PURE__*/React.createElement("path", {
           key: 'e' + i,
-          className: 'mem-graph-edge ' + (e.kind || ''),
+          className: edgeClass(e),
           d: 'M' + a.x + ' ' + a.y + ' Q' + mx + ' ' + my + ' ' + b.x + ' ' + b.y,
           fill: "none"
         });
       }), memGraph.nodes.map((n, i) => {
         const isHub = n.kind === 'world' || n.kind === 'robot';
         const r = isHub ? 7 + Math.min(6, (n.degree || 0) * 1.4) : 5;
-        const tip = isHub ? n.label + ' — ' + (n.kind === 'world' ? 'world' : 'robot type') + ', ' + (n.degree || 0) + ' linked memor' + ((n.degree || 0) === 1 ? 'y' : 'ies') : n.label + ' — ' + (n.kind === 'skill' ? 'saved skill' : 'run note');
+        const hidden = isHidden(n);
         return /*#__PURE__*/React.createElement("g", {
           key: 'n' + i,
-          className: 'mem-graph-node mem-graph-' + n.kind,
-          transform: 'translate(' + n.x + ',' + n.y + ')'
-        }, /*#__PURE__*/React.createElement("title", null, tip), /*#__PURE__*/React.createElement("circle", {
+          className: nodeClass(n),
+          transform: 'translate(' + n.x + ',' + n.y + ')',
+          role: "button",
+          tabIndex: hidden ? -1 : 0,
+          "aria-pressed": memSel === n.id,
+          "aria-hidden": hidden ? 'true' : undefined,
+          "aria-label": memTip(n),
+          onClick: () => pick(n.id),
+          onMouseEnter: () => setMemHover(n.id),
+          onMouseLeave: () => setMemHover(h => h === n.id ? null : h),
+          onFocus: () => setMemHover(n.id),
+          onBlur: () => setMemHover(h => h === n.id ? null : h),
+          onKeyDown: ev => {
+            if (ev.key === 'Enter' || ev.key === ' ') {
+              ev.preventDefault();
+              pick(n.id);
+            } else if (ev.key === 'Escape') {
+              setMemSel(null);
+            }
+          }
+        }, /*#__PURE__*/React.createElement("title", null, memTip(n)), /*#__PURE__*/React.createElement("circle", {
+          className: "mem-node-halo",
+          r: r + 5
+        }), /*#__PURE__*/React.createElement("circle", {
           r: r
         }), /*#__PURE__*/React.createElement("text", {
-          x: n.kind === 'world' ? -(r + 5) : n.kind === 'robot' ? r + 5 : r + 4,
+          x: n.kind === 'world' ? -(r + 5) : r + 5,
           y: 4,
           textAnchor: n.kind === 'world' ? 'end' : 'start'
         }, n.label));
       })), /*#__PURE__*/React.createElement("p", {
         className: "mem-graph-legend"
-      }, /*#__PURE__*/React.createElement("span", {
-        className: "mem-graph-key world"
-      }, "World"), /*#__PURE__*/React.createElement("span", {
-        className: "mem-graph-key robot"
-      }, "Robot"), /*#__PURE__*/React.createElement("span", {
-        className: "mem-graph-key skill"
-      }, "Skill"), /*#__PURE__*/React.createElement("span", {
-        className: "mem-graph-key reflection"
-      }, "Run note"), memGraph.truncated ? /*#__PURE__*/React.createElement("span", {
+      }, outcomeTones.length ? /*#__PURE__*/React.createElement("span", {
+        className: "mem-graph-legend-lead"
+      }, "Run notes:") : null, outcomeTones.map(([o, txt]) => /*#__PURE__*/React.createElement("span", {
+        key: o,
+        className: 'mem-graph-key tone-' + o
+      }, txt)), memGraph.truncated ? /*#__PURE__*/React.createElement("span", {
         className: "mem-graph-more"
-      }, "\xB7 showing the most recent items") : null));
+      }, "\xB7 newest ", (st.skills || 0) + (st.reflections || 0), " of ", st.totalSkills + st.totalReflections) : null), selNode ? memInspector(selNode, pos, pick) : /*#__PURE__*/React.createElement("p", {
+        className: "mem-graph-hint"
+      }, "Select any dot to trace its links \u2014 worlds and robots on the sides, the skills and run notes recorded there in the middle."), /*#__PURE__*/React.createElement("div", {
+        className: "sr-only"
+      }, "Memory graph summary. ", st.worlds || 0, " worlds, ", st.robots || 0, " robots, ", st.skills || 0, " skills and ", st.reflections || 0, " run notes, joined by ", st.edges || 0, " links.", /*#__PURE__*/React.createElement("ul", null, memGraph.nodes.filter(n => (n.kind === 'world' || n.kind === 'robot') && n.items.length).map(n => /*#__PURE__*/React.createElement("li", {
+        key: 'sr' + n.id
+      }, n.full, " (", n.kind === 'world' ? 'world' : 'robot type', ") links to ", n.items.map(id => pos[id] ? pos[id].full : '').filter(Boolean).join('; '), ".")))));
+    }
+
+    // Node inspector card shown under the graph when a node is selected. Ties the
+    // graph back to real, actionable detail: a skill's code (with Insert), a run
+    // note's outcome and text, or a hub's list of linked memories.
+    function memInspector(n, pos, pick) {
+      const ctx = [n.world, n.robotType].filter(Boolean).join(' · ');
+      return /*#__PURE__*/React.createElement("div", {
+        className: 'mem-detail mem-detail-' + n.kind + (n.tone ? ' tone-' + n.tone : ''),
+        role: "region",
+        "aria-label": "Selected memory detail"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "mem-detail-head"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: 'mem-detail-badge ' + n.kind + (n.tone ? ' tone-' + n.tone : '')
+      }, n.kind === 'world' ? 'World' : n.kind === 'robot' ? 'Robot' : n.kind === 'skill' ? 'Skill' : n.outcome || 'Run note'), /*#__PURE__*/React.createElement("span", {
+        className: "mem-detail-title"
+      }, n.full), /*#__PURE__*/React.createElement("button", {
+        type: "button",
+        className: "btn-mini mem-detail-close",
+        "aria-label": "Clear selection",
+        onClick: () => setMemSel(null)
+      }, "\u2715")), n.kind === 'world' || n.kind === 'robot' ? /*#__PURE__*/React.createElement("div", {
+        className: "mem-detail-body"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "mem-detail-ctx"
+      }, n.degree, " linked memor", n.degree === 1 ? 'y' : 'ies'), /*#__PURE__*/React.createElement("div", {
+        className: "mem-detail-chips"
+      }, n.items.map(id => pos[id]).filter(Boolean).map(m => /*#__PURE__*/React.createElement("button", {
+        key: m.id,
+        type: "button",
+        className: 'mem-chip mem-chip-' + m.kind + (m.tone ? ' tone-' + m.tone : ''),
+        onClick: () => pick(m.id)
+      }, m.label)))) : n.kind === 'skill' ? /*#__PURE__*/React.createElement("div", {
+        className: "mem-detail-body"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "mem-detail-ctx"
+      }, (ctx || 'any world') + ' · used ' + (n.uses || 0) + '×'), n.preview ? /*#__PURE__*/React.createElement("pre", {
+        className: "mem-detail-code"
+      }, n.preview) : null, /*#__PURE__*/React.createElement("button", {
+        type: "button",
+        className: "btn-mini btn-vibe",
+        onClick: () => {
+          const cd = window.KodroMemory ? window.KodroMemory.useSkill(n.full) : n.code;
+          insertSkillCode(cd != null ? cd : n.code);
+        }
+      }, "Insert this skill")) : /*#__PURE__*/React.createElement("div", {
+        className: "mem-detail-body"
+      }, /*#__PURE__*/React.createElement("p", {
+        className: "mem-detail-ctx"
+      }, ctx || 'no world recorded', n.detail ? ' · ' + n.detail : ''), /*#__PURE__*/React.createElement("p", {
+        className: "mem-detail-text"
+      }, n.full)));
     }
     return /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => setMemoryOpen(false)
     }, /*#__PURE__*/React.createElement("div", {
-      className: "modal modal-wide",
+      className: 'modal modal-wide' + (memView === 'graph' ? ' mem-modal-graph' : ''),
       role: "dialog",
       "aria-modal": "true",
       "aria-label": "Memory and skills",
@@ -22724,19 +23060,7 @@ say("Survey done")`
       className: "mem-skill-act"
     }, /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      onClick: () => {
-        const cd = window.KodroMemory.useSkill(s.name);
-        if (cd != null) {
-          if (applyCode) applyCode(cd);else if (currentLessonId) setLessonBuffers(b => ({
-            ...b,
-            [currentLessonId]: cd
-          }));else setPrograms(p => ({
-            ...p,
-            [activeTab]: cd
-          }));
-          setMemoryOpen(false);
-        }
-      }
+      onClick: () => insertSkillCode(window.KodroMemory.useSkill(s.name))
     }, "Insert"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": 'Remove skill ' + s.name,

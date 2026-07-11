@@ -24,37 +24,41 @@
     return (this.line ? 'Line ' + this.line + ': ' : '') + this.message;
   };
 
-  const MOTION_METHODS = {
+  // All lookup maps are NULL-PROTOTYPE objects: the `in` checks against them
+  // must never see Object.prototype members, or an identifier like
+  // `constructor` / `toString` / `hasOwnProperty` would resolve as a command
+  // instead of raising NameError like Python does.
+  const MOTION_METHODS = Object.assign(Object.create(null), {
     forward: 'move', backward: 'move',
     turn_right: 'turn', turn_left: 'turn',
     set_speed: 'speed', wait: 'wait', sleep: 'wait',
     pen_down: 'pen', pen_up: 'pen', stop: 'halt',
     led: 'led', say: 'say', scan: 'scan'
-  };
-  const SENSOR_METHODS = {
+  });
+  const SENSOR_METHODS = Object.assign(Object.create(null), {
     distance: 1, heading: 1, battery: 1, speed: 1, tilt: 1,
     temperature: 1, x: 1, y: 1, ground: 1, light: 1, gravity: 1
-  };
+  });
 
   // RoboLearn lesson API (bare verbs used by every lesson YAML) mapped onto
   // the design's motion/sensor handlers, so lesson starter code RUNS on
   // screen and matches what the Python grader scores. move_forward/backward
   // take METRES (the lesson + grader unit); the design world is in cm, so we
   // scale x100 below. Everything else shares units (degrees, 0-100 speed).
-  const LESSON_MOTION = {
+  const LESSON_MOTION = Object.assign(Object.create(null), {
     move_forward: 'forward', move_backward: 'backward',
     turn_left: 'turn_left', turn_right: 'turn_right',
     set_speed: 'set_speed', pen_down: 'pen_down', pen_up: 'pen_up',
     wait: 'wait', sleep: 'sleep', stop: 'stop',
     scan: 'scan', led: 'led', say: 'say'
-  };
-  const LESSON_SENSOR = {
+  });
+  const LESSON_SENSOR = Object.assign(Object.create(null), {
     distance: 'distance', heading: 'heading', battery: 'battery',
     gravity: 'gravity', temperature: 'temperature', ground: 'ground', light: 'light',
     // Python pupil-API sensor names (lessons use these) -> design sensors.
     read_distance: 'distance', read_heading: 'heading', read_battery: 'battery',
     read_colour: 'ground'
-  };
+  });
   // obstacle_ahead() threshold matches the Python engine's default of 0.5 m
   // (rover_api.obstacle_ahead threshold_m=0.5), so a program branching on it
   // takes the SAME branch in the browser sim and under the grader.
@@ -66,10 +70,10 @@
   // lesson grader (lesson-grader.jsx) does, giving Python-engine-faithful
   // behaviour. Hosts without lessonApi (live sim, scenario validator, QA
   // harnesses) keep the built-ins unchanged.
-  const LESSON_API = {
+  const LESSON_API = Object.assign(Object.create(null), {
     obstacle_ahead: 1, sample_detected: 1, at_base: 1,
     collect_sample: 1, drop_sample: 1,
-  };
+  });
 
   // =========================================================================
   // 1. LINE / BLOCK STRUCTURING (indentation -> nested statement lists)
@@ -85,7 +89,15 @@
         const ch = text[c];
         if (inStr) {
           out += ch;
-          if (ch === q && text[c - 1] !== '\\') inStr = false;
+          // A quote closes the string unless ESCAPED - preceded by an ODD run
+          // of backslashes. Checking only text[c-1] misread 'a\\' (an escaped
+          // backslash, then a REAL closing quote) as still-open, which left a
+          // trailing # comment inside the "string" and broke tokenization.
+          if (ch === q) {
+            let bs = 0, k = c - 1;
+            while (k >= 0 && text[k] === '\\') { bs++; k--; }
+            if (bs % 2 === 0) inStr = false;
+          }
         } else if (ch === '#') {
           break;
         } else if (ch === '"' || ch === "'") {
@@ -224,6 +236,16 @@
     if (text === 'break') return { kind: 'break', line: line };
     if (text === 'continue') return { kind: 'continue', line: line };
     if (text === 'pass') return { kind: 'pass', line: line };
+    // `global a, b`: inside a function, assignments to these names write to the
+    // module scope instead of the local frame (real Python). At module level it
+    // is a harmless no-op. Names are validated as identifiers.
+    if ((m = text.match(/^global\s+(.+)$/))) {
+      const names = m[1].split(',').map(function (s) { return s.trim(); });
+      for (const nm of names) {
+        if (!/^[A-Za-z_]\w*$/.test(nm)) throw new RoverError('global: "' + nm + '" is not a valid name.', line);
+      }
+      return { kind: 'global', names: names, line: line };
+    }
     if ((m = text.match(/^return\b(.*)$/))) {
       return { kind: 'return', expr: m[1].trim() ? parseExpr(m[1], line) : null, line: line };
     }
@@ -489,7 +511,9 @@
     // curLine getter so builtin diagnostics carry the 1-based source line, like
     // the rest of the interpreter's errors (defensive: null if not supplied).
     const at = function () { return typeof lineOf === 'function' ? lineOf() : null; };
-    return {
+    // Null prototype: `name in builtins` must not resolve Object.prototype
+    // members (constructor, toString, ...) as callable builtins.
+    return Object.assign(Object.create(null), {
       range: function (a, b, c) {
         let start = 0, stop, step = 1;
         if (b === undefined) stop = a; else { start = a; stop = b; if (c !== undefined) step = c; }
@@ -530,15 +554,28 @@
       abs: x => Math.abs(x),
       round: (x, d) => pyRound(x, d),
       // Python min()/max() accept either several args or a single iterable.
-      min: function () { let a = [].slice.call(arguments); if (a.length === 1 && Array.isArray(a[0])) a = a[0]; return Math.min.apply(null, a); },
-      max: function () { let a = [].slice.call(arguments); if (a.length === 1 && Array.isArray(a[0])) a = a[0]; return Math.max.apply(null, a); },
+      // Loop rather than Math.min/max.apply: apply() pushes every element as a
+      // JS stack argument, so a large iterable (~120k+) blew the native stack
+      // with a raw RangeError. The loop handles any capped-size list.
+      min: function () {
+        let a = [].slice.call(arguments); if (a.length === 1 && Array.isArray(a[0])) a = a[0];
+        if (!a.length) throw new RoverError('min() arg is an empty sequence', at());
+        let m = a[0]; for (let i = 1; i < a.length; i++) if (a[i] < m) m = a[i];
+        return m;
+      },
+      max: function () {
+        let a = [].slice.call(arguments); if (a.length === 1 && Array.isArray(a[0])) a = a[0];
+        if (!a.length) throw new RoverError('max() arg is an empty sequence', at());
+        let m = a[0]; for (let i = 1; i < a.length; i++) if (a[i] > m) m = a[i];
+        return m;
+      },
       sqrt: x => Math.sqrt(x),
       // Deterministic when the host supplies a seeded PRNG (the scenario grader
       // does): a graded program that calls random() then reproduces exactly for
       // a given seed, upholding the "a fixed seed reproduces a run" contract.
       // Live play has no host.rng, so it stays truly random.
       random: () => (host && typeof host.rng === 'function' ? host.rng() : Math.random())
-    };
+    });
   }
 
   function pyStr(v) {
@@ -616,7 +653,19 @@
       // run returns a generator. host = { sensor(name,args), motion(ev) optional }
       run: function* (host) {
         const builtins = makeBuiltins(host, function () { return curLine; });
-        const scope = Object.create(null);
+        // Scope frames: `scope` points at the ACTIVE frame. Top level runs in
+        // globalScope; each user-function call pushes a fresh frame chained to
+        // globalScope via the prototype (reads fall through to globals, writes
+        // stay local) - Python function semantics, no dynamic scoping.
+        const globalScope = Object.create(null);
+        let scope = globalScope;
+        // Names the ACTIVE frame declared `global`; their assignments write to
+        // globalScope instead of the local frame. null/empty at module level.
+        let curGlobals = null;
+        function setVar(name, value) {
+          if (scope !== globalScope && curGlobals && curGlobals.has(name)) globalScope[name] = value;
+          else scope[name] = value;
+        }
         const funcs = Object.create(null);
         let steps = 0;
         const MAX_STEPS = 200000;
@@ -709,20 +758,38 @@
           if (callee.k === 'name' && funcs[callee.v]) {
             const ufn = funcs[callee.v];
             const uargs = node.args.map(evalExpr);
-            const usaved = {};
-            ufn.params.forEach((pn, i) => { usaved[pn] = scope[pn]; scope[pn] = uargs[i]; });
+            // Python function semantics: a fresh LOCAL frame chained to the
+            // GLOBAL scope for reads (never the caller's locals - Python is
+            // not dynamically scoped). Writes land on the frame, so a callee
+            // can no longer clobber a caller's variable and each recursive
+            // call keeps its own locals.
+            const callerScope = scope, callerGlobals = curGlobals;
+            scope = Object.create(globalScope); curGlobals = null;
+            ufn.params.forEach((pn, i) => { scope[pn] = uargs[i]; });
             let rv = null;
             callDepth++;
+            // The whole body runs inside ONE synchronous gen.next() here
+            // (expression context cannot yield). The deterministic caps
+            // (MAX_STEPS, loop guards) bound the statement count, but a
+            // per-statement heavy operation could still wedge the tab beyond
+            // Pause/Reset, so a wall-clock backstop throws instead.
+            let drained = 0;
+            const drainT0 = Date.now();
             try {
               if (callDepth > MAX_CALL_DEPTH) throw new RoverError('Recursion too deep (over ' + MAX_CALL_DEPTH + ' nested calls; check for a missing base case).', curLine);
-              for (const _ev of execBlock(ufn.body)) { void _ev; }
+              for (const _ev of execBlock(ufn.body)) {
+                void _ev;
+                if ((++drained & 2047) === 0 && Date.now() - drainT0 > 2000) {
+                  throw new RoverError('Function "' + callee.v + '" ran too long inside an expression (2 second limit). Call it on its own line, or simplify it.', curLine);
+                }
+              }
             } catch (e) {
               if (e === RETURN) { rv = RETURN.value; }
-              else { ufn.params.forEach(pn => { scope[pn] = usaved[pn]; }); throw e; }
+              else { throw e; }
             } finally {
               callDepth--;
+              scope = callerScope; curGlobals = callerGlobals;
             }
-            ufn.params.forEach(pn => { scope[pn] = usaved[pn]; });
             return rv;
           }
           const fn = evalExpr(callee);
@@ -751,10 +818,17 @@
             case 'pass': yield { type: 'step', line: s.line }; return;
             case 'break': throw BREAK;
             case 'continue': throw CONTINUE;
-            case 'assign': scope[s.target] = evalExpr(s.expr); yield { type: 'step', line: s.line }; return;
+            case 'global': {
+              if (scope !== globalScope) { if (!curGlobals) curGlobals = new Set(); s.names.forEach(n => curGlobals.add(n)); }
+              yield { type: 'step', line: s.line }; return;
+            }
+            case 'assign': setVar(s.target, evalExpr(s.expr)); yield { type: 'step', line: s.line }; return;
             case 'augassign': {
-              const cur = (s.target in scope) ? scope[s.target] : 0;
-              scope[s.target] = binop(s.op, cur, evalExpr(s.expr), s.line);
+              // Python raises NameError for `x += 1` with x undefined; the old
+              // silent base-0 default masked real pupil mistakes and diverged
+              // from the grader's engine.
+              if (!(s.target in scope)) throw new RoverError('Name "' + s.target + '" is not defined.', s.line);
+              setVar(s.target, binop(s.op, scope[s.target], evalExpr(s.expr), s.line));
               yield { type: 'step', line: s.line }; return;
             }
             case 'expr': {
@@ -871,17 +945,21 @@
             if (callee.k === 'name' && funcs[callee.v]) {
               const fn = funcs[callee.v];
               const args = expr.args.map(evalExpr);
-              const saved = {};
-              fn.params.forEach((pn, idx) => { saved[pn] = scope[pn]; scope[pn] = args[idx]; });
+              // Fresh local frame chained to GLOBALS (see the expression-call
+              // twin in evalCall): body writes stay local to this call, and
+              // duplicate parameter names can no longer corrupt a global on
+              // restore because there is no save/restore at all.
+              const callerScope = scope, callerGlobals = curGlobals;
+              scope = Object.create(globalScope); curGlobals = null;
+              fn.params.forEach((pn, idx) => { scope[pn] = args[idx]; });
               yield { type: 'step', line: line };
               callDepth++;
               try {
                 if (callDepth > MAX_CALL_DEPTH) throw new RoverError('Recursion too deep (over ' + MAX_CALL_DEPTH + ' nested calls; check for a missing base case).', line);
                 yield* execBlock(fn.body);
               }
-              catch (e) { if (e !== RETURN) { fn.params.forEach(pn => { scope[pn] = saved[pn]; }); throw e; } }
-              finally { callDepth--; }
-              fn.params.forEach(pn => { scope[pn] = saved[pn]; });
+              catch (e) { if (e !== RETURN) throw e; }
+              finally { callDepth--; scope = callerScope; curGlobals = callerGlobals; }
               return;
             }
           }
@@ -908,7 +986,17 @@
           return { type: 'step', line: line };
         }
 
-        yield* execBlock(program);
+        // Surface stray control-flow sentinels as real diagnostics instead of
+        // leaking "[object Object]" to the host. (CPython rejects these at
+        // compile time; this subset reports them at runtime, same wording.)
+        try {
+          yield* execBlock(program);
+        } catch (e) {
+          if (e === BREAK) throw new RoverError("'break' outside loop", curLine);
+          if (e === CONTINUE) throw new RoverError("'continue' not properly in loop", curLine);
+          if (e === RETURN) throw new RoverError("'return' outside function", curLine);
+          throw e;
+        }
       }
     };
   }
@@ -1008,13 +1096,15 @@
           if (typeof n !== 'number' || !Number.isInteger(n)) throw new RoverError("can't multiply sequence by non-int of type 'float'", line);
           n = Math.max(0, n);
           // F1: bound the allocation BEFORE building the sequence.
-          capSeqLen(seq.length * n, line);
+          var total = seq.length * n;
+          capSeqLen(total, line);
           if (typeof seq === 'string') return seq.repeat(n);
-          // F2: list/tuple repeat -- Python builds [x]*3 -> [x,x,x]; the old
-          // branch fell through to `l * r` (NaN / numeric coercion), silently
-          // disagreeing with the desktop grader.
-          var out = [];
-          for (var i = 0; i < n; i++) out = out.concat(seq);
+          // F2: list/tuple repeat -- Python builds [x]*3 -> [x,x,x]. Built by
+          // PREALLOCATED fill: the old concat-in-a-loop was O(n^2) element
+          // copying, so a capped-but-large repeat ([0] * 1000000) still wedged
+          // the tab for minutes even though the memory cap had passed.
+          var out = new Array(total);
+          for (var i = 0; i < total; i++) out[i] = seq[i % seq.length];
           return out;
         }
         return l * r;

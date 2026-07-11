@@ -387,8 +387,9 @@
       out.badges.acceleration = 'approximated';
       out.badges.slope = 'notSimulated';
     }
-    // Energy-true battery (E-A2).
-    if (p.battery) {
+    // Energy-true battery (E-A2). Plain-object check: a corrupt battery field
+    // (number/string) would silently derive NaN runtime numbers.
+    if (p.battery && typeof p.battery === 'object' && !Array.isArray(p.battery)) {
       out.energyWh = KM.physEnergyWh(p.battery.mAh, p.battery.voltage, p.battery.usableFraction);
       var vNom = out.vMaxSimCmPerS || (cat && cat.speedFactor ? M.baseSpeedCmPerS * cat.speedFactor : M.baseSpeedCmPerS);
       out.drainPctPerCmNominal = KM.physDrainPctPerCm(massKg, out.energyWh, vNom, M.gravityEarthMps2, 1);
@@ -405,7 +406,12 @@
       }
     }
     // Sensor mount geometry (HONOURED; first ultrasonic drives the ray).
-    var us = (p.sensors || []).filter(function (s) { return s.kind === 'ultrasonic'; })[0];
+    // Defensive: a hand-edited .kodro can carry physical.sensors as a non-array
+    // ({} passes a truthy check but has no .filter), and this function runs on
+    // the BOOT path via RobotLab.load() -> derive(). A throw here used to brick
+    // the studio until localStorage was cleared, so never trust the shape.
+    var sensorList = Array.isArray(p.sensors) ? p.sensors : [];
+    var us = sensorList.filter(function (s) { return s && s.kind === 'ultrasonic'; })[0];
     if (us) {
       out.sensor = {
         fwdCm: (us.posCm && us.posCm.x) || 0,

@@ -132,13 +132,22 @@
     // energy-true battery, real mass). Catalogue builds return exactly the
     // block above - byte-identical to the pre-SI2 behaviour.
     if (spec.physical && window.KodroSpecSchema) {
-      const ph = window.KodroSpecSchema.deriveFromPhysical(spec, out);
-      if (ph) {
-        out.phys = ph;
-        if (ph.massKg !== undefined) out.mass = Math.round(ph.massKg * 1000);
-        if (ph.massFactor !== undefined) out.massFactor = ph.massFactor;
-        if (ph.speedFactor !== undefined) out.speedFactor = ph.speedFactor;
-        if (ph.runtimeMin !== undefined) out.runtimeMin = ph.runtimeMin;
+      // derive() runs on the BOOT path (getKodroRobot() at module init), so a
+      // corrupt physical block must degrade to the catalogue proxies above,
+      // never throw: a throw here bricks the studio until localStorage is
+      // cleared. The block is schema-validated on import and project-load,
+      // but localStorage can still hold anything a user (or old bug) wrote.
+      try {
+        const ph = window.KodroSpecSchema.deriveFromPhysical(spec, out);
+        if (ph) {
+          out.phys = ph;
+          if (ph.massKg !== undefined) out.mass = Math.round(ph.massKg * 1000);
+          if (ph.massFactor !== undefined) out.massFactor = ph.massFactor;
+          if (ph.speedFactor !== undefined) out.speedFactor = ph.speedFactor;
+          if (ph.runtimeMin !== undefined) out.runtimeMin = ph.runtimeMin;
+        }
+      } catch (e) {
+        try { console.warn('Kodro: corrupt physical block ignored (catalogue numbers used):', e && e.message); } catch (e2) { void e2; }
       }
     }
     return out;
@@ -227,6 +236,10 @@
     ultrasonic: 'distance', imu: 'heading',
   };
   function partLabel(id) { return (SENSORS[id] && SENSORS[id].name) || (ACTUATORS[id] && ACTUATORS[id].name) || id; }
+  // "a"/"an" by leading vowel sound, so refusals read "an IMU"/"an Ultrasonic"
+  // rather than "a IMU". Covers the part labels in the catalogue (vowel-letter
+  // heuristic is correct for IMU, Ultrasonic, Arm, Camera, Gripper, LiDAR).
+  function article(label) { return /^[aeiou]/i.test(String(label || '')) ? 'an' : 'a'; }
   function fittedParts(robot) {
     if (!robot) return null; // no build context (e.g. headless QA): do not gate
     return [].concat(robot.sensors || [], robot.actuators || []);
@@ -241,7 +254,7 @@
       if (fitted === null || fitted.indexOf(part) >= 0) return { ok: true, part: part };
       return {
         ok: false, part: part, label: partLabel(part),
-        reason: 'This robot has no ' + partLabel(part) + ', so ' + cmdName + '() is not available. Fit a ' + partLabel(part) + ' in the Robot Lab to use it.',
+        reason: 'This robot has no ' + partLabel(part) + ', so ' + cmdName + '() is not available. Fit ' + article(partLabel(part)) + ' ' + partLabel(part) + ' in the Robot Lab to use it.',
       };
     },
     // Drive honesty (A13, bugs D4): a fixed-base arm cannot translate its

@@ -177,6 +177,33 @@
           spec[k] = [];
         }
       });
+      // The measured (KRS) physical block is written RAW by apply() and then
+      // consumed at BOOT by RobotLab.load() -> deriveFromPhysical(), so a
+      // malformed block here is a persistent boot brick, not a soft warning.
+      // Validate it as a typed shape: the block itself and its object fields
+      // must be plain objects, and physical.sensors must be a list.
+      if (spec.physical !== undefined && spec.physical !== null) {
+        if (!isPlainObject(spec.physical)) {
+          errors.push('"spec.physical" must be an object (a measured KRS block).');
+        } else {
+          var phys = Object.assign({}, spec.physical);
+          if (phys.sensors !== undefined && !Array.isArray(phys.sensors)) {
+            warnings.push('"spec.physical.sensors" is not a list; reset to empty.');
+            phys.sensors = [];
+          }
+          ['bodyCm', 'drive', 'battery', 'declared'].forEach(function (k) {
+            if (phys[k] !== undefined && !isPlainObject(phys[k])) {
+              warnings.push('"spec.physical.' + k + '" is not an object; dropped.');
+              delete phys[k];
+            }
+          });
+          if (phys.massKg !== undefined && (typeof phys.massKg !== 'number' || !isFinite(phys.massKg) || phys.massKg <= 0)) {
+            warnings.push('"spec.physical.massKg" is not a positive number; dropped.');
+            delete phys.massKg;
+          }
+          spec.physical = phys;
+        }
+      }
       doc.spec = spec;
     }
 

@@ -448,6 +448,7 @@ def signal(signal_col, signal_beeps):
     beep(signal_beeps)
 
 def safe_forward(safe_m):
+    global holds, last_moved, metres
     # Drive forward ONLY when the range sensor says there is room, so the robot
     # can never hit the arena wall or an obstacle. Writes last_moved with the
     # metres actually driven (0 if it had to hold), keeping the odometer honest.
@@ -461,6 +462,7 @@ def safe_forward(safe_m):
         last_moved = safe_m
 
 def station(station_col):
+    global stations, flags
     # A survey station: face-scan, drop a flag, log the find.
     signal(station_col, 2)
     scan()
@@ -470,6 +472,7 @@ def station(station_col):
     flags = flags + 1
 
 def survey_out(out_m, out_steps):
+    global lane_out
     # Drive OUT along a spoke, pausing at a scan station, until the lane is
     # blocked or the step budget is spent. Writes lane_out with the metres
     # actually driven out, so the return leg can retrace the same distance.

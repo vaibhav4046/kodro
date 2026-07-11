@@ -452,12 +452,38 @@
     // derived from the real reflections + skills, so it never shows more than
     // the lists do -- it just draws the ties between worlds, robots and items.
     const [memView, setMemView] = React.useState('list');
+    // Graph interaction state. Selection/hover/hidden-layers are pure rendering
+    // concerns layered over the stable graph model, so toggling a layer or
+    // picking a node never reflows the layout.
+    const [memSel, setMemSel] = React.useState(null);      // clicked node id (sticky)
+    const [memHover, setMemHover] = React.useState(null);  // hovered/focused node id
+    const [memHidden, setMemHidden] = React.useState({});  // { kind: true } => layer hidden
+    const [memShowAll, setMemShowAll] = React.useState(false);
     const memGraph = (memView === 'graph' && window.KodroMemoryGraph)
       ? window.KodroMemoryGraph.build({
           reflections: window.KodroMemory ? window.KodroMemory.reflections() : [],
           skills: window.KodroMemory ? window.KodroMemory.skills() : [],
-        })
+        }, { maxItems: memShowAll ? 40 : 8 })
       : null;
+    // Drop a program into the editor / lesson buffer, closing the panel. Shared
+    // by the skill list and the graph's node inspector so both insert the same way.
+    function insertSkillCode(cd) {
+      if (cd == null) return;
+      if (applyCode) applyCode(cd);
+      else if (currentLessonId) setLessonBuffers(b => ({ ...b, [currentLessonId]: cd }));
+      else setPrograms(p => ({ ...p, [activeTab]: cd }));
+      setMemoryOpen(false);
+    }
+    // Human-readable tooltip / accessible name for a node.
+    function memTip(n) {
+      if (n.kind === 'world' || n.kind === 'robot') {
+        const kindWord = n.kind === 'world' ? 'world' : 'robot type';
+        return n.full + ' — ' + kindWord + ', ' + (n.degree || 0) + ' linked memor' + ((n.degree || 0) === 1 ? 'y' : 'ies');
+      }
+      if (n.kind === 'skill') return n.full + ' — saved skill, used ' + (n.uses || 0) + '×';
+      return n.full + ' — run note' + (n.outcome ? ' (' + n.outcome + ')' : '');
+    }
+
     function graphBody() {
       if (!memGraph || !memGraph.nodes.length) {
         return (
@@ -469,47 +495,181 @@
       }
       const pos = {};
       memGraph.nodes.forEach(n => { pos[n.id] = n; });
+      const adj = memGraph.adjacency || {};
+      const st = memGraph.stats || {};
+      const isHiddenKind = k => !!memHidden[k];
+      const isHidden = n => isHiddenKind(n.kind);
+      const selNode = (memSel && pos[memSel] && !isHidden(pos[memSel])) ? pos[memSel] : null;
+      const focusId = selNode ? selNode.id
+        : (memHover && pos[memHover] && !isHidden(pos[memHover]) ? memHover : null);
+      const near = focusId ? new Set([focusId].concat(adj[focusId] || [])) : null;
+
+      const KINDS = [
+        { kind: 'world', label: 'Worlds', count: st.worlds || 0 },
+        { kind: 'robot', label: 'Robots', count: st.robots || 0 },
+        { kind: 'skill', label: 'Skills', count: st.skills || 0 },
+        { kind: 'reflection', label: 'Run notes', count: st.reflections || 0 },
+      ];
+      const toggleKind = k => setMemHidden(h => ({ ...h, [k]: !h[k] }));
+      const pick = id => setMemSel(s => (s === id ? null : id));
+
+      function nodeClass(n) {
+        let c = 'mem-graph-node mem-graph-' + n.kind + (n.tone ? ' tone-' + n.tone : '');
+        if (isHidden(n)) return c + ' is-hidden';
+        if (memSel === n.id) return c + ' is-active';
+        if (near) c += near.has(n.id) ? ' is-linked' : ' is-faded';
+        return c;
+      }
+      function edgeClass(e) {
+        const a = pos[e.from], b = pos[e.to];
+        let c = 'mem-graph-edge ' + (e.kind || '');
+        if (!a || !b || isHidden(a) || isHidden(b)) return c + ' is-hidden';
+        if (near) c += (near.has(e.from) && near.has(e.to)) ? ' is-linked' : ' is-faded';
+        return c;
+      }
+
+      const outcomeTones = memGraph.stats && memGraph.stats.reflections
+        ? [['done', 'reached goal'], ['crash', 'collision'], ['flat', 'battery flat']]
+            .filter(([o]) => (st.outcomes && st.outcomes[o]) > 0)
+        : [];
+
       return (
         <div className="mem-graph-wrap" data-mem-graph-svg>
+          <div className="mem-graph-bar">
+            <span className="mem-graph-count">
+              {(st.worlds || 0)} world{(st.worlds || 0) === 1 ? '' : 's'} · {(st.robots || 0)} robot{(st.robots || 0) === 1 ? '' : 's'} · {(st.skills || 0)} skill{(st.skills || 0) === 1 ? '' : 's'} · {(st.reflections || 0)} run note{(st.reflections || 0) === 1 ? '' : 's'} · {(st.edges || 0)} link{(st.edges || 0) === 1 ? '' : 's'}
+            </span>
+            <span className="mem-graph-layers" role="group" aria-label="Show or hide layers">
+              {KINDS.map(k => (
+                <button key={k.kind} type="button"
+                  className={'mem-layer-btn ' + k.kind + (memHidden[k.kind] ? '' : ' is-on')}
+                  aria-pressed={!memHidden[k.kind]}
+                  title={(memHidden[k.kind] ? 'Show ' : 'Hide ') + k.label.toLowerCase() + ' (' + k.count + ')'}
+                  onClick={() => toggleKind(k.kind)}>
+                  <span className="mem-layer-dot" aria-hidden="true" />{k.label}<span className="mem-layer-n">{k.count}</span>
+                </button>
+              ))}
+            </span>
+            {(memGraph.truncated || memShowAll) ? (
+              <button type="button" className="btn-mini mem-graph-showall"
+                aria-pressed={memShowAll}
+                onClick={() => { setMemSel(null); setMemShowAll(v => !v); }}>
+                {memShowAll ? 'Show recent' : 'Show all (' + (st.totalReflections + st.totalSkills) + ')'}
+              </button>
+            ) : null}
+          </div>
+
           <svg className="mem-graph" viewBox={'0 0 ' + memGraph.width + ' ' + memGraph.height} preserveAspectRatio="xMidYMid meet"
-            role="img" aria-label="Memory graph linking worlds, robots, skills and run notes">
+            role="group" aria-label="Interactive memory graph linking worlds, robots, skills and run notes. Select a node to trace its links.">
+            <rect className="mem-graph-bg" x="0" y="0" width={memGraph.width} height={memGraph.height} onClick={() => setMemSel(null)} />
+            {memGraph.columns.map(col => (
+              <g key={'col' + col.kind}>
+                <line className="mem-graph-guide" x1={col.x} y1="34" x2={col.x} y2={memGraph.height - 12} />
+                <text className="mem-graph-col-head" x={col.x} y="22" textAnchor="middle">{col.label}</text>
+              </g>
+            ))}
             {memGraph.edges.map((e, i) => {
               const a = pos[e.from], b = pos[e.to];
               if (!a || !b) return null;
-              // Quadratic curve bowing toward the hub column: reads as a link,
-              // not a scatter of straight wires crossing the middle.
               const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 + (b.y === a.y ? 0 : (b.y > a.y ? 14 : -14));
-              return <path key={'e' + i} className={'mem-graph-edge ' + (e.kind || '')} d={'M' + a.x + ' ' + a.y + ' Q' + mx + ' ' + my + ' ' + b.x + ' ' + b.y} fill="none" />;
+              return <path key={'e' + i} className={edgeClass(e)} d={'M' + a.x + ' ' + a.y + ' Q' + mx + ' ' + my + ' ' + b.x + ' ' + b.y} fill="none" />;
             })}
             {memGraph.nodes.map((n, i) => {
               const isHub = n.kind === 'world' || n.kind === 'robot';
               const r = isHub ? 7 + Math.min(6, (n.degree || 0) * 1.4) : 5;
-              const tip = isHub
-                ? n.label + ' — ' + (n.kind === 'world' ? 'world' : 'robot type') + ', ' + (n.degree || 0) + ' linked memor' + ((n.degree || 0) === 1 ? 'y' : 'ies')
-                : n.label + ' — ' + (n.kind === 'skill' ? 'saved skill' : 'run note');
+              const hidden = isHidden(n);
               return (
-                <g key={'n' + i} className={'mem-graph-node mem-graph-' + n.kind} transform={'translate(' + n.x + ',' + n.y + ')'}>
-                  <title>{tip}</title>
+                <g key={'n' + i} className={nodeClass(n)} transform={'translate(' + n.x + ',' + n.y + ')'}
+                  role="button" tabIndex={hidden ? -1 : 0} aria-pressed={memSel === n.id} aria-hidden={hidden ? 'true' : undefined}
+                  aria-label={memTip(n)}
+                  onClick={() => pick(n.id)}
+                  onMouseEnter={() => setMemHover(n.id)}
+                  onMouseLeave={() => setMemHover(h => (h === n.id ? null : h))}
+                  onFocus={() => setMemHover(n.id)}
+                  onBlur={() => setMemHover(h => (h === n.id ? null : h))}
+                  onKeyDown={ev => {
+                    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(n.id); }
+                    else if (ev.key === 'Escape') { setMemSel(null); }
+                  }}>
+                  <title>{memTip(n)}</title>
+                  <circle className="mem-node-halo" r={r + 5} />
                   <circle r={r} />
-                  <text x={n.kind === 'world' ? -(r + 5) : (n.kind === 'robot' ? (r + 5) : (r + 4))} y={4}
+                  <text x={n.kind === 'world' ? -(r + 5) : (r + 5)} y={4}
                     textAnchor={n.kind === 'world' ? 'end' : 'start'}>{n.label}</text>
                 </g>
               );
             })}
           </svg>
+
           <p className="mem-graph-legend">
-            <span className="mem-graph-key world">World</span>
-            <span className="mem-graph-key robot">Robot</span>
-            <span className="mem-graph-key skill">Skill</span>
-            <span className="mem-graph-key reflection">Run note</span>
-            {memGraph.truncated ? <span className="mem-graph-more">· showing the most recent items</span> : null}
+            {outcomeTones.length ? <span className="mem-graph-legend-lead">Run notes:</span> : null}
+            {outcomeTones.map(([o, txt]) => (
+              <span key={o} className={'mem-graph-key tone-' + o}>{txt}</span>
+            ))}
+            {memGraph.truncated ? <span className="mem-graph-more">· newest {(st.skills || 0) + (st.reflections || 0)} of {st.totalSkills + st.totalReflections}</span> : null}
           </p>
+
+          {selNode ? memInspector(selNode, pos, pick) : (
+            <p className="mem-graph-hint">Select any dot to trace its links — worlds and robots on the sides, the skills and run notes recorded there in the middle.</p>
+          )}
+
+          <div className="sr-only">
+            Memory graph summary. {(st.worlds || 0)} worlds, {(st.robots || 0)} robots, {(st.skills || 0)} skills and {(st.reflections || 0)} run notes, joined by {(st.edges || 0)} links.
+            <ul>
+              {memGraph.nodes.filter(n => (n.kind === 'world' || n.kind === 'robot') && n.items.length).map(n => (
+                <li key={'sr' + n.id}>{n.full} ({n.kind === 'world' ? 'world' : 'robot type'}) links to {n.items.map(id => (pos[id] ? pos[id].full : '')).filter(Boolean).join('; ')}.</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    // Node inspector card shown under the graph when a node is selected. Ties the
+    // graph back to real, actionable detail: a skill's code (with Insert), a run
+    // note's outcome and text, or a hub's list of linked memories.
+    function memInspector(n, pos, pick) {
+      const ctx = [n.world, n.robotType].filter(Boolean).join(' · ');
+      return (
+        <div className={'mem-detail mem-detail-' + n.kind + (n.tone ? ' tone-' + n.tone : '')} role="region" aria-label="Selected memory detail">
+          <div className="mem-detail-head">
+            <span className={'mem-detail-badge ' + n.kind + (n.tone ? ' tone-' + n.tone : '')}>
+              {n.kind === 'world' ? 'World' : n.kind === 'robot' ? 'Robot' : n.kind === 'skill' ? 'Skill' : (n.outcome || 'Run note')}
+            </span>
+            <span className="mem-detail-title">{n.full}</span>
+            <button type="button" className="btn-mini mem-detail-close" aria-label="Clear selection" onClick={() => setMemSel(null)}>✕</button>
+          </div>
+          {(n.kind === 'world' || n.kind === 'robot') ? (
+            <div className="mem-detail-body">
+              <p className="mem-detail-ctx">{n.degree} linked memor{n.degree === 1 ? 'y' : 'ies'}</p>
+              <div className="mem-detail-chips">
+                {n.items.map(id => pos[id]).filter(Boolean).map(m => (
+                  <button key={m.id} type="button" className={'mem-chip mem-chip-' + m.kind + (m.tone ? ' tone-' + m.tone : '')}
+                    onClick={() => pick(m.id)}>{m.label}</button>
+                ))}
+              </div>
+            </div>
+          ) : n.kind === 'skill' ? (
+            <div className="mem-detail-body">
+              <p className="mem-detail-ctx">{(ctx || 'any world') + ' · used ' + (n.uses || 0) + '×'}</p>
+              {n.preview ? <pre className="mem-detail-code">{n.preview}</pre> : null}
+              <button type="button" className="btn-mini btn-vibe"
+                onClick={() => { const cd = window.KodroMemory ? window.KodroMemory.useSkill(n.full) : n.code; insertSkillCode(cd != null ? cd : n.code); }}>
+                Insert this skill
+              </button>
+            </div>
+          ) : (
+            <div className="mem-detail-body">
+              <p className="mem-detail-ctx">{ctx || 'no world recorded'}{n.detail ? ' · ' + n.detail : ''}</p>
+              <p className="mem-detail-text">{n.full}</p>
+            </div>
+          )}
         </div>
       );
     }
     return (
       <div className="modal-backdrop" onClick={() => setMemoryOpen(false)}>
-        <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Memory and skills" data-tick={memTick} onClick={e => e.stopPropagation()}>
+        <div className={'modal modal-wide' + (memView === 'graph' ? ' mem-modal-graph' : '')} role="dialog" aria-modal="true" aria-label="Memory and skills" data-tick={memTick} onClick={e => e.stopPropagation()}>
           <div className="modal-head">
             <span className="eyebrow">{KI('memory')}Memory. What the app has learned from your runs, saved on this computer</span>
             <span className="mem-viewtoggle" role="group" aria-label="Memory view">
@@ -555,7 +715,7 @@
                         <span className="mem-skill-name">{s.name}</span>
                         <span className="mem-skill-ctx">{(s.world || '') + ' · used ' + (s.uses || 0) + '×'}</span>
                         <span className="mem-skill-act">
-                          <button className="btn-mini" onClick={() => { const cd = window.KodroMemory.useSkill(s.name); if (cd != null) { if (applyCode) applyCode(cd); else if (currentLessonId) setLessonBuffers(b => ({ ...b, [currentLessonId]: cd })); else setPrograms(p => ({ ...p, [activeTab]: cd })); setMemoryOpen(false); } }}>Insert</button>
+                          <button className="btn-mini" onClick={() => insertSkillCode(window.KodroMemory.useSkill(s.name))}>Insert</button>
                           <button className="btn-mini" aria-label={'Remove skill ' + s.name} onClick={() => window.KodroMemory.removeSkill(s.name)}>✕</button>
                         </span>
                       </li>
