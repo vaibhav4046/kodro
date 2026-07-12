@@ -17,6 +17,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import math
 import sys
 import threading
 import uuid
@@ -26,7 +27,7 @@ from typing import Any
 
 import webview
 
-from robolearn.engine.rover import Rover
+from robolearn.engine.rover import BATTERY_PER_METRE, Rover
 from robolearn.engine.terrain import Terrain
 from robolearn.engine.world import ArenaBounds, World
 from robolearn.interop.urdf_io import build_urdf_from_spec, kodro_spec_from_krs
@@ -227,6 +228,7 @@ class BridgeAPI:
         source: str,
         trace_json: str | None = None,
         robot_mass_factor: float | None = None,
+        robot_drain_pct_per_m: float | None = None,
     ) -> dict[str, Any]:
         """Run the source through the Python engine, grade it, return verdict + hint.
 
@@ -237,23 +239,20 @@ class BridgeAPI:
         the first matching hint -- all the same code paths the Tk app uses.
 
         ``robot_mass_factor`` is the fitted build's mass factor (the client
-        sends ``KODRO_ROBOT.massFactor``). It scales per-metre battery drain so
-        a heavier build grades as it runs instead of spec-blind; omitted or
-        invalid, drain stays at the default (mass factor 1).
+        sends ``KODRO_ROBOT.massFactor``); it scales per-metre battery drain so
+        a heavier build grades as it runs instead of spec-blind.
+        ``robot_drain_pct_per_m`` is the ENERGY-TRUE per-metre drain of an
+        imported measured build (the client sends phys.drainPctPerCmNominal x
+        100, derived from the pack's real energyWh); when present and valid it
+        WINS over the mass-factor proxy. Omitted or invalid, drain stays at the
+        default (mass factor 1).
         """
         _ = trace_json  # currently unused; reserved for client-side trace
         lesson = self._find_lesson(lesson_id)
         if lesson is None:
             return {"ok": False, "reason": f"unknown lesson: {lesson_id}"}
 
-        drain_scale = 1.0
-        if robot_mass_factor is not None:
-            try:
-                candidate = float(robot_mass_factor)
-                if candidate > 0:
-                    drain_scale = candidate
-            except (TypeError, ValueError):
-                drain_scale = 1.0
+        drain_scale = _drain_scale_for(robot_mass_factor, robot_drain_pct_per_m)
 
         world = _world_from_lesson(lesson)
         rover = Rover(world, drain_scale=drain_scale)
@@ -1351,6 +1350,39 @@ class BridgeAPI:
             "readingAge": lesson.reading_age,
             "glossary": dict(lesson.glossary),
         }
+
+
+#: The engine's baseline per-metre battery drain (mass factor 1). An imported
+#: energy-true build reports its own per-metre percentage; dividing by this gives
+#: the drain_scale that reproduces that measured figure through the fixed-rate
+#: Rover, so grading an energy-true build matches its real endurance.
+_BASELINE_DRAIN_PCT_PER_M: float = float(BATTERY_PER_METRE)
+
+
+def _drain_scale_for(
+    mass_factor: float | None, drain_pct_per_m: float | None
+) -> float:
+    """Resolve the Rover drain_scale from the client's build numbers.
+
+    An energy-true per-metre drain (from a measured build's real pack) wins over
+    the mass-factor proxy; either is validated as a positive finite number and
+    falls back to 1.0 (the pre-existing fixed drain) when absent or nonsensical.
+    """
+    if drain_pct_per_m is not None:
+        try:
+            true_pct = float(drain_pct_per_m)
+            if true_pct > 0 and math.isfinite(true_pct) and _BASELINE_DRAIN_PCT_PER_M > 0:
+                return true_pct / _BASELINE_DRAIN_PCT_PER_M
+        except (TypeError, ValueError):
+            pass
+    if mass_factor is not None:
+        try:
+            mf = float(mass_factor)
+            if mf > 0 and math.isfinite(mf):
+                return mf
+        except (TypeError, ValueError):
+            pass
+    return 1.0
 
 
 def _world_from_lesson(lesson: Lesson) -> World:

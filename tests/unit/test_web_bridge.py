@@ -342,3 +342,19 @@ def test_save_verification_report_without_window_degrades(api: BridgeAPI) -> Non
     result = api.save_verification_report("<html>report</html>")
     assert result["ok"] is False
     assert result["reason"] == "no window"
+
+
+def test_drain_scale_for_prefers_energy_true_over_mass_proxy() -> None:
+    """Grading a build spec-aware: energy-true per-metre drain wins; else mass."""
+    from robolearn.web.app import _BASELINE_DRAIN_PCT_PER_M, _drain_scale_for
+
+    # No build info -> unchanged (the pre-existing fixed drain).
+    assert _drain_scale_for(None, None) == pytest.approx(1.0)
+    # Mass factor alone scales drain.
+    assert _drain_scale_for(1.5, None) == pytest.approx(1.5)
+    # An energy-true per-metre drain OVERRIDES the mass proxy.
+    true_pct = 2.0 * _BASELINE_DRAIN_PCT_PER_M  # twice the baseline endurance cost
+    assert _drain_scale_for(1.5, true_pct) == pytest.approx(2.0)
+    # Nonsensical values fall back to 1.0, never zero/negative/NaN drain.
+    assert _drain_scale_for(0.0, -1.0) == pytest.approx(1.0)
+    assert _drain_scale_for(float("nan"), float("inf")) == pytest.approx(1.0)
