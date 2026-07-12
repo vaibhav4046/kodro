@@ -52,6 +52,17 @@ class TerrainParams:
 
 
 # Per-terrain physics constants. Verbatim from Section 5 of the spec.
+#
+# KNOWN DIVERGENCE from the web sim's table (assets/web/terrains.jsx env.gravity):
+# earth (9.81) and mars (3.71) AGREE, but this engine models underwater and space
+# as gravity 0.0 (neutral buoyancy / true microgravity) while terrains.jsx uses
+# 9.81 and 1.62. The two also parameterise resistance differently (this table's
+# `friction`/`drag` vs the JS `traction` multiplier), so they are NOT meant to be
+# byte-equal and are deliberately outside the motion-model hash gate. A pupil's
+# gravity() reading therefore differs between the desktop grader and the web sim
+# on underwater/space. Reconciling requires a product decision on the canonical
+# values (do underwater/space have gravity or not?); until then this is a tracked,
+# intentional gap, not accidental drift. See docs/KODRO_JUDGE_VERDICT.md.
 _PARAMS: dict[Terrain, TerrainParams] = {
     Terrain.EARTH: TerrainParams(Terrain.EARTH, gravity_mps2=9.81, friction=0.8, drag=0.0),
     Terrain.MARS: TerrainParams(Terrain.MARS, gravity_mps2=3.71, friction=0.6, drag=0.0),
