@@ -1250,9 +1250,7 @@ class BridgeAPI:
             self._SPEC_MAX_BYTES,
         )
 
-    def export_urdf(
-        self, json_text: str, suggested_name: str = "robot.urdf"
-    ) -> dict[str, Any]:
+    def export_urdf(self, json_text: str, suggested_name: str = "robot.urdf") -> dict[str, Any]:
         """Convert a validated KRS build to a diff-drive URDF and save it.
 
         The "graduate to ROS / Webots / Gazebo" bridge: a wheeled build becomes
@@ -1359,9 +1357,7 @@ class BridgeAPI:
 _BASELINE_DRAIN_PCT_PER_M: float = float(BATTERY_PER_METRE)
 
 
-def _drain_scale_for(
-    mass_factor: float | None, drain_pct_per_m: float | None
-) -> float:
+def _drain_scale_for(mass_factor: float | None, drain_pct_per_m: float | None) -> float:
     """Resolve the Rover drain_scale from the client's build numbers.
 
     An energy-true per-metre drain (from a measured build's real pack) wins over
