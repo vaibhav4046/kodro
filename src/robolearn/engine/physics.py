@@ -193,14 +193,28 @@ class PhysicsSpace:
     ) -> None:
         self._collisions.append(CollisionEvent(COLLISION_TYPE_OBSTACLE, 0.0))
 
+    def _record_impulse(self, other_type: int, arbiter: object) -> None:
+        """Attach the solved impulse to the most recent event of ``other_type``.
+
+        Post-solve fires per contact pair. The old code only updated
+        ``_collisions[-1]``: on a SAME-STEP double contact (rover touching a
+        wall AND an obstacle) the second begin event pushed the other type on
+        top, so the first type's post-solve saw a mismatched last element and
+        silently dropped its impulse, leaving the near-zero begin value. Walk
+        back to the newest matching event instead so both impulses are kept.
+        """
+        for i in range(len(self._collisions) - 1, -1, -1):
+            if self._collisions[i].other_type == other_type:
+                self._collisions[i] = CollisionEvent(other_type, _impulse_magnitude(arbiter))
+                return
+
     def _on_post_solve_wall(
         self,
         arbiter: object,
         _space: object,
         _data: object,
     ) -> None:
-        if self._collisions and self._collisions[-1].other_type == COLLISION_TYPE_WALL:
-            self._collisions[-1] = CollisionEvent(COLLISION_TYPE_WALL, _impulse_magnitude(arbiter))
+        self._record_impulse(COLLISION_TYPE_WALL, arbiter)
 
     def _on_post_solve_obstacle(
         self,
@@ -208,10 +222,7 @@ class PhysicsSpace:
         _space: object,
         _data: object,
     ) -> None:
-        if self._collisions and self._collisions[-1].other_type == COLLISION_TYPE_OBSTACLE:
-            self._collisions[-1] = CollisionEvent(
-                COLLISION_TYPE_OBSTACLE, _impulse_magnitude(arbiter)
-            )
+        self._record_impulse(COLLISION_TYPE_OBSTACLE, arbiter)
 
 
 def _impulse_magnitude(arbiter: object) -> float:

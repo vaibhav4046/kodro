@@ -191,6 +191,7 @@
     pickPhoto: () => call("pick_photo"),
     importRobotSpec: () => call("import_robot_spec"),
     exportRobotSpec: (jsonText, name) => call("export_robot_spec", jsonText, name || "robot.kodro.json"),
+    exportUrdf: (jsonText, name) => call("export_urdf", jsonText, name || "robot.urdf"),
     saveVerificationReport: (htmlText, name) => call("save_verification_report", htmlText, name || "kodro-verification.html"),
     budgetBuild: (usd, goal) => call("budget_build", usd, goal || ""),
     log: (level, msg) => call("log", level, msg),

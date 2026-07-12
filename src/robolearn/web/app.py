@@ -29,6 +29,7 @@ import webview
 from robolearn.engine.rover import Rover
 from robolearn.engine.terrain import Terrain
 from robolearn.engine.world import ArenaBounds, World
+from robolearn.interop.urdf_io import build_urdf_from_spec, kodro_spec_from_krs
 from robolearn.lessons.grader import grade
 from robolearn.lessons.schema import Lesson, load_library
 from robolearn.memory.achievements import PupilContext, check_and_unlock
@@ -1229,6 +1230,44 @@ class BridgeAPI:
             str(json_text or ""),
             str(suggested_name or "robot.kodro.json"),
             ("Robot spec (*.json)",),
+            self._SPEC_MAX_BYTES,
+        )
+
+    def export_urdf(
+        self, json_text: str, suggested_name: str = "robot.urdf"
+    ) -> dict[str, Any]:
+        """Convert a validated KRS build to a diff-drive URDF and save it.
+
+        The "graduate to ROS / Webots / Gazebo" bridge: a wheeled build becomes
+        a plain-primitive URDF (boxes + cylinders, no meshes) any ROS toolchain
+        opens. Offline and dependency-light -- the generator builds the document
+        by hand, so no ROS install or optional extra is needed. An armless or
+        wheel-less build is refused with a reason rather than emitting a
+        misleading diff-drive body it cannot physically be.
+        """
+        try:
+            data = json.loads(json_text or "{}")
+        except (ValueError, TypeError):
+            return {"ok": False, "reason": "robot spec is not valid JSON"}
+        if not isinstance(data, dict):
+            return {"ok": False, "reason": "robot spec is not an object"}
+        try:
+            spec = kodro_spec_from_krs(data)
+        except (ValueError, TypeError, KeyError) as exc:
+            return {"ok": False, "reason": f"cannot read the robot spec: {exc}"}
+        if not spec.looks_like_rover:
+            return {
+                "ok": False,
+                "reason": "URDF export is for wheeled (drivable) builds; this build has no wheels.",
+            }
+        try:
+            urdf = build_urdf_from_spec(spec)
+        except ValueError as exc:
+            return {"ok": False, "reason": str(exc)}
+        return self._save_text_dialog(
+            urdf,
+            str(suggested_name or "robot.urdf"),
+            ("URDF robot (*.urdf)",),
             self._SPEC_MAX_BYTES,
         )
 

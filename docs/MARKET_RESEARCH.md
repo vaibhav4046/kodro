@@ -217,7 +217,7 @@ Kodro is the offline, one-file robot design and simulation studio for people who
 
 2. **Small-model ceiling.** A local Ollama-class model is far below frontier cloud models, and Project Fetch Phase 2 shows even a frontier model fails at precise real-time control (https://www.anthropic.com/research/project-fetch-phase-two). The deterministic self-test net catches broken code; it does not make a small model a good robotics engineer. The optional cloud connectors are the escape hatch, and using them surrenders part of the offline story.
 
-3. **No ROS export yet.** KRS does not currently bridge to URDF/ROS, so a user graduating to Gazebo, Webots, or Isaac must rebuild their robot by hand. Until an export exists, competitors can fairly call KRS a dead-end format next to the URDF ecosystem standard.
+3. **URDF export (shipped), full ROS bridge not yet.** A wheeled build now exports a plain-primitive URDF via the Robot Lab's **Export URDF** button (desktop uses the Python `BridgeAPI.export_urdf`; the browser build generates the same document client-side), so a diff-drive robot opens in ROS/RViz/Webots/Gazebo without rebuilding by hand. What remains is the richer bridge (meshes, `ros2_control`, a live ROS 2 connection) and arm/URDF export; a wheel-less build is refused rather than emitting a misleading diff-drive body. So KRS is no longer a dead-end format for the common rover case, but it is not yet a full ROS integration.
 
 4. **Research-coverage caveat inherited from the briefs.** Complaint evidence skews to HN, official forums, and GitHub; Reddit (r/FTC, r/robotics) was weakly indexed in the underlying research and should be scraped directly before quoting voice-of-customer claims in marketing.
 

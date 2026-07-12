@@ -8,7 +8,9 @@ import pytest
 
 from robolearn.engine.physics import (
     COLLISION_TYPE_OBSTACLE,
+    COLLISION_TYPE_WALL,
     ROVER_RADIUS_M,
+    CollisionEvent,
     PhysicsSpace,
 )
 from robolearn.engine.terrain import Terrain, params_for
@@ -119,3 +121,37 @@ def test_clear_collisions_resets_buffer() -> None:
     assert space.collisions()
     space.clear_collisions()
     assert space.collisions() == []
+
+
+class _FakeImpulse:
+    def __init__(self, x: float, y: float) -> None:
+        self.x = x
+        self.y = y
+
+
+class _FakeArbiter:
+    def __init__(self, x: float, y: float) -> None:
+        self.total_impulse = _FakeImpulse(x, y)
+
+
+def test_same_step_double_contact_keeps_both_impulses() -> None:
+    """A wall AND an obstacle contact in one step must both keep their impulse.
+
+    Regression: post-solve only updated ``_collisions[-1]``. When an obstacle
+    begin pushed its event on top of a wall begin in the same step, the wall's
+    post-solve saw a mismatched last element and dropped the wall impulse,
+    leaving its near-zero begin value. ``_record_impulse`` now walks back to
+    the newest event of the matching type.
+    """
+    space = PhysicsSpace(Terrain.EARTH, width=10.0, height=10.0)
+    # Simulate the begin order of a same-step double contact: wall first,
+    # obstacle second (so the obstacle event is on top).
+    space._collisions.append(CollisionEvent(COLLISION_TYPE_WALL, 0.0))
+    space._collisions.append(CollisionEvent(COLLISION_TYPE_OBSTACLE, 0.0))
+
+    space._on_post_solve_wall(_FakeArbiter(3.0, 4.0), None, None)
+    space._on_post_solve_obstacle(_FakeArbiter(6.0, 8.0), None, None)
+
+    by_type = {e.other_type: e.impulse for e in space.collisions()}
+    assert by_type[COLLISION_TYPE_WALL] == pytest.approx(5.0)  # NOT dropped
+    assert by_type[COLLISION_TYPE_OBSTACLE] == pytest.approx(10.0)

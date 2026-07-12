@@ -429,6 +429,82 @@
       downloadText(json, fname, 'application/json');
       toast('Spec downloaded: ' + fname, 'ok');
     }
+    // JS mirror of interop/urdf_io.build_urdf_from_spec, so a BROWSER build
+    // (no Python bridge) can still download a URDF. Same KRS JSON input the
+    // desktop bridge (BridgeAPI.export_urdf) consumes, so both emit the same
+    // diff-drive, plain-primitive document. Returns null for a wheel-less
+    // build (an arm is not a diff-drive body).
+    function urdfFromKrs(data) {
+      const name = String((data && data.name) || 'kodro_robot').replace(/[^0-9A-Za-z_]+/g, '_').replace(/^_+|_+$/g, '') || 'kodro_robot';
+      const derived = (data && data.derived) || {};
+      let massKg = data && data.massKg;
+      if (massKg == null) massKg = derived.massG ? derived.massG / 1000 : 0.9;
+      const drive = (data && data.drive) || {};
+      const wheelCount = drive.motorCount != null ? Math.max(0, drive.motorCount | 0) : 2;
+      if (wheelCount < 2) return null;
+      const wheelR = drive.wheelRadiusCm ? drive.wheelRadiusCm / 100 : 0.05;
+      const cL = 0.4, cW = 0.3, cH = 0.15;
+      let wheelMass = Math.round(0.05 * massKg * 1e6) / 1e6;
+      let chassisMass = Math.round((massKg - wheelCount * wheelMass) * 1e6) / 1e6;
+      if (chassisMass <= 0) { chassisMass = massKg * 0.5; wheelMass = massKg * 0.5 / wheelCount; }
+      // Match the Python generator's rounding: masses/offsets at 6dp, inertias
+      // at 9dp. The two are NUMERICALLY equivalent (same masses, geometry and
+      // inertia to full precision); they are NOT byte-identical because JS and
+      // Python format floats differently (2.05e-05 vs 0.0000205), so this pair
+      // is not hash-gated like the motion model. Both emit valid URDF a ROS
+      // toolchain reads the same way.
+      const r6 = v => Math.round(v * 1e6) / 1e6;
+      const r9 = v => Math.round(v * 1e9) / 1e9;
+      const boxI = (m, x, y, z) => [r9(m * (y * y + z * z) / 12), r9(m * (x * x + z * z) / 12), r9(m * (x * x + y * y) / 12)];
+      const cylI = (m, rad, len) => { const lat = r9(m * (3 * rad * rad + len * len) / 12); return [lat, lat, r9(m * rad * rad / 2)]; };
+      const wlen = r6(wheelR * 0.4);
+      const [ixx, iyy, izz] = boxI(chassisMass, cL, cW, cH);
+      const [wixx, wiyy, wizz] = cylI(wheelMass, wheelR, wlen);
+      const parts = [
+        '<robot name="' + name + '">',
+        '  <link name="base_link">',
+        '    <inertial>', '      <mass value="' + chassisMass + '"/>',
+        '      <inertia ixx="' + ixx + '" ixy="0" ixz="0" iyy="' + iyy + '" iyz="0" izz="' + izz + '"/>', '    </inertial>',
+        '    <visual><geometry><box size="' + cL + ' ' + cW + ' ' + cH + '"/></geometry></visual>',
+        '    <collision><geometry><box size="' + cL + ' ' + cW + ' ' + cH + '"/></geometry></collision>',
+        '  </link>',
+      ];
+      const halfW = cW / 2, pairCount = Math.max(1, Math.ceil(wheelCount / 2));
+      for (let i = 0; i < wheelCount; i++) {
+        const side = i % 2 === 0 ? 1 : -1, rank = Math.floor(i / 2);
+        const xOff = r6(pairCount > 1 ? (cL * 0.6) * (rank / Math.max(1, pairCount - 1) - 0.5) : 0);
+        const yOff = r6(side * (halfW + wlen / 2)), axleZ = -cH / 2;
+        parts.push(
+          '  <link name="wheel_' + i + '_link">',
+          '    <inertial><mass value="' + wheelMass + '"/>',
+          '      <inertia ixx="' + wixx + '" ixy="0" ixz="0" iyy="' + wiyy + '" iyz="0" izz="' + wizz + '"/></inertial>',
+          '    <visual><geometry><cylinder radius="' + wheelR + '" length="' + wlen + '"/></geometry></visual>',
+          '    <collision><geometry><cylinder radius="' + wheelR + '" length="' + wlen + '"/></geometry></collision>',
+          '  </link>',
+          '  <joint name="wheel_' + i + '_joint" type="continuous">',
+          '    <parent link="base_link"/>', '    <child link="wheel_' + i + '_link"/>',
+          '    <origin xyz="' + xOff + ' ' + yOff + ' ' + axleZ + '" rpy="-1.5707963 0 0"/>',
+          '    <axis xyz="0 0 1"/>', '  </joint>');
+      }
+      parts.push('</robot>');
+      return parts.join('\n') + '\n';
+    }
+    // One-click "graduate to ROS / Webots / Gazebo": export the build as URDF.
+    async function onUrdfClick() {
+      if (!window.KodroSpecSchema) return;
+      const json = window.KodroSpecSchema.exportKrs(spec, Object.assign({}, d, { phys: d.phys }));
+      const fname = specFileName('.urdf');
+      if (window.RoboLearn && window.RoboLearn.isAvailable() && window.RoboLearn.exportUrdf) {
+        const r = await window.RoboLearn.exportUrdf(json, fname);
+        toast(r && r.ok ? 'URDF saved: ' + r.path : 'URDF export ' + ((r && r.reason) || 'failed'), r && r.ok ? 'ok' : 'info');
+        return;
+      }
+      let urdf = null;
+      try { urdf = urdfFromKrs(JSON.parse(json)); } catch (e) { void e; }
+      if (!urdf) { toast('URDF export is for wheeled (drivable) builds; this build has no wheels.', 'info'); return; }
+      downloadText(urdf, fname, 'application/xml');
+      toast('URDF downloaded: ' + fname, 'ok');
+    }
     // SI3: generate and save the "your robot as simulated" report.
     async function onReportClick() {
       if (!window.KodroVerify) return;
@@ -579,6 +655,7 @@
             // SI1: import a real robot's KRS JSON / export this build's spec.
             React.createElement('button', { className: 'btn-mini', 'data-spec-import': 'button', title: 'Import a KRS robot spec (JSON): real motor, battery, body and sensor numbers drive the sim', onClick: onImportClick }, 'Import spec'),
             React.createElement('button', { className: 'btn-mini', title: 'Export this build as a KRS spec plus its derived numbers', onClick: onExportClick }, 'Export spec'),
+            React.createElement('button', { className: 'btn-mini', title: 'Export a URDF to open this build in ROS, RViz, Webots or Gazebo', onClick: onUrdfClick }, 'Export URDF'),
             React.createElement('button', { className: 'btn-mini', title: 'Save the verification report: your robot as simulated, predictions plus measured evidence', onClick: onReportClick }, 'Verification report'),
             // A6: price THIS build as real hardware (opens the budget planner
             // seeded with the active spec), merging the two build features.
