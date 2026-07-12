@@ -13853,6 +13853,46 @@ Object.assign(window, {
       downloadText(json, fname, 'application/json');
       toast('Spec downloaded: ' + fname, 'ok');
     }
+    // Fit a real catalogue part (window.KodroParts): merge its measured KRS
+    // fields into the build's physical block so the sim derives top speed /
+    // runtime from datasheet numbers, not catalogue proxies. A motor also needs
+    // a wheel radius and motor count to derive top speed, so default them from
+    // the archetype when the build has no physical block yet.
+    function applyMotor(id) {
+      const m = window.KodroParts && window.KodroParts.toKrsMotor(id);
+      if (!m) return;
+      setSpec(s => {
+        const phys = Object.assign({}, s.physical || {});
+        const drive = Object.assign({}, phys.drive || {});
+        drive.motor = {
+          noLoadRpm: m.noLoadRpm,
+          stallTorqueNm: m.stallTorqueNm
+        };
+        if (drive.wheelRadiusCm === undefined) drive.wheelRadiusCm = 3.5;
+        if (drive.motorCount === undefined) drive.motorCount = s.actuators && s.actuators.indexOf('motors4') >= 0 ? 4 : 2;
+        phys.drive = drive;
+        return Object.assign({}, s, {
+          physical: phys
+        });
+      });
+      toast('Fitted motor: derives top speed + torque', 'ok');
+    }
+    function applyBattery(id) {
+      const b = window.KodroParts && window.KodroParts.toKrsBattery(id);
+      if (!b) return;
+      setSpec(s => {
+        const phys = Object.assign({}, s.physical || {});
+        phys.battery = {
+          mAh: b.mAh,
+          voltage: b.voltage,
+          usableFraction: b.usableFraction
+        };
+        return Object.assign({}, s, {
+          physical: phys
+        });
+      });
+      toast('Fitted battery: derives runtime', 'ok');
+    }
     // JS mirror of interop/urdf_io.build_urdf_from_spec, so a BROWSER build
     // (no Python bridge) can still download a URDF. Same KRS JSON input the
     // desktop bridge (BridgeAPI.export_urdf) consumes, so both emit the same
@@ -14195,6 +14235,38 @@ Object.assign(window, {
         setImportIssues(null);
       }
     }, 'Reset parts'),
+    // Fit a real datasheet part (window.KodroParts): the sim then derives
+    // top speed / runtime from measured numbers. Selects reset to their
+    // placeholder each render (fitting is a one-shot action, not state).
+    window.KodroParts ? React.createElement('select', {
+      className: 'btn-mini',
+      value: '',
+      'aria-label': 'Fit a real motor',
+      title: 'Fit a datasheet motor: drives top speed and torque',
+      onChange: e => {
+        if (e.target.value) applyMotor(e.target.value);
+      }
+    }, [React.createElement('option', {
+      key: '_',
+      value: ''
+    }, 'Fit a motor…')].concat(window.KodroParts.motors.map(m => React.createElement('option', {
+      key: m.id,
+      value: m.id
+    }, m.name)))) : null, window.KodroParts ? React.createElement('select', {
+      className: 'btn-mini',
+      value: '',
+      'aria-label': 'Fit a real battery',
+      title: 'Fit a datasheet battery: drives runtime',
+      onChange: e => {
+        if (e.target.value) applyBattery(e.target.value);
+      }
+    }, [React.createElement('option', {
+      key: '_',
+      value: ''
+    }, 'Fit a battery…')].concat(window.KodroParts.batteries.map(b => React.createElement('option', {
+      key: b.id,
+      value: b.id
+    }, b.name)))) : null,
     // SI1: import a real robot's KRS JSON / export this build's spec.
     React.createElement('button', {
       className: 'btn-mini',
