@@ -1,6 +1,6 @@
 {
   "schema": "kodro-backlog/1",
-  "updated_commit": "c6375bc",
+  "updated_commit": "c93005b",
   "note": "severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED. OPP-* are scout opportunities (impact x feasibility / complexity); K-* are defects.",
   "items": [
     {
@@ -21,6 +21,26 @@
       "owner": "lead",
       "evidence": "Listed KodroBench, CLI, URDF I/O as absent though shipped (kodrobench.py, pyproject scripts, interop/urdf_io.py). i18n said 'partial' but absent. Corrected \u00a79 to verified state.",
       "acceptance": "Doc gaps match `grep` reality.",
+      "deps": []
+    },
+    {
+      "id": "K-003",
+      "title": "CI red: parallel-session work landed on main unformatted + violating offline guard",
+      "severity": "P1",
+      "status": "FIXED",
+      "owner": "lead",
+      "evidence": "eb03c8c/36ab0b8 CI failed 3/3 OS. (1) Ruff format: app.py export_urdf/_drain_scale_for signatures wrapped narrower than ruff wants (36ab0b8). (2) Pytest test_no_network_apis_in_app_code: parts-db.js cites www.pololu.com, a genuine gate conflict since qa_parts.mjs:36 REQUIRES that source to be an https:// URL. Was masked by the earlier ruff failure. The 'ff main / push both' step had also been skipped during the parallel session, so origin/main sat stale at 541941d and the live deploy missed all parallel work.",
+      "acceptance": "CI green 3/3 OS on the deployed commit; live bundle sha256 == committed source bundle.",
+      "deps": []
+    },
+    {
+      "id": "K-004",
+      "title": "Offline-guard vs parts-citation gate conflict (root fix, not suppression)",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "lead",
+      "evidence": "parts-db.js is a pure data module (no fetch/.src anywhere, grep-verified). Gave it a file-scoped citation-host exemption in test_web_offline.py mirroring the BYOK and w3.org/spdx.org exemptions, plus a compensating assertion that the module stays fetch-free so the cited host provably can't become a network target. Guard stays strict for every other file. c93005b.",
+      "acceptance": "Both test_no_network_apis_in_app_code AND qa_parts.mjs pass together; guard still fails on any host in a non-exempt file.",
       "deps": []
     },
     {

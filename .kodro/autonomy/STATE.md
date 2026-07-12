@@ -9,18 +9,29 @@ Execute the Codex master prompt: drive Kodro toward an honestly-accepted release
 via the loop Measure -> Judge -> Reproduce -> Prioritise -> Patch -> Regress ->
 Integrate -> Verify -> Rejudge -> Record. No audit-only stop.
 
-## Verified baseline at commit c6375bc (CI green 3 OSes, deployed, live 200)
-- git: clean tree, origin/main == origin/kodro-identity-pass == e801511
+## Verified baseline at commit c93005b (CI green 3 OSes, deployed, live == build)
+- git: clean tree, origin/main == origin/kodro-identity-pass == c93005b
 - bundle.js fresh (build_web.cjs --check)
-- qa_interpreter 157/0 | qa_grader 34/0 | qa_physics 20/0 | qa_ai_web 19/0
-- (browser gates qa_ui 47/0, qa_worlds 61/0 and pytest 1024 were green at HEAD
-  earlier this session; rerun after any web/py edit)
-- CI green on 3 OSes at e801511; Deploy Pages success; live 200.
+- CI green on ALL 3 OSes at c93005b (ubuntu/macos/windows success); Deploy Pages
+  success @c93005b; live 200 and live bundle.js sha256 == committed source bundle
+  (718d8352...), i.e. the deployed site is provably this commit.
+- Full local QA green at c93005b: qa_interpreter 163/0 | qa_grader 34/0 |
+  qa_physics 20/0 | qa_ai_web 19/0 | qa_web 4/4 | qa_parts 40/0 | qa_memgraph 22/0 |
+  qa_scenario_parity 4/0 | qa_vibe 8/8 | qa_interp_fixes 13/0 | qa_worlds 61/0 |
+  qa_ai_grammar 6/0 (live Ollama) | pytest 1053/0 | ruff+format+mypy clean.
 - Ollama: OLLAMA_ORIGINS persisted (User env); server 200; desktop app
   auto-starts+warms it via ollama_client.ensure_server().
 
+## What landed at c93005b (this loop)
+Parallel-session work reconciled onto main (was stranded on the branch; origin/main
+had sat stale at 541941d): gravity reconciliation (terrain.py), energy-true battery
+grading (app.py/bridge.js), grammar-constrained generation (ai-web.jsx/RobotLab.jsx),
+cited parts DB (parts-db.js), URDF export. Plus two CI-red regressions this
+introduced, found and root-fixed: K-003 (ruff format on app.py), K-004
+(offline-guard vs qa_parts citation-host conflict). See BACKLOG.json.
+
 ## Active slice
-Judge round c6375bc DONE + LIVE. NEXT: OPP-1 (in-browser pupil records store) --
+c93005b DONE + LIVE + verified. NEXT: OPP-1 (in-browser pupil records store) --
 web Teacher Dashboard is a dead empty-state; see BACKLOG.json for slice + gate.
 Watch: local qa_ui/qa_worlds flake on chrome-spawn ETIMEDOUT under sustained
 local load; rerun after cooldown or lean on CI (which does not run qa_ui).
