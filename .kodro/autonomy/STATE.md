@@ -31,8 +31,13 @@ introduced, found and root-fixed: K-003 (ruff format on app.py), K-004
 (offline-guard vs qa_parts citation-host conflict). See BACKLOG.json.
 
 ## Active slice
-c93005b DONE + LIVE + verified. NEXT: OPP-1 (in-browser pupil records store) --
-web Teacher Dashboard is a dead empty-state; see BACKLOG.json for slice + gate.
+OPP-1 (in-browser pupil records store) SHIPPED: pupil-store.js (on-device
+localStorage register, EMA alpha=0.3 parity with store.py) + wiring in
+app.jsx/bridge.js/hooks.jsx/panels.jsx; the browser Teacher dashboard now renders
+a real heatmap instead of a dead empty-state. Gated by qa_pupilstore.mjs 23/0
+(wired into CI, 3 OS) + qa_ui checkPupilRecords (real bundle, headless Chrome).
+Also fixed K-005 (interop/__init__.py was untracked). NEXT: next OPEN opportunity
+in BACKLOG.json (OPP-2 run replay / OPP-3.. pick top impact-over-complexity).
 Watch: local qa_ui/qa_worlds flake on chrome-spawn ETIMEDOUT under sustained
 local load; rerun after cooldown or lean on CI (which does not run qa_ui).
 

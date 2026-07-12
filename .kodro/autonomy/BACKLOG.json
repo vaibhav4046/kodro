@@ -1,6 +1,6 @@
 {
   "schema": "kodro-backlog/1",
-  "updated_commit": "c93005b",
+  "updated_commit": "560b7e4",
   "note": "severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED. OPP-* are scout opportunities (impact x feasibility / complexity); K-* are defects.",
   "items": [
     {
@@ -44,12 +44,22 @@
       "deps": []
     },
     {
+      "id": "K-005",
+      "title": "interop/__init__.py left untracked (incomplete package commit)",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "lead",
+      "evidence": "A prior change committed src/robolearn/interop/urdf_io.py but never git-added the package __init__.py (present on disk, so local worked). CI stayed green because Python implicit namespace packages resolve robolearn.interop.urdf_io without it (web/app.py:33 + test_urdf_export.py import that path), but the documented public API (from robolearn.interop import export_urdf, ...) and the package docstring were absent on any clean checkout, and packaging could drop the subpackage. Tracked the init (2ea3b4f); it already executes locally and its re-exports resolve.",
+      "acceptance": "git ls-files shows src/robolearn/interop/__init__.py; CI green.",
+      "deps": []
+    },
+    {
       "id": "OPP-1",
       "title": "In-browser pupil records store (web Teacher Dashboard is dead empty-state)",
       "severity": "P1",
-      "status": "OPEN",
+      "status": "FIXED",
       "owner": "teacher",
-      "evidence": "panels.jsx TeacherModal: 'Browser mode has no persistent pupil store'. Kills hosted/$0 classroom value; KS1-KS4 story is desktop-only.",
+      "evidence": "SHIPPED: pupil-store.js (new module) keeps an on-device localStorage class register with the SAME concept-strength EMA (alpha=0.3) as the desktop store.py, so mastery matches on both surfaces. Wired: app.jsx gradeWithBridge records every graded attempt (pass+fail) against the lesson's concepts in browser mode only; bridge.getClassHeatmap browser path now returns the store heatmap; hooks.useTeacher dropped its 'desktop only' short-circuit; panels TeacherModal renders the real heatmap table (browser copy: saved in this browser on this device). Gates: qa_pupilstore.mjs 23/0 (EMA 1.0->0.7->0.49 parity, shape, persistence, corrupt-safe, reset) wired into CI on all 3 OS; qa_ui checkPupilRecords drives the real bundle through headless Chrome (seed a learner -> open dashboard -> asserts a 'This device' row + a non-zero cell, not the empty-state). Deliberately NOT in the .kodro project export (device-local, not a portable robot/world artifact).",
       "build_on": "TeacherModal renderer + empty-states; localStorage pattern (runreport.js, memory.jsx); mirror Python SQLite pupil/concept-strength schema.",
       "slice": "localStorage pupil+concept-strength store, written on each lesson pass, read by TeacherModal in browserMode.",
       "gate": "qa_ui.mjs: simulate a lesson pass, assert dashboard shows a seeded pupil row + non-zero concept cell (not empty-state).",
