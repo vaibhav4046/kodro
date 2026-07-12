@@ -38,6 +38,18 @@ _EXCLUDED_SCRIPTS = {"bundle.js", "harness_bundle.js"}
 _BYOK_FILES = {"ai-providers.jsx", "ai-web.jsx"}
 _BYOK_ALLOWED_HOSTS = {"api.anthropic.com", "api.openai.com", "api.groq.com"}
 
+#: Datasheet-provenance citation hosts, scoped per file. ``parts-db.js`` is a
+#: pure DATA module (no ``fetch``/``.src`` anywhere in it -- asserted below): each
+#: motor row carries a ``source`` URL naming the Pololu product page its rpm/torque
+#: numbers were read from, and ``qa_parts.mjs`` *requires* that citation to be a
+#: real URL. The host is therefore provenance text, never a network target, so it
+#: is exempted only in this one file -- the same file-scoped treatment as the
+#: BYOK hosts above and the declarative w3.org/spdx.org hosts in ``_remote_hosts``.
+_CITATION_HOSTS: dict[str, set[str]] = {"parts-db.js": {"www.pololu.com"}}
+#: A citation-only module must not fetch: no ``fetch(`` and no ``x.src =`` (image
+#: loads), so the cited host provably cannot become a network request.
+_NO_FETCH = re.compile(r"\bfetch\s*\(|\.src\s*=")
+
 #: A protocol-relative URL (``//host/...``) is remote too. Match it only inside a
 #: string literal so a ``// comment`` or the ``//`` integer-division operator is
 #: never mistaken for a host.
@@ -131,8 +143,10 @@ def test_no_network_apis_in_app_code() -> None:
 
     * XHR / WebSocket / EventSource constructors are banned everywhere.
     * The only non-local host any file may reference is one of the documented
-      BYOK cloud endpoints, and only in the two BYOK modules. A remote fetch
-      needs a remote host literal, so a clean host set proves no external fetch
+      BYOK cloud endpoints (in the two BYOK modules) or the datasheet-provenance
+      citation host in ``parts-db.js`` -- and that data module is proven fetch-free
+      so its cited host is text, not a network target. A remote fetch needs a
+      remote host literal, so a clean host set proves no external fetch
       (protocol-relative ``//host`` included). localhost (Ollama) and same-origin
       relative fetches like bridge.js's ``./lessons.json`` carry no host and are
       inherently allowed.
@@ -148,10 +162,15 @@ def test_no_network_apis_in_app_code() -> None:
         sockets = banned_sockets.findall(text)
         if sockets:
             socket_offenders[name] = sockets
-        allowed = _BYOK_ALLOWED_HOSTS if name in _BYOK_FILES else set()
+        allowed = _BYOK_ALLOWED_HOSTS if name in _BYOK_FILES else _CITATION_HOSTS.get(name, set())
         stray = _remote_hosts(text) - allowed
         if stray:
             host_offenders[name] = sorted(stray)
+        # A file granted a citation-host exemption must be pure data: if it also
+        # fetches, the cited host could be a real network target and the
+        # exemption would be unsound. Fail loudly if that ever changes.
+        if name in _CITATION_HOSTS and _NO_FETCH.search(text):
+            socket_offenders[name] = ["fetch/src in a citation-only module"]
 
     # The offline proof must actually reach the risky files.
     assert scanned >= _BYOK_FILES, f"BYOK modules not scanned: {_BYOK_FILES - scanned}"
