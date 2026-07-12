@@ -734,7 +734,12 @@ function checkStudioMode(chrome) {
     return { pass: false, reason: 'Settings popover never opened, so the mode claim would be vacuous' };
   }
   const hasModeControl = /aria-label="Studio or Classroom mode"/.test(dom);
-  const classroomStrings = ['Teacher dashboard', 'Export progress report', '>Matrix<', '>Arcade<', '>Brick<'].filter((s) => dom.indexOf(s) >= 0);
+  // Check only RENDERED markup: strip inline <script> bodies so harness
+  // scaffolding (the cap.html openers name UI labels like "Teacher dashboard")
+  // is not mistaken for a classroom string that leaked on screen. If the row
+  // genuinely rendered in studio mode, it would survive this strip and still fail.
+  const rendered = dom.replace(/<script[\s\S]*?<\/script>/gi, '');
+  const classroomStrings = ['Teacher dashboard', 'Export progress report', '>Matrix<', '>Arcade<', '>Brick<'].filter((s) => rendered.indexOf(s) >= 0);
   if (hasModeControl && classroomStrings.length === 0) {
     return { pass: true, reason: 'studio mode: Mode control present, zero classroom strings (teacher/report/novelty themes hidden)' };
   }
@@ -759,6 +764,32 @@ function checkClassroomMode(chrome) {
     return { pass: true, reason: 'classroom mode restores the teacher dashboard row and the novelty themes' };
   }
   return { pass: false, reason: `classroom mode incomplete (teacher row: ${teacher}, novelty themes: ${themes})` };
+}
+
+// BROWSER PUPIL RECORDS (OPP-1) — the on-device pupil-store (pupil-store.js)
+// gives the static build a real class register. Seed a learner, open the
+// Teacher dashboard, and it must render the heatmap TABLE (a "This device" row
+// with a non-zero concept cell), NOT the "needs the desktop app" empty state
+// that browser mode used to show unconditionally.
+function checkPupilRecords(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&seedpupils=1&open=teacher`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_pupil_records', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/aria-label="Teacher dashboard"/.test(dom)) {
+    return { pass: false, reason: 'Teacher dashboard modal never opened' };
+  }
+  if (/No progress recorded yet|Records need the desktop app/.test(dom)) {
+    return { pass: false, reason: 'dashboard showed an empty/unavailable state despite a seeded register' };
+  }
+  const hasTable = /class="heatmap-table"/.test(dom);
+  const hasRow = /This device/.test(dom);
+  const hasNonZeroCell = /sequence: 80%/.test(dom) || />80</.test(dom);
+  if (hasTable && hasRow && hasNonZeroCell) {
+    return { pass: true, reason: 'browser register renders a real heatmap row ("This device") with a non-zero concept cell (sequence 80%)' };
+  }
+  return { pass: false, reason: `dashboard incomplete (table: ${hasTable}, row: ${hasRow}, non-zero cell: ${hasNonZeroCell})` };
 }
 
 // UNDO / REVERT (A9) — a programmatic editor write (blocks insert) snapshots
@@ -1113,6 +1144,11 @@ function cleanup() {
   const classroomMode = checkClassroomMode(chrome);
   behaviour.push(classroomMode.pass);
   console.log(`${classroomMode.pass ? 'PASS' : 'FAIL'}  ${'classroom-mode'.padEnd(20)} ${classroomMode.reason}`);
+  gap();
+
+  const pupilRecords = checkPupilRecords(chrome);
+  behaviour.push(pupilRecords.pass);
+  console.log(`${pupilRecords.pass ? 'PASS' : 'FAIL'}  ${'pupil-records'.padEnd(20)} ${pupilRecords.reason}`);
   gap();
 
   const revertApply = checkRevertApply(chrome);

@@ -164,6 +164,20 @@ const CAP = `<!DOCTYPE html>
             detail: 'a boulder', reflection: 'Collided with a boulder. Add a distance() check before moving forward.'
           }]));
         }
+        if (q.get('seedpupils')) {
+          // Deterministic on-device class register (pupil-store.js key) so the
+          // Teacher dashboard renders a real row + non-zero concept cells: one
+          // strong idea (sequence 0.8 -> 80) and one weaker (iteration 0.4 -> 40).
+          localStorage.setItem('kodro_pupils_v1', JSON.stringify({
+            v: 1, pupils: [{
+              id: 'local', name: 'This device', created: 1,
+              strengths: {
+                sequence: { score: 0.8, successes: 4, failures: 1, lastSeen: 1 },
+                iteration: { score: 0.4, successes: 2, failures: 3, lastSeen: 1 }
+              }
+            }]
+          }));
+        }
       } catch (e) { void e; }
       window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe') };
     })();
@@ -467,7 +481,28 @@ const CAP = `<!DOCTYPE html>
           memory: function () { return clickAriaStartsWith('Memory and skills'); },
           build: function () { return clickAriaStartsWith('Build a real robot'); },
           help: function () { return clickAriaStartsWith('Keyboard shortcuts'); },
-          settings: function () { return clickAriaStartsWith('Settings'); }
+          settings: function () { return clickAriaStartsWith('Settings'); },
+          // Teacher dashboard is a row INSIDE the Settings popover (classroom
+          // mode only, so use mode=classroom). The Settings popover is itself
+          // role=dialog, so the generic dialog-skip retry below will not fire the
+          // second stage -- open Settings here, then schedule the row-click, which
+          // swaps the popover for the dashboard modal.
+          teacher: function () {
+            var clickTeacherRow = function () {
+              var btns = document.querySelectorAll('button');
+              for (var i = 0; i < btns.length; i++) {
+                if (/Teacher dashboard/.test(btns[i].textContent || '')) { btns[i].click(); return true; }
+              }
+              return false;
+            };
+            if (document.querySelector('.settings-pop')) return clickTeacherRow();
+            if (OPENERS.settings()) {
+              setTimeout(clickTeacherRow, 250);
+              setTimeout(clickTeacherRow, 600);
+              return true;
+            }
+            return false;
+          }
         };
         // Wait for the studio toolbar to mount, then fire the opener. A second
         // attempt covers a slow first paint without affecting a modal that is

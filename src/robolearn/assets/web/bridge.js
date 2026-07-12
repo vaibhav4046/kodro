@@ -173,8 +173,18 @@
     // honestly instead of blocking on the pywebview wait and returning null.
     getPupilSummary: () =>
       (isPywebview() ? call("get_pupil_summary") : Promise.resolve(teacherUnavailable())),
+    // The class heatmap is now real in the browser too: pupil-store.js keeps an
+    // on-device register in localStorage with the SAME concept-strength rule as
+    // the desktop, so getClassHeatmap() returns actual rows once lessons are
+    // graded here. Falls back to the honest empty/unavailable shape only if the
+    // store module somehow did not load.
     getClassHeatmap: () =>
-      (isPywebview() ? call("get_class_heatmap") : Promise.resolve(teacherUnavailable())),
+      (isPywebview()
+        ? call("get_class_heatmap")
+        : Promise.resolve(
+            (typeof window !== "undefined" && window.KodroPupilStore)
+              ? window.KodroPupilStore.heatmap()
+              : teacherUnavailable())),
     // A roster is a list; the honest browser answer is an empty roster (safe to
     // .map over) rather than a hang or a shape that would break list callers.
     listPupils: () =>

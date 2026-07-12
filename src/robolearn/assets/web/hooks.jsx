@@ -440,16 +440,10 @@
       setSettingsOpen(false);
       setTeacherOpen(true);
       setTeacherData(null);
-      // Browser (static) build never persists pupil data, so there is no class
-      // register to read. Short-circuit BEFORE the bridge's ~5s pywebview wait
-      // so the panel resolves instantly with an honest "desktop only" state
-      // instead of hanging on a spinner and then rendering an empty table. We
-      // invent NO pupils; the unavailable flag + reason let the dashboard show
-      // honest copy (TeacherModal copy is finished by the panels owner).
-      if (window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable()) {
-        setTeacherData({ ok: false, unavailable: true, reason: 'Teacher records are saved only in the desktop app. Browser mode does not keep pupil data.', concepts: [], pupils: [] });
-        return;
-      }
+      // Both modes now have a real class register: desktop via the Python store,
+      // browser via the on-device pupil-store (bridge.getClassHeatmap resolves
+      // instantly in the browser -- no pywebview wait -- so no short-circuit is
+      // needed; an empty register just yields an ok:false shape below).
       try {
         const r = await window.RoboLearn.getClassHeatmap();
         if (r && r.ok) setTeacherData(r);

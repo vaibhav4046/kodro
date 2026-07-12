@@ -245,12 +245,13 @@
 
   // ---- Teacher dashboard ----
   function TeacherModal({ onClose, teacherData }) {
-    // Browser mode has no persistent pupil store: the class register lives in the
-    // desktop app's local database, so getClassHeatmap() cannot return real rows
-    // here. Mirror the isAvailable() gate the Export/Import actions use and tell
-    // the truth instead of spinning forever and then showing an empty table with
-    // copy that promises scores "once pupils pass lessons" (which never persist).
+    // The class register is real in BOTH modes now: desktop persists via Python,
+    // the browser via the on-device pupil-store (localStorage, same EMA rule).
+    // browserMode only tunes the copy -- "in this browser on this device" vs "on
+    // this computer" -- and the empty-state wording; the heatmap table renders
+    // identically once there are rows.
     const browserMode = typeof window !== 'undefined' && window.RoboLearn && !window.RoboLearn.isAvailable();
+    const hasRows = teacherData && Array.isArray(teacherData.pupils) && teacherData.pupils.length > 0;
     return (
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Teacher dashboard" onClick={e => e.stopPropagation()}>
@@ -259,23 +260,22 @@
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
           <div className="teacher-body">
-            {browserMode && (
+            {!teacherData && <p className="vibe-status">Reading the class records saved on this {browserMode ? 'browser' : 'computer'}…</p>}
+            {teacherData && !hasRows && browserMode && (
               <EmptyState
                 icon="report"
-                tone="unavailable"
-                title="Records need the desktop app"
-                hint="In the browser, lessons still run and grade, but pupil records are not saved. Open Kodro's desktop app to keep a class register."
+                title="No progress recorded yet"
+                hint="Pass a lesson and each idea you master fills in here, greener as it gets stronger. Records are saved in this browser on this device, and nothing leaves it."
               />
             )}
-            {!browserMode && !teacherData && <p className="vibe-status">Reading the class records saved on this computer…</p>}
-            {!browserMode && teacherData && teacherData.pupils.length === 0 && (
+            {teacherData && !hasRows && !browserMode && (
               <EmptyState
                 icon="report"
                 title="No pupil records yet"
                 hint="As pupils pass lessons on this computer, each idea they master fills in here, greener as it gets stronger."
               />
             )}
-            {!browserMode && teacherData && teacherData.pupils.length > 0 && (
+            {hasRows && (
               <div style={{ overflow: 'auto', maxHeight: '60vh' }}>
                 <table className="heatmap-table">
                   <thead>
@@ -315,7 +315,7 @@
                     ))}
                   </tbody>
                 </table>
-                <p className="build-note">Each cell is a score from 0 to 100 showing how well that pupil knows that idea. It updates as they practise, and greener means stronger. Nothing leaves this computer.</p>
+                <p className="build-note">Each cell is a score from 0 to 100 showing how well that idea is known. It updates with every graded attempt, and greener means stronger. {browserMode ? 'Records are saved in this browser on this device, and nothing leaves it.' : 'Nothing leaves this computer.'}</p>
               </div>
             )}
           </div>

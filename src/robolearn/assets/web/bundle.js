@@ -1452,6 +1452,177 @@
 })();
 
 ;(function () {
+/* On-device pupil register for the static (browser) build.
+ *
+ * The desktop app keeps pupil records + concept-strength in a Python SQLite
+ * store (memory/store.py). The hosted browser build has no Python, so the
+ * Teacher dashboard used to short-circuit to a "needs the desktop app" empty
+ * state and nothing was ever recorded. This module gives the browser the same
+ * register, persisted in localStorage, using the SAME concept-strength rule as
+ * the desktop so a lesson's effect on mastery matches on both surfaces: an
+ * exponential moving average with alpha = 0.3 over pass(1)/fail(0) samples
+ * (mirrors store.py:396-446 update_concept_strength).
+ *
+ * Browser mode has no roster (bridge.js invents no pupils), so there is one
+ * implicit on-device learner. Everything stays on this machine and nothing is
+ * ever sent anywhere -- this file makes no network call. heatmap() returns
+ * exactly the shape TeacherModal renders and the desktop get_class_heatmap()
+ * produces: {ok, concepts:[...], pupils:[{id, name, active, scores:{concept: 0..1}}]}.
+ *
+ *   window.KodroPupilStore.record(concepts, passed)  // one graded attempt
+ *   window.KodroPupilStore.heatmap()                 // -> dashboard model
+ *   window.KodroPupilStore.reset()                   // clear the register
+ */
+(function () {
+  'use strict';
+
+  var KEY = 'kodro_pupils_v1';
+  var ALPHA = 0.3; // MUST match store.py update_concept_strength alpha
+  var LEARNER_ID = 'local';
+  var LEARNER_NAME = 'This device';
+  function store() {
+    // Injectable for the deterministic gate; the browser uses localStorage.
+    return window.KODRO_PROJECT_STORE || window.localStorage;
+  }
+  function now() {
+    return Date.now();
+  }
+  function load() {
+    try {
+      var raw = store().getItem(KEY);
+      if (!raw) return {
+        v: 1,
+        pupils: []
+      };
+      var data = JSON.parse(raw);
+      if (!data || !Array.isArray(data.pupils)) return {
+        v: 1,
+        pupils: []
+      };
+      return data;
+    } catch (e) {
+      void e;
+      return {
+        v: 1,
+        pupils: []
+      };
+    }
+  }
+  function save(data) {
+    try {
+      store().setItem(KEY, JSON.stringify(data));
+      return true;
+    } catch (e) {
+      void e;
+      return false;
+    }
+  }
+  function announce() {
+    try {
+      window.dispatchEvent(new CustomEvent('kodro-pupils'));
+    } catch (e) {
+      void e;
+    }
+  }
+  function ensureLearner(data) {
+    for (var i = 0; i < data.pupils.length; i++) {
+      if (data.pupils[i] && data.pupils[i].id === LEARNER_ID) return data.pupils[i];
+    }
+    var p = {
+      id: LEARNER_ID,
+      name: LEARNER_NAME,
+      created: now(),
+      strengths: {}
+    };
+    data.pupils.push(p);
+    return p;
+  }
+
+  // Record ONE graded attempt against its lesson's concept(s). EMA parity with
+  // store.py: the first sample for a (learner, concept) sets the score verbatim;
+  // later samples blend alpha*sample + (1 - alpha)*old. A convex combination of
+  // 0/1 samples stays in [0,1] with no clamp. Records BOTH pass and fail --
+  // mirroring the desktop update_on_submission, which runs on every graded
+  // attempt, not only passes, so a struggled-with idea reads correctly as weak.
+  function record(concepts, passed) {
+    if (!Array.isArray(concepts) || concepts.length === 0) return null;
+    var sample = passed ? 1.0 : 0.0;
+    var data = load();
+    var learner = ensureLearner(data);
+    var t = now();
+    for (var i = 0; i < concepts.length; i++) {
+      var c = String(concepts[i] || '');
+      if (!c) continue;
+      var s = learner.strengths[c];
+      if (!s) {
+        learner.strengths[c] = {
+          score: sample,
+          successes: passed ? 1 : 0,
+          failures: passed ? 0 : 1,
+          lastSeen: t
+        };
+      } else {
+        s.score = ALPHA * sample + (1 - ALPHA) * s.score;
+        s.successes += passed ? 1 : 0;
+        s.failures += passed ? 0 : 1;
+        s.lastSeen = t;
+      }
+    }
+    save(data);
+    announce();
+    return data;
+  }
+
+  // Same JSON shape as the desktop get_class_heatmap(): concepts is the sorted
+  // union of every concept any pupil has touched; each pupil's scores map a
+  // concept to its EMA (a missing concept means untouched, drawn as a blank
+  // cell). ok:false when there is nothing to show, so the dashboard renders its
+  // empty state instead of a header-only table.
+  function heatmap() {
+    var data = load();
+    var conceptSet = {};
+    var pupils = data.pupils.map(function (p) {
+      var scores = {};
+      var strengths = p.strengths || {};
+      Object.keys(strengths).forEach(function (c) {
+        conceptSet[c] = true;
+        scores[c] = strengths[c].score;
+      });
+      return {
+        id: p.id,
+        name: p.name,
+        active: true,
+        scores: scores
+      };
+    });
+    var concepts = Object.keys(conceptSet).sort();
+    var hasData = concepts.length > 0 && pupils.length > 0;
+    return {
+      ok: hasData,
+      concepts: concepts,
+      pupils: hasData ? pupils : []
+    };
+  }
+  function reset() {
+    save({
+      v: 1,
+      pupils: []
+    });
+    announce();
+  }
+  window.KodroPupilStore = {
+    KEY: KEY,
+    ALPHA: ALPHA,
+    record: record,
+    heatmap: heatmap,
+    reset: reset,
+    load: load,
+    save: save
+  };
+})();
+})();
+
+;(function () {
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
 /* Kodro procedural icon set (PERFECTION_PLAN P7/A2).
  *
@@ -19946,22 +20117,10 @@ Object.assign(window, {
       setSettingsOpen(false);
       setTeacherOpen(true);
       setTeacherData(null);
-      // Browser (static) build never persists pupil data, so there is no class
-      // register to read. Short-circuit BEFORE the bridge's ~5s pywebview wait
-      // so the panel resolves instantly with an honest "desktop only" state
-      // instead of hanging on a spinner and then rendering an empty table. We
-      // invent NO pupils; the unavailable flag + reason let the dashboard show
-      // honest copy (TeacherModal copy is finished by the panels owner).
-      if (window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable()) {
-        setTeacherData({
-          ok: false,
-          unavailable: true,
-          reason: 'Teacher records are saved only in the desktop app. Browser mode does not keep pupil data.',
-          concepts: [],
-          pupils: []
-        });
-        return;
-      }
+      // Both modes now have a real class register: desktop via the Python store,
+      // browser via the on-device pupil-store (bridge.getClassHeatmap resolves
+      // instantly in the browser -- no pywebview wait -- so no short-circuit is
+      // needed; an empty register just yields an ok:false shape below).
       try {
         const r = await window.RoboLearn.getClassHeatmap();
         if (r && r.ok) setTeacherData(r);
@@ -22883,12 +23042,13 @@ say("Survey done")`
     onClose,
     teacherData
   }) {
-    // Browser mode has no persistent pupil store: the class register lives in the
-    // desktop app's local database, so getClassHeatmap() cannot return real rows
-    // here. Mirror the isAvailable() gate the Export/Import actions use and tell
-    // the truth instead of spinning forever and then showing an empty table with
-    // copy that promises scores "once pupils pass lessons" (which never persist).
+    // The class register is real in BOTH modes now: desktop persists via Python,
+    // the browser via the on-device pupil-store (localStorage, same EMA rule).
+    // browserMode only tunes the copy -- "in this browser on this device" vs "on
+    // this computer" -- and the empty-state wording; the heatmap table renders
+    // identically once there are rows.
     const browserMode = typeof window !== 'undefined' && window.RoboLearn && !window.RoboLearn.isAvailable();
+    const hasRows = teacherData && Array.isArray(teacherData.pupils) && teacherData.pupils.length > 0;
     return /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: onClose
@@ -22908,18 +23068,17 @@ say("Survey done")`
       onClick: onClose
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
       className: "teacher-body"
-    }, browserMode && /*#__PURE__*/React.createElement(EmptyState, {
-      icon: "report",
-      tone: "unavailable",
-      title: "Records need the desktop app",
-      hint: "In the browser, lessons still run and grade, but pupil records are not saved. Open Kodro's desktop app to keep a class register."
-    }), !browserMode && !teacherData && /*#__PURE__*/React.createElement("p", {
+    }, !teacherData && /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "Reading the class records saved on this computer\u2026"), !browserMode && teacherData && teacherData.pupils.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
+    }, "Reading the class records saved on this ", browserMode ? 'browser' : 'computer', "\u2026"), teacherData && !hasRows && browserMode && /*#__PURE__*/React.createElement(EmptyState, {
+      icon: "report",
+      title: "No progress recorded yet",
+      hint: "Pass a lesson and each idea you master fills in here, greener as it gets stronger. Records are saved in this browser on this device, and nothing leaves it."
+    }), teacherData && !hasRows && !browserMode && /*#__PURE__*/React.createElement(EmptyState, {
       icon: "report",
       title: "No pupil records yet",
       hint: "As pupils pass lessons on this computer, each idea they master fills in here, greener as it gets stronger."
-    }), !browserMode && teacherData && teacherData.pupils.length > 0 && /*#__PURE__*/React.createElement("div", {
+    }), hasRows && /*#__PURE__*/React.createElement("div", {
       style: {
         overflow: 'auto',
         maxHeight: '60vh'
@@ -22969,7 +23128,7 @@ say("Survey done")`
       }, has ? pct : '·');
     }))))), /*#__PURE__*/React.createElement("p", {
       className: "build-note"
-    }, "Each cell is a score from 0 to 100 showing how well that pupil knows that idea. It updates as they practise, and greener means stronger. Nothing leaves this computer.")))));
+    }, "Each cell is a score from 0 to 100 showing how well that idea is known. It updates with every graded attempt, and greener means stronger. ", browserMode ? 'Records are saved in this browser on this device, and nothing leaves it.' : 'Nothing leaves this computer.')))));
   }
 
   // ---- AI code review ----
@@ -25053,6 +25212,16 @@ say("Survey done")`
           reasons: r.reasons || [],
           hint: r.hint || null
         });
+        // Browser mode has no Python store, so keep an on-device class register
+        // (pupil-store.js) with the same EMA rule. Desktop persists via Python,
+        // so only record here in the browser. A graded attempt (r.ok !== false
+        // already returned above) moves the concept EMA on both pass and fail,
+        // mirroring the desktop update_on_submission path.
+        if (window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable() && window.KodroPupilStore) {
+          const gradedLesson = lessons.find(l => l && l.id === lessonId);
+          const concepts = gradedLesson && Array.isArray(gradedLesson.concepts) ? gradedLesson.concepts : [];
+          if (concepts.length) window.KodroPupilStore.record(concepts, !!r.passed);
+        }
         // Confetti is a classroom register; the studio celebrates with the
         // verdict chip and the pass tone only (A1).
         if (r.passed) {

@@ -675,6 +675,16 @@
         if (r.ok === false) { setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') }]); return; }
         // Persist the verdict in a panel that survives Reset (QA #3).
         setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null });
+        // Browser mode has no Python store, so keep an on-device class register
+        // (pupil-store.js) with the same EMA rule. Desktop persists via Python,
+        // so only record here in the browser. A graded attempt (r.ok !== false
+        // already returned above) moves the concept EMA on both pass and fail,
+        // mirroring the desktop update_on_submission path.
+        if (window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable() && window.KodroPupilStore) {
+          const gradedLesson = lessons.find(l => l && l.id === lessonId);
+          const concepts = gradedLesson && Array.isArray(gradedLesson.concepts) ? gradedLesson.concepts : [];
+          if (concepts.length) window.KodroPupilStore.record(concepts, !!r.passed);
+        }
         // Confetti is a classroom register; the studio celebrates with the
         // verdict chip and the pass tone only (A1).
         if (r.passed) { sfx('pass'); if (classroom) celebrate(); } else { sfx('fail'); }

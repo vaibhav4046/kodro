@@ -107,6 +107,14 @@ jobs:
       - name: Web AI facade gate
         run: node scripts/qa_ai_web.mjs
 
+      # Pupil-store gate: unit coverage for the on-device class register
+      # (pupil-store.js) that gives the static browser build a real Teacher
+      # dashboard. Asserts EMA parity with the desktop Python store (alpha=0.3),
+      # the heatmap JSON shape, persistence, and corrupt-store safety under a
+      # window/localStorage shim. Pure node, all legs.
+      - name: Web pupil-store gate
+        run: node scripts/qa_pupilstore.mjs
+
       # Browser boot + privacy gate (qa_web): the ONLY browser-driven gate wired
       # into CI, and only on Linux. It builds the static web bundle and loads it
       # in headless Chrome to prove two things a green Python/Node CI otherwise
