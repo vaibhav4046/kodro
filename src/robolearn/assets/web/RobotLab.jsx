@@ -315,6 +315,22 @@
       if (no.length) t += ' Not available, do not use and refuse if asked: ' + no.join(', ') + '.';
       return t;
     },
+    // The exact set of command NAMES this build may call, for grammar-constrained
+    // generation: a base of always-available verbs, the four drive verbs only
+    // when a drive is fitted (an arm cannot translate), and the sensor commands
+    // reported available for the fitted parts. Feeding this as an enum to the
+    // local model's structured-output decoder makes emitting an unfitted or
+    // invented symbol impossible, rather than only caught after the fact.
+    commandNames: function (robot) {
+      var names = ['set_speed', 'wait', 'stop', 'say', 'led', 'beep', 'pen_down', 'pen_up'];
+      if (window.KodroCommands.driveCheck(robot, 'move_forward').ok) {
+        names = names.concat(Object.keys(DRIVE_COMMANDS));
+      }
+      window.KodroCommands.availability(robot).forEach(function (c) {
+        if (c.available && names.indexOf(c.name) < 0) names.push(c.name);
+      });
+      return names;
+    },
   };
 
   // SI4: per-stat fidelity badge. Tier names come from the schema module so

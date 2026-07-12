@@ -124,12 +124,81 @@
       options: { temperature: opts.temperature != null ? opts.temperature : 0.3, num_predict: opts.num_predict || 400 },
     };
     if (opts.system) body.system = opts.system;
+    // Structured output: a JSON schema is compiled by Ollama into a decoding
+    // grammar, so the model cannot emit tokens outside it (used by
+    // structuredProgram to constrain generation to the fitted command set).
+    if (opts.format) body.format = opts.format;
     const r = await fetchTimeout(localOnly(OLLAMA + '/api/generate'), {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     }, GEN_TIMEOUT_MS);
     if (!r.ok) throw new Error('generate ' + r.status);
     const j = await r.json();
     return (j.response || '').trim();
+  }
+
+  // Grammar-constrained program generation. Builds a JSON schema whose command
+  // enum is EXACTLY the fitted set (KodroCommands.commandNames), so the local
+  // model's structured decoder can only emit in-set commands -- it cannot
+  // invent rover.forward() or call a sensor the build lacks. The returned JSON
+  // program is compiled to the canonical bare-metre Kodro code. Pure + testable:
+  // buildCommandSchema and compileProgram have no I/O.
+  var ARG_NONE = { set_speed: false, wait: false, stop: true, say: false, led: false, beep: false,
+    pen_down: true, pen_up: true, scan: true, distance: true, heading: true };
+  function buildCommandSchema(names) {
+    return {
+      type: 'object',
+      properties: {
+        program: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              cmd: { type: 'string', enum: names.slice() },
+              arg: { type: 'number' },
+              text: { type: 'string' },
+            },
+            required: ['cmd'],
+          },
+        },
+      },
+      required: ['program'],
+    };
+  }
+  function compileProgram(parsed, names) {
+    var allow = {};
+    names.forEach(function (n) { allow[n] = true; });
+    var steps = (parsed && Array.isArray(parsed.program)) ? parsed.program : [];
+    var lines = [];
+    steps.forEach(function (s) {
+      var cmd = s && s.cmd;
+      if (!cmd || !allow[cmd]) return; // defence in depth: never emit an out-of-set call
+      if (cmd === 'say' || cmd === 'led') {
+        var txt = (s.text != null ? String(s.text) : (cmd === 'led' ? 'cyan' : 'hello')).replace(/"/g, '');
+        lines.push(cmd + '("' + txt + '")');
+      } else if (ARG_NONE[cmd] === true) {
+        lines.push(cmd + '()');
+      } else {
+        var n = Number(s.arg);
+        if (!isFinite(n)) n = (cmd === 'set_speed') ? 60 : 1;
+        lines.push(cmd + '(' + (Math.round(n * 100) / 100) + ')');
+      }
+    });
+    return lines.join('\n');
+  }
+  // structuredProgram(prompt, model?) -> { code, commands } (or throws on gen error).
+  async function structuredProgram(prompt, model) {
+    var robot = (typeof window !== 'undefined' && window.getKodroRobot) ? window.getKodroRobot() : null;
+    var names = (window.KodroCommands && window.KodroCommands.commandNames)
+      ? window.KodroCommands.commandNames(robot)
+      : ['move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'wait', 'stop'];
+    var schema = buildCommandSchema(names);
+    var sys = 'You output a robot program as JSON only. Use ONLY these commands: ' + names.join(', ')
+      + '. Distances are in metres (a normal move is 1 to 5), turns in degrees (90 for a right angle), '
+      + 'set_speed is a percent 0 to 100. Do not invent commands.';
+    var raw = await genOnce(model || 'gemma3:1b', prompt, { system: sys, format: schema, num_predict: 512, temperature: 0 });
+    var parsed;
+    try { parsed = JSON.parse(raw); } catch (e) { throw new Error('structured output was not valid JSON'); }
+    return { code: compileProgram(parsed, names), commands: names };
   }
 
   function looksLikeCode(t) {
@@ -317,13 +386,25 @@
               if (fixed && validate(fixed).ok) { code = fixed; validated = true; }
             } catch (e2) { void e2; }
           }
+          if (!validated) {
+            // Grammar-constrained backstop: free-form generation + the repair
+            // round still produced code that will not run (typically an invented
+            // command or a call to a sensor the build lacks). Regenerate through
+            // structuredProgram, whose JSON-schema decoder can ONLY emit the
+            // fitted command set, so the result is in-set by construction. Use it
+            // only if it actually validates -- never silently replace with worse.
+            try {
+              const sp = await structuredProgram(prompt, model);
+              if (sp && sp.code && validate(sp.code).ok) { code = sp.code; validated = true; }
+            } catch (e3) { void e3; }
+          }
           if (validated) {
             job.result = { ok: true, done: true, type: 'code', code: code, model: model };
           } else {
-            // Both the self-test and the single repair round failed. Ship the
-            // code so the user is not blocked, but mark it so the UI can warn
-            // honestly instead of presenting known-broken code as OK. Keep the
-            // original interpreter error (v.error) for the warning to display.
+            // The self-test, the repair round AND the constrained backstop all
+            // failed. Ship the code so the user is not blocked, but mark it so
+            // the UI warns honestly instead of presenting known-broken code as
+            // OK. Keep the original interpreter error (v.error) for the warning.
             job.result = { ok: true, done: true, type: 'code', code: code, model: model, validated: false, validationError: v.error };
           }
         } else {
@@ -460,6 +541,7 @@
   }
 
   if (typeof window !== 'undefined') {
-    window.KodroAI = { status: status, setModel: setModel, chatStart: chatStart, chatPoll: chatPoll, reviewCode: reviewCode, ask: ask, available: available, pick: pick };
+    window.KodroAI = { status: status, setModel: setModel, chatStart: chatStart, chatPoll: chatPoll, reviewCode: reviewCode, ask: ask, available: available, pick: pick,
+      structuredProgram: structuredProgram, buildCommandSchema: buildCommandSchema, compileProgram: compileProgram };
   }
 })();
