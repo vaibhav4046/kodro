@@ -48,8 +48,11 @@ def test_params_for_rejects_unknown_string() -> None:
     [
         (Terrain.EARTH, 9.81, 0.8, 0.0),
         (Terrain.MARS, 3.71, 0.6, 0.0),
-        (Terrain.UNDERWATER, 0.0, 0.0, 0.7),
-        (Terrain.SPACE, 0.0, 0.05, 0.0),
+        # Gravity reconciled with the web sim (2026-07-11): underwater keeps
+        # Earth gravity (buoyancy offsets weight, g does not vanish); the space
+        # world is a lunar surface, so 1.62. friction/drag unchanged.
+        (Terrain.UNDERWATER, 9.81, 0.0, 0.7),
+        (Terrain.SPACE, 1.62, 0.05, 0.0),
     ],
 )
 def test_spec_constants_per_terrain(

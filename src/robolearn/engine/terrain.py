@@ -51,23 +51,24 @@ class TerrainParams:
     drag: float
 
 
-# Per-terrain physics constants. Verbatim from Section 5 of the spec.
-#
-# KNOWN DIVERGENCE from the web sim's table (assets/web/terrains.jsx env.gravity):
-# earth (9.81) and mars (3.71) AGREE, but this engine models underwater and space
-# as gravity 0.0 (neutral buoyancy / true microgravity) while terrains.jsx uses
-# 9.81 and 1.62. The two also parameterise resistance differently (this table's
-# `friction`/`drag` vs the JS `traction` multiplier), so they are NOT meant to be
-# byte-equal and are deliberately outside the motion-model hash gate. A pupil's
-# gravity() reading therefore differs between the desktop grader and the web sim
-# on underwater/space. Reconciling requires a product decision on the canonical
-# values (do underwater/space have gravity or not?); until then this is a tracked,
-# intentional gap, not accidental drift. See docs/KODRO_JUDGE_VERDICT.md.
+# Per-terrain physics constants. Gravity magnitudes are CANONICAL with the web
+# sim's table (assets/web/terrains.jsx env.gravity), decided 2026-07-11:
+# underwater is Earth gravity 9.81 (buoyancy offsets weight; gravity itself does
+# not vanish, and the pupil's gravity() reading should say so), and the space
+# world is a LUNAR surface (ejecta blocks, -173 C, full sun), so 1.62, not true
+# microgravity. The old 0.0 values came from the original Section 5 spec and made
+# the desktop engine disagree with what the shipped sim reports. Aligning is safe:
+# the 2D top-down engine pins its physics gravity vector to (0, 0) and no pupil
+# API sensor reads this value on the grading path, so it is metadata only.
+# `friction`/`drag` parameterise resistance differently from the JS `traction`
+# multiplier (different models, deliberately not unified, outside the hash gate).
 _PARAMS: dict[Terrain, TerrainParams] = {
     Terrain.EARTH: TerrainParams(Terrain.EARTH, gravity_mps2=9.81, friction=0.8, drag=0.0),
     Terrain.MARS: TerrainParams(Terrain.MARS, gravity_mps2=3.71, friction=0.6, drag=0.0),
-    Terrain.UNDERWATER: TerrainParams(Terrain.UNDERWATER, gravity_mps2=0.0, friction=0.0, drag=0.7),
-    Terrain.SPACE: TerrainParams(Terrain.SPACE, gravity_mps2=0.0, friction=0.05, drag=0.0),
+    Terrain.UNDERWATER: TerrainParams(
+        Terrain.UNDERWATER, gravity_mps2=9.81, friction=0.0, drag=0.7
+    ),
+    Terrain.SPACE: TerrainParams(Terrain.SPACE, gravity_mps2=1.62, friction=0.05, drag=0.0),
 }
 
 

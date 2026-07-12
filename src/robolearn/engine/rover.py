@@ -75,7 +75,13 @@ class Rover:
     :mod:`robolearn.rover_api` layer above already clamps everything.
     """
 
-    def __init__(self, world: World, state: RoverState | None = None) -> None:
+    def __init__(
+        self,
+        world: World,
+        state: RoverState | None = None,
+        *,
+        drain_scale: float = 1.0,
+    ) -> None:
         """Bind the rover to a world.
 
         Args:
@@ -83,12 +89,20 @@ class Rover:
                 position is initialised to the world's base station.
             state: Optional pre-existing :class:`RoverState`. If omitted, a
                 fresh state at full battery is created at the base position.
+            drain_scale: Per-metre battery-drain multiplier for the fitted
+                build. 1.0 (the default) reproduces the pre-existing fixed
+                drain, so all current callers and golden traces are unchanged.
+                The desktop grader passes the build's mass factor here so a
+                heavier robot drains faster, mirroring the web sim's
+                mass-scaled drain (KodroMotion.moveDrainPct) instead of grading
+                every build spec-blind.
         """
         self.world = world
         if state is None:
             bx, by = world.base
             state = RoverState(x=bx, y=by)
         self.state = state
+        self._drain_scale = drain_scale if drain_scale and drain_scale > 0 else 1.0
 
     # --- driving --------------------------------------------------------------
 
@@ -151,7 +165,7 @@ class Rover:
         actual_dy = self.state.y - start_y
         travelled = math.hypot(actual_dx, actual_dy)
         self.state.distance_travelled_m += travelled
-        self._drain_battery(travelled * BATTERY_PER_METRE)
+        self._drain_battery(travelled * BATTERY_PER_METRE * self._drain_scale)
         if hit_obstacle or hit_wall:
             self.register_collision()
         return (actual_dx, actual_dy)

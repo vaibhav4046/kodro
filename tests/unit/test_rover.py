@@ -220,3 +220,29 @@ def test_touching_rover_driving_deeper_still_collides() -> None:
     r.move(1.0)  # east, straight into the obstacle centre
     assert r.state.collisions == before + 1
     assert r.state.x == pytest.approx(5.0, abs=1e-6)  # held at the contact point
+
+
+def test_default_drain_scale_reproduces_the_fixed_per_metre_drain() -> None:
+    """The default build (mass factor 1) drains exactly as before -- no golden shift."""
+    r = Rover(_world())
+    r.move(1.0)  # 1 m east from base, no wall/obstacle
+    assert 100.0 - r.state.battery_pct == pytest.approx(BATTERY_PER_METRE)
+
+
+def test_heavier_build_drains_proportionally_more_under_grading() -> None:
+    """A spec-aware grade: mass factor scales per-metre drain (mirrors the sim)."""
+    light = Rover(_world())
+    heavy = Rover(_world(), drain_scale=1.5)
+    light.move(2.0)
+    heavy.move(2.0)
+    light_used = 100.0 - light.state.battery_pct
+    heavy_used = 100.0 - heavy.state.battery_pct
+    assert heavy_used == pytest.approx(1.5 * light_used)
+    assert heavy_used > light_used
+
+
+def test_invalid_drain_scale_falls_back_to_one() -> None:
+    """A zero/negative mass factor must not zero out or reverse battery drain."""
+    r = Rover(_world(), drain_scale=0.0)
+    r.move(1.0)
+    assert 100.0 - r.state.battery_pct == pytest.approx(BATTERY_PER_METRE)

@@ -157,7 +157,12 @@
     getLesson: (id) => (isPywebview() ? call("get_lesson", id) : getLessonBrowser(id)),
     submitAttempt: (lessonId, source, traceJson) =>
       (isPywebview()
-        ? call("submit_attempt", lessonId, source, traceJson)
+        // Pass the fitted build's mass factor so the desktop grader scales
+        // battery drain to the build instead of grading spec-blind. The browser
+        // path already runs the spec-aware JS engine, so it needs nothing extra.
+        ? call("submit_attempt", lessonId, source, traceJson,
+            (typeof window !== "undefined" && window.KODRO_ROBOT && typeof window.KODRO_ROBOT.massFactor === "number")
+              ? window.KODRO_ROBOT.massFactor : null)
         : submitAttemptBrowser(lessonId, source)),
     // Desktop persists these; browser mode has no store, so resolve fast and
     // honestly instead of blocking on the pywebview wait and returning null.

@@ -222,7 +222,11 @@ class BridgeAPI:
         return {"ok": True, "id": pupil_id, "displayName": name}
 
     def submit_attempt(
-        self, lesson_id: str, source: str, trace_json: str | None = None
+        self,
+        lesson_id: str,
+        source: str,
+        trace_json: str | None = None,
+        robot_mass_factor: float | None = None,
     ) -> dict[str, Any]:
         """Run the source through the Python engine, grade it, return verdict + hint.
 
@@ -231,14 +235,28 @@ class BridgeAPI:
         bind a fresh tracer / rover, execute the source in the existing
         sandbox, grade against the lesson's success_criteria, and surface
         the first matching hint -- all the same code paths the Tk app uses.
+
+        ``robot_mass_factor`` is the fitted build's mass factor (the client
+        sends ``KODRO_ROBOT.massFactor``). It scales per-metre battery drain so
+        a heavier build grades as it runs instead of spec-blind; omitted or
+        invalid, drain stays at the default (mass factor 1).
         """
         _ = trace_json  # currently unused; reserved for client-side trace
         lesson = self._find_lesson(lesson_id)
         if lesson is None:
             return {"ok": False, "reason": f"unknown lesson: {lesson_id}"}
 
+        drain_scale = 1.0
+        if robot_mass_factor is not None:
+            try:
+                candidate = float(robot_mass_factor)
+                if candidate > 0:
+                    drain_scale = candidate
+            except (TypeError, ValueError):
+                drain_scale = 1.0
+
         world = _world_from_lesson(lesson)
-        rover = Rover(world)
+        rover = Rover(world, drain_scale=drain_scale)
         tracer = Tracer()
         # Hold the binding lock for the whole bind -> run -> detach window so a
         # concurrent AI-validation or swarm run on another thread cannot rebind
