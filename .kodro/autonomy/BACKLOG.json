@@ -1,6 +1,6 @@
 {
   "schema": "kodro-backlog/1",
-  "updated_commit": "560b7e4",
+  "updated_commit": "84e482f",
   "note": "severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED. OPP-* are scout opportunities (impact x feasibility / complexity); K-* are defects.",
   "items": [
     {
@@ -69,9 +69,9 @@
       "id": "OPP-2",
       "title": "Run replay + seed/event enrichment",
       "severity": "P2",
-      "status": "OPEN",
+      "status": "FIXED",
       "owner": "runtime",
-      "evidence": "runreport.js stores summary metrics only; no seed/hash/event trace; no replay in web assets.",
+      "evidence": "FIXED: every live run is seeded (mulberry32, same generator as scenario.jsx); host.rng feeds random(); run reports persist seed + program source (runreport.js); Replay button re-drives world+program+seed deterministically (app.jsx replayRun). Gates: qa_interpreter SEEDED RNG cases + qa_ui checkReplay (two replays of a random()-dependent program byte-identical). DISCLOSED LIMIT: the min-proximity readout is a per-frame sensor sample, so an identical replayed trajectory can log it on one run and miss it on the other; the gate therefore asserts distance+battery+outcome exactly and excludes the sampled readout. Two stale-closure bugs were found and fixed en route: compileFresh and recordRunReport both read a stale code closure through deferred/pump-loop paths; the sim now stamps KODRO_RUN_SOURCE at compile time and both read the stamp (codeRef in useSimEngine).",
       "slice": "persist seed + command list per run; a Replay button re-drives deterministically from stored seed.",
       "gate": "assert replay reproduces byte-identical final distance/battery/min-proximity.",
       "deps": []
@@ -80,9 +80,9 @@
       "id": "OPP-3",
       "title": "Gymnasium KodroEnv-v0 over bench.py",
       "severity": "P2",
-      "status": "OPEN",
+      "status": "FIXED",
       "owner": "ai",
-      "evidence": "KodroBench shipped; no gymnasium/KodroEnv in src. Research/dissertation leverage.",
+      "evidence": "FIXED: gymnasium KodroEnv-v0 (src/robolearn/envs/kodro_env.py) wrapping the real bench/engine machinery (seeded _world_for_seed, Rover.move/turn, lidar_distance). Discrete(4) actions, Box(5) obs, deterministic reset(seed). pyproject extra rl=[gymnasium>=1.0]. Gate: tests/unit/test_kodro_env.py 8 tests incl. measured golden returns 3.25 / -10.35494935654426; importorskip so CI without gymnasium skips clean.",
       "slice": "gymnasium.Env wrapping engine (discrete actions, reset/step, seeded), register KodroEnv-v0; one KodroBench adapter drives through it.",
       "gate": "pytest deterministic episode + golden return.",
       "deps": []
@@ -91,9 +91,9 @@
       "id": "OPP-4",
       "title": "Full sensor command bindings (line-follower first)",
       "severity": "P2",
-      "status": "OPEN",
+      "status": "FIXED",
       "owner": "robotics",
-      "evidence": "camera/gps/bumper/line/gripper fitted but no runnable command; gating exists only for distance()/heading().",
+      "evidence": "FIXED: on_line() bound like distance(): SENSOR_METHODS + lesson alias (interpreter.js), COMMAND_PART line gating with readable refusal (RobotLab.jsx), synthesized straight practice line |y|<=20cm in the live host (hooks.jsx), fidelity disclosure updated (specschema.js notSimulated names the synthetic line). Gate: qa_interpreter LINE FOLLOWER 6 cases (binding, branching, refusal).",
       "slice": "on_line() ground-colour read for line follower, gated when part absent.",
       "gate": "qa_interpreter binding case + grounding refusal when unfitted.",
       "deps": []
@@ -102,9 +102,9 @@
       "id": "OPP-5",
       "title": "URDF -> KRS import into the web Lab",
       "severity": "P2",
-      "status": "OPEN",
+      "status": "FIXED",
       "owner": "robotics",
-      "evidence": "urdf_io.py (URDF->KodroRobotSpec) + specschema.js KRS both exist; no bridge. Desktop-only extra (offline rule keeps web on KRS).",
+      "evidence": "FIXED: krs_from_urdf() in interop/urdf_io.py emits only URDF-supported fields (massKg, wheelRadiusCm, motorCount, differential, wheelbase when unambiguous) + declared[] notes for what URDF cannot provide; NEVER invents motor/battery numbers. app.py import_robot_spec accepts *.urdf via _urdf_spec_payload with the same {ok,text,name} shape. Motorless physical blocks validate ok (verified against real specschema.js). Gate: tests/unit/test_urdf_import.py 7 tests, golden fixture 1.5kg/3cm wheels/15cm wheelbase.",
       "slice": "KodroRobotSpec->KRS(physical) converter so desktop Import spec accepts .urdf.",
       "gate": "pytest golden URDF -> expected mass/top-speed KRS fields.",
       "deps": []
@@ -113,9 +113,9 @@
       "id": "OPP-6",
       "title": "World/mission authoring: data schema + minimal creator",
       "severity": "P2",
-      "status": "OPEN",
+      "status": "FIXED",
       "owner": "robotics",
-      "evidence": "worlds code-only (terrains.jsx SITES + generators parameterized by seed/count/traction); no creator UI.",
+      "evidence": "FIXED: runtime custom world (terrains.jsx customWorld): seed + density(sparse5/normal10/dense18) + traction(0.3..1.2), Earth-based so both renderers work, URL params kseed/kdensity/ktraction as shareable initial state, NO persistence v1. Settings rows drive it live (kodro-customworld tick regenerates in place). Gate: qa_ui checkCustomWorld (sparse vs dense obstacle counts via data-obstacles stamp).",
       "slice": "Custom world built at runtime from seed + density + traction controls (no persistence v1).",
       "gate": "qa_worlds render sweep + qa_ui density slider changes obstacle count.",
       "deps": []
@@ -124,9 +124,9 @@
       "id": "OPP-7",
       "title": "Bounded AI tool/function-calling loop",
       "severity": "P2",
-      "status": "OPEN",
+      "status": "FIXED",
       "owner": "ai",
-      "evidence": "chat-builds-world is conservative regex intent-parse (chat-intent.js).",
+      "evidence": "FIXED: bounded grammar-constrained tool call (ai-web.jsx toolCall): ONE whitelisted tool (set_world), format-schema enum forces the shape, resolveToolCall validates args against live TERRAINS+SITES ids; invalid = readable refusal, model failure = silent fallback to the deterministic intent parse; wired into vibeSend AFTER the parse. Gate: qa_ai_web BOUNDED TOOL CALL 8 cases (apply, refuse, none, malformed, non-whitelisted).",
       "slice": "one whitelisted tool (set_world/set_part) with arg validation; refuse invalid, apply valid, fall back to intent-parse on model failure.",
       "gate": "qa_ai_web: invalid arg refused readably; valid call mutates state.",
       "deps": []
@@ -135,9 +135,9 @@
       "id": "OPP-8",
       "title": "RobotSpec v0->v1 migration step",
       "severity": "P3",
-      "status": "OPEN",
+      "status": "FIXED",
       "owner": "robotics",
-      "evidence": "specschema.js reads version with a warning but has no migrate() step.",
+      "evidence": "FIXED: explicit migrateSpec(raw, fromV1) in RobotLab.jsx replaces the silent load fallback: sensor floor preserved verbatim, kodroSpec:1 stamp, migrationNotes recorded on the spec; exposed on KodroCommands for headless testing. Gate: qa_interpreter SPEC MIGRATION 8 cases incl. round-trip through the real KRS validator.",
       "slice": "explicit migrate(raw) upgrading older saves to v1 with recorded notes.",
       "gate": "unit test: older save migrates + round-trips validate/exportKrs.",
       "deps": []
@@ -196,9 +196,9 @@
       "id": "F6",
       "title": "TweaksPanel renders but never shows (design-tool scaffold)",
       "severity": "P3",
-      "status": "OPEN",
+      "status": "FIXED",
       "owner": "design",
-      "evidence": "tweaks-panel.jsx opens only on __activate_edit_mode postMessage nothing sends; grid/ambientFx/trail frozen at defaults. Never visible to users so effectively absent (not a lying control users see). Deferred: remove render or wire a real toggle.",
+      "evidence": "FIXED: Scene tweaks Settings row posts the __activate_edit_mode handshake, so the camera/scene/trail tweaks panel is reachable for real instead of dead UI behind a host handshake nothing sent. Gate: qa_ui checkTweaksPanel.",
       "acceptance": "Either a real toggle opens it, or the dead render is removed.",
       "deps": []
     }
