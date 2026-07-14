@@ -435,6 +435,33 @@
       "owner": "judge-round-6",
       "evidence": "FIXED: aria-hidden=true on .code-pre and .gutter in Editor.jsx; the labelled .code-ta textarea is the sole accessible editor content.",
       "deps": []
+    },
+    {
+      "id": "JR7-01",
+      "title": "Verification report 'Measured evidence' mean speed was inflated by the cosmetic sim-speed slider: a 3x slider showed a 3x-too-fast measured m/s, undermining the product's core 'would your robot actually work' claim",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-7",
+      "evidence": "FIXED: verify.jsx computed measuredMps = (distanceCm/100)/(wallMs/1000), but animation durations are divided by speedMul (a cosmetic playback slider), so wallMs was compressed by the slider and the 'measured' speed scaled with it. Now normalises the slider back out: trueMs = wallMs * (speedMul||1); measuredMps = (distanceCm/100)/(trueMs/1000); seconds = round(trueMs/100)/10. The measured evidence is now slider-invariant. NEW qa_honesty.mjs asserts verify multiplies wall time by speedMul and no longer divides by the raw wallMs (now 25 checks).",
+      "deps": []
+    },
+    {
+      "id": "JR7-02",
+      "title": "Mobile: at phone width the mission bar hid the primary nav icons (Lessons, Robot Lab, Memory, Build, Settings) behind a scrollbar-less horizontal scroll, so they were unreachable",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-7",
+      "evidence": "FIXED: the @media(max-width:768px) .missionbar rule was flex-wrap:nowrap + overflow-x:auto + scrollbar-width:none, which clipped the nav icons off-screen with no visible scrollbar. Now .app grid-template-rows:auto 1fr and .missionbar flex-wrap:wrap; height:auto; min-height:48px; overflow:visible, so the bar wraps and every control stays on screen. Verified at 375px: Run/Step/Reset/Validate + all 6 nav icons (Lessons/Robot Lab/Memory/Build/Help/Settings) render, none clipped. NEW qa_contrast.mjs asserts the bar wraps (not nowrap-scroll) at phone width.",
+      "deps": []
+    },
+    {
+      "id": "JR7-03",
+      "title": "Studio panel and modal titles were plain .eyebrow spans, not headings, so screen-reader heading navigation could not jump between the studio's sections",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-7",
+      "evidence": "FIXED: the 18 .eyebrow TITLE spans across Telemetry.jsx (4), app.jsx (3) and panels.jsx (11) now carry role=\"heading\" aria-level=\"2\"; sub-label .eyebrow DIVs (non-titles) were left untouched. Confirmed 6 role=heading nodes render in the studio DOM. NEW qa_contrast.mjs asserts >=15 eyebrow title spans are level-2 headings.",
+      "deps": []
     }
   ]
 }

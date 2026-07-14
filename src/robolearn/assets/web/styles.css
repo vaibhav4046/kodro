@@ -744,12 +744,16 @@ select.terrain-btn:hover {
    by default with a toggle. The 1099px rule already flips .workspace to a
    flex column; these rules refine panel sizes and the bar for touch. */
 @media (max-width: 768px) {
-  .app { grid-template-rows:48px 1fr; }
+  /* WRAP the mission bar instead of hiding the nav icons (Lessons, Robot Lab,
+     Build, Memory, Settings) behind a scrollbar-less horizontal scroll: on a
+     phone those icons are the entries into the learning, testing and
+     governance pillars, so they must be on screen, not off the right edge
+     with no affordance (judge round 7). The bar grows to a second row. */
+  .app { grid-template-rows:auto 1fr; }
   .missionbar {
-    flex-wrap:nowrap; height:48px; padding:0 10px; gap:10px;
-    overflow-x:auto; overflow-y:hidden; scrollbar-width:none;
+    flex-wrap:wrap; height:auto; min-height:48px; padding:6px 10px; gap:8px 10px;
+    overflow:visible;
   }
-  .missionbar::-webkit-scrollbar { height:0; display:none; }
   /* Hide the text labels on icon buttons; the descriptive aria-label still
      exposes the full purpose to screen readers and touch users via AT. */
   .icon-btn-label { display:none; }

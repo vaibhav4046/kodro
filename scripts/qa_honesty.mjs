@@ -81,5 +81,13 @@ ok(/vMaxSimCmPerS/.test(realism) && /vs a standard rover/.test(realism),
 const panels = read('panels.jsx');
 ok(/rough AI estimates/i.test(panels), 'budget planner labels prices as rough AI estimates');
 
+// 7. The verification report's MEASURED mean speed must normalise out the
+//    cosmetic sim-speed slider (playback compresses wall time by speedMul), so
+//    the slider can never inflate the measured evidence (judge round 7).
+ok(/wallMs\s*\*\s*\(?\s*lastRun\.speedMul/.test(verify),
+  'verify measured speed multiplies wall time back out by speedMul');
+ok(!/\(lastRun\.distanceCm\s*\/\s*100\)\s*\/\s*\(lastRun\.wallMs\s*\/\s*1000\)/.test(verify),
+  'verify no longer divides distance by the raw (playback-compressed) wallMs');
+
 console.log((fail === 0 ? 'PASS' : 'FAIL') + '  honesty: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail === 0 ? 0 : 1);

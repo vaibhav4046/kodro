@@ -11929,7 +11929,9 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }, liveMsg), /*#__PURE__*/React.createElement("div", {
       className: "tele-section"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, "Navigation"), /*#__PURE__*/React.createElement("div", {
       className: "compass-wrap",
       role: "img",
@@ -11956,7 +11958,9 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }))), /*#__PURE__*/React.createElement("div", {
       className: "tele-section"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, hasRange ? 'Proximity · Ultrasonic range' : 'Proximity'), hasRange ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       className: 'dist-readout ' + distState,
       "aria-label": distWord + ', ' + (dist >= 600 ? '600 plus' : dist.toFixed(0)) + ' centimetres to obstacle'
@@ -11993,7 +11997,9 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }, "fit an Ultrasonic in the Robot Lab to read distance"))), /*#__PURE__*/React.createElement("div", {
       className: "tele-section"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, "Systems"), /*#__PURE__*/React.createElement("div", {
       className: "bar-meter"
     }, /*#__PURE__*/React.createElement(Bar, {
@@ -12036,7 +12042,9 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         borderBottom: 'none'
       }
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, "Environment"), /*#__PURE__*/React.createElement("div", {
       className: "gauges"
     }, /*#__PURE__*/React.createElement("div", {
@@ -16889,10 +16897,16 @@ Object.assign(window, {
     };
     var lastRun = window.KODRO_LAST_RUN;
     if (lastRun && lastRun.distanceCm > 0 && lastRun.wallMs > 400) {
-      var measuredMps = lastRun.distanceCm / 100 / (lastRun.wallMs / 1000);
+      // The animation plays back at speedMul (durations are divided by it), so
+      // wall time is compressed by that factor. Multiply it back out so the
+      // MEASURED mean speed is the true 1x sim speed and the cosmetic sim-speed
+      // slider can never inflate the evidence (judge round 7). trueMs is the
+      // wall time the run would have taken at 1x.
+      var trueMs = lastRun.wallMs * (lastRun.speedMul || 1);
+      var measuredMps = lastRun.distanceCm / 100 / (trueMs / 1000);
       empirical.lastRun = {
         distanceM: Math.round(lastRun.distanceCm) / 100,
-        seconds: Math.round(lastRun.wallMs / 100) / 10,
+        seconds: Math.round(trueMs / 100) / 10,
         measuredMps: Math.round(measuredMps * 100) / 100,
         speedMul: lastRun.speedMul || 1
       };
@@ -23054,7 +23068,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, "Keyboard shortcuts"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
@@ -23117,7 +23133,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, KI('build'), "Build a real robot. What your budget can buy"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
@@ -23241,7 +23259,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, KI('swarm'), "Robot swarm. Your one program, run by many rovers at once"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
@@ -23340,7 +23360,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, KI('report'), browserMode ? 'Progress on this device, idea by idea' : 'Teacher dashboard. How the class is doing, idea by idea'), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
@@ -23430,7 +23452,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, KI('review'), "Code review. A second AI checks your work"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
@@ -23458,7 +23482,9 @@ say("Survey done")`
     }), reviewData.revised && reviewData.code && /*#__PURE__*/React.createElement("div", {
       className: "review-rewrite"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, "Suggested rewrite"), /*#__PURE__*/React.createElement("pre", {
       className: "vibe-code"
     }, reviewData.code), /*#__PURE__*/React.createElement("p", {
@@ -23495,7 +23521,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, KI('ask'), "Ask. ", askData && !providerIsLocal(askData.source) ? 'Answered by ' + providerName(askData.source) + ' (your key); your question is sent to ' + providerName(askData.source) : askData && askData.grounded === false ? 'Answered by the local model on this machine' : window.pywebview ? 'Answers come from the built-in lesson notes when they cover it' : 'Answered by the AI model on this machine'), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
@@ -23531,7 +23559,9 @@ say("Survey done")`
     }, askData.answer), askData.sources && askData.sources.length > 0 && /*#__PURE__*/React.createElement("div", {
       className: "ask-sources"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, "From the lessons"), askData.sources.map((s, i) => /*#__PURE__*/React.createElement("div", {
       key: i,
       className: "ask-src"
@@ -23893,7 +23923,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, KI('memory'), "Memory. What the app has learned from your runs, saved on this computer"), /*#__PURE__*/React.createElement("span", {
       className: "mem-viewtoggle",
       role: "group",
@@ -24159,7 +24191,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, KI('vibe'), "AI helper. Say what the robot should do, it writes the code"), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
@@ -24324,7 +24358,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, KI('blocks'), "Blocks. Click blocks to build, then turn them into Python"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
@@ -26582,7 +26618,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "console-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, runsOpen ? 'Run reports' : 'Console'), /*#__PURE__*/React.createElement("div", {
       className: "ph-spacer",
       style: {
@@ -26926,7 +26964,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "panel-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, "Live readouts"), /*#__PURE__*/React.createElement("div", {
       className: "ph-spacer",
       style: {
@@ -27103,7 +27143,9 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("div", {
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow"
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
     }, KI('build'), "Build a real robot. What your budget can buy"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",

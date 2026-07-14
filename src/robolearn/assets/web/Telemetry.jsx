@@ -85,7 +85,7 @@
       <div className="tele-body">
         <div role="status" aria-live="polite" style={srOnly}>{liveMsg}</div>
         <div className="tele-section">
-          <span className="eyebrow">Navigation</span>
+          <span className="eyebrow" role="heading" aria-level="2">Navigation</span>
           <div className="compass-wrap" role="img" aria-label={'Heading ' + (Math.round(norm(rover.heading)) % 360) + ' degrees, ' + cardinal(rover.heading)}>
             <Compass heading={rover.heading} accent={accent} />
             <div className="compass-info">
@@ -99,7 +99,7 @@
         </div>
 
         <div className="tele-section">
-          <span className="eyebrow">{hasRange ? 'Proximity · Ultrasonic range' : 'Proximity'}</span>
+          <span className="eyebrow" role="heading" aria-level="2">{hasRange ? 'Proximity · Ultrasonic range' : 'Proximity'}</span>
           {hasRange ? (
             <>
               <div className={'dist-readout ' + distState} aria-label={distWord + ', ' + (dist >= 600 ? '600 plus' : dist.toFixed(0)) + ' centimetres to obstacle'}>
@@ -120,7 +120,7 @@
         </div>
 
         <div className="tele-section">
-          <span className="eyebrow">Systems</span>
+          <span className="eyebrow" role="heading" aria-level="2">Systems</span>
           <div className="bar-meter">
             <Bar k="Battery" v={battery.toFixed(0) + '%'} pct={battery} color={batColor} />
             <Bar k="Grip" v={Math.min(100, Math.round(terrain.traction * 100)) + '%'} pct={Math.min(100, Math.round(terrain.traction * 100))} color={accent} />
@@ -140,7 +140,7 @@
         </div>
 
         <div className="tele-section" style={{ borderBottom: 'none' }}>
-          <span className="eyebrow">Environment</span>
+          <span className="eyebrow" role="heading" aria-level="2">Environment</span>
           <div className="gauges">
             <div className="gauge">
               <span className="g-label">Gravity</span>

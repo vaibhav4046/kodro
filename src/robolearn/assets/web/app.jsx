@@ -1332,7 +1332,7 @@
             </div>
             <div className="console" style={{ height: consoleH, flex: 'none' }}>
               <div className="console-head">
-                <span className="eyebrow">{runsOpen ? 'Run reports' : 'Console'}</span>
+                <span className="eyebrow" role="heading" aria-level="2">{runsOpen ? 'Run reports' : 'Console'}</span>
                 <div className="ph-spacer" style={{ flex: 1 }}></div>
                 <button className={'btn-mini' + (runsOpen ? ' active' : '')} title="Run reports. A structured record of every run; tick two to compare builds" aria-pressed={runsOpen} onClick={() => setRunsOpen(o => !o)}>Runs</button>
                 {!runsOpen && <button className="btn-mini" onClick={() => setConsoleLines([{ type: 'sys', text: 'Console cleared.' }])}>Clear</button>}
@@ -1498,7 +1498,7 @@
           {/* right: telemetry */}
           <div className={'panel tele-panel' + (teleCollapsed ? ' tele-collapsed' : '')} style={{ gridColumn: 5 }}>
             <div className="panel-head">
-              <span className="eyebrow">Live readouts</span>
+              <span className="eyebrow" role="heading" aria-level="2">Live readouts</span>
               <div className="ph-spacer" style={{ flex: 1 }}></div>
               {/* The panel is captioned with the robot the user actually
                   built, not a hard-coded callsign (product-coherence D3). */}
@@ -1556,7 +1556,7 @@
             <div className="modal-backdrop" onClick={() => setBuildOpen(false)}>
               <div className="modal" role="dialog" aria-modal="true" aria-label="Build a real robot" onClick={e => e.stopPropagation()}>
                 <div className="modal-head">
-                  <span className="eyebrow">{KI('build')}Build a real robot. What your budget can buy</span>
+                  <span className="eyebrow" role="heading" aria-level="2">{KI('build')}Build a real robot. What your budget can buy</span>
                   <button className="btn-mini" aria-label="Close" onClick={() => setBuildOpen(false)}>✕</button>
                 </div>
                 <div className="build-body">

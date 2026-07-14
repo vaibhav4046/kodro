@@ -110,10 +110,16 @@
     var empirical = { lastRun: null, validation: null, agreement: null };
     var lastRun = window.KODRO_LAST_RUN;
     if (lastRun && lastRun.distanceCm > 0 && lastRun.wallMs > 400) {
-      var measuredMps = (lastRun.distanceCm / 100) / (lastRun.wallMs / 1000);
+      // The animation plays back at speedMul (durations are divided by it), so
+      // wall time is compressed by that factor. Multiply it back out so the
+      // MEASURED mean speed is the true 1x sim speed and the cosmetic sim-speed
+      // slider can never inflate the evidence (judge round 7). trueMs is the
+      // wall time the run would have taken at 1x.
+      var trueMs = lastRun.wallMs * (lastRun.speedMul || 1);
+      var measuredMps = (lastRun.distanceCm / 100) / (trueMs / 1000);
       empirical.lastRun = {
         distanceM: Math.round(lastRun.distanceCm) / 100,
-        seconds: Math.round(lastRun.wallMs / 100) / 10,
+        seconds: Math.round(trueMs / 100) / 10,
         measuredMps: Math.round(measuredMps * 100) / 100,
         speedMul: lastRun.speedMul || 1,
       };

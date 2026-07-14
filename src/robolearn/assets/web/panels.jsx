@@ -66,7 +66,7 @@
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">Keyboard shortcuts</span>
+            <span className="eyebrow" role="heading" aria-level="2">Keyboard shortcuts</span>
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
           <div className="shortcut-groups">
@@ -123,7 +123,7 @@
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Build a real robot" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('build')}Build a real robot. What your budget can buy</span>
+            <span className="eyebrow" role="heading" aria-level="2">{KI('build')}Build a real robot. What your budget can buy</span>
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
           <div className="build-body" role="status" aria-live="polite">
@@ -203,7 +203,7 @@
       <div className="modal-backdrop" onClick={() => !swarmBusy && setSwarmOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="Agent swarm" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('swarm')}Robot swarm. Your one program, run by many rovers at once</span>
+            <span className="eyebrow" role="heading" aria-level="2">{KI('swarm')}Robot swarm. Your one program, run by many rovers at once</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setSwarmOpen(false)}>✕</button>
           </div>
           <div className="swarm-body">
@@ -257,7 +257,7 @@
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Teacher dashboard" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('report')}{browserMode ? 'Progress on this device, idea by idea' : 'Teacher dashboard. How the class is doing, idea by idea'}</span>
+            <span className="eyebrow" role="heading" aria-level="2">{KI('report')}{browserMode ? 'Progress on this device, idea by idea' : 'Teacher dashboard. How the class is doing, idea by idea'}</span>
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
           <div className="teacher-body">
@@ -331,7 +331,7 @@
       <div className="modal-backdrop" onClick={() => !reviewBusy && setReviewOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="AI code review" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('review')}Code review. A second AI checks your work</span>
+            <span className="eyebrow" role="heading" aria-level="2">{KI('review')}Code review. A second AI checks your work</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setReviewOpen(false)}>✕</button>
           </div>
           <div className="review-body" role="status" aria-live="polite">
@@ -354,7 +354,7 @@
                 )}
                 {reviewData.revised && reviewData.code && (
                   <div className="review-rewrite">
-                    <span className="eyebrow">Suggested rewrite</span>
+                    <span className="eyebrow" role="heading" aria-level="2">Suggested rewrite</span>
                     <pre className="vibe-code">{reviewData.code}</pre>
                     <p className="vibe-hint">Read the diff before applying; the self-test runs when you apply.</p>
                     <div className="vibe-code-actions">
@@ -377,7 +377,7 @@
       <div className="modal-backdrop" onClick={() => !askBusy && setAskOpen(false)}>
         <div className="modal" role="dialog" aria-modal="true" aria-label="Ask a question" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('ask')}Ask. {askData && !providerIsLocal(askData.source) ? 'Answered by ' + providerName(askData.source) + ' (your key); your question is sent to ' + providerName(askData.source) : (askData && askData.grounded === false ? 'Answered by the local model on this machine' : (window.pywebview ? 'Answers come from the built-in lesson notes when they cover it' : 'Answered by the AI model on this machine'))}</span>
+            <span className="eyebrow" role="heading" aria-level="2">{KI('ask')}Ask. {askData && !providerIsLocal(askData.source) ? 'Answered by ' + providerName(askData.source) + ' (your key); your question is sent to ' + providerName(askData.source) : (askData && askData.grounded === false ? 'Answered by the local model on this machine' : (window.pywebview ? 'Answers come from the built-in lesson notes when they cover it' : 'Answered by the AI model on this machine'))}</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setAskOpen(false)}>✕</button>
           </div>
           <div className="ask-body" role="status" aria-live="polite">
@@ -395,7 +395,7 @@
                 <p className="ask-text">{askData.answer}</p>
                 {askData.sources && askData.sources.length > 0 && (
                   <div className="ask-sources">
-                    <span className="eyebrow">From the lessons</span>
+                    <span className="eyebrow" role="heading" aria-level="2">From the lessons</span>
                     {askData.sources.map((s, i) => (
                       <div key={i} className="ask-src"><b>[{i + 1}] {s.source}</b><span>{s.text}</span></div>
                     ))}
@@ -672,7 +672,7 @@
       <div className="modal-backdrop" onClick={() => setMemoryOpen(false)}>
         <div className={'modal modal-wide' + (memView === 'graph' ? ' mem-modal-graph' : '')} role="dialog" aria-modal="true" aria-label="Memory and skills" data-tick={memTick} onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('memory')}Memory. What the app has learned from your runs, saved on this computer</span>
+            <span className="eyebrow" role="heading" aria-level="2">{KI('memory')}Memory. What the app has learned from your runs, saved on this computer</span>
             <span className="mem-viewtoggle" role="group" aria-label="Memory view">
               <button className={'btn-mini' + (memView === 'list' ? ' is-on' : '')} aria-pressed={memView === 'list'} onClick={() => setMemView('list')}>List</button>
               <button className={'btn-mini' + (memView === 'graph' ? ' is-on' : '')} aria-pressed={memView === 'graph'} data-mem-graph onClick={() => setMemView('graph')}>Graph</button>
@@ -790,7 +790,7 @@
       <div className="modal-backdrop" onClick={() => !vibeBusy && setVibeOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('vibe')}AI helper. Say what the robot should do, it writes the code</span>
+            <span className="eyebrow" role="heading" aria-level="2">{KI('vibe')}AI helper. Say what the robot should do, it writes the code</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {vibeMsgs.length > 0 && (
                 <button className="btn-mini" disabled={vibeBusy} onClick={() => vibeClear && vibeClear()}
@@ -891,7 +891,7 @@
       <div className="modal-backdrop" onClick={() => setBlocksOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Block coding" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('blocks')}Blocks. Click blocks to build, then turn them into Python</span>
+            <span className="eyebrow" role="heading" aria-level="2">{KI('blocks')}Blocks. Click blocks to build, then turn them into Python</span>
             <button className="btn-mini" aria-label="Close" onClick={() => setBlocksOpen(false)}>✕</button>
           </div>
           <div className="blocks-palette">
