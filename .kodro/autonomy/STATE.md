@@ -31,24 +31,22 @@ introduced, found and root-fixed: K-003 (ruff format on app.py), K-004
 (offline-guard vs qa_parts citation-host conflict). See BACKLOG.json.
 
 ## Active slice
-JUDGE ROUND 1 shipped at ff2606a: six-judge adversarial panel (first-timer,
-teacher, budget builder, accessibility, performance, honesty) over the real
-bundle, findings refuted independently -> 18 root defects fixed, 5 rejected.
-Highlights: honesty consistency (one stopping-distance formula, catalogue top
-speed APPROXIMATED not HONOURED, no "honest error bars", AI prices labelled
-estimates) pinned by NEW qa_honesty.mjs (in CI); Robot Lab CTA no longer
-off-screen; Lessons button one click to the learning half; phone shows the
-city first at 46vh; onboarding focus trap; Revert toast persists; boot backstop
-waits for readyState; quality floor reaches Low. Gates green: qa_ui 33/33,
-qa_worlds 61/61, qa_honesty 23, pytest 1068, statics clean.
-Dissertation unchanged this round (no number/claim moved; the fixes make its
-existing honesty claims MORE true); still 50 pages, 0 dashes.
-NEXT: judge round 2 over the ff2606a live deploy. Convergence needs two
-consecutive clean rounds.
+JUDGE ROUND 2 shipped at 7ed5618: 2 root defects (down from 18 in round 1),
+3 rejected. Fixed: default first Run in the flagship city now completes clean
+(sense-and-avoid starter, showcases the core value) gated by qa_ui
+checkFirstRunClean; NOT SIMULATED fidelity badge contrast raised to 7.38:1 (AA).
+Dissertation Appendix B updated to the sensing first-example; 50 pages, 0 dashes.
+Gates clean in isolation: qa_ui 34/34, qa_worlds 61/61, qa_honesty 23,
+interpreter 180. NOTE: local pytest exit 1 is a tkinter-unavailable env issue
+(19 Tk desktop-UI tests skipped, 0 failures); JS-only changes cannot affect it;
+CI pytest (Tk on 3 OS) is authoritative and gates the deploy.
 
-Watch: local qa_ui/qa_worlds flake on chrome-spawn timing under sustained load;
-the lessons-entry concern was made deterministic (assert button + classroom
-picker, no click race). CI does not run qa_ui/qa_worlds.
+CONVERGENCE STATUS: round 1 found 18, round 2 found 2. Need TWO consecutive
+CLEAN rounds (zero accepted findings). NEXT: judge round 3 over the 7ed5618
+live deploy. If clean, round 4 must also be clean to converge.
+
+Watch: qa_ui/qa_worlds flake on chrome-spawn ETIMEDOUT under sustained load
+(ran alone after cooldown for the clean result). CI does not run them.
 
 ## Exact next command on resume
     cd /d/project/robolearn && node scripts/qa_interpreter.mjs | tail -1   # confirm green

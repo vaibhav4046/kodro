@@ -1,6 +1,6 @@
 {
   "schema": "kodro-backlog/1",
-  "updated_commit": "ff2606a",
+  "updated_commit": "7ed5618",
   "note": "severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED. OPP-* are scout opportunities (impact x feasibility / complexity); K-* are defects.",
   "items": [
     {
@@ -362,6 +362,24 @@
       "status": "FIXED",
       "owner": "judge-round-1",
       "evidence": "FIXED: aria-label now includes each run's timestamp.",
+      "deps": []
+    },
+    {
+      "id": "JR2-01",
+      "title": "Default first Run in the flagship city crashed into a parked car; the starter's promised report never printed",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-2",
+      "evidence": "FIXED: the shipped starter (app-data.jsx drive tab) is now a sense-and-avoid explore demo (distance()<130 steers, move 100<130 so a step can never carry it into a sensed obstacle). Verified deterministic: city 8-9m clean, no HALTED, report prints; earth 14m. Showcases the product's core value (sense before you build). Gate: qa_ui checkFirstRunClean (default city run, no HALTED + report + odo>=floor). Dissertation Appendix B updated to the sensing first-example.",
+      "deps": []
+    },
+    {
+      "id": "JR2-02",
+      "title": "The NOT SIMULATED fidelity badge (the strongest honesty claim) failed AA contrast at 3.31:1",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-2",
+      "evidence": "FIXED: badge text switched to dark --void on a lighter mars #d98a7e (7.38:1, passes AA), font bumped 9->10px to match the other tiers. realism.jsx.",
       "deps": []
     }
   ]
