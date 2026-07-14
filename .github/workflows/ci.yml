@@ -115,6 +115,14 @@ jobs:
       - name: Web pupil-store gate
         run: node scripts/qa_pupilstore.mjs
 
+      # Honesty gate: pins the fixes that keep the product's numbers honest and
+      # consistent - one physics formula for stopping distance across the design
+      # check and the report, catalogue top speed badged APPROXIMATED, no
+      # "honest error bars" or "perform cleanly" overpromises, AI prices labelled
+      # as estimates. Runs the real motion model plus source assertions.
+      - name: Web honesty gate
+        run: node scripts/qa_honesty.mjs
+
       # Browser boot + privacy gate (qa_web): the ONLY browser-driven gate wired
       # into CI, and only on Linux. It builds the static web bundle and loads it
       # in headless Chrome to prove two things a green Python/Node CI otherwise

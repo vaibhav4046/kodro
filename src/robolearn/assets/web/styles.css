@@ -221,7 +221,10 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .editor-panel { border-right:0.5px solid var(--border); background:var(--navy); }
 /* S2: 8 example tabs at the default editor width overflow the row; keep them
    reachable with a slim, visible horizontal scroll instead of truncation. */
-.tabs { display:flex; gap:2px; align-items:center; overflow-x:auto; flex:1; min-width:0; scrollbar-width:thin; }
+/* min-width floor so the classroom lesson picker cannot crush the example
+   tabs to an unreadable sliver; the strip scrolls internally instead (judge
+   round 1). */
+.tabs { display:flex; gap:2px; align-items:center; overflow-x:auto; flex:1 1 160px; min-width:120px; scrollbar-width:thin; }
 .tabs::-webkit-scrollbar { height:5px; }
 .tabs::-webkit-scrollbar-thumb { border:none; background:rgba(245,240,228,0.14); }
 .tab {
@@ -753,6 +756,13 @@ select.terrain-btn:hover {
     width:100% !important; max-width:100%;
     border-right:none; border-left:none;
   }
+  /* The world is the star: on a phone show the living city FIRST, at real
+     height, so a visitor sees it (and sees Run move something) before the
+     code editor, instead of the world being a 142px letterbox two screens
+     down (judge round 1). */
+  .view-panel { order:-1; min-height:46vh !important; }
+  .workspace > .panel:not(.view-panel):not(.tele-panel) { order:0; }
+  .tele-panel { order:1; }
   .editor-panel { min-height:300px; }
   .view-panel { min-height:250px; }
   .tele-panel { min-height:0; }
@@ -761,6 +771,9 @@ select.terrain-btn:hover {
   .tele-toggle { display:inline-flex; }
   .tele-panel.tele-collapsed .tele-body { display:none; }
   .tele-panel.tele-collapsed .panel-head { border-bottom:none; }
+  /* The tagline has no room at phone width: it wrapped one word per line down
+     the left edge and read as broken rendering (judge round 1). Fewer words. */
+  .brand-sub { display:none; }
 }
 
 /* Phone width (QA bug review): at ~375px the absolutely-centred view toolbar
@@ -1097,7 +1110,10 @@ kbd {
      The background is a single SOLID opaque theme surface (not a translucent or
      gradient fill) so the tabs can never show through and every row sits on the
      same navy-2 surface the contrast ratios below were computed against. */
-  position:absolute; top:38px; right:0; z-index:200; width:248px;
+  /* Anchored LEFT: the gear button lives in the icon strip at the screen's
+     left edge, so a right:0 anchor hung ~26-66px of the popover off-screen
+     and clipped every label's first letters (judge round 1). */
+  position:absolute; top:38px; left:0; z-index:200; width:248px;
   /* Cap to the viewport and scroll internally so the popover can never run
      past the bottom edge on a short (800px) laptop screen (bugs D1). */
   max-height:calc(100vh - 80px); overflow-y:auto;
@@ -1545,7 +1561,10 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .rl-stat span { font-size:var(--text-xs); color:var(--fg-3); text-transform:uppercase; letter-spacing:0.08em; }
 .rl-stat-wide { grid-column:1 / -1; }
 .rl-stat-wide b { font-size:var(--text-md); color:var(--fg-1); }
-.rl-foot { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:14px; }
+/* Wrap at EVERY width: the row holds nine controls, which cannot fit in the
+   680px modal, and without wrapping the primary "Build & test" CTA is pushed
+   past the clip on all desktops (judge round 1, P1). */
+.rl-foot { display:flex; flex-wrap:wrap; justify-content:flex-start; align-items:center; gap:10px; margin-top:14px; }
 
 /* Robot Lab environment recommendation */
 .rl-rec { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; padding:9px 12px; margin-top:2px;

@@ -653,9 +653,17 @@
     const toastIdRef = useRef(0);
     function showToast(text, kind, action) {
       const id = ++toastIdRef.current;
-      setToasts(function (t) { return t.concat([{ id: id, text: text, kind: kind || 'info', action: action || null }]); });
-      // A toast carrying an action (e.g. Revert) needs time to be clicked.
-      setTimeout(function () { setToasts(function (t) { return t.filter(function (to) { return to.id !== id; }); }); }, action ? 7000 : 2400);
+      setToasts(function (t) {
+        // An action toast (Revert) is the ONLY undo for a programmatic code
+        // overwrite, so it must NOT vanish on a timer (judge round 1). Drop any
+        // earlier action toast so they never stack, and keep this one until it
+        // is clicked (the button self-dismisses) or superseded by the next one.
+        const base = action ? t.filter(function (to) { return !to.action; }) : t;
+        return base.concat([{ id: id, text: text, kind: kind || 'info', action: action || null }]);
+      });
+      if (!action) {
+        setTimeout(function () { setToasts(function (t) { return t.filter(function (to) { return to.id !== id; }); }); }, 2400);
+      }
     }
     return { consoleLines, setConsoleLines, addConsole, consoleEndRef, toasts, setToasts, showToast };
   }

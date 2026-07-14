@@ -363,7 +363,7 @@
   const TIER_LABEL = { honoured: 'HONOURED', approximated: 'APPROXIMATED', notSimulated: 'NOT SIMULATED' };
   const TIER_TITLE = {
     honoured: 'Honoured exactly by the simulation',
-    approximated: 'Approximated: first-order model, honest error bars',
+    approximated: 'Approximated: a first-order estimate, real hardware will differ',
     notSimulated: 'Not simulated: reported only, never driven',
   };
   function Badge(tier) {
@@ -663,7 +663,7 @@
             React.createElement('div', { className: 'rl-spec' },
               React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.mass + ' g'), React.createElement('span', null, 'total mass ', Badge('honoured'))),
               React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, '~' + d.runtimeMin + ' min'), React.createElement('span', null, 'battery / charge ', Badge('approximated'))),
-              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : d.speedFactor.toFixed(2) + '×'), React.createElement('span', null, 'top speed (no-load) ', Badge((d.phys && d.phys.badges && d.phys.badges.topSpeed) || 'honoured'))),
+              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : '×' + d.speedFactor.toFixed(2)), React.createElement('span', null, 'top speed (no-load) ', Badge((d.phys && d.phys.badges && d.phys.badges.topSpeed) || 'approximated'))),
               React.createElement('div', { className: 'rl-stat rl-stat-wide' },
                 React.createElement('b', null, d.commands.length ? d.commands.map(c => c + '()').join('  ') : 'move()  turn()  only'),
                 React.createElement('span', null, 'commands this build supports ', Badge('honoured'))

@@ -817,6 +817,26 @@ function checkTweaksPanel(chrome) {
   return { pass: false, reason: `tweaks panel missing (panel: ${hasPanel}, close: ${hasClose})` };
 }
 
+// LESSONS ENTRY (judge round 1) — the learning half of the product must be
+// discoverable and one click away. Assert BOTH deterministically in one classroom
+// load: the top-bar "Lessons" button exists (the discoverability fix) AND the
+// lesson picker renders in classroom mode. Driving the click headlessly races
+// the async lessons.json fetch under sustained load, so this pins the two facts
+// the fix guarantees without depending on click timing.
+function checkLessonsEntry(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lessons_entry', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const hasButton = /aria-label="Lessons[^"]*"/.test(dom);
+  const hasPicker = /class="lesson-picker"|<label[^>]*for="lesson-select"/.test(dom);
+  if (hasButton && hasPicker) {
+    return { pass: true, reason: 'a top-bar Lessons button exists and classroom mode renders the lesson picker' };
+  }
+  return { pass: false, reason: `lessons entry incomplete (button: ${hasButton}, picker: ${hasPicker})` };
+}
+
 // CUSTOM WORLD (OPP-6) — a runtime world built from seed + density + traction.
 // Density must genuinely change the obstacle field: the sparse and dense
 // configs are compared through the data-obstacles stamp on the app root.
@@ -1248,6 +1268,11 @@ function cleanup() {
   const customWorld = checkCustomWorld(chrome);
   behaviour.push(customWorld.pass);
   console.log(`${customWorld.pass ? 'PASS' : 'FAIL'}  ${'custom-world'.padEnd(20)} ${customWorld.reason}`);
+  gap();
+
+  const lessonsEntry = checkLessonsEntry(chrome);
+  behaviour.push(lessonsEntry.pass);
+  console.log(`${lessonsEntry.pass ? 'PASS' : 'FAIL'}  ${'lessons-entry'.padEnd(20)} ${lessonsEntry.reason}`);
   gap();
 
   const revertApply = checkRevertApply(chrome);

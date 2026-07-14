@@ -299,7 +299,22 @@
         el.textContent = CSS;
         document.head.appendChild(el);
       }
-      const onKey = (e) => { if (e.key === "Escape") onClose(); };
+      // Focus containment: the dialog is aria-modal, so Tab must cycle inside
+      // it, not leak to the 49 studio controls sitting behind it (judge round
+      // 1). Escape still closes.
+      const onKey = (e) => {
+        if (e.key === "Escape") { onClose(); return; }
+        if (e.key !== "Tab") return;
+        const root = document.querySelector(".konb-root");
+        if (!root) return;
+        const f = root.querySelectorAll('button, input, [href], select, textarea, [tabindex]:not([tabindex="-1"])');
+        const items = Array.prototype.filter.call(f, (el) => !el.disabled && el.offsetParent !== null);
+        if (!items.length) return;
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        else if (!root.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      };
       window.addEventListener("keydown", onKey);
       return () => window.removeEventListener("keydown", onKey);
     }, [onClose]);

@@ -201,7 +201,7 @@
         h.push('</ul>');
       });
     }
-    h.push('<p class="muted">Kodro is a first-order proving ground, not a certification tool: expect real hardware to land within honest error bars of these numbers, and treat every NOT SIMULATED row as exactly that.</p>');
+    h.push('<p class="muted">Kodro is a first-order proving ground, not a certification tool: expect real hardware to differ from these estimates, and treat every NOT SIMULATED row as exactly that.</p>');
     h.push('</body></html>');
     return h.join('');
   }

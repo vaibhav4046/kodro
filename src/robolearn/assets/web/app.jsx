@@ -434,6 +434,7 @@
         // can still step down further, and the user can pick any tier.
         const mem = (navigator && navigator.deviceMemory) || 8;
         const cores = (navigator && navigator.hardwareConcurrency) || 8;
+        if (mem <= 2 || cores <= 2) return 'low';
         return (mem <= 4 || cores <= 4) ? 'med' : 'high';
       } catch (e) { return 'high'; }
     });
@@ -1031,6 +1032,7 @@
               <span className="rc-meta">{chipType || ''}{chipType && chipMass ? ' · ' : ''}{chipMass ? chipMass + ' g' : ''}</span>
             )}
           </button>
+          <button className="icon-btn" title="Lessons. Learn robotics and coding step by step (ages 5 to 16)" aria-label="Lessons — learn robotics and coding step by step" aria-pressed={mode === 'classroom'} onClick={() => setMode(mode === 'classroom' ? 'studio' : 'classroom')}>{KI('report')}<span className="icon-btn-label">Lessons</span></button>
           <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab — design a custom robot" onClick={() => setRobotLabOpen(true)}>{KI('lab')}<span className="icon-btn-label">Robot Lab</span></button>
           <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills — what the system learned, and your skill library" onClick={() => setMemoryOpen(true)}>{KI('memory')}<span className="icon-btn-label">Memory</span></button>
           <button className="icon-btn" title={browserMode ? 'Build a real robot on a budget (desktop app)' : 'Build a real robot on a budget'} aria-label={browserMode ? 'Build a real robot. Design one on a budget. Desktop app only.' : 'Build a real robot. Design one on a budget.'} onClick={openBuildReal}>{KI('build')}<span className="icon-btn-label">{browserMode ? 'Build (desktop app)' : 'Build'}</span></button>
@@ -1364,7 +1366,7 @@
                         <ul className="runs-list">
                           {runs.map(r => (
                             <li key={r.id} className={'run-entry run-' + r.outcome} data-run-entry={r.outcome}>
-                              <input type="checkbox" checked={cmpSel.indexOf(r.id) >= 0} onChange={() => toggleSel(r.id)} aria-label={'Select the ' + (r.robotName || 'robot') + ' run for compare'} />
+                              <input type="checkbox" checked={cmpSel.indexOf(r.id) >= 0} onChange={() => toggleSel(r.id)} aria-label={'Select the ' + (r.robotName || 'robot') + ' run at ' + fmtTime(r.ts) + ' for compare'} />
                               <span className={'run-outcome ro-' + r.outcome}>{(r.outcome || '?').toUpperCase()}</span>
                               <span className="run-main">{r.robotName || 'Robot'} · {r.worldName || r.world}{r.detail ? ' · ' + r.detail : ''}</span>
                               <span className="run-stats num">

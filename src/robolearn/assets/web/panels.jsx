@@ -153,9 +153,10 @@
                     <p style={{ margin: 0, color: 'var(--fg-2)', fontSize: 12 }}>{buildPlan.summary}</p>
                   </div>
                   <div className={'build-cost' + (buildPlan.total <= buildPlan.budget ? ' ok' : ' over')}>
-                    ${Math.round(buildPlan.total)} <span>of ${buildPlan.budget}</span>
+                    ~${Math.round(buildPlan.total)} <span>of ${buildPlan.budget}</span>
                   </div>
                 </div>
+                <p className="build-note" style={{ margin: '2px 0 8px' }}>Prices are rough AI estimates to shape the build, not live quotes. Check the seller for the real price before buying.</p>
                 <window.RoverSchematic parts={buildPlan.parts} />
                 <div className="build-cols">
                   <div>
@@ -163,7 +164,7 @@
                     <table className="build-table">
                       <tbody>
                         {buildPlan.parts.map((p, i) => (
-                          <tr key={i}><td>{p.name}</td><td className="role">{p.role}</td><td className="cost">${p.cost}</td></tr>
+                          <tr key={i}><td>{p.name}</td><td className="role">{p.role}</td><td className="cost">~${p.cost}</td></tr>
                         ))}
                       </tbody>
                     </table>

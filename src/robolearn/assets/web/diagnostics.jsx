@@ -95,8 +95,17 @@
     // far slower and stops far sooner. Using vMaxSimCmPerS alone made the sensing
     // dimension emit a WARN the live run never earns, contradicting the tick.
     const approachMobMul = usePhysMob ? window.KodroMotion.mobilityMultiplier(driveCount > 0, mob) : 1;
-    const stop = (phys && phys.vMaxSimCmPerS !== undefined && window.KodroMotion)
-      ? Math.round(window.KodroMotion.physStoppingDistanceCm(phys.vMaxSimCmPerS * approachMobMul * traction, traction, gravity))
+    // Stopping distance uses the SAME physics as the verification report
+    // (d = v^2/2*mu*g) for a catalogue build, so the design check and the
+    // report can never print two different numbers for one build (judge round
+    // 1). A measured build keeps its sim approach speed; if the motion model
+    // is somehow absent, fall back to the old proxy.
+    const stop = (window.KodroMotion)
+      ? Math.round(window.KodroMotion.physStoppingDistanceCm(
+          (phys && phys.vMaxSimCmPerS !== undefined)
+            ? phys.vMaxSimCmPerS * approachMobMul * traction
+            : window.KodroMotion.MODEL.baseSpeedCmPerS * speedFactor,
+          traction, gravity))
       : stoppingDistance(speedFactor, massFactor);
     if (!hasRange) {
       dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'fail', margin: 0,
@@ -123,7 +132,7 @@
         reason: 'About ' + effMin + ' minutes of charge: fine for a short task, tight for a long survey.', fix: 'Lighten the build for longer missions.' });
     } else {
       dims.push({ key: 'power', label: 'Endurance', status: 'pass', margin: +(effMin / 45).toFixed(2),
-        reason: 'About ' + effMin + ' minutes of charge: comfortable for a full mission.', fix: '' });
+        reason: 'Roughly ' + effMin + ' minutes on a charge (a rough estimate from mass; the simulation tracks battery by distance driven, not the clock).', fix: '' });
     }
 
     // 4. NAVIGATION PRECISION -- does it know which way it points?
@@ -173,7 +182,7 @@
       topFix = warns[0].fix;
     } else {
       overall = 'pass';
-      summary = 'Well matched to ' + worldName + ': it should perform cleanly. Press Run and watch.';
+      summary = 'This build suits ' + worldName + '. Press Run to see how your program drives it.';
       topFix = '';
     }
 

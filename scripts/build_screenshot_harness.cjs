@@ -489,6 +489,12 @@ const CAP = `<!DOCTYPE html>
           // Icon-bar buttons: match the aria-label PREFIX (the label text before
           // the " — <suffix>" the buttons gained). See app.jsx icon-bar markup.
           robotlab: function () { return clickAriaStartsWith('Robot Lab'); },
+          lessons: function () {
+            // Lessons is a TOGGLE (classroom <-> studio); the generic opener
+            // fires twice, so guard against a double-click flipping it back.
+            if (document.querySelector('.lesson-picker')) return true;
+            return clickAriaStartsWith('Lessons');
+          },
           memory: function () { return clickAriaStartsWith('Memory and skills'); },
           build: function () { return clickAriaStartsWith('Build a real robot'); },
           help: function () { return clickAriaStartsWith('Keyboard shortcuts'); },

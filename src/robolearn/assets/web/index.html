@@ -90,7 +90,16 @@
         fallback((r && (r.message || r)) || 'Unhandled promise rejection');
       });
       // Silent-failure backstop: nothing threw, but nothing mounted either.
-      setTimeout(function () { fallback('The interface did not start within the expected time.'); }, 4000);
+      // On a slow connection the script assets can legitimately still be
+      // downloading well past 4s, so the check re-arms until the document has
+      // actually finished loading instead of declaring failure on a timer
+      // (judge round 1: false "failed to load" on slow devices).
+      (function armBackstop() {
+        setTimeout(function () {
+          if (document.readyState !== 'complete') { armBackstop(); return; }
+          fallback('The interface did not start within the expected time.');
+        }, 4000);
+      })();
     })();
   </script>
 
