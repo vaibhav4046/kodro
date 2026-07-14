@@ -1,6 +1,6 @@
 {
   "schema": "kodro-backlog/1",
-  "updated_commit": "b52345d",
+  "updated_commit": "bc06116",
   "note": "severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED. OPP-* are scout opportunities (impact x feasibility / complexity); K-* are defects.",
   "items": [
     {
@@ -416,6 +416,24 @@
       "status": "FIXED",
       "owner": "judge-round-5",
       "evidence": "FIXED: at <=640px the .view-toggle takes a full-width row inside .terrain-switch with overflow-x:auto (a horizontal-scroll strip like the world buttons), so the 3D/2D toggles are fully visible at the start and every control is reachable. Verified at 375px: 3D/2D/LOW/NOON/CLEAR all visible. NEW qa_contrast.mjs responsive assertion pins the rule.",
+      "deps": []
+    },
+    {
+      "id": "JR6-01",
+      "title": "Default-theme telemetry/section labels (--fg-3) failed AA at 3.99:1",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-6",
+      "evidence": "FIXED: default --fg-3 alpha 0.44 -> 0.55 (5.4-5.6:1 on void/navy/navy-2). qa_contrast.mjs now asserts --fg-3 on --void >= 4.5 across ALL 10 themes (33/33).",
+      "deps": []
+    },
+    {
+      "id": "JR6-02",
+      "title": "Editor highlight overlay (.code-pre) + line-number gutter were not aria-hidden, so screen readers read the program 2-3x",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-6",
+      "evidence": "FIXED: aria-hidden=true on .code-pre and .gutter in Editor.jsx; the labelled .code-ta textarea is the sole accessible editor content.",
       "deps": []
     }
   ]
