@@ -817,6 +817,28 @@ function checkTweaksPanel(chrome) {
   return { pass: false, reason: `tweaks panel missing (panel: ${hasPanel}, close: ${hasClose})` };
 }
 
+// FIRST-RUN CLEAN (judge round 2) — the default program in the DEFAULT world
+// (Riverside City) must complete without crashing on the very first Run and
+// print its report, so a newcomer's first impression matches the "watch it
+// work" promise. The starter senses and steers around the city's parked cars.
+function checkFirstRunClean(chrome) {
+  const url = `${BASE}?world=city&robot=rover&q=low&run=1`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_first_run_clean', url, { vtime: 15000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const odo = readOdometer(dom);
+  const halted = /HALTED/.test(dom);
+  // The report prints only if the program ran to the end; the editor source is
+  // stripped so its copy of the string cannot false-positive.
+  const rendered = dom.replace(/<textarea[\s\S]*?<\/textarea>/gi, '').replace(/<script[\s\S]*?<\/script>/gi, '');
+  const reportPrinted = /Metres driven|Report filed|Program finished/.test(rendered);
+  if (!halted && odo !== null && odo >= MIN_DRIVE_M && reportPrinted) {
+    return { pass: true, reason: `default city first Run drove ${odo.toFixed(1)}m clean (no HALTED) and printed its report` };
+  }
+  return { pass: false, reason: `first run not clean (odo ${odo}m, halted ${halted}, report ${reportPrinted})` };
+}
+
 // LESSONS ENTRY (judge round 1) — the learning half of the product must be
 // discoverable and one click away. Assert BOTH deterministically in one classroom
 // load: the top-bar "Lessons" button exists (the discoverability fix) AND the
@@ -1273,6 +1295,11 @@ function cleanup() {
   const lessonsEntry = checkLessonsEntry(chrome);
   behaviour.push(lessonsEntry.pass);
   console.log(`${lessonsEntry.pass ? 'PASS' : 'FAIL'}  ${'lessons-entry'.padEnd(20)} ${lessonsEntry.reason}`);
+  gap();
+
+  const firstRunClean = checkFirstRunClean(chrome);
+  behaviour.push(firstRunClean.pass);
+  console.log(`${firstRunClean.pass ? 'PASS' : 'FAIL'}  ${'first-run-clean'.padEnd(20)} ${firstRunClean.reason}`);
   gap();
 
   const revertApply = checkRevertApply(chrome);

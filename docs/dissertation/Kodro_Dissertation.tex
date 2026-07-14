@@ -777,14 +777,18 @@ collect_sample()            # only if a collector actuator is fitted
 log(message)                # write a line to the console
 \end{lstlisting}
 
-A short program that drives a square and leaves a trail is used as a first example. It calls only commands the default rover carries.
+The program that ships loaded in the editor is the first example, and it teaches the habit the whole tool is built around: look before you move. It drives forward through the default city, and whenever the range sensor reports the way ahead is not clear it steers to a clearer path instead of driving into a parked car, then prints a short report of what happened. It calls only commands the default rover carries.
 
 \begin{lstlisting}
-# A rover that drives a square and leaves a trail.
+# Drive forward, but look first. distance() reads how far the way
+# ahead is clear, in centimetres, so the rover steers around a
+# parked car instead of driving into it.
 set_speed(60)
-for side in range(4):
-    move_forward(2)
-    turn_right(90)
+for step in range(14):
+    if distance() < 130:
+        turn_right(55)
+    else:
+        move_forward(1)
 \end{lstlisting}
 
 Pressing run animates the rover along the path with weight transfer and a draining battery; pressing step advances one event at a time. Changing the build, a heavier chassis or a weaker motor, changes how the same program behaves, which is the point the whole platform is built to make.

@@ -124,7 +124,7 @@
     const fidTier = function (label, bg, fg, items) {
       return React.createElement('div', { key: label, style: { marginBottom: 8 } },
         React.createElement('div', { style: { marginBottom: 4 } },
-          React.createElement('span', { style: { fontSize: 9, fontWeight: 800, letterSpacing: '0.07em', borderRadius: 4, padding: '2px 6px', background: bg, color: fg } }, label)
+          React.createElement('span', { style: { fontSize: 10, fontWeight: 800, letterSpacing: '0.07em', borderRadius: 4, padding: '2px 7px', background: bg, color: fg } }, label)
         ),
         React.createElement('ul', { style: { margin: 0, paddingLeft: 16, fontSize: 11.5, lineHeight: 1.5, color: 'var(--fg-2)' } },
           items.map(function (it, i) { return React.createElement('li', { key: i }, it); })
@@ -136,7 +136,7 @@
       React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 12 } },
         fidTier('HONOURED', 'var(--cyan)', 'var(--void)', FID.honoured),
         fidTier('APPROXIMATED', 'var(--warning)', 'var(--void)', FID.approximated),
-        fidTier('NOT SIMULATED', '#c8685a', '#f5f0e4', FID.notSimulated)
+        fidTier('NOT SIMULATED', '#d98a7e', 'var(--void)', FID.notSimulated)
       )
     ) : null;
 

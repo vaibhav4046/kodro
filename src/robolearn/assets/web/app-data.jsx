@@ -109,59 +109,45 @@ print("Range scans:", scans)`
     },
     drive: {
       label: 'starter.py',
-      code: `# Welcome to Kodro. This is your rover, and this is a little patrol show.
-# Press Run and watch: it drives a square, draws its route on the ground,
-# flashes a different colour at every corner, then prints a report.
+      code: `# Welcome to Kodro. This is your rover, dropped into Riverside City.
+# Press Run and watch it explore: it drives ahead, and the moment its
+# range sensor sees a parked car or wall get close, it steers to a clearer
+# path instead of hitting it. That is the whole point of Kodro: see how
+# your robot copes here, for free, before you build it for real.
 # Every line is yours to edit. Change a number, press Run again.
 
-set_speed(70)          # motor power, 0 to 100
-pen_down()             # drop the pen so the route gets drawn as it drives
-led("cyan")            # patrol light
-say("Patrol starting")
+set_speed(60)          # motor power, 0 to 100
+pen_down()             # draw the route on the ground as it drives
+led("cyan")
+say("Exploring the city")
+
+driven = 0             # metres driven forward
+dodged = 0             # times the sensor saw a hazard and steered away
+
+# Drive forward, but look first: distance() reads how far the way ahead is
+# clear, in centimetres. This loop is the robot sensing and reacting.
+for step in range(14):
+    # Look further ahead (130 cm) than we drive in one step (100 cm), so a
+    # step can never carry the rover into something it just saw.
+    if distance() < 130:       # something close ahead
+        led("amber")           # caution light
+        turn_right(55)         # steer toward a clearer path
+        dodged = dodged + 1
+        led("cyan")
+    else:
+        move_forward(1)        # one clear metre
+        driven = driven + 1
+
+# Ease to a stop and lift the pen; the route drawing is finished.
+say("Run complete - parking")
+set_speed(40)
+led("green")
+pen_up()
 beep(2)
 
-legs = 0               # counts the straight legs driven
-corners = 0            # counts the corners turned
-
-# Lap one: drive a square. Each turn of the loop is one side and one corner.
-for side in range(4):
-    # A different colour on each side makes the lap easy to follow.
-    if side == 0:
-        led("cyan")
-    elif side == 1:
-        led("amber")
-    elif side == 2:
-        led("green")
-    else:
-        led("white")
-    move_forward(1)        # one metre along this side
-    legs = legs + 1
-    turn_right(90)         # a square corner
-    corners = corners + 1
-    beep(1)
-
-# Lap two: speed up and cut back across with a short zig-zag.
-say("Zig-zag across the middle")
-set_speed(90)
-led("cyan")
-for zig in range(3):
-    move_forward(0.6)
-    turn_left(45)
-    move_forward(0.6)
-    turn_right(45)
-    legs = legs + 2
-
-# Patrol done: slow down, ease back onto the mark, lift the pen.
-say("Patrol complete - parking")
-set_speed(50)
-led("green")
-move_backward(0.5)
-pen_up()               # lift the pen, the drawing is finished
-
-# Mission report - every number below is measured, not made up.
-beep(3)
-print("Legs driven:", legs)
-print("Corners turned:", corners)
+# Run report: every number below is measured from THIS run, not made up.
+print("Metres driven:", driven)
+print("Hazards dodged:", dodged)
 print("Battery left:", read_battery(), "%")
 say("Report filed. Rover out.")`
     },
