@@ -1,6 +1,6 @@
 {
   "schema": "kodro-backlog/1",
-  "updated_commit": "7ed5618",
+  "updated_commit": "64a5ad8",
   "note": "severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED. OPP-* are scout opportunities (impact x feasibility / complexity); K-* are defects.",
   "items": [
     {
@@ -380,6 +380,24 @@
       "status": "FIXED",
       "owner": "judge-round-2",
       "evidence": "FIXED: badge text switched to dark --void on a lighter mars #d98a7e (7.38:1, passes AA), font bumped 9->10px to match the other tiers. realism.jsx.",
+      "deps": []
+    },
+    {
+      "id": "JR4-01",
+      "title": "Inactive editor tabs illegible (1.96:1) and active/inactive emphasis inverted: the .tab button fell back to the UA light button face",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-4",
+      "evidence": "FIXED: .tab base rule now sets appearance:none + background:transparent (so it sits on the dark tab bar, not the UA light face) and color:var(--fg-2) (8.8:1 on --navy, was --fg-3 at 3.99:1). Active tab stays cyan-on-void with a border, so emphasis is correct. NEW qa_contrast.mjs pins tab-label AA across all 10 themes.",
+      "deps": []
+    },
+    {
+      "id": "JR4-02",
+      "title": "Pixel classroom theme Reset label failed AA (2.96:1); the gate then also caught the lego theme (4.28:1)",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-4",
+      "evidence": "FIXED: pixel --danger #b13e53 -> #ffa3b0 (5.44:1 on the pixel mission bar); lego --danger #d01012 -> #b3141f (5.31:1 on the lego yellow bar). NEW qa_contrast.mjs computes --danger-on-mission-bar AA for EVERY theme, wired into CI.",
       "deps": []
     }
   ]
