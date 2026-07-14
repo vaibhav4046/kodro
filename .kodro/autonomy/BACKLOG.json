@@ -1,6 +1,6 @@
 {
   "schema": "kodro-backlog/1",
-  "updated_commit": "64a5ad8",
+  "updated_commit": "b52345d",
   "note": "severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED. OPP-* are scout opportunities (impact x feasibility / complexity); K-* are defects.",
   "items": [
     {
@@ -398,6 +398,24 @@
       "status": "FIXED",
       "owner": "judge-round-4",
       "evidence": "FIXED: pixel --danger #b13e53 -> #ffa3b0 (5.44:1 on the pixel mission bar); lego --danger #d01012 -> #b3141f (5.31:1 on the lego yellow bar). NEW qa_contrast.mjs computes --danger-on-mission-bar AA for EVERY theme, wired into CI.",
+      "deps": []
+    },
+    {
+      "id": "JR5-01",
+      "title": "Browser teacher register said 'How the class is doing / Pupil' but tracks one record per device, with no disclosure of that limit",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-5",
+      "evidence": "FIXED: in browser mode the modal eyebrow reads 'Progress on this device, idea by idea', the table header is 'Learner' not 'Pupil', and the note discloses 'Kodro keeps one record per device, so everyone using this device counts together; open the desktop app to keep a separate record for each pupil.' No behaviour change, honest framing. qa_ui checkPupilRecords still green.",
+      "deps": []
+    },
+    {
+      "id": "JR5-02",
+      "title": "Mobile: the 3D/2D/quality/time/weather view controls clipped off-screen at phone width with no scroll; the 3D toggle was a 14px sliver (WCAG 2.5.5 fail)",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-5",
+      "evidence": "FIXED: at <=640px the .view-toggle takes a full-width row inside .terrain-switch with overflow-x:auto (a horizontal-scroll strip like the world buttons), so the 3D/2D toggles are fully visible at the start and every control is reachable. Verified at 375px: 3D/2D/LOW/NOON/CLEAR all visible. NEW qa_contrast.mjs responsive assertion pins the rule.",
       "deps": []
     }
   ]
