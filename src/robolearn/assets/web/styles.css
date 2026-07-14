@@ -11,7 +11,7 @@
   --cyan:#5ce0d8; --cyan-2:#3bc0b8; --cyan-deep:#1a6f6a;
   --mars:#c8685a; --brass:#c9a86a;
   --success:#7cc49b; --warning:#e0b45c; --danger:#d06a6a;
-  --fg-1:#f5f0e4; --fg-2:rgba(245,240,228,0.68); --fg-3:rgba(245,240,228,0.44); --fg-4:rgba(245,240,228,0.22);
+  --fg-1:#f5f0e4; --fg-2:rgba(245,240,228,0.68); --fg-3:rgba(245,240,228,0.55); --fg-4:rgba(245,240,228,0.22);
   /* HUD text: the viewport overlays (terrain switch, telemetry, orbit hint,
      site chip, 3D help) sit on a FIXED dark-glass surface in EVERY theme, so
      their text must stay light regardless of theme. Theme blocks redefine

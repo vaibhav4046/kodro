@@ -99,6 +99,16 @@ for (const t of Object.keys(themes)) {
   ok(r >= AA, `Reset label (--danger) on the mission bar (--navy-2) in "${t}" is ${r.toFixed(2)}:1 (need ${AA})`);
 }
 
+// 3b. Secondary label text (--fg-3): section headers, gauge labels, and bar
+//     keys name the telemetry numbers, so they must clear AA too, on the
+//     darkest surface they sit on (--void, the gauge/console background).
+for (const t of Object.keys(themes)) {
+  const fg = color(t, '--fg-3'), bg = color(t, '--void');
+  if (!fg || !bg) { ok(false, `${t}: missing --fg-3/--void token`); continue; }
+  const r = ratio(fg, bg);
+  ok(r >= AA, `label text (--fg-3) on the panel surface (--void) in "${t}" is ${r.toFixed(2)}:1 (need ${AA})`);
+}
+
 // 4. Responsive integrity: at phone width the view controls (3D/2D/quality/
 //    time/weather) must take their own full-width row so they wrap inside the
 //    panel; without it the rigid cluster overflowed and .view-panel

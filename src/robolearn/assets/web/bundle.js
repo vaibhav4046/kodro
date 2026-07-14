@@ -11733,7 +11733,8 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }, /*#__PURE__*/React.createElement("div", {
       className: "editor-grid"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "gutter"
+      className: "gutter",
+      "aria-hidden": "true"
     }, lines.map((_, i) => /*#__PURE__*/React.createElement("span", {
       key: i,
       className: 'gl' + (activeLine === i + 1 ? ' active' : '')
@@ -11751,6 +11752,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       }
     }) : null, /*#__PURE__*/React.createElement("pre", {
       className: "code-pre",
+      "aria-hidden": "true",
       ref: preRef,
       dangerouslySetInnerHTML: {
         __html: highlight(code)
