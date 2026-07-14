@@ -204,5 +204,39 @@ console.log('\n== looksLikeCode (via chatStart/chatPoll) ==');
     c2.text === 'What shape would you like to draw?', JSON.stringify(c2 && c2.text));
 }
 
+console.log('\n== BOUNDED TOOL CALL (OPP-7) ==');
+{
+  const KNOWN = ['earth', 'mars', 'city', 'sahara'];
+  const TOOLS = { set_world: { hint: 'world or site id' } };
+
+  // Valid proposal: the model names a real world; resolveToolCall applies it,
+  // and the caller contract mutates state from r.id (asserted via a spy).
+  setGen('{"tool":"set_world","arg":"mars"}');
+  const t1 = await AI.toolCall('take me somewhere red and dusty', TOOLS);
+  check('valid tool call parsed from the constrained output', !!t1 && t1.tool === 'set_world' && t1.arg === 'mars', JSON.stringify(t1));
+  const applied = [];
+  const r1 = AI.resolveToolCall(t1, KNOWN);
+  if (r1.apply) applied.push(r1.id);
+  check('valid arg applies and mutates state (spy)', r1.apply === true && applied.join() === 'mars', JSON.stringify(applied));
+  check('apply message says what changed', /Switched the world to mars/.test(r1.message || ''), r1.message || '');
+
+  // Invalid arg: refused readably, nothing applied.
+  setGen('{"tool":"set_world","arg":"atlantis"}');
+  const t2 = await AI.toolCall('go to atlantis', TOOLS);
+  const r2 = AI.resolveToolCall(t2, KNOWN);
+  check('invalid arg refused (no apply)', !!t2 && r2.apply === false, JSON.stringify(r2));
+  check('refusal is readable and names the bad id + real options',
+    /"atlantis"/.test(r2.message || '') && /nothing changed/i.test(r2.message || '') && /earth/.test(r2.message || ''), r2.message || '');
+
+  // "none" and malformed outputs both fall through to plain chat (null).
+  setGen('{"tool":"none","arg":""}');
+  check('tool "none" falls through (null)', (await AI.toolCall('hello there', TOOLS)) === null, '');
+  setGen('this is not json at all');
+  check('malformed model output falls through (null)', (await AI.toolCall('go somewhere', TOOLS)) === null, '');
+  // A tool outside the whitelist is rejected even if well-formed.
+  setGen('{"tool":"delete_everything","arg":"now"}');
+  check('non-whitelisted tool rejected (null)', (await AI.toolCall('do it', TOOLS)) === null, '');
+}
+
 console.log('\n== RESULT: ' + pass + ' passed, ' + fail + ' failed ==');
 if (fail) { console.log('FAILURES:'); fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

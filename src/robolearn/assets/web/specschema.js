@@ -84,7 +84,8 @@
       'Suspension and 3D contact (body motion is cosmetic)',
       'Voltage sag, thermal limits, per-motor current transients',
       'IMU acceleration content (returns level readings)',
-      'Camera, GPS, bumper, line and gripper command semantics',
+      'Camera, GPS, bumper and gripper command semantics',
+      'Line follower reads a synthesized straight practice line, not the worlds\' painted lanes',
     ],
   };
 

@@ -163,11 +163,20 @@
     // runs an O(n^2) obstacle rejection sample) + applyTod only recompute when
     // the world actually changes (terrainId/tod/weather), not on every
     // rover-position render at animation-frame cadence during a run.
+    // OPP-6: the custom world regenerates in place when its seed/density/
+    // traction controls change (KodroCustomWorld.set fires kodro-customworld),
+    // so the tick joins the memo deps below.
+    const [customTick, setCustomTick] = useState(0);
+    useEffect(() => {
+      const on = () => setCustomTick(t => t + 1);
+      window.addEventListener('kodro-customworld', on);
+      return () => window.removeEventListener('kodro-customworld', on);
+    }, []);
     const terrain = useMemo(() => {
       const baseTerrain = window.resolveSite ? window.resolveSite(terrainId) : TERRAINS[terrainId];
       return (window.KodroWorldFX && window.KodroWorldFX.applyTod)
         ? window.KodroWorldFX.applyTod(baseTerrain, tod, weather) : baseTerrain;
-    }, [terrainId, tod, weather]);
+    }, [terrainId, tod, weather, customTick]);
 
     // live rover state (authoritative for sensors/animation)
     const startState = () => ({ x: 0, y: 0, heading: 0, speed: 50, battery: 100, moving: false, led: null, scanning: false, penDown: false });
@@ -339,6 +348,13 @@
         wallMs: runStartRef.current ? (Date.now() - runStartRef.current) : null,
         predicted: predicted,
         verdict: verdictText || '',
+        // OPP-2: the exact program and the seed that drove this run's PRNG,
+        // so the report's Replay button can re-drive it deterministically.
+        // Both come from stamps the sim writes at compile time (hooks.jsx
+        // compileFresh); reading the `code` closure here would record a stale
+        // buffer when the report fires through a long-lived pump-loop closure.
+        seed: window.KODRO_RUN_SEED != null ? window.KODRO_RUN_SEED : null,
+        source: window.KODRO_RUN_SOURCE != null ? window.KODRO_RUN_SOURCE : code,
       });
     }
 
@@ -393,7 +409,9 @@
       vibeError, setVibeError, vibeMsgs, setVibeMsgs, vibeEndRef, vibeLive,
       setVibeLive, vibeCancelRef, vibeSend, vibeClear,
     } = (window.KodroHooks && window.KodroHooks.useVibeChat)
-      ? window.KodroHooks.useVibeChat({ terrain, currentLessonIdRef, dispatchWorldAction })
+      // onTerrain is destructured from useSimEngine further down, so defer the
+      // reference to call time (an eager shorthand here would hit the TDZ).
+      ? window.KodroHooks.useVibeChat({ terrain, currentLessonIdRef, dispatchWorldAction, onTerrain: (id) => onTerrain(id) })
       : {
         vibeOpen: false, setVibeOpen: function () {}, vibePrompt: '', setVibePrompt: function () {},
         vibeBusy: false, setVibeBusy: function () {}, vibeError: null, setVibeError: function () {},
@@ -788,7 +806,7 @@
     // for (module constants, live state, shared refs, setters, cross-concern
     // callbacks) is threaded in; it returns the seven handlers the chrome and
     // the keyboard layer call. Moved VERBATIM so the odometer still reads 3.4m.
-    const { onRun, onStep, onReset, onTerrain, runReplLine, onCodeChange, exportReportClick } =
+    const { onRun, onStep, onReset, onTerrain, runReplLine, onCodeChange, exportReportClick, queueReplaySeed } =
       (window.KodroHooks && window.KodroHooks.useSimEngine)
         ? window.KodroHooks.useSimEngine({
             LED_COLORS, R_DEFAULT, WALL, TERRAINS, PREFERS_REDUCED_MOTION,
@@ -801,7 +819,21 @@
             addConsole, showToast, sfx, motorSfx, motorRest, recordRunReport,
             gradeWithBridge, celebrate,
           })
-        : { onRun: function () {}, onStep: function () {}, onReset: function () {}, onTerrain: function () {}, runReplLine: function () {}, onCodeChange: function () {}, exportReportClick: function () {} };
+        : { onRun: function () {}, onStep: function () {}, onReset: function () {}, onTerrain: function () {}, runReplLine: function () {}, onCodeChange: function () {}, exportReportClick: function () {}, queueReplaySeed: function () {} };
+
+    // OPP-2 Replay: re-drive a recorded run exactly. Restores the report's
+    // world and program, arms the sim with the recorded seed, then runs. The
+    // short defer lets the world switch and editor write settle first. Reports
+    // saved before replay support (no seed/source) cannot be replayed.
+    function replayRun(r) {
+      if (!r || r.seed == null || !r.source) return;
+      const here = terrain.siteId || terrain.id;
+      if (r.world && r.world !== here) onTerrain(r.world);
+      applyProgramText(r.source);
+      queueReplaySeed(r.seed);
+      addConsole('Replay: same program, same world, seed ' + r.seed + '. Outcome should match the recorded run exactly.', 'sys');
+      setTimeout(() => onRun(), 350);
+    }
 
     // apply terrain accent to CSS var
     useEffect(() => {
@@ -932,7 +964,7 @@
     const browserMode = !!(window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable());
 
     return (
-      <div className="app">
+      <div className="app" data-obstacles={(terrain.obstacles || []).length} data-active-world={(terrain.siteId || terrain.id) || ''}>
         <a className="skip-link" href="#editor-main">Skip to code editor</a>
         <h1 className="sr-only">Kodro, an offline robot design and simulation studio</h1>
         {/* ---- mission bar ---- */}
@@ -1058,6 +1090,49 @@
                 <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); pickPhotoClick(); }}>
                   <span>Photo prop · place("photo")</span><span className="set-val">{browserMode ? 'Desktop app' : (photoUrl ? 'Loaded' : 'Pick…')}</span>
                 </button>
+                {/* F6: the Tweaks panel (camera perspective/orbit/zoom, scene
+                    toggles, trail colour) listens for the edit-mode handshake
+                    but no host ever sent it, so it was dead UI. This row is
+                    the real trigger. */}
+                <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); try { window.postMessage({ type: '__activate_edit_mode' }, '*'); } catch (e) { void e; } }}>
+                  <span>Scene tweaks · camera + trail</span><span className="set-val">→</span>
+                </button>
+                {/* OPP-6: runtime custom world. Changing a control switches to
+                    (or regenerates) the custom world immediately; nothing is
+                    persisted in v1. */}
+                {window.KodroCustomWorld && (() => {
+                  const cw = window.KodroCustomWorld.get();
+                  const applyCw = (p) => { window.KodroCustomWorld.set(p); if (terrainId !== 'custom') onTerrain('custom'); };
+                  return (
+                    <React.Fragment>
+                      <label className="set-row">
+                        <span>Custom world · seed</span>
+                        <select className="lesson-select" value={String(cw.seed)} aria-label="Custom world seed" onChange={e => applyCw({ seed: +e.target.value })}>
+                          {[1, 2, 3, 4, 5, 6].map(s => <option key={s} value={s}>seed {s}</option>)}
+                        </select>
+                      </label>
+                      <label className="set-row">
+                        <span>Custom world · obstacles</span>
+                        <select className="lesson-select" value={cw.density} aria-label="Custom world obstacle density" onChange={e => applyCw({ density: e.target.value })}>
+                          <option value="sparse">sparse</option>
+                          <option value="normal">normal</option>
+                          <option value="dense">dense</option>
+                        </select>
+                      </label>
+                      <label className="set-row">
+                        <span>Custom world · traction</span>
+                        <select className="lesson-select" value={String(cw.traction)} aria-label="Custom world traction" onChange={e => applyCw({ traction: +e.target.value })}>
+                          <option value="0.5">slippery (0.5)</option>
+                          <option value="0.75">loose (0.75)</option>
+                          <option value="1">standard (1.0)</option>
+                        </select>
+                      </label>
+                      <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); onTerrain('custom'); }}>
+                        <span>Custom world · open</span><span className="set-val">→</span>
+                      </button>
+                    </React.Fragment>
+                  );
+                })()}
                 {classroom && (
                   <button className="set-row set-btn" onClick={openTeacher}>
                     <span>Teacher dashboard</span><span className="set-val">→</span>
@@ -1286,6 +1361,9 @@
                                 {r.minProximityCm != null && r.minProximityCm < 600 ? ' · ' + r.minProximityCm + ' cm closest' : ''}
                               </span>
                               <span className="run-pred" title="The design check's prediction before the run">{r.predicted ? 'predicted: ' + r.predicted : ''}</span>
+                              {r.seed != null && r.source
+                                ? <button className="btn-mini" data-replay title="Re-run this exact program in its world with its recorded seed" onClick={() => replayRun(r)}>Replay</button>
+                                : <span className="run-pred" title="Recorded before replay support, so the program and seed were not saved">no replay</span>}
                               <span className="run-time num">{fmtTime(r.ts)}</span>
                             </li>
                           ))}

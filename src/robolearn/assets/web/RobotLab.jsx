@@ -27,14 +27,15 @@
   };
   // `cmd` is the runnable, GATED command a part adds. Only parts whose command
   // is actually implemented in the interpreter carry one: the ultrasonic range
-  // (distance()) and the IMU (heading()). The other parts are real fitted
-  // hardware that change the build's mass and behaviour, but their command
-  // bindings (vision, positioning, contact, line, gripper) are not implemented
-  // yet, so they advertise no callable command rather than a phantom one that
-  // would fail with a confusing error. See docs/known-limitations.md.
+  // (distance()), the IMU (heading()) and the line follower (on_line()). The
+  // other parts are real fitted hardware that change the build's mass and
+  // behaviour, but their command bindings (vision, positioning, contact,
+  // gripper) are not implemented yet, so they advertise no callable command
+  // rather than a phantom one that would fail with a confusing error. See
+  // docs/known-limitations.md.
   const SENSORS = {
     ultrasonic: { id: 'ultrasonic', name: 'Ultrasonic range', mass: 9, enables: 'distance()  range ahead', cmd: 'distance' },
-    line: { id: 'line', name: 'Line follower', mass: 6, enables: 'line tracking (fitted; adds mass)' },
+    line: { id: 'line', name: 'Line follower', mass: 6, enables: 'on_line()  practice-line detect', cmd: 'on_line' },
     imu: { id: 'imu', name: 'IMU (gyro + accel)', mass: 4, enables: 'heading()  stable turns', cmd: 'heading' },
     camera: { id: 'camera', name: 'Camera', mass: 12, enables: 'computer vision (fitted; adds mass)' },
     gps: { id: 'gps', name: 'GPS', mass: 8, enables: 'positioning (fitted; adds mass)' },
@@ -153,22 +154,42 @@
     return out;
   }
 
+  // OPP-8: explicit, RECORDED migration for older saves, replacing the old
+  // silent in-load fallback. Behaviour-preserving: the only transforms are the
+  // ones load() always applied (the sensor floor) plus a version stamp, but now
+  // each applied step is written into spec.migrationNotes so an upgraded save
+  // says exactly what changed instead of mutating silently.
+  function migrateSpec(s, fromV1) {
+    const notes = [];
+    if (!s || typeof s !== 'object' || Array.isArray(s)) {
+      return { spec: defaultSpec(), notes: ['unreadable save replaced with the default build'] };
+    }
+    if (fromV1) notes.push('upgraded from the kodro_robot_v1 save key');
+    // Floor: a saved build with no sensors cannot run the obstacle-avoidance
+    // demos and confuses first-time users ("ultrasonic needed"). Give every
+    // build at least an ultrasonic + IMU so it can sense and the default
+    // autopilot just works on first Run; it stays editable in the Robot Lab.
+    // An imported KRS build is exempt: its sensor list is a deliberate
+    // measurement, and faking parts onto it would betray the import.
+    if (!s.physical && (!Array.isArray(s.sensors) || s.sensors.length === 0)) {
+      s.sensors = ['ultrasonic', 'imu'];
+      notes.push('sensor floor applied (Ultrasonic range + IMU) so the first Run can sense');
+    }
+    if (s.kodroSpec !== 1) {
+      s.kodroSpec = 1;
+      notes.push('stamped spec version kodroSpec: 1');
+    }
+    if (notes.length) s.migrationNotes = notes;
+    return { spec: s, notes: notes };
+  }
+
   function load() {
     try {
       // v2 first; fall back to a v1 save (same catalogue shape, no physical
       // block) so an existing build survives the upgrade untouched.
-      const raw = localStorage.getItem(STORE) || localStorage.getItem(STORE_V1);
-      if (raw) {
-        const s = JSON.parse(raw);
-        // Floor: a saved build with no sensors cannot run the obstacle-avoidance
-        // demos and confuses first-time users ("ultrasonic needed"). Give every
-        // build at least an ultrasonic + IMU so it can sense and the default
-        // autopilot just works on first Run; it stays editable in the Robot Lab.
-        // An imported KRS build is exempt: its sensor list is a deliberate
-        // measurement, and faking parts onto it would betray the import.
-        if (s && !s.physical && (!Array.isArray(s.sensors) || s.sensors.length === 0)) s.sensors = ['ultrasonic', 'imu'];
-        return s;
-      }
+      const rawV2 = localStorage.getItem(STORE);
+      const raw = rawV2 || localStorage.getItem(STORE_V1);
+      if (raw) return migrateSpec(JSON.parse(raw), !rawV2).spec;
     } catch (e) { void e; }
     return defaultSpec();
   }
@@ -229,11 +250,12 @@
   const COMMAND_PART = {
     distance: 'ultrasonic', read_distance: 'ultrasonic', scan: 'ultrasonic',
     heading: 'imu', read_heading: 'imu', tilt: 'imu',
+    on_line: 'line',
   };
   // The user-facing command name for each part that HAS a working command,
   // used in messages, the availability list and the assistant grounding.
   const PART_COMMAND = {
-    ultrasonic: 'distance', imu: 'heading',
+    ultrasonic: 'distance', imu: 'heading', line: 'on_line',
   };
   function partLabel(id) { return (SENSORS[id] && SENSORS[id].name) || (ACTUATORS[id] && ACTUATORS[id].name) || id; }
   // "a"/"an" by leading vowel sound, so refusals read "an IMU"/"an Ultrasonic"
@@ -331,6 +353,9 @@
       });
       return names;
     },
+    // OPP-8: the explicit save migrator, exposed so the spec-upgrade rules are
+    // testable headlessly (qa_interpreter) exactly like the gating rules above.
+    migrateSpec: migrateSpec,
   };
 
   // SI4: per-stat fidelity badge. Tier names come from the schema module so

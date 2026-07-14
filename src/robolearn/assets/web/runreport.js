@@ -49,6 +49,11 @@
       wallMs: entry.wallMs != null ? Math.round(+entry.wallMs) : null,
       predicted: String(entry.predicted || ''),    // design-check overall before the run
       verdict: String(entry.verdict || ''),        // the post-run coach line
+      // OPP-2 replay: the seed that drove host.rng plus the exact program
+      // text, so the run can be re-driven deterministically. Reports recorded
+      // before replay support carry null for both and cannot be replayed.
+      seed: entry.seed != null ? (+entry.seed >>> 0) : null,
+      source: typeof entry.source === 'string' ? entry.source.slice(0, 8000) : null,
     };
     var list = load();
     list.unshift(rec);

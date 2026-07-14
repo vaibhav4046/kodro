@@ -37,7 +37,7 @@
   });
   const SENSOR_METHODS = Object.assign(Object.create(null), {
     distance: 1, heading: 1, battery: 1, speed: 1, tilt: 1,
-    temperature: 1, x: 1, y: 1, ground: 1, light: 1, gravity: 1
+    temperature: 1, x: 1, y: 1, ground: 1, light: 1, gravity: 1, on_line: 1
   });
 
   // RoboLearn lesson API (bare verbs used by every lesson YAML) mapped onto
@@ -55,6 +55,9 @@
   const LESSON_SENSOR = Object.assign(Object.create(null), {
     distance: 'distance', heading: 'heading', battery: 'battery',
     gravity: 'gravity', temperature: 'temperature', ground: 'ground', light: 'light',
+    // Line follower: 1 when the robot sits on the practice line, else 0.
+    // Gated by the fitted Line follower part (KodroCommands), like distance().
+    on_line: 'on_line',
     // Python pupil-API sensor names (lessons use these) -> design sensors.
     read_distance: 'distance', read_heading: 'heading', read_battery: 'battery',
     read_colour: 'ground'

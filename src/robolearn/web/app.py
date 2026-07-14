@@ -1214,11 +1214,13 @@ class BridgeAPI:
     _SPEC_MAX_BYTES = 262_144
 
     def import_robot_spec(self) -> dict[str, Any]:
-        """Open a file dialog for a KRS JSON spec and return its text.
+        """Open a file dialog for a KRS JSON spec or a URDF and return spec text.
 
         Validation happens in JS (specschema.js is the single validator for
         both the desktop and browser paths); this method only reads the file
-        so the UI never needs filesystem access.
+        so the UI never needs filesystem access. A ``.urdf`` pick is converted
+        to KRS JSON first, so the JS side keeps receiving the one shape it
+        already validates.
         """
         try:
             window = webview.windows[0] if webview.windows else None
@@ -1227,7 +1229,7 @@ class BridgeAPI:
             picked = window.create_file_dialog(
                 webview.OPEN_DIALOG,
                 allow_multiple=False,
-                file_types=("Robot spec (*.json)",),
+                file_types=("Robot spec (*.json;*.urdf)",),
             )
             if not picked:
                 return {"ok": False, "reason": "cancelled"}
@@ -1235,9 +1237,31 @@ class BridgeAPI:
             path = Path(str(first))
             if path.stat().st_size > self._SPEC_MAX_BYTES:
                 return {"ok": False, "reason": "Spec file is larger than 256 KB."}
+            if path.suffix.lower() == ".urdf":
+                return self._urdf_spec_payload(path)
             return {"ok": True, "text": path.read_text(encoding="utf-8"), "name": path.name}
         except Exception as exc:  # pragma: no cover - host dialog dependent
             return {"ok": False, "reason": str(exc)}
+
+    @staticmethod
+    def _urdf_spec_payload(path: Path) -> dict[str, Any]:
+        """Convert a picked ``.urdf`` into the same {ok, text, name} payload.
+
+        The import stays inside this branch so a plain JSON pick never touches
+        the interop module (yourdfpy itself only loads on the first convert).
+        The converter's ``declared`` honesty notes are stripped before
+        serialising: KRS reserves top-level ``declared`` for the
+        {maxSpeedMps, runtimeMin} object, and an array there would fail
+        specschema.js validate() and sink the whole import.
+        """
+        try:
+            from robolearn.interop.urdf_io import krs_from_urdf
+
+            krs = krs_from_urdf(path)
+        except (ImportError, ValueError, OSError) as exc:
+            return {"ok": False, "reason": str(exc)}
+        payload = {key: value for key, value in krs.items() if key != "declared"}
+        return {"ok": True, "text": json.dumps(payload, indent=2), "name": path.name}
 
     def export_robot_spec(
         self, json_text: str, suggested_name: str = "robot.kodro.json"

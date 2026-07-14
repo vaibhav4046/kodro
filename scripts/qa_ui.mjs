@@ -189,6 +189,11 @@ function probeServer() {
 function dumpDom(chrome, tag, url, opts = {}) {
   const udd = path.join(TMP, `udd_${tag}`);
   const log = path.join(TMP, `log_${tag}.txt`);
+  // A reused profile can serve a STALE cap.html/bundle from Chrome's disk
+  // cache (python http.server sends no cache-control headers), which makes
+  // fresh edits invisible and fails every concern with phantom syntax errors
+  // from the cached copy. Always start from a clean profile.
+  try { rmSync(udd, { recursive: true, force: true }); } catch { /* noop */ }
   const args = [
     '--headless=new',
     `--window-size=${opts.size || '1280,800'}`,
@@ -792,6 +797,79 @@ function checkPupilRecords(chrome) {
   return { pass: false, reason: `dashboard incomplete (table: ${hasTable}, row: ${hasRow}, non-zero cell: ${hasNonZeroCell})` };
 }
 
+// SCENE TWEAKS (F6) — the tweaks panel (camera perspective/orbit/zoom, scene
+// toggles, trail colour) was dead UI behind a host handshake nothing sent.
+// The Settings row must now open it for real.
+function checkTweaksPanel(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&open=tweaks`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_tweaks_panel', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const hasPanel = /class="twk-panel/.test(dom);
+  const hasClose = /aria-label="Close tweaks"/.test(dom);
+  if (hasPanel && hasClose) {
+    return { pass: true, reason: 'Scene tweaks row opens the tweaks panel (panel + close control rendered)' };
+  }
+  return { pass: false, reason: `tweaks panel missing (panel: ${hasPanel}, close: ${hasClose})` };
+}
+
+// CUSTOM WORLD (OPP-6) — a runtime world built from seed + density + traction.
+// Density must genuinely change the obstacle field: the sparse and dense
+// configs are compared through the data-obstacles stamp on the app root.
+function checkCustomWorld(chrome) {
+  const grab = (density, tag) => dumpDom(chrome, 'behaviour_custom_' + tag,
+    `${BASE}?world=custom&kdensity=${density}&robot=rover&q=low`, { vtime: 8000 });
+  const a = grab('sparse', 'sparse');
+  if (a.error) return { pass: false, reason: `sparse dump spawn failed: ${a.error.message}` };
+  if (!a.dom) return { pass: false, reason: 'sparse dump produced no DOM' };
+  if (a.consoleError) return { pass: false, reason: `console error (sparse): ${a.consoleError.slice(0, 120)}` };
+  const b = grab('dense', 'dense');
+  if (b.error) return { pass: false, reason: `dense dump spawn failed: ${b.error.message}` };
+  if (!b.dom) return { pass: false, reason: 'dense dump produced no DOM' };
+  if (b.consoleError) return { pass: false, reason: `console error (dense): ${b.consoleError.slice(0, 120)}` };
+  const na = +((a.dom.match(/data-obstacles="(\d+)"/) || [])[1]);
+  const nb = +((b.dom.match(/data-obstacles="(\d+)"/) || [])[1]);
+  const isCustom = /data-active-world="custom"/.test(a.dom) && /Custom world/.test(a.dom);
+  if (isFinite(na) && isFinite(nb) && nb > na && isCustom) {
+    return { pass: true, reason: `custom world renders; density drives the obstacle field (sparse ${na} -> dense ${nb})` };
+  }
+  return { pass: false, reason: `custom world incomplete (sparse ${na}, dense ${nb}, custom-marker: ${isCustom})` };
+}
+
+// RUN REPLAY (OPP-2) — a run report stores its program + seed; Replay re-drives
+// it deterministically. The seeded program's distance depends on random(), so
+// two replays matching byte-for-byte proves the seed genuinely drives the run
+// (an unseeded random() would differ between them).
+function checkReplay(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&seedrun=1&replay=1`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_replay', url, { vtime: 16000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 140)}` };
+  const entries = (dom.match(/data-run-entry="/g) || []).length;
+  if (entries < 3) return { pass: false, reason: `expected the seeded report + 2 replays, found ${entries} run entries` };
+  const stats = [...dom.matchAll(/class="run-stats num">([\s\S]*?)<\/span>/g)]
+    .map((m) => m[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim());
+  if (stats.length < 2) return { pass: false, reason: 'run-stats spans not found in the runs panel' };
+  // Compare the DETERMINISTIC metrics: distance and battery follow from the
+  // seeded program through the motion model, so they must match exactly. The
+  // "closest" readout is a per-frame sensor SAMPLE (frame cadence varies with
+  // load), so an identical trajectory can log it on one run and miss it on the
+  // other; it is a measurement artefact, not a physics divergence, and is
+  // excluded here on purpose.
+  const core = (s) => {
+    const m = s.match(/^([\d.]+ m).*?([\d.]+% batt)/);
+    return m ? m[1] + '|' + m[2] : s;
+  };
+  const identical = core(stats[0]) === core(stats[1]) && /m/.test(stats[0]) && stats[0].length > 0;
+  const done = /data-run-entry="done"/.test(dom);
+  if (identical && done) {
+    return { pass: true, reason: `two seeded replays reproduce distance+battery exactly (${core(stats[0])}), random()-dependent program` };
+  }
+  return { pass: false, reason: `replays differ or failed (top: "${stats[0]}", next: "${stats[1]}", done: ${done})` };
+}
+
 // UNDO / REVERT (A9) — a programmatic editor write (blocks insert) snapshots
 // the buffer and offers a Revert toast; clicking it must restore the ORIGINAL
 // starter program. The driver (reverttest=1) inserts then clicks Revert.
@@ -925,6 +1003,9 @@ function runFlow(chrome, flow, timeoutMs = SPAWN_TIMEOUT_MS) {
 
   // Clear any stale PNG so existence truly proves THIS run rendered.
   try { rmSync(shotWin, { force: true }); } catch { /* noop */ }
+  // Fresh profile: a reused one can serve stale assets from Chrome's disk
+  // cache (see dumpDom), which would render an OLD build and lie about edits.
+  try { rmSync(udd, { recursive: true, force: true }); } catch { /* noop */ }
 
   const args = [
     '--headless=new',
@@ -1149,6 +1230,21 @@ function cleanup() {
   const pupilRecords = checkPupilRecords(chrome);
   behaviour.push(pupilRecords.pass);
   console.log(`${pupilRecords.pass ? 'PASS' : 'FAIL'}  ${'pupil-records'.padEnd(20)} ${pupilRecords.reason}`);
+  gap();
+
+  const tweaksPanel = checkTweaksPanel(chrome);
+  behaviour.push(tweaksPanel.pass);
+  console.log(`${tweaksPanel.pass ? 'PASS' : 'FAIL'}  ${'tweaks-panel'.padEnd(20)} ${tweaksPanel.reason}`);
+  gap();
+
+  const replay = checkReplay(chrome);
+  behaviour.push(replay.pass);
+  console.log(`${replay.pass ? 'PASS' : 'FAIL'}  ${'run-replay'.padEnd(20)} ${replay.reason}`);
+  gap();
+
+  const customWorld = checkCustomWorld(chrome);
+  behaviour.push(customWorld.pass);
+  console.log(`${customWorld.pass ? 'PASS' : 'FAIL'}  ${'custom-world'.padEnd(20)} ${customWorld.reason}`);
   gap();
 
   const revertApply = checkRevertApply(chrome);

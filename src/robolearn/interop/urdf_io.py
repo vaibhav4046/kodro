@@ -30,6 +30,12 @@ logger = logging.getLogger(__name__)
 #: Joint types that transmit actuation in a URDF document.
 _ACTUATED_JOINT_TYPES: frozenset[str] = frozenset({"revolute", "continuous", "prismatic"})
 
+#: KRS schema version emitted by :func:`krs_from_urdf` (specschema.js SCHEMA_VERSION).
+_KRS_SCHEMA_VERSION: int = 1
+
+#: Upper bound of the KRS ``drive.motorCount`` range (specschema.js RANGES).
+_KRS_MAX_MOTOR_COUNT: int = 8
+
 #: Substrings that mark a link/joint as a wheel in common URDF naming schemes.
 _WHEEL_NAME_HINTS: tuple[str, ...] = ("wheel", "tyre", "tire", "caster")
 
@@ -201,6 +207,14 @@ def _wheel_radius_from_link(link: Any) -> float | None:
     return None
 
 
+def _wheel_joints(robot: Any) -> list[Any]:
+    """Actuated joints whose own name or child link name looks like a wheel."""
+    actuated = [joint for joint in robot.joints if joint.type in _ACTUATED_JOINT_TYPES]
+    return [
+        joint for joint in actuated if _is_wheel_name(joint.name) or _is_wheel_name(joint.child)
+    ]
+
+
 def spec_from_urdf(model: Any) -> KodroRobotSpec:
     """Reduce a URDF model to the parameters Kodro's simulation consumes."""
     robot = model.robot
@@ -213,9 +227,7 @@ def spec_from_urdf(model: Any) -> KodroRobotSpec:
     )
 
     actuated = [joint for joint in robot.joints if joint.type in _ACTUATED_JOINT_TYPES]
-    wheel_joints = [
-        joint for joint in actuated if _is_wheel_name(joint.name) or _is_wheel_name(joint.child)
-    ]
+    wheel_joints = _wheel_joints(robot)
 
     wheel_radius_m: float | None = None
     for joint in wheel_joints:
@@ -378,3 +390,113 @@ def kodro_spec_from_krs(data: Mapping[str, Any]) -> KodroRobotSpec:
         wheel_radius_m=wheel_radius_m,
         degrees_of_freedom=wheel_count,
     )
+
+
+def _joint_origin_xyz(joint: Any) -> tuple[float, float, float] | None:
+    """Translation of a joint origin, or None when the matrix is unreadable.
+
+    yourdfpy stores ``joint.origin`` as a 4x4 homogeneous matrix (translation
+    in column 3); a missing ``<origin>`` tag is treated as the identity.
+    """
+    origin = getattr(joint, "origin", None)
+    if origin is None:
+        return (0.0, 0.0, 0.0)
+    try:
+        return (float(origin[0][3]), float(origin[1][3]), float(origin[2][3]))
+    except (TypeError, IndexError, ValueError):
+        return None
+
+
+def _wheelbase_cm(wheel_joints: list[Any]) -> float | None:
+    """Track width between exactly two same-parent wheel joints, in cm.
+
+    Only the unambiguous case is derived: two wheel joints hanging off the
+    same parent link, where the distance between their origins IS the track.
+    Anything else (4+ wheels, mixed parents, unreadable origins) returns None
+    so the caller records the omission instead of guessing.
+    """
+    if len(wheel_joints) != 2:
+        return None
+    first, second = wheel_joints
+    if first.parent != second.parent:
+        return None
+    a = _joint_origin_xyz(first)
+    b = _joint_origin_xyz(second)
+    if a is None or b is None:
+        return None
+    separation_m = math.dist(a, b)
+    if separation_m <= 0.0:
+        return None
+    return round(separation_m * 100.0, 6)
+
+
+def krs_from_urdf(path: str | Path) -> dict[str, Any]:
+    """Convert a URDF file into a KRS v1 physical-spec dict for the Robot Lab.
+
+    The inverse bridge of :func:`build_urdf_from_spec`: a real robot described
+    as URDF becomes an importable Kodro Robot Spec. Only quantities the URDF
+    actually carries are emitted (mass from inertials, wheel radius from wheel
+    geometry, motor count from actuated wheel joints, track width from wheel
+    joint origins). Everything a bare URDF cannot express - motor rpm, torque
+    and voltage, battery, sensors - is named in the ``declared`` notes list
+    instead of being papered over with invented numbers. Without a
+    ``drive.motor`` block specschema.js still validates the spec, and the Lab
+    shows its honest "pick a motor" state.
+
+    The ``declared`` key is a Python-side honesty record only: KRS reserves
+    top-level ``declared`` for the {maxSpeedMps, runtimeMin} object, so the
+    desktop bridge strips this list before handing the JSON to the web
+    validator (an array there fails specschema.js validate()).
+
+    Raises ``FileNotFoundError`` for a missing file, ``ValueError`` for a file
+    that does not parse as URDF, and ``ImportError`` without the interop extra.
+    """
+    model = load_urdf(path)
+    spec = spec_from_urdf(model)
+    declared: list[str] = []
+
+    krs: dict[str, Any] = {
+        "kodroSpec": _KRS_SCHEMA_VERSION,
+        "name": spec.name,
+        "type": "rover",
+    }
+
+    if spec.mass_kg > 0:
+        krs["massKg"] = spec.mass_kg
+    else:
+        declared.append("massKg: the URDF carries no inertial masses.")
+
+    if spec.wheel_count >= 2:
+        motor_count = spec.wheel_count
+        if motor_count > _KRS_MAX_MOTOR_COUNT:
+            declared.append(
+                f"drive.motorCount: {motor_count} wheel joints found; "
+                f"capped at the KRS maximum of {_KRS_MAX_MOTOR_COUNT}."
+            )
+            motor_count = _KRS_MAX_MOTOR_COUNT
+        drive: dict[str, Any] = {"kind": "differential", "motorCount": motor_count}
+        if spec.wheel_radius_m is not None:
+            drive["wheelRadiusCm"] = round(spec.wheel_radius_m * 100.0, 6)
+        else:
+            declared.append("drive.wheelRadiusCm: no cylinder or sphere geometry on a wheel link.")
+        wheelbase_cm = _wheelbase_cm(_wheel_joints(model.robot))
+        if wheelbase_cm is not None:
+            drive["wheelbaseCm"] = wheelbase_cm
+        else:
+            declared.append(
+                "drive.wheelbaseCm: not derivable from wheel joint origins "
+                "(needs exactly two wheel joints on the same parent link)."
+            )
+        krs["drive"] = drive
+        declared.append(
+            "drive.motor: a URDF carries no noLoadRpm/stallTorqueNm/nominalV; "
+            "pick a motor in the Robot Lab."
+        )
+    else:
+        declared.append("drive: fewer than two wheel joints found, so no drive block was emitted.")
+
+    declared.append("battery: a URDF describes no battery (mAh/voltage).")
+    declared.append("sensors: a bare URDF carries no Kodro sensor entries.")
+    krs["declared"] = declared
+    logger.debug("converted URDF '%s' to KRS: %s", spec.name, krs)
+    return krs

@@ -468,8 +468,52 @@
     },
   };
 
+  // OPP-6: ONE runtime custom world, built from seed + density + traction
+  // controls. v1 keeps NO persistence (module state only); an initial config
+  // may arrive as URL params (kseed / kdensity / ktraction) -- URL as state,
+  // not storage -- so a custom world is shareable and headlessly testable.
+  // Base is Earth, so both renderers already know how to draw it.
+  const CUSTOM_DENSITY = { sparse: 5, normal: 10, dense: 18 };
+  const customCfg = { seed: 1, density: 'normal', traction: 1.0 };
+  try {
+    const cq = new URLSearchParams(window.location.search);
+    if (cq.get('kseed')) customCfg.seed = (+cq.get('kseed') >>> 0) || 1;
+    if (cq.get('kdensity') && CUSTOM_DENSITY[cq.get('kdensity')]) customCfg.density = cq.get('kdensity');
+    if (cq.get('ktraction')) {
+      const t = +cq.get('ktraction');
+      if (t >= 0.3 && t <= 1.2) customCfg.traction = t;
+    }
+  } catch (e) { void e; }
+  function customWorld() {
+    const base = TERRAINS.earth;
+    const count = CUSTOM_DENSITY[customCfg.density] || CUSTOM_DENSITY.normal;
+    return {
+      ...base,
+      siteId: 'custom',
+      label: 'CUSTOM',
+      name: 'Custom world',
+      coord: 'seed ' + customCfg.seed + ' · ' + customCfg.density + ' · traction ' + customCfg.traction,
+      traction: customCfg.traction,
+      obstacles: genObstacles(customCfg.seed, count, 46, 96),
+      decor: genDecor(customCfg.seed + 100, 40),
+    };
+  }
+  window.KodroCustomWorld = {
+    DENSITIES: Object.keys(CUSTOM_DENSITY),
+    get: function () { return { seed: customCfg.seed, density: customCfg.density, traction: customCfg.traction }; },
+    set: function (p) {
+      p = p || {};
+      if (p.seed != null && isFinite(+p.seed)) customCfg.seed = (+p.seed >>> 0) || 1;
+      if (p.density && CUSTOM_DENSITY[p.density]) customCfg.density = p.density;
+      if (p.traction != null && isFinite(+p.traction)) customCfg.traction = Math.min(1.2, Math.max(0.3, +p.traction));
+      try { window.dispatchEvent(new CustomEvent('kodro-customworld')); } catch (e) { void e; }
+      return window.KodroCustomWorld.get();
+    },
+  };
+
   // Resolve a terrain OR site id into a renderable terrain object.
   function resolveSite(id) {
+    if (id === 'custom') return customWorld();
     if (TERRAINS[id]) return TERRAINS[id];
     const s = SITES[id];
     if (!s) return TERRAINS.earth;

@@ -164,6 +164,17 @@ const CAP = `<!DOCTYPE html>
             detail: 'a boulder', reflection: 'Collided with a boulder. Add a distance() check before moving forward.'
           }]));
         }
+        if (q.get('seedrun')) {
+          // One replayable run report (OPP-2): a program whose distance depends
+          // on random(), so ONLY the recorded seed can reproduce its outcome.
+          localStorage.setItem('kodro_run_reports_v1', JSON.stringify([{
+            id: 'seed-1', ts: 1, world: 'earth', worldName: 'Earth', robotName: 'QA Rover',
+            robotType: 'rover', massFactor: 1, speedFactor: 1, outcome: 'done', detail: '',
+            commands: 2, distanceCm: 0, batteryUsedPct: 0, minProximityCm: null, wallMs: 1,
+            predicted: '', verdict: '', seed: 123456789,
+            source: 'set_speed(90)\\nmove_forward(1 + random())'
+          }]));
+        }
         if (q.get('seedpupils')) {
           // Deterministic on-device class register (pupil-store.js key) so the
           // Teacher dashboard renders a real row + non-zero concept cells: one
@@ -179,7 +190,7 @@ const CAP = `<!DOCTYPE html>
           }));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay') };
     })();
   </script>
   <div id="root"></div>
@@ -502,6 +513,24 @@ const CAP = `<!DOCTYPE html>
               return true;
             }
             return false;
+          },
+          // Scene tweaks (F6): a Settings row posts the edit-mode handshake and
+          // the floating tweaks panel appears. Same two-stage open as teacher.
+          tweaks: function () {
+            var clickTweaksRow = function () {
+              var btns = document.querySelectorAll('button');
+              for (var i = 0; i < btns.length; i++) {
+                if (/Scene tweaks/.test(btns[i].textContent || '')) { btns[i].click(); return true; }
+              }
+              return false;
+            };
+            if (document.querySelector('.settings-pop')) return clickTweaksRow();
+            if (OPENERS.settings()) {
+              setTimeout(clickTweaksRow, 250);
+              setTimeout(clickTweaksRow, 600);
+              return true;
+            }
+            return false;
           }
         };
         // Wait for the studio toolbar to mount, then fire the opener. A second
@@ -520,6 +549,27 @@ const CAP = `<!DOCTYPE html>
         } else {
           must(false, 'open=' + C.open + ' (unknown opener name)');
         }
+      }
+      if (C.replay) {
+        // OPP-2 gate driver: open the Runs panel, replay the seeded report,
+        // then replay the top (freshly recorded) report. Both replays share
+        // the recorded seed, so their outcomes must match byte for byte.
+        var clickRunsToggle = function () {
+          var btns = document.querySelectorAll('button');
+          for (var i = 0; i < btns.length; i++) {
+            if (/^Runs$/.test((btns[i].textContent || '').trim())) { btns[i].click(); return true; }
+          }
+          return false;
+        };
+        var clickReplayBtn = function (label) {
+          var b = document.querySelector('[data-replay]');
+          if (b) { b.click(); return true; }
+          must(false, label);
+          return false;
+        };
+        setTimeout(function () { must(clickRunsToggle(), 'Runs panel toggle'); }, 900);
+        setTimeout(function () { clickReplayBtn('first Replay button'); }, 1500);
+        setTimeout(function () { clickReplayBtn('second Replay button'); }, 7000);
       }
       if (C.onb) {
         if (C.step >= 1) setTimeout(function () { must(clickText('Start building'), 'onboarding CTA "Start building"'); }, 300);

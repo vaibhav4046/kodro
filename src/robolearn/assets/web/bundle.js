@@ -325,7 +325,7 @@
   var FIDELITY = {
     honoured: ['Commanded distances and turn angles (endpoint-exact)', 'No-load top speed calibrated from motor rpm and wheel radius, when it falls inside the simulable band; the sim cruises at exactly this value (outside the band the badge drops to APPROXIMATED and the sim speed is disclosed). Real speed under load is lower', 'Sensor mount position, yaw and range in the studio sim (z ignored, disclosed; the Python engine rays from the rover centre)', 'Collision circle sized from the body footprint', 'Command availability gated on fitted parts', 'Battery as a hard budget: the robot halts at zero'],
     approximated: ['Acceleration and braking: first-order trapezoid at stall torque held constant (no torque falloff with speed), so 0-to-top time is a best-case lower bound and real hardware is slower', 'Turn time from mass or track geometry, not wheel torque curves', 'Traction: three coarse bands per surface', 'Constant-power battery drain (no voltage sag, thermal derating, or motor copper/stall losses), so runtime is optimistic', 'Scenario validation spread from seeded randomisation'],
-    notSimulated: ['Slopes and terrain height (worlds are flat planes); the reported max grade is a static grip-limit estimate, never driven', 'Wheel-level slip and per-motor torque curves', 'Suspension and 3D contact (body motion is cosmetic)', 'Voltage sag, thermal limits, per-motor current transients', 'IMU acceleration content (returns level readings)', 'Camera, GPS, bumper, line and gripper command semantics']
+    notSimulated: ['Slopes and terrain height (worlds are flat planes); the reported max grade is a static grip-limit estimate, never driven', 'Wheel-level slip and per-motor torque curves', 'Suspension and 3D contact (body motion is cosmetic)', 'Voltage sag, thermal limits, per-motor current transients', 'IMU acceleration content (returns level readings)', 'Camera, GPS, bumper and gripper command semantics', 'Line follower reads a synthesized straight practice line, not the worlds\' painted lanes']
   };
 
   // Per-stat badge tier used by the Robot Lab readout and the report annex.
@@ -1400,7 +1400,13 @@
       wallMs: entry.wallMs != null ? Math.round(+entry.wallMs) : null,
       predicted: String(entry.predicted || ''),
       // design-check overall before the run
-      verdict: String(entry.verdict || '') // the post-run coach line
+      verdict: String(entry.verdict || ''),
+      // the post-run coach line
+      // OPP-2 replay: the seed that drove host.rng plus the exact program
+      // text, so the run can be re-driven deterministically. Reports recorded
+      // before replay support carry null for both and cannot be replayed.
+      seed: entry.seed != null ? +entry.seed >>> 0 : null,
+      source: typeof entry.source === 'string' ? entry.source.slice(0, 8000) : null
     };
     var list = load();
     list.unshift(rec);
@@ -3814,8 +3820,72 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }
   };
 
+  // OPP-6: ONE runtime custom world, built from seed + density + traction
+  // controls. v1 keeps NO persistence (module state only); an initial config
+  // may arrive as URL params (kseed / kdensity / ktraction) -- URL as state,
+  // not storage -- so a custom world is shareable and headlessly testable.
+  // Base is Earth, so both renderers already know how to draw it.
+  const CUSTOM_DENSITY = {
+    sparse: 5,
+    normal: 10,
+    dense: 18
+  };
+  const customCfg = {
+    seed: 1,
+    density: 'normal',
+    traction: 1.0
+  };
+  try {
+    const cq = new URLSearchParams(window.location.search);
+    if (cq.get('kseed')) customCfg.seed = +cq.get('kseed') >>> 0 || 1;
+    if (cq.get('kdensity') && CUSTOM_DENSITY[cq.get('kdensity')]) customCfg.density = cq.get('kdensity');
+    if (cq.get('ktraction')) {
+      const t = +cq.get('ktraction');
+      if (t >= 0.3 && t <= 1.2) customCfg.traction = t;
+    }
+  } catch (e) {
+    void e;
+  }
+  function customWorld() {
+    const base = TERRAINS.earth;
+    const count = CUSTOM_DENSITY[customCfg.density] || CUSTOM_DENSITY.normal;
+    return {
+      ...base,
+      siteId: 'custom',
+      label: 'CUSTOM',
+      name: 'Custom world',
+      coord: 'seed ' + customCfg.seed + ' · ' + customCfg.density + ' · traction ' + customCfg.traction,
+      traction: customCfg.traction,
+      obstacles: genObstacles(customCfg.seed, count, 46, 96),
+      decor: genDecor(customCfg.seed + 100, 40)
+    };
+  }
+  window.KodroCustomWorld = {
+    DENSITIES: Object.keys(CUSTOM_DENSITY),
+    get: function () {
+      return {
+        seed: customCfg.seed,
+        density: customCfg.density,
+        traction: customCfg.traction
+      };
+    },
+    set: function (p) {
+      p = p || {};
+      if (p.seed != null && isFinite(+p.seed)) customCfg.seed = +p.seed >>> 0 || 1;
+      if (p.density && CUSTOM_DENSITY[p.density]) customCfg.density = p.density;
+      if (p.traction != null && isFinite(+p.traction)) customCfg.traction = Math.min(1.2, Math.max(0.3, +p.traction));
+      try {
+        window.dispatchEvent(new CustomEvent('kodro-customworld'));
+      } catch (e) {
+        void e;
+      }
+      return window.KodroCustomWorld.get();
+    }
+  };
+
   // Resolve a terrain OR site id into a renderable terrain object.
   function resolveSite(id) {
+    if (id === 'custom') return customWorld();
     if (TERRAINS[id]) return TERRAINS[id];
     const s = SITES[id];
     if (!s) return TERRAINS.earth;
@@ -13354,11 +13424,12 @@ Object.assign(window, {
   };
   // `cmd` is the runnable, GATED command a part adds. Only parts whose command
   // is actually implemented in the interpreter carry one: the ultrasonic range
-  // (distance()) and the IMU (heading()). The other parts are real fitted
-  // hardware that change the build's mass and behaviour, but their command
-  // bindings (vision, positioning, contact, line, gripper) are not implemented
-  // yet, so they advertise no callable command rather than a phantom one that
-  // would fail with a confusing error. See docs/known-limitations.md.
+  // (distance()), the IMU (heading()) and the line follower (on_line()). The
+  // other parts are real fitted hardware that change the build's mass and
+  // behaviour, but their command bindings (vision, positioning, contact,
+  // gripper) are not implemented yet, so they advertise no callable command
+  // rather than a phantom one that would fail with a confusing error. See
+  // docs/known-limitations.md.
   const SENSORS = {
     ultrasonic: {
       id: 'ultrasonic',
@@ -13371,7 +13442,8 @@ Object.assign(window, {
       id: 'line',
       name: 'Line follower',
       mass: 6,
-      enables: 'line tracking (fitted; adds mass)'
+      enables: 'on_line()  practice-line detect',
+      cmd: 'on_line'
     },
     imu: {
       id: 'imu',
@@ -13618,22 +13690,48 @@ Object.assign(window, {
     }
     return out;
   }
+
+  // OPP-8: explicit, RECORDED migration for older saves, replacing the old
+  // silent in-load fallback. Behaviour-preserving: the only transforms are the
+  // ones load() always applied (the sensor floor) plus a version stamp, but now
+  // each applied step is written into spec.migrationNotes so an upgraded save
+  // says exactly what changed instead of mutating silently.
+  function migrateSpec(s, fromV1) {
+    const notes = [];
+    if (!s || typeof s !== 'object' || Array.isArray(s)) {
+      return {
+        spec: defaultSpec(),
+        notes: ['unreadable save replaced with the default build']
+      };
+    }
+    if (fromV1) notes.push('upgraded from the kodro_robot_v1 save key');
+    // Floor: a saved build with no sensors cannot run the obstacle-avoidance
+    // demos and confuses first-time users ("ultrasonic needed"). Give every
+    // build at least an ultrasonic + IMU so it can sense and the default
+    // autopilot just works on first Run; it stays editable in the Robot Lab.
+    // An imported KRS build is exempt: its sensor list is a deliberate
+    // measurement, and faking parts onto it would betray the import.
+    if (!s.physical && (!Array.isArray(s.sensors) || s.sensors.length === 0)) {
+      s.sensors = ['ultrasonic', 'imu'];
+      notes.push('sensor floor applied (Ultrasonic range + IMU) so the first Run can sense');
+    }
+    if (s.kodroSpec !== 1) {
+      s.kodroSpec = 1;
+      notes.push('stamped spec version kodroSpec: 1');
+    }
+    if (notes.length) s.migrationNotes = notes;
+    return {
+      spec: s,
+      notes: notes
+    };
+  }
   function load() {
     try {
       // v2 first; fall back to a v1 save (same catalogue shape, no physical
       // block) so an existing build survives the upgrade untouched.
-      const raw = localStorage.getItem(STORE) || localStorage.getItem(STORE_V1);
-      if (raw) {
-        const s = JSON.parse(raw);
-        // Floor: a saved build with no sensors cannot run the obstacle-avoidance
-        // demos and confuses first-time users ("ultrasonic needed"). Give every
-        // build at least an ultrasonic + IMU so it can sense and the default
-        // autopilot just works on first Run; it stays editable in the Robot Lab.
-        // An imported KRS build is exempt: its sensor list is a deliberate
-        // measurement, and faking parts onto it would betray the import.
-        if (s && !s.physical && (!Array.isArray(s.sensors) || s.sensors.length === 0)) s.sensors = ['ultrasonic', 'imu'];
-        return s;
-      }
+      const rawV2 = localStorage.getItem(STORE);
+      const raw = rawV2 || localStorage.getItem(STORE_V1);
+      if (raw) return migrateSpec(JSON.parse(raw), !rawV2).spec;
     } catch (e) {
       void e;
     }
@@ -13722,13 +13820,15 @@ Object.assign(window, {
     scan: 'ultrasonic',
     heading: 'imu',
     read_heading: 'imu',
-    tilt: 'imu'
+    tilt: 'imu',
+    on_line: 'line'
   };
   // The user-facing command name for each part that HAS a working command,
   // used in messages, the availability list and the assistant grounding.
   const PART_COMMAND = {
     ultrasonic: 'distance',
-    imu: 'heading'
+    imu: 'heading',
+    line: 'on_line'
   };
   function partLabel(id) {
     return SENSORS[id] && SENSORS[id].name || ACTUATORS[id] && ACTUATORS[id].name || id;
@@ -13863,7 +13963,10 @@ Object.assign(window, {
         if (c.available && names.indexOf(c.name) < 0) names.push(c.name);
       });
       return names;
-    }
+    },
+    // OPP-8: the explicit save migrator, exposed so the spec-upgrade rules are
+    // testable headlessly (qa_interpreter) exactly like the gating rules above.
+    migrateSpec: migrateSpec
   };
 
   // SI4: per-stat fidelity badge. Tier names come from the schema module so
@@ -18555,6 +18658,85 @@ Object.assign(window, {
       commands: names
     };
   }
+
+  // OPP-7: ONE bounded, grammar-constrained tool call. The format schema
+  // forces {tool, arg} with tool drawn from the whitelist (plus "none" for
+  // "no action"), so the model cannot invent an action shape. The model only
+  // PROPOSES; resolveToolCall below validates the argument against the live
+  // registry ids and the caller applies or refuses. No loop, no chaining:
+  // a single call per message, and every failure path returns null so chat
+  // falls back to the deterministic intent parse.
+  async function toolCall(text, tools) {
+    var names = Object.keys(tools || {});
+    if (!names.length) return null;
+    var st;
+    try {
+      st = await status();
+    } catch (e) {
+      return null;
+    }
+    if (!st || !st.available || !st.models || !st.models.length) return null;
+    var model = pick(st.models);
+    if (!model) return null;
+    var schema = {
+      type: 'object',
+      properties: {
+        tool: {
+          type: 'string',
+          enum: names.concat(['none'])
+        },
+        arg: {
+          type: 'string'
+        }
+      },
+      required: ['tool', 'arg']
+    };
+    var sys = 'You drive one optional tool call for a robot studio. Tools: ' + names.map(function (n) {
+      return n + '(' + (tools[n] && tools[n].hint || 'id') + ')';
+    }).join(', ') + '. Reply {"tool":"none","arg":""} unless the user clearly asks for one of the tools.';
+    try {
+      var raw2 = await genOnce(model, text, {
+        system: sys,
+        format: schema,
+        num_predict: 96,
+        temperature: 0
+      });
+      var obj = JSON.parse(raw2);
+      if (!obj || typeof obj.tool !== 'string' || obj.tool === 'none' || names.indexOf(obj.tool) < 0) return null;
+      return {
+        tool: obj.tool,
+        arg: String(obj.arg == null ? '' : obj.arg)
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Pure decision for the ONE whitelisted tool: validate a proposed set_world
+  // call against the known world/site ids. {apply:true} carries the id to
+  // switch to; {apply:false} carries the readable refusal (or null message
+  // when the proposal was not a set_world call at all).
+  function resolveToolCall(tc, knownIds) {
+    if (!tc || tc.tool !== 'set_world') return {
+      apply: false,
+      id: null,
+      message: null
+    };
+    var id = String(tc.arg || '').toLowerCase().trim();
+    if (Array.isArray(knownIds) && knownIds.indexOf(id) >= 0) {
+      return {
+        apply: true,
+        id: id,
+        message: 'Switched the world to ' + id + '.'
+      };
+    }
+    var sample = (knownIds || []).slice(0, 8).join(', ');
+    return {
+      apply: false,
+      id: id,
+      message: 'The model asked for world "' + id + '", which is not one I have, so nothing changed. Try one of: ' + sample + '.'
+    };
+  }
   function looksLikeCode(t) {
     return /(```|\brover\.|move_forward|move_backward|turn_left|turn_right|set_speed|\bfor\s+\w+\s+in\b|\bwhile\b|\bdef\s|\bif\s+.*:)/.test(t);
   }
@@ -19129,7 +19311,9 @@ Object.assign(window, {
       pick: pick,
       structuredProgram: structuredProgram,
       buildCommandSchema: buildCommandSchema,
-      compileProgram: compileProgram
+      compileProgram: compileProgram,
+      toolCall: toolCall,
+      resolveToolCall: resolveToolCall
     };
   }
 })();
@@ -19915,6 +20099,32 @@ Object.assign(window, {
           text: actionMsg.message
         }]);
       }
+      // OPP-7: bounded model tool call, tried ONLY when the deterministic
+      // intent parse found no action. One whitelisted tool (set_world); the
+      // model proposes, the live registry validates. A valid id switches the
+      // world, an invalid one refuses readably, and any model failure falls
+      // through silently to plain chat.
+      if (!actionMsg && opts.onTerrain && window.KodroAI && window.KodroAI.toolCall) {
+        try {
+          const tc = await window.KodroAI.toolCall(text, {
+            set_world: {
+              hint: 'world or site id'
+            }
+          });
+          if (tc) {
+            const known = Object.keys(window.TERRAINS || {}).concat(Object.keys(window.SITES || {}));
+            const r = window.KodroAI.resolveToolCall(tc, known);
+            if (r.apply) opts.onTerrain(r.id);
+            if (r.message) setVibeMsgs(m => [...m, {
+              role: 'ai',
+              kind: 'action',
+              text: r.message
+            }]);
+          }
+        } catch (_e) {
+          void _e;
+        }
+      }
       try {
         const history = next.map(m => ({
           role: m.role === 'user' ? 'user' : 'assistant',
@@ -20608,6 +20818,13 @@ Object.assign(window, {
       abortTimer: null
     });
     const genRef = useRef(null);
+    // The freshest editor buffer, updated every render. compileFresh reads
+    // THIS, not the `code` closure, so a deferred onRun (the Run button's
+    // 50ms start timer, or Replay's settle defer) compiles what is in the
+    // editor NOW. Without it, Replay's stale onRun closure compiled the
+    // pre-replay buffer and re-drove the wrong program.
+    const codeRef = useRef(code);
+    codeRef.current = code;
     // RoboLearn grading used to fire ONLY on a clean finish (finishProgram), so
     // a lesson attempt that crashed / stalled / ran flat / threw got no verdict,
     // score or hint even though the JS grader (lesson-grader.jsx) is built to
@@ -20710,9 +20927,23 @@ Object.assign(window, {
             return terrain.env.light;
           case 'ground':
             return terrain.id;
+          // Line follower: every world carries one synthesized practice line, a
+          // straight 40 cm wide strip along the x axis through the start point
+          // (the worlds' painted lanes are decorative with no queryable
+          // geometry, so the line is defined here, not sampled from pixels).
+          // 1 on the strip, 0 off it -- matching a real reflectance sensor's
+          // binary read. Gated above by the fitted Line follower part.
+          case 'on_line':
+            return Math.abs(s.y) <= 20 ? 1 : 0;
           default:
             return 0;
         }
+      },
+      // Seeded per run in compileFresh (OPP-2): random() in a program reads
+      // this PRNG, so a recorded seed replays the exact same values. The
+      // Math.random fallback only exists for a host used before any run.
+      rng() {
+        return ctrl.current.rng ? ctrl.current.rng() : Math.random();
       }
     };
 
@@ -21446,17 +21677,44 @@ Object.assign(window, {
       setRunState(state || 'idle');
     }
 
+    // Deterministic per-run PRNG (OPP-2), the same generator scenario.jsx uses
+    // for its seeded validation runs, so live runs and validation share one
+    // notion of "seeded randomness".
+    function mulberry32(a) {
+      return function () {
+        a |= 0;
+        a = a + 0x6D2B79F5 | 0;
+        let t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
     // ---------- compile + start ----------
     function compileFresh() {
       try {
-        const interp = window.RoverLang.compile(code);
+        // OPP-2: every run is seeded. A queued replay seed (Replay button)
+        // wins; otherwise stamp a fresh one. host.rng reads this run's PRNG,
+        // so a program calling random() re-drives byte-identically from the
+        // seed recorded in its run report.
+        const seed = ctrl.current.replaySeed != null ? ctrl.current.replaySeed >>> 0 : Date.now() >>> 0;
+        ctrl.current.replaySeed = null;
+        ctrl.current.runSeed = seed;
+        ctrl.current.rng = mulberry32(seed);
+        window.KODRO_RUN_SEED = seed;
+        const src = codeRef.current;
+        // Stamp the EXACT text this run compiled. recordRunReport persists
+        // this, not its own (possibly stale) code closure, so a run report's
+        // source is always the program that actually ran.
+        window.KODRO_RUN_SOURCE = src;
+        const interp = window.RoverLang.compile(src);
         genRef.current = interp.run(host);
         // Deprecated-dialect lint (product-coherence D4): rover.forward(100)
         // still runs as a centimetre-based compatibility alias, but the
         // canonical API is the bare metre-based dialect every shipped example
         // and the grader use. Say so once per run, at compile time, so mixed
         // programs stop reading as two different products.
-        if (/\brover\s*\./.test(code)) {
+        if (/\brover\s*\./.test(src)) {
           addConsole('Note: rover.forward(100) is the legacy centimetre dialect. It still runs, but new code should use the bare metre API, e.g. move_forward(1).', 'sys');
         }
         return true;
@@ -21673,6 +21931,11 @@ Object.assign(window, {
         }]);
       }
     }
+
+    // queueReplaySeed arms the NEXT run with a recorded seed (OPP-2 Replay).
+    function queueReplaySeed(s) {
+      ctrl.current.replaySeed = +s >>> 0;
+    }
     return {
       onRun,
       onStep,
@@ -21680,7 +21943,8 @@ Object.assign(window, {
       onTerrain,
       runReplLine,
       onCodeChange,
-      exportReportClick
+      exportReportClick,
+      queueReplaySeed
     };
   }
   window.KodroHooks = {
@@ -24441,10 +24705,19 @@ say("Survey done")`
     // runs an O(n^2) obstacle rejection sample) + applyTod only recompute when
     // the world actually changes (terrainId/tod/weather), not on every
     // rover-position render at animation-frame cadence during a run.
+    // OPP-6: the custom world regenerates in place when its seed/density/
+    // traction controls change (KodroCustomWorld.set fires kodro-customworld),
+    // so the tick joins the memo deps below.
+    const [customTick, setCustomTick] = useState(0);
+    useEffect(() => {
+      const on = () => setCustomTick(t => t + 1);
+      window.addEventListener('kodro-customworld', on);
+      return () => window.removeEventListener('kodro-customworld', on);
+    }, []);
     const terrain = useMemo(() => {
       const baseTerrain = window.resolveSite ? window.resolveSite(terrainId) : TERRAINS[terrainId];
       return window.KodroWorldFX && window.KodroWorldFX.applyTod ? window.KodroWorldFX.applyTod(baseTerrain, tod, weather) : baseTerrain;
-    }, [terrainId, tod, weather]);
+    }, [terrainId, tod, weather, customTick]);
 
     // live rover state (authoritative for sensors/animation)
     const startState = () => ({
@@ -24672,7 +24945,14 @@ say("Survey done")`
         minProximityCm: isFinite(minProxRef.current) ? minProxRef.current : null,
         wallMs: runStartRef.current ? Date.now() - runStartRef.current : null,
         predicted: predicted,
-        verdict: verdictText || ''
+        verdict: verdictText || '',
+        // OPP-2: the exact program and the seed that drove this run's PRNG,
+        // so the report's Replay button can re-drive it deterministically.
+        // Both come from stamps the sim writes at compile time (hooks.jsx
+        // compileFresh); reading the `code` closure here would record a stale
+        // buffer when the report fires through a long-lived pump-loop closure.
+        seed: window.KODRO_RUN_SEED != null ? window.KODRO_RUN_SEED : null,
+        source: window.KODRO_RUN_SOURCE != null ? window.KODRO_RUN_SOURCE : code
       });
     }
 
@@ -24755,10 +25035,14 @@ say("Survey done")`
       vibeCancelRef,
       vibeSend,
       vibeClear
-    } = window.KodroHooks && window.KodroHooks.useVibeChat ? window.KodroHooks.useVibeChat({
+    } = window.KodroHooks && window.KodroHooks.useVibeChat
+    // onTerrain is destructured from useSimEngine further down, so defer the
+    // reference to call time (an eager shorthand here would hit the TDZ).
+    ? window.KodroHooks.useVibeChat({
       terrain,
       currentLessonIdRef,
-      dispatchWorldAction
+      dispatchWorldAction,
+      onTerrain: id => onTerrain(id)
     }) : {
       vibeOpen: false,
       setVibeOpen: function () {},
@@ -25408,7 +25692,8 @@ say("Survey done")`
       onTerrain,
       runReplLine,
       onCodeChange,
-      exportReportClick
+      exportReportClick,
+      queueReplaySeed
     } = window.KodroHooks && window.KodroHooks.useSimEngine ? window.KodroHooks.useSimEngine({
       LED_COLORS,
       R_DEFAULT,
@@ -25461,8 +25746,23 @@ say("Survey done")`
       onTerrain: function () {},
       runReplLine: function () {},
       onCodeChange: function () {},
-      exportReportClick: function () {}
+      exportReportClick: function () {},
+      queueReplaySeed: function () {}
     };
+
+    // OPP-2 Replay: re-drive a recorded run exactly. Restores the report's
+    // world and program, arms the sim with the recorded seed, then runs. The
+    // short defer lets the world switch and editor write settle first. Reports
+    // saved before replay support (no seed/source) cannot be replayed.
+    function replayRun(r) {
+      if (!r || r.seed == null || !r.source) return;
+      const here = terrain.siteId || terrain.id;
+      if (r.world && r.world !== here) onTerrain(r.world);
+      applyProgramText(r.source);
+      queueReplaySeed(r.seed);
+      addConsole('Replay: same program, same world, seed ' + r.seed + '. Outcome should match the recorded run exactly.', 'sys');
+      setTimeout(() => onRun(), 350);
+    }
 
     // apply terrain accent to CSS var
     useEffect(() => {
@@ -25710,7 +26010,9 @@ say("Survey done")`
     // them say so up front instead of inviting an action that cannot finish here.
     const browserMode = !!(window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable());
     return /*#__PURE__*/React.createElement("div", {
-      className: "app"
+      className: "app",
+      "data-obstacles": (terrain.obstacles || []).length,
+      "data-active-world": terrain.siteId || terrain.id || ''
     }, /*#__PURE__*/React.createElement("a", {
       className: "skip-link",
       href: "#editor-main"
@@ -25944,7 +26246,78 @@ say("Survey done")`
       }
     }, /*#__PURE__*/React.createElement("span", null, "Photo prop \xB7 place(\"photo\")"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
-    }, browserMode ? 'Desktop app' : photoUrl ? 'Loaded' : 'Pick…')), classroom && /*#__PURE__*/React.createElement("button", {
+    }, browserMode ? 'Desktop app' : photoUrl ? 'Loaded' : 'Pick…')), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      onClick: () => {
+        setSettingsOpen(false);
+        try {
+          window.postMessage({
+            type: '__activate_edit_mode'
+          }, '*');
+        } catch (e) {
+          void e;
+        }
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Scene tweaks \xB7 camera + trail"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), window.KodroCustomWorld && (() => {
+      const cw = window.KodroCustomWorld.get();
+      const applyCw = p => {
+        window.KodroCustomWorld.set(p);
+        if (terrainId !== 'custom') onTerrain('custom');
+      };
+      return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("label", {
+        className: "set-row"
+      }, /*#__PURE__*/React.createElement("span", null, "Custom world \xB7 seed"), /*#__PURE__*/React.createElement("select", {
+        className: "lesson-select",
+        value: String(cw.seed),
+        "aria-label": "Custom world seed",
+        onChange: e => applyCw({
+          seed: +e.target.value
+        })
+      }, [1, 2, 3, 4, 5, 6].map(s => /*#__PURE__*/React.createElement("option", {
+        key: s,
+        value: s
+      }, "seed ", s)))), /*#__PURE__*/React.createElement("label", {
+        className: "set-row"
+      }, /*#__PURE__*/React.createElement("span", null, "Custom world \xB7 obstacles"), /*#__PURE__*/React.createElement("select", {
+        className: "lesson-select",
+        value: cw.density,
+        "aria-label": "Custom world obstacle density",
+        onChange: e => applyCw({
+          density: e.target.value
+        })
+      }, /*#__PURE__*/React.createElement("option", {
+        value: "sparse"
+      }, "sparse"), /*#__PURE__*/React.createElement("option", {
+        value: "normal"
+      }, "normal"), /*#__PURE__*/React.createElement("option", {
+        value: "dense"
+      }, "dense"))), /*#__PURE__*/React.createElement("label", {
+        className: "set-row"
+      }, /*#__PURE__*/React.createElement("span", null, "Custom world \xB7 traction"), /*#__PURE__*/React.createElement("select", {
+        className: "lesson-select",
+        value: String(cw.traction),
+        "aria-label": "Custom world traction",
+        onChange: e => applyCw({
+          traction: +e.target.value
+        })
+      }, /*#__PURE__*/React.createElement("option", {
+        value: "0.5"
+      }, "slippery (0.5)"), /*#__PURE__*/React.createElement("option", {
+        value: "0.75"
+      }, "loose (0.75)"), /*#__PURE__*/React.createElement("option", {
+        value: "1"
+      }, "standard (1.0)"))), /*#__PURE__*/React.createElement("button", {
+        className: "set-row set-btn",
+        onClick: () => {
+          setSettingsOpen(false);
+          onTerrain('custom');
+        }
+      }, /*#__PURE__*/React.createElement("span", null, "Custom world \xB7 open"), /*#__PURE__*/React.createElement("span", {
+        className: "set-val"
+      }, "\u2192")));
+    })(), classroom && /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
       onClick: openTeacher
     }, /*#__PURE__*/React.createElement("span", null, "Teacher dashboard"), /*#__PURE__*/React.createElement("span", {
@@ -26256,7 +26629,15 @@ say("Survey done")`
       }, r.distanceCm != null ? (r.distanceCm / 100).toFixed(1) + ' m' : '-', r.batteryUsedPct != null ? ' · ' + r.batteryUsedPct + '% batt' : '', r.minProximityCm != null && r.minProximityCm < 600 ? ' · ' + r.minProximityCm + ' cm closest' : ''), /*#__PURE__*/React.createElement("span", {
         className: "run-pred",
         title: "The design check's prediction before the run"
-      }, r.predicted ? 'predicted: ' + r.predicted : ''), /*#__PURE__*/React.createElement("span", {
+      }, r.predicted ? 'predicted: ' + r.predicted : ''), r.seed != null && r.source ? /*#__PURE__*/React.createElement("button", {
+        className: "btn-mini",
+        "data-replay": true,
+        title: "Re-run this exact program in its world with its recorded seed",
+        onClick: () => replayRun(r)
+      }, "Replay") : /*#__PURE__*/React.createElement("span", {
+        className: "run-pred",
+        title: "Recorded before replay support, so the program and seed were not saved"
+      }, "no replay"), /*#__PURE__*/React.createElement("span", {
         className: "run-time num"
       }, fmtTime(r.ts))))), /*#__PURE__*/React.createElement("div", {
         className: "runs-foot"

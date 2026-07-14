@@ -201,6 +201,57 @@
     return { code: compileProgram(parsed, names), commands: names };
   }
 
+  // OPP-7: ONE bounded, grammar-constrained tool call. The format schema
+  // forces {tool, arg} with tool drawn from the whitelist (plus "none" for
+  // "no action"), so the model cannot invent an action shape. The model only
+  // PROPOSES; resolveToolCall below validates the argument against the live
+  // registry ids and the caller applies or refuses. No loop, no chaining:
+  // a single call per message, and every failure path returns null so chat
+  // falls back to the deterministic intent parse.
+  async function toolCall(text, tools) {
+    var names = Object.keys(tools || {});
+    if (!names.length) return null;
+    var st;
+    try { st = await status(); } catch (e) { return null; }
+    if (!st || !st.available || !st.models || !st.models.length) return null;
+    var model = pick(st.models);
+    if (!model) return null;
+    var schema = {
+      type: 'object',
+      properties: {
+        tool: { type: 'string', enum: names.concat(['none']) },
+        arg: { type: 'string' },
+      },
+      required: ['tool', 'arg'],
+    };
+    var sys = 'You drive one optional tool call for a robot studio. Tools: '
+      + names.map(function (n) { return n + '(' + ((tools[n] && tools[n].hint) || 'id') + ')'; }).join(', ')
+      + '. Reply {"tool":"none","arg":""} unless the user clearly asks for one of the tools.';
+    try {
+      var raw2 = await genOnce(model, text, { system: sys, format: schema, num_predict: 96, temperature: 0 });
+      var obj = JSON.parse(raw2);
+      if (!obj || typeof obj.tool !== 'string' || obj.tool === 'none' || names.indexOf(obj.tool) < 0) return null;
+      return { tool: obj.tool, arg: String(obj.arg == null ? '' : obj.arg) };
+    } catch (e) { return null; }
+  }
+
+  // Pure decision for the ONE whitelisted tool: validate a proposed set_world
+  // call against the known world/site ids. {apply:true} carries the id to
+  // switch to; {apply:false} carries the readable refusal (or null message
+  // when the proposal was not a set_world call at all).
+  function resolveToolCall(tc, knownIds) {
+    if (!tc || tc.tool !== 'set_world') return { apply: false, id: null, message: null };
+    var id = String(tc.arg || '').toLowerCase().trim();
+    if (Array.isArray(knownIds) && knownIds.indexOf(id) >= 0) {
+      return { apply: true, id: id, message: 'Switched the world to ' + id + '.' };
+    }
+    var sample = (knownIds || []).slice(0, 8).join(', ');
+    return {
+      apply: false, id: id,
+      message: 'The model asked for world "' + id + '", which is not one I have, so nothing changed. Try one of: ' + sample + '.',
+    };
+  }
+
   function looksLikeCode(t) {
     return /(```|\brover\.|move_forward|move_backward|turn_left|turn_right|set_speed|\bfor\s+\w+\s+in\b|\bwhile\b|\bdef\s|\bif\s+.*:)/.test(t);
   }
@@ -542,6 +593,7 @@
 
   if (typeof window !== 'undefined') {
     window.KodroAI = { status: status, setModel: setModel, chatStart: chatStart, chatPoll: chatPoll, reviewCode: reviewCode, ask: ask, available: available, pick: pick,
-      structuredProgram: structuredProgram, buildCommandSchema: buildCommandSchema, compileProgram: compileProgram };
+      structuredProgram: structuredProgram, buildCommandSchema: buildCommandSchema, compileProgram: compileProgram,
+      toolCall: toolCall, resolveToolCall: resolveToolCall };
   }
 })();

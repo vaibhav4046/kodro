@@ -324,6 +324,22 @@
       if (actionMsg && actionMsg.message) {
         setVibeMsgs(m => [...m, { role: 'ai', kind: 'action', text: actionMsg.message }]);
       }
+      // OPP-7: bounded model tool call, tried ONLY when the deterministic
+      // intent parse found no action. One whitelisted tool (set_world); the
+      // model proposes, the live registry validates. A valid id switches the
+      // world, an invalid one refuses readably, and any model failure falls
+      // through silently to plain chat.
+      if (!actionMsg && opts.onTerrain && window.KodroAI && window.KodroAI.toolCall) {
+        try {
+          const tc = await window.KodroAI.toolCall(text, { set_world: { hint: 'world or site id' } });
+          if (tc) {
+            const known = Object.keys(window.TERRAINS || {}).concat(Object.keys(window.SITES || {}));
+            const r = window.KodroAI.resolveToolCall(tc, known);
+            if (r.apply) opts.onTerrain(r.id);
+            if (r.message) setVibeMsgs(m => [...m, { role: 'ai', kind: 'action', text: r.message }]);
+          }
+        } catch (_e) { void _e; }
+      }
       try {
         const history = next.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', text: m.text }));
         // Self-refinement in action: feed the lesson the system remembers from
@@ -755,6 +771,13 @@
     // mash races (QA adv5).
     const ctrl = useRef({ running: false, abort: false, advancing: false, token: 0, startTimer: null, abortTimer: null });
     const genRef = useRef(null);
+    // The freshest editor buffer, updated every render. compileFresh reads
+    // THIS, not the `code` closure, so a deferred onRun (the Run button's
+    // 50ms start timer, or Replay's settle defer) compiles what is in the
+    // editor NOW. Without it, Replay's stale onRun closure compiled the
+    // pre-replay buffer and re-drove the wrong program.
+    const codeRef = useRef(code);
+    codeRef.current = code;
     // RoboLearn grading used to fire ONLY on a clean finish (finishProgram), so
     // a lesson attempt that crashed / stalled / ran flat / threw got no verdict,
     // score or hint even though the JS grader (lesson-grader.jsx) is built to
@@ -827,8 +850,21 @@
           case 'gravity': return terrain.env.gravity;
           case 'light': return terrain.env.light;
           case 'ground': return terrain.id;
+          // Line follower: every world carries one synthesized practice line, a
+          // straight 40 cm wide strip along the x axis through the start point
+          // (the worlds' painted lanes are decorative with no queryable
+          // geometry, so the line is defined here, not sampled from pixels).
+          // 1 on the strip, 0 off it -- matching a real reflectance sensor's
+          // binary read. Gated above by the fitted Line follower part.
+          case 'on_line': return Math.abs(s.y) <= 20 ? 1 : 0;
           default: return 0;
         }
+      },
+      // Seeded per run in compileFresh (OPP-2): random() in a program reads
+      // this PRNG, so a recorded seed replays the exact same values. The
+      // Math.random fallback only exists for a host used before any run.
+      rng() {
+        return ctrl.current.rng ? ctrl.current.rng() : Math.random();
       }
     };
 
@@ -1397,17 +1433,43 @@
       setRunState(state || 'idle');
     }
 
+    // Deterministic per-run PRNG (OPP-2), the same generator scenario.jsx uses
+    // for its seeded validation runs, so live runs and validation share one
+    // notion of "seeded randomness".
+    function mulberry32(a) {
+      return function () {
+        a |= 0; a = a + 0x6D2B79F5 | 0;
+        let t = Math.imul(a ^ a >>> 15, 1 | a);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
     // ---------- compile + start ----------
     function compileFresh() {
       try {
-        const interp = window.RoverLang.compile(code);
+        // OPP-2: every run is seeded. A queued replay seed (Replay button)
+        // wins; otherwise stamp a fresh one. host.rng reads this run's PRNG,
+        // so a program calling random() re-drives byte-identically from the
+        // seed recorded in its run report.
+        const seed = ctrl.current.replaySeed != null ? (ctrl.current.replaySeed >>> 0) : (Date.now() >>> 0);
+        ctrl.current.replaySeed = null;
+        ctrl.current.runSeed = seed;
+        ctrl.current.rng = mulberry32(seed);
+        window.KODRO_RUN_SEED = seed;
+        const src = codeRef.current;
+        // Stamp the EXACT text this run compiled. recordRunReport persists
+        // this, not its own (possibly stale) code closure, so a run report's
+        // source is always the program that actually ran.
+        window.KODRO_RUN_SOURCE = src;
+        const interp = window.RoverLang.compile(src);
         genRef.current = interp.run(host);
         // Deprecated-dialect lint (product-coherence D4): rover.forward(100)
         // still runs as a centimetre-based compatibility alias, but the
         // canonical API is the bare metre-based dialect every shipped example
         // and the grader use. Say so once per run, at compile time, so mixed
         // programs stop reading as two different products.
-        if (/\brover\s*\./.test(code)) {
+        if (/\brover\s*\./.test(src)) {
           addConsole('Note: rover.forward(100) is the legacy centimetre dialect. It still runs, but new code should use the bare metre API, e.g. move_forward(1).', 'sys');
         }
         return true;
@@ -1585,7 +1647,9 @@
       }
     }
 
-    return { onRun, onStep, onReset, onTerrain, runReplLine, onCodeChange, exportReportClick };
+    // queueReplaySeed arms the NEXT run with a recorded seed (OPP-2 Replay).
+    function queueReplaySeed(s) { ctrl.current.replaySeed = (+s >>> 0); }
+    return { onRun, onStep, onReset, onTerrain, runReplLine, onCodeChange, exportReportClick, queueReplaySeed };
   }
 
   window.KodroHooks = { useAiStatus, useResizers, useBlocks, useReview, useVibeChat, useSwarm, useAsk, useTeacher, useBuild, useProjectIO, useCamera, useConsoleToast, useEditorApply, useSimEngine };

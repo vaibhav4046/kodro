@@ -55,6 +55,11 @@ interop = [
     "yourdfpy>=0.0.56",
     "urdf_parser_py>=0.0.4",
 ]
+# Gymnasium RL wrapper (see src/robolearn/envs/kodro_env.py). Optional so the
+# core stays light; importing robolearn.envs registers robolearn/KodroEnv-v0.
+rl = [
+    "gymnasium>=1.0",
+]
 
 [project.scripts]
 robolearn = "robolearn.__main__:main"

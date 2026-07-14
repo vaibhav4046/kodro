@@ -617,6 +617,88 @@ console.log('\n== ARM HONESTY (PERFECTION_PLAN P7/A13, bugs D4) ==');
     KC.availability(rover).find((e) => e.name === 'move_forward').available === true, '');
 }
 
+console.log('\n== LINE FOLLOWER BINDING (OPP-4) ==');
+// on_line() is a real bound sensor: the interpreter routes it to host.sensor
+// like distance(), and KodroCommands gates it on the fitted Line follower part
+// exactly as distance() is gated on the ultrasonic. The synthetic practice
+// line itself lives in the live host (hooks.jsx), so here we assert the
+// binding (host value flows through) and the grounding (unfitted = refusal).
+{
+  const onLine = (v) => {
+    const out = [];
+    for (const ev of compile('print(on_line())').run({ sensor: (n) => (n === 'on_line' ? v : 0) })) {
+      if (ev.type === 'print') out.push(ev.text);
+    }
+    return out.join('');
+  };
+  check('on_line() binds through host.sensor (on the line -> 1)', onLine(1) === '1', 'printed ' + onLine(1));
+  check('on_line() binds through host.sensor (off the line -> 0)', onLine(0) === '0', 'printed ' + onLine(0));
+  const branch = [];
+  for (const ev of compile('if on_line():\n    led("green")\nelse:\n    led("red")')
+    .run({ sensor: (n) => (n === 'on_line' ? 1 : 0) })) {
+    if (ev.type === 'led') branch.push(ev.color || ev.value || '');
+  }
+  check('a program can branch on on_line()', branch.length === 1 && /green/.test(String(branch[0])), JSON.stringify(branch));
+  const KC = win.KodroCommands;
+  const bare = { type: 'rover', sensors: ['ultrasonic'], actuators: ['motors2'] };
+  const lined = { type: 'rover', sensors: ['ultrasonic', 'line'], actuators: ['motors2'] };
+  check('on_line() refused without a Line follower fitted', KC.check(bare, 'on_line').ok === false,
+    KC.check(bare, 'on_line').reason || '');
+  check('the refusal names the Line follower part', /line follower/i.test(KC.check(bare, 'on_line').reason || ''),
+    KC.check(bare, 'on_line').reason || '');
+  check('on_line() available with a Line follower fitted', KC.check(lined, 'on_line').ok === true, '');
+}
+
+console.log('\n== SEEDED RNG (OPP-2) ==');
+// random() reads host.rng when the host supplies one (the live sim seeds it
+// per run and records the seed in the run report), so a replayed seed
+// reproduces the exact same value sequence. Same generator as scenario.jsx.
+{
+  const mb = (a) => function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+  const seq = (seed) => {
+    const out = [];
+    for (const ev of compile('for i in range(3):\n    print(random())').run({ sensor: () => 0, rng: mb(seed) })) {
+      if (ev.type === 'print') out.push(ev.text);
+    }
+    return out.join(',');
+  };
+  check('random() reads host.rng: same seed -> identical sequence', seq(42) === seq(42) && seq(42).length > 0, seq(42));
+  check('different seed -> different sequence', seq(42) !== seq(43), '');
+  check('seeded values are real numbers in [0,1)', seq(7).split(',').every((v) => +v >= 0 && +v < 1), seq(7));
+}
+
+console.log('\n== SPEC MIGRATION (OPP-8) ==');
+// An old kodro_robot_v1 save upgrades through ONE explicit migrator with
+// recorded notes, not a silent in-load mutation. The migrated spec must
+// round-trip the real KRS validator (specschema.js), and a modern v2 spec
+// must pass through with only the version stamp.
+{
+  const SS_SRC = readFileSync(new URL('../src/robolearn/assets/web/specschema.js', import.meta.url), 'utf8');
+  new Function('window', SS_SRC)(win);
+  const MIG = win.KodroCommands.migrateSpec;
+  check('migrateSpec exposed', typeof MIG === 'function', '');
+  const v1 = { type: 'rover', name: 'Old Faithful', board: 'uno', sensors: [], actuators: ['motors2'] };
+  const m = MIG(JSON.parse(JSON.stringify(v1)), true);
+  check('v1 save records its origin note', m.notes.some((n) => /kodro_robot_v1/.test(n)), JSON.stringify(m.notes));
+  check('sensor floor applied AND recorded', m.spec.sensors.length === 2 && m.notes.some((n) => /sensor floor/i.test(n)),
+    JSON.stringify(m.spec.sensors));
+  check('migrated spec stamped kodroSpec: 1', m.spec.kodroSpec === 1, '');
+  check('notes persisted on the spec itself', Array.isArray(m.spec.migrationNotes) && m.spec.migrationNotes.length >= 3,
+    JSON.stringify(m.spec.migrationNotes));
+  const rt = win.KodroSpecSchema.validate(JSON.stringify(m.spec));
+  check('migrated spec round-trips the KRS validator', rt.ok === true, JSON.stringify(rt.errors || []));
+  const modern = MIG({ type: 'rover', name: 'Fresh', board: 'uno', sensors: ['ultrasonic'], actuators: ['motors2'], kodroSpec: 1 }, false);
+  check('modern spec passes through untouched (no notes)', modern.notes.length === 0 && !modern.spec.migrationNotes, JSON.stringify(modern.notes));
+  const junk = MIG('not an object', false);
+  check('unreadable save replaced with the default build', junk.spec && junk.spec.type === 'rover' && junk.notes.length === 1,
+    JSON.stringify(junk.notes));
+}
+
 console.log('\n== BEEP EVENT (S3) ==');
 // beep() emits a real beep event (wired to SFX in the studio), never the old
 // "beep" console spam; the times argument clamps 0..16 like the Python API.
@@ -663,7 +745,7 @@ const DIAG = readFileSync(new URL('../src/robolearn/assets/web/diagnostics.jsx',
 const KNOWN_COMMANDS = new Set([
   'move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'stop', 'wait', 'sleep',
   'pen_down', 'pen_up', 'scan', 'led', 'say', 'beep', 'log', 'print', 'place', 'clear_props',
-  'distance', 'heading', 'battery', 'speed', 'tilt', 'temperature', 'gravity', 'light', 'ground', 'x', 'y',
+  'distance', 'heading', 'battery', 'speed', 'tilt', 'temperature', 'gravity', 'light', 'ground', 'x', 'y', 'on_line',
   'read_distance', 'read_heading', 'read_battery', 'read_colour',
   'obstacle_ahead', 'sample_detected', 'at_base', 'collect_sample', 'drop_sample',
 ]);
