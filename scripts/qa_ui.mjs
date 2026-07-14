@@ -271,7 +271,7 @@ function checkRoverMoved(chrome, flow) {
 
   // FALLBACK: odometer span not locatable (markup drift). Don't fake a pass —
   // assert the weaker-but-real signal and LABEL it as the fallback.
-  const haveTelemetry = /Odometer/.test(dom) && /(RUNNING|STANDBY|PAUSED|COMPLETE|HALTED)/.test(dom);
+  const haveTelemetry = /Distance driven/.test(dom) && /(RUNNING|STANDBY|PAUSED|COMPLETE|HALTED)/.test(dom);
   if (haveTelemetry && driving && !consoleError) {
     return { pass: true, reason: 'rover moved (FALLBACK: odometer value not parseable, telemetry mounted + status=RUNNING; exact-value check skipped)', value: null };
   }

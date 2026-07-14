@@ -11932,7 +11932,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         marginTop: 14
       }
     }, /*#__PURE__*/React.createElement(Bar, {
-      k: "Throttle",
+      k: "Power",
       v: rover.speed.toFixed(0) + '%',
       pct: rover.speed,
       color: accent
@@ -11985,7 +11985,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       pct: battery,
       color: batColor
     }), /*#__PURE__*/React.createElement(Bar, {
-      k: "Traction",
+      k: "Grip",
       v: Math.min(100, Math.round(terrain.traction * 100)) + '%',
       pct: Math.min(100, Math.round(terrain.traction * 100)),
       color: accent
@@ -11998,7 +11998,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       className: "gauge"
     }, /*#__PURE__*/React.createElement("span", {
       className: "g-label"
-    }, "Odometer"), /*#__PURE__*/React.createElement("span", {
+    }, "Distance driven"), /*#__PURE__*/React.createElement("span", {
       className: "g-val"
     }, (odometer / 100).toFixed(1), /*#__PURE__*/React.createElement("span", {
       className: "g-unit"
@@ -17547,7 +17547,7 @@ Object.assign(window, {
   }));
 
   // Capability labels for the hero strip: concrete, mono, what the studio does.
-  const CAPS = ["Design the machine", "Program its behaviour", "Simulate the world", "Offline by default"];
+  const CAPS = ["Pick real parts", "Tell it what to do", "Watch it try the job", "Free, no internet needed"];
   const CSS = `
   .konb-root{
     position:fixed; inset:0; z-index:4000; overflow:auto;
@@ -17875,7 +17875,7 @@ Object.assign(window, {
       className: "wm-name"
     }, "Kodro"), /*#__PURE__*/React.createElement("div", {
       className: "wm-sub"
-    }, "Robot design studio \xB7 Offline"))), /*#__PURE__*/React.createElement("button", {
+    }, "Test robot designs before you build them"))), /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: "konb-skip",
       onClick: onClose
@@ -17888,12 +17888,12 @@ Object.assign(window, {
       className: "konb-lede"
     }, /*#__PURE__*/React.createElement("span", {
       className: "konb-eyebrow"
-    }, "Offline robotics workbench"), /*#__PURE__*/React.createElement("h1", {
+    }, "Free \xB7 no account \xB7 works without internet"), /*#__PURE__*/React.createElement("h1", {
       className: "konb-h1",
       id: "konb-h1"
     }, "Build a robot.", /*#__PURE__*/React.createElement("br", null), "Teach it.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("em", null, "Watch it work.")), /*#__PURE__*/React.createElement("p", {
       className: "konb-lead"
-    }, "Kodro is an ", /*#__PURE__*/React.createElement("b", null, "offline robot design and simulation studio"), ". Assemble a machine from real parts, write the code that drives it, and test it in a physics world that fits the build. Everything runs on your own computer, with a local AI assistant and no account needed. Offline by default; connect your own cloud model key only if you want it."), /*#__PURE__*/React.createElement("ul", {
+    }, "Kodro answers one question: ", /*#__PURE__*/React.createElement("b", null, "would your robot actually work?"), " Put together a machine from real parts, tell it what to do in simple Python or blocks, and watch it try the job in a lifelike world. You see how fast it really goes, how long the battery lasts and what it crashes into, before you spend a penny building the real thing."), /*#__PURE__*/React.createElement("ul", {
       className: "konb-caps"
     }, CAPS.map((c, i) => /*#__PURE__*/React.createElement("li", {
       key: i
@@ -17942,7 +17942,7 @@ Object.assign(window, {
       id: "konb-h2-pick"
     }, "What do you want to build?"), /*#__PURE__*/React.createElement("p", {
       className: "konb-sub"
-    }, "Describe it in your own words and the assistant fits the parts, or pick a starting point. You can change every part later in the Robot Lab."), /*#__PURE__*/React.createElement("div", {
+    }, "Describe it in your own words and Kodro picks the parts for you, or choose a starting point. You can change every part later in the Robot Lab."), /*#__PURE__*/React.createElement("div", {
       className: "konb-agent"
     }, /*#__PURE__*/React.createElement("div", {
       className: "konb-agent-row"
@@ -18071,11 +18071,14 @@ Object.assign(window, {
  *
  * Kodro is OFFLINE BY DEFAULT: the default provider is the local Ollama server
  * at http://localhost:11434, and with no other provider selected the app makes
- * ZERO external network calls. A user who wants a stronger model may connect
- * their OWN key (bring-your-own-key) for Anthropic Claude or OpenAI. That key
- * lives only in this browser's localStorage, is sent only to that one provider,
- * and is never logged, uploaded, or shared. Switching back to Ollama (or simply
- * not entering a key) restores the fully offline guarantee.
+ * ZERO external network calls. A user who wants a hosted model may connect
+ * their OWN key (bring-your-own-key) to a FREE-TIER provider: Groq (free API
+ * tier) or OpenRouter (which serves free models such as the DeepSeek family).
+ * Paid-only providers are deliberately not offered; every path through this
+ * app can be exercised without spending money. The key lives only in this
+ * browser's localStorage, is sent only to that one provider, and is never
+ * logged, uploaded, or shared. Switching back to Ollama (or simply not
+ * entering a key) restores the fully offline guarantee.
  *
  * This module owns provider config + a single generate(prompt, opts) entry the
  * assistant facade (ai-web.jsx) routes through, so the rest of the app does not
@@ -18090,32 +18093,27 @@ Object.assign(window, {
   // Provider registry. `local:true` providers are the offline guarantee and use
   // the localhost-only guard; cloud providers require an explicit user key and
   // are never contacted until one is set AND the provider is selected.
+  // Free-tier only: a stored provider id from an older build (anthropic /
+  // openai) simply falls back to ollama via providerId(), so nothing breaks.
   var PROVIDERS = {
     ollama: {
       id: 'ollama',
       label: 'Local (Ollama, offline)',
       local: true
     },
-    anthropic: {
-      id: 'anthropic',
-      label: 'Anthropic (Claude, your key)',
-      local: false,
-      endpoint: 'https://api.anthropic.com/v1/messages',
-      defaultModel: 'claude-3-5-sonnet-latest'
-    },
-    openai: {
-      id: 'openai',
-      label: 'OpenAI (GPT, your key)',
-      local: false,
-      endpoint: 'https://api.openai.com/v1/chat/completions',
-      defaultModel: 'gpt-4o-mini'
-    },
     groq: {
       id: 'groq',
-      label: 'Groq (fast LPU, your key)',
+      label: 'Groq (free tier, your key)',
       local: false,
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
       defaultModel: 'llama-3.3-70b-versatile'
+    },
+    openrouter: {
+      id: 'openrouter',
+      label: 'OpenRouter (free models, your key)',
+      local: false,
+      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      defaultModel: 'deepseek/deepseek-chat-v3-0324:free'
     }
   };
   var KEYS = {
@@ -18193,41 +18191,9 @@ Object.assign(window, {
     });
   }
 
-  // --- cloud generate (BYOK) -------------------------------------------------
-  async function anthropicGenerate(prompt, opts, key, model) {
-    var body = {
-      model: model,
-      max_tokens: opts.num_predict || 400,
-      messages: [{
-        role: 'user',
-        content: prompt
-      }]
-    };
-    if (opts.system) body.system = opts.system;
-    if (opts.temperature != null) body.temperature = opts.temperature;
-    var r = await fetchTimeout(PROVIDERS.anthropic.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        // Anthropic requires this opt-in header to allow a direct browser call.
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify(body)
-    }, CLOUD_TIMEOUT_MS);
-    if (!r.ok) throw new Error('Anthropic ' + r.status + ': ' + (await r.text()).slice(0, 200));
-    var j = await r.json();
-    var parts = (j.content || []).filter(function (c) {
-      return c && c.type === 'text';
-    });
-    return parts.map(function (c) {
-      return c.text;
-    }).join('').trim();
-  }
-
-  // OpenAI-compatible chat/completions, shared by OpenAI and Groq (Groq exposes
-  // the identical /openai/v1 surface). `label` only shapes the error message.
+  // --- cloud generate (BYOK, free-tier providers) ----------------------------
+  // OpenAI-compatible chat/completions, shared by Groq and OpenRouter (both
+  // expose the identical surface). `label` only shapes the error message.
   async function openaiCompatibleGenerate(endpoint, label, prompt, opts, key, model) {
     var messages = [];
     if (opts.system) messages.push({
@@ -18255,9 +18221,6 @@ Object.assign(window, {
     if (!r.ok) throw new Error(label + ' ' + r.status + ': ' + (await r.text()).slice(0, 200));
     var j = await r.json();
     return (((j.choices || [])[0] || {}).message || {}).content ? j.choices[0].message.content.trim() : '';
-  }
-  function openaiGenerate(prompt, opts, key, model) {
-    return openaiCompatibleGenerate(PROVIDERS.openai.endpoint, 'OpenAI', prompt, opts, key, model);
   }
 
   // Ollama non-streaming generate (the offline default).
@@ -18296,38 +18259,19 @@ Object.assign(window, {
     if (pr && !pr.local && cloudReady()) {
       var key = keyFor(id);
       var model = cloudModel();
-      if (id === 'anthropic') return anthropicGenerate(prompt, opts, key, model);
-      if (id === 'openai') return openaiGenerate(prompt, opts, key, model);
       if (id === 'groq') return openaiCompatibleGenerate(PROVIDERS.groq.endpoint, 'Groq', prompt, opts, key, model);
+      if (id === 'openrouter') return openaiCompatibleGenerate(PROVIDERS.openrouter.endpoint, 'OpenRouter', prompt, opts, key, model);
     }
     return ollamaGenerate(prompt, opts, ollamaModel);
   }
 
-  // List selectable models for the active provider (best effort). Ollama and
-  // OpenAI can list; Anthropic has no simple list endpoint, so we offer a small
-  // curated set the user can still override with a free-text model id.
+  // List selectable models for the active provider (best effort). Both free
+  // providers expose an OpenAI-compatible /models list; a fetch failure falls
+  // back to a small curated set the user can still override with a free-text
+  // model id. For OpenRouter the FREE models are listed first, because the
+  // whole point of offering it is that nobody has to pay.
   async function listCloudModels() {
     var id = providerId();
-    if (id === 'openai' && keyFor('openai')) {
-      try {
-        var r = await fetch(PROVIDERS.openai.endpoint.replace('/chat/completions', '/models'), {
-          headers: {
-            Authorization: 'Bearer ' + keyFor('openai')
-          }
-        });
-        if (r.ok) {
-          var j = await r.json();
-          return (j.data || []).map(function (m) {
-            return m.id;
-          }).filter(function (x) {
-            return /gpt|o1|o3|o4/i.test(x);
-          }).sort();
-        }
-      } catch (e) {
-        void e;
-      }
-      return ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'gpt-4.1-mini'];
-    }
     if (id === 'groq' && keyFor('groq')) {
       try {
         var rg = await fetch(PROVIDERS.groq.endpoint.replace('/chat/completions', '/models'), {
@@ -18346,8 +18290,30 @@ Object.assign(window, {
       }
       return ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'qwen-2.5-coder-32b'];
     }
-    if (id === 'anthropic') {
-      return ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-opus-latest'];
+    if (id === 'openrouter' && keyFor('openrouter')) {
+      try {
+        var ro = await fetch(PROVIDERS.openrouter.endpoint.replace('/chat/completions', '/models'), {
+          headers: {
+            Authorization: 'Bearer ' + keyFor('openrouter')
+          }
+        });
+        if (ro.ok) {
+          var jo = await ro.json();
+          var ids = (jo.data || []).map(function (m) {
+            return m.id;
+          });
+          var free = ids.filter(function (x) {
+            return /:free$/.test(x);
+          }).sort();
+          var paid = ids.filter(function (x) {
+            return !/:free$/.test(x);
+          }).sort();
+          return free.concat(paid);
+        }
+      } catch (e) {
+        void e;
+      }
+      return ['deepseek/deepseek-chat-v3-0324:free', 'deepseek/deepseek-r1:free', 'meta-llama/llama-3.3-70b-instruct:free'];
     }
     return [];
   }
@@ -22972,9 +22938,9 @@ say("Survey done")`
 
   // A model source is "local/offline" ONLY when it is the offline Ollama path
   // (source 'local' or 'browser') or a provider the registry marks local:true.
-  // Any other source (groq, anthropic, openai, ...) is a cloud model whose
-  // prompts leave this machine and must be labelled honestly (judge HIGH-2:
-  // Groq BYOK was falsely shown as "runs on this machine").
+  // Any other source (groq, openrouter, ...) is a hosted model whose prompts
+  // leave this machine and must be labelled honestly (judge HIGH-2: Groq BYOK
+  // was falsely shown as "runs on this machine").
   function providerIsLocal(source) {
     if (source === 'local' || source === 'browser') return true;
     try {
@@ -22988,9 +22954,8 @@ say("Survey done")`
   // Short, human display name for a provider source used in the labels above.
   function providerName(source) {
     const NAMES = {
-      anthropic: 'Anthropic',
-      openai: 'OpenAI',
       groq: 'Groq',
+      openrouter: 'OpenRouter',
       ollama: 'Ollama'
     };
     if (source && NAMES[source]) return NAMES[source];
@@ -23985,8 +23950,9 @@ say("Survey done")`
 
   // ---- Vibe coding (Code with AI) ----
   // Choose the AI backend: Local (Ollama, offline default) or a bring-your-own-key
-  // cloud model (Anthropic Claude, OpenAI). The key stays in this browser and is
-  // sent only to the chosen provider; Local keeps the app fully offline.
+  // FREE-TIER provider (Groq free tier, OpenRouter free models). The key stays in
+  // this browser and is sent only to the chosen provider; Local keeps the app
+  // fully offline.
   function ProviderPicker({
     onChange
   }) {
@@ -24144,7 +24110,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, KI('vibe'), "Vibe coding. Describe it, the AI writes it"), /*#__PURE__*/React.createElement("div", {
+    }, KI('vibe'), "AI helper. Say what the robot should do, it writes the code"), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -24173,7 +24139,7 @@ say("Survey done")`
       className: "vibe-status"
     }, "Cloud model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 via ", providerName(aiInfo.source), ", your prompt is sent to ", providerName(aiInfo.source), ".") : /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, aiInfo.hint || 'No AI model is running.', " You can still say ", /*#__PURE__*/React.createElement("i", null, "\"build a mars rover\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"go to the ocean\""), " and Kodro will do it \u2014 only writing code needs an AI (a local model, or a cloud key above)."), ctxChip, aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
+    }, aiInfo.hint || 'No AI is connected.', " You can still say ", /*#__PURE__*/React.createElement("i", null, "\"build a mars rover\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"go to the ocean\""), " and Kodro will do it \u2014 only writing code needs an AI. Both options are free: the Ollama app on this computer, or a free Groq or OpenRouter key above."), ctxChip, aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -24278,7 +24244,7 @@ say("Survey done")`
       className: "vibe-hint"
     }, "Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time."), !aiInfo.available && /*#__PURE__*/React.createElement("ol", {
       className: "vibe-steps"
-    }, /*#__PURE__*/React.createElement("li", null, "Writing code needs an AI. The private way is a ", /*#__PURE__*/React.createElement("b", null, "local"), " model (no cloud, no account): install Ollama from ollama.com (free, offline after install)"), /*#__PURE__*/React.createElement("li", null, "Run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro. Code writing lights up automatically. Or pick a cloud provider above and paste your own key")))));
+    }, /*#__PURE__*/React.createElement("li", null, "Writing code needs an AI, and every option here is free. The most private one runs on ", /*#__PURE__*/React.createElement("b", null, "this computer"), ": install the Ollama app from ollama.com (no account needed)"), /*#__PURE__*/React.createElement("li", null, "Then run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro and code writing lights up. Or pick Groq or OpenRouter above and paste a free key from their site")))));
   }
 
   // ---- Blocks (visual block editor) ----
@@ -25084,11 +25050,28 @@ say("Survey done")`
     // shadow + pixel-ratio cost so a laptop stays smooth, or maxes a screenshot.
     const [quality, setQuality] = useState(() => {
       try {
-        return localStorage.getItem('kodro_quality') || 'high';
+        const saved = localStorage.getItem('kodro_quality');
+        if (saved) return saved;
+        // First run: pick a tier the device can actually hold. Starting every
+        // machine at 'high' (shadows + 1.5x pixel ratio) is why first
+        // impressions felt slow on mid laptops; deviceMemory/cores are coarse
+        // hints but catch exactly those machines. The runtime frame monitor
+        // can still step down further, and the user can pick any tier.
+        const mem = navigator && navigator.deviceMemory || 8;
+        const cores = navigator && navigator.hardwareConcurrency || 8;
+        return mem <= 4 || cores <= 4 ? 'med' : 'high';
       } catch (e) {
         return 'high';
       }
     });
+    // Lessons carry UK Key Stage codes; parents and pupils outside that system
+    // read ages, so the UI shows ages and keeps the code as the tooltip.
+    const AGE_FOR = {
+      KS1: 'Ages 5-7',
+      KS2: 'Ages 7-11',
+      KS3: 'Ages 11-14',
+      KS4: 'Ages 14-16'
+    };
     if (typeof window !== 'undefined') window.KODRO_QUALITY = quality;
     // Bumped each time the user explicitly opens the 3D view, so the canvas can
     // take focus (keyboard orbit) without stealing focus on the initial load.
@@ -26034,7 +26017,7 @@ say("Survey done")`
       className: "brand-name"
     }, "Kodro"), /*#__PURE__*/React.createElement("div", {
       className: "brand-sub"
-    }, "Robot design studio \xB7 Offline"))), /*#__PURE__*/React.createElement("div", {
+    }, "Test robot designs before you build them"))), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "run-controls"
@@ -26379,7 +26362,7 @@ say("Survey done")`
     }, "Pick a lesson\u2026"), lessons.map(l => /*#__PURE__*/React.createElement("option", {
       key: l.id,
       value: l.id
-    }, l.id, " \xB7 ", l.title, " [", l.keyStage, "]")))), /*#__PURE__*/React.createElement("div", {
+    }, l.id, " \xB7 ", l.title, " [", AGE_FOR[l.keyStage] || l.keyStage, "]")))), /*#__PURE__*/React.createElement("div", {
       className: "panel-actions"
     }, /*#__PURE__*/React.createElement("button", {
       className: "btn-mini btn-vibe",
@@ -26464,8 +26447,9 @@ say("Survey done")`
       }, /*#__PURE__*/React.createElement("div", {
         className: "lesson-card-head"
       }, /*#__PURE__*/React.createElement("span", {
-        className: "lesson-badge"
-      }, lesson.keyStage), /*#__PURE__*/React.createElement("span", {
+        className: "lesson-badge",
+        title: lesson.keyStage
+      }, AGE_FOR[lesson.keyStage] || lesson.keyStage), /*#__PURE__*/React.createElement("span", {
         className: "lesson-title"
       }, lesson.id, " \xB7 ", lesson.title), lesson.readingAge ? /*#__PURE__*/React.createElement("span", {
         className: "lesson-age",
@@ -26908,7 +26892,7 @@ say("Survey done")`
       className: "panel-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, "Telemetry"), /*#__PURE__*/React.createElement("div", {
+    }, "Live readouts"), /*#__PURE__*/React.createElement("div", {
       className: "ph-spacer",
       style: {
         flex: 1

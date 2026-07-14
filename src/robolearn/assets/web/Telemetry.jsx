@@ -94,7 +94,7 @@
             </div>
           </div>
           <div className="bar-meter" style={{ marginTop: 14 }}>
-            <Bar k="Throttle" v={rover.speed.toFixed(0) + '%'} pct={rover.speed} color={accent} />
+            <Bar k="Power" v={rover.speed.toFixed(0) + '%'} pct={rover.speed} color={accent} />
           </div>
         </div>
 
@@ -123,11 +123,11 @@
           <span className="eyebrow">Systems</span>
           <div className="bar-meter">
             <Bar k="Battery" v={battery.toFixed(0) + '%'} pct={battery} color={batColor} />
-            <Bar k="Traction" v={Math.min(100, Math.round(terrain.traction * 100)) + '%'} pct={Math.min(100, Math.round(terrain.traction * 100))} color={accent} />
+            <Bar k="Grip" v={Math.min(100, Math.round(terrain.traction * 100)) + '%'} pct={Math.min(100, Math.round(terrain.traction * 100))} color={accent} />
           </div>
           <div className="gauges" style={{ marginTop: 12 }}>
             <div className="gauge">
-              <span className="g-label">Odometer</span>
+              <span className="g-label">Distance driven</span>
               <span className="g-val">{(odometer / 100).toFixed(1)}<span className="g-unit">m</span></span>
             </div>
             <div className="gauge">

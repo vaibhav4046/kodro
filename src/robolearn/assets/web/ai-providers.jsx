@@ -2,11 +2,14 @@
  *
  * Kodro is OFFLINE BY DEFAULT: the default provider is the local Ollama server
  * at http://localhost:11434, and with no other provider selected the app makes
- * ZERO external network calls. A user who wants a stronger model may connect
- * their OWN key (bring-your-own-key) for Anthropic Claude or OpenAI. That key
- * lives only in this browser's localStorage, is sent only to that one provider,
- * and is never logged, uploaded, or shared. Switching back to Ollama (or simply
- * not entering a key) restores the fully offline guarantee.
+ * ZERO external network calls. A user who wants a hosted model may connect
+ * their OWN key (bring-your-own-key) to a FREE-TIER provider: Groq (free API
+ * tier) or OpenRouter (which serves free models such as the DeepSeek family).
+ * Paid-only providers are deliberately not offered; every path through this
+ * app can be exercised without spending money. The key lives only in this
+ * browser's localStorage, is sent only to that one provider, and is never
+ * logged, uploaded, or shared. Switching back to Ollama (or simply not
+ * entering a key) restores the fully offline guarantee.
  *
  * This module owns provider config + a single generate(prompt, opts) entry the
  * assistant facade (ai-web.jsx) routes through, so the rest of the app does not
@@ -21,22 +24,19 @@
   // Provider registry. `local:true` providers are the offline guarantee and use
   // the localhost-only guard; cloud providers require an explicit user key and
   // are never contacted until one is set AND the provider is selected.
+  // Free-tier only: a stored provider id from an older build (anthropic /
+  // openai) simply falls back to ollama via providerId(), so nothing breaks.
   var PROVIDERS = {
     ollama: { id: 'ollama', label: 'Local (Ollama, offline)', local: true },
-    anthropic: {
-      id: 'anthropic', label: 'Anthropic (Claude, your key)', local: false,
-      endpoint: 'https://api.anthropic.com/v1/messages',
-      defaultModel: 'claude-3-5-sonnet-latest',
-    },
-    openai: {
-      id: 'openai', label: 'OpenAI (GPT, your key)', local: false,
-      endpoint: 'https://api.openai.com/v1/chat/completions',
-      defaultModel: 'gpt-4o-mini',
-    },
     groq: {
-      id: 'groq', label: 'Groq (fast LPU, your key)', local: false,
+      id: 'groq', label: 'Groq (free tier, your key)', local: false,
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
       defaultModel: 'llama-3.3-70b-versatile',
+    },
+    openrouter: {
+      id: 'openrouter', label: 'OpenRouter (free models, your key)', local: false,
+      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+      defaultModel: 'deepseek/deepseek-chat-v3-0324:free',
     },
   };
 
@@ -97,34 +97,9 @@
     );
   }
 
-  // --- cloud generate (BYOK) -------------------------------------------------
-  async function anthropicGenerate(prompt, opts, key, model) {
-    var body = {
-      model: model,
-      max_tokens: opts.num_predict || 400,
-      messages: [{ role: 'user', content: prompt }],
-    };
-    if (opts.system) body.system = opts.system;
-    if (opts.temperature != null) body.temperature = opts.temperature;
-    var r = await fetchTimeout(PROVIDERS.anthropic.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        // Anthropic requires this opt-in header to allow a direct browser call.
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify(body),
-    }, CLOUD_TIMEOUT_MS);
-    if (!r.ok) throw new Error('Anthropic ' + r.status + ': ' + (await r.text()).slice(0, 200));
-    var j = await r.json();
-    var parts = (j.content || []).filter(function (c) { return c && c.type === 'text'; });
-    return parts.map(function (c) { return c.text; }).join('').trim();
-  }
-
-  // OpenAI-compatible chat/completions, shared by OpenAI and Groq (Groq exposes
-  // the identical /openai/v1 surface). `label` only shapes the error message.
+  // --- cloud generate (BYOK, free-tier providers) ----------------------------
+  // OpenAI-compatible chat/completions, shared by Groq and OpenRouter (both
+  // expose the identical surface). `label` only shapes the error message.
   async function openaiCompatibleGenerate(endpoint, label, prompt, opts, key, model) {
     var messages = [];
     if (opts.system) messages.push({ role: 'system', content: opts.system });
@@ -139,10 +114,6 @@
     if (!r.ok) throw new Error(label + ' ' + r.status + ': ' + (await r.text()).slice(0, 200));
     var j = await r.json();
     return (((j.choices || [])[0] || {}).message || {}).content ? j.choices[0].message.content.trim() : '';
-  }
-
-  function openaiGenerate(prompt, opts, key, model) {
-    return openaiCompatibleGenerate(PROVIDERS.openai.endpoint, 'OpenAI', prompt, opts, key, model);
   }
 
   // Ollama non-streaming generate (the offline default).
@@ -171,30 +142,19 @@
     if (pr && !pr.local && cloudReady()) {
       var key = keyFor(id);
       var model = cloudModel();
-      if (id === 'anthropic') return anthropicGenerate(prompt, opts, key, model);
-      if (id === 'openai') return openaiGenerate(prompt, opts, key, model);
       if (id === 'groq') return openaiCompatibleGenerate(PROVIDERS.groq.endpoint, 'Groq', prompt, opts, key, model);
+      if (id === 'openrouter') return openaiCompatibleGenerate(PROVIDERS.openrouter.endpoint, 'OpenRouter', prompt, opts, key, model);
     }
     return ollamaGenerate(prompt, opts, ollamaModel);
   }
 
-  // List selectable models for the active provider (best effort). Ollama and
-  // OpenAI can list; Anthropic has no simple list endpoint, so we offer a small
-  // curated set the user can still override with a free-text model id.
+  // List selectable models for the active provider (best effort). Both free
+  // providers expose an OpenAI-compatible /models list; a fetch failure falls
+  // back to a small curated set the user can still override with a free-text
+  // model id. For OpenRouter the FREE models are listed first, because the
+  // whole point of offering it is that nobody has to pay.
   async function listCloudModels() {
     var id = providerId();
-    if (id === 'openai' && keyFor('openai')) {
-      try {
-        var r = await fetch(PROVIDERS.openai.endpoint.replace('/chat/completions', '/models'), {
-          headers: { Authorization: 'Bearer ' + keyFor('openai') },
-        });
-        if (r.ok) {
-          var j = await r.json();
-          return (j.data || []).map(function (m) { return m.id; }).filter(function (x) { return /gpt|o1|o3|o4/i.test(x); }).sort();
-        }
-      } catch (e) { void e; }
-      return ['gpt-4o-mini', 'gpt-4o', 'gpt-4.1', 'gpt-4.1-mini'];
-    }
     if (id === 'groq' && keyFor('groq')) {
       try {
         var rg = await fetch(PROVIDERS.groq.endpoint.replace('/chat/completions', '/models'), {
@@ -207,8 +167,20 @@
       } catch (e) { void e; }
       return ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'qwen-2.5-coder-32b'];
     }
-    if (id === 'anthropic') {
-      return ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest', 'claude-3-opus-latest'];
+    if (id === 'openrouter' && keyFor('openrouter')) {
+      try {
+        var ro = await fetch(PROVIDERS.openrouter.endpoint.replace('/chat/completions', '/models'), {
+          headers: { Authorization: 'Bearer ' + keyFor('openrouter') },
+        });
+        if (ro.ok) {
+          var jo = await ro.json();
+          var ids = (jo.data || []).map(function (m) { return m.id; });
+          var free = ids.filter(function (x) { return /:free$/.test(x); }).sort();
+          var paid = ids.filter(function (x) { return !/:free$/.test(x); }).sort();
+          return free.concat(paid);
+        }
+      } catch (e) { void e; }
+      return ['deepseek/deepseek-chat-v3-0324:free', 'deepseek/deepseek-r1:free', 'meta-llama/llama-3.3-70b-instruct:free'];
     }
     return [];
   }

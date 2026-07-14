@@ -31,12 +31,13 @@ def _remote_urls(text: str) -> list[str]:
 _EXCLUDED_SCRIPTS = {"bundle.js", "harness_bundle.js"}
 
 #: The two BYOK (bring-your-own-key) assistant modules are the ONLY shipped files
-#: allowed to reference a remote host, and only these four: the user opts in with
-#: their own key and the request goes to exactly one of these clouds, or to the
-#: local Ollama server. localhost is local (the machine itself), so it is filtered
-#: as non-remote everywhere and is not listed here.
+#: allowed to reference a remote host, and only these free-tier providers: the
+#: user opts in with their own key and the request goes to exactly one of these,
+#: or to the local Ollama server. Paid-only providers are deliberately not
+#: offered. localhost is local (the machine itself), so it is filtered as
+#: non-remote everywhere and is not listed here.
 _BYOK_FILES = {"ai-providers.jsx", "ai-web.jsx"}
-_BYOK_ALLOWED_HOSTS = {"api.anthropic.com", "api.openai.com", "api.groq.com"}
+_BYOK_ALLOWED_HOSTS = {"api.groq.com", "openrouter.ai"}
 
 #: Datasheet-provenance citation hosts, scoped per file. ``parts-db.js`` is a
 #: pure DATA module (no ``fetch``/``.src`` anywhere in it -- asserted below): each

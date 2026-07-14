@@ -14,8 +14,9 @@ real parts, write its behaviour in code, blocks or plain language, and
 validate it in a 3D world chosen to suit it. The system reflects on each
 run and refines what it suggests next. It runs entirely on your own
 computer with no account and, by default, no cloud. You can optionally
-connect your own Anthropic or OpenAI key for a stronger assistant; the
-offline local model stays the default and requires no connection.
+connect a free-tier key (Groq, or OpenRouter's free models such as the
+DeepSeek family) for a stronger assistant; the offline local model stays
+the default and requires no connection, and nothing here needs payment.
 
 Kodro is for a capable non expert adult who wants to design and test robot
 behaviour without a lab, a kit, or a cloud subscription.
@@ -42,9 +43,9 @@ set honest expectations up front:
   nothing leaves your machine on the default path: the local AI
   assistant talks only to an Ollama model on `localhost`, and falls
   back to a deterministic rule engine when Ollama is absent. You may
-  optionally connect your own Anthropic or OpenAI key for a stronger
-  model; that key stays in your browser, is sent only to the provider
-  you pick, and is never required.
+  optionally connect a free-tier key (Groq, or OpenRouter's free
+  models) for a stronger model; that key stays in your browser, is sent
+  only to the provider you pick, and is never required.
 - **Not a childrens coding toy.** It assumes a capable non expert adult.
 
 ## The loop

@@ -21,9 +21,9 @@
 
   // A model source is "local/offline" ONLY when it is the offline Ollama path
   // (source 'local' or 'browser') or a provider the registry marks local:true.
-  // Any other source (groq, anthropic, openai, ...) is a cloud model whose
-  // prompts leave this machine and must be labelled honestly (judge HIGH-2:
-  // Groq BYOK was falsely shown as "runs on this machine").
+  // Any other source (groq, openrouter, ...) is a hosted model whose prompts
+  // leave this machine and must be labelled honestly (judge HIGH-2: Groq BYOK
+  // was falsely shown as "runs on this machine").
   function providerIsLocal(source) {
     if (source === 'local' || source === 'browser') return true;
     try {
@@ -34,7 +34,7 @@
   }
   // Short, human display name for a provider source used in the labels above.
   function providerName(source) {
-    const NAMES = { anthropic: 'Anthropic', openai: 'OpenAI', groq: 'Groq', ollama: 'Ollama' };
+    const NAMES = { groq: 'Groq', openrouter: 'OpenRouter', ollama: 'Ollama' };
     if (source && NAMES[source]) return NAMES[source];
     return source ? (source.charAt(0).toUpperCase() + source.slice(1)) : 'the cloud provider';
   }
@@ -736,8 +736,9 @@
 
   // ---- Vibe coding (Code with AI) ----
   // Choose the AI backend: Local (Ollama, offline default) or a bring-your-own-key
-  // cloud model (Anthropic Claude, OpenAI). The key stays in this browser and is
-  // sent only to the chosen provider; Local keeps the app fully offline.
+  // FREE-TIER provider (Groq free tier, OpenRouter free models). The key stays in
+  // this browser and is sent only to the chosen provider; Local keeps the app
+  // fully offline.
   function ProviderPicker({ onChange }) {
     const P = window.KodroProviders;
     const [cfg, setCfg] = React.useState(P ? P.config() : null);
@@ -788,7 +789,7 @@
       <div className="modal-backdrop" onClick={() => !vibeBusy && setVibeOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('vibe')}Vibe coding. Describe it, the AI writes it</span>
+            <span className="eyebrow">{KI('vibe')}AI helper. Say what the robot should do, it writes the code</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {vibeMsgs.length > 0 && (
                 <button className="btn-mini" disabled={vibeBusy} onClick={() => vibeClear && vibeClear()}
@@ -803,7 +804,7 @@
                 ? (providerIsLocal(aiInfo.source)
                     ? <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
                     : <p className="vibe-status">Cloud model: <b>{aiInfo.model}</b> · via {providerName(aiInfo.source)}, your prompt is sent to {providerName(aiInfo.source)}.</p>)
-                : <p className="vibe-status">{aiInfo.hint || 'No AI model is running.'} You can still say <i>"build a mars rover"</i> or <i>"go to the ocean"</i> and Kodro will do it — only writing code needs an AI (a local model, or a cloud key above).</p>}
+                : <p className="vibe-status">{aiInfo.hint || 'No AI is connected.'} You can still say <i>"build a mars rover"</i> or <i>"go to the ocean"</i> and Kodro will do it — only writing code needs an AI. Both options are free: the Ollama app on this computer, or a free Groq or OpenRouter key above.</p>}
               {ctxChip}
               {aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
@@ -872,9 +873,9 @@
               <span className="vibe-hint">Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time.</span>
               {!aiInfo.available && (
                 <ol className="vibe-steps">
-                  <li>Writing code needs an AI. The private way is a <b>local</b> model (no cloud, no account): install Ollama from ollama.com (free, offline after install)</li>
-                  <li>Run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
-                  <li>Reopen Kodro. Code writing lights up automatically. Or pick a cloud provider above and paste your own key</li>
+                  <li>Writing code needs an AI, and every option here is free. The most private one runs on <b>this computer</b>: install the Ollama app from ollama.com (no account needed)</li>
+                  <li>Then run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
+                  <li>Reopen Kodro and code writing lights up. Or pick Groq or OpenRouter above and paste a free key from their site</li>
                 </ol>
               )}
             </div>

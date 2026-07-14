@@ -428,7 +428,23 @@
     const [demoOpen, setDemoOpen] = useState(false);
     // Render-quality tier read by Viewport3D (Low/Med/High/Cinematic): bounds
     // shadow + pixel-ratio cost so a laptop stays smooth, or maxes a screenshot.
-    const [quality, setQuality] = useState(() => { try { return localStorage.getItem('kodro_quality') || 'high'; } catch (e) { return 'high'; } });
+    const [quality, setQuality] = useState(() => {
+      try {
+        const saved = localStorage.getItem('kodro_quality');
+        if (saved) return saved;
+        // First run: pick a tier the device can actually hold. Starting every
+        // machine at 'high' (shadows + 1.5x pixel ratio) is why first
+        // impressions felt slow on mid laptops; deviceMemory/cores are coarse
+        // hints but catch exactly those machines. The runtime frame monitor
+        // can still step down further, and the user can pick any tier.
+        const mem = (navigator && navigator.deviceMemory) || 8;
+        const cores = (navigator && navigator.hardwareConcurrency) || 8;
+        return (mem <= 4 || cores <= 4) ? 'med' : 'high';
+      } catch (e) { return 'high'; }
+    });
+    // Lessons carry UK Key Stage codes; parents and pupils outside that system
+    // read ages, so the UI shows ages and keeps the code as the tooltip.
+    const AGE_FOR = { KS1: 'Ages 5-7', KS2: 'Ages 7-11', KS3: 'Ages 11-14', KS4: 'Ages 14-16' };
     if (typeof window !== 'undefined') window.KODRO_QUALITY = quality;
     // Bumped each time the user explicitly opens the 3D view, so the canvas can
     // take focus (keyboard orbit) without stealing focus on the initial load.
@@ -973,7 +989,7 @@
             <div className="brand-mark" dangerouslySetInnerHTML={{ __html: ORBIT_SVG }}></div>
             <div className="brand-text">
               <div className="brand-name">Kodro</div>
-              <div className="brand-sub">Robot design studio · Offline</div>
+              <div className="brand-sub">Test robot designs before you build them</div>
             </div>
           </div>
           <div className="bar-divider"></div>
@@ -1170,7 +1186,7 @@
                     >
                       <option value="" disabled>Pick a lesson…</option>
                       {lessons.map(l => (
-                        <option key={l.id} value={l.id}>{l.id} · {l.title} [{l.keyStage}]</option>
+                        <option key={l.id} value={l.id}>{l.id} · {l.title} [{AGE_FOR[l.keyStage] || l.keyStage}]</option>
                       ))}
                     </select>
                   </div>
@@ -1245,7 +1261,7 @@
                 return (
                   <section className="lesson-card" aria-label="Current lesson">
                     <div className="lesson-card-head">
-                      <span className="lesson-badge">{lesson.keyStage}</span>
+                      <span className="lesson-badge" title={lesson.keyStage}>{AGE_FOR[lesson.keyStage] || lesson.keyStage}</span>
                       <span className="lesson-title">{lesson.id} · {lesson.title}</span>
                       {lesson.readingAge ? <span className="lesson-age" title="Reading age">Age {lesson.readingAge}+</span> : null}
                       {lessonVerdict && (
@@ -1487,7 +1503,7 @@
           {/* right: telemetry */}
           <div className={'panel tele-panel' + (teleCollapsed ? ' tele-collapsed' : '')} style={{ gridColumn: 5 }}>
             <div className="panel-head">
-              <span className="eyebrow">Telemetry</span>
+              <span className="eyebrow">Live readouts</span>
               <div className="ph-spacer" style={{ flex: 1 }}></div>
               {/* The panel is captioned with the robot the user actually
                   built, not a hard-coded callsign (product-coherence D3). */}

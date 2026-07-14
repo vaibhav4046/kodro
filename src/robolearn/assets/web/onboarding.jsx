@@ -34,7 +34,7 @@
   );
 
   // Capability labels for the hero strip: concrete, mono, what the studio does.
-  const CAPS = ["Design the machine", "Program its behaviour", "Simulate the world", "Offline by default"];
+  const CAPS = ["Pick real parts", "Tell it what to do", "Watch it try the job", "Free, no internet needed"];
 
   const CSS = `
   .konb-root{
@@ -348,7 +348,7 @@
               <div className="wm-mark">{MARK}</div>
               <div>
                 <div className="wm-name">Kodro</div>
-                <div className="wm-sub">Robot design studio · Offline</div>
+                <div className="wm-sub">Test robot designs before you build them</div>
               </div>
             </div>
             <button type="button" className="konb-skip" onClick={onClose}>Skip to studio</button>
@@ -358,13 +358,13 @@
             {step === 0 && (
               <section className="konb-hero" aria-labelledby="konb-h1">
                 <div className="konb-lede">
-                  <span className="konb-eyebrow">Offline robotics workbench</span>
+                  <span className="konb-eyebrow">Free · no account · works without internet</span>
                   <h1 className="konb-h1" id="konb-h1">Build a robot.<br />Teach it.<br /><em>Watch it work.</em></h1>
                   <p className="konb-lead">
-                    Kodro is an <b>offline robot design and simulation studio</b>. Assemble a machine from real parts,
-                    write the code that drives it, and test it in a physics world that fits the build. Everything
-                    runs on your own computer, with a local AI assistant and no account needed. Offline by default;
-                    connect your own cloud model key only if you want it.
+                    Kodro answers one question: <b>would your robot actually work?</b> Put together a machine
+                    from real parts, tell it what to do in simple Python or blocks, and watch it try the job
+                    in a lifelike world. You see how fast it really goes, how long the battery lasts and what
+                    it crashes into, before you spend a penny building the real thing.
                   </p>
                   <ul className="konb-caps">
                     {CAPS.map((c, i) => <li key={i}>{c}</li>)}
@@ -392,7 +392,7 @@
               <section className="konb-panel" aria-labelledby="konb-h2-pick">
                 <span className="konb-eyebrow">Step two</span>
                 <h2 className="konb-h2" id="konb-h2-pick">What do you want to build?</h2>
-                <p className="konb-sub">Describe it in your own words and the assistant fits the parts, or pick a starting point. You can change every part later in the Robot Lab.</p>
+                <p className="konb-sub">Describe it in your own words and Kodro picks the parts for you, or choose a starting point. You can change every part later in the Robot Lab.</p>
                 <div className="konb-agent">
                   <div className="konb-agent-row">
                     <input
