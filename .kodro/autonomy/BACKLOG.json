@@ -1,6 +1,6 @@
 {
   "schema": "kodro-backlog/1",
-  "updated_commit": "84e482f",
+  "updated_commit": "ff2606a",
   "note": "severity: P0 data-loss/security/false-claim, P1 broken core flow, P2 misleading/quality, P3 cosmetic. status: OPEN|IN_PROGRESS|FIXED|WONTFIX|DISCLOSED. OPP-* are scout opportunities (impact x feasibility / complexity); K-* are defects.",
   "items": [
     {
@@ -200,6 +200,168 @@
       "owner": "design",
       "evidence": "FIXED: Scene tweaks Settings row posts the __activate_edit_mode handshake, so the camera/scene/trail tweaks panel is reachable for real instead of dead UI behind a host handshake nothing sent. Gate: qa_ui checkTweaksPanel.",
       "acceptance": "Either a real toggle opens it, or the dead render is removed.",
+      "deps": []
+    },
+    {
+      "id": "JR1-01",
+      "title": "Robot Lab footer pushed the primary Build & test CTA off-screen at all desktop widths",
+      "severity": "P1",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: .rl-foot flex-wrap at every width (styles.css), not only <=640px. Gate: judge screenshot round 2.",
+      "deps": []
+    },
+    {
+      "id": "JR1-02",
+      "title": "Endurance minutes read as fact and confused two battery axes (time vs distance)",
+      "severity": "P1",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: diagnostics endurance copy now says rough estimate and states the sim tracks battery by distance, not the clock.",
+      "deps": []
+    },
+    {
+      "id": "JR1-03",
+      "title": "Catalogue top speed badged HONOURED in the Lab while the report tiers it APPROXIMATED",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: RobotLab catalogue top-speed badge defaults to approximated; value shown as x-factor not a bare number. qa_honesty.mjs pins it.",
+      "deps": []
+    },
+    {
+      "id": "JR1-04",
+      "title": "Settings popover rendered off the left edge, clipping every row label",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: .settings-pop anchored left:0 (was right:0). Gate: judge screenshot round 2.",
+      "deps": []
+    },
+    {
+      "id": "JR1-05",
+      "title": "Learning half invisible: no in-product signpost that Classroom/18 lessons exist",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: a Lessons button in the top bar switches to classroom + reveals the lesson picker in one click. qa_ui checkLessonsEntry.",
+      "deps": []
+    },
+    {
+      "id": "JR1-06",
+      "title": "Classroom lesson picker crushed the example tab strip to ~18px",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: .tabs min-width:120px floor + flex-basis, strip scrolls instead of collapsing.",
+      "deps": []
+    },
+    {
+      "id": "JR1-07",
+      "title": "Onboarding dialog aria-modal but no focus containment; 49 studio controls tabbable behind it",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: onboarding keydown traps Tab within .konb-root, Escape still closes.",
+      "deps": []
+    },
+    {
+      "id": "JR1-08",
+      "title": "The only Revert for a programmatic code overwrite auto-removed after 7s",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: action toasts persist until clicked (button self-dismisses) or superseded by the next; only non-action toasts time out.",
+      "deps": []
+    },
+    {
+      "id": "JR1-09",
+      "title": "Boot backstop falsely declared 'failed to load' after a fixed 4s on slow devices",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: index.html backstop re-arms until document.readyState==='complete' before declaring failure.",
+      "deps": []
+    },
+    {
+      "id": "JR1-10",
+      "title": "First-run quality floor was med, so the Low tier was unreachable on 2GB/2-core devices",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: picker returns low when deviceMemory<=2 or cores<=2.",
+      "deps": []
+    },
+    {
+      "id": "JR1-11",
+      "title": "Budget planner showed AI-generated part prices as flat facts, exempt from the honesty discipline",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: prices prefixed ~ and a note says they are rough AI estimates, not live quotes. qa_honesty.mjs pins the note.",
+      "deps": []
+    },
+    {
+      "id": "JR1-12",
+      "title": "On a 420px phone the world was a 142px letterbox below two screens of code; first Run showed nothing",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: mobile CSS orders .view-panel first at 46vh so the living city is the first thing a phone shows.",
+      "deps": []
+    },
+    {
+      "id": "JR1-13",
+      "title": "Realism headline showed 'Top speed 1.25x', a unitless multiplier, on the honest-numbers surface",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: realism shows measured m/s when available, else an explicitly-labelled relative factor.",
+      "deps": []
+    },
+    {
+      "id": "JR1-14",
+      "title": "Two stopping distances for one build: 130cm design check (proxy) vs 113cm report (physics)",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: diagnostics catalogue stop now uses the SAME physStoppingDistanceCm on baseSpeed*speedFactor as the report. qa_honesty.mjs pins parity.",
+      "deps": []
+    },
+    {
+      "id": "JR1-15",
+      "title": "Design check promised the run would 'perform cleanly' then the starter crashed in the city",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: reworded to judge the build ('This build suits X. Press Run to see how your program drives it'), not the program.",
+      "deps": []
+    },
+    {
+      "id": "JR1-16",
+      "title": "APPROXIMATED tooltip and report promised 'honest error bars' but no uncertainty range exists",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: replaced with 'a first-order estimate, real hardware will differ'; qa_honesty.mjs bans the phrase in shipped source.",
+      "deps": []
+    },
+    {
+      "id": "JR1-17",
+      "title": "Brand strapline wrapped one word per line and clipped mid-glyph at 420px",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: .brand-sub hidden under the phone media query.",
+      "deps": []
+    },
+    {
+      "id": "JR1-18",
+      "title": "Run-compare checkboxes had identical accessible names for different runs",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-1",
+      "evidence": "FIXED: aria-label now includes each run's timestamp.",
       "deps": []
     }
   ]

@@ -31,22 +31,24 @@ introduced, found and root-fixed: K-003 (ruff format on app.py), K-004
 (offline-guard vs qa_parts citation-host conflict). See BACKLOG.json.
 
 ## Active slice
-BACKLOG CLEARED (2026-07-14): every OPP + F item is FIXED (18 fixed, 0 open).
-This round shipped OPP-2 (seeded runs + Replay), OPP-3 (gymnasium KodroEnv-v0,
-golden returns 3.25 / -10.3549...), OPP-4 (on_line() line follower, gated),
-OPP-5 (URDF->KRS import, honest motorless output), OPP-6 (runtime custom world:
-seed/density/traction), OPP-7 (bounded grammar-constrained set_world tool call),
-OPP-8 (explicit spec migrator with recorded notes), F6 (Scene tweaks trigger).
-Gates grew: qa_interpreter 163->180, qa_ai_web 19->27, pytest 1053->1068 (89%
-coverage), + qa_ui concerns tweaks-panel / run-replay / custom-world.
-Dissertation: Professional Issues chapter added (separate Ethics + BCS criteria,
-the two CA1 supervisor criticisms), numbers refreshed to measured truth,
-exactly 50 pages, 0 em/en dashes. CA1 real grade: B (supervisor Keith Dures).
-Watch: local qa_ui/qa_worlds flake on chrome-spawn ETIMEDOUT under sustained
-local load; rerun after cooldown or lean on CI (which does not run qa_ui).
-Trap fixed en route: a \n inside the seedrun template in
-build_screenshot_harness.cjs emitted a real newline into cap.html (SyntaxError
-at line 39) -- escape as \\n in the .cjs template.
+JUDGE ROUND 1 shipped at ff2606a: six-judge adversarial panel (first-timer,
+teacher, budget builder, accessibility, performance, honesty) over the real
+bundle, findings refuted independently -> 18 root defects fixed, 5 rejected.
+Highlights: honesty consistency (one stopping-distance formula, catalogue top
+speed APPROXIMATED not HONOURED, no "honest error bars", AI prices labelled
+estimates) pinned by NEW qa_honesty.mjs (in CI); Robot Lab CTA no longer
+off-screen; Lessons button one click to the learning half; phone shows the
+city first at 46vh; onboarding focus trap; Revert toast persists; boot backstop
+waits for readyState; quality floor reaches Low. Gates green: qa_ui 33/33,
+qa_worlds 61/61, qa_honesty 23, pytest 1068, statics clean.
+Dissertation unchanged this round (no number/claim moved; the fixes make its
+existing honesty claims MORE true); still 50 pages, 0 dashes.
+NEXT: judge round 2 over the ff2606a live deploy. Convergence needs two
+consecutive clean rounds.
+
+Watch: local qa_ui/qa_worlds flake on chrome-spawn timing under sustained load;
+the lessons-entry concern was made deterministic (assert button + classroom
+picker, no click race). CI does not run qa_ui/qa_worlds.
 
 ## Exact next command on resume
     cd /d/project/robolearn && node scripts/qa_interpreter.mjs | tail -1   # confirm green
