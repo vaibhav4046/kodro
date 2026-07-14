@@ -257,7 +257,7 @@
       <div className="modal-backdrop" onClick={onClose}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Teacher dashboard" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow">{KI('report')}Teacher dashboard. How the class is doing, idea by idea</span>
+            <span className="eyebrow">{KI('report')}{browserMode ? 'Progress on this device, idea by idea' : 'Teacher dashboard. How the class is doing, idea by idea'}</span>
             <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
           </div>
           <div className="teacher-body">
@@ -281,7 +281,7 @@
                 <table className="heatmap-table">
                   <thead>
                     <tr>
-                      <th>Pupil</th>
+                      <th>{browserMode ? 'Learner' : 'Pupil'}</th>
                       {teacherData.concepts.map(c => <th key={c} className="hm-concept">{c}</th>)}
                     </tr>
                   </thead>
@@ -316,7 +316,7 @@
                     ))}
                   </tbody>
                 </table>
-                <p className="build-note">Each cell is a score from 0 to 100 showing how well that idea is known. It updates with every graded attempt, and greener means stronger. {browserMode ? 'Records are saved in this browser on this device, and nothing leaves it.' : 'Nothing leaves this computer.'}</p>
+                <p className="build-note">Each cell is a score from 0 to 100 showing how well that idea is known. It updates with every graded attempt, and greener means stronger. {browserMode ? 'In the browser Kodro keeps one record per device, so everyone using this device counts together; open the desktop app to keep a separate record for each pupil. Records are saved in this browser on this device, and nothing leaves it.' : 'Nothing leaves this computer.'}</p>
               </div>
             )}
           </div>

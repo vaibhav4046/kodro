@@ -23339,7 +23339,7 @@ say("Survey done")`
       className: "modal-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, KI('report'), "Teacher dashboard. How the class is doing, idea by idea"), /*#__PURE__*/React.createElement("button", {
+    }, KI('report'), browserMode ? 'Progress on this device, idea by idea' : 'Teacher dashboard. How the class is doing, idea by idea'), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
       onClick: onClose
@@ -23362,7 +23362,7 @@ say("Survey done")`
       }
     }, /*#__PURE__*/React.createElement("table", {
       className: "heatmap-table"
-    }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, "Pupil"), teacherData.concepts.map(c => /*#__PURE__*/React.createElement("th", {
+    }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, browserMode ? 'Learner' : 'Pupil'), teacherData.concepts.map(c => /*#__PURE__*/React.createElement("th", {
       key: c,
       className: "hm-concept"
     }, c)))), /*#__PURE__*/React.createElement("tbody", null, teacherData.pupils.map(p => /*#__PURE__*/React.createElement("tr", {
@@ -23405,7 +23405,7 @@ say("Survey done")`
       }, has ? pct : '·');
     }))))), /*#__PURE__*/React.createElement("p", {
       className: "build-note"
-    }, "Each cell is a score from 0 to 100 showing how well that idea is known. It updates with every graded attempt, and greener means stronger. ", browserMode ? 'Records are saved in this browser on this device, and nothing leaves it.' : 'Nothing leaves this computer.')))));
+    }, "Each cell is a score from 0 to 100 showing how well that idea is known. It updates with every graded attempt, and greener means stronger. ", browserMode ? 'In the browser Kodro keeps one record per device, so everyone using this device counts together; open the desktop app to keep a separate record for each pupil. Records are saved in this browser on this device, and nothing leaves it.' : 'Nothing leaves this computer.')))));
   }
 
   // ---- AI code review ----

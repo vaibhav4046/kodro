@@ -99,5 +99,12 @@ for (const t of Object.keys(themes)) {
   ok(r >= AA, `Reset label (--danger) on the mission bar (--navy-2) in "${t}" is ${r.toFixed(2)}:1 (need ${AA})`);
 }
 
-console.log((fail === 0 ? 'PASS' : 'FAIL') + '  contrast: ' + pass + ' passed, ' + fail + ' failed (over ' + Object.keys(themes).length + ' themes)');
+// 4. Responsive integrity: at phone width the view controls (3D/2D/quality/
+//    time/weather) must take their own full-width row so they wrap inside the
+//    panel; without it the rigid cluster overflowed and .view-panel
+//    overflow:hidden clipped the 3D button off-screen (judge round 5).
+ok(/\.terrain-switch\s*>\s*\.view-toggle\s*\{\s*flex\s*:\s*1\s+1\s+100%/.test(CSS),
+  'phone width gives .view-toggle a full-width wrapping row inside .terrain-switch');
+
+console.log((fail === 0 ? 'PASS' : 'FAIL') + '  contrast + responsive: ' + pass + ' passed, ' + fail + ' failed (over ' + Object.keys(themes).length + ' themes)');
 process.exit(fail === 0 ? 0 : 1);

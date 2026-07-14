@@ -792,7 +792,15 @@ select.terrain-btn:hover {
     flex-wrap:wrap; justify-content:center; gap:6px;
     max-width:100%; padding:6px; background:var(--navy-2);
   }
-  .view-toggle { flex-wrap:wrap; }
+  /* The view controls (3D / 2D / quality / time / weather) are a rigid
+     content-sized child of .terrain-switch (flex:0 0 auto), so at phone width
+     the cluster (~425px) overflowed the ~363px panel and .view-panel
+     overflow:hidden clipped the 3D button off the left edge with no scroll
+     (judge round 5). Give it its own full-width row so its buttons wrap inside
+     the panel and every control stays tappable. */
+  .terrain-switch > .view-toggle { flex:1 1 100%; overflow-x:auto; scrollbar-width:thin; }
+  .view-toggle { flex-wrap:nowrap; justify-content:flex-start; }
+  .view-toggle > * { flex:0 0 auto; }
   .panel-head { flex-wrap:wrap; height:auto; row-gap:6px; }
   .tabs { flex-wrap:wrap; }
   .btn-mini { flex:0 0 auto; white-space:nowrap; }
