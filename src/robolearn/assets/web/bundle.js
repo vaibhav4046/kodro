@@ -3038,8 +3038,23 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       },
       traction: 0.98,
       obstacleLabel: 'PARKED CAR',
-      obstacles: genCity(2027),
-      decor: [],
+      // The flagship proving ground: one world dense with distinct asset
+      // kinds. genCity's buildings and parked cars, a riverside tree line
+      // (real collidable trunks) and planter boulders, on top of the lane
+      // decor and the live pedestrian + traffic agents (agents.jsx). This is
+      // the world the studio opens in.
+      obstacles: function () {
+        const base = genCity(2027);
+        const trees = genGrove(414, 12, 36, 68, 500, base);
+        const both = base.concat(trees);
+        const planters = genObstacles(88, 6, 34, 56).filter(function (o) {
+          return !both.some(function (b) {
+            return Math.hypot(b.x - o.x, b.y - o.y) < b.r + o.r + 70;
+          });
+        });
+        return both.concat(planters);
+      }(),
+      decor: genDecor(2028, 36),
       backdrop: 'city'
     },
     room: {
@@ -13564,9 +13579,9 @@ Object.assign(window, {
   // a home robot in a room, an explorer on open terrain.
   const WORLD_FOR = {
     rover: {
-      id: 'earth',
-      label: 'Open terrain',
-      why: 'an explorer is tested on rough open ground first.'
+      id: 'city',
+      label: 'Riverside City',
+      why: 'the proving ground: streets, people, traffic, trees and parked cars in one place.'
     },
     car: {
       id: 'city',
@@ -13584,9 +13599,9 @@ Object.assign(window, {
       why: 'a fixed manipulator works at a table indoors.'
     },
     custom: {
-      id: 'earth',
-      label: 'Open terrain',
-      why: 'start on safe open ground, then try the city and the others.'
+      id: 'city',
+      label: 'Riverside City',
+      why: 'the proving ground has every kind of obstacle; the other worlds are one click away.'
     }
   };
   const CHASSIS_MASS = 380; // grams, frame + battery + wiring, before parts
@@ -17893,7 +17908,7 @@ Object.assign(window, {
       id: "konb-h1"
     }, "Build a robot.", /*#__PURE__*/React.createElement("br", null), "Teach it.", /*#__PURE__*/React.createElement("br", null), /*#__PURE__*/React.createElement("em", null, "Watch it work.")), /*#__PURE__*/React.createElement("p", {
       className: "konb-lead"
-    }, "Kodro answers one question: ", /*#__PURE__*/React.createElement("b", null, "would your robot actually work?"), " Put together a machine from real parts, tell it what to do in simple Python or blocks, and watch it try the job in a lifelike world. You see how fast it really goes, how long the battery lasts and what it crashes into, before you spend a penny building the real thing."), /*#__PURE__*/React.createElement("ul", {
+    }, /*#__PURE__*/React.createElement("b", null, "Would your robot actually work?"), " Build it from real parts, press Run, and watch it try the job in a living city, before you spend a penny on the real thing."), /*#__PURE__*/React.createElement("ul", {
       className: "konb-caps"
     }, CAPS.map((c, i) => /*#__PURE__*/React.createElement("li", {
       key: i
@@ -24489,16 +24504,17 @@ say("Survey done")`
     const [terrainId, setTerrainId] = useState(() => {
       const saved = lsGet('or_terrain');
       if (saved) return saved;
-      // Fresh load: open in the world recommended for the current build, so the
-      // first impression matches the rover (the default rover recommends Earth),
-      // instead of a hardcoded Mars that contradicts the build's own world.
+      // Fresh load: open in the world recommended for the current build. The
+      // default rover recommends Riverside City, the flagship proving ground,
+      // so the first thing a new user sees is the one world with everything
+      // moving in it.
       try {
         const rb = window.getKodroRobot && window.getKodroRobot();
         if (rb && rb.world) return rb.world;
       } catch (e) {
         void e;
       }
-      return 'mars';
+      return 'city';
     });
     const [activeTab, setActiveTab] = useState(() => {
       const saved = lsGet('or_tab');
@@ -24591,7 +24607,9 @@ say("Survey done")`
     };
     // Real WebGL 3D viewport (Three.js) with third-person orbit / first-person.
     const [view3d, setView3d] = useState(() => lsGet('or_view3d') !== '0');
-    const [fpv, setFpv] = useState(() => lsGet('or_fpv') === '1');
+    // First person was removed (round-3 user feedback: 2D + 3D only). The
+    // constant keeps Viewport3D's prop wiring inert without a UI path to it.
+    const fpv = false;
     useEffect(() => {
       try {
         localStorage.setItem('or_view3d', view3d ? '1' : '0');
@@ -24614,22 +24632,6 @@ say("Survey done")`
         if (window.KodroAgents) window.KodroAgents.stop();
       };
     }, [terrainId]);
-    useEffect(() => {
-      try {
-        localStorage.setItem('or_fpv', fpv ? '1' : '0');
-      } catch (e) {
-        void e;
-      }
-    }, [fpv]);
-    // Escape leaves first person fast (a quick exit for motion sensitivity).
-    useEffect(() => {
-      if (!fpv) return undefined;
-      const onEsc = e => {
-        if (e.key === 'Escape') setFpv(false);
-      };
-      window.addEventListener('keydown', onEsc);
-      return () => window.removeEventListener('keydown', onEsc);
-    }, [fpv]);
     const zoom = cam.zoom;
     const trailColor = t.trail === 'cyan' ? '#5ce0d8' : t.trail === 'amber' ? '#e0b45c' : t.trail === 'white' ? '#f5f0e4' : null;
 
@@ -25911,14 +25913,6 @@ say("Survey done")`
             });
             return;
           }
-          // Ctrl+F: toggle first-person view (only meaningful in 3D).
-          if (!e.shiftKey && !e.altKey && (e.key === 'F' || e.key === 'f')) {
-            e.preventDefault();
-            setFpv(function (f) {
-              return !f;
-            });
-            return;
-          }
         } else if (e.key === '?' && !typingIn(e.target)) {
           e.preventDefault();
           setShowHelp(function (s) {
@@ -26391,7 +26385,7 @@ say("Survey done")`
         setAskOpen(true);
         setAskData(null);
       }
-    }, KI('ask'), "Ask"), /*#__PURE__*/React.createElement("button", {
+    }, KI('ask'), "Ask"), !browserMode && /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Run your program on a swarm of rovers at once",
       onClick: runSwarm
@@ -26408,6 +26402,9 @@ say("Survey done")`
       // reason in its tooltip (product-coherence D5). The old static
       // strip also advertised the collect_sample()/drop_sample()
       // print stubs; only real, runnable commands are listed now.
+      // Studio keeps the screen quiet (round-3 feedback: fewer
+      // words); learners in classroom mode keep the command strip.
+      if (!classroom) return null;
       const gateOk = g => !g || !window.KodroCommands || window.KodroCommands.check(robotSpec, g).ok;
       const ACTION_HINTS = [['move_forward(m)', null], ['move_backward(m)', null], ['turn_left(°)', null], ['turn_right(°)', null], ['set_speed(0–100)', null], ['pen_down/up()', null], ['wait(s)', null], ['scan()', 'scan'], ['led("cyan")', null], ['say("…")', null], ['place("flag")', null]];
       const SENSOR_HINTS = [['distance()', 'distance'], ['heading()', 'heading'], ['battery()', null], ['obstacle_ahead()', 'distance'], ['gravity()', null], ['temperature()', null]];
@@ -26751,15 +26748,9 @@ say("Survey done")`
       type: "button",
       className: 'terrain-btn' + (!view3d ? ' active' : ''),
       "aria-pressed": !view3d,
-      title: "Flat 2.5D view",
+      title: "Flat top-down view",
       onClick: () => setView3d(false)
-    }, "2.5D"), view3d && /*#__PURE__*/React.createElement("button", {
-      type: "button",
-      className: "terrain-btn",
-      "aria-pressed": fpv,
-      title: "Switch between orbit and first person",
-      onClick: () => setFpv(f => !f)
-    }, fpv ? KI('eye') : KI('orbit'), fpv ? 'First person' : 'Orbit'), view3d && /*#__PURE__*/React.createElement("select", {
+    }, "2D"), view3d && /*#__PURE__*/React.createElement("select", {
       className: "terrain-btn",
       value: quality,
       title: "Render quality (Low keeps a basic laptop smooth, Cinematic maxes a screenshot)",
@@ -26829,7 +26820,7 @@ say("Survey done")`
       focusKey: focus3dKey,
       onFail: () => {
         setView3d(false);
-        addConsole('3D is unavailable on this machine — switched to the 2.5D view.', 'sys');
+        addConsole('3D is unavailable on this machine — switched to the flat view.', 'sys');
       }
     }) : /*#__PURE__*/React.createElement(window.Viewport, {
       terrain: terrain,

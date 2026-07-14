@@ -117,8 +117,21 @@
       accent: '#6fb4e8', dot: '#6fb4e8',
       env: { gravity: 9.81, temp: 16, tempLabel: 'AIR TEMP', pressure: 1.0, pressureLabel: 'PRESSURE', pressureUnit: 'atm', light: 80 },
       traction: 0.98, obstacleLabel: 'PARKED CAR',
-      obstacles: genCity(2027),
-      decor: [],
+      // The flagship proving ground: one world dense with distinct asset
+      // kinds. genCity's buildings and parked cars, a riverside tree line
+      // (real collidable trunks) and planter boulders, on top of the lane
+      // decor and the live pedestrian + traffic agents (agents.jsx). This is
+      // the world the studio opens in.
+      obstacles: (function () {
+        const base = genCity(2027);
+        const trees = genGrove(414, 12, 36, 68, 500, base);
+        const both = base.concat(trees);
+        const planters = genObstacles(88, 6, 34, 56).filter(function (o) {
+          return !both.some(function (b) { return Math.hypot(b.x - o.x, b.y - o.y) < b.r + o.r + 70; });
+        });
+        return both.concat(planters);
+      })(),
+      decor: genDecor(2028, 36),
       backdrop: 'city'
     },
     room: {

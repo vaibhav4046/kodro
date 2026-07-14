@@ -361,10 +361,8 @@
                   <span className="konb-eyebrow">Free · no account · works without internet</span>
                   <h1 className="konb-h1" id="konb-h1">Build a robot.<br />Teach it.<br /><em>Watch it work.</em></h1>
                   <p className="konb-lead">
-                    Kodro answers one question: <b>would your robot actually work?</b> Put together a machine
-                    from real parts, tell it what to do in simple Python or blocks, and watch it try the job
-                    in a lifelike world. You see how fast it really goes, how long the battery lasts and what
-                    it crashes into, before you spend a penny building the real thing.
+                    <b>Would your robot actually work?</b> Build it from real parts, press Run, and watch it
+                    try the job in a living city, before you spend a penny on the real thing.
                   </p>
                   <ul className="konb-caps">
                     {CAPS.map((c, i) => <li key={i}>{c}</li>)}

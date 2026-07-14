@@ -62,11 +62,12 @@
     const [terrainId, setTerrainId] = useState(() => {
       const saved = lsGet('or_terrain');
       if (saved) return saved;
-      // Fresh load: open in the world recommended for the current build, so the
-      // first impression matches the rover (the default rover recommends Earth),
-      // instead of a hardcoded Mars that contradicts the build's own world.
+      // Fresh load: open in the world recommended for the current build. The
+      // default rover recommends Riverside City, the flagship proving ground,
+      // so the first thing a new user sees is the one world with everything
+      // moving in it.
       try { const rb = window.getKodroRobot && window.getKodroRobot(); if (rb && rb.world) return rb.world; } catch (e) { void e; }
-      return 'mars';
+      return 'city';
     });
     const [activeTab, setActiveTab] = useState(() => {
       const saved = lsGet('or_tab');
@@ -123,7 +124,9 @@
       : { cam: { tilt: 46, yaw: -8, zoom: 1 }, setCam: function () {}, camDrag: function () {}, camWheel: function () {} };
     // Real WebGL 3D viewport (Three.js) with third-person orbit / first-person.
     const [view3d, setView3d] = useState(() => lsGet('or_view3d') !== '0');
-    const [fpv, setFpv] = useState(() => lsGet('or_fpv') === '1');
+    // First person was removed (round-3 user feedback: 2D + 3D only). The
+    // constant keeps Viewport3D's prop wiring inert without a UI path to it.
+    const fpv = false;
     useEffect(() => { try { localStorage.setItem('or_view3d', view3d ? '1' : '0'); } catch (e) { void e; } }, [view3d]);
     // Spin up the moving-agent simulation for the current world (city traffic
     // and pedestrians); both viewports and the collision test read from it.
@@ -138,14 +141,6 @@
       }
       return () => { if (window.KodroAgents) window.KodroAgents.stop(); };
     }, [terrainId]);
-    useEffect(() => { try { localStorage.setItem('or_fpv', fpv ? '1' : '0'); } catch (e) { void e; } }, [fpv]);
-    // Escape leaves first person fast (a quick exit for motion sensitivity).
-    useEffect(() => {
-      if (!fpv) return undefined;
-      const onEsc = (e) => { if (e.key === 'Escape') setFpv(false); };
-      window.addEventListener('keydown', onEsc);
-      return () => window.removeEventListener('keydown', onEsc);
-    }, [fpv]);
     const zoom = cam.zoom;
     const trailColor = t.trail === 'cyan' ? '#5ce0d8' : t.trail === 'amber' ? '#e0b45c' : t.trail === 'white' ? '#f5f0e4' : null;
 
@@ -926,8 +921,6 @@
           if (e.key === '/') { e.preventDefault(); setShowHelp(function (s) { return !s; }); return; }
           // Ctrl+D: toggle 2D / 3D view.
           if (!e.shiftKey && !e.altKey && (e.key === 'D' || e.key === 'd')) { e.preventDefault(); setView3d(function (v) { return !v; }); return; }
-          // Ctrl+F: toggle first-person view (only meaningful in 3D).
-          if (!e.shiftKey && !e.altKey && (e.key === 'F' || e.key === 'f')) { e.preventDefault(); setFpv(function (f) { return !f; }); return; }
         } else if (e.key === '?' && !typingIn(e.target)) {
           e.preventDefault(); setShowHelp(function (s) { return !s; });
         }
@@ -1201,7 +1194,7 @@
                   <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>{KI('gauge')}Realism</button>
                   <button className="btn-mini" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}>{KI('demo')}Demo</button>
                   <button className="btn-mini" title={aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs a local model or a cloud key)'} onClick={() => { setAskOpen(true); setAskData(null); }}>{KI('ask')}Ask</button>
-                  <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>{KI('swarm')}Swarm</button>
+                  {!browserMode && <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>{KI('swarm')}Swarm</button>}
                 </div>
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
@@ -1213,6 +1206,9 @@
                 // reason in its tooltip (product-coherence D5). The old static
                 // strip also advertised the collect_sample()/drop_sample()
                 // print stubs; only real, runnable commands are listed now.
+                // Studio keeps the screen quiet (round-3 feedback: fewer
+                // words); learners in classroom mode keep the command strip.
+                if (!classroom) return null;
                 const gateOk = (g) => !g || !window.KodroCommands || window.KodroCommands.check(robotSpec, g).ok;
                 const ACTION_HINTS = [
                   ['move_forward(m)', null], ['move_backward(m)', null], ['turn_left(°)', null], ['turn_right(°)', null],
@@ -1452,10 +1448,7 @@
               )}
               <span className="view-toggle">
                 <button type="button" className={'terrain-btn' + (view3d ? ' active' : '')} aria-pressed={view3d} title="Real 3D view" onClick={() => { setView3d(true); setFocus3dKey(k => k + 1); }}>3D</button>
-                <button type="button" className={'terrain-btn' + (!view3d ? ' active' : '')} aria-pressed={!view3d} title="Flat 2.5D view" onClick={() => setView3d(false)}>2.5D</button>
-                {view3d && (
-                  <button type="button" className="terrain-btn" aria-pressed={fpv} title="Switch between orbit and first person" onClick={() => setFpv(f => !f)}>{fpv ? KI('eye') : KI('orbit')}{fpv ? 'First person' : 'Orbit'}</button>
-                )}
+                <button type="button" className={'terrain-btn' + (!view3d ? ' active' : '')} aria-pressed={!view3d} title="Flat top-down view" onClick={() => setView3d(false)}>2D</button>
                 {view3d && (
                   <select className="terrain-btn" value={quality} title="Render quality (Low keeps a basic laptop smooth, Cinematic maxes a screenshot)" aria-label="Render quality" style={{ cursor: 'pointer' }}
                     onChange={e => { const v = e.target.value; window.KODRO_QUALITY = v; setQuality(v); try { localStorage.setItem('kodro_quality', v); } catch (err) { void err; } }}>
@@ -1486,7 +1479,7 @@
               </span>
             </div>
             {view3d
-              ? <window.Viewport3D key={'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + '-' + ((terrain && terrain.tod) || 'noon') + '-' + ((terrain && terrain.weather) || 'clear') + (quality === 'cinematic' ? '-cine' : '-std')} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the 2.5D view.', 'sys'); }} />
+              ? <window.Viewport3D key={'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + '-' + ((terrain && terrain.tod) || 'noon') + '-' + ((terrain && terrain.weather) || 'clear') + (quality === 'cinematic' ? '-cine' : '-std')} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the flat view.', 'sys'); }} />
               : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
             {worldLoading && (
               <div className="world-loading" role="status" aria-live="polite" aria-label={'Loading ' + worldLoading.name}>

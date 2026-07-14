@@ -509,7 +509,10 @@ function checkAgentsAtSite(chrome) {
 // truth about it: telemetry shows a NO RANGE SENSOR state instead of a lidar
 // number, and the api-hint greys distance() out instead of advertising it.
 function checkBuildHonesty(chrome) {
-  const url = `${BASE}?world=earth&robot=custom&q=low`;
+  // classroom mode: the command hint strip (whose greying this asserts) now
+  // lives there only; the studio keeps a quiet screen and gates commands at
+  // the Telemetry readout and the runtime refusal instead.
+  const url = `${BASE}?world=earth&robot=custom&q=low&mode=classroom`;
   const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_build_honesty', url, { vtime: 8000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };

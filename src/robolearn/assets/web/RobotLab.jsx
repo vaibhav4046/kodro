@@ -80,11 +80,11 @@
   // assistant reasoning about the robot: a road vehicle belongs among traffic,
   // a home robot in a room, an explorer on open terrain.
   const WORLD_FOR = {
-    rover: { id: 'earth', label: 'Open terrain', why: 'an explorer is tested on rough open ground first.' },
+    rover: { id: 'city', label: 'Riverside City', why: 'the proving ground: streets, people, traffic, trees and parked cars in one place.' },
     car: { id: 'city', label: 'Riverside City', why: 'a road vehicle must cope with traffic and pedestrians.' },
     home: { id: 'room', label: 'Living Room', why: 'a companion robot shares an indoor space with people and furniture.' },
     arm: { id: 'room', label: 'Living Room', why: 'a fixed manipulator works at a table indoors.' },
-    custom: { id: 'earth', label: 'Open terrain', why: 'start on safe open ground, then try the city and the others.' },
+    custom: { id: 'city', label: 'Riverside City', why: 'the proving ground has every kind of obstacle; the other worlds are one click away.' },
   };
 
   const CHASSIS_MASS = 380; // grams, frame + battery + wiring, before parts
