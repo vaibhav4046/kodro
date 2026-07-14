@@ -228,9 +228,14 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .tabs::-webkit-scrollbar { height:5px; }
 .tabs::-webkit-scrollbar-thumb { border:none; background:rgba(245,240,228,0.14); }
 .tab {
+  /* appearance:none + an explicit transparent background: without them an
+     inactive tab <button> fell back to the UA light button face, so its label
+     was ~2:1 on near-white AND the active/inactive emphasis was inverted
+     (judge round 4). fg-2 (not fg-3) clears AA on the dark bar. */
+  appearance:none; -webkit-appearance:none; background:transparent;
   font-family:var(--font-mono); font-size:var(--text-sm); letter-spacing:0.04em;
   padding:5px 10px; border-radius:var(--radius-sm) var(--radius-sm) 0 0; cursor:pointer; white-space:nowrap;
-  color:var(--fg-3); border:1px solid transparent; border-bottom:none;
+  color:var(--fg-2); border:1px solid transparent; border-bottom:none;
   transition:all 140ms var(--ease);
 }
 .tab:hover { color:var(--fg-2); background:rgba(245,240,228,0.03); }
@@ -1331,7 +1336,7 @@ kbd {
   --ink:#222b50; --ink-2:#2a3a85; --ink-3:#5d6aa8;
   --cyan:#63b6f8; --cyan-2:#29adff; --cyan-deep:#1d5fb0;
   --mars:#ef7d57; --brass:#ffcd75;
-  --success:#38b764; --warning:#ffcd75; --danger:#b13e53;
+  --success:#38b764; --warning:#ffcd75; --danger:#ffa3b0;
   --fg-1:#f4f4f4; --fg-2:rgba(244,244,244,0.74); --fg-3:#aeb3c9; --fg-4:#a6acc4;
   --border:rgba(244,244,244,0.18); --border-2:rgba(244,244,244,0.08);
   --font-display:var(--font-mono); --font-body:var(--font-mono);
@@ -1366,7 +1371,7 @@ kbd {
   /* warning doubles as verdict/hint TEXT on white and on the yellow navy-2
      card; the LEGO yellow sat at 1.5:1 there, so the text token is a dark
      ochre while --brass keeps the brick yellow for fills. */
-  --success:#237841; --warning:#7a6200; --danger:#d01012;
+  --success:#237841; --warning:#7a6200; --danger:#b3141f;
   --fg-1:#16161a; --fg-2:rgba(22,22,26,0.72); --fg-3:#5c5c5e; --fg-4:#646466;
   --border:rgba(22,22,26,0.16); --border-2:rgba(22,22,26,0.08);
   --terrain:#0055bf;

@@ -123,6 +123,13 @@ jobs:
       - name: Web honesty gate
         run: node scripts/qa_honesty.mjs
 
+      # Contrast gate: WCAG AA for the editor tab labels and the run-control
+      # Reset label across EVERY theme, computed from the shipped styles.css
+      # tokens. Catches a reverted appearance:none fix or a new/retuned theme
+      # shipping an illegible control.
+      - name: Web contrast gate
+        run: node scripts/qa_contrast.mjs
+
       # Browser boot + privacy gate (qa_web): the ONLY browser-driven gate wired
       # into CI, and only on Linux. It builds the static web bundle and loads it
       # in headless Chrome to prove two things a green Python/Node CI otherwise
