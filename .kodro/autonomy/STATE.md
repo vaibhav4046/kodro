@@ -31,22 +31,21 @@ introduced, found and root-fixed: K-003 (ruff format on app.py), K-004
 (offline-guard vs qa_parts citation-host conflict). See BACKLOG.json.
 
 ## Active slice
-JUDGE ROUND 2 shipped at 7ed5618: 2 root defects (down from 18 in round 1),
-3 rejected. Fixed: default first Run in the flagship city now completes clean
-(sense-and-avoid starter, showcases the core value) gated by qa_ui
-checkFirstRunClean; NOT SIMULATED fidelity badge contrast raised to 7.38:1 (AA).
-Dissertation Appendix B updated to the sensing first-example; 50 pages, 0 dashes.
-Gates clean in isolation: qa_ui 34/34, qa_worlds 61/61, qa_honesty 23,
-interpreter 180. NOTE: local pytest exit 1 is a tkinter-unavailable env issue
-(19 Tk desktop-UI tests skipped, 0 failures); JS-only changes cannot affect it;
-CI pytest (Tk on 3 OS) is authoritative and gates the deploy.
+CONVERGENCE IN PROGRESS at live d3f0b0b (7ed5618). Judge round 3 = FIRST CLEAN
+round: 0 accepted, 12 rejected (10 working-as-disclosed, 2 preference); no code
+changed, live build unchanged and still hash-verified. Round 4 running now; it
+must ALSO be clean (0 accepted) to declare convergence per the master prompt.
+Rejected-in-round-3 themes (all correctly refuted, NOT defects): mobile canvas
+sizing is an intentional disclosed layout + a headless-capture artifact; the
+single "This device" web pupil row is gated (qa_pupilstore) + disclosed
+(serverless no-account build); the example tabs and the mobile scroll app-bar
+are intentional. If round 4 is clean -> converged -> final deliverable report.
+If round 4 finds a real defect -> fix + gate + ship + two fresh clean rounds.
 
-CONVERGENCE STATUS: round 1 found 18, round 2 found 2. Need TWO consecutive
-CLEAN rounds (zero accepted findings). NEXT: judge round 3 over the 7ed5618
-live deploy. If clean, round 4 must also be clean to converge.
-
-Watch: qa_ui/qa_worlds flake on chrome-spawn ETIMEDOUT under sustained load
-(ran alone after cooldown for the clean result). CI does not run them.
+Gates green at d3f0b0b (in isolation, after load cooldown): qa_ui 34/34,
+qa_worlds 61/61, qa_honesty 23, interpreter 180, CI pytest success (3 OS).
+Dissertation 50pp, 0 dashes. Watch: qa_ui/qa_worlds chrome-spawn flake under
+load; local pytest exit-1 is a tkinter-unavailable env issue (CI is authoritative).
 
 ## Exact next command on resume
     cd /d/project/robolearn && node scripts/qa_interpreter.mjs | tail -1   # confirm green
