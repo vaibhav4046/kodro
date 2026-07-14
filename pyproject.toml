@@ -152,8 +152,18 @@ module = [
     "yourdfpy.*",
     "urdf_parser_py.*",
     "reportlab.*",
+    "gymnasium.*",
+    "numpy.*",
 ]
 ignore_missing_imports = true
+
+# The gymnasium wrapper is optional (rl extra): on a checkout without it,
+# ignore_missing_imports turns gymnasium into Any, and gym.Env becomes an Any
+# base class. Permit that one subclassing so mypy stays green with and without
+# the extra installed (CI runs without it).
+[[tool.mypy.overrides]]
+module = ["robolearn.envs.kodro_env"]
+disallow_subclassing_any = false
 
 # ---------- pytest ---------------------------------------------------------
 
