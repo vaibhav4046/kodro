@@ -54,7 +54,7 @@
     const vSim = robot.phys && robot.phys.vMaxSimCmPerS;
     const topSpeed = (vSim !== undefined)
       ? (vSim / 100).toFixed(2) + ' m/s'
-      : '×' + speedFac.toFixed(2) + ' vs a standard rover';
+      : 'standard (no-load); import a measured spec for a per-build figure';
     const physics = card('Robot physics', [
       row('Mass', (robot.mass || '-') + ' g'),
       row('Top speed', topSpeed),

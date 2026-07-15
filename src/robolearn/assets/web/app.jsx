@@ -1553,7 +1553,7 @@
         {demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, { onClose: () => setDemoOpen(false) })}
         {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} />}
 
-        {blocksOpen && <window.KodroPanels.BlocksModal setBlocksOpen={setBlocksOpen} BLOCK_DEFS={BLOCK_DEFS} robotSpec={robotSpec} addBlock={addBlock} endBlock={endBlock} blockIndent={blockIndent} setBlockIndent={setBlockIndent} blocks={blocks} setBlocks={setBlocks} moveBlock={moveBlock} removeBlock={removeBlock} insertBlocksCode={insertBlocksCode} />}
+        {blocksOpen && <window.KodroPanels.BlocksModal setBlocksOpen={setBlocksOpen} BLOCK_DEFS={BLOCK_DEFS} robotSpec={robotSpec} addBlock={addBlock} endBlock={endBlock} blockIndent={blockIndent} setBlockIndent={setBlockIndent} blocks={blocks} setBlocks={setBlocks} moveBlock={moveBlock} removeBlock={removeBlock} insertBlocksCode={insertBlocksCode} classroom={classroom} />}
 
         {showHelp && <window.KodroPanels.HelpModal onClose={() => setShowHelp(false)} />}
 

@@ -258,7 +258,7 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .editor-grid { display:grid; grid-template-columns:auto 1fr; min-height:100%; }
 .gutter {
   font-family:var(--font-mono); font-size:var(--text-lg); line-height:21px;
-  text-align:right; color:var(--fg-4); padding:14px 10px 14px 14px;
+  text-align:right; color:var(--fg-3); padding:14px 10px 14px 14px;
   user-select:none; background:var(--void); position:sticky; left:0;
 }
 .gutter .gl { display:block; height:21px; transition:color 120ms var(--ease); }
@@ -289,7 +289,7 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .tok-kw { color:var(--mars); }
 .tok-num { color:var(--brass); }
 .tok-str { color:var(--success); }
-.tok-com { color:var(--fg-4); font-style:italic; }
+.tok-com { color:var(--fg-3); font-style:italic; }  /* JR10-01: was --fg-4 (~1.8:1); --fg-3 clears AA on --void */
 .tok-rover { color:var(--cyan); }
 .tok-fn { color:#9fb4ff; }
 .tok-op { color:var(--fg-3); }
@@ -1261,7 +1261,7 @@ kbd {
   flex:1; background:transparent; border:none; outline:none;
   font-family:var(--font-mono); font-size:var(--text-lg); color:var(--fg-1); caret-color:var(--cyan);
 }
-.repl-input::placeholder { color:var(--fg-4); }
+.repl-input::placeholder { color:var(--fg-3); }
 .prop-pulse { animation: pulse 1.6s var(--ease) infinite; }
 @media (prefers-reduced-motion: reduce) { .prop-pulse { animation:none; } }
 

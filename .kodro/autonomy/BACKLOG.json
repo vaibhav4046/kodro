@@ -597,6 +597,42 @@
       "owner": "judge-round-9",
       "evidence": "FIXED: FIDELITY.notSimulated gains the weather line; realism now says 'none in live runs (injected only during multi-seed validation)'. Design-check stopping-distance texts also now carry their 'approximated' tier tag (was quoted untiered). qa_honesty pins all three.",
       "deps": []
+    },
+    {
+      "id": "JR10-01",
+      "title": "Code comments \u2014 the primary teaching text \u2014 rendered at ~1.8:1 contrast (.tok-com used --fg-4 0.22a on --void); gutter line numbers + REPL placeholder same; 'readable text' setting only resized, never recoloured them",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-10",
+      "evidence": "FIXED: .tok-com, the gutter and .repl-input::placeholder switched from --fg-4 to --fg-3 (0.55a), which qa_contrast \u00a73b already verifies clears WCAG AA on --void in all 10 themes, while staying dimmer than the code. Verified 20 tok-com spans render. qa_honesty \u00a717 pins the token.",
+      "deps": []
+    },
+    {
+      "id": "JR10-02",
+      "title": "Blocks palette offered 'collect sample'/'drop sample' as always-enabled action blocks on the free Studio surface, but they are print-only stubs there (the studio command hint strip already delisted them); only real when a lesson supplies the sample mechanic",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-10",
+      "evidence": "FIXED: collect/drop marked lessonOnly in app-data.jsx; BlocksModal filters lessonOnly blocks out of the palette unless classroom mode (app.jsx passes classroom). Verified: absent in Studio, present in Classroom. qa_honesty \u00a719 pins it.",
+      "deps": []
+    },
+    {
+      "id": "JR10-03",
+      "title": "Mars run returned an unqualified 'design held up' while showing 0.006 atm (near-vacuum) + -63C and simulating only gravity+traction; Mars escaped the JR8/JR9 verdict-scoping because it was labelled 'PRESSURE' not a vacuum-class label",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-10",
+      "evidence": "FIXED (data-driven, covers the class): diagnostics computes a thin-atmosphere hazard when pressureLabel='PRESSURE' + unit 'atm' + pressure<0.5, so Mars (0.006) scopes its verdict ('...thin, near-vacuum atmosphere and its temperature extremes are not simulated, so this run cannot prove the build survives them') while normal 1-atm worlds keep the plain verdict. Temperature alone is NOT a trigger (per the refuter, to avoid over-flagging Antarctica/Nepal). Verified live on Mars. qa_honesty \u00a718 pins both branches.",
+      "deps": []
+    },
+    {
+      "id": "JR10-04",
+      "title": "Catalogue 'no-load top speed' scaled with drive-part count/type (4 DC motors=1.25x, servo=1.1x), which is physically wrong (no-load top speed is kinematic: wheel rpm x circumference, count-independent) and contradicts Kodro's own measured path (rpm+radius only) and the motors4 'more grip and torque' note",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-10",
+      "evidence": "FIXED: all catalogue drive/actuator speed tiers set to one shared nominal 1.0; the motor-count advantage now surfaces only in Mobility/endurance (torque+grip), never top speed. motors4 note clarifies 'more grip and torque (not more top speed)'. Catalogue top-speed DISPLAY changed from a per-build 'x1.00' multiplier to honest words ('standard'/'standard (no-load); import a measured spec for a per-build figure') in RobotLab + realism; measured (KRS-import) builds still show real m/s. Interpreter 180 / grader 34 / physics 20 unaffected (odometer is program-driven, speed-independent). qa_honesty \u00a75+\u00a716 pin it.",
+      "deps": []
     }
   ]
 }

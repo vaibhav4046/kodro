@@ -72,10 +72,14 @@ for (const f of SHIPPED) {
   ok(!/perform cleanly/i.test(src), f + ' does not promise a run will "perform cleanly"');
 }
 
-// 5. Realism top speed is not a bare unitless multiplier labelled as a speed.
+// 5. Realism top speed is measured m/s when available, else an honestly labelled
+//    catalogue standard (never a bare unitless multiplier read as a speed, and
+//    never a per-part multiplier that would scale with motor count — JR10-04).
 const realism = read('realism.jsx');
-ok(/vMaxSimCmPerS/.test(realism) && /vs a standard rover/.test(realism),
-  'realism shows measured m/s when available, else a labelled relative factor');
+ok(/vMaxSimCmPerS/.test(realism) && /standard \(no-load\); import a measured spec/.test(realism),
+  'realism shows measured m/s when available, else the catalogue-standard label');
+ok(!/×.*speedFac|speedFac.*vs a standard/.test(realism),
+  'realism no longer shows a per-build top-speed multiplier for catalogue builds');
 
 // 6. AI-estimated part prices are labelled as estimates, not quoted as fact.
 const panels = read('panels.jsx');
@@ -207,6 +211,61 @@ ok(/Weather: rain, snow and dust storms change the light level and the visuals o
 // 15. The learning pillar is named at first contact (judge round 9).
 ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
   'onboarding step 3 introduces the Lessons pillar');
+
+// 16. Catalogue no-load top speed must NOT scale with drive-part count or type
+//     (judge round 10): every drive/actuator part shares one nominal speed, so
+//     a 4-motor build is not taught to be faster than a 2-motor one. Behavioural:
+//     derive() the default 4-motor rover and a 2-motor build; both get the same
+//     catalogue speedFactor.
+{
+  const labSrc = read('RobotLab.jsx');
+  ctx.window.KodroSpecSchema = ctx.window.KodroSpecSchema || undefined;
+  // Parse the ACTUATORS speed tiers straight from source (derive() needs the
+  // React-bound module; the tiers are plain data we can assert directly).
+  const speeds = [...labSrc.matchAll(/id: '(motors2|motors4|servos)'[^}]*?speed: ([\d.]+)/g)].map((m) => [m[1], +m[2]]);
+  ok(speeds.length === 3 && speeds.every(([, v]) => v === 1.0),
+    'motors2/motors4/servos share one nominal no-load speed (found ' + JSON.stringify(speeds) + ')');
+  ok(!/motors4:[^}]*speed: 1\.25/.test(labSrc), 'the 4-motor part no longer claims 1.25x top speed');
+  ok(/more grip and torque \(not more top speed\)/.test(labSrc),
+    'the 4-motor note clarifies the advantage is grip/torque, not top speed');
+}
+
+// 17. Code comments (the teaching text) must clear WCAG AA: .tok-com uses --fg-3
+//     (AA-verified on --void by qa_contrast §3b), not the ~1.8:1 --fg-4 (JR10-01).
+{
+  const css = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'styles.css'), 'utf8');
+  ok(/\.tok-com \{ color:var\(--fg-3\)/.test(css), 'code comments use the AA-clearing --fg-3, not --fg-4');
+  ok(/\.repl-input::placeholder \{ color:var\(--fg-3\); \}/.test(css), 'the REPL placeholder uses --fg-3');
+}
+
+// 18. Mars (thin, near-vacuum atmosphere) scopes its verdict like the vacuum and
+//     depth worlds instead of an unqualified "held up" (JR10-03). Behavioural.
+{
+  const KD = ctx.window.KodroDiagnostics;
+  const spec = { sensors: ['ultrasonic', 'imu'], actuators: ['motors4'], type: 'rover' };
+  const derived = { massFactor: 0.7, speedFactor: 0.7 };
+  const cleanRun = { outcome: 'done', commands: 10, distanceCm: 800, minProximityCm: 100 };
+  const mars = KD.afterRun(KD.assess(spec, derived,
+    { name: 'Mars', traction: 0.9, env: { gravity: 3.71, pressure: 0.006, pressureLabel: 'PRESSURE', pressureUnit: 'atm' } }), cleanRun);
+  ok(/thin, near-vacuum atmosphere/.test(mars.text) && /not simulated/.test(mars.text) && !/design held up\./.test(mars.text),
+    'a clean Mars run scopes its verdict for the unsimulated thin atmosphere (got: ' + mars.text.slice(0, 90) + ')');
+  // A normal 1-atm world is untouched.
+  const earth = KD.afterRun(KD.assess(spec, derived,
+    { name: 'Riverside City', traction: 0.98, env: { gravity: 9.81, pressure: 1.0, pressureLabel: 'PRESSURE', pressureUnit: 'atm' } }), cleanRun);
+  ok(/design held up\./.test(earth.text) && !/not simulated/.test(earth.text),
+    'a normal 1-atm world keeps the plain held-up verdict');
+}
+
+// 19. Blocks palette: the print-stub sample blocks are lessonOnly and hidden on
+//     the free Studio surface (judge round 10).
+{
+  const appData = read('app-data.jsx');
+  ok(/k: 'collect'[^}]*lessonOnly: true/.test(appData) && /k: 'drop'[^}]*lessonOnly: true/.test(appData),
+    'collect/drop sample blocks are marked lessonOnly');
+  const panelsSrc = read('panels.jsx');
+  ok(/BLOCK_DEFS\.filter\(d => classroom \|\| !d\.lessonOnly\)/.test(panelsSrc),
+    'the blocks palette hides lessonOnly blocks outside classroom mode');
+}
 
 console.log((fail === 0 ? 'PASS' : 'FAIL') + '  honesty: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail === 0 ? 0 : 1);

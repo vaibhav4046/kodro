@@ -886,7 +886,12 @@
   }
 
   // ---- Blocks (visual block editor) ----
-  function BlocksModal({ setBlocksOpen, BLOCK_DEFS, robotSpec, addBlock, endBlock, blockIndent, setBlockIndent, blocks, setBlocks, moveBlock, removeBlock, insertBlocksCode }) {
+  function BlocksModal({ setBlocksOpen, BLOCK_DEFS, robotSpec, addBlock, endBlock, blockIndent, setBlockIndent, blocks, setBlocks, moveBlock, removeBlock, insertBlocksCode, classroom }) {
+    // lessonOnly blocks (collect/drop sample) only do something when a lesson
+    // supplies the sample mechanic; hide them on the free Studio surface where
+    // they would be silent print stubs (judge round 10), matching the studio
+    // command hint strip which already delists them.
+    const PALETTE = BLOCK_DEFS.filter(d => classroom || !d.lessonOnly);
     return (
       <div className="modal-backdrop" onClick={() => setBlocksOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Block coding" onClick={e => e.stopPropagation()}>
@@ -895,7 +900,7 @@
             <button className="btn-mini" aria-label="Close" onClick={() => setBlocksOpen(false)}>✕</button>
           </div>
           <div className="blocks-palette">
-            {BLOCK_DEFS.map(d => {
+            {PALETTE.map(d => {
               // Gating parity with the text editor: a block whose command
               // needs a part this build lacks is disabled here, so the limit
               // is visible before running rather than a runtime refusal.

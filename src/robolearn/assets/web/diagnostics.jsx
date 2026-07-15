@@ -196,15 +196,22 @@
     }
 
     // Sites whose defining hazard is NOT simulated (underwater depth pressure,
-    // space vacuum, and the slope-named mountain sites, which are flat planes)
-    // must say so in any positive verdict (JR8-01, JR9). A terrain may declare
-    // its hazard explicitly (terrain.unsimHazard); the pressure worlds are also
-    // recognised by their env label as a fallback.
-    const pressureLabel = terrain && terrain.env && terrain.env.pressureLabel;
+    // space vacuum, a near-vacuum thin atmosphere like Mars, and the slope-named
+    // mountain sites, which are flat planes) must say so in any positive verdict
+    // (JR8-01, JR9, JR10). A terrain may declare its hazard explicitly
+    // (terrain.unsimHazard); the pressure worlds are recognised by their env.
+    const env = (terrain && terrain.env) || {};
+    const pressureLabel = env.pressureLabel;
+    // A thin atmosphere (pressure in atm, well below Earth's 1) is a near-vacuum
+    // exposure the sim does not model, distinct from ordinary weather. Mars is
+    // 0.006 atm; the threshold flags that class without touching normal worlds.
+    const thinAtmosphere = pressureLabel === 'PRESSURE' && env.pressureUnit === 'atm'
+      && typeof env.pressure === 'number' && env.pressure < 0.5;
     const unsimHazard = (terrain && terrain.unsimHazard)
       || (pressureLabel === 'DEPTH' ? 'water and depth pressure'
         : pressureLabel === 'VACUUM' ? 'vacuum and space temperature extremes'
-          : null);
+          : thinAtmosphere ? 'thin, near-vacuum atmosphere and its temperature extremes'
+            : null);
 
     return { overall: overall, summary: summary, dimensions: dims, topFix: topFix,
       numbers: { stoppingCm: stop, mobility: +mob.toFixed(2), rangeM: rangeShown, sensorRange: SENSOR_RANGE_BUILD, blind: !hasRange, unsimHazard: unsimHazard } };

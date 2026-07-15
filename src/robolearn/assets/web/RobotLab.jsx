@@ -42,10 +42,16 @@
     bumper: { id: 'bumper', name: 'Bumper switch', mass: 5, enables: 'contact bumper (fitted; adds mass)' },
   };
   const ACTUATORS = {
+    // speed is the CATALOGUE no-load top-speed proxy. It is a shared nominal
+    // (1.0 = the standard rover) because no-load top speed comes from the wheel
+    // and motor rpm, not the number or kind of drive parts (JR10-04). More/bigger
+    // drive parts add torque and grip, which surface in Mobility and endurance,
+    // never in top speed. An imported measured spec overrides this with a real,
+    // per-build figure derived from rpm + wheel radius.
     motors2: { id: 'motors2', name: '2 DC motors', mass: 120, speed: 1.0, note: 'Two wheels, differential drive.' },
-    motors4: { id: 'motors4', name: '4 DC motors', mass: 220, speed: 1.25, note: 'Four wheels, more grip and torque.' },
-    servos: { id: 'servos', name: 'Steering servo', mass: 40, speed: 1.1, note: 'Car style front steering.' },
-    gripper: { id: 'gripper', name: 'Gripper arm', mass: 90, speed: 0.9, enables: 'manipulator (fitted; adds reach and mass)' },
+    motors4: { id: 'motors4', name: '4 DC motors', mass: 220, speed: 1.0, note: 'Four wheels, more grip and torque (not more top speed).' },
+    servos: { id: 'servos', name: 'Steering servo', mass: 40, speed: 1.0, note: 'Car style front steering.' },
+    gripper: { id: 'gripper', name: 'Gripper arm', mass: 90, speed: 1.0, enables: 'manipulator (fitted; adds reach and mass)' },
   };
 
   const TYPES = {
@@ -671,7 +677,7 @@
             React.createElement('div', { className: 'rl-spec' },
               React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.mass + ' g'), React.createElement('span', null, 'total mass ', Badge('honoured'))),
               React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, (d.phys && d.phys.runtimeMin !== undefined) ? '~' + d.runtimeMin + ' min' : '~' + d.rangeM + ' m'), React.createElement('span', null, (d.phys && d.phys.runtimeMin !== undefined) ? 'battery / charge ' : 'driving range / charge ', Badge('approximated'))),
-              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : '×' + d.speedFactor.toFixed(2)), React.createElement('span', null, 'top speed (no-load) ', Badge((d.phys && d.phys.badges && d.phys.badges.topSpeed) || 'approximated'))),
+              React.createElement('div', { className: 'rl-stat' }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : 'standard'), React.createElement('span', null, (d.phys && d.phys.vMaxSimCmPerS !== undefined) ? 'top speed (no-load) ' : 'top speed (no-load): one catalogue standard; import a spec to measure ', Badge((d.phys && d.phys.badges && d.phys.badges.topSpeed) || 'approximated'))),
               React.createElement('div', { className: 'rl-stat rl-stat-wide' },
                 React.createElement('b', null, d.commands.length ? d.commands.map(c => c + '()').join('  ') : 'move()  turn()  only'),
                 React.createElement('span', null, 'commands this build supports ', Badge('honoured'))

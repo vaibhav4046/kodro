@@ -57,6 +57,33 @@ include .css. narrow_mobile evidence regenerated at a TRUE 420px CDP viewport
 (the --window-size capture clamps to ~482px) so the next round judges the real
 phone layout, not a clamped one.
 
+ROUND 10 ran COMPLETE (20/20 agents) on live 58699f8 and accepted 4 findings
+(all P2; 10 rejected as working-as-disclosed/preference) - the lowest count and
+severity yet, no P0/P1. All 4 fixed as JR10-01..04 (see BACKLOG.json):
+- JR10-01: code comments were ~1.8:1 (unreadable teaching text) -> .tok-com,
+  gutter, REPL placeholder now use --fg-3 (AA-verified on --void).
+- JR10-02: collect/drop-sample blocks were print-stubs on the free Studio
+  surface -> marked lessonOnly, hidden unless classroom mode.
+- JR10-03: Mars said "held up" while 0.006 atm/-63C unsimulated -> data-driven
+  thin-atmosphere scoping (pressureLabel PRESSURE + atm + pressure<0.5).
+- JR10-04: catalogue "no-load top speed" scaled with motor count (physically
+  wrong) -> all drive-part speed tiers = one nominal 1.0; advantage now shows in
+  Mobility/endurance only; display is honest words not a per-build multiplier.
+Gates: qa_honesty 63, qa_contrast 51, qa_web 5/5, qa_ui 38/38 (6/6 flows, 12/12
+modals), qa_worlds 60/61 (the 1 fail = mars-x-rover chrome-spawn ETIMEDOUT
+flake, confirmed rendering clean in isolation), interpreter 180, grader 34,
+physics 20, ai_web 27, parts 40, pupilstore 23, memgraph 22, scenario 4,
+interp_fixes 13. All 4 fixes verified end-to-end in the real product.
+
+>>> RESERVE POINT (user stepped away, will say "continue"): round 10 fixes are
+being committed + shipped now. When resuming: confirm the JR10 ship is live
+(CI green + Deploy Pages + live bundle sha256 == committed on the new commit),
+then run judge round 11 via the Workflow script
+(kodro-judge-round-wf_08492b6b-dff.js) on freshly-captured evidence. Counter is
+STILL 0 consecutive clean rounds (round 10 was not clean); need TWO consecutive
+clean complete rounds to converge, then the final deliverable report +
+dissertation at exactly 50pp/0 dashes.
+
 Gates green for the JR9 fix round (before ship): qa_interpreter 180, qa_grader
 34, qa_physics 20, qa_ai_web 27, qa_parts 40, qa_memgraph 22, qa_pupilstore 23,
 qa_scenario_parity 4, qa_interp_fixes 13, qa_honesty 53, qa_contrast 49,

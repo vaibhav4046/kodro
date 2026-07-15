@@ -13210,12 +13210,17 @@ Object.assign(window, {
     }
 
     // Sites whose defining hazard is NOT simulated (underwater depth pressure,
-    // space vacuum, and the slope-named mountain sites, which are flat planes)
-    // must say so in any positive verdict (JR8-01, JR9). A terrain may declare
-    // its hazard explicitly (terrain.unsimHazard); the pressure worlds are also
-    // recognised by their env label as a fallback.
-    const pressureLabel = terrain && terrain.env && terrain.env.pressureLabel;
-    const unsimHazard = terrain && terrain.unsimHazard || (pressureLabel === 'DEPTH' ? 'water and depth pressure' : pressureLabel === 'VACUUM' ? 'vacuum and space temperature extremes' : null);
+    // space vacuum, a near-vacuum thin atmosphere like Mars, and the slope-named
+    // mountain sites, which are flat planes) must say so in any positive verdict
+    // (JR8-01, JR9, JR10). A terrain may declare its hazard explicitly
+    // (terrain.unsimHazard); the pressure worlds are recognised by their env.
+    const env = terrain && terrain.env || {};
+    const pressureLabel = env.pressureLabel;
+    // A thin atmosphere (pressure in atm, well below Earth's 1) is a near-vacuum
+    // exposure the sim does not model, distinct from ordinary weather. Mars is
+    // 0.006 atm; the threshold flags that class without touching normal worlds.
+    const thinAtmosphere = pressureLabel === 'PRESSURE' && env.pressureUnit === 'atm' && typeof env.pressure === 'number' && env.pressure < 0.5;
+    const unsimHazard = terrain && terrain.unsimHazard || (pressureLabel === 'DEPTH' ? 'water and depth pressure' : pressureLabel === 'VACUUM' ? 'vacuum and space temperature extremes' : thinAtmosphere ? 'thin, near-vacuum atmosphere and its temperature extremes' : null);
     return {
       overall: overall,
       summary: summary,
@@ -13581,6 +13586,12 @@ Object.assign(window, {
     }
   };
   const ACTUATORS = {
+    // speed is the CATALOGUE no-load top-speed proxy. It is a shared nominal
+    // (1.0 = the standard rover) because no-load top speed comes from the wheel
+    // and motor rpm, not the number or kind of drive parts (JR10-04). More/bigger
+    // drive parts add torque and grip, which surface in Mobility and endurance,
+    // never in top speed. An imported measured spec overrides this with a real,
+    // per-build figure derived from rpm + wheel radius.
     motors2: {
       id: 'motors2',
       name: '2 DC motors',
@@ -13592,21 +13603,21 @@ Object.assign(window, {
       id: 'motors4',
       name: '4 DC motors',
       mass: 220,
-      speed: 1.25,
-      note: 'Four wheels, more grip and torque.'
+      speed: 1.0,
+      note: 'Four wheels, more grip and torque (not more top speed).'
     },
     servos: {
       id: 'servos',
       name: 'Steering servo',
       mass: 40,
-      speed: 1.1,
+      speed: 1.0,
       note: 'Car style front steering.'
     },
     gripper: {
       id: 'gripper',
       name: 'Gripper arm',
       mass: 90,
-      speed: 0.9,
+      speed: 1.0,
       enables: 'manipulator (fitted; adds reach and mass)'
     }
   };
@@ -14490,7 +14501,7 @@ Object.assign(window, {
       className: 'rl-stat'
     }, React.createElement('b', null, d.phys && d.phys.runtimeMin !== undefined ? '~' + d.runtimeMin + ' min' : '~' + d.rangeM + ' m'), React.createElement('span', null, d.phys && d.phys.runtimeMin !== undefined ? 'battery / charge ' : 'driving range / charge ', Badge('approximated'))), React.createElement('div', {
       className: 'rl-stat'
-    }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : '×' + d.speedFactor.toFixed(2)), React.createElement('span', null, 'top speed (no-load) ', Badge(d.phys && d.phys.badges && d.phys.badges.topSpeed || 'approximated'))), React.createElement('div', {
+    }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : 'standard'), React.createElement('span', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? 'top speed (no-load) ' : 'top speed (no-load): one catalogue standard; import a spec to measure ', Badge(d.phys && d.phys.badges && d.phys.badges.topSpeed || 'approximated'))), React.createElement('div', {
       className: 'rl-stat rl-stat-wide'
     }, React.createElement('b', null, d.commands.length ? d.commands.map(c => c + '()').join('  ') : 'move()  turn()  only'), React.createElement('span', null, 'commands this build supports ', Badge('honoured')))),
     // ---- SI1: measured-build banner for an imported KRS spec
@@ -17211,7 +17222,7 @@ Object.assign(window, {
     // standard rover, so it is labelled as a factor, never dressed up as an
     // absolute speed (judge round 1: a unitless multiplier read as a speed).
     const vSim = robot.phys && robot.phys.vMaxSimCmPerS;
-    const topSpeed = vSim !== undefined ? (vSim / 100).toFixed(2) + ' m/s' : '×' + speedFac.toFixed(2) + ' vs a standard rover';
+    const topSpeed = vSim !== undefined ? (vSim / 100).toFixed(2) + ' m/s' : 'standard (no-load); import a measured spec for a per-build figure';
     const physics = card('Robot physics', [row('Mass', (robot.mass || '-') + ' g'), row('Top speed', topSpeed), row('Acceleration', accel), row('Terrain friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'), row('Battery', robot.rangeM ? '~' + robot.rangeM + ' m of driving on a charge (the ledger the run enforces)' : '~' + (robot.runtimeMin || '-') + ' min on a charge')]);
 
     // Sensor card.
@@ -23057,11 +23068,13 @@ say("Survey done")`
   }, {
     k: 'collect',
     label: 'collect sample',
+    lessonOnly: true,
     code: () => 'collect_sample()',
     color: 'var(--success)'
   }, {
     k: 'drop',
     label: 'drop sample',
+    lessonOnly: true,
     code: () => 'drop_sample()',
     color: 'var(--success)'
   }, {
@@ -24505,8 +24518,14 @@ say("Survey done")`
     setBlocks,
     moveBlock,
     removeBlock,
-    insertBlocksCode
+    insertBlocksCode,
+    classroom
   }) {
+    // lessonOnly blocks (collect/drop sample) only do something when a lesson
+    // supplies the sample mechanic; hide them on the free Studio surface where
+    // they would be silent print stubs (judge round 10), matching the studio
+    // command hint strip which already delists them.
+    const PALETTE = BLOCK_DEFS.filter(d => classroom || !d.lessonOnly);
     return /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => setBlocksOpen(false)
@@ -24528,7 +24547,7 @@ say("Survey done")`
       onClick: () => setBlocksOpen(false)
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
       className: "blocks-palette"
-    }, BLOCK_DEFS.map(d => {
+    }, PALETTE.map(d => {
       // Gating parity with the text editor: a block whose command
       // needs a part this build lacks is disabled here, so the limit
       // is visible before running rather than a runtime refusal.
@@ -27307,7 +27326,8 @@ say("Survey done")`
       setBlocks: setBlocks,
       moveBlock: moveBlock,
       removeBlock: removeBlock,
-      insertBlocksCode: insertBlocksCode
+      insertBlocksCode: insertBlocksCode,
+      classroom: classroom
     }), showHelp && /*#__PURE__*/React.createElement(window.KodroPanels.HelpModal, {
       onClose: () => setShowHelp(false)
     }), buildOpen && (window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() ? /*#__PURE__*/React.createElement(window.KodroPanels.BuildModal, {
