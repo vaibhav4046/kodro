@@ -49,6 +49,14 @@ that a broken studio component could pass the onboarding-level boot check.
 Counter status: round 9 was NOT clean, so the counter reset again. The NEXT
 TWO complete judge rounds must both accept zero findings to converge.
 
+JR9 SHIPPED: fix commit 3c98ead had a bad git-add (staged *.jsx/*.js but not
+styles.css), so CI qa_contrast went red and the gated deploy correctly SKIPPED
+it; styles.css committed in 58699f8, CI green on 3 OSes, Deploy Pages success,
+live bundle sha256 == committed (3351e673...). Lesson: `git add` globs must
+include .css. narrow_mobile evidence regenerated at a TRUE 420px CDP viewport
+(the --window-size capture clamps to ~482px) so the next round judges the real
+phone layout, not a clamped one.
+
 Gates green for the JR9 fix round (before ship): qa_interpreter 180, qa_grader
 34, qa_physics 20, qa_ai_web 27, qa_parts 40, qa_memgraph 22, qa_pupilstore 23,
 qa_scenario_parity 4, qa_interp_fixes 13, qa_honesty 53, qa_contrast 49,
