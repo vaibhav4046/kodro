@@ -325,7 +325,7 @@
   var FIDELITY = {
     honoured: ['Commanded distances and turn angles (endpoint-exact)', 'No-load top speed calibrated from motor rpm and wheel radius, when it falls inside the simulable band; the sim cruises at exactly this value (outside the band the badge drops to APPROXIMATED and the sim speed is disclosed). Real speed under load is lower', 'Sensor mount position, yaw and range in the studio sim (z ignored, disclosed; the Python engine rays from the rover centre)', 'Collision circle sized from the body footprint', 'Command availability gated on fitted parts', 'Battery as a hard budget: the robot halts at zero'],
     approximated: ['Acceleration and braking: first-order trapezoid at stall torque held constant (no torque falloff with speed), so 0-to-top time is a best-case lower bound and real hardware is slower', 'Turn time from mass or track geometry, not wheel torque curves', 'Traction: three coarse bands per surface', 'Constant-power battery drain (no voltage sag, thermal derating, or motor copper/stall losses), so runtime is optimistic', 'Scenario validation spread from seeded randomisation'],
-    notSimulated: ['Slopes and terrain height (worlds are flat planes); the reported max grade is a static grip-limit estimate, never driven', 'Wheel-level slip and per-motor torque curves', 'Suspension and 3D contact (body motion is cosmetic)', 'Voltage sag, thermal limits, per-motor current transients', 'IMU acceleration content (returns level readings)', 'Camera, GPS, bumper and gripper command semantics', 'Line follower reads a synthesized straight practice line, not the worlds\' painted lanes']
+    notSimulated: ['Slopes and terrain height (worlds are flat planes); the reported max grade is a static grip-limit estimate, never driven', 'Wheel-level slip and per-motor torque curves', 'Suspension and 3D contact (body motion is cosmetic)', 'Voltage sag, thermal limits, per-motor current transients', 'IMU acceleration content (returns level readings)', 'Camera, GPS, bumper and gripper command semantics', 'Line follower reads a synthesized straight practice line, not the worlds\' painted lanes', 'Water, buoyancy, depth pressure and vacuum: the underwater and space sites change gravity, traction and light only, so a run there proves driving, sensing and battery on that surface, never that the build survives the water, the depth pressure or the vacuum itself']
   };
 
   // Per-stat badge tier used by the Robot Lab readout and the report annex.
@@ -13149,6 +13149,12 @@ Object.assign(window, {
       summary = 'This build suits ' + worldName + '. Press Run to see how your program drives it.';
       topFix = '';
     }
+
+    // Underwater and space sites change only gravity, traction and light; the
+    // hazard that defines them (depth pressure / vacuum) is NOT simulated, so
+    // any positive verdict there must say what the run cannot prove (JR8-01).
+    const pressureLabel = terrain && terrain.env && terrain.env.pressureLabel;
+    const unsimHazard = pressureLabel === 'DEPTH' ? 'water and depth pressure' : pressureLabel === 'VACUUM' ? 'vacuum and space temperature extremes' : null;
     return {
       overall: overall,
       summary: summary,
@@ -13159,7 +13165,8 @@ Object.assign(window, {
         mobility: +mob.toFixed(2),
         enduranceMin: effMin,
         sensorRange: SENSOR_RANGE_BUILD,
-        blind: !hasRange
+        blind: !hasRange,
+        unsimHazard: unsimHazard
       }
     };
   }
@@ -13208,6 +13215,11 @@ Object.assign(window, {
     // A finish that shaved an obstacle is not a healthy margin: report the
     // measured closest approach instead of a blanket all-clear.
     const prox = run.minProximityCm;
+    // On a site whose defining hazard is not simulated (underwater depth
+    // pressure, space vacuum), any "mission complete" verdict must say what the
+    // run could not prove, or it overclaims (JR8-01).
+    const hazard = report && report.numbers && report.numbers.unsimHazard;
+    const hazardNote = hazard ? ' This site\'s ' + hazard + ' are not simulated, so this run cannot prove the build survives them.' : '';
     if (report && report.overall === 'pass') {
       if (prox != null && prox < 30) {
         return {
@@ -13216,6 +13228,12 @@ Object.assign(window, {
         };
       }
       const measured = (run.distanceCm != null ? ' Covered ' + (run.distanceCm / 100).toFixed(1) + ' m' : '') + (prox != null && prox < 600 ? ', closest approach ' + Math.round(prox) + ' cm.' : run.distanceCm != null ? '.' : '');
+      if (hazard) {
+        return {
+          tone: 'sys',
+          text: 'Mission complete: driving, sensing and battery held up on this surface.' + (measured || '') + hazardNote
+        };
+      }
       return {
         tone: 'sys',
         text: 'Mission complete and the design held up.' + (measured || ' Margins looked healthy.')
@@ -13224,7 +13242,7 @@ Object.assign(window, {
     if (report && report.overall === 'warn') {
       return {
         tone: 'sys',
-        text: 'Mission complete, but watch the flagged points: ' + (report.topFix || 'see the design check.')
+        text: 'Mission complete, but watch the flagged points: ' + (report.topFix || 'see the design check.') + hazardNote
       };
     }
     return {

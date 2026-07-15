@@ -86,6 +86,7 @@
       'IMU acceleration content (returns level readings)',
       'Camera, GPS, bumper and gripper command semantics',
       'Line follower reads a synthesized straight practice line, not the worlds\' painted lanes',
+      'Water, buoyancy, depth pressure and vacuum: the underwater and space sites change gravity, traction and light only, so a run there proves driving, sensing and battery on that surface, never that the build survives the water, the depth pressure or the vacuum itself',
     ],
   };
 

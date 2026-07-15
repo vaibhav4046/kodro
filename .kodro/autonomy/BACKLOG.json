@@ -462,6 +462,15 @@
       "owner": "judge-round-7",
       "evidence": "FIXED: the 18 .eyebrow TITLE spans across Telemetry.jsx (4), app.jsx (3) and panels.jsx (11) now carry role=\"heading\" aria-level=\"2\"; sub-label .eyebrow DIVs (non-titles) were left untouched. Confirmed 6 role=heading nodes render in the studio DOM. NEW qa_contrast.mjs asserts >=15 eyebrow title spans are level-2 headings.",
       "deps": []
+    },
+    {
+      "id": "JR8-01",
+      "title": "Underwater/space mission sites reported a blanket 'design held up' verdict while pressure, depth, buoyancy, water and vacuum are entirely unmodeled AND absent from the fidelity disclosure",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-8",
+      "evidence": "FIXED (two-part root fix): (a) specschema.js FIDELITY.notSimulated now discloses 'Water, buoyancy, depth pressure and vacuum: the underwater and space sites change gravity, traction and light only, so a run there proves driving, sensing and battery on that surface, never that the build survives the water, the depth pressure or the vacuum itself' - rendered by the Realism dashboard, RobotLab badges and the exported report annex. (b) diagnostics.jsx assess() now stamps numbers.unsimHazard from terrain.env.pressureLabel (DEPTH -> 'water and depth pressure', VACUUM -> 'vacuum and space temperature extremes'), and afterRun scopes BOTH 'mission complete' verdicts (pass-clean and warn) on those sites: 'driving, sensing and battery held up on this surface... This site's water and depth pressure are not simulated, so this run cannot prove the build survives them.' Land verdicts unchanged. NEW qa_honesty.mjs behavioural gate vm-runs the REAL assess/afterRun on underwater (DEPTH), lunar clean-pass, lunar warn, and land terrains asserting the scoped/unchanged texts + the disclosure line (now 31 checks). Found by the honesty judge in round 8; refuter re-derived the repro through derive()/assess() and confirmed.",
+      "deps": []
     }
   ]
 }

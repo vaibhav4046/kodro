@@ -31,33 +31,27 @@ introduced, found and root-fixed: K-003 (ruff format on app.py), K-004
 (offline-guard vs qa_parts citation-host conflict). See BACKLOG.json.
 
 ## Active slice
-CONVERGENCE IN PROGRESS. Judge round 7 found 3 real defects (JR7-01/02/03), all
-root-fixed + gated in this round; ready to ship. The convergence counter RESET
-because round 7 was not clean, so rounds 8 AND 9 must BOTH be clean (0 accepted)
-before declaring convergence per the master prompt.
+CONVERGENCE IN PROGRESS. Round 7 (3 fixed: JR7-01/02/03) SHIPPED at 5c38696:
+CI success 3 OSes, Deploy Pages success, live bundle sha256 == committed
+(1e70b5e6...). Round 8 then ran on fresh evidence from that live build: 4 of 6
+judges died on API ECONNRESET (incomplete round - does NOT count toward
+convergence), but the honesty judge + refuter confirmed one real P2 (JR8-01):
+underwater/space sites said "the design held up" while depth pressure/water/
+vacuum are unmodeled AND missing from the fidelity disclosure. Root-fixed
+(specschema.js disclosure line + diagnostics.jsx unsimHazard-scoped verdicts on
+pass AND warn branches) + behavioural gate (qa_honesty vm-runs real
+assess/afterRun on underwater/lunar/land; 31 checks). Counter still reset: the
+NEXT TWO complete judge rounds must both be clean (0 accepted) to converge.
 
-Round 7 fixes (all in BACKLOG.json):
-- JR7-01 (P2 honesty): verify.jsx "Measured evidence" mean speed was inflated by
-  the cosmetic sim-speed slider (a 3x slider => 3x-too-fast measured m/s). Now
-  normalises the slider back out (trueMs = wallMs * speedMul). Core-claim critical.
-- JR7-02 (P2 mobile): the phone-width mission bar hid the nav icons behind a
-  scrollbar-less scroll; now wraps (flex-wrap:wrap + overflow:visible). All 6 nav
-  icons verified visible at 375px.
-- JR7-03 (P3 a11y): 18 studio panel/modal .eyebrow title spans now role=heading
-  aria-level=2 for screen-reader heading navigation.
-
-Rounds 3-6 history: round 3 was the first clean round (0 accepted); rounds 4/5/6/7
-each then surfaced fresh real defects (JR4/JR5/JR6/JR7), each fixed+gated+shipped,
-so the two-consecutive-clean counter kept resetting. Round 7 is the latest reset.
-
-Gates green for round 7 (in isolation, after load cooldown): qa_ui 6/6 flows +
-34/34 behaviour (light-hud confirmed PASS on isolated re-run, luminance 0.873;
-the in-battery FAIL was a chrome-spawn ETIMEDOUT, not the assert) + 12/12 modals,
-qa_worlds 61/61, qa_honesty 25, qa_contrast 35, qa_interpreter 180, qa_grader 34,
-qa_web 4/4, qa_pupilstore 23, qa_memgraph 22, offline+a11y guards 13.
-Dissertation 50pp, 0 dashes. Watch: qa_ui/qa_worlds chrome-spawn flake under load
-(re-run the single flaked check in isolation to confirm); local pytest exit-1 is a
-tkinter-unavailable env issue (CI is authoritative).
+Gates green for the JR8-01 fix: qa_honesty 31, qa_contrast 35, qa_interpreter
+180, qa_grader 34, qa_physics 20, qa_ai_web 27, qa_web 4/4, qa_parts 40,
+qa_memgraph 22, qa_pupilstore 23, qa_scenario_parity 4, qa_interp_fixes 13.
+qa_ui + qa_worlds running at time of writing; ship after they pass.
+Dissertation 50pp, 0 dashes (re-verify at convergence). Watch: qa_ui/qa_worlds
+chrome-spawn ETIMEDOUT flake under load (re-run the single flaked check in
+isolation to confirm before treating as real); local pytest exit-1 is a
+tkinter-unavailable env issue (CI is authoritative); judge workflows can lose
+agents to transient API ECONNRESET - an incomplete round never counts as clean.
 
 ## Exact next command on resume
     cd /d/project/robolearn && node scripts/qa_interpreter.mjs | tail -1   # confirm green

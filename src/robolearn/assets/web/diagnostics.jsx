@@ -186,8 +186,16 @@
       topFix = '';
     }
 
+    // Underwater and space sites change only gravity, traction and light; the
+    // hazard that defines them (depth pressure / vacuum) is NOT simulated, so
+    // any positive verdict there must say what the run cannot prove (JR8-01).
+    const pressureLabel = terrain && terrain.env && terrain.env.pressureLabel;
+    const unsimHazard = pressureLabel === 'DEPTH' ? 'water and depth pressure'
+      : pressureLabel === 'VACUUM' ? 'vacuum and space temperature extremes'
+        : null;
+
     return { overall: overall, summary: summary, dimensions: dims, topFix: topFix,
-      numbers: { stoppingCm: stop, mobility: +mob.toFixed(2), enduranceMin: effMin, sensorRange: SENSOR_RANGE_BUILD, blind: !hasRange } };
+      numbers: { stoppingCm: stop, mobility: +mob.toFixed(2), enduranceMin: effMin, sensorRange: SENSOR_RANGE_BUILD, blind: !hasRange, unsimHazard: unsimHazard } };
   }
 
   // After a run, turn the design report plus what actually happened into one
@@ -219,16 +227,24 @@
     // A finish that shaved an obstacle is not a healthy margin: report the
     // measured closest approach instead of a blanket all-clear.
     const prox = run.minProximityCm;
+    // On a site whose defining hazard is not simulated (underwater depth
+    // pressure, space vacuum), any "mission complete" verdict must say what the
+    // run could not prove, or it overclaims (JR8-01).
+    const hazard = report && report.numbers && report.numbers.unsimHazard;
+    const hazardNote = hazard ? ' This site\'s ' + hazard + ' are not simulated, so this run cannot prove the build survives them.' : '';
     if (report && report.overall === 'pass') {
       if (prox != null && prox < 30) {
         return { tone: 'sys', text: 'Mission complete, but the closest approach was ' + Math.round(prox) + ' cm - one sensor misread from a collision. Add clearance before calling this design safe.' };
       }
       const measured = (run.distanceCm != null ? ' Covered ' + (run.distanceCm / 100).toFixed(1) + ' m' : '')
         + (prox != null && prox < 600 ? ', closest approach ' + Math.round(prox) + ' cm.' : (run.distanceCm != null ? '.' : ''));
+      if (hazard) {
+        return { tone: 'sys', text: 'Mission complete: driving, sensing and battery held up on this surface.' + (measured || '') + hazardNote };
+      }
       return { tone: 'sys', text: 'Mission complete and the design held up.' + (measured || ' Margins looked healthy.') };
     }
     if (report && report.overall === 'warn') {
-      return { tone: 'sys', text: 'Mission complete, but watch the flagged points: ' + (report.topFix || 'see the design check.') };
+      return { tone: 'sys', text: 'Mission complete, but watch the flagged points: ' + (report.topFix || 'see the design check.') + hazardNote };
     }
     return { tone: 'sys', text: 'Mission complete.' };
   }
