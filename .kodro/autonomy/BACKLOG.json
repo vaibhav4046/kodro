@@ -471,6 +471,132 @@
       "owner": "judge-round-8",
       "evidence": "FIXED (two-part root fix): (a) specschema.js FIDELITY.notSimulated now discloses 'Water, buoyancy, depth pressure and vacuum: the underwater and space sites change gravity, traction and light only, so a run there proves driving, sensing and battery on that surface, never that the build survives the water, the depth pressure or the vacuum itself' - rendered by the Realism dashboard, RobotLab badges and the exported report annex. (b) diagnostics.jsx assess() now stamps numbers.unsimHazard from terrain.env.pressureLabel (DEPTH -> 'water and depth pressure', VACUUM -> 'vacuum and space temperature extremes'), and afterRun scopes BOTH 'mission complete' verdicts (pass-clean and warn) on those sites: 'driving, sensing and battery held up on this surface... This site's water and depth pressure are not simulated, so this run cannot prove the build survives them.' Land verdicts unchanged. NEW qa_honesty.mjs behavioural gate vm-runs the REAL assess/afterRun on underwater (DEPTH), lunar clean-pass, lunar warn, and land terrains asserting the scoped/unchanged texts + the disclosure line (now 31 checks). Found by the honesty judge in round 8; refuter re-derived the repro through derive()/assess() and confirmed.",
       "deps": []
+    },
+    {
+      "id": "JR9-01",
+      "title": "Phone-width studio clipped the right edge of every control row: the .app grid track resolved to the workspace min-content (439px in a 420px viewport), defeating the wrap rules; duplicate finding also confirmed at 320px (WCAG 1.4.10)",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED (root + deeper): .app grid-template-columns:minmax(0,1fr) lets the studio shrink to the real viewport; phone panels get min-width:0!important so the editor's max-content code layer scrolls INSIDE .editor-wrap instead of pushing the page; the .run-controls group (Run/Step/Reset/Validate, ~364px nowrap) now flex-wraps at phone width; mission-site select capped. Verified at TRUE 320/375/420px viewports (body scrollWidth == innerWidth, 0px clipped) via a new CDP device-emulation probe (scripts/lib/cdp-viewport.mjs) - NOT --window-size, which headless Chrome clamps to ~482px and so tested the bug vacuously. qa_ui layout gate now drives 420/375/320 + classroom-320 through that probe. Covers the accepted duplicates (min-content root cause + missionbar-refuses-to-wrap).",
+      "deps": []
+    },
+    {
+      "id": "JR9-02",
+      "title": "On phone-height screens tapping Lessons produced a broken whole-page reflow (docW 437->1908px): the classroom-only nowrap .api-hint strip inflated min-content; the lesson picker also rendered below the fold with no feedback",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: .api-hint min-width:0 + max-width:100% (scrolls in place, cannot inflate layout); classroom mode now scrollIntoView({block:'nearest'}) the lesson picker on open (no-op on desktop). NEW qa_ui layout-classroom-420 gate.",
+      "deps": []
+    },
+    {
+      "id": "JR9-03",
+      "title": "Endurance/range figures contradicted the sim's own enforced battery ledger ~150x (87 min / 20.39 km displayed vs ~128 m enforced)",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED at the root: new shared helpers catRangeCm/catEnduranceMin in motion-model.js (+ Python mirror cat_range_cm/cat_endurance_min) derive endurance FROM the enforced distance ledger. RobotLab stat shows the ledger range; the verification report's catalogue Runtime/Range rows derive from the ledger; the design-check Endurance dimension is range-based (fail <30 m, warn <80 m); the battery-flat verdict quotes metres; realism shows the ledger range. Physical builds keep their real pack figures. qa_honesty: 8 new checks incl. vm-run of the real assess (default city build ~127 m).",
+      "deps": []
+    },
+    {
+      "id": "JR9-04",
+      "title": "tilt() fabricated non-zero slope readings (+/-11 deg position-seeded sine) on flat worlds, contradicting the fidelity disclosure and diverging from the self-test/lesson-grader/Python engines",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: hooks.jsx and scenario.jsx tilt() now return 0 (matching the disclosure 'returns level readings' and every other engine). qa_honesty pins both files.",
+      "deps": []
+    },
+    {
+      "id": "JR9-05",
+      "title": "Slope-named sites (Mount Fuji Slopes, Himalayan Foothills) gave the unqualified 'design held up' verdict though slopes are not simulated (they inherit earth's env so the JR8-01 pressure detection missed them); P3 duplicate about slope untestability covered here",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: sites can declare unsim:'slopes and terrain height'; the merge propagates terrain.unsimHazard; diagnostics prefers the explicit field over the pressure-label fallback, so Fuji/Nepal clean runs are scoped like underwater/space. qa_honesty vm-runs a Fuji-like terrain.",
+      "deps": []
+    },
+    {
+      "id": "JR9-06",
+      "title": "Browser 'Export progress report' silently dead-ended (popover closed, console-only feedback)",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: the browser path now builds the real progress report from the pupil store (same picture as the teacher register), downloads it as kodro-progress-report.txt, and toasts visibly; failures toast too. qa_honesty source-asserts the Blob download + toast.",
+      "deps": []
+    },
+    {
+      "id": "JR9-07",
+      "title": "World-switch and 2D/3D labels failed WCAG AA (3.37-3.45:1) on bright scenes: --hud-fg-3 at 0.54 alpha on 0.7-alpha glass; the 2D/3D pill even used the theme --fg-3 token that flips dark in light themes",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: --hud-fg-3 0.54->0.78, --hud-fg-2 0.74->0.88 (hierarchy kept), all four text-bearing HUD glasses (terrain-switch, view-mode-pill, orbit-hint, hud-bl) darkened to >=0.8 alpha, and the pill now uses the HUD token. Worst-case composite (glass over WHITE sky) is now >=6:1. NEW qa_contrast composite-over-white checks.",
+      "deps": []
+    },
+    {
+      "id": "JR9-08",
+      "title": "During any run the whole App tree re-rendered ~60Hz while mapping an uncapped, session-persistent console array and re-tokenizing the editor every frame",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED (the two heavy per-frame costs): Editor highlight memoized on [code]; console buffer capped at 1000 lines and the render maps only the last 300 (with an elision note). The 60Hz App-root state sync itself remains by design (live telemetry) and is now cheap; recorded honestly as mitigated, not eliminated. qa_contrast pins all three. ALSO: this fix round exposed a qa_web gate hole (a broken studio component passed because 'Skip to studio' renders in onboarding) - qa_web now has a studio-mount check that drives cap.html?world=city and fails on any real console error (5 checks). Building this exposed a SECOND gate hole: the phone-layout gate used --window-size, which headless Chrome clamps to ~482px, so it never tested true phone widths; replaced with a CDP device-emulation probe..",
+      "deps": []
+    },
+    {
+      "id": "JR9-09",
+      "title": "Learning pillar invisible at first contact: onboarding never mentioned lessons and the only entry was an unlabeled icon below 1360px",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: onboarding step 3 introduces Lessons (18 graded missions, ages 5 up, where to find them); the Lessons button keeps its visible text label at EVERY width (.icon-btn-lessons exempt from label hiding). qa_honesty + qa_contrast pin both.",
+      "deps": []
+    },
+    {
+      "id": "JR9-10",
+      "title": "Rich run-report rows pushed the Replay button and timestamp off-screen as an invisible sliver at the default editor width",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: .run-entry wraps (flex-wrap:wrap), so every control stays on screen at any panel width. qa_contrast pins the rule.",
+      "deps": []
+    },
+    {
+      "id": "JR9-11",
+      "title": "Teacher register marked the active row with a bare middot (same glyph as 'not attempted' cells) and no legend",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: active row now reads '(active)' in words; the note explains the not-attempted dot. qa_contrast pins it.",
+      "deps": []
+    },
+    {
+      "id": "JR9-12",
+      "title": "Compare checkboxes gave identical accessible names for same-robot same-minute runs; browser Build modal called separately-installed Ollama 'the built-in local AI'",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: compare aria-labels now carry outcome + world + seconds (unique); Build modal copy names Ollama as a separate free install and says the planner cannot run without it. Gates in qa_contrast + qa_honesty.",
+      "deps": []
+    },
+    {
+      "id": "JR9-13",
+      "title": "Runtime quality step-down was silent for the quality-gated ambient/weather systems, which kept running at the old tier",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: the step-down now publishes window.KODRO_QUALITY='low' (ambient reads it live each frame) and disposes the weather particle system (rain/snow gained dispose()). qa_contrast pins the propagation.",
+      "deps": []
+    },
+    {
+      "id": "JR9-14",
+      "title": "Weather presets change light/visuals only but were absent from the fidelity disclosure; realism dashboard claimed 'Sensor noise: nominal' though live runs are noise-free",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-9",
+      "evidence": "FIXED: FIDELITY.notSimulated gains the weather line; realism now says 'none in live runs (injected only during multi-seed validation)'. Design-check stopping-distance texts also now carry their 'approximated' tier tag (was quoted untiered). qa_honesty pins all three.",
+      "deps": []
     }
   ]
 }

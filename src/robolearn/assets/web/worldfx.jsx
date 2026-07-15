@@ -491,6 +491,7 @@
       scene.add(grp);
       return {
         flag: 'rain', wet: true,
+        dispose() { try { scene.remove(grp); } catch (e) { void e; } },
         update(t, dt, cx, cz) {
           grp.position.set(cx || 0, 0, cz || 0);
           for (let i = 0; i < N; i++) {
@@ -536,6 +537,7 @@
     scene.add(grp);
     return {
       flag: 'snow', wet: false,
+      dispose() { try { scene.remove(grp); } catch (e) { void e; } },
       update(t, dt, cx, cz) {
         grp.position.set(cx || 0, 0, cz || 0);
         for (let i = 0; i < N; i++) {

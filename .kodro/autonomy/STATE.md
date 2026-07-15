@@ -31,27 +31,34 @@ introduced, found and root-fixed: K-003 (ruff format on app.py), K-004
 (offline-guard vs qa_parts citation-host conflict). See BACKLOG.json.
 
 ## Active slice
-CONVERGENCE IN PROGRESS. Round 7 (3 fixed: JR7-01/02/03) SHIPPED at 5c38696:
-CI success 3 OSes, Deploy Pages success, live bundle sha256 == committed
-(1e70b5e6...). Round 8 then ran on fresh evidence from that live build: 4 of 6
-judges died on API ECONNRESET (incomplete round - does NOT count toward
-convergence), but the honesty judge + refuter confirmed one real P2 (JR8-01):
-underwater/space sites said "the design held up" while depth pressure/water/
-vacuum are unmodeled AND missing from the fidelity disclosure. Root-fixed
-(specschema.js disclosure line + diagnostics.jsx unsimHazard-scoped verdicts on
-pass AND warn branches) + behavioural gate (qa_honesty vm-runs real
-assess/afterRun on underwater/lunar/land; 31 checks). Counter still reset: the
-NEXT TWO complete judge rounds must both be clean (0 accepted) to converge.
+CONVERGENCE IN PROGRESS. Ship history: round 7 (JR7-01/02/03) at 5c38696; round
+8 fix (JR8-01, scoped underwater/space verdicts) at 1bab12e - both CI-green,
+deploy-verified, live sha == committed. Round 9 then ran COMPLETE (27/27
+agents) on fresh evidence from live 1bab12e and accepted 19 findings (9 P2, 10
+P3; 2 rejected) - the deepest round yet, judges ran live-browser probes. All 19
+root-fixed as JR9-01..JR9-14 (see BACKLOG.json; two were duplicates of the
+min-content root cause, one folded into the slope fix). Headlines: .app grid
+min-content clipping at phone widths; battery figures contradicting the
+enforced ledger ~150x (endurance now DERIVES from the ledger, JS+Python
+helpers); tilt() fabricating slope on flat worlds (now 0); slope-named sites
+now scope their verdicts; browser export downloads a real report; HUD glass
+AA over bright skies; Editor/console render costs; Lessons discoverability.
+qa_web gained a studio-mount + console-error check after this round exposed
+that a broken studio component could pass the onboarding-level boot check.
 
-Gates green for the JR8-01 fix: qa_honesty 31, qa_contrast 35, qa_interpreter
-180, qa_grader 34, qa_physics 20, qa_ai_web 27, qa_web 4/4, qa_parts 40,
-qa_memgraph 22, qa_pupilstore 23, qa_scenario_parity 4, qa_interp_fixes 13.
-qa_ui + qa_worlds running at time of writing; ship after they pass.
-Dissertation 50pp, 0 dashes (re-verify at convergence). Watch: qa_ui/qa_worlds
-chrome-spawn ETIMEDOUT flake under load (re-run the single flaked check in
-isolation to confirm before treating as real); local pytest exit-1 is a
-tkinter-unavailable env issue (CI is authoritative); judge workflows can lose
-agents to transient API ECONNRESET - an incomplete round never counts as clean.
+Counter status: round 9 was NOT clean, so the counter reset again. The NEXT
+TWO complete judge rounds must both accept zero findings to converge.
+
+Gates green for the JR9 fix round (before ship): qa_interpreter 180, qa_grader
+34, qa_physics 20, qa_ai_web 27, qa_parts 40, qa_memgraph 22, qa_pupilstore 23,
+qa_scenario_parity 4, qa_interp_fixes 13, qa_honesty 53, qa_contrast 49,
+qa_web 5/5 (new studio-mount), ruff+format+mypy clean on the touched Python.
+qa_ui (now +3 phone layout gates) + qa_worlds running at time of writing; ship
+after they pass. Dissertation 50pp, 0 dashes (no tex change needed this round;
+the JR9 fixes only strengthen claims the tex already makes). Watch items
+unchanged: chrome-spawn ETIMEDOUT flakes under load (isolate to confirm);
+local pytest tkinter env issue (CI authoritative); ECONNRESET can kill judge
+agents (incomplete round never counts).
 
 ## Exact next command on resume
     cd /d/project/robolearn && node scripts/qa_interpreter.mjs | tail -1   # confirm green

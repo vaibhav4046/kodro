@@ -45,6 +45,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import http from 'node:http';
 import { resolveChrome } from './lib/resolve-chrome.mjs';
+import { measureViewports } from './lib/cdp-viewport.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
@@ -1000,8 +1001,8 @@ function checkEncoreRuns(chrome) {
 // this is a true layout assert, not a guess from markup. The 1280x800 clip
 // (Settings button 56px offscreen with scrollbars hidden) is the regression
 // this pins.
-function checkLayout(chrome, w, h) {
-  const url = `${BASE}?world=earth&robot=rover&q=low&layout=1`;
+function checkLayout(chrome, w, h, extra) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&layout=1` + (extra || '');
   const { dom, consoleError, error } = dumpDom(chrome, `layout_${w}x${h}`, url, { size: `${w},${h}`, vtime: 8000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
@@ -1322,12 +1323,42 @@ function cleanup() {
   console.log(`${encore.pass ? 'PASS' : 'FAIL'}  ${'encore-run'.padEnd(20)} ${encore.reason}`);
   gap();
 
-  // Layout: the studio must fit common laptop widths with zero horizontal
-  // overflow (bugs D1: 1280x800 clipped the Settings button offscreen).
+  // Layout at LAPTOP widths: the studio must fit with zero horizontal overflow
+  // (bugs D1: 1280x800 clipped the Settings button offscreen). --window-size is
+  // fine here because both widths are above Chrome's ~482px window floor.
   for (const [w, h] of [[1280, 800], [1366, 768]]) {
     const lr = checkLayout(chrome, w, h);
     behaviour.push(lr.pass);
     console.log(`${lr.pass ? 'PASS' : 'FAIL'}  ${('layout-' + w + 'x' + h).padEnd(20)} ${lr.reason}`);
+    gap();
+  }
+  // Layout at PHONE widths via CDP device emulation. --window-size CANNOT test
+  // these: headless Chrome clamps the OS window to ~482px, which is WIDER than
+  // the studio's ~439px min-content, so a sub-440px clip (judge round 9) can
+  // never reproduce through a window resize. Emulation.setDeviceMetricsOverride
+  // forces a true CSS viewport, so 320px (WCAG 1.4.10 reflow) is really tested.
+  try {
+    const base = `${BASE}?world=earth&robot=rover&q=low&layout=1`;
+    const phone = await measureViewports(chrome, base,
+      [{ w: 420, h: 900, label: '420' }, { w: 375, h: 812, label: '375' }, { w: 320, h: 800, label: '320' }]);
+    for (const x of phone) {
+      behaviour.push(!x.overflow);
+      console.log(`${!x.overflow ? 'PASS' : 'FAIL'}  ${('layout-' + x.label + 'w').padEnd(20)} ${!x.overflow
+        ? `no overflow at true ${x.width}px viewport (scrollW ${x.scrollW} <= ${x.innerW})`
+        : `OVERFLOWS at ${x.width}px: body scrollWidth ${x.scrollW} > ${x.innerW} (${x.extra}px clipped)`}`);
+      gap();
+    }
+    // Classroom at 320: the nowrap .api-hint strip used to inflate the page the
+    // moment the lesson picker opened (judge round 9).
+    const cls = await measureViewports(chrome, `${base}&mode=classroom`, [{ w: 320, h: 800, label: 'cls-320' }]);
+    behaviour.push(!cls[0].overflow);
+    console.log(`${!cls[0].overflow ? 'PASS' : 'FAIL'}  ${'layout-classroom-320'.padEnd(20)} ${!cls[0].overflow
+      ? `no overflow at true 320px classroom viewport (scrollW ${cls[0].scrollW})`
+      : `OVERFLOWS at classroom 320px: ${cls[0].extra}px clipped`}`);
+    gap();
+  } catch (e) {
+    behaviour.push(false);
+    console.log(`FAIL  ${'layout-phone-cdp'.padEnd(20)} CDP viewport probe failed: ${e.message}`);
     gap();
   }
 

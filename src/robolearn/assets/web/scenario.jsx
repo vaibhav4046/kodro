@@ -187,7 +187,9 @@
           // Mirror the live host (app.jsx) so a program branching on tilt()/
           // read_colour() validates the same way it runs: same tilt formula,
           // and the scenario's environment preset as the ground id.
-          case 'tilt': return Math.round((Math.sin(s.x * 0.01) * 6 + Math.cos(s.y * 0.013) * 5) * 10) / 10;
+          case 'tilt': return 0; // worlds are flat planes: a synthesized non-zero tilt contradicted the
+          // fidelity disclosure (IMU returns level readings) and diverged from the
+          // self-test, lesson grader and Python engine, which all model 0 (judge round 9).
           case 'ground': return scenario.environmentPreset || 'earth';
           default: return 0;
         }

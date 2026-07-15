@@ -43,7 +43,6 @@
     const actuators = spec.actuators || [];
     const massFactor = derived.massFactor || 1;
     const speedFactor = derived.speedFactor || 1;
-    const runtimeMin = derived.runtimeMin || 60;
     const traction = (terrain && terrain.traction) || 0.8;
     const gravity = (terrain && terrain.env && terrain.env.gravity) || 9.81;
     const worldName = (terrain && terrain.name) || 'this world';
@@ -113,27 +112,37 @@
         fix: 'Fit an Ultrasonic range sensor so it can see and avoid what is in front.' });
     } else if (stop > SENSOR_RANGE_BUILD * 0.6) {
       dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'warn', margin: +(SENSOR_RANGE_BUILD / stop).toFixed(2),
-        reason: 'Stopping distance is about ' + stop + ' cm at top speed, which is tight against the ' + SENSOR_RANGE_BUILD + ' cm the sensor sees. A late obstacle can be hit before it halts.',
+        reason: 'Stopping distance is about ' + stop + ' cm at top speed (an approximated figure from the first-order braking model), which is tight against the ' + SENSOR_RANGE_BUILD + ' cm the sensor sees. A late obstacle can be hit before it halts.',
         fix: 'Cap speed with set_speed below 60, or lighten the build so it stops sooner.' });
     } else {
       dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'pass', margin: +(SENSOR_RANGE_BUILD / Math.max(1, stop)).toFixed(2),
-        reason: 'Range sensor fitted and it stops in about ' + stop + ' cm, well inside its ' + SENSOR_RANGE_BUILD + ' cm view.', fix: '' });
+        reason: 'Range sensor fitted and it stops in about ' + stop + ' cm (approximated, first-order braking model), well inside its ' + SENSOR_RANGE_BUILD + ' cm view.', fix: '' });
     }
 
-    // 3. ENDURANCE -- will the charge last, given mass and gravity?
-    const gPenalty = 0.6 + 0.4 * (gravity / 9.81);
-    const effMin = Math.round(runtimeMin / gPenalty);
-    if (effMin < 30) {
-      dims.push({ key: 'power', label: 'Endurance', status: 'fail', margin: +(effMin / 45).toFixed(2),
-        reason: 'Only about ' + effMin + ' minutes of charge here: a heavy build drains fast' + (gravity > 9.9 ? ' and high gravity makes it worse' : '') + ', so it may die mid-mission.',
-        fix: 'Drop mass (fewer parts, a lighter board) to extend runtime.' });
-    } else if (effMin < 50) {
-      dims.push({ key: 'power', label: 'Endurance', status: 'warn', margin: +(effMin / 45).toFixed(2),
-        reason: 'About ' + effMin + ' minutes of charge: fine for a short task, tight for a long survey.', fix: 'Lighten the build for longer missions.' });
+    // 3. ENDURANCE -- will the charge cover the mission? The sim's battery is
+    // a distance ledger (percent per cm driven), so the honest measure is the
+    // RANGE that ledger allows on this world, not a clock estimate that the
+    // enforced drain then contradicts (judge round 9). Missions here run tens
+    // of metres, so the bands are range-based. Physical builds use their real
+    // pack's per-cm drain; catalogue builds use the shared ledger.
+    const rangeM = (physM && physM.drainPctPerCmNominal !== undefined)
+      ? 1 / physM.drainPctPerCmNominal / 100
+      : (window.KodroMotion
+        ? window.KodroMotion.catRangeCm(massFactor, gravity, traction) / 100
+        : Math.round(60 / massFactor));
+    const rangeShown = Math.round(rangeM);
+    if (rangeM < 30) {
+      dims.push({ key: 'power', label: 'Endurance', status: 'fail', margin: +(rangeM / 45).toFixed(2),
+        reason: 'Only about ' + rangeShown + ' m of driving on one charge here: the battery the sim enforces drains fast for this mass' + (gravity > 9.9 ? ', and high gravity makes it worse' : '') + ', so it may die mid-mission.',
+        fix: 'Drop mass (fewer parts, a lighter board) to extend the range.' });
+    } else if (rangeM < 80) {
+      dims.push({ key: 'power', label: 'Endurance', status: 'warn', margin: +(rangeM / 45).toFixed(2),
+        reason: 'About ' + rangeShown + ' m of driving on one charge: fine for a short task, tight for a long survey.', fix: 'Lighten the build for longer missions.' });
     } else {
-      dims.push({ key: 'power', label: 'Endurance', status: 'pass', margin: +(effMin / 45).toFixed(2),
-        reason: 'Roughly ' + effMin + ' minutes on a charge (a rough estimate from mass; the simulation tracks battery by distance driven, not the clock).', fix: '' });
+      dims.push({ key: 'power', label: 'Endurance', status: 'pass', margin: +(rangeM / 45).toFixed(2),
+        reason: 'Roughly ' + rangeShown + ' m of driving on one charge (from the same battery ledger the run enforces; turning drains extra).', fix: '' });
     }
+
 
     // 4. NAVIGATION PRECISION -- does it know which way it points?
     if (!has(sensors, 'imu')) {
@@ -186,16 +195,19 @@
       topFix = '';
     }
 
-    // Underwater and space sites change only gravity, traction and light; the
-    // hazard that defines them (depth pressure / vacuum) is NOT simulated, so
-    // any positive verdict there must say what the run cannot prove (JR8-01).
+    // Sites whose defining hazard is NOT simulated (underwater depth pressure,
+    // space vacuum, and the slope-named mountain sites, which are flat planes)
+    // must say so in any positive verdict (JR8-01, JR9). A terrain may declare
+    // its hazard explicitly (terrain.unsimHazard); the pressure worlds are also
+    // recognised by their env label as a fallback.
     const pressureLabel = terrain && terrain.env && terrain.env.pressureLabel;
-    const unsimHazard = pressureLabel === 'DEPTH' ? 'water and depth pressure'
-      : pressureLabel === 'VACUUM' ? 'vacuum and space temperature extremes'
-        : null;
+    const unsimHazard = (terrain && terrain.unsimHazard)
+      || (pressureLabel === 'DEPTH' ? 'water and depth pressure'
+        : pressureLabel === 'VACUUM' ? 'vacuum and space temperature extremes'
+          : null);
 
     return { overall: overall, summary: summary, dimensions: dims, topFix: topFix,
-      numbers: { stoppingCm: stop, mobility: +mob.toFixed(2), enduranceMin: effMin, sensorRange: SENSOR_RANGE_BUILD, blind: !hasRange, unsimHazard: unsimHazard } };
+      numbers: { stoppingCm: stop, mobility: +mob.toFixed(2), rangeM: rangeShown, sensorRange: SENSOR_RANGE_BUILD, blind: !hasRange, unsimHazard: unsimHazard } };
   }
 
   // After a run, turn the design report plus what actually happened into one
@@ -214,7 +226,7 @@
       return { tone: 'err', text: 'It hit ' + (run.detail || 'an obstacle') + '. ' + (report && report.numbers ? 'Stopping distance is about ' + report.numbers.stoppingCm + ' cm: slow down before hazards or add sensing.' : 'Slow down before hazards.') };
     }
     if (outcome === 'flat') {
-      return { tone: 'err', text: 'It ran out of charge before finishing. This build lasts about ' + (report && report.numbers ? report.numbers.enduranceMin : '?') + ' minutes here; lighten it or shorten the mission.' };
+      return { tone: 'err', text: 'It ran out of charge before finishing. This build manages about ' + (report && report.numbers ? report.numbers.rangeM : '?') + ' m of driving here; lighten it or shorten the mission.' };
     }
     if (outcome === 'stalled') {
       return { tone: 'err', text: 'It stalled: the surface gave its motors too little grip for the weight. Fit 4 DC motors or shed mass.' };

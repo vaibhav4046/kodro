@@ -60,7 +60,7 @@
       row('Top speed', topSpeed),
       row('Acceleration', accel),
       row('Terrain friction', (terrain.traction != null ? terrain.traction.toFixed(2) : '-')),
-      row('Battery estimate', '~' + (robot.runtimeMin || '-') + ' min on a charge'),
+      row('Battery', robot.rangeM ? '~' + robot.rangeM + ' m of driving on a charge (the ledger the run enforces)' : '~' + (robot.runtimeMin || '-') + ' min on a charge'),
     ]);
 
     // Sensor card.
@@ -78,7 +78,7 @@
             : row(SENSOR_LABEL[s] || s, 'fitted, no command', 'var(--fg-2)');
         })
       : [row('Sensors', 'none fitted', 'var(--warning)')];
-    sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'nominal'));
+    sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'none in live runs (injected only during multi-seed validation)'));
     const sensors = card('Sensors', sensorRows, 'var(--cyan)');
 
     // Scenario score card. The single pass/fail verdict comes from the report

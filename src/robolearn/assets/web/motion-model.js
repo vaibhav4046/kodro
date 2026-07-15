@@ -118,6 +118,19 @@
   function turnDrainPct(deg) {
     return Math.abs(deg) * MODEL.drainPctPerDeg;
   }
+  // Catalogue battery honesty (JR9): the ONLY battery the simulation enforces
+  // is the distance ledger above, so any displayed endurance figure must
+  // derive from it, never from a separate mass proxy (which contradicted the
+  // ledger ~150x). Range: the 100% budget over the per-cm drain. Endurance:
+  // that range at the build's full cruise speed (a best case: turning and
+  // collisions drain extra).
+  function catRangeCm(massFactor, gravityMps2, traction) {
+    return 100 / moveDrainPct(1, gravityMps2, massFactor, traction);
+  }
+  function catEnduranceMin(massFactor, speedFactor, gravityMps2, traction) {
+    return catRangeCm(massFactor, gravityMps2, traction)
+      / (MODEL.baseSpeedCmPerS * speedFactor) / 60;
+  }
 
   function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
 
@@ -233,6 +246,8 @@
     moveDrainPct: moveDrainPct,
     turnDurationMs: turnDurationMs,
     turnDrainPct: turnDrainPct,
+    catRangeCm: catRangeCm,
+    catEnduranceMin: catEnduranceMin,
     physTopSpeedCmPerS: physTopSpeedCmPerS,
     physSpeedFactor: physSpeedFactor,
     physMassFactor: physMassFactor,

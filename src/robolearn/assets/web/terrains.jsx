@@ -294,6 +294,7 @@
       coord: '35.3606° N, 138.7274° E',
       env: { temp: 8, light: 80 },
       traction: 0.6,  // volcanic ash + scree
+      unsim: 'slopes and terrain height',
       seed: 303, count: 13, minR: 46, maxR: 100, decorSeed: 313, decorCount: 50,
       groundBg: {
         background: 'radial-gradient(circle at 44% 40%, #5a5560, #3c3842 58%, #26232c 100%)',
@@ -344,6 +345,7 @@
       coord: '28.0000° N, 84.0000° E',
       env: { temp: -6, light: 90 },
       traction: 0.5,  // snow-dusted rock
+      unsim: 'slopes and terrain height',
       seed: 306, count: 12, minR: 50, maxR: 112, decorSeed: 316, decorCount: 38,
       groundBg: {
         background: 'radial-gradient(circle at 44% 40%, #cdd6dd, #9fb0bd 56%, #748794 100%)',
@@ -547,6 +549,10 @@
       // haze), read by Viewport3D. W7: per-site 2.5D decor colours.
       atmos: s.atmos || null,
       decorCols: s.decorCols || null,
+      // A site whose NAME sells a hazard the sim does not model (slopes on Fuji
+      // and the Himalayan foothills) must carry it so the run verdict can scope
+      // its claim, exactly like the underwater/space pressure worlds (JR9).
+      unsimHazard: s.unsim || base.unsimHazard || null,
     };
   }
   window.SITES = SITES;

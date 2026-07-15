@@ -1791,6 +1791,13 @@
           if (slow > 30) {
             renderer.shadowMap.enabled = false; sun.castShadow = false;
             renderer.setPixelRatio(1); downgraded = true;
+            // Propagate the drop to every quality-gated system, not just the
+            // renderer: ambient reads window.KODRO_QUALITY live each frame,
+            // and the heavy weather particles (rain/snow re-upload their whole
+            // buffer per frame) should die with the tier (judge round 9).
+            try { window.KODRO_QUALITY = 'low'; } catch (e) { void e; }
+            if (weatherFx && weatherFx.dispose) { try { weatherFx.dispose(); } catch (e) { void e; } }
+            weatherFx = null;
           }
         }
         const s = stateRef.current;

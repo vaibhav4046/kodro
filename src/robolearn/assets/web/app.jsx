@@ -282,6 +282,18 @@
     // with the maker profile as the default identity.
     const [mode, setMode] = useState(() => { try { return localStorage.getItem('kodro_mode') || 'studio'; } catch (e) { return 'studio'; } });
     const classroom = mode === 'classroom';
+    // On a phone the lesson picker sits below the world panel, so tapping the
+    // Lessons button produced no visible change (judge round 9): bring the
+    // picker on screen when classroom mode opens. block:'nearest' is a no-op
+    // when it is already visible, so desktop is unaffected.
+    useEffect(() => {
+      if (!classroom) return;
+      const t = setTimeout(() => {
+        const el = document.querySelector('.lesson-picker');
+        if (el && el.scrollIntoView) { try { el.scrollIntoView({ block: 'nearest' }); } catch (e) { void e; } }
+      }, 80);
+      return () => clearTimeout(t);
+    }, [classroom]);
     useEffect(() => {
       try { localStorage.setItem('kodro_mode', mode); } catch (e) { void e; }
       if (mode !== 'classroom') {
@@ -1032,7 +1044,7 @@
               <span className="rc-meta">{chipType || ''}{chipType && chipMass ? ' · ' : ''}{chipMass ? chipMass + ' g' : ''}</span>
             )}
           </button>
-          <button className="icon-btn" title="Lessons. Learn robotics and coding step by step (ages 5 to 16)" aria-label="Lessons — learn robotics and coding step by step" aria-pressed={mode === 'classroom'} onClick={() => setMode(mode === 'classroom' ? 'studio' : 'classroom')}>{KI('report')}<span className="icon-btn-label">Lessons</span></button>
+          <button className="icon-btn icon-btn-lessons" title="Lessons. Learn robotics and coding step by step (ages 5 to 16)" aria-label="Lessons — learn robotics and coding step by step" aria-pressed={mode === 'classroom'} onClick={() => setMode(mode === 'classroom' ? 'studio' : 'classroom')}>{KI('report')}<span className="icon-btn-label">Lessons</span></button>
           <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab — design a custom robot" onClick={() => setRobotLabOpen(true)}>{KI('lab')}<span className="icon-btn-label">Robot Lab</span></button>
           <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills — what the system learned, and your skill library" onClick={() => setMemoryOpen(true)}>{KI('memory')}<span className="icon-btn-label">Memory</span></button>
           <button className="icon-btn" title={browserMode ? 'Build a real robot on a budget (desktop app)' : 'Build a real robot on a budget'} aria-label={browserMode ? 'Build a real robot. Design one on a budget. Desktop app only.' : 'Build a real robot. Design one on a budget.'} onClick={openBuildReal}>{KI('build')}<span className="icon-btn-label">{browserMode ? 'Build (desktop app)' : 'Build'}</span></button>
@@ -1346,6 +1358,7 @@
                 const sel = cmpSel.map(id => runs.find(r => r.id === id)).filter(Boolean);
                 const toggleSel = (id) => setCmpSel(cs => cs.indexOf(id) >= 0 ? cs.filter(x => x !== id) : (cs.length >= 2 ? [cs[1], id] : cs.concat([id])));
                 const fmtTime = (ts) => { try { const d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); } catch (e) { return ''; } };
+                const fmtTimeFull = (ts) => { try { const d = new Date(ts); return fmtTime(ts) + ':' + String(d.getSeconds()).padStart(2, '0'); } catch (e) { return ''; } };
                 return (
                   <div className="runs-panel" role="region" aria-label="Run reports">
                     {sel.length === 2 && window.KodroRunReports && (
@@ -1366,7 +1379,7 @@
                         <ul className="runs-list">
                           {runs.map(r => (
                             <li key={r.id} className={'run-entry run-' + r.outcome} data-run-entry={r.outcome}>
-                              <input type="checkbox" checked={cmpSel.indexOf(r.id) >= 0} onChange={() => toggleSel(r.id)} aria-label={'Select the ' + (r.robotName || 'robot') + ' run at ' + fmtTime(r.ts) + ' for compare'} />
+                              <input type="checkbox" checked={cmpSel.indexOf(r.id) >= 0} onChange={() => toggleSel(r.id)} aria-label={'Select the ' + (r.robotName || 'robot') + ' ' + (r.outcome || '') + ' run in ' + (r.worldName || r.world || 'the world') + ' at ' + fmtTimeFull(r.ts) + ' for compare'} />
                               <span className={'run-outcome ro-' + r.outcome}>{(r.outcome || '?').toUpperCase()}</span>
                               <span className="run-main">{r.robotName || 'Robot'} · {r.worldName || r.world}{r.detail ? ' · ' + r.detail : ''}</span>
                               <span className="run-stats num">
@@ -1391,7 +1404,8 @@
                 );
               })()}
               {!runsOpen && <div className="console-out" ref={consoleEndRef} role="log" aria-live="polite" aria-label="Program output and lesson feedback">
-                {consoleLines.map((l, i) => (
+                {consoleLines.length > 300 && <div className="cline sys">… {consoleLines.length - 300} earlier lines (Reset clears the console)</div>}
+                {consoleLines.slice(-300).map((l, i) => (
                   <div key={i} className={'cline ' + (l.type === 'err' ? 'err' : l.type === 'ok' ? 'ok' : l.type === 'sys' ? 'sys' : '')}>
                     {l.ts ? <span className="ts">{l.ts}</span> : null}
                     {l.text}
@@ -1560,7 +1574,7 @@
                   <button className="btn-mini" aria-label="Close" onClick={() => setBuildOpen(false)}>✕</button>
                 </div>
                 <div className="build-body">
-                  <p className="vibe-status">The budget planner needs the desktop app. It uses the built-in local AI to price a real robot you could build from your current design, and that runs on your own computer rather than in the browser.</p>
+                  <p className="vibe-status">The budget planner needs the desktop app. It plans and prices a real robot from your current design using a local AI model through Ollama, a separate free install that runs on your own computer; without Ollama the planner cannot run.</p>
                   <p className="vibe-status">In the browser you can still design a robot in the Robot Lab, program it, and run it. To plan real hardware within a budget, open Kodro as the desktop app.</p>
                 </div>
               </div>

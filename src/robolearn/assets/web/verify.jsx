@@ -74,15 +74,24 @@
       rows.push(row('Turn', 'turns in place (differential drive)', phys && phys.trackCm !== undefined ? 'honoured' : 'approximated',
         phys && phys.trackCm !== undefined ? 'omega = 2*v_wheel/track' : 'display timing scaled by mass'));
     }
-    // Runtime and range.
-    var runtimeMin = (robot && robot.runtimeMin) || 60;
-    rows.push(row('Runtime', '~' + runtimeMin + ' min',
-      phys && phys.energyWh !== undefined ? 'approximated' : 'approximated',
-      phys && phys.energyWh !== undefined
-        ? 'E = mAh*V*usable; P = F*v/eta + idle (constant-power; ignores voltage sag and motor copper/stall losses, so runtime is optimistic)'
-        : 'catalogue estimate from mass'));
-    rows.push(row('Range on one charge', ((vCmPerS / 100) * runtimeMin * 60 / 1000).toFixed(2) + ' km', 'approximated',
-      'top speed times runtime; real missions turn and idle'));
+    // Runtime and range. A physical build's pack data gives real figures; a
+    // catalogue build derives BOTH from the same distance ledger the sim
+    // enforces, so this report can never contradict the battery the run obeys
+    // (the old mass-proxy runtime disagreed with the ledger ~150x, JR9).
+    if (phys && phys.energyWh !== undefined) {
+      var runtimeMin = (robot && robot.runtimeMin) || 60;
+      rows.push(row('Runtime', '~' + runtimeMin + ' min', 'approximated',
+        'E = mAh*V*usable; P = F*v/eta + idle (constant-power; ignores voltage sag and motor copper/stall losses, so runtime is optimistic)'));
+      rows.push(row('Range on one charge', ((vCmPerS / 100) * runtimeMin * 60 / 1000).toFixed(2) + ' km', 'approximated',
+        'top speed times runtime; real missions turn and idle'));
+    } else {
+      var catRangeM = KM.catRangeCm(massFac, gravity, traction) / 100;
+      var catMin = KM.catEnduranceMin(massFac, speedFac, gravity, traction);
+      rows.push(row('Runtime (driving flat out)', catMin < 1 ? '~' + Math.round(catMin * 60) + ' s' : '~' + Math.round(catMin) + ' min', 'approximated',
+        'the enforced battery ledger over the cruise speed; turning and collisions drain extra'));
+      rows.push(row('Range on one charge', '~' + Math.round(catRangeM) + ' m', 'approximated',
+        '100% battery / the per-metre drain the sim actually charges here'));
+    }
     // Battery per metre, the number the empirical block cross-checks.
     var drainPerM = phys && phys.energyWh !== undefined
       ? phys.drainPctPerCmNominal * 100

@@ -87,6 +87,7 @@
       'Camera, GPS, bumper and gripper command semantics',
       'Line follower reads a synthesized straight practice line, not the worlds\' painted lanes',
       'Water, buoyancy, depth pressure and vacuum: the underwater and space sites change gravity, traction and light only, so a run there proves driving, sensing and battery on that surface, never that the build survives the water, the depth pressure or the vacuum itself',
+      'Weather: rain, snow and dust storms change the light level and the visuals only; grip, braking, sensor noise and battery drain are unaffected',
     ],
   };
 

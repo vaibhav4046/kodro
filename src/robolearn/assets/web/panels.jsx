@@ -288,7 +288,7 @@
                   <tbody>
                     {teacherData.pupils.map(p => (
                       <tr key={p.id}>
-                        <td className="hm-name">{p.name}{p.active ? ' ·' : ''}</td>
+                        <td className="hm-name">{p.name}{p.active ? <span className="hm-active"> (active)</span> : ''}</td>
                         {teacherData.concepts.map(c => {
                           const v = p.scores[c];
                           const has = typeof v === 'number';
@@ -316,7 +316,7 @@
                     ))}
                   </tbody>
                 </table>
-                <p className="build-note">Each cell is a score from 0 to 100 showing how well that idea is known. It updates with every graded attempt, and greener means stronger. {browserMode ? 'In the browser Kodro keeps one record per device, so everyone using this device counts together; open the desktop app to keep a separate record for each pupil. Records are saved in this browser on this device, and nothing leaves it.' : 'Nothing leaves this computer.'}</p>
+                <p className="build-note">Each cell is a score from 0 to 100 showing how well that idea is known; a dot means that idea has not been tried yet. It updates with every graded attempt, and greener means stronger. {browserMode ? 'In the browser Kodro keeps one record per device, so everyone using this device counts together; open the desktop app to keep a separate record for each pupil. Records are saved in this browser on this device, and nothing leaves it.' : 'Nothing leaves this computer.'}</p>
               </div>
             )}
           </div>

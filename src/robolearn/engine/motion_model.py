@@ -115,6 +115,22 @@ def move_drain_pct(
     )
 
 
+def cat_range_cm(mass_factor: float, gravity_mps2: float | None, traction: float) -> float:
+    """Mirror of KodroMotion.catRangeCm: sim-enforced range on one charge (cm)."""
+    return 100.0 / move_drain_pct(1.0, gravity_mps2, mass_factor, traction)
+
+
+def cat_endurance_min(
+    mass_factor: float, speed_factor: float, gravity_mps2: float | None, traction: float
+) -> float:
+    """Mirror of KodroMotion.catEnduranceMin: that range at full cruise speed."""
+    return (
+        cat_range_cm(mass_factor, gravity_mps2, traction)
+        / (float(MODEL["baseSpeedCmPerS"]) * speed_factor)  # type: ignore[arg-type]
+        / 60.0
+    )
+
+
 def turn_drain_pct(deg: float) -> float:
     """Mirror of KodroMotion.turnDrainPct."""
     return abs(deg) * float(MODEL["drainPctPerDeg"])  # type: ignore[arg-type]
