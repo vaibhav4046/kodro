@@ -75,14 +75,41 @@ flake, confirmed rendering clean in isolation), interpreter 180, grader 34,
 physics 20, ai_web 27, parts 40, pupilstore 23, memgraph 22, scenario 4,
 interp_fixes 13. All 4 fixes verified end-to-end in the real product.
 
->>> RESERVE POINT (user stepped away, will say "continue"): round 10 fixes are
-being committed + shipped now. When resuming: confirm the JR10 ship is live
-(CI green + Deploy Pages + live bundle sha256 == committed on the new commit),
-then run judge round 11 via the Workflow script
-(kodro-judge-round-wf_08492b6b-dff.js) on freshly-captured evidence. Counter is
-STILL 0 consecutive clean rounds (round 10 was not clean); need TWO consecutive
-clean complete rounds to converge, then the final deliverable report +
-dissertation at exactly 50pp/0 dashes.
+>>> RESERVE POINT (user stepped away, will say "continue"). Round 10 SHIPPED +
+LIVE-VERIFIED at commit c8118bb: CI success (3 OSes), Deploy Pages success, live
+bundle sha256 == committed (ff50659b...), live 200. main == kodro-identity-pass
+== origin == c8118bb. Tree clean. This is the durable checkpoint.
+
+EXACT RESUME STEPS when the user says "continue":
+1. (optional sanity) cd /d/project/robolearn && git rev-parse --short HEAD  # expect c8118bb (or later)
+2. Capture fresh evidence for the next round:
+   node "<scratchpad>/capture_evidence.mjs"  (server on :8099 serving
+   src/robolearn/assets/web; regenerate narrow_mobile at a TRUE 420px CDP
+   viewport via scripts/lib/cdp-viewport.mjs so phone layout is judged honestly).
+3. Run judge round 11 with the Workflow tool, scriptPath:
+   C:\Users\lalwa\.claude\projects\D--project-robolearn\8de95992-bd5b-4a12-b04f-1b334c9f4674\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js
+4. Parse accepted findings (brace-match the tool result, or reconstruct from the
+   run's journal.jsonl + agent-*.jsonl like scratchpad/parse_journal10.js). For
+   each accepted P0-P3: reproduce, root-fix, add/extend a gate (qa_honesty /
+   qa_contrast / qa_ui), rebuild bundle (node scripts/build_web.cjs), run the
+   full battery, commit (STAGE .css AND bundle.js explicitly - a *.jsx/*.js glob
+   silently dropped styles.css in JR9 and reddened CI), push branch + ff main +
+   push both, watch CI, watch Deploy Pages, verify live bundle sha256 ==
+   committed. Record JRx items in BACKLOG.json + update this STATE.
+
+CONVERGENCE COUNTER: 0 consecutive clean complete rounds. Rounds 4-10 all found
+real defects; the trend is DOWN (R9=19 -> R10=4, all P2, no P0/P1). Need TWO
+consecutive clean complete rounds (0 accepted, all 6 judges finishing) to
+declare convergence, then deliver the final report (live URL + commit hashes +
+committed/live bundle sha256 equal + full gate matrix + dissertation PDF at
+EXACTLY 50 pages, 0 em/en dashes + current .kodro/autonomy/ + honest list of
+anything deliberately not done). Do NOT launch round 11 until the user resumes.
+
+Gate counts at this checkpoint: qa_honesty 63, qa_contrast 51, qa_web 5/5,
+qa_ui 38/38, qa_worlds 61, qa_interpreter 180, qa_grader 34, qa_physics 20,
+qa_ai_web 27, qa_parts 40, qa_pupilstore 23, qa_memgraph 22, qa_scenario_parity
+4, qa_interp_fixes 13. Dissertation last built at exactly 50pp/0 dashes (JR9);
+re-verify at convergence (no tex change was needed for JR10).
 
 Gates green for the JR9 fix round (before ship): qa_interpreter 180, qa_grader
 34, qa_physics 20, qa_ai_web 27, qa_parts 40, qa_memgraph 22, qa_pupilstore 23,
