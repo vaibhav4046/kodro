@@ -211,5 +211,16 @@ ok(/\.missionbar \.icon-btn-lessons \.icon-btn-label \{ display:inline; \}/.test
     "teacher register marks the active row in words, not a cryptic middot");
 }
 
+// 11. Primary CTA (.ctrl-run = the Run button) is `color:var(--void)` on
+//     `background:var(--cyan)`; both flip per theme, and the light theme's teal
+//     was a hair too light (Run text 4.43:1). Demand AA for --void on --cyan in
+//     EVERY theme (judge-round-13 runtime contrast audit).
+for (const t of Object.keys(themes)) {
+  const fg = color(t, '--void'), bg = color(t, '--cyan');
+  if (!fg || !bg) { ok(false, `${t}: missing --void/--cyan token`); continue; }
+  const r = ratio(fg, bg);
+  ok(r >= AA, `Run button (--void on --cyan) in "${t}" is ${r.toFixed(2)}:1 (need ${AA})`);
+}
+
 console.log((fail === 0 ? 'PASS' : 'FAIL') + '  contrast + responsive: ' + pass + ' passed, ' + fail + ' failed (over ' + Object.keys(themes).length + ' themes)');
 process.exit(fail === 0 ? 0 : 1);

@@ -1353,7 +1353,7 @@ kbd {
   --ink:#dfe4ee; --ink-2:#c9d0de; --ink-3:#8c93a6;
   /* Accent + status tokens double as TEXT colours (hints, verdicts, console
      err/ok lines), so each is computed to >=4.5:1 on void/navy/navy-2. */
-  --cyan:#0c7b73; --cyan-2:#0b6d65; --cyan-deep:#0a5f59;
+  --cyan:#0a6f68; --cyan-2:#095f59; --cyan-deep:#0a5f59;  /* JR13 audit: darkened from #0c7b73 so the Run button (--void text on --cyan) clears WCAG AA in the light theme (was 4.43:1) */
   --mars:#a7574b; --brass:#a9842f;
   --success:#257c56; --warning:#8f6621; --danger:#b64b4a;
   --fg-1:#181c28; --fg-2:rgba(24,28,40,0.70); --fg-3:#63666c; --fg-4:#6c6e72;
