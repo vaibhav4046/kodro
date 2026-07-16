@@ -824,7 +824,11 @@ select.terrain-btn:hover {
   .view-panel .terrain-switch {
     position:static; transform:none; left:auto; top:auto;
     flex-wrap:wrap; justify-content:center; gap:6px;
-    max-width:100%; padding:6px; background:var(--navy-2);
+    /* Keep the FIXED dark glass (not the theme's near-white --navy-2): the
+       button labels are light cream --hud-fg-3, so a light-theme bar dropped
+       them to ~1.05:1 on phones (judge round 13). Dark glass holds >=4.5:1 in
+       every theme, exactly as on desktop. */
+    max-width:100%; padding:6px; background:rgba(8,9,15,0.85); backdrop-filter:blur(12px);
   }
   /* The view controls (3D / 2D / quality / time / weather) are a rigid
      content-sized child of .terrain-switch (flex:0 0 auto), so at phone width

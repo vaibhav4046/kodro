@@ -16,7 +16,7 @@
   "use strict";
   var ctx = null;
   var muted = (function () {
-    try { return localStorage.getItem("or_muted") === "1"; } catch (e) { return false; }
+    try { return localStorage.getItem("or_muted") !== "0"; } catch (e) { return true; }  // muted by default; opt in via Settings
   })();
 
   function ac() {

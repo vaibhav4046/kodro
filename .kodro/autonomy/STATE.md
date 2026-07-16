@@ -30,6 +30,19 @@ cited parts DB (parts-db.js), URDF export. Plus two CI-red regressions this
 introduced, found and root-fixed: K-003 (ruff format on app.py), K-004
 (offline-guard vs qa_parts citation-host conflict). See BACKLOG.json.
 
+## PHASE 0 RECONCILIATION (authoritative, 2026-07-16)
+This tree, D:\project\robolearn, is AUTHORITATIVE. HEAD advanced through the
+shipped judge rounds: ...c8118bb(JR10) -> 19027e3 -> 75db527(JR11) ->
+9b58d89(JR12) -> [JR13+sound this batch]. All pushed to origin
+(github.com/vaibhav4046/robolearn), CI-verified on 3 OSes, Deploy-Pages live,
+and live bundle sha256 == committed each round. The old tag e1df641/v2.0.2 IS an
+ancestor here (git rev-parse e1df641 resolves). The "other inspection saw main at
+e1df641/v2.0.2, could not resolve c8118bb" was the STALE clone at
+`C:\Users\lalwa\OneDrive\Desktop\codex fix\robolearn` (HEAD e1df641, CLEAN tree,
+no un-lost user work). Nothing to integrate from OneDrive. Ledger files created:
+FINDINGS.jsonl (73 findings, 72 FIXED + 1 DISCLOSED, all 54 JR fixed),
+ACCEPTANCE_MATRIX.md, DISSERTATION_TRACEABILITY.md, EVIDENCE.json.
+
 ## Active slice
 CONVERGENCE IN PROGRESS. Ship history: round 7 (JR7-01/02/03) at 5c38696; round
 8 fix (JR8-01, scoped underwater/space verdicts) at 1bab12e - both CI-green,

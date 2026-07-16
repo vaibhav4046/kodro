@@ -272,7 +272,9 @@
       : (programs[activeTab] !== undefined ? programs[activeTab] : (programs.drive || ''));
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => lsGet('or_readable') === '1');
-    const [muted, setMuted] = useState(() => lsGet('or_muted') === '1');
+    // Sound is OFF by default (the synthesised ambience/sfx were intrusive); a
+    // user opts in via Settings > Sound, which persists or_muted="0".
+    const [muted, setMuted] = useState(() => lsGet('or_muted') !== '0');
     // Visual theme. 'dark' is the default mission-control look; the rest are
     // full repaints driven by [data-theme] CSS variable swaps in styles.css.
     const [theme, setTheme] = useState(() => lsGet('or_theme') || 'dark');
@@ -1021,7 +1023,7 @@
           <div className="bar-divider"></div>
           <div className="speed-ctrl">
             <label htmlFor="sim-speed">Sim speed</label>
-            <input id="sim-speed" type="range" className="slider" min="0.4" max="3" step="0.1" value={speedMul} onChange={e => setSpeedMul(parseFloat(e.target.value))} aria-valuetext={speedMul + ' times'} />
+            <input id="sim-speed" type="range" className="slider" min="0.4" max="3" step="0.1" value={speedMul} onChange={e => setSpeedMul(parseFloat(e.target.value))} aria-label="Sim speed" aria-valuetext={speedMul + ' times'} />
             <span className="num" style={{ fontSize: 11, color: 'var(--fg-2)', width: 30 }}>{speedMul.toFixed(1)}×</span>
           </div>
           <div className="bar-spacer"></div>

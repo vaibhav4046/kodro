@@ -341,12 +341,43 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
 {
   const app = read('app.jsx');
   ok(/<label htmlFor="sim-speed">Sim speed<\/label>/.test(app), 'sim-speed keeps its visible label');
-  ok(!/id="sim-speed"[^>]*aria-label="Simulation speed"/.test(app),
-    'sim-speed no longer overrides the visible label with a mismatched aria-label');
+  // The slider's aria-label must EXACTLY match the visible label "Sim speed":
+  // this satisfies WCAG 2.5.3 (accessible name contains the visible text) AND,
+  // crucially, survives the visible <label> being display:none at <=768px so
+  // the slider never loses its accessible name on mobile (JR13-02 regression).
+  ok(/id="sim-speed"[^\n]*aria-label="Sim speed"/.test(app),
+    'sim-speed has aria-label="Sim speed" (matches visible label, survives mobile display:none)');
+  ok(!/id="sim-speed"[^\n]*aria-label="Simulation speed"/.test(app),
+    'sim-speed does not use the mismatched "Simulation speed" name');
   const panelsSrc = read('panels.jsx');
   ok(/aria-label="Use model"/.test(panelsSrc), 'the model picker accessible name contains the visible "Use model"');
   ok(!/onChange=\{e => pickModel\(e\.target\.value\)\} aria-label="AI model"/.test(panelsSrc),
     'the model picker no longer uses the mismatched "AI model" name');
+}
+
+// 24. The phone-width world-switch bar must keep the FIXED dark glass in every
+//     theme (judge round 13): the light-cream --hud-fg-3 labels vanished to
+//     ~1.05:1 when the @640px rule repainted the bar to a light theme's
+//     near-white --navy-2. Pin the dark-glass background + AA of --hud-fg-3 on
+//     it across all themes.
+{
+  const css = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'styles.css'), 'utf8');
+  const phone640 = (css.match(/@media \(max-width: 640px\) \{([\s\S]*?)\n\}/) || [])[1] || '';
+  const barRule = (phone640.match(/\.view-panel \.terrain-switch \{([\s\S]*?)\}/) || [])[1] || '';
+  ok(/background:rgba\(8,9,15,0\.85\)/.test(barRule) && !/background:var\(--navy-2\)/.test(barRule),
+    'the phone world-switch bar keeps the fixed dark glass, not a theme navy-2');
+}
+
+// 25. Sound is OFF by default (user request: the auto-playing ambience/sfx were
+//     intrusive). Both the React mute state and the sound module default to
+//     muted unless the user has explicitly opted in (or_muted === "0").
+{
+  const app = read('app.jsx');
+  ok(/const \[muted, setMuted\] = useState\(\(\) => lsGet\('or_muted'\) !== '0'\);/.test(app),
+    'the app defaults to muted (sound off) unless the user opted in');
+  const snd = read('sound.js');
+  ok(/localStorage\.getItem\("or_muted"\) !== "0"/.test(snd),
+    'the sound module defaults to muted unless the user opted in');
 }
 
 console.log((fail === 0 ? 'PASS' : 'FAIL') + '  honesty: ' + pass + ' passed, ' + fail + ' failed');

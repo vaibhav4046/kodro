@@ -25089,7 +25089,9 @@ say("Survey done")`
     : programs[activeTab] !== undefined ? programs[activeTab] : programs.drive || '';
     // Dyslexia-friendly / larger reading text toggle (QA re-score rank 4).
     const [readable, setReadable] = useState(() => lsGet('or_readable') === '1');
-    const [muted, setMuted] = useState(() => lsGet('or_muted') === '1');
+    // Sound is OFF by default (the synthesised ambience/sfx were intrusive); a
+    // user opts in via Settings > Sound, which persists or_muted="0".
+    const [muted, setMuted] = useState(() => lsGet('or_muted') !== '0');
     // Visual theme. 'dark' is the default mission-control look; the rest are
     // full repaints driven by [data-theme] CSS variable swaps in styles.css.
     const [theme, setTheme] = useState(() => lsGet('or_theme') || 'dark');
@@ -26343,6 +26345,7 @@ say("Survey done")`
       step: "0.1",
       value: speedMul,
       onChange: e => setSpeedMul(parseFloat(e.target.value)),
+      "aria-label": "Sim speed",
       "aria-valuetext": speedMul + ' times'
     }), /*#__PURE__*/React.createElement("span", {
       className: "num",
