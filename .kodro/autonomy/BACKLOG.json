@@ -687,6 +687,15 @@
       "owner": "judge-round-13",
       "evidence": "FIXED: the slider now has aria-label=\"Sim speed\" - an EXACT match to the visible label, which satisfies both WCAG 2.5.3 (accessible name contains the visible text) AND survives the visible label being display:none at mobile widths (4.1.2/3.3.2). Verified live: aria-label 'Sim speed' present at 375px. qa_honesty \u00a723 corrected: it now REQUIRES aria-label=\"Sim speed\" (the earlier \u00a723 wrongly asserted the ABSENCE of an aria-label, which is what caused this regression). Lesson: a Label-in-Name fix must preserve the name when the visible label can be hidden responsively.",
       "deps": []
+    },
+    {
+      "id": "PKG-01",
+      "title": "pip wheel build failed: hatch double-added every web asset (packages=[src/robolearn] already includes assets/web, and a redundant force-include table re-mapped the same files)",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "completion-owner",
+      "evidence": "FIXED: removed the redundant [tool.hatch.build.targets.wheel.force-include] table from pyproject.toml; the web assets are now included ONCE via packages + the artifacts glob. Verified: python -m build --wheel succeeds -> robolearn-2.0.0-py3-none-any.whl (4.28 MB, 83 web assets incl. bundle.js/interpreter.js/styles.css); pip install of the wheel imports cleanly with assets/web/bundle.js present. Editable dev install restored afterwards. Found during Phase-0 packaging verification of the completion directive.",
+      "deps": []
     }
   ]
 }

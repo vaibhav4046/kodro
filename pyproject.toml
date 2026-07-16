@@ -72,12 +72,14 @@ Issues = "https://github.com/vaibhav4046/robolearn/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robolearn"]
+# The web assets (.jsx/.js/.css/bundle.js) live under the package and are pulled
+# in by `packages` + this `artifacts` glob. The old force-include table re-mapped
+# the SAME files a second time, so hatch tried to add each asset twice and the
+# wheel build failed ("A second file is being added at the same path"). One
+# inclusion mechanism only.
 artifacts = [
     "src/robolearn/assets/web/**/*",
 ]
-
-[tool.hatch.build.targets.wheel.force-include]
-"src/robolearn/assets/web" = "robolearn/assets/web"
 
 [tool.hatch.build.targets.sdist]
 include = [
