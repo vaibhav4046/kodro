@@ -1,0 +1,52 @@
+{
+  "schema": "kodro-evidence/1",
+  "generated_for_commit": "dd6cbf5",
+  "authoritative_repo": "D:\\project\\robolearn",
+  "origin": "github.com/vaibhav4046/robolearn",
+  "branches_synced": ["main", "kodro-identity-pass", "origin/main", "origin/kodro-identity-pass"],
+  "live": {
+    "url": "https://vaibhav4046.github.io/robolearn/",
+    "http_status": 200,
+    "bundle_sha256_prefix": "cc44a6dfd5860742",
+    "committed_bundle_matches_live": true,
+    "ci": "success (3 OSes) on dd6cbf5",
+    "deploy_pages": "success on dd6cbf5"
+  },
+  "local_gate_matrix": {
+    "qa_interpreter": "180/0",
+    "qa_grader": "34/0",
+    "qa_physics": "20/0",
+    "qa_ai_web": "27/0",
+    "qa_web": "5/5 (incl. privacy-zero-external + studio-mount)",
+    "qa_parts": "40/0",
+    "qa_memgraph": "22/0",
+    "qa_pupilstore": "23/0",
+    "qa_scenario_parity": "4/0",
+    "qa_interp_fixes": "13/0",
+    "qa_honesty": "86/0",
+    "qa_contrast": "51/0 (WCAG AA across 10 themes + true 320/375/420 CDP phone layout)",
+    "qa_ui": "6/6 flows, 38/38 behaviour, 12/12 modals",
+    "qa_worlds": "61/0 (verified isolated; swiftshader-under-load can transiently blank-render, rerun clean)",
+    "python_golden_trace_and_urdf": "11/0",
+    "python_suite": "CI-authoritative green; coverage above 85% gate",
+    "lint_format_types": "ruff check + ruff format --check + mypy green on touched code"
+  },
+  "convergence": {
+    "counter": 0,
+    "rounds_run": 13,
+    "defects_by_round_since_resume": {"R9": 19, "R10": 4, "R11": 2, "R12": 2, "R13": 2},
+    "all_accepted_fixed": true,
+    "note": "Every accepted finding fixed + gated + shipped + live-verified per round. No P0/P1 outstanding for many rounds. Need two consecutive complete clean rounds to declare convergence."
+  },
+  "dissertation": {
+    "tex": "docs/dissertation/Kodro_Dissertation.tex",
+    "pdf": "docs/dissertation/Kodro_Dissertation.pdf",
+    "pages": 50,
+    "em_dashes": 0,
+    "en_dashes": 0,
+    "clean_build": true
+  },
+  "findings_ledger": ".kodro/autonomy/FINDINGS.jsonl (73 findings: 72 FIXED, 1 DISCLOSED; 54 judge-round findings all FIXED)",
+  "product_change_this_batch": "Sound OFF by default (user request); Settings > Sound toggle retained.",
+  "flake_notes": "qa_ui/qa_worlds spawn headless Chrome under swiftshader; overnight churn saturates spawns (ETIMEDOUT) or blank-renders. Not product defects: clear leaked headless Chrome, cool down, rerun in isolation. CI does not run qa_ui/qa_worlds (they are local acceptance gates); CI gates are authoritative for shipping."
+}
