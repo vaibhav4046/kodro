@@ -109,12 +109,13 @@ for (const t of Object.keys(themes)) {
   ok(r >= AA, `label text (--fg-3) on the panel surface (--void) in "${t}" is ${r.toFixed(2)}:1 (need ${AA})`);
 }
 
-// 4. Responsive integrity: at phone width the view controls (3D/2D/quality/
-//    time/weather) must take their own full-width row so they wrap inside the
-//    panel; without it the rigid cluster overflowed and .view-panel
-//    overflow:hidden clipped the 3D button off-screen (judge round 5).
-ok(/\.terrain-switch\s*>\s*\.view-toggle\s*\{\s*flex\s*:\s*1\s+1\s+100%/.test(CSS),
-  'phone width gives .view-toggle a full-width wrapping row inside .terrain-switch');
+// 4. Responsive integrity: the redesigned phone world picker is one wrapping
+//    row. Its select must be allowed to shrink below the desktop width or it
+//    will push the 3D/2D controls outside the clipped viewport (the same
+//    judge-round-5 failure class, now guarded for the simpler toolbar).
+ok(/\.world-pick-row\s*\{[^}]*width\s*:\s*100%[^}]*flex-wrap\s*:\s*wrap/.test(CSS)
+  && /\.world-select\s*\{[^}]*min-width\s*:\s*0[^}]*max-width\s*:\s*none/.test(CSS),
+  'phone world picker wraps and its select can shrink inside the viewport');
 
 // 5. The mission bar must WRAP at phone width, not hide the nav icons (Lessons,
 //    Robot Lab, Build, Memory, Settings) behind a scrollbar-less scroll (judge

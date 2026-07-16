@@ -256,6 +256,13 @@
       // navigation or quit (only example-tab code was persisted before).
       try { return JSON.parse(lsGet('or_lesson_buffers')) || {}; } catch (e) { return {}; }
     });  // per-lesson editable code
+    // A compact local index of the latest result for each lesson. The grader
+    // remains authoritative; this is only the learner-facing resume/progress
+    // view used by the lesson library. It is stored on this device alongside
+    // the editable lesson buffers and never leaves the machine.
+    const [lessonResults, setLessonResults] = useState(() => {
+      try { return JSON.parse(lsGet('or_lesson_results')) || {}; } catch (e) { return {}; }
+    });
     const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
     // Learner scaffolding: how many consecutive fails on this lesson (drives
     // the "the app noticed you are stuck" nudge) and how many extra hints the
@@ -284,6 +291,12 @@
     // with the maker profile as the default identity.
     const [mode, setMode] = useState(() => { try { return localStorage.getItem('kodro_mode') || 'studio'; } catch (e) { return 'studio'; } });
     const classroom = mode === 'classroom';
+    const [lessonHubOpen, setLessonHubOpen] = useState(false);
+    function openLessonLibrary() {
+      if (!classroom) setMode('classroom');
+      setLessonHubOpen(true);
+      setSettingsOpen(false);
+    }
     // On a phone the lesson picker sits below the world panel, so tapping the
     // Lessons button produced no visible change (judge round 9): bring the
     // picker on screen when classroom mode opens. block:'nearest' is a no-op
@@ -461,6 +474,10 @@
     const [focus3dKey, setFocus3dKey] = useState(0);
     // Robot Lab: design a custom robot whose spec drives the simulation.
     const [robotLabOpen, setRobotLabOpen] = useState(false);
+    // One product, three decisions. This first redesign layer keeps the proven
+    // handlers intact while giving every capability a stable place in the
+    // journey: design the robot, prove it in scenarios, then prepare a build.
+    const [activeStage, setActiveStage] = useState('prove');
     const [robotSpec, setRobotSpec] = useState(() => (window.getKodroRobot ? window.getKodroRobot() : null));
     // Build-a-real-robot planner (budget build). Extracted VERBATIM to
     // window.KodroHooks.useBuild (hooks.jsx); its external inputs are
@@ -687,6 +704,7 @@
     }, []);
     function loadLesson(lesson) {
       if (!lesson) return;
+      setLessonHubOpen(false);
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
       setLessonAttempts(0);
@@ -719,6 +737,15 @@
         if (r.ok === false) { setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') }]); return; }
         // Persist the verdict in a panel that survives Reset (QA #3).
         setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null });
+        setLessonResults(prev => ({
+          ...prev,
+          [lessonId]: {
+            passed: !!r.passed,
+            score: Number.isFinite(Number(r.score)) ? Number(r.score) : 0,
+            attempts: ((prev[lessonId] && prev[lessonId].attempts) || 0) + 1,
+            updatedAt: Date.now(),
+          },
+        }));
         // Browser mode has no Python store, so keep an on-device class register
         // (pupil-store.js) with the same EMA rule. Desktop persists via Python,
         // so only record here in the browser. A graded attempt (r.ok !== false
@@ -781,6 +808,7 @@
     useEffect(() => { try { localStorage.setItem('or_tab', activeTab); } catch (e) { void e; } }, [activeTab]);
     useEffect(() => { try { localStorage.setItem('or_programs', JSON.stringify(programs)); } catch (e) {} }, [programs]);
     useEffect(() => { try { localStorage.setItem('or_lesson_buffers', JSON.stringify(lessonBuffers)); } catch (e) { void e; } }, [lessonBuffers]);
+    useEffect(() => { try { localStorage.setItem('or_lesson_results', JSON.stringify(lessonResults)); } catch (e) { void e; } }, [lessonResults]);
 
 
     // (addConsole now lives in useConsoleToast, destructured near the top.)
@@ -887,7 +915,7 @@
     // fires; the duplicate close is harmless) but excludes FPV, which has a
     // dedicated Escape handler for motion-sensitive exit.
     const anyOverlayOpenRef = useRef(false);
-    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || settingsOpen);
+    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen);
     const fpvRef = useRef(fpv); fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
     const WORLDS_KB = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
@@ -898,7 +926,9 @@
         setRobotLabOpen(false); setMemoryOpen(false); setReviewOpen(false);
         setVibeOpen(false); setBlocksOpen(false); setBuildOpen(false);
         setShowHelp(false); setRealismOpen(false); setDemoOpen(false);
+        setLessonHubOpen(false);
         setSettingsOpen(false);
+        setActiveStage('prove');
       };
       const h = (e) => {
         const cmd = e.metaKey || e.ctrlKey;
@@ -929,7 +959,7 @@
           // Ctrl+B: toggle the block coding panel.
           if (!e.shiftKey && !e.altKey && (e.key === 'B' || e.key === 'b')) { e.preventDefault(); setBlocksOpen(function (o) { return !o; }); return; }
           // Ctrl+L: toggle Robot Lab.
-          if (!e.shiftKey && !e.altKey && (e.key === 'L' || e.key === 'l')) { e.preventDefault(); setRobotLabOpen(function (o) { return !o; }); return; }
+          if (!e.shiftKey && !e.altKey && (e.key === 'L' || e.key === 'l')) { e.preventDefault(); setRobotLabOpen(function (o) { const next = !o; setActiveStage(next ? 'design' : 'prove'); return next; }); return; }
           // Ctrl+M: toggle the Memory panel.
           if (!e.shiftKey && !e.altKey && (e.key === 'M' || e.key === 'm')) { e.preventDefault(); setMemoryOpen(function (o) { return !o; }); return; }
           // Ctrl+/: toggle the help / shortcuts modal.
@@ -948,7 +978,7 @@
     // assistive tech that focus is confined to the dialog, so honour it: when one
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
-    const anyModalOpen = swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen;
+    const anyModalOpen = swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
     useEffect(() => {
       if (!anyModalOpen) return undefined;
       const modal = Array.prototype.slice.call(document.querySelectorAll('.modal[aria-modal="true"]')).pop();
@@ -973,7 +1003,7 @@
       // so the effect would not re-run and focus would stay trapped in the now
       // occluded background modal. Depending on every flag re-captures the new
       // frontmost dialog and moves focus into it.
-    }, [swarmOpen, askOpen, teacherOpen, robotLabOpen, memoryOpen, reviewOpen, vibeOpen, blocksOpen, buildOpen, showHelp, realismOpen, demoOpen]);
+    }, [swarmOpen, askOpen, teacherOpen, robotLabOpen, memoryOpen, reviewOpen, vibeOpen, blocksOpen, buildOpen, showHelp, realismOpen, demoOpen, lessonHubOpen]);
 
     // Shared vocabulary (app-data.jsx): telemetry renders the SAME labels.
     const statusLabel = (window.KodroStatusLabels || { idle: 'Standby', running: 'Running', paused: 'Paused', done: 'Complete', error: 'Halted' })[runState];
@@ -987,8 +1017,61 @@
     // them say so up front instead of inviting an action that cannot finish here.
     const browserMode = !!(window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable());
 
+    function goStage(stage) {
+      setActiveStage(stage);
+      setSettingsOpen(false);
+      if (stage === 'design') {
+        setBuildOpen(false);
+        setRobotLabOpen(true);
+        return;
+      }
+      if (stage === 'build') {
+        setRobotLabOpen(false);
+        openBuildReal();
+        return;
+      }
+      setRobotLabOpen(false);
+      setBuildOpen(false);
+      setTimeout(function () {
+        const main = document.getElementById('editor-main');
+        if (main && main.focus) main.focus({ preventScroll: true });
+      }, 0);
+    }
+
+    const BUILD_PART_NAMES = {
+      esp32: 'ESP32 development board', uno: 'Arduino Uno compatible board', pico: 'Raspberry Pi Pico', microbit: 'BBC micro:bit',
+      ultrasonic: 'Ultrasonic distance sensor', camera: 'Camera module', imu: 'IMU / orientation sensor', gps: 'GPS receiver', line: 'Line sensor array', bumper: 'Bumper switch',
+      motors2: 'Two geared drive motors', motors4: 'Four geared drive motors', servos: 'Steering servos', gripper: 'Servo gripper',
+    };
+    const BUILD_BODY_NAMES = { rover: 'Wheeled rover chassis', car: 'Steered vehicle chassis', arm: 'Fixed robotic arm base', home: 'Indoor companion chassis' };
+    const buildPartIds = [robotSpec && robotSpec.board].concat((robotSpec && robotSpec.sensors) || [], (robotSpec && robotSpec.actuators) || []).filter(Boolean);
+    const browserBuildParts = [{ id: 'body', name: BUILD_BODY_NAMES[(robotSpec && robotSpec.type) || 'rover'] || 'Robot chassis', role: 'Structure for this concept' }].concat(buildPartIds.map(function (id) {
+      return { id: id, name: BUILD_PART_NAMES[id] || String(id).replace(/[_-]+/g, ' '), role: id === (robotSpec && robotSpec.board) ? 'Controller selected in Design' : 'Capability selected in Design' };
+    }));
+    const browserRunCount = window.KodroRunReports ? window.KodroRunReports.list().length : 0;
+    function downloadPrototypeBrief() {
+      const esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]; }); };
+      const runs = window.KodroRunReports ? window.KodroRunReports.list().slice(0, 12) : [];
+      const rows = browserBuildParts.map(function (p) { return '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.role) + '</td><td>Verify exact voltage, current, dimensions and connector before buying</td></tr>'; }).join('');
+      const runRows = runs.length ? runs.map(function (r) { return '<tr><td>' + esc(r.worldName || r.world || '') + '</td><td>' + esc(r.outcome || '') + '</td><td>' + esc(r.distanceCm != null ? (r.distanceCm / 100).toFixed(1) + ' m' : 'not recorded') + '</td><td>' + esc(r.predicted || '') + '</td></tr>'; }).join('') : '<tr><td colspan="4">No completed runs recorded on this device.</td></tr>';
+      const html = '<!doctype html><html><head><meta charset="utf-8"><title>Kodro prototype brief</title><style>body{font:16px/1.5 system-ui;max-width:980px;margin:40px auto;padding:0 24px;color:#172033}h1,h2{color:#10233f}table{width:100%;border-collapse:collapse;margin:12px 0 26px}th,td{border:1px solid #ccd3dd;padding:9px;text-align:left;vertical-align:top}.notice{background:#fff7dd;border-left:5px solid #cf9a22;padding:14px}small{color:#526173}</style></head><body>' +
+        '<h1>Kodro prototype brief: ' + esc(chipName) + '</h1><p><b>Generated:</b> ' + esc(new Date().toISOString()) + '<br><b>Concept:</b> ' + esc((robotSpec && robotSpec.type) || 'robot') + '<br><b>Scenario currently open:</b> ' + esc(terrain.name || terrain.id) + '</p>' +
+        '<div class="notice"><b>This is a pre-build concept brief, not a certified wiring plan or purchasing recommendation.</b> Kodro has not verified supplier stock, live price, logic levels, current limits, battery safety or mechanical fit. Check original manufacturer datasheets and have a competent adult or engineer review the electrical design before power is applied.</div>' +
+        '<h2>Concept bill of materials</h2><table><thead><tr><th>Design requirement</th><th>Why it is present</th><th>Before purchase</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        '<h2>Recorded simulation evidence</h2><table><thead><tr><th>Scenario</th><th>Outcome</th><th>Distance</th><th>Pre-run prediction</th></tr></thead><tbody>' + runRows + '</tbody></table>' +
+        '<h2>Safe prototype sequence</h2><ol><li>Choose exact parts from original datasheets, then check supply voltage, logic voltage, stall current, driver limits and connector pinout.</li><li>Confirm chassis dimensions, wheel clearance, payload and battery restraint before assembly.</li><li>Power the controller separately first. Test each sensor, then the motor driver with wheels raised and an accessible power disconnect.</li><li>Measure speed, current draw, wheel slip and sensor error on the physical prototype. Enter measured values into a KRS specification and repeat the Kodro scenarios.</li></ol>' +
+        '<h2>Evidence boundary</h2><p>Kodro reduces uncertainty before a first prototype. It does not certify real-world performance or safety. Simulation results apply only to the variables marked honoured or approximated in the verification report; unmodelled hazards remain untested.</p><small>Created locally in your browser. No order was placed and no supplier was contacted.</small></body></html>';
+      const blob = new Blob([html], { type: 'text/html' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (chipName || 'robot').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-prototype-brief.html';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+      showToast('Prototype brief downloaded', 'ok');
+    }
+
     return (
-      <div className="app" data-obstacles={(terrain.obstacles || []).length} data-active-world={(terrain.siteId || terrain.id) || ''}>
+      <div className="app" data-stage={activeStage} data-obstacles={(terrain.obstacles || []).length} data-active-world={(terrain.siteId || terrain.id) || ''}>
         <a className="skip-link" href="#editor-main">Skip to code editor</a>
         <h1 className="sr-only">Kodro, an offline robot design and simulation studio</h1>
         {/* ---- mission bar ---- */}
@@ -1000,6 +1083,18 @@
               <div className="brand-sub">Test robot designs before you build them</div>
             </div>
           </div>
+          <div className="bar-divider"></div>
+          <nav className="stage-nav" aria-label="Robot project stages">
+            <button type="button" className={'stage-link' + (activeStage === 'design' ? ' active' : '')} aria-label={'1 Design, current robot ' + chipName} aria-current={activeStage === 'design' ? 'step' : undefined} onClick={() => goStage('design')}>
+              <span className="stage-count">1</span><span><b>Design</b><small>{chipName}</small></span>
+            </button>
+            <button type="button" className={'stage-link' + (activeStage === 'prove' ? ' active' : '')} aria-label={'2 Prove in ' + (terrain.name || 'the current scenario')} aria-current={activeStage === 'prove' ? 'step' : undefined} onClick={() => goStage('prove')}>
+              <span className="stage-count">2</span><span><b>Prove</b><small>{terrain.name || 'Scenario'}</small></span>
+            </button>
+            <button type="button" className={'stage-link' + (activeStage === 'build' ? ' active' : '')} aria-label="3 Build a prototype pack" aria-current={activeStage === 'build' ? 'step' : undefined} onClick={() => goStage('build')}>
+              <span className="stage-count">3</span><span><b>Build</b><small>Prototype pack</small></span>
+            </button>
+          </nav>
           <div className="bar-divider"></div>
           <div className="run-controls">
             <button className={'ctrl ' + (runState === 'running' ? '' : 'ctrl-run')} onClick={onRun}>
@@ -1020,37 +1115,14 @@
                 seeds'); qa_ui's modal-validate assert depends on that string. */}
             <button className="ctrl" title="Validate this program across 5 randomised seeds" onClick={runValidation}>{KI('target')}Validate</button>
           </div>
-          <div className="bar-divider"></div>
-          <div className="speed-ctrl">
-            <label htmlFor="sim-speed">Sim speed</label>
-            <input id="sim-speed" type="range" className="slider" min="0.4" max="3" step="0.1" value={speedMul} onChange={e => setSpeedMul(parseFloat(e.target.value))} aria-label="Sim speed" aria-valuetext={speedMul + ' times'} />
-            <span className="num" style={{ fontSize: 11, color: 'var(--fg-2)', width: 30 }}>{speedMul.toFixed(1)}×</span>
-          </div>
           <div className="bar-spacer"></div>
           <div className="bar-status" role="status" aria-live="polite" aria-label={'Status: ' + statusLabel}>
             <span className={'status-dot ' + runState} aria-hidden="true"></span>
             <span>{statusLabel}</span>
           </div>
           <div className="bar-divider"></div>
-          {/* Current-robot chip: the designed robot has a visible identity in
-              the studio chrome (name, type, mass), and one click opens the
-              Robot Lab to change it (product-coherence D3). */}
-          <button
-            className="robot-chip"
-            title="Current robot build. Click to open the Robot Lab"
-            aria-label={'Current robot: ' + chipName + (chipType ? ', type ' + chipType : '') + (chipMass ? ', mass ' + chipMass + ' grams' : '') + '. Open Robot Lab'}
-            onClick={() => setRobotLabOpen(true)}
-          >
-            <span className="rc-name">{chipName}</span>
-            {(chipType || chipMass) && (
-              <span className="rc-meta">{chipType || ''}{chipType && chipMass ? ' · ' : ''}{chipMass ? chipMass + ' g' : ''}</span>
-            )}
-          </button>
-          <button className="icon-btn icon-btn-lessons" title="Lessons. Learn robotics and coding step by step (ages 5 to 16)" aria-label="Lessons — learn robotics and coding step by step" aria-pressed={mode === 'classroom'} onClick={() => setMode(mode === 'classroom' ? 'studio' : 'classroom')}>{KI('report')}<span className="icon-btn-label">Lessons</span></button>
-          <button className="icon-btn" title="Robot Lab. Design a custom robot" aria-label="Robot Lab — design a custom robot" onClick={() => setRobotLabOpen(true)}>{KI('lab')}<span className="icon-btn-label">Robot Lab</span></button>
-          <button className="icon-btn" title="Memory. What the system learned, and your skill library" aria-label="Memory and skills — what the system learned, and your skill library" onClick={() => setMemoryOpen(true)}>{KI('memory')}<span className="icon-btn-label">Memory</span></button>
-          <button className="icon-btn" title={browserMode ? 'Build a real robot on a budget (desktop app)' : 'Build a real robot on a budget'} aria-label={browserMode ? 'Build a real robot. Design one on a budget. Desktop app only.' : 'Build a real robot. Design one on a budget.'} onClick={openBuildReal}>{KI('build')}<span className="icon-btn-label">{browserMode ? 'Build (desktop app)' : 'Build'}</span></button>
-          <button className="icon-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts — press question mark to see all shortcuts" onClick={() => setShowHelp(true)}>?<span className="icon-btn-label">Help</span></button>
+          <button className="icon-btn icon-btn-lessons" title="Lessons. Learn robotics and coding step by step (ages 5 to 16)" aria-label="Lessons — browse robotics and coding lessons" aria-pressed={mode === 'classroom'} onClick={openLessonLibrary}>{KI('report')}<span className="icon-btn-label">Lessons</span></button>
+          <button className="icon-btn btn-vibe companion-btn" title={aiInfo.available ? 'Open Companion (' + aiInfo.model + ')' : 'Open Companion. Direct robot and world actions work without a model.'} aria-label="Open Kodro Companion" onClick={() => setVibeOpen(true)}>{KI('vibe')}<span className="icon-btn-label">Companion</span><span className={'companion-dot' + (aiInfo.available ? ' ready' : '')} aria-hidden="true"></span></button>
           <input ref={projectFileRef} type="file" accept=".kodro,.json,application/json" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} onChange={onProjectFilePicked} />
           <div className="settings-wrap">
             <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings — theme, sound, readable text, and teacher tools" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>{KI('gear')}<span className="icon-btn-label">Settings</span></button>
@@ -1061,7 +1133,7 @@
                     the teacher dashboard and the novelty themes. */}
                 <label className="set-row">
                   <span>Mode</span>
-                  <select className="lesson-select" value={mode} onChange={e => setMode(e.target.value)} aria-label="Studio or Classroom mode">
+                  <select className="lesson-select" value={mode} onChange={e => { const next = e.target.value; setMode(next); if (next === 'classroom') setLessonHubOpen(true); }} aria-label="Studio or Classroom mode">
                     <option value="studio">Studio</option>
                     <option value="classroom">Classroom</option>
                   </select>
@@ -1114,6 +1186,12 @@
                 </button>
                 <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); pickPhotoClick(); }}>
                   <span>Photo prop · place("photo")</span><span className="set-val">{browserMode ? 'Desktop app' : (photoUrl ? 'Loaded' : 'Pick…')}</span>
+                </button>
+                <button className="set-row set-btn" aria-label="Open project history, memory and skills" onClick={() => { setSettingsOpen(false); setMemoryOpen(true); }}>
+                  <span>Project history · runs, memory and skills</span><span className="set-val">&rarr;</span>
+                </button>
+                <button className="set-row set-btn" aria-label="Open keyboard shortcuts" onClick={() => { setSettingsOpen(false); setShowHelp(true); }}>
+                  <span>Help · keyboard shortcuts</span><span className="set-val">?</span>
                 </button>
                 {/* F6: the Tweaks panel (camera perspective/orbit/zoom, scene
                     toggles, trail colour) listens for the edit-mode handshake
@@ -1198,19 +1276,21 @@
                         <option key={l.id} value={l.id}>{l.id} · {l.title} [{AGE_FOR[l.keyStage] || l.keyStage}]</option>
                       ))}
                     </select>
+                    <button type="button" className="btn-mini lesson-browse" onClick={() => setLessonHubOpen(true)}>Browse</button>
                   </div>
                 )}
                 <div className="panel-actions">
-                  <button className="btn-mini btn-vibe" title={aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs a local model or a cloud key)'} onClick={() => setVibeOpen(true)}>{KI('vibe')}Vibe</button>
                   <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>{KI('blocks')}Blocks</button>
-                  <button className="btn-mini" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)'} onClick={runReview}>{KI('review')}Review</button>
-                  {/* Validate was moved to the main run bar (next to Run) so it is
-                      not lost among these dim, wrapped micro-buttons. See the
-                      run-controls group above. */}
-                  <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>{KI('gauge')}Realism</button>
-                  <button className="btn-mini" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}>{KI('demo')}Demo</button>
-                  <button className="btn-mini" title={aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs a local model or a cloud key)'} onClick={() => { setAskOpen(true); setAskData(null); }}>{KI('ask')}Ask</button>
-                  {!browserMode && <button className="btn-mini" title="Run your program on a swarm of rovers at once" onClick={runSwarm}>{KI('swarm')}Swarm</button>}
+                  <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>{KI('gauge')}Simulation limits</button>
+                  <details className="editor-tools">
+                    <summary className="btn-mini">More tools</summary>
+                    <div className="editor-tools-menu">
+                      <button className="set-row set-btn" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)'} onClick={runReview}><span>{KI('review')}Review program</span><span className="set-val">&rarr;</span></button>
+                      <button className="set-row set-btn" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}><span>{KI('demo')}Guided demo</span><span className="set-val">&rarr;</span></button>
+                      <button className="set-row set-btn" title={aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs a local model or a cloud key)'} onClick={() => { setAskOpen(true); setAskData(null); }}><span>{KI('ask')}Ask from lessons</span><span className="set-val">&rarr;</span></button>
+                      {!browserMode && <button className="set-row set-btn" title="Run your program on a swarm of rovers at once" onClick={runSwarm}><span>{KI('swarm')}Run a swarm</span><span className="set-val">&rarr;</span></button>}
+                    </div>
+                  </details>
                 </div>
               </div>
               <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
@@ -1439,62 +1519,38 @@
           {/* center: viewport */}
           <div className="panel view-panel" style={{ gridColumn: 3 }} onPointerDown={camDrag} onWheel={camWheel}>
             <div className="terrain-switch">
-              {['city', 'room', 'earth', 'mars', 'underwater', 'space'].map(id => (
-                <button type="button" key={id} className={'terrain-btn' + (terrainId === id ? ' active' : '')} aria-pressed={terrainId === id} onClick={() => onTerrain(id)}>
-                  <span className="tdot" style={{ background: TERRAINS[id].dot, boxShadow: terrainId === id ? '0 0 8px ' + TERRAINS[id].dot : 'none' }}></span>
-                  {TERRAINS[id].label}
-                </button>
-              ))}
-              {window.SITES && (
-                <select
-                  className="lesson-select site-select"
-                  value={window.SITES[terrainId] ? terrainId : ''}
-                  onChange={e => { if (e.target.value) onTerrain(e.target.value); }}
-                  aria-label="Real-world mission site"
-                  title="Drop the rover at a real place. Real gravity, traction and light"
-                >
-                  <option value="" disabled>Mission site…</option>
-                  {[['earth', 'Earth'], ['underwater', 'Underwater'], ['mars', 'Mars'], ['space', 'Space'], ['room', 'Test bays']].map(([base, label]) => {
-                    const ids = Object.keys(window.SITES).filter(id => window.SITES[id].base === base);
-                    return ids.length === 0 ? null : (
-                      <optgroup key={base} label={label}>
-                        {ids.map(id => <option key={id} value={id}>{window.SITES[id].name}</option>)}
-                      </optgroup>
-                    );
-                  })}
-                </select>
-              )}
-              <span className="view-toggle">
-                <button type="button" className={'terrain-btn' + (view3d ? ' active' : '')} aria-pressed={view3d} title="Real 3D view" onClick={() => { setView3d(true); setFocus3dKey(k => k + 1); }}>3D</button>
-                <button type="button" className={'terrain-btn' + (!view3d ? ' active' : '')} aria-pressed={!view3d} title="Flat top-down view" onClick={() => setView3d(false)}>2D</button>
-                {view3d && (
-                  <select className="terrain-btn" value={quality} title="Render quality (Low keeps a basic laptop smooth, Cinematic maxes a screenshot)" aria-label="Render quality" style={{ cursor: 'pointer' }}
-                    onChange={e => { const v = e.target.value; window.KODRO_QUALITY = v; setQuality(v); try { localStorage.setItem('kodro_quality', v); } catch (err) { void err; } }}>
-                    <option value="low">Low</option>
-                    <option value="med">Medium</option>
-                    <option value="high">High</option>
-                    <option value="cinematic">Cinematic</option>
+              <div className="world-pick-row">
+                <label className="world-picker">
+                  <span>World</span>
+                  <select className="lesson-select site-select world-select" value={terrainId} onChange={e => onTerrain(e.target.value)} aria-label="World or real-world mission site">
+                    <optgroup label="Core worlds">
+                      {['city', 'room', 'earth', 'mars', 'underwater', 'space'].map(id => <option key={id} value={id}>{TERRAINS[id].label}</option>)}
+                    </optgroup>
+                    {window.SITES && [['earth', 'Earth sites'], ['underwater', 'Underwater sites'], ['mars', 'Mars sites'], ['space', 'Space sites'], ['room', 'Test bays']].map(([base, label]) => {
+                      const ids = Object.keys(window.SITES).filter(id => window.SITES[id].base === base);
+                      return ids.length === 0 ? null : <optgroup key={base} label={label}>{ids.map(id => <option key={id} value={id}>{window.SITES[id].name}</option>)}</optgroup>;
+                    })}
+                    {terrainId === 'custom' && <option value="custom">Custom world</option>}
                   </select>
-                )}
-                {view3d && (
-                  <select className="terrain-btn" value={tod} title="Time of day. Drives the sun, the sky and the LIGHT gauge" aria-label="Time of day" style={{ cursor: 'pointer' }}
-                    onChange={e => setTod(e.target.value)}>
-                    <option value="noon">Noon</option>
-                    <option value="dawn">Dawn</option>
-                    <option value="dusk">Dusk</option>
-                    <option value="night">Night</option>
-                  </select>
-                )}
-                {view3d && (
-                  <select className="terrain-btn" value={weather} title="Weather. Dust storm on Mars; rain and snow outdoors on Earth" aria-label="Weather" style={{ cursor: 'pointer' }}
-                    onChange={e => setWeather(e.target.value)}>
-                    <option value="clear">Clear</option>
-                    <option value="storm">Dust storm</option>
-                    <option value="rain">Rain</option>
-                    <option value="snow">Snow</option>
-                  </select>
-                )}
-              </span>
+                </label>
+                <span className="view-toggle">
+                  <button type="button" className={'terrain-btn' + (view3d ? ' active' : '')} aria-pressed={view3d} title="Real 3D view" onClick={() => { setView3d(true); setFocus3dKey(k => k + 1); }}>3D</button>
+                  <button type="button" className={'terrain-btn' + (!view3d ? ' active' : '')} aria-pressed={!view3d} title="Flat top-down view" onClick={() => setView3d(false)}>2D</button>
+                </span>
+                <details className="test-conditions">
+                  <summary className="terrain-btn">Test conditions</summary>
+                  <div className="test-conditions-menu">
+                    <div className="speed-ctrl world-speed">
+                      <label htmlFor="sim-speed">Sim speed</label>
+                      <input id="sim-speed" type="range" className="slider" min="0.4" max="3" step="0.1" value={speedMul} onChange={e => setSpeedMul(parseFloat(e.target.value))} aria-label="Sim speed" aria-valuetext={speedMul + ' times'} />
+                      <span className="num">{speedMul.toFixed(1)}×</span>
+                    </div>
+                    {view3d && <label><span>Render quality</span><select className="terrain-btn" value={quality} aria-label="Render quality" onChange={e => { const v = e.target.value; window.KODRO_QUALITY = v; setQuality(v); try { localStorage.setItem('kodro_quality', v); } catch (err) { void err; } }}><option value="low">Low</option><option value="med">Medium</option><option value="high">High</option><option value="cinematic">Cinematic</option></select></label>}
+                    {view3d && <label><span>Time of day</span><select className="terrain-btn" value={tod} aria-label="Time of day" onChange={e => setTod(e.target.value)}><option value="noon">Noon</option><option value="dawn">Dawn</option><option value="dusk">Dusk</option><option value="night">Night</option></select></label>}
+                    {view3d && <label><span>Weather</span><select className="terrain-btn" value={weather} aria-label="Weather" onChange={e => setWeather(e.target.value)}><option value="clear">Clear</option><option value="storm">Dust storm</option><option value="rain">Rain</option><option value="snow">Snow</option></select></label>}
+                  </div>
+                </details>
+              </div>
             </div>
             {view3d
               ? <window.Viewport3D key={'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + '-' + ((terrain && terrain.tod) || 'noon') + '-' + ((terrain && terrain.weather) || 'clear') + (quality === 'cinematic' ? '-cine' : '-std')} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the flat view.', 'sys'); }} />
@@ -1543,8 +1599,83 @@
 
         {teacherOpen && <window.KodroPanels.TeacherModal onClose={() => setTeacherOpen(false)} teacherData={teacherData} />}
 
+        {lessonHubOpen && (
+          <div className="modal-backdrop lesson-hub-backdrop" onClick={() => setLessonHubOpen(false)}>
+            <div className="modal lesson-hub-modal" role="dialog" aria-modal="true" aria-label="Lesson library" onClick={e => e.stopPropagation()}>
+              <div className="lesson-hub-head">
+                <div>
+                  <span className="eyebrow">Classroom · learn by making the robot move</span>
+                  <h2>Choose your next mission</h2>
+                  <p>Each lesson gives you a starter program, a real simulated world, clear goals and feedback after every run.</p>
+                </div>
+                <button className="btn-mini lesson-hub-close" aria-label="Close lesson library" onClick={() => setLessonHubOpen(false)}>✕</button>
+              </div>
+              <div className="lesson-hub-summary" aria-label="Lesson progress summary">
+                <div className="lesson-summary-card">
+                  <span className="lesson-summary-value">{Object.keys(lessonResults).filter(id => lessonResults[id] && lessonResults[id].passed).length}</span>
+                  <span>completed</span>
+                </div>
+                <div className="lesson-summary-card">
+                  <span className="lesson-summary-value">{lessons.length}</span>
+                  <span>missions</span>
+                </div>
+                <div className="lesson-summary-card lesson-summary-wide">
+                  <span className="lesson-summary-label">Learning as</span>
+                  <strong>{browserMode ? 'This device' : ((pupils.find(p => p.id === activePupilId) || {}).displayName || 'Current pupil')}</strong>
+                </div>
+                <button className="btn-mini lesson-teacher-link" onClick={() => { setLessonHubOpen(false); openTeacher(); }}>View progress</button>
+              </div>
+              <div className="lesson-hub-scroll">
+                {lessons.length === 0 && <p className="lesson-hub-loading">Loading the offline lesson library…</p>}
+                {['KS1', 'KS2', 'KS3', 'KS4'].map(stage => {
+                  const stageLessons = lessons.filter(l => l.keyStage === stage);
+                  if (stageLessons.length === 0) return null;
+                  const stageDone = stageLessons.filter(l => lessonResults[l.id] && lessonResults[l.id].passed).length;
+                  return (
+                    <section className="lesson-stage" key={stage} aria-labelledby={'lesson-stage-' + stage}>
+                      <div className="lesson-stage-head">
+                        <div>
+                          <span className="lesson-stage-code">{stage}</span>
+                          <h3 id={'lesson-stage-' + stage}>{AGE_FOR[stage] || stage}</h3>
+                        </div>
+                        <span>{stageDone} of {stageLessons.length} complete</span>
+                      </div>
+                      <div className="lesson-grid">
+                        {stageLessons.map((lesson, index) => {
+                          const result = lessonResults[lesson.id];
+                          const isCurrent = currentLessonId === lesson.id;
+                          return (
+                            <button type="button" key={lesson.id}
+                              className={'lesson-tile' + (isCurrent ? ' current' : '') + (result && result.passed ? ' complete' : '')}
+                              aria-label={(result && result.passed ? 'Completed lesson: ' : 'Open lesson: ') + lesson.title}
+                              onClick={() => loadLesson(lesson)}>
+                              <span className="lesson-tile-number">{String(index + 1).padStart(2, '0')}</span>
+                              <span className="lesson-tile-copy">
+                                <strong>{lesson.title}</strong>
+                                <span>{(lesson.intro || 'Program the robot and test your solution in the simulated world.').trim()}</span>
+                                <small>{(lesson.terrain || 'earth').replace(/^./, c => c.toUpperCase())} world{lesson.readingAge ? ' · Reading age ' + lesson.readingAge + '+' : ''}</small>
+                              </span>
+                              <span className={'lesson-tile-status' + (result && result.passed ? ' done' : '')}>
+                                {result ? (result.passed ? '✓ Complete' : result.score + '/100') : 'Start'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+              <div className="lesson-hub-foot">
+                <span>{KI('shield')} Progress is calculated only from graded attempts saved on this device.</span>
+                <button className="btn-mini" onClick={() => { setLessonHubOpen(false); setMode('studio'); }}>Return to Studio</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {robotLabOpen && RobotLab && (
-          <RobotLab onClose={() => setRobotLabOpen(false)} onBuildReal={openBuildReal} />
+          <RobotLab onClose={() => { setRobotLabOpen(false); setActiveStage('prove'); }} onBuildReal={() => goStage('build')} />
         )}
 
         {memoryOpen && <window.KodroPanels.MemoryModal setMemoryOpen={setMemoryOpen} memTick={memTick} code={code} terrain={terrain} robotSpec={robotSpec} currentLessonId={currentLessonId} setLessonBuffers={setLessonBuffers} setPrograms={setPrograms} activeTab={activeTab} applyCode={applyProgramText} />}
@@ -1553,7 +1684,7 @@
 
         {realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, { onClose: () => setRealismOpen(false), terrain: terrain })}
         {demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, { onClose: () => setDemoOpen(false) })}
-        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} />}
+        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} onExplain={() => { setVibeOpen(false); setAskData(null); setAskOpen(true); }} onReview={() => { setVibeOpen(false); runReview(); }} />}
 
         {blocksOpen && <window.KodroPanels.BlocksModal setBlocksOpen={setBlocksOpen} BLOCK_DEFS={BLOCK_DEFS} robotSpec={robotSpec} addBlock={addBlock} endBlock={endBlock} blockIndent={blockIndent} setBlockIndent={setBlockIndent} blocks={blocks} setBlocks={setBlocks} moveBlock={moveBlock} removeBlock={removeBlock} insertBlocksCode={insertBlocksCode} classroom={classroom} />}
 
@@ -1567,17 +1698,49 @@
             cap.html open=build driver still resolve a Build dialog. Availability is read at
             open time (a click), by which point pywebview has injected its API on desktop. */}
         {buildOpen && ((window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable())
-          ? <window.KodroPanels.BuildModal onClose={() => setBuildOpen(false)} buildBudget={buildBudget} setBuildBudget={setBuildBudget} buildGoal={buildGoal} setBuildGoal={setBuildGoal} buildBusy={buildBusy} runBuild={runBuild} buildErr={buildErr} buildPlan={buildPlan} robotSpec={robotSpec} onAdoptParts={adoptPlanParts} />
+          ? <window.KodroPanels.BuildModal onClose={() => { setBuildOpen(false); setActiveStage('prove'); }} buildBudget={buildBudget} setBuildBudget={setBuildBudget} buildGoal={buildGoal} setBuildGoal={setBuildGoal} buildBusy={buildBusy} runBuild={runBuild} buildErr={buildErr} buildPlan={buildPlan} robotSpec={robotSpec} onAdoptParts={(plan) => { adoptPlanParts(plan); setActiveStage('design'); }} />
           : (
-            <div className="modal-backdrop" onClick={() => setBuildOpen(false)}>
-              <div className="modal" role="dialog" aria-modal="true" aria-label="Build a real robot" onClick={e => e.stopPropagation()}>
+            <div className="modal-backdrop" onClick={() => { setBuildOpen(false); setActiveStage('prove'); }}>
+              <div className="modal modal-wide browser-build-modal" role="dialog" aria-modal="true" aria-label="Build a real robot" onClick={e => e.stopPropagation()}>
                 <div className="modal-head">
-                  <span className="eyebrow" role="heading" aria-level="2">{KI('build')}Build a real robot. What your budget can buy</span>
-                  <button className="btn-mini" aria-label="Close" onClick={() => setBuildOpen(false)}>✕</button>
+                  <span className="eyebrow" role="heading" aria-level="2">{KI('build')}Build · prepare a responsible first prototype</span>
+                  <button className="btn-mini" aria-label="Close" onClick={() => { setBuildOpen(false); setActiveStage('prove'); }}>✕</button>
                 </div>
-                <div className="build-body">
-                  <p className="vibe-status">The budget planner needs the desktop app. It plans and prices a real robot from your current design using a local AI model through Ollama, a separate free install that runs on your own computer; without Ollama the planner cannot run.</p>
-                  <p className="vibe-status">In the browser you can still design a robot in the Robot Lab, program it, and run it. To plan real hardware within a budget, open Kodro as the desktop app.</p>
+                <div className="build-body browser-build-body">
+                  <div className="browser-build-intro">
+                    <div>
+                      <span className="eyebrow">Active design</span>
+                      <h2>{chipName}</h2>
+                      <p>Kodro can prepare a concept bill of materials and simulation record here in the free browser app. It will not invent live prices, electrical compatibility or a safe wiring plan.</p>
+                    </div>
+                    <button className="ctrl ctrl-run" onClick={downloadPrototypeBrief}>Download prototype brief</button>
+                  </div>
+                  <div className="build-readiness" aria-label="Prototype brief readiness">
+                    <div><strong>{browserBuildParts.length}</strong><span>design requirements captured</span></div>
+                    <div><strong>{browserRunCount}</strong><span>simulation runs recorded</span></div>
+                    <div><strong>4</strong><span>checks required before power-on</span></div>
+                  </div>
+                  <div className="browser-build-grid">
+                    <section>
+                      <div className="eyebrow">Concept bill of materials</div>
+                      <table className="build-table browser-bom">
+                        <thead><tr><th scope="col">Requirement</th><th scope="col">Evidence</th></tr></thead>
+                        <tbody>{browserBuildParts.map(function (p) { return <tr key={p.id}><td>{p.name}</td><td className="role">{p.role}</td></tr>; })}</tbody>
+                      </table>
+                      <p className="build-note">These are design requirements from your active Kodro robot, not supplier-selected products. Exact voltage, current, dimensions, logic levels, connectors, stock and price are not verified.</p>
+                    </section>
+                    <section className="build-boundary">
+                      <div className="eyebrow">Evidence boundary</div>
+                      <div className="build-evidence-row is-known"><b>Verified by Kodro</b><span>Selected controller and capabilities, command availability, saved run outcomes and the simulator's disclosed first-order calculations.</span></div>
+                      <div className="build-evidence-row is-suggested"><b>Ready to export</b><span>A local HTML brief containing this concept, recent run evidence, uncertainty and a safe prototype sequence.</span></div>
+                      <div className="build-evidence-row is-unverified"><b>Verify before purchasing</b><span>Motor driver current, battery chemistry and protection, voltage and logic compatibility, wiring, mechanical fit, price, stock and supplier quality.</span></div>
+                      <div className="browser-build-actions">
+                        <button className="btn-mini" onClick={() => goStage('design')}>Back to Design</button>
+                        <button className="btn-mini" onClick={() => goStage('prove')}>Run more tests</button>
+                      </div>
+                    </section>
+                  </div>
+                  <p className="browser-build-desktop">Optional desktop enhancement: the planner can use a local model through Ollama, a separate free install. Its prices remain estimates until source-backed connected research and deterministic electrical checks are implemented.</p>
                 </div>
               </div>
             </div>

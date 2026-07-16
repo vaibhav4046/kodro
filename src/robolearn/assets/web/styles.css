@@ -125,8 +125,9 @@ body {
    to ~1336px, pushing Settings offscreen with scrollbars hidden (bugs D1).
    Dropping the icon-button text labels (their aria-labels keep the meaning)
    and tightening gaps lets the whole bar fit on one row at 1280x800. */
-@media (max-width: 1360px) {
+@media (max-width: 1680px) {
   .missionbar { gap:8px 12px; }
+  .missionbar .brand-sub { display:none; }
   .missionbar .icon-btn-label { display:none; }
   .missionbar .icon-btn { min-width:32px; justify-content:center; }
   /* The Lessons entry keeps its visible label at every width: it is the only
@@ -135,6 +136,15 @@ body {
      768px, so the extra ~52px never clips anything. */
   .missionbar .icon-btn-lessons { min-width:0; padding:0 8px; }
   .missionbar .icon-btn-lessons .icon-btn-label { display:inline; }
+  .missionbar .companion-btn { min-width:0; padding:0 8px; }
+  .missionbar .companion-btn .icon-btn-label { display:inline; }
+  .stage-link { padding-inline:8px; }
+  .stage-link small { display:none; }
+}
+@media (max-width: 1360px) {
+  .missionbar .companion-btn { width:34px; min-width:34px; padding:0; }
+  .missionbar .companion-btn .icon-btn-label { display:none; }
+  .stage-link { padding-inline:7px; }
 }
 .brand { display:flex; align-items:center; gap:11px; }
 .brand-mark { width:30px; height:30px; color:var(--cyan); flex:none; }
@@ -149,6 +159,40 @@ body {
   text-transform:uppercase; color:var(--fg-3); margin-top:3px;
 }
 .bar-divider { width:0.5px; height:28px; background:var(--border); }
+
+/* The product journey is now the primary navigation. It replaces the old row
+   of unrelated Robot Lab / robot chip / Build buttons with three decisions a
+   first-time maker can understand. The live robot and world names provide
+   context without adding another toolbar. */
+.stage-nav {
+  display:flex; align-items:stretch; gap:2px; padding:3px;
+  border:1px solid var(--border); border-radius:var(--radius-md);
+  background:color-mix(in srgb,var(--void) 72%,transparent); min-width:0;
+}
+.stage-link {
+  appearance:none; border:0; border-radius:var(--radius-sm); background:transparent;
+  color:var(--fg-2); min-height:38px; padding:5px 10px; cursor:pointer;
+  display:flex; align-items:center; gap:8px; text-align:left;
+  transition:background 150ms var(--ease),color 150ms var(--ease);
+}
+.stage-link:hover { color:var(--fg-1); background:var(--navy-3); }
+.stage-link.active { color:var(--fg-1); background:var(--navy-3); box-shadow:inset 0 -2px 0 var(--cyan); }
+.stage-link > span:last-child { display:flex; min-width:0; flex-direction:column; gap:1px; }
+.stage-link b { font-size:var(--text-md); line-height:1.15; font-weight:650; }
+.stage-link small { max-width:92px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--fg-3); font-size:var(--text-2xs); }
+.stage-count {
+  width:20px; height:20px; flex:none; display:grid; place-items:center;
+  border:1px solid var(--border); border-radius:50%; color:var(--fg-3);
+  font:600 var(--text-2xs)/1 var(--font-mono);
+}
+.stage-link.active .stage-count { color:var(--void); background:var(--cyan); border-color:var(--cyan); }
+
+.companion-btn { position:relative; }
+.companion-dot {
+  width:6px; height:6px; border-radius:50%; background:var(--fg-4);
+  box-shadow:0 0 0 2px var(--navy); position:absolute; right:4px; top:5px;
+}
+.companion-dot.ready { background:var(--success); }
 
 .run-controls { display:flex; align-items:center; gap:8px; }
 .ctrl {
@@ -229,6 +273,19 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .panel-head .eyebrow { color:var(--fg-2); }
 .panel-head .ph-spacer { flex:1; }
 .panel-actions { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+.editor-panel > .panel-head { position:relative; overflow:visible; }
+.editor-tools { position:relative; }
+.editor-tools > summary { list-style:none; }
+.editor-tools > summary::-webkit-details-marker { display:none; }
+.editor-tools > summary::after { content:'⌄'; margin-left:6px; color:var(--fg-3); }
+.editor-tools[open] > summary { color:var(--cyan); border-color:var(--cyan-deep); }
+.editor-tools-menu {
+  position:absolute; z-index:45; right:0; top:calc(100% + 7px); width:250px;
+  padding:6px; border:1px solid var(--border); border-radius:var(--radius-md);
+  background:var(--navy-2); box-shadow:var(--shadow-menu);
+}
+.editor-tools-menu .set-row { width:100%; }
+.editor-tools-menu .ki { margin-right:7px; vertical-align:-3px; }
 
 /* ===================== Editor ===================== */
 .editor-panel { border-right:0.5px solid var(--border); background:var(--navy); }
@@ -307,19 +364,43 @@ input[type=range].slider::-moz-range-thumb { width:13px; height:13px; border:non
 .view-panel { background:#000; position:relative; overflow:hidden; }
 .terrain-switch {
   position:absolute; top:14px; left:50%; transform:translateX(-50%);
-  display:flex; gap:3px; padding:4px; z-index:12;
+  display:flex; flex-direction:column; gap:4px; padding:5px; z-index:12;
   /* Cap to the panel width and wrap onto a second centered row rather than
      hiding the end controls behind a near-invisible horizontal scroll: the row
      of world buttons + mission select + view/quality controls is wider than a
      narrow viewport panel, which used to push controls (MARS etc.) out of reach.
      The bar is absolute and centered, so a second row is acceptable. */
-  max-width:calc(100% - 16px); flex-wrap:wrap; justify-content:center; row-gap:4px;
+  width:max-content; max-width:calc(100% - 16px);
   background:rgba(8,9,15,0.85); backdrop-filter:blur(12px);
   border:0.5px solid var(--border); border-radius:var(--radius-md); box-shadow:var(--shadow-menu);
 }
 .terrain-switch::-webkit-scrollbar{ height:5px; }
 .terrain-switch::-webkit-scrollbar-thumb{ background:var(--border); border-radius:var(--radius-sm); }
-.terrain-switch > *{ flex:0 0 auto; }
+.world-tabs, .world-tools { display:flex; align-items:center; justify-content:center; gap:3px; min-width:0; }
+.world-tabs { border-bottom:1px solid rgba(245,240,228,0.09); padding-bottom:4px; }
+.world-tools { flex-wrap:wrap; }
+.world-tools .site-select { min-width:190px; }
+.world-pick-row { display:flex; align-items:center; justify-content:center; gap:4px; min-width:0; }
+.world-picker { display:flex; align-items:center; gap:8px; padding-left:8px; }
+.world-picker > span { color:var(--hud-fg-3); font:500 var(--text-xs)/1 var(--font-mono); letter-spacing:.12em; text-transform:uppercase; }
+.world-select { min-width:230px; max-width:min(38vw,330px); height:32px; color:var(--hud-fg-1); background:#171a25; border-color:rgba(245,240,228,0.2); }
+.test-conditions { position:relative; }
+.test-conditions > summary { list-style:none; white-space:nowrap; }
+.test-conditions > summary::-webkit-details-marker { display:none; }
+.test-conditions > summary::after { content:'⌄'; margin-left:7px; }
+.test-conditions[open] > summary { color:var(--hud-fg-1); background:rgba(245,240,228,0.12); border-color:rgba(245,240,228,0.24); }
+.test-conditions-menu {
+  position:absolute; z-index:30; top:calc(100% + 8px); right:0; width:270px;
+  padding:10px; display:grid; gap:8px; border:1px solid rgba(245,240,228,0.18);
+  border-radius:var(--radius-md); background:rgba(8,9,15,0.96); box-shadow:var(--shadow-menu);
+}
+.test-conditions-menu > label { display:grid; grid-template-columns:1fr 126px; align-items:center; gap:8px; color:var(--hud-fg-3); font:500 var(--text-xs)/1.3 var(--font-mono); letter-spacing:.08em; text-transform:uppercase; }
+.test-conditions-menu select.terrain-btn { width:126px; min-width:0; height:32px; padding:4px 7px; }
+.world-speed { padding:0 7px; border-right:1px solid rgba(245,240,228,0.12); }
+.test-conditions-menu .world-speed { justify-content:space-between; padding:7px 0; border-right:0; border-bottom:1px solid rgba(245,240,228,0.1); }
+.world-speed label, .world-speed .num { color:var(--hud-fg-3); }
+.world-speed .num { width:30px; font-size:var(--text-sm); }
+.world-speed input[type=range].slider { width:72px; background:rgba(245,240,228,0.24); }
 .terrain-btn {
   display:flex; align-items:center; gap:7px;
   font-family:var(--font-mono); font-size:var(--text-sm); letter-spacing:0.1em; text-transform:uppercase;
@@ -762,7 +843,18 @@ select.terrain-btn:hover {
      phone those icons are the entries into the learning, testing and
      governance pillars, so they must be on screen, not off the right edge
      with no affordance (judge round 7). The bar grows to a second row. */
-  .app { grid-template-rows:auto 1fr; }
+  .app { grid-template-rows:auto 1fr; padding-bottom:58px; }
+  .stage-nav {
+    position:fixed; z-index:80; left:0; right:0; bottom:0;
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2px;
+    padding:6px max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
+    border:0; border-top:1px solid var(--border); border-radius:0;
+    background:color-mix(in srgb,var(--navy) 96%,transparent); box-shadow:0 -12px 28px rgba(0,0,0,0.28);
+  }
+  .stage-link { min-height:44px; justify-content:center; padding:5px 7px; }
+  .stage-link > span:last-child { align-items:center; }
+  .stage-link small { display:none; }
+  .stage-nav + .bar-divider { display:none; }
   .missionbar {
     flex-wrap:wrap; height:auto; min-height:48px; padding:6px 10px; gap:8px 10px;
     overflow:visible;
@@ -770,6 +862,7 @@ select.terrain-btn:hover {
   /* Hide the text labels on icon buttons; the descriptive aria-label still
      exposes the full purpose to screen readers and touch users via AT. */
   .icon-btn-label { display:none; }
+  .missionbar .companion-btn .icon-btn-label { display:none; }
   .icon-btn { width:34px; min-width:34px; padding:0; justify-content:center; }
   .speed-ctrl label { display:none; }
   .bar-status { white-space:nowrap; }
@@ -813,6 +906,15 @@ select.terrain-btn:hover {
   /* The tagline has no room at phone width: it wrapped one word per line down
      the left edge and read as broken rendering (judge round 1). Fewer words. */
   .brand-sub { display:none; }
+  .editor-tools-menu { width:min(250px,calc(100vw - 24px)); }
+  .browser-build-body { padding:14px; max-height:82vh; }
+  .browser-build-intro { align-items:stretch; flex-direction:column; gap:12px; }
+  .browser-build-intro .ctrl { justify-content:center; }
+  .build-readiness, .browser-build-grid { grid-template-columns:1fr; }
+  .build-readiness { gap:6px; }
+  .build-readiness > div { padding:10px 12px; }
+  .rl-foot .ctrl-run { order:-1; width:100%; margin-left:0; justify-content:center; }
+  .rl-advanced-menu { width:min(540px,calc(100vw - 28px)); }
 }
 
 /* Phone width (QA bug review): at ~375px the absolutely-centred view toolbar
@@ -836,7 +938,13 @@ select.terrain-btn:hover {
      overflow:hidden clipped the 3D button off the left edge with no scroll
      (judge round 5). Give it its own full-width row so its buttons wrap inside
      the panel and every control stays tappable. */
-  .terrain-switch > .view-toggle { flex:1 1 100%; overflow-x:auto; scrollbar-width:thin; }
+  .world-pick-row { width:100%; flex-wrap:wrap; justify-content:flex-start; }
+  .world-picker { flex:1 1 100%; padding:0; }
+  .world-picker > span { flex:none; }
+  .world-select { flex:1; min-width:0; max-width:none; }
+  .world-pick-row > .view-toggle { flex:0 0 auto; overflow:visible; }
+  .test-conditions { margin-left:auto; }
+  .test-conditions-menu { position:fixed; z-index:90; left:10px; right:10px; top:auto; bottom:70px; width:auto; }
   .view-toggle { flex-wrap:nowrap; justify-content:flex-start; }
   .view-toggle > * { flex:0 0 auto; }
   .panel-head { flex-wrap:wrap; height:auto; row-gap:6px; }
@@ -894,6 +1002,73 @@ select.terrain-btn:hover {
 /* Lesson help row: progressive hint, ask-why, and the next-lesson chip */
 .lesson-actions { display:flex; align-items:center; gap:8px; margin-top:10px; flex-wrap:wrap; }
 .lesson-actions .lesson-next { margin-left:auto; }
+
+/* Lesson library: a real entry surface for Classroom mode. The previous one-
+   line select technically exposed every lesson but gave a new learner no map,
+   no progress and no sense of the staged curriculum. */
+.lesson-hub-backdrop { padding:18px; }
+.modal.lesson-hub-modal {
+  width:min(1080px,96vw); max-height:calc(100vh - 36px); padding:0; overflow:hidden;
+  display:grid; grid-template-rows:auto auto minmax(0,1fr) auto;
+  background:
+    radial-gradient(circle at 82% -20%, color-mix(in srgb,var(--cyan) 16%,transparent), transparent 38%),
+    linear-gradient(180deg,var(--navy-2),var(--navy));
+}
+.lesson-hub-head { display:flex; justify-content:space-between; gap:24px; padding:26px 28px 18px; border-bottom:1px solid var(--border-2); }
+.lesson-hub-head h2 { margin:7px 0 5px; color:var(--fg-1); font-family:var(--font-display); font-size:clamp(28px,3vw,42px); line-height:1; font-weight:600; }
+.lesson-hub-head p { margin:0; max-width:720px; color:var(--fg-2); font-size:var(--text-lg); line-height:1.5; }
+.lesson-hub-close { align-self:flex-start; min-width:38px; min-height:38px; }
+.lesson-hub-summary { display:flex; align-items:stretch; gap:10px; padding:14px 28px; background:color-mix(in srgb,var(--navy-3) 72%,transparent); border-bottom:1px solid var(--border-2); }
+.lesson-summary-card { min-width:104px; display:flex; flex-direction:column; justify-content:center; padding:10px 13px; border:1px solid var(--border-2); border-radius:var(--radius-md); background:var(--void); color:var(--fg-2); font-size:var(--text-sm); }
+.lesson-summary-value { color:var(--cyan); font-family:var(--font-display); font-size:28px; line-height:1; }
+.lesson-summary-wide { min-width:190px; flex:1; }
+.lesson-summary-label { color:var(--fg-3); font-family:var(--font-mono); font-size:var(--text-xs); letter-spacing:.08em; text-transform:uppercase; }
+.lesson-summary-wide strong { margin-top:4px; color:var(--fg-1); font-size:var(--text-md); }
+.lesson-teacher-link { align-self:center; min-height:38px; padding-inline:14px; }
+.lesson-hub-scroll { overflow:auto; padding:22px 28px 28px; }
+.lesson-hub-loading { color:var(--fg-2); font-size:var(--text-lg); text-align:center; padding:40px; }
+.lesson-stage + .lesson-stage { margin-top:28px; }
+.lesson-stage-head { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.lesson-stage-head > div { display:flex; align-items:baseline; gap:10px; }
+.lesson-stage-head h3 { margin:0; color:var(--fg-1); font-size:var(--text-xl); }
+.lesson-stage-head > span { color:var(--fg-3); font-family:var(--font-mono); font-size:var(--text-sm); }
+.lesson-stage-code { color:var(--cyan); font-family:var(--font-mono); font-size:var(--text-xs); letter-spacing:.12em; }
+.lesson-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.lesson-tile {
+  appearance:none; display:grid; grid-template-columns:38px minmax(0,1fr) auto; align-items:start; gap:12px;
+  min-height:112px; padding:14px; text-align:left; color:var(--fg-1); background:var(--void);
+  border:1px solid var(--border-2); border-radius:var(--radius-lg); cursor:pointer;
+  transition:transform 150ms var(--ease),border-color 150ms var(--ease),background 150ms var(--ease),box-shadow 150ms var(--ease);
+}
+.lesson-tile:hover { transform:translateY(-2px); border-color:var(--fg-3); background:var(--navy-2); box-shadow:var(--shadow-card); }
+.lesson-tile.current { border-color:var(--cyan); box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--cyan) 35%,transparent); }
+.lesson-tile.complete { background:linear-gradient(135deg,color-mix(in srgb,var(--success) 9%,var(--void)),var(--void) 58%); }
+.lesson-tile-number { width:38px; height:38px; display:grid; place-items:center; border-radius:50%; background:var(--navy-3); color:var(--fg-2); font-family:var(--font-mono); font-size:var(--text-sm); }
+.lesson-tile.complete .lesson-tile-number { background:var(--success); color:var(--void); }
+.lesson-tile-copy { min-width:0; display:flex; flex-direction:column; gap:5px; }
+.lesson-tile-copy strong { font-size:var(--text-lg); line-height:1.2; }
+.lesson-tile-copy > span { color:var(--fg-2); font-size:var(--text-md); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.lesson-tile-copy small { color:var(--fg-3); font-family:var(--font-mono); font-size:var(--text-xs); }
+.lesson-tile-status { align-self:start; white-space:nowrap; padding:4px 7px; border-radius:999px; color:var(--cyan); background:color-mix(in srgb,var(--cyan) 9%,transparent); font-family:var(--font-mono); font-size:var(--text-xs); }
+.lesson-tile-status.done { color:var(--success); background:color-mix(in srgb,var(--success) 10%,transparent); }
+.lesson-hub-foot { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:12px 28px; border-top:1px solid var(--border-2); color:var(--fg-3); font-size:var(--text-sm); }
+.lesson-hub-foot > span { display:flex; align-items:center; gap:7px; }
+.lesson-hub-foot .ki { width:16px; height:16px; color:var(--cyan); }
+@media (max-width:760px) {
+  .lesson-hub-backdrop { padding:0; }
+  .modal.lesson-hub-modal { width:100vw; max-height:100vh; height:100vh; border-radius:0; }
+  .lesson-hub-head { padding:20px 18px 14px; }
+  .lesson-hub-head p { font-size:var(--text-md); }
+  .lesson-hub-summary { padding:10px 18px; flex-wrap:wrap; }
+  .lesson-summary-card { min-width:84px; }
+  .lesson-summary-wide { min-width:160px; }
+  .lesson-teacher-link { flex:1 1 100%; }
+  .lesson-hub-scroll { padding:18px; }
+  .lesson-grid { grid-template-columns:1fr; }
+  .lesson-tile { grid-template-columns:34px minmax(0,1fr); }
+  .lesson-tile-status { grid-column:2; }
+  .lesson-hub-foot { padding:10px 18px; align-items:flex-start; }
+}
 
 /* Dyslexia-friendly / larger reading text (QA re-score rank 4). Scoped to the
    reading + code surfaces so the fixed app grid is unaffected. Atkinson
@@ -1080,6 +1255,8 @@ kbd {
 /* Vibe coding (local AI) + Blocks mode (Scratch-style). */
 .modal-wide { width:min(560px,94vw); }
 .btn-vibe { color:var(--cyan); border-color:rgba(92,224,216,0.35); }
+.companion-modes { display:flex; flex-wrap:wrap; gap:5px; padding:9px 12px 0; }
+.companion-modes .btn-mini.active { color:var(--void); background:var(--cyan); border-color:var(--cyan); }
 .vibe-body { display:flex; flex-direction:column; gap:10px; }
 .vibe-status { font-size:var(--text-md); color:var(--fg-2); margin:0; }
 .vibe-input {
@@ -1294,6 +1471,27 @@ kbd {
 .build-table td{ padding:4px 6px; border-bottom:1px solid var(--border-2); vertical-align:top; }
 .build-table td.role{ color:var(--fg-3); font-size:var(--text-sm); }
 .build-table td.cost{ text-align:right; font-family:var(--font-mono); color:var(--cyan); white-space:nowrap; }
+.browser-build-modal { width:min(1040px,calc(100vw - 32px)); }
+.browser-build-body { gap:18px; max-height:min(76vh,760px); overflow:auto; padding:18px; }
+.browser-build-intro { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; }
+.browser-build-intro h2 { margin:3px 0 5px; font:600 var(--text-6xl)/1.1 var(--font-display); }
+.browser-build-intro p { max-width:680px; color:var(--fg-2); line-height:1.5; }
+.build-readiness { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.build-readiness > div { padding:13px 15px; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--navy-2); display:flex; flex-direction:column; gap:2px; }
+.build-readiness strong { color:var(--cyan); font:600 var(--text-5xl)/1 var(--font-mono); }
+.build-readiness span { color:var(--fg-2); font-size:var(--text-sm); }
+.browser-build-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr); gap:24px; }
+.browser-build-grid > section { min-width:0; }
+.browser-bom { margin-top:8px; }
+.browser-bom th { padding:6px; text-align:left; border-bottom:1px solid var(--border); color:var(--fg-3); font:500 var(--text-xs)/1.3 var(--font-mono); letter-spacing:.12em; text-transform:uppercase; }
+.build-evidence-row { display:flex; flex-direction:column; gap:3px; margin-top:8px; padding:11px 12px; border:1px solid var(--border); border-left-width:3px; border-radius:var(--radius-sm); background:var(--navy-2); }
+.build-evidence-row b { font-size:var(--text-lg); }
+.build-evidence-row span { color:var(--fg-2); font-size:var(--text-md); line-height:1.45; }
+.build-evidence-row.is-known { border-left-color:var(--cyan); }
+.build-evidence-row.is-suggested { border-left-color:var(--warning); }
+.build-evidence-row.is-unverified { border-left-color:var(--fg-3); }
+.browser-build-actions { display:flex; gap:8px; margin-top:12px; }
+.browser-build-desktop { padding:11px 13px; border-radius:var(--radius-sm); background:var(--navy-2); color:var(--fg-2); font-size:var(--text-sm); line-height:1.45; }
 .build-steps{ margin:4px 0 0; padding-left:18px; font-size:var(--text-md); line-height:1.55; color:var(--fg-2); }
 .build-steps li{ margin-bottom:4px; }
 .build-maps{ margin:4px 0 0; display:flex; flex-direction:column; gap:5px; }
@@ -1510,16 +1708,45 @@ kbd {
 :root[data-theme="lego"] .tok-num{ color:#816c19; }
 :root[data-theme="lego"] .tok-fn{ color:#4e67c6; }
 
-/* Teacher dashboard heatmap. */
-.teacher-body{ display:flex; flex-direction:column; gap:8px; }
-.heatmap-table{ width:100%; border-collapse:collapse; font-family:var(--font-mono); font-size:var(--text-sm); }
-.heatmap-table th, .heatmap-table td{ border:1px solid var(--border); padding:5px 7px; text-align:center; }
-.heatmap-table th{ background:var(--navy-3); color:var(--fg-2); position:sticky; top:0; }
-.heatmap-table th.hm-concept{ writing-mode:vertical-rl; transform:rotate(180deg); max-height:90px; font-size:var(--text-xs); letter-spacing:0.04em; }
+/* Teacher dashboard. The original 560px modal forced concept names into
+   rotated labels and left the actual classroom story unreadable. */
+.teacher-dashboard{ width:min(980px,96vw); padding:0; overflow:hidden; }
+.teacher-head{ display:flex; justify-content:space-between; gap:24px; padding:25px 28px 18px; border-bottom:1px solid var(--border-2); background:radial-gradient(circle at 88% 0,color-mix(in srgb,var(--cyan) 13%,transparent),transparent 45%); }
+.teacher-head h2{ margin:7px 0 5px; font-family:var(--font-display); font-size:clamp(26px,3vw,38px); color:var(--fg-1); line-height:1; }
+.teacher-head p{ max-width:700px; margin:0; color:var(--fg-2); font-size:var(--text-md); line-height:1.5; }
+.teacher-close{ align-self:flex-start; min-width:38px; min-height:38px; }
+.teacher-body{ display:flex; flex-direction:column; gap:14px; padding:20px 28px 24px; }
+.teacher-content{ display:flex; flex-direction:column; gap:14px; min-height:0; }
+.teacher-summary{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.teacher-summary>div{ display:flex; flex-direction:column; padding:13px 15px; border:1px solid var(--border-2); border-radius:var(--radius-md); background:var(--void); }
+.teacher-summary strong{ color:var(--cyan); font-family:var(--font-display); font-size:30px; line-height:1; }
+.teacher-summary span{ margin-top:5px; color:var(--fg-3); font-size:var(--text-sm); }
+.teacher-table-wrap{ overflow:auto; max-height:46vh; border:1px solid var(--border-2); border-radius:var(--radius-md); }
+.heatmap-table{ width:100%; border-collapse:separate; border-spacing:0; font-family:var(--font-mono); font-size:var(--text-sm); }
+.heatmap-table th, .heatmap-table td{ border-right:1px solid var(--border-2); border-bottom:1px solid var(--border-2); padding:10px 12px; text-align:center; }
+.heatmap-table tr:last-child th,.heatmap-table tr:last-child td{ border-bottom:0; }
+.heatmap-table th:last-child,.heatmap-table td:last-child{ border-right:0; }
+.heatmap-table th{ background:var(--navy-3); color:var(--fg-2); position:sticky; top:0; z-index:2; }
+.heatmap-table th.hm-concept{ min-width:110px; max-width:180px; white-space:normal; line-height:1.25; font-size:var(--text-xs); letter-spacing:0.02em; }
 /* .hm-name is a row-header <th> (WCAG 1.3.1), so override the generic column-
    header th rule: left-aligned, body-weight, and not sticky-to-top. */
-.heatmap-table .hm-name{ text-align:left; color:var(--fg-1); white-space:nowrap; font-family:var(--font-body); font-weight:400; position:static; }
-.heatmap-table td.hm-cell{ font-variant-numeric:tabular-nums; min-width:30px; }
+.heatmap-table .hm-name{ text-align:left; color:var(--fg-1); white-space:nowrap; font-family:var(--font-body); font-weight:600; position:sticky; left:0; z-index:1; background:var(--navy-2); min-width:150px; }
+.heatmap-table thead th:first-child{ left:0; z-index:3; text-align:left; }
+.hm-active{ display:inline-flex; margin-left:8px; padding:2px 6px; border-radius:999px; background:color-mix(in srgb,var(--cyan) 13%,transparent); color:var(--cyan); font-family:var(--font-mono); font-size:var(--text-2xs); text-transform:uppercase; letter-spacing:.08em; }
+.heatmap-table td.hm-cell{ font-variant-numeric:tabular-nums; min-width:76px; font-weight:700; }
+.teacher-legend{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; color:var(--fg-2); font-size:var(--text-sm); }
+.teacher-legend span{ display:inline-flex; align-items:center; gap:7px; }
+.teacher-legend i{ width:11px; height:11px; border-radius:50%; }
+.legend-low{ background:hsl(0 55% 42%); }.legend-mid{ background:hsl(65 55% 42%); }.legend-high{ background:hsl(130 55% 42%); }
+.teacher-privacy{ margin:0; padding:11px 13px; border-radius:var(--radius-md); background:var(--navy-3); color:var(--fg-2); font-size:var(--text-sm); line-height:1.5; }
+@media(max-width:640px){
+  .teacher-dashboard{ width:100vw; max-height:100vh; height:100vh; border-radius:0; }
+  .teacher-head{ padding:20px 18px 14px; }
+  .teacher-body{ padding:16px 18px 20px; }
+  .teacher-summary{ grid-template-columns:1fr; }
+  .teacher-summary>div{ flex-direction:row; align-items:baseline; gap:10px; }
+  .teacher-table-wrap{ max-height:52vh; }
+}
 
 /* Block reorder controls. */
 .block-actions{ margin-left:auto; display:inline-flex; gap:3px; }
@@ -1627,6 +1854,17 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
    680px modal, and without wrapping the primary "Build & test" CTA is pushed
    past the clip on all desktops (judge round 1, P1). */
 .rl-foot { display:flex; flex-wrap:wrap; justify-content:flex-start; align-items:center; gap:10px; margin-top:14px; }
+.rl-foot .ctrl-run { margin-left:auto; }
+.rl-advanced { position:relative; }
+.rl-advanced > summary { list-style:none; }
+.rl-advanced > summary::-webkit-details-marker { display:none; }
+.rl-advanced > summary::after { content:'⌄'; margin-left:7px; color:var(--fg-3); }
+.rl-advanced[open] > summary { color:var(--cyan); border-color:var(--cyan-deep); }
+.rl-advanced-menu {
+  position:absolute; z-index:60; left:0; bottom:calc(100% + 8px); width:min(540px,calc(100vw - 44px));
+  padding:8px; display:flex; flex-wrap:wrap; gap:6px;
+  border:1px solid var(--border); border-radius:var(--radius-md); background:var(--navy-2); box-shadow:var(--shadow-menu);
+}
 
 /* Robot Lab environment recommendation */
 .rl-rec { display:flex; align-items:baseline; flex-wrap:wrap; gap:8px; padding:9px 12px; margin-top:2px;

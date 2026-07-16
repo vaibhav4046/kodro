@@ -253,12 +253,25 @@
     // identically once there are rows.
     const browserMode = typeof window !== 'undefined' && window.RoboLearn && !window.RoboLearn.isAvailable();
     const hasRows = teacherData && Array.isArray(teacherData.pupils) && teacherData.pupils.length > 0;
+    const masteryValues = hasRows ? teacherData.pupils.reduce((all, pupil) => {
+      Object.keys(pupil.scores || {}).forEach(key => {
+        if (typeof pupil.scores[key] === 'number') all.push(pupil.scores[key]);
+      });
+      return all;
+    }, []) : [];
+    const averageMastery = masteryValues.length
+      ? Math.round(masteryValues.reduce((sum, value) => sum + value, 0) / masteryValues.length * 100)
+      : null;
     return (
       <div className="modal-backdrop" onClick={onClose}>
-        <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Teacher dashboard" onClick={e => e.stopPropagation()}>
-          <div className="modal-head">
-            <span className="eyebrow" role="heading" aria-level="2">{KI('report')}{browserMode ? 'Progress on this device, idea by idea' : 'Teacher dashboard. How the class is doing, idea by idea'}</span>
-            <button className="btn-mini" aria-label="Close" onClick={onClose}>✕</button>
+        <div className="modal teacher-dashboard" role="dialog" aria-modal="true" aria-label="Teacher dashboard" onClick={e => e.stopPropagation()}>
+          <div className="teacher-head">
+            <div>
+              <span className="eyebrow">{KI('report')} Classroom progress</span>
+              <h2>{browserMode ? 'Learning on this device' : 'How the class is doing'}</h2>
+              <p>Concept strength updates after each graded lesson attempt. It is evidence of practice in Kodro, not a predicted grade.</p>
+            </div>
+            <button className="btn-mini teacher-close" aria-label="Close teacher dashboard" onClick={onClose}>✕</button>
           </div>
           <div className="teacher-body">
             {!teacherData && <p className="vibe-status">Reading the class records saved on this {browserMode ? 'browser' : 'computer'}…</p>}
@@ -277,46 +290,59 @@
               />
             )}
             {hasRows && (
-              <div style={{ overflow: 'auto', maxHeight: '60vh' }}>
-                <table className="heatmap-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">{browserMode ? 'Learner' : 'Pupil'}</th>
-                      {teacherData.concepts.map(c => <th key={c} scope="col" className="hm-concept">{c}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teacherData.pupils.map(p => (
-                      <tr key={p.id}>
-                        <th scope="row" className="hm-name">{p.name}{p.active ? <span className="hm-active"> (active)</span> : ''}</th>
-                        {teacherData.concepts.map(c => {
-                          const v = p.scores[c];
-                          const has = typeof v === 'number';
-                          const pct = has ? Math.round(v * 100) : null;
-                          const hue = has ? Math.round(v * 130) : 0; // 0 red → 130 green
-                          // WCAG AA: white text fails contrast on the lighter (green/yellow)
-                          // cells, so compute the cell's relative luminance and flip to black
-                          // text once it crosses the threshold where white drops below 4.5:1.
-                          const cellLum = (() => {
-                            if (!has) return 0;
-                            const s = 0.55, l = 0.42, q = l < 0.5 ? l * (1 + s) : l + s - l * s, pp = 2 * l - q;
-                            const hk = (t) => { t = (t + 1) % 1; if (t < 1 / 6) return pp + (q - pp) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return pp + (q - pp) * (2 / 3 - t) * 6; return pp; };
-                            const lin = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-                            const h = hue / 360;
-                            return 0.2126 * lin(hk(h + 1 / 3)) + 0.7152 * lin(hk(h)) + 0.0722 * lin(hk(h - 1 / 3));
-                          })();
-                          return (
-                            <td key={c} className="hm-cell" title={has ? c + ': ' + pct + '%' : 'not attempted'}
-                              style={{ background: has ? 'hsl(' + hue + ' 55% 42%)' : 'transparent', color: has ? (cellLum > 0.183 ? '#000' : '#fff') : 'var(--fg-4)' }}>
-                              {has ? pct : '·'}
-                            </td>
-                          );
-                        })}
+              <div className="teacher-content">
+                <div className="teacher-summary" aria-label="Classroom summary">
+                  <div><strong>{teacherData.pupils.length}</strong><span>{teacherData.pupils.length === 1 ? 'learner' : 'learners'}</span></div>
+                  <div><strong>{teacherData.concepts.length}</strong><span>{teacherData.concepts.length === 1 ? 'concept' : 'concepts'} practised</span></div>
+                  <div><strong>{averageMastery == null ? '—' : averageMastery + '%'}</strong><span>average strength</span></div>
+                </div>
+                <div className="teacher-table-wrap">
+                  <table className="heatmap-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">{browserMode ? 'Learner' : 'Pupil'}</th>
+                        {teacherData.concepts.map(c => <th key={c} scope="col" className="hm-concept">{c}</th>)}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <p className="build-note">Each cell is a score from 0 to 100 showing how well that idea is known; a dot means that idea has not been tried yet. It updates with every graded attempt, and greener means stronger. {browserMode ? 'In the browser Kodro keeps one record per device, so everyone using this device counts together; open the desktop app to keep a separate record for each pupil. Records are saved in this browser on this device, and nothing leaves it.' : 'Nothing leaves this computer.'}</p>
+                    </thead>
+                    <tbody>
+                      {teacherData.pupils.map(p => (
+                        <tr key={p.id}>
+                          <th scope="row" className="hm-name">{p.name}{p.active ? <span className="hm-active">(active)</span> : ''}</th>
+                          {teacherData.concepts.map(c => {
+                            const v = p.scores[c];
+                            const has = typeof v === 'number';
+                            const pct = has ? Math.round(v * 100) : null;
+                            const hue = has ? Math.round(v * 130) : 0; // 0 red → 130 green
+                            // WCAG AA: white text fails contrast on the lighter (green/yellow)
+                            // cells, so compute the cell's relative luminance and flip to black
+                            // text once it crosses the threshold where white drops below 4.5:1.
+                            const cellLum = (() => {
+                              if (!has) return 0;
+                              const s = 0.55, l = 0.42, q = l < 0.5 ? l * (1 + s) : l + s - l * s, pp = 2 * l - q;
+                              const hk = (t) => { t = (t + 1) % 1; if (t < 1 / 6) return pp + (q - pp) * 6 * t; if (t < 1 / 2) return q; if (t < 2 / 3) return pp + (q - pp) * (2 / 3 - t) * 6; return pp; };
+                              const lin = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+                              const h = hue / 360;
+                              return 0.2126 * lin(hk(h + 1 / 3)) + 0.7152 * lin(hk(h)) + 0.0722 * lin(hk(h - 1 / 3));
+                            })();
+                            return (
+                              <td key={c} className="hm-cell" title={has ? c + ': ' + pct + '%' : c + ': not attempted'}
+                                aria-label={has ? c + ': ' + pct + ' percent strength' : c + ': not attempted'}
+                                style={{ background: has ? 'hsl(' + hue + ' 55% 42%)' : 'transparent', color: has ? (cellLum > 0.183 ? '#000' : '#fff') : 'var(--fg-4)' }}>
+                                {has ? pct + '%' : '·'}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="teacher-legend" aria-label="Concept strength legend">
+                  <span><i className="legend-low"></i>Needs practice</span>
+                  <span><i className="legend-mid"></i>Developing</span>
+                  <span><i className="legend-high"></i>Strong</span>
+                </div>
+                <p className="teacher-privacy">Scores run from 0 to 100 and update after every graded attempt. A dot means not attempted. {browserMode ? 'This hosted version keeps one combined record for this browser. Use the desktop app for separate pupil records.' : 'Records stay on this computer.'}</p>
               </div>
             )}
           </div>
@@ -776,7 +802,7 @@
     );
   }
 
-  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, refreshAiStatus, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeClear, vibeContext }) {
+  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, refreshAiStatus, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeClear, vibeContext, onExplain, onReview }) {
     // The reflection the assistant is fed from past runs in this world,
     // rendered as a VISIBLE chip instead of an invisible prompt injection
     // (product-coherence D7: the memory loop must be seen to be believed).
@@ -790,7 +816,7 @@
       <div className="modal-backdrop" onClick={() => !vibeBusy && setVibeOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Code with AI" onClick={e => e.stopPropagation()}>
           <div className="modal-head">
-            <span className="eyebrow" role="heading" aria-level="2">{KI('vibe')}AI helper. Say what the robot should do, it writes the code</span>
+            <span className="eyebrow" role="heading" aria-level="2">{KI('vibe')}Companion · create, explain and check with you</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {vibeMsgs.length > 0 && (
                 <button className="btn-mini" disabled={vibeBusy} onClick={() => vibeClear && vibeClear()}
@@ -798,6 +824,11 @@
               )}
               <button className="btn-mini" aria-label="Close" onClick={() => { vibeCancelRef.current = true; setVibeBusy(false); setVibeOpen(false); }}>✕</button>
             </div>
+          </div>
+          <div className="companion-modes" aria-label="Companion modes">
+            <button className="btn-mini active" aria-pressed="true">Create & code</button>
+            <button className="btn-mini" onClick={onExplain}>Explain a lesson</button>
+            <button className="btn-mini" onClick={onReview}>Check my program</button>
           </div>
           <ProviderPicker onChange={refreshAiStatus} />
           <div className="vibe-body">
@@ -821,8 +852,8 @@
                 {vibeMsgs.length === 0 && (
                   <EmptyState
                     icon="vibe"
-                    title="Describe it, the AI writes it"
-                    hint={<>Chat with the AI like a coding partner. It may ask a question first, e.g. try <i>"explore the field"</i> or <i>"draw a star"</i>.</>}
+                    title="Describe the robot or behaviour you need"
+                    hint={<>The Companion can change the robot or world without a model. With a connected model it can also draft code, which Kodro validates before you apply it.</>}
                   />
                 )}
                 {vibeMsgs.map((m, i) => m.kind === 'code' ? (

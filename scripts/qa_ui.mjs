@@ -775,6 +775,30 @@ function checkClassroomMode(chrome) {
   return { pass: false, reason: `classroom mode incomplete (teacher row: ${teacher}, novelty themes: ${themes})` };
 }
 
+// THREE-STAGE JOURNEY — the simplified shell must expose one stable Design →
+// Prove → Build path, and Build must be useful in the hosted browser rather
+// than ending at a desktop-only notice. Drive the real Build stage and require
+// both its state marker and the locally generated prototype-brief content.
+function checkStageJourney(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&open=build`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_stage_journey', url, { vtime: 9000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const nav = /aria-label="Robot project stages"/.test(dom)
+    && /aria-label="1 Design, current robot/.test(dom)
+    && /aria-label="2 Prove in /.test(dom)
+    && /aria-label="3 Build a prototype pack"/.test(dom);
+  const stage = /data-stage="build"/.test(dom);
+  const useful = /Download prototype brief/.test(dom)
+    && /Concept bill of materials/.test(dom)
+    && /Verify before purchasing/.test(dom);
+  if (nav && stage && useful) {
+    return { pass: true, reason: 'Design → Prove → Build navigation works and hosted Build renders a local prototype brief with an explicit evidence boundary' };
+  }
+  return { pass: false, reason: `stage journey incomplete (nav: ${nav}, active Build: ${stage}, useful browser pack: ${useful})` };
+}
+
 // BROWSER PUPIL RECORDS (OPP-1) — the on-device pupil-store (pupil-store.js)
 // gives the static build a real class register. Seed a learner, open the
 // Teacher dashboard, and it must render the heatmap TABLE (a "This device" row
@@ -857,23 +881,24 @@ function checkFirstRunClean(chrome) {
 }
 
 // LESSONS ENTRY (judge round 1) — the learning half of the product must be
-// discoverable and one click away. Assert BOTH deterministically in one classroom
-// load: the top-bar "Lessons" button exists (the discoverability fix) AND the
-// lesson picker renders in classroom mode. Driving the click headlessly races
-// the async lessons.json fetch under sustained load, so this pins the two facts
-// the fix guarantees without depending on click timing.
+// discoverable and understandable in one click. The old implementation only
+// exposed a select inside the IDE, which gave no curriculum map or progress.
+// Drive the real top-bar button and require the dedicated library, a mission
+// card, and the quick-switch picker retained in the classroom workspace.
 function checkLessonsEntry(chrome) {
-  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lessons_entry', url, { vtime: 9000 });
+  const url = `${BASE}?world=earth&robot=rover&q=low&open=lessons`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lessons_entry', url, { vtime: 11000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
   const hasButton = /aria-label="Lessons[^"]*"/.test(dom);
   const hasPicker = /class="lesson-picker"|<label[^>]*for="lesson-select"/.test(dom);
-  if (hasButton && hasPicker) {
-    return { pass: true, reason: 'a top-bar Lessons button exists and classroom mode renders the lesson picker' };
+  const hasLibrary = /aria-label="Lesson library"/.test(dom) && /Choose your next mission/.test(dom);
+  const hasMission = /class="lesson-tile/.test(dom) && /Open lesson:|Completed lesson:/.test(dom);
+  if (hasButton && hasPicker && hasLibrary && hasMission) {
+    return { pass: true, reason: 'one Lessons click opens the curriculum library with mission cards, progress and the quick-switch picker' };
   }
-  return { pass: false, reason: `lessons entry incomplete (button: ${hasButton}, picker: ${hasPicker})` };
+  return { pass: false, reason: `lessons entry incomplete (button: ${hasButton}, picker: ${hasPicker}, library: ${hasLibrary}, mission: ${hasMission})` };
 }
 
 // CUSTOM WORLD (OPP-6) — a runtime world built from seed + density + traction.
@@ -1287,6 +1312,11 @@ function cleanup() {
   const classroomMode = checkClassroomMode(chrome);
   behaviour.push(classroomMode.pass);
   console.log(`${classroomMode.pass ? 'PASS' : 'FAIL'}  ${'classroom-mode'.padEnd(20)} ${classroomMode.reason}`);
+  gap();
+
+  const stageJourney = checkStageJourney(chrome);
+  behaviour.push(stageJourney.pass);
+  console.log(`${stageJourney.pass ? 'PASS' : 'FAIL'}  ${'stage-journey'.padEnd(20)} ${stageJourney.reason}`);
   gap();
 
   const pupilRecords = checkPupilRecords(chrome);

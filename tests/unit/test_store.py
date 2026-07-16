@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 from robolearn.memory.store import (
@@ -212,6 +213,27 @@ def test_store_context_manager_closes(tmp_path: Path) -> None:
     except Exception:
         return
     raise AssertionError("connection should have been closed")
+
+
+def test_store_close_closes_all_owned_connections(tmp_path: Path) -> None:
+    """Shutdown closes handles created through more than one thread-local."""
+    store = Store(tmp_path / "p.db")
+    first = store._conn  # type: ignore[attr-defined]
+    # A fresh threading.local mirrors a second worker's connection cache while
+    # avoiding a real thread, which is unreliable on some headless CI hosts.
+    store._local = threading.local()  # type: ignore[attr-defined]
+    second = store._conn  # type: ignore[attr-defined]
+    assert first is not second
+
+    store.close()
+    store.close()  # idempotent
+
+    for connection in (first, second):
+        try:
+            connection.execute("SELECT 1")
+        except Exception:
+            continue
+        raise AssertionError("every store-owned connection should be closed")
 
 
 def test_schema_constant_exposes_sql() -> None:

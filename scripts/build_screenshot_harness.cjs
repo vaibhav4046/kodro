@@ -488,16 +488,26 @@ const CAP = `<!DOCTYPE html>
           ask: function () { return clickTitleStartsWith('Ask a question'); },
           // Icon-bar buttons: match the aria-label PREFIX (the label text before
           // the " — <suffix>" the buttons gained). See app.jsx icon-bar markup.
-          robotlab: function () { return clickAriaStartsWith('Robot Lab'); },
+          robotlab: function () { return clickAriaStartsWith('1 Design'); },
           lessons: function () {
-            // Lessons is a TOGGLE (classroom <-> studio); the generic opener
-            // fires twice, so guard against a double-click flipping it back.
-            if (document.querySelector('.lesson-picker')) return true;
+            // Lessons opens the dedicated library. The retry is idempotent so a
+            // slow first paint cannot close or replace an already-open library.
+            if (document.querySelector('[aria-label="Lesson library"]')) return true;
             return clickAriaStartsWith('Lessons');
           },
-          memory: function () { return clickAriaStartsWith('Memory and skills'); },
-          build: function () { return clickAriaStartsWith('Build a real robot'); },
-          help: function () { return clickAriaStartsWith('Keyboard shortcuts'); },
+          memory: function () {
+            if (document.querySelector('[aria-label="Memory and skills"]')) return true;
+            if (!document.querySelector('.settings-pop')) clickAriaStartsWith('Settings');
+            setTimeout(function () { clickAriaStartsWith('Open project history'); }, 250);
+            return true;
+          },
+          build: function () { return clickAriaStartsWith('3 Build'); },
+          help: function () {
+            if (document.querySelector('[aria-label="Keyboard shortcuts"]')) return true;
+            if (!document.querySelector('.settings-pop')) clickAriaStartsWith('Settings');
+            setTimeout(function () { clickAriaStartsWith('Open keyboard shortcuts'); }, 250);
+            return true;
+          },
           settings: function () { return clickAriaStartsWith('Settings'); },
           // Teacher dashboard is a row INSIDE the Settings popover (classroom
           // mode only, so use mode=classroom). The Settings popover is itself

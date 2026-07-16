@@ -14437,7 +14437,7 @@ Object.assign(window, {
       className: 'modal-head'
     }, React.createElement('span', {
       className: 'eyebrow'
-    }, window.KodroIcons ? window.KodroIcons.el('lab') : null, 'Robot Lab. Design a robot, then run it in the world'), React.createElement('button', {
+    }, window.KodroIcons ? window.KodroIcons.el('lab') : null, 'Design · choose the parts that define your robot'), React.createElement('button', {
       className: 'btn-mini',
       'aria-label': 'Close',
       onClick: () => props.onClose && props.onClose()
@@ -14664,6 +14664,12 @@ Object.assign(window, {
       className: 'rl-rec-why'
     }, rec.why))), React.createElement('div', {
       className: 'rl-foot'
+    }, React.createElement('details', {
+      className: 'rl-advanced'
+    }, React.createElement('summary', {
+      className: 'btn-mini'
+    }, 'Measured parts & exports'), React.createElement('div', {
+      className: 'rl-advanced-menu'
     }, React.createElement('button', {
       className: 'btn-mini',
       onClick: () => {
@@ -14702,9 +14708,7 @@ Object.assign(window, {
     }, 'Fit a battery…')].concat(window.KodroParts.batteries.map(b => React.createElement('option', {
       key: b.id,
       value: b.id
-    }, b.name)))) : null,
-    // SI1: import a real robot's KRS JSON / export this build's spec.
-    React.createElement('button', {
+    }, b.name)))) : null, React.createElement('button', {
       className: 'btn-mini',
       'data-spec-import': 'button',
       title: 'Import a KRS robot spec (JSON): real motor, battery, body and sensor numbers drive the sim',
@@ -14721,16 +14725,13 @@ Object.assign(window, {
       className: 'btn-mini',
       title: 'Save the verification report: your robot as simulated, predictions plus measured evidence',
       onClick: onReportClick
-    }, 'Verification report'),
-    // A6: price THIS build as real hardware (opens the budget planner
-    // seeded with the active spec), merging the two build features.
-    props.onBuildReal ? React.createElement('button', {
+    }, 'Verification report'), props.onBuildReal ? React.createElement('button', {
       className: 'btn-mini',
-      title: 'Price this build as real hardware within a budget',
+      title: 'Prepare this design for a real prototype',
       onClick: function () {
         props.onBuildReal();
       }
-    }, 'Build real') : null, React.createElement('input', {
+    }, 'Open Build stage') : null, React.createElement('input', {
       ref: fileRef,
       type: 'file',
       accept: '.json,application/json',
@@ -14740,10 +14741,10 @@ Object.assign(window, {
       'aria-hidden': 'true',
       tabIndex: -1,
       onChange: onFilePicked
-    }), React.createElement('button', {
+    }))), React.createElement('button', {
       className: 'ctrl ctrl-run',
       onClick: onSave
-    }, '✓ Build & test in ' + rec.label))));
+    }, 'Continue to Prove in ' + rec.label + ' →'))));
   }
 
   // Statics so other modules (e.g. onboarding) can reuse the canonical robot
@@ -23560,24 +23561,29 @@ say("Survey done")`
     // identically once there are rows.
     const browserMode = typeof window !== 'undefined' && window.RoboLearn && !window.RoboLearn.isAvailable();
     const hasRows = teacherData && Array.isArray(teacherData.pupils) && teacherData.pupils.length > 0;
+    const masteryValues = hasRows ? teacherData.pupils.reduce((all, pupil) => {
+      Object.keys(pupil.scores || {}).forEach(key => {
+        if (typeof pupil.scores[key] === 'number') all.push(pupil.scores[key]);
+      });
+      return all;
+    }, []) : [];
+    const averageMastery = masteryValues.length ? Math.round(masteryValues.reduce((sum, value) => sum + value, 0) / masteryValues.length * 100) : null;
     return /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: onClose
     }, /*#__PURE__*/React.createElement("div", {
-      className: "modal modal-wide",
+      className: "modal teacher-dashboard",
       role: "dialog",
       "aria-modal": "true",
       "aria-label": "Teacher dashboard",
       onClick: e => e.stopPropagation()
     }, /*#__PURE__*/React.createElement("div", {
-      className: "modal-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "eyebrow",
-      role: "heading",
-      "aria-level": "2"
-    }, KI('report'), browserMode ? 'Progress on this device, idea by idea' : 'Teacher dashboard. How the class is doing, idea by idea'), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
-      "aria-label": "Close",
+      className: "teacher-head"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, KI('report'), " Classroom progress"), /*#__PURE__*/React.createElement("h2", null, browserMode ? 'Learning on this device' : 'How the class is doing'), /*#__PURE__*/React.createElement("p", null, "Concept strength updates after each graded lesson attempt. It is evidence of practice in Kodro, not a predicted grade.")), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini teacher-close",
+      "aria-label": "Close teacher dashboard",
       onClick: onClose
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
       className: "teacher-body"
@@ -23592,10 +23598,12 @@ say("Survey done")`
       title: "No pupil records yet",
       hint: "As pupils pass lessons on this computer, each idea they master fills in here, greener as it gets stronger."
     }), hasRows && /*#__PURE__*/React.createElement("div", {
-      style: {
-        overflow: 'auto',
-        maxHeight: '60vh'
-      }
+      className: "teacher-content"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "teacher-summary",
+      "aria-label": "Classroom summary"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, teacherData.pupils.length), /*#__PURE__*/React.createElement("span", null, teacherData.pupils.length === 1 ? 'learner' : 'learners')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, teacherData.concepts.length), /*#__PURE__*/React.createElement("span", null, teacherData.concepts.length === 1 ? 'concept' : 'concepts', " practised")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, averageMastery == null ? '—' : averageMastery + '%'), /*#__PURE__*/React.createElement("span", null, "average strength"))), /*#__PURE__*/React.createElement("div", {
+      className: "teacher-table-wrap"
     }, /*#__PURE__*/React.createElement("table", {
       className: "heatmap-table"
     }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
@@ -23611,7 +23619,7 @@ say("Survey done")`
       className: "hm-name"
     }, p.name, p.active ? /*#__PURE__*/React.createElement("span", {
       className: "hm-active"
-    }, " (active)") : ''), teacherData.concepts.map(c => {
+    }, "(active)") : ''), teacherData.concepts.map(c => {
       const v = p.scores[c];
       const has = typeof v === 'number';
       const pct = has ? Math.round(v * 100) : null;
@@ -23639,15 +23647,25 @@ say("Survey done")`
       return /*#__PURE__*/React.createElement("td", {
         key: c,
         className: "hm-cell",
-        title: has ? c + ': ' + pct + '%' : 'not attempted',
+        title: has ? c + ': ' + pct + '%' : c + ': not attempted',
+        "aria-label": has ? c + ': ' + pct + ' percent strength' : c + ': not attempted',
         style: {
           background: has ? 'hsl(' + hue + ' 55% 42%)' : 'transparent',
           color: has ? cellLum > 0.183 ? '#000' : '#fff' : 'var(--fg-4)'
         }
-      }, has ? pct : '·');
-    }))))), /*#__PURE__*/React.createElement("p", {
-      className: "build-note"
-    }, "Each cell is a score from 0 to 100 showing how well that idea is known; a dot means that idea has not been tried yet. It updates with every graded attempt, and greener means stronger. ", browserMode ? 'In the browser Kodro keeps one record per device, so everyone using this device counts together; open the desktop app to keep a separate record for each pupil. Records are saved in this browser on this device, and nothing leaves it.' : 'Nothing leaves this computer.')))));
+      }, has ? pct + '%' : '·');
+    })))))), /*#__PURE__*/React.createElement("div", {
+      className: "teacher-legend",
+      "aria-label": "Concept strength legend"
+    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("i", {
+      className: "legend-low"
+    }), "Needs practice"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("i", {
+      className: "legend-mid"
+    }), "Developing"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("i", {
+      className: "legend-high"
+    }), "Strong")), /*#__PURE__*/React.createElement("p", {
+      className: "teacher-privacy"
+    }, "Scores run from 0 to 100 and update after every graded attempt. A dot means not attempted. ", browserMode ? 'This hosted version keeps one combined record for this browser. Use the desktop app for separate pupil records.' : 'Records stay on this computer.')))));
   }
 
   // ---- AI code review ----
@@ -24384,7 +24402,9 @@ say("Survey done")`
     setVibePrompt,
     vibeSend,
     vibeClear,
-    vibeContext
+    vibeContext,
+    onExplain,
+    onReview
   }) {
     // The reflection the assistant is fed from past runs in this world,
     // rendered as a VISIBLE chip instead of an invisible prompt injection
@@ -24412,7 +24432,7 @@ say("Survey done")`
       className: "eyebrow",
       role: "heading",
       "aria-level": "2"
-    }, KI('vibe'), "AI helper. Say what the robot should do, it writes the code"), /*#__PURE__*/React.createElement("div", {
+    }, KI('vibe'), "Companion \xB7 create, explain and check with you"), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -24431,7 +24451,19 @@ say("Survey done")`
         setVibeBusy(false);
         setVibeOpen(false);
       }
-    }, "\u2715"))), /*#__PURE__*/React.createElement(ProviderPicker, {
+    }, "\u2715"))), /*#__PURE__*/React.createElement("div", {
+      className: "companion-modes",
+      "aria-label": "Companion modes"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini active",
+      "aria-pressed": "true"
+    }, "Create & code"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: onExplain
+    }, "Explain a lesson"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: onReview
+    }, "Check my program")), /*#__PURE__*/React.createElement(ProviderPicker, {
       onChange: refreshAiStatus
     }), /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
@@ -24480,8 +24512,8 @@ say("Survey done")`
       "aria-label": "AI conversation"
     }, vibeMsgs.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
       icon: "vibe",
-      title: "Describe it, the AI writes it",
-      hint: /*#__PURE__*/React.createElement(React.Fragment, null, "Chat with the AI like a coding partner. It may ask a question first, e.g. try ", /*#__PURE__*/React.createElement("i", null, "\"explore the field\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"draw a star\""), ".")
+      title: "Describe the robot or behaviour you need",
+      hint: /*#__PURE__*/React.createElement(React.Fragment, null, "The Companion can change the robot or world without a model. With a connected model it can also draft code, which Kodro validates before you apply it.")
     }), vibeMsgs.map((m, i) => m.kind === 'code' ? /*#__PURE__*/React.createElement("div", {
       key: i,
       className: "vibe-msg ai code"
@@ -25091,6 +25123,17 @@ say("Survey done")`
         return {};
       }
     }); // per-lesson editable code
+    // A compact local index of the latest result for each lesson. The grader
+    // remains authoritative; this is only the learner-facing resume/progress
+    // view used by the lesson library. It is stored on this device alongside
+    // the editable lesson buffers and never leaves the machine.
+    const [lessonResults, setLessonResults] = useState(() => {
+      try {
+        return JSON.parse(lsGet('or_lesson_results')) || {};
+      } catch (e) {
+        return {};
+      }
+    });
     const [lessonVerdict, setLessonVerdict] = useState(null); // {passed,score,reasons,hint}
     // Learner scaffolding: how many consecutive fails on this lesson (drives
     // the "the app noticed you are stuck" nudge) and how many extra hints the
@@ -25124,6 +25167,12 @@ say("Survey done")`
       }
     });
     const classroom = mode === 'classroom';
+    const [lessonHubOpen, setLessonHubOpen] = useState(false);
+    function openLessonLibrary() {
+      if (!classroom) setMode('classroom');
+      setLessonHubOpen(true);
+      setSettingsOpen(false);
+    }
     // On a phone the lesson picker sits below the world panel, so tapping the
     // Lessons button produced no visible change (judge round 9): bring the
     // picker on screen when classroom mode opens. block:'nearest' is a no-op
@@ -25398,6 +25447,10 @@ say("Survey done")`
     const [focus3dKey, setFocus3dKey] = useState(0);
     // Robot Lab: design a custom robot whose spec drives the simulation.
     const [robotLabOpen, setRobotLabOpen] = useState(false);
+    // One product, three decisions. This first redesign layer keeps the proven
+    // handlers intact while giving every capability a stable place in the
+    // journey: design the robot, prove it in scenarios, then prepare a build.
+    const [activeStage, setActiveStage] = useState('prove');
     const [robotSpec, setRobotSpec] = useState(() => window.getKodroRobot ? window.getKodroRobot() : null);
     // Build-a-real-robot planner (budget build). Extracted VERBATIM to
     // window.KodroHooks.useBuild (hooks.jsx); its external inputs are
@@ -25751,6 +25804,7 @@ say("Survey done")`
     }, []);
     function loadLesson(lesson) {
       if (!lesson) return;
+      setLessonHubOpen(false);
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
       setLessonAttempts(0);
@@ -25799,6 +25853,15 @@ say("Survey done")`
           reasons: r.reasons || [],
           hint: r.hint || null
         });
+        setLessonResults(prev => ({
+          ...prev,
+          [lessonId]: {
+            passed: !!r.passed,
+            score: Number.isFinite(Number(r.score)) ? Number(r.score) : 0,
+            attempts: (prev[lessonId] && prev[lessonId].attempts || 0) + 1,
+            updatedAt: Date.now()
+          }
+        }));
         // Browser mode has no Python store, so keep an on-device class register
         // (pupil-store.js) with the same EMA rule. Desktop persists via Python,
         // so only record here in the browser. A graded attempt (r.ok !== false
@@ -25912,6 +25975,13 @@ say("Survey done")`
         void e;
       }
     }, [lessonBuffers]);
+    useEffect(() => {
+      try {
+        localStorage.setItem('or_lesson_results', JSON.stringify(lessonResults));
+      } catch (e) {
+        void e;
+      }
+    }, [lessonResults]);
 
     // (addConsole now lives in useConsoleToast, destructured near the top.)
 
@@ -26113,7 +26183,7 @@ say("Survey done")`
     // fires; the duplicate close is harmless) but excludes FPV, which has a
     // dedicated Escape handler for motion-sensitive exit.
     const anyOverlayOpenRef = useRef(false);
-    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || settingsOpen);
+    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen);
     const fpvRef = useRef(fpv);
     fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
@@ -26133,7 +26203,9 @@ say("Survey done")`
         setShowHelp(false);
         setRealismOpen(false);
         setDemoOpen(false);
+        setLessonHubOpen(false);
         setSettingsOpen(false);
+        setActiveStage('prove');
       };
       const h = e => {
         const cmd = e.metaKey || e.ctrlKey;
@@ -26203,7 +26275,9 @@ say("Survey done")`
           if (!e.shiftKey && !e.altKey && (e.key === 'L' || e.key === 'l')) {
             e.preventDefault();
             setRobotLabOpen(function (o) {
-              return !o;
+              const next = !o;
+              setActiveStage(next ? 'design' : 'prove');
+              return next;
             });
             return;
           }
@@ -26246,7 +26320,7 @@ say("Survey done")`
     // assistive tech that focus is confined to the dialog, so honour it: when one
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
-    const anyModalOpen = swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen;
+    const anyModalOpen = swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
     useEffect(() => {
       if (!anyModalOpen) return undefined;
       const modal = Array.prototype.slice.call(document.querySelectorAll('.modal[aria-modal="true"]')).pop();
@@ -26285,7 +26359,7 @@ say("Survey done")`
       // so the effect would not re-run and focus would stay trapped in the now
       // occluded background modal. Depending on every flag re-captures the new
       // frontmost dialog and moves focus into it.
-    }, [swarmOpen, askOpen, teacherOpen, robotLabOpen, memoryOpen, reviewOpen, vibeOpen, blocksOpen, buildOpen, showHelp, realismOpen, demoOpen]);
+    }, [swarmOpen, askOpen, teacherOpen, robotLabOpen, memoryOpen, reviewOpen, vibeOpen, blocksOpen, buildOpen, showHelp, realismOpen, demoOpen, lessonHubOpen]);
 
     // Shared vocabulary (app-data.jsx): telemetry renders the SAME labels.
     const statusLabel = (window.KodroStatusLabels || {
@@ -26304,8 +26378,100 @@ say("Survey done")`
     // desktop-only (bridge.js has no browser path), so the controls that trigger
     // them say so up front instead of inviting an action that cannot finish here.
     const browserMode = !!(window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable());
+    function goStage(stage) {
+      setActiveStage(stage);
+      setSettingsOpen(false);
+      if (stage === 'design') {
+        setBuildOpen(false);
+        setRobotLabOpen(true);
+        return;
+      }
+      if (stage === 'build') {
+        setRobotLabOpen(false);
+        openBuildReal();
+        return;
+      }
+      setRobotLabOpen(false);
+      setBuildOpen(false);
+      setTimeout(function () {
+        const main = document.getElementById('editor-main');
+        if (main && main.focus) main.focus({
+          preventScroll: true
+        });
+      }, 0);
+    }
+    const BUILD_PART_NAMES = {
+      esp32: 'ESP32 development board',
+      uno: 'Arduino Uno compatible board',
+      pico: 'Raspberry Pi Pico',
+      microbit: 'BBC micro:bit',
+      ultrasonic: 'Ultrasonic distance sensor',
+      camera: 'Camera module',
+      imu: 'IMU / orientation sensor',
+      gps: 'GPS receiver',
+      line: 'Line sensor array',
+      bumper: 'Bumper switch',
+      motors2: 'Two geared drive motors',
+      motors4: 'Four geared drive motors',
+      servos: 'Steering servos',
+      gripper: 'Servo gripper'
+    };
+    const BUILD_BODY_NAMES = {
+      rover: 'Wheeled rover chassis',
+      car: 'Steered vehicle chassis',
+      arm: 'Fixed robotic arm base',
+      home: 'Indoor companion chassis'
+    };
+    const buildPartIds = [robotSpec && robotSpec.board].concat(robotSpec && robotSpec.sensors || [], robotSpec && robotSpec.actuators || []).filter(Boolean);
+    const browserBuildParts = [{
+      id: 'body',
+      name: BUILD_BODY_NAMES[robotSpec && robotSpec.type || 'rover'] || 'Robot chassis',
+      role: 'Structure for this concept'
+    }].concat(buildPartIds.map(function (id) {
+      return {
+        id: id,
+        name: BUILD_PART_NAMES[id] || String(id).replace(/[_-]+/g, ' '),
+        role: id === (robotSpec && robotSpec.board) ? 'Controller selected in Design' : 'Capability selected in Design'
+      };
+    }));
+    const browserRunCount = window.KodroRunReports ? window.KodroRunReports.list().length : 0;
+    function downloadPrototypeBrief() {
+      const esc = function (v) {
+        return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) {
+          return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+          }[ch];
+        });
+      };
+      const runs = window.KodroRunReports ? window.KodroRunReports.list().slice(0, 12) : [];
+      const rows = browserBuildParts.map(function (p) {
+        return '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.role) + '</td><td>Verify exact voltage, current, dimensions and connector before buying</td></tr>';
+      }).join('');
+      const runRows = runs.length ? runs.map(function (r) {
+        return '<tr><td>' + esc(r.worldName || r.world || '') + '</td><td>' + esc(r.outcome || '') + '</td><td>' + esc(r.distanceCm != null ? (r.distanceCm / 100).toFixed(1) + ' m' : 'not recorded') + '</td><td>' + esc(r.predicted || '') + '</td></tr>';
+      }).join('') : '<tr><td colspan="4">No completed runs recorded on this device.</td></tr>';
+      const html = '<!doctype html><html><head><meta charset="utf-8"><title>Kodro prototype brief</title><style>body{font:16px/1.5 system-ui;max-width:980px;margin:40px auto;padding:0 24px;color:#172033}h1,h2{color:#10233f}table{width:100%;border-collapse:collapse;margin:12px 0 26px}th,td{border:1px solid #ccd3dd;padding:9px;text-align:left;vertical-align:top}.notice{background:#fff7dd;border-left:5px solid #cf9a22;padding:14px}small{color:#526173}</style></head><body>' + '<h1>Kodro prototype brief: ' + esc(chipName) + '</h1><p><b>Generated:</b> ' + esc(new Date().toISOString()) + '<br><b>Concept:</b> ' + esc(robotSpec && robotSpec.type || 'robot') + '<br><b>Scenario currently open:</b> ' + esc(terrain.name || terrain.id) + '</p>' + '<div class="notice"><b>This is a pre-build concept brief, not a certified wiring plan or purchasing recommendation.</b> Kodro has not verified supplier stock, live price, logic levels, current limits, battery safety or mechanical fit. Check original manufacturer datasheets and have a competent adult or engineer review the electrical design before power is applied.</div>' + '<h2>Concept bill of materials</h2><table><thead><tr><th>Design requirement</th><th>Why it is present</th><th>Before purchase</th></tr></thead><tbody>' + rows + '</tbody></table>' + '<h2>Recorded simulation evidence</h2><table><thead><tr><th>Scenario</th><th>Outcome</th><th>Distance</th><th>Pre-run prediction</th></tr></thead><tbody>' + runRows + '</tbody></table>' + '<h2>Safe prototype sequence</h2><ol><li>Choose exact parts from original datasheets, then check supply voltage, logic voltage, stall current, driver limits and connector pinout.</li><li>Confirm chassis dimensions, wheel clearance, payload and battery restraint before assembly.</li><li>Power the controller separately first. Test each sensor, then the motor driver with wheels raised and an accessible power disconnect.</li><li>Measure speed, current draw, wheel slip and sensor error on the physical prototype. Enter measured values into a KRS specification and repeat the Kodro scenarios.</li></ol>' + '<h2>Evidence boundary</h2><p>Kodro reduces uncertainty before a first prototype. It does not certify real-world performance or safety. Simulation results apply only to the variables marked honoured or approximated in the verification report; unmodelled hazards remain untested.</p><small>Created locally in your browser. No order was placed and no supplier was contacted.</small></body></html>';
+      const blob = new Blob([html], {
+        type: 'text/html'
+      });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (chipName || 'robot').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-prototype-brief.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () {
+        URL.revokeObjectURL(a.href);
+      }, 2000);
+      showToast('Prototype brief downloaded', 'ok');
+    }
     return /*#__PURE__*/React.createElement("div", {
       className: "app",
+      "data-stage": activeStage,
       "data-obstacles": (terrain.obstacles || []).length,
       "data-active-world": terrain.siteId || terrain.id || ''
     }, /*#__PURE__*/React.createElement("a", {
@@ -26331,6 +26497,35 @@ say("Survey done")`
       className: "brand-sub"
     }, "Test robot designs before you build them"))), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
+    }), /*#__PURE__*/React.createElement("nav", {
+      className: "stage-nav",
+      "aria-label": "Robot project stages"
+    }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: 'stage-link' + (activeStage === 'design' ? ' active' : ''),
+      "aria-label": '1 Design, current robot ' + chipName,
+      "aria-current": activeStage === 'design' ? 'step' : undefined,
+      onClick: () => goStage('design')
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "stage-count"
+    }, "1"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Design"), /*#__PURE__*/React.createElement("small", null, chipName))), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: 'stage-link' + (activeStage === 'prove' ? ' active' : ''),
+      "aria-label": '2 Prove in ' + (terrain.name || 'the current scenario'),
+      "aria-current": activeStage === 'prove' ? 'step' : undefined,
+      onClick: () => goStage('prove')
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "stage-count"
+    }, "2"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Prove"), /*#__PURE__*/React.createElement("small", null, terrain.name || 'Scenario'))), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: 'stage-link' + (activeStage === 'build' ? ' active' : ''),
+      "aria-label": "3 Build a prototype pack",
+      "aria-current": activeStage === 'build' ? 'step' : undefined,
+      onClick: () => goStage('build')
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "stage-count"
+    }, "3"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Build"), /*#__PURE__*/React.createElement("small", null, "Prototype pack")))), /*#__PURE__*/React.createElement("div", {
+      className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "run-controls"
     }, /*#__PURE__*/React.createElement("button", {
@@ -26348,30 +26543,6 @@ say("Survey done")`
       title: "Validate this program across 5 randomised seeds",
       onClick: runValidation
     }, KI('target'), "Validate")), /*#__PURE__*/React.createElement("div", {
-      className: "bar-divider"
-    }), /*#__PURE__*/React.createElement("div", {
-      className: "speed-ctrl"
-    }, /*#__PURE__*/React.createElement("label", {
-      htmlFor: "sim-speed"
-    }, "Sim speed"), /*#__PURE__*/React.createElement("input", {
-      id: "sim-speed",
-      type: "range",
-      className: "slider",
-      min: "0.4",
-      max: "3",
-      step: "0.1",
-      value: speedMul,
-      onChange: e => setSpeedMul(parseFloat(e.target.value)),
-      "aria-label": "Sim speed",
-      "aria-valuetext": speedMul + ' times'
-    }), /*#__PURE__*/React.createElement("span", {
-      className: "num",
-      style: {
-        fontSize: 11,
-        color: 'var(--fg-2)',
-        width: 30
-      }
-    }, speedMul.toFixed(1), "\xD7")), /*#__PURE__*/React.createElement("div", {
       className: "bar-spacer"
     }), /*#__PURE__*/React.createElement("div", {
       className: "bar-status",
@@ -26384,51 +26555,24 @@ say("Survey done")`
     }), /*#__PURE__*/React.createElement("span", null, statusLabel)), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("button", {
-      className: "robot-chip",
-      title: "Current robot build. Click to open the Robot Lab",
-      "aria-label": 'Current robot: ' + chipName + (chipType ? ', type ' + chipType : '') + (chipMass ? ', mass ' + chipMass + ' grams' : '') + '. Open Robot Lab',
-      onClick: () => setRobotLabOpen(true)
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "rc-name"
-    }, chipName), (chipType || chipMass) && /*#__PURE__*/React.createElement("span", {
-      className: "rc-meta"
-    }, chipType || '', chipType && chipMass ? ' · ' : '', chipMass ? chipMass + ' g' : '')), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn icon-btn-lessons",
       title: "Lessons. Learn robotics and coding step by step (ages 5 to 16)",
-      "aria-label": "Lessons \u2014 learn robotics and coding step by step",
+      "aria-label": "Lessons \u2014 browse robotics and coding lessons",
       "aria-pressed": mode === 'classroom',
-      onClick: () => setMode(mode === 'classroom' ? 'studio' : 'classroom')
+      onClick: openLessonLibrary
     }, KI('report'), /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
     }, "Lessons")), /*#__PURE__*/React.createElement("button", {
-      className: "icon-btn",
-      title: "Robot Lab. Design a custom robot",
-      "aria-label": "Robot Lab \u2014 design a custom robot",
-      onClick: () => setRobotLabOpen(true)
-    }, KI('lab'), /*#__PURE__*/React.createElement("span", {
+      className: "icon-btn btn-vibe companion-btn",
+      title: aiInfo.available ? 'Open Companion (' + aiInfo.model + ')' : 'Open Companion. Direct robot and world actions work without a model.',
+      "aria-label": "Open Kodro Companion",
+      onClick: () => setVibeOpen(true)
+    }, KI('vibe'), /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
-    }, "Robot Lab")), /*#__PURE__*/React.createElement("button", {
-      className: "icon-btn",
-      title: "Memory. What the system learned, and your skill library",
-      "aria-label": "Memory and skills \u2014 what the system learned, and your skill library",
-      onClick: () => setMemoryOpen(true)
-    }, KI('memory'), /*#__PURE__*/React.createElement("span", {
-      className: "icon-btn-label"
-    }, "Memory")), /*#__PURE__*/React.createElement("button", {
-      className: "icon-btn",
-      title: browserMode ? 'Build a real robot on a budget (desktop app)' : 'Build a real robot on a budget',
-      "aria-label": browserMode ? 'Build a real robot. Design one on a budget. Desktop app only.' : 'Build a real robot. Design one on a budget.',
-      onClick: openBuildReal
-    }, KI('build'), /*#__PURE__*/React.createElement("span", {
-      className: "icon-btn-label"
-    }, browserMode ? 'Build (desktop app)' : 'Build')), /*#__PURE__*/React.createElement("button", {
-      className: "icon-btn",
-      title: "Keyboard shortcuts (?)",
-      "aria-label": "Keyboard shortcuts \u2014 press question mark to see all shortcuts",
-      onClick: () => setShowHelp(true)
-    }, "?", /*#__PURE__*/React.createElement("span", {
-      className: "icon-btn-label"
-    }, "Help")), /*#__PURE__*/React.createElement("input", {
+    }, "Companion"), /*#__PURE__*/React.createElement("span", {
+      className: 'companion-dot' + (aiInfo.available ? ' ready' : ''),
+      "aria-hidden": "true"
+    })), /*#__PURE__*/React.createElement("input", {
       ref: projectFileRef,
       type: "file",
       accept: ".kodro,.json,application/json",
@@ -26459,7 +26603,11 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("span", null, "Mode"), /*#__PURE__*/React.createElement("select", {
       className: "lesson-select",
       value: mode,
-      onChange: e => setMode(e.target.value),
+      onChange: e => {
+        const next = e.target.value;
+        setMode(next);
+        if (next === 'classroom') setLessonHubOpen(true);
+      },
       "aria-label": "Studio or Classroom mode"
     }, /*#__PURE__*/React.createElement("option", {
       value: "studio"
@@ -26550,6 +26698,24 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("span", null, "Photo prop \xB7 place(\"photo\")"), /*#__PURE__*/React.createElement("span", {
       className: "set-val"
     }, browserMode ? 'Desktop app' : photoUrl ? 'Loaded' : 'Pick…')), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      "aria-label": "Open project history, memory and skills",
+      onClick: () => {
+        setSettingsOpen(false);
+        setMemoryOpen(true);
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Project history \xB7 runs, memory and skills"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      "aria-label": "Open keyboard shortcuts",
+      onClick: () => {
+        setSettingsOpen(false);
+        setShowHelp(true);
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Help \xB7 keyboard shortcuts"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "?")), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
       onClick: () => {
         setSettingsOpen(false);
@@ -26683,40 +26849,54 @@ say("Survey done")`
     }, "Pick a lesson\u2026"), lessons.map(l => /*#__PURE__*/React.createElement("option", {
       key: l.id,
       value: l.id
-    }, l.id, " \xB7 ", l.title, " [", AGE_FOR[l.keyStage] || l.keyStage, "]")))), /*#__PURE__*/React.createElement("div", {
+    }, l.id, " \xB7 ", l.title, " [", AGE_FOR[l.keyStage] || l.keyStage, "]"))), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "btn-mini lesson-browse",
+      onClick: () => setLessonHubOpen(true)
+    }, "Browse")), /*#__PURE__*/React.createElement("div", {
       className: "panel-actions"
     }, /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini btn-vibe",
-      title: aiInfo.available ? 'Code with AI (' + aiInfo.model + ')' : 'Code with AI (needs a local model or a cloud key)',
-      onClick: () => setVibeOpen(true)
-    }, KI('vibe'), "Vibe"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Build the program from blocks",
       onClick: () => setBlocksOpen(true)
     }, KI('blocks'), "Blocks"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      title: aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)',
-      onClick: runReview
-    }, KI('review'), "Review"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
       title: "Realism dashboard: how the build drives the simulation",
       onClick: () => setRealismOpen(true)
-    }, KI('gauge'), "Realism"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
+    }, KI('gauge'), "Simulation limits"), /*#__PURE__*/React.createElement("details", {
+      className: "editor-tools"
+    }, /*#__PURE__*/React.createElement("summary", {
+      className: "btn-mini"
+    }, "More tools"), /*#__PURE__*/React.createElement("div", {
+      className: "editor-tools-menu"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      title: aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)',
+      onClick: runReview
+    }, /*#__PURE__*/React.createElement("span", null, KI('review'), "Review program"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
       title: "Guided 2 to 3 minute realism demo",
       onClick: () => setDemoOpen(true)
-    }, KI('demo'), "Demo"), /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
+    }, /*#__PURE__*/React.createElement("span", null, KI('demo'), "Guided demo"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
       title: aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs a local model or a cloud key)',
       onClick: () => {
         setAskOpen(true);
         setAskData(null);
       }
-    }, KI('ask'), "Ask"), !browserMode && /*#__PURE__*/React.createElement("button", {
-      className: "btn-mini",
+    }, /*#__PURE__*/React.createElement("span", null, KI('ask'), "Ask from lessons"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), !browserMode && /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
       title: "Run your program on a swarm of rovers at once",
       onClick: runSwarm
-    }, KI('swarm'), "Swarm"))), /*#__PURE__*/React.createElement(window.Editor, {
+    }, /*#__PURE__*/React.createElement("span", null, KI('swarm'), "Run a swarm"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")))))), /*#__PURE__*/React.createElement(window.Editor, {
       code: code,
       onChange: onCodeChange,
       activeLine: activeLine,
@@ -27040,30 +27220,21 @@ say("Survey done")`
       onWheel: camWheel
     }, /*#__PURE__*/React.createElement("div", {
       className: "terrain-switch"
-    }, ['city', 'room', 'earth', 'mars', 'underwater', 'space'].map(id => /*#__PURE__*/React.createElement("button", {
-      type: "button",
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "world-pick-row"
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "world-picker"
+    }, /*#__PURE__*/React.createElement("span", null, "World"), /*#__PURE__*/React.createElement("select", {
+      className: "lesson-select site-select world-select",
+      value: terrainId,
+      onChange: e => onTerrain(e.target.value),
+      "aria-label": "World or real-world mission site"
+    }, /*#__PURE__*/React.createElement("optgroup", {
+      label: "Core worlds"
+    }, ['city', 'room', 'earth', 'mars', 'underwater', 'space'].map(id => /*#__PURE__*/React.createElement("option", {
       key: id,
-      className: 'terrain-btn' + (terrainId === id ? ' active' : ''),
-      "aria-pressed": terrainId === id,
-      onClick: () => onTerrain(id)
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "tdot",
-      style: {
-        background: TERRAINS[id].dot,
-        boxShadow: terrainId === id ? '0 0 8px ' + TERRAINS[id].dot : 'none'
-      }
-    }), TERRAINS[id].label)), window.SITES && /*#__PURE__*/React.createElement("select", {
-      className: "lesson-select site-select",
-      value: window.SITES[terrainId] ? terrainId : '',
-      onChange: e => {
-        if (e.target.value) onTerrain(e.target.value);
-      },
-      "aria-label": "Real-world mission site",
-      title: "Drop the rover at a real place. Real gravity, traction and light"
-    }, /*#__PURE__*/React.createElement("option", {
-      value: "",
-      disabled: true
-    }, "Mission site\u2026"), [['earth', 'Earth'], ['underwater', 'Underwater'], ['mars', 'Mars'], ['space', 'Space'], ['room', 'Test bays']].map(([base, label]) => {
+      value: id
+    }, TERRAINS[id].label))), window.SITES && [['earth', 'Earth sites'], ['underwater', 'Underwater sites'], ['mars', 'Mars sites'], ['space', 'Space sites'], ['room', 'Test bays']].map(([base, label]) => {
       const ids = Object.keys(window.SITES).filter(id => window.SITES[id].base === base);
       return ids.length === 0 ? null : /*#__PURE__*/React.createElement("optgroup", {
         key: base,
@@ -27072,7 +27243,9 @@ say("Survey done")`
         key: id,
         value: id
       }, window.SITES[id].name)));
-    })), /*#__PURE__*/React.createElement("span", {
+    }), terrainId === 'custom' && /*#__PURE__*/React.createElement("option", {
+      value: "custom"
+    }, "Custom world"))), /*#__PURE__*/React.createElement("span", {
       className: "view-toggle"
     }, /*#__PURE__*/React.createElement("button", {
       type: "button",
@@ -27089,14 +27262,33 @@ say("Survey done")`
       "aria-pressed": !view3d,
       title: "Flat top-down view",
       onClick: () => setView3d(false)
-    }, "2D"), view3d && /*#__PURE__*/React.createElement("select", {
+    }, "2D")), /*#__PURE__*/React.createElement("details", {
+      className: "test-conditions"
+    }, /*#__PURE__*/React.createElement("summary", {
+      className: "terrain-btn"
+    }, "Test conditions"), /*#__PURE__*/React.createElement("div", {
+      className: "test-conditions-menu"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "speed-ctrl world-speed"
+    }, /*#__PURE__*/React.createElement("label", {
+      htmlFor: "sim-speed"
+    }, "Sim speed"), /*#__PURE__*/React.createElement("input", {
+      id: "sim-speed",
+      type: "range",
+      className: "slider",
+      min: "0.4",
+      max: "3",
+      step: "0.1",
+      value: speedMul,
+      onChange: e => setSpeedMul(parseFloat(e.target.value)),
+      "aria-label": "Sim speed",
+      "aria-valuetext": speedMul + ' times'
+    }), /*#__PURE__*/React.createElement("span", {
+      className: "num"
+    }, speedMul.toFixed(1), "\xD7")), view3d && /*#__PURE__*/React.createElement("label", null, /*#__PURE__*/React.createElement("span", null, "Render quality"), /*#__PURE__*/React.createElement("select", {
       className: "terrain-btn",
       value: quality,
-      title: "Render quality (Low keeps a basic laptop smooth, Cinematic maxes a screenshot)",
       "aria-label": "Render quality",
-      style: {
-        cursor: 'pointer'
-      },
       onChange: e => {
         const v = e.target.value;
         window.KODRO_QUALITY = v;
@@ -27115,14 +27307,10 @@ say("Survey done")`
       value: "high"
     }, "High"), /*#__PURE__*/React.createElement("option", {
       value: "cinematic"
-    }, "Cinematic")), view3d && /*#__PURE__*/React.createElement("select", {
+    }, "Cinematic"))), view3d && /*#__PURE__*/React.createElement("label", null, /*#__PURE__*/React.createElement("span", null, "Time of day"), /*#__PURE__*/React.createElement("select", {
       className: "terrain-btn",
       value: tod,
-      title: "Time of day. Drives the sun, the sky and the LIGHT gauge",
       "aria-label": "Time of day",
-      style: {
-        cursor: 'pointer'
-      },
       onChange: e => setTod(e.target.value)
     }, /*#__PURE__*/React.createElement("option", {
       value: "noon"
@@ -27132,14 +27320,10 @@ say("Survey done")`
       value: "dusk"
     }, "Dusk"), /*#__PURE__*/React.createElement("option", {
       value: "night"
-    }, "Night")), view3d && /*#__PURE__*/React.createElement("select", {
+    }, "Night"))), view3d && /*#__PURE__*/React.createElement("label", null, /*#__PURE__*/React.createElement("span", null, "Weather"), /*#__PURE__*/React.createElement("select", {
       className: "terrain-btn",
       value: weather,
-      title: "Weather. Dust storm on Mars; rain and snow outdoors on Earth",
       "aria-label": "Weather",
-      style: {
-        cursor: 'pointer'
-      },
       onChange: e => setWeather(e.target.value)
     }, /*#__PURE__*/React.createElement("option", {
       value: "clear"
@@ -27149,7 +27333,7 @@ say("Survey done")`
       value: "rain"
     }, "Rain"), /*#__PURE__*/React.createElement("option", {
       value: "snow"
-    }, "Snow")))), view3d ? /*#__PURE__*/React.createElement(window.Viewport3D, {
+    }, "Snow"))))))), view3d ? /*#__PURE__*/React.createElement(window.Viewport3D, {
       key: 'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + '-' + (terrain && terrain.tod || 'noon') + '-' + (terrain && terrain.weather || 'clear') + (quality === 'cinematic' ? '-cine' : '-std'),
       terrain: terrain,
       rover: rover,
@@ -27317,9 +27501,95 @@ say("Survey done")`
     }), teacherOpen && /*#__PURE__*/React.createElement(window.KodroPanels.TeacherModal, {
       onClose: () => setTeacherOpen(false),
       teacherData: teacherData
-    }), robotLabOpen && RobotLab && /*#__PURE__*/React.createElement(RobotLab, {
-      onClose: () => setRobotLabOpen(false),
-      onBuildReal: openBuildReal
+    }), lessonHubOpen && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop lesson-hub-backdrop",
+      onClick: () => setLessonHubOpen(false)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal lesson-hub-modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Lesson library",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "lesson-hub-head"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "Classroom \xB7 learn by making the robot move"), /*#__PURE__*/React.createElement("h2", null, "Choose your next mission"), /*#__PURE__*/React.createElement("p", null, "Each lesson gives you a starter program, a real simulated world, clear goals and feedback after every run.")), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini lesson-hub-close",
+      "aria-label": "Close lesson library",
+      onClick: () => setLessonHubOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+      className: "lesson-hub-summary",
+      "aria-label": "Lesson progress summary"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "lesson-summary-card"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "lesson-summary-value"
+    }, Object.keys(lessonResults).filter(id => lessonResults[id] && lessonResults[id].passed).length), /*#__PURE__*/React.createElement("span", null, "completed")), /*#__PURE__*/React.createElement("div", {
+      className: "lesson-summary-card"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "lesson-summary-value"
+    }, lessons.length), /*#__PURE__*/React.createElement("span", null, "missions")), /*#__PURE__*/React.createElement("div", {
+      className: "lesson-summary-card lesson-summary-wide"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "lesson-summary-label"
+    }, "Learning as"), /*#__PURE__*/React.createElement("strong", null, browserMode ? 'This device' : (pupils.find(p => p.id === activePupilId) || {}).displayName || 'Current pupil')), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini lesson-teacher-link",
+      onClick: () => {
+        setLessonHubOpen(false);
+        openTeacher();
+      }
+    }, "View progress")), /*#__PURE__*/React.createElement("div", {
+      className: "lesson-hub-scroll"
+    }, lessons.length === 0 && /*#__PURE__*/React.createElement("p", {
+      className: "lesson-hub-loading"
+    }, "Loading the offline lesson library\u2026"), ['KS1', 'KS2', 'KS3', 'KS4'].map(stage => {
+      const stageLessons = lessons.filter(l => l.keyStage === stage);
+      if (stageLessons.length === 0) return null;
+      const stageDone = stageLessons.filter(l => lessonResults[l.id] && lessonResults[l.id].passed).length;
+      return /*#__PURE__*/React.createElement("section", {
+        className: "lesson-stage",
+        key: stage,
+        "aria-labelledby": 'lesson-stage-' + stage
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "lesson-stage-head"
+      }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+        className: "lesson-stage-code"
+      }, stage), /*#__PURE__*/React.createElement("h3", {
+        id: 'lesson-stage-' + stage
+      }, AGE_FOR[stage] || stage)), /*#__PURE__*/React.createElement("span", null, stageDone, " of ", stageLessons.length, " complete")), /*#__PURE__*/React.createElement("div", {
+        className: "lesson-grid"
+      }, stageLessons.map((lesson, index) => {
+        const result = lessonResults[lesson.id];
+        const isCurrent = currentLessonId === lesson.id;
+        return /*#__PURE__*/React.createElement("button", {
+          type: "button",
+          key: lesson.id,
+          className: 'lesson-tile' + (isCurrent ? ' current' : '') + (result && result.passed ? ' complete' : ''),
+          "aria-label": (result && result.passed ? 'Completed lesson: ' : 'Open lesson: ') + lesson.title,
+          onClick: () => loadLesson(lesson)
+        }, /*#__PURE__*/React.createElement("span", {
+          className: "lesson-tile-number"
+        }, String(index + 1).padStart(2, '0')), /*#__PURE__*/React.createElement("span", {
+          className: "lesson-tile-copy"
+        }, /*#__PURE__*/React.createElement("strong", null, lesson.title), /*#__PURE__*/React.createElement("span", null, (lesson.intro || 'Program the robot and test your solution in the simulated world.').trim()), /*#__PURE__*/React.createElement("small", null, (lesson.terrain || 'earth').replace(/^./, c => c.toUpperCase()), " world", lesson.readingAge ? ' · Reading age ' + lesson.readingAge + '+' : '')), /*#__PURE__*/React.createElement("span", {
+          className: 'lesson-tile-status' + (result && result.passed ? ' done' : '')
+        }, result ? result.passed ? '✓ Complete' : result.score + '/100' : 'Start'));
+      })));
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "lesson-hub-foot"
+    }, /*#__PURE__*/React.createElement("span", null, KI('shield'), " Progress is calculated only from graded attempts saved on this device."), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => {
+        setLessonHubOpen(false);
+        setMode('studio');
+      }
+    }, "Return to Studio")))), robotLabOpen && RobotLab && /*#__PURE__*/React.createElement(RobotLab, {
+      onClose: () => {
+        setRobotLabOpen(false);
+        setActiveStage('prove');
+      },
+      onBuildReal: () => goStage('build')
     }), memoryOpen && /*#__PURE__*/React.createElement(window.KodroPanels.MemoryModal, {
       setMemoryOpen: setMemoryOpen,
       memTick: memTick,
@@ -27360,7 +27630,16 @@ say("Survey done")`
       setVibePrompt: setVibePrompt,
       vibeSend: vibeSend,
       vibeClear: vibeClear,
-      vibeContext: window.KodroMemory && window.KodroMemory.lessonFor ? window.KodroMemory.lessonFor(terrain.id) : null
+      vibeContext: window.KodroMemory && window.KodroMemory.lessonFor ? window.KodroMemory.lessonFor(terrain.id) : null,
+      onExplain: () => {
+        setVibeOpen(false);
+        setAskData(null);
+        setAskOpen(true);
+      },
+      onReview: () => {
+        setVibeOpen(false);
+        runReview();
+      }
     }), blocksOpen && /*#__PURE__*/React.createElement(window.KodroPanels.BlocksModal, {
       setBlocksOpen: setBlocksOpen,
       BLOCK_DEFS: BLOCK_DEFS,
@@ -27378,7 +27657,10 @@ say("Survey done")`
     }), showHelp && /*#__PURE__*/React.createElement(window.KodroPanels.HelpModal, {
       onClose: () => setShowHelp(false)
     }), buildOpen && (window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() ? /*#__PURE__*/React.createElement(window.KodroPanels.BuildModal, {
-      onClose: () => setBuildOpen(false),
+      onClose: () => {
+        setBuildOpen(false);
+        setActiveStage('prove');
+      },
       buildBudget: buildBudget,
       setBuildBudget: setBuildBudget,
       buildGoal: buildGoal,
@@ -27388,12 +27670,18 @@ say("Survey done")`
       buildErr: buildErr,
       buildPlan: buildPlan,
       robotSpec: robotSpec,
-      onAdoptParts: adoptPlanParts
+      onAdoptParts: plan => {
+        adoptPlanParts(plan);
+        setActiveStage('design');
+      }
     }) : /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
-      onClick: () => setBuildOpen(false)
+      onClick: () => {
+        setBuildOpen(false);
+        setActiveStage('prove');
+      }
     }, /*#__PURE__*/React.createElement("div", {
-      className: "modal",
+      className: "modal modal-wide browser-build-modal",
       role: "dialog",
       "aria-modal": "true",
       "aria-label": "Build a real robot",
@@ -27404,17 +27692,64 @@ say("Survey done")`
       className: "eyebrow",
       role: "heading",
       "aria-level": "2"
-    }, KI('build'), "Build a real robot. What your budget can buy"), /*#__PURE__*/React.createElement("button", {
+    }, KI('build'), "Build \xB7 prepare a responsible first prototype"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       "aria-label": "Close",
-      onClick: () => setBuildOpen(false)
+      onClick: () => {
+        setBuildOpen(false);
+        setActiveStage('prove');
+      }
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
-      className: "build-body"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "The budget planner needs the desktop app. It plans and prices a real robot from your current design using a local AI model through Ollama, a separate free install that runs on your own computer; without Ollama the planner cannot run."), /*#__PURE__*/React.createElement("p", {
-      className: "vibe-status"
-    }, "In the browser you can still design a robot in the Robot Lab, program it, and run it. To plan real hardware within a budget, open Kodro as the desktop app."))))), /*#__PURE__*/React.createElement("div", {
+      className: "build-body browser-build-body"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "browser-build-intro"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "Active design"), /*#__PURE__*/React.createElement("h2", null, chipName), /*#__PURE__*/React.createElement("p", null, "Kodro can prepare a concept bill of materials and simulation record here in the free browser app. It will not invent live prices, electrical compatibility or a safe wiring plan.")), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      onClick: downloadPrototypeBrief
+    }, "Download prototype brief")), /*#__PURE__*/React.createElement("div", {
+      className: "build-readiness",
+      "aria-label": "Prototype brief readiness"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserBuildParts.length), /*#__PURE__*/React.createElement("span", null, "design requirements captured")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserRunCount), /*#__PURE__*/React.createElement("span", null, "simulation runs recorded")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "4"), /*#__PURE__*/React.createElement("span", null, "checks required before power-on"))), /*#__PURE__*/React.createElement("div", {
+      className: "browser-build-grid"
+    }, /*#__PURE__*/React.createElement("section", null, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow"
+    }, "Concept bill of materials"), /*#__PURE__*/React.createElement("table", {
+      className: "build-table browser-bom"
+    }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
+      scope: "col"
+    }, "Requirement"), /*#__PURE__*/React.createElement("th", {
+      scope: "col"
+    }, "Evidence"))), /*#__PURE__*/React.createElement("tbody", null, browserBuildParts.map(function (p) {
+      return /*#__PURE__*/React.createElement("tr", {
+        key: p.id
+      }, /*#__PURE__*/React.createElement("td", null, p.name), /*#__PURE__*/React.createElement("td", {
+        className: "role"
+      }, p.role));
+    }))), /*#__PURE__*/React.createElement("p", {
+      className: "build-note"
+    }, "These are design requirements from your active Kodro robot, not supplier-selected products. Exact voltage, current, dimensions, logic levels, connectors, stock and price are not verified.")), /*#__PURE__*/React.createElement("section", {
+      className: "build-boundary"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "eyebrow"
+    }, "Evidence boundary"), /*#__PURE__*/React.createElement("div", {
+      className: "build-evidence-row is-known"
+    }, /*#__PURE__*/React.createElement("b", null, "Verified by Kodro"), /*#__PURE__*/React.createElement("span", null, "Selected controller and capabilities, command availability, saved run outcomes and the simulator's disclosed first-order calculations.")), /*#__PURE__*/React.createElement("div", {
+      className: "build-evidence-row is-suggested"
+    }, /*#__PURE__*/React.createElement("b", null, "Ready to export"), /*#__PURE__*/React.createElement("span", null, "A local HTML brief containing this concept, recent run evidence, uncertainty and a safe prototype sequence.")), /*#__PURE__*/React.createElement("div", {
+      className: "build-evidence-row is-unverified"
+    }, /*#__PURE__*/React.createElement("b", null, "Verify before purchasing"), /*#__PURE__*/React.createElement("span", null, "Motor driver current, battery chemistry and protection, voltage and logic compatibility, wiring, mechanical fit, price, stock and supplier quality.")), /*#__PURE__*/React.createElement("div", {
+      className: "browser-build-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => goStage('design')
+    }, "Back to Design"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => goStage('prove')
+    }, "Run more tests")))), /*#__PURE__*/React.createElement("p", {
+      className: "browser-build-desktop"
+    }, "Optional desktop enhancement: the planner can use a local model through Ollama, a separate free install. Its prices remain estimates until source-backed connected research and deterministic electrical checks are implemented."))))), /*#__PURE__*/React.createElement("div", {
       className: "toast-stack",
       role: "status",
       "aria-live": "polite",

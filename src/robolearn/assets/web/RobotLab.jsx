@@ -622,7 +622,7 @@
       React.createElement('div', { className: 'modal-backdrop', onClick: () => props.onClose && props.onClose() },
         React.createElement('div', { className: 'modal modal-wide rl-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Robot Lab', onClick: e => e.stopPropagation() },
           React.createElement('div', { className: 'modal-head' },
-            React.createElement('span', { className: 'eyebrow' }, window.KodroIcons ? window.KodroIcons.el('lab') : null, 'Robot Lab. Design a robot, then run it in the world'),
+            React.createElement('span', { className: 'eyebrow' }, window.KodroIcons ? window.KodroIcons.el('lab') : null, 'Design · choose the parts that define your robot'),
             React.createElement('button', { className: 'btn-mini', 'aria-label': 'Close', onClick: () => props.onClose && props.onClose() }, '✕')
           ),
           React.createElement('div', { className: 'rl-body' },
@@ -749,32 +749,34 @@
             )
           ),
           React.createElement('div', { className: 'rl-foot' },
-            React.createElement('button', { className: 'btn-mini', onClick: () => { setSpec(specFromType(spec.type, spec.name)); setImportIssues(null); } }, 'Reset parts'),
-            // Fit a real datasheet part (window.KodroParts): the sim then derives
-            // top speed / runtime from measured numbers. Selects reset to their
-            // placeholder each render (fitting is a one-shot action, not state).
-            window.KodroParts ? React.createElement('select', {
-              className: 'btn-mini', value: '', 'aria-label': 'Fit a real motor',
-              title: 'Fit a datasheet motor: drives top speed and torque',
-              onChange: e => { if (e.target.value) applyMotor(e.target.value); },
-            }, [React.createElement('option', { key: '_', value: '' }, 'Fit a motor…')].concat(
-              window.KodroParts.motors.map(m => React.createElement('option', { key: m.id, value: m.id }, m.name)))) : null,
-            window.KodroParts ? React.createElement('select', {
-              className: 'btn-mini', value: '', 'aria-label': 'Fit a real battery',
-              title: 'Fit a datasheet battery: drives runtime',
-              onChange: e => { if (e.target.value) applyBattery(e.target.value); },
-            }, [React.createElement('option', { key: '_', value: '' }, 'Fit a battery…')].concat(
-              window.KodroParts.batteries.map(b => React.createElement('option', { key: b.id, value: b.id }, b.name)))) : null,
-            // SI1: import a real robot's KRS JSON / export this build's spec.
-            React.createElement('button', { className: 'btn-mini', 'data-spec-import': 'button', title: 'Import a KRS robot spec (JSON): real motor, battery, body and sensor numbers drive the sim', onClick: onImportClick }, 'Import spec'),
-            React.createElement('button', { className: 'btn-mini', title: 'Export this build as a KRS spec plus its derived numbers', onClick: onExportClick }, 'Export spec'),
-            React.createElement('button', { className: 'btn-mini', title: 'Export a URDF to open this build in ROS, RViz, Webots or Gazebo', onClick: onUrdfClick }, 'Export URDF'),
-            React.createElement('button', { className: 'btn-mini', title: 'Save the verification report: your robot as simulated, predictions plus measured evidence', onClick: onReportClick }, 'Verification report'),
-            // A6: price THIS build as real hardware (opens the budget planner
-            // seeded with the active spec), merging the two build features.
-            props.onBuildReal ? React.createElement('button', { className: 'btn-mini', title: 'Price this build as real hardware within a budget', onClick: function () { props.onBuildReal(); } }, 'Build real') : null,
-            React.createElement('input', { ref: fileRef, type: 'file', accept: '.json,application/json', style: { display: 'none' }, 'aria-hidden': 'true', tabIndex: -1, onChange: onFilePicked }),
-            React.createElement('button', { className: 'ctrl ctrl-run', onClick: onSave }, '✓ Build & test in ' + rec.label)
+            React.createElement('details', { className: 'rl-advanced' },
+              React.createElement('summary', { className: 'btn-mini' }, 'Measured parts & exports'),
+              React.createElement('div', { className: 'rl-advanced-menu' },
+                React.createElement('button', { className: 'btn-mini', onClick: () => { setSpec(specFromType(spec.type, spec.name)); setImportIssues(null); } }, 'Reset parts'),
+                // Fit a real datasheet part (window.KodroParts): the sim then derives
+                // top speed / runtime from measured numbers. Selects reset to their
+                // placeholder each render (fitting is a one-shot action, not state).
+                window.KodroParts ? React.createElement('select', {
+                  className: 'btn-mini', value: '', 'aria-label': 'Fit a real motor',
+                  title: 'Fit a datasheet motor: drives top speed and torque',
+                  onChange: e => { if (e.target.value) applyMotor(e.target.value); },
+                }, [React.createElement('option', { key: '_', value: '' }, 'Fit a motor…')].concat(
+                  window.KodroParts.motors.map(m => React.createElement('option', { key: m.id, value: m.id }, m.name)))) : null,
+                window.KodroParts ? React.createElement('select', {
+                  className: 'btn-mini', value: '', 'aria-label': 'Fit a real battery',
+                  title: 'Fit a datasheet battery: drives runtime',
+                  onChange: e => { if (e.target.value) applyBattery(e.target.value); },
+                }, [React.createElement('option', { key: '_', value: '' }, 'Fit a battery…')].concat(
+                  window.KodroParts.batteries.map(b => React.createElement('option', { key: b.id, value: b.id }, b.name)))) : null,
+                React.createElement('button', { className: 'btn-mini', 'data-spec-import': 'button', title: 'Import a KRS robot spec (JSON): real motor, battery, body and sensor numbers drive the sim', onClick: onImportClick }, 'Import spec'),
+                React.createElement('button', { className: 'btn-mini', title: 'Export this build as a KRS spec plus its derived numbers', onClick: onExportClick }, 'Export spec'),
+                React.createElement('button', { className: 'btn-mini', title: 'Export a URDF to open this build in ROS, RViz, Webots or Gazebo', onClick: onUrdfClick }, 'Export URDF'),
+                React.createElement('button', { className: 'btn-mini', title: 'Save the verification report: your robot as simulated, predictions plus measured evidence', onClick: onReportClick }, 'Verification report'),
+                props.onBuildReal ? React.createElement('button', { className: 'btn-mini', title: 'Prepare this design for a real prototype', onClick: function () { props.onBuildReal(); } }, 'Open Build stage') : null,
+                React.createElement('input', { ref: fileRef, type: 'file', accept: '.json,application/json', style: { display: 'none' }, 'aria-hidden': 'true', tabIndex: -1, onChange: onFilePicked })
+              )
+            ),
+            React.createElement('button', { className: 'ctrl ctrl-run', onClick: onSave }, 'Continue to Prove in ' + rec.label + ' →')
           )
         )
       )

@@ -12,20 +12,23 @@ subscription. Try it in the browser, zero install, at
 the full desktop app adds the local Python engine, lesson grading and
 multi-pupil progress.
 
-## The loop
+## The product journey
 
 1. **Design.** In the Robot Lab you assemble a robot from a board, sensors,
    actuators and a chassis type (rover, car, home or arm). Kodro derives its
    mass, top speed and runtime from the parts you choose.
-2. **Program.** Write procedural Python against a small, readable API, stack
-   Scratch-style blocks that compile to that same Python, or describe the
-   behaviour and let a local AI model draft it.
-3. **Validate.** Kodro recommends the world that fits the robot and drops it
-   in: a self-driving car gets the City, a home or arm robot gets the Room, a
-   rover gets planetary terrain.
-4. **Refine.** Every run is recorded. A localStorage memory layer reflects on
-   outcomes and keeps the skills you save, so the studio gets more useful from
-   your own verified work. No model weights are retrained.
+2. **Prove.** Write procedural Python against a small, readable API, stack
+   Scratch-style blocks that compile to that same Python, or ask the optional
+   local companion to draft behaviour. Run repeatable scenarios and keep their
+   assumptions, seeds and outcomes.
+3. **Build.** Export a concept bill of materials and prototype brief. Verify
+   exact parts against original datasheets, assemble safely, measure the physical
+   result and feed those measurements back into the design.
+
+Kodro reduces uncertainty before a first prototype. It does not certify real
+world performance or replace physical calibration. Read the
+[product direction and evidence boundary](PRODUCT_DIRECTION_2026.md) for the
+current scope and source-backed roadmap.
 
 ## What you get
 

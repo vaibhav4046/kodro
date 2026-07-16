@@ -11,6 +11,7 @@ alongside the raw success / failure counts.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
 import threading
@@ -167,6 +168,12 @@ class Store:
         self._is_memory = str(path) == ":memory:"
         self._closed = False
         self._local = threading.local()
+        # Keep ownership of every persistent connection, not only the one in
+        # the calling thread.  pywebview can create connections on pooled
+        # worker threads; closing only ``self._local.conn`` on the main thread
+        # leaked those handles until interpreter shutdown.
+        self._connections_lock = threading.Lock()
+        self._connections: list[sqlite3.Connection] = []
         # An in-memory DB cannot be reopened per thread (each connection is a
         # separate database), so keep one shared connection for that case.
         if self._is_memory:
@@ -178,17 +185,20 @@ class Store:
             # connection lingers on the constructing thread holding a file
             # lock -- a lingering writer made a worker thread's connection hang
             # on Windows/macOS CI. Per-thread connections open lazily after.
-            init = self._new_connection()
+            init = self._new_connection(register=False)
             try:
                 init.executescript(SCHEMA_SQL)
             finally:
                 init.close()
 
-    def _new_connection(self) -> sqlite3.Connection:
+    def _new_connection(self, *, register: bool = True) -> sqlite3.Connection:
         conn = sqlite3.connect(self._path, isolation_level=None, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         # Never block forever on a locked database: wait up to 5s, then error.
         conn.execute("PRAGMA busy_timeout = 5000")
+        if register:
+            with self._connections_lock:
+                self._connections.append(conn)
         return conn
 
     @property
@@ -208,15 +218,31 @@ class Store:
     # --- lifecycle ----------------------------------------------------------
 
     def close(self) -> None:
-        """Close this thread's connection (and the shared in-memory one)."""
-        self._closed = True
-        if self._memory_conn is not None:
-            self._memory_conn.close()
+        """Close every connection owned by this store.
+
+        Connections are thread-local while the store is active, but the store
+        owns their lifetime.  Closing from the app's main thread must therefore
+        also close handles opened by pywebview worker threads.
+        """
+        if self._closed:
             return
-        conn = getattr(self._local, "conn", None)
-        if conn is not None:
-            conn.close()
-            self._local.conn = None
+        self._closed = True
+        with self._connections_lock:
+            connections, self._connections = self._connections, []
+        for conn in connections:
+            # Closing is best effort and idempotent.  A worker may already have
+            # closed its handle while the app is shutting down.
+            with contextlib.suppress(sqlite3.Error):
+                conn.close()
+        self._memory_conn = None
+        self._local.conn = None
+
+    def __del__(self) -> None:
+        """Best-effort fallback for callers that omit an explicit close."""
+        # Destructors can run during partial construction or interpreter
+        # shutdown, when module globals and attributes may already be gone.
+        with contextlib.suppress(Exception):
+            self.close()
 
     def __enter__(self) -> Store:
         """Return ``self`` so the store can be used as a context manager."""
