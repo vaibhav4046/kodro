@@ -9,6 +9,37 @@ Execute the Codex master prompt: drive Kodro toward an honestly-accepted release
 via the loop Measure -> Judge -> Reproduce -> Prioritise -> Patch -> Regress ->
 Integrate -> Verify -> Rejudge -> Record. No audit-only stop.
 
+## Product-direction release checkpoint (2026-07-16)
+- Product commit `93fec9596fe26863d88dd4674254e775757f25ae` is on both
+  `main` and `kodro-identity-pass`.
+- CI run 29537982283 is green on Windows, macOS, and Ubuntu. Deploy Pages run
+  29538259855 succeeded.
+- `FINDINGS.jsonl` now contains 80 valid JSONL records. Earlier counts below
+  are preserved as historical round checkpoints, not the current total.
+- Public `bundle.js` and `styles.css` match the committed files byte-for-byte:
+  bundle SHA-256 `8c3417345b3c8caf220baa15d9ddcdb62856a20e12d18d0fba2999119ed3f8fb`
+  (1,103,091 bytes); CSS SHA-256
+  `3ca2099a24a5f5a713a2708679179e6524bca99d8d3230014f7cff5583801611`
+  (121,644 bytes).
+- The primary journey is now Design -> Prove -> Build. Secondary tools are
+  progressively disclosed. The hosted Build stage produces a deterministic
+  prototype brief and explicitly does not claim certification, supplier
+  validation, ordering, or exact physical equivalence.
+- Companion has deterministic Create, Explain, and Check fallbacks. A local
+  model remains optional; there is no false claim of unlimited tokens or
+  offline internet research.
+- `Store.close()` now closes every SQLite handle owned across worker threads;
+  the regression suite covers multi-thread-local handles and idempotent close.
+- Full local product suite before release: 1,069 passed, 88.96% coverage;
+  ResourceWarnings reduced to zero. CI is the cross-platform release authority.
+- Local headless Chrome/SwiftShader remained degraded for the exhaustive
+  `qa_ui`/`qa_worlds` harness. The new desktop journey was inspected directly
+  in the in-app browser; CI separately passed the real-Chrome boot, studio,
+  console, and zero-external-request checks. Do not describe the timed-out
+  local harness as a pass.
+- Dissertation revision has not started in this checkpoint. It requires the
+  Academic Research Suite human checkpoint before claims are changed.
+
 ## Verified baseline at commit c93005b (CI green 3 OSes, deployed, live == build)
 - git: clean tree, origin/main == origin/kodro-identity-pass == c93005b
 - bundle.js fresh (build_web.cjs --check)

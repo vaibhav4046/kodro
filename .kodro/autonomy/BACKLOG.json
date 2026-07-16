@@ -723,6 +723,33 @@
       "owner": "judge-round-14",
       "evidence": "FIXED at the root: added a drive GRIP factor distinct from top speed (motors2 grip 1.0, motors4 1.4, servos 0.85). derive() now returns gripFactor; catalogue mobilityScore uses gripFactor (drive torque) not speedFactor, so more/stronger drive motors improve mobility, matching reality and the advice. Top speed stays count-independent (JR10-04 intact). BOTH the design check and the live tick read gripFactor, preserving their parity. Verified via the real assess(): motors4 now out-grips motors2 on every surface (ice 1.04 vs 0.75, sand 1.28 vs 0.92, city 2.27 vs 1.63). qa_interpreter 180 / grader 34 / physics 20 unaffected (those use the physical force-ratio path). qa_honesty \u00a726 pins motors4>=motors2 mobility on 4 surfaces via the real modules. NOTE: a first fix attempt missed wiring gripFactor into derive()'s out object (it has runtimeMin) - the new gate caught it.",
       "deps": []
+    },
+    {
+      "id": "PRODUCT-01",
+      "title": "Core value journey was obscured by equal-weight feature surfaces and utility controls",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "product-direction-release",
+      "evidence": "FIXED: the persistent product journey is Design -> Prove -> Build, with secondary tools progressively disclosed. Hosted Build produces a deterministic local prototype brief and states its evidence boundaries. Companion offers Create, Explain, and Check actions with deterministic fallbacks.",
+      "deps": []
+    },
+    {
+      "id": "STORE-01",
+      "title": "Worker-thread SQLite handles were not all closed by Store.close()",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "product-direction-release",
+      "evidence": "FIXED: Store tracks all persistent connections and closes them idempotently across thread-local owners. The new test opens handles under separate thread-local identities and verifies each is unusable after close; ResourceWarning is promoted to an error.",
+      "deps": []
+    },
+    {
+      "id": "CI-01",
+      "title": "Optional pytest plugin configuration broke strict CI collection on every OS",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "product-direction-release",
+      "evidence": "FIXED by removing the environment-specific pytest-asyncio option. CI run 29537982283 passed Windows, macOS, and Ubuntu; Pages run 29538259855 deployed the exact public assets.",
+      "deps": []
     }
   ]
 }
