@@ -281,14 +281,14 @@
                 <table className="heatmap-table">
                   <thead>
                     <tr>
-                      <th>{browserMode ? 'Learner' : 'Pupil'}</th>
-                      {teacherData.concepts.map(c => <th key={c} className="hm-concept">{c}</th>)}
+                      <th scope="col">{browserMode ? 'Learner' : 'Pupil'}</th>
+                      {teacherData.concepts.map(c => <th key={c} scope="col" className="hm-concept">{c}</th>)}
                     </tr>
                   </thead>
                   <tbody>
                     {teacherData.pupils.map(p => (
                       <tr key={p.id}>
-                        <td className="hm-name">{p.name}{p.active ? <span className="hm-active"> (active)</span> : ''}</td>
+                        <th scope="row" className="hm-name">{p.name}{p.active ? <span className="hm-active"> (active)</span> : ''}</th>
                         {teacherData.concepts.map(c => {
                           const v = p.scores[c];
                           const has = typeof v === 'number';

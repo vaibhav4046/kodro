@@ -14499,7 +14499,7 @@ Object.assign(window, {
       className: 'rl-stat'
     }, React.createElement('b', null, d.mass + ' g'), React.createElement('span', null, 'total mass ', Badge('honoured'))), React.createElement('div', {
       className: 'rl-stat'
-    }, React.createElement('b', null, d.phys && d.phys.runtimeMin !== undefined ? '~' + d.runtimeMin + ' min' : '~' + d.rangeM + ' m'), React.createElement('span', null, d.phys && d.phys.runtimeMin !== undefined ? 'battery / charge ' : 'driving range / charge ', Badge('approximated'))), React.createElement('div', {
+    }, React.createElement('b', null, d.phys && d.phys.runtimeMin !== undefined ? '~' + d.runtimeMin + ' min' : '~' + (report && report.numbers && report.numbers.rangeM || d.rangeM) + ' m'), React.createElement('span', null, d.phys && d.phys.runtimeMin !== undefined ? 'battery / charge ' : 'driving range / charge (this world) ', Badge('approximated'))), React.createElement('div', {
       className: 'rl-stat'
     }, React.createElement('b', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? (d.phys.vMaxSimCmPerS / 100).toFixed(2) + ' m/s' : 'standard'), React.createElement('span', null, d.phys && d.phys.vMaxSimCmPerS !== undefined ? 'top speed (no-load) ' : 'top speed (no-load): one catalogue standard; import a spec to measure ', Badge(d.phys && d.phys.badges && d.phys.badges.topSpeed || 'approximated'))), React.createElement('div', {
       className: 'rl-stat rl-stat-wide'
@@ -17209,6 +17209,11 @@ Object.assign(window, {
     };
     const env = terrain.env || {};
     const massFac = robot.massFactor || 1;
+    // World-accurate driving range: the runtime ledger drains at the world's
+    // traction, so the Battery row must too (JR11-01). A measured build keeps its
+    // nominal per-pack figure; a catalogue build recomputes at terrain traction.
+    const KM = window.KodroMotion;
+    const rangeHere = robot.phys && robot.phys.drainPctPerCmNominal !== undefined ? robot.rangeM : KM ? Math.round(KM.catRangeCm(massFac, terrain.env && terrain.env.gravity || 9.81, terrain.traction != null ? terrain.traction : 1) / 100) : robot.rangeM;
     const speedFac = robot.speedFactor || 1;
     // Qualitative acceleration: heavier mass -> slower to reach top speed.
     const accel = massFac >= 1.4 ? 'slow (heavy)' : massFac >= 1.0 ? 'moderate' : 'brisk (light)';
@@ -17223,7 +17228,7 @@ Object.assign(window, {
     // absolute speed (judge round 1: a unitless multiplier read as a speed).
     const vSim = robot.phys && robot.phys.vMaxSimCmPerS;
     const topSpeed = vSim !== undefined ? (vSim / 100).toFixed(2) + ' m/s' : 'standard (no-load); import a measured spec for a per-build figure';
-    const physics = card('Robot physics', [row('Mass', (robot.mass || '-') + ' g'), row('Top speed', topSpeed), row('Acceleration', accel), row('Terrain friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'), row('Battery', robot.rangeM ? '~' + robot.rangeM + ' m of driving on a charge (the ledger the run enforces)' : '~' + (robot.runtimeMin || '-') + ' min on a charge')]);
+    const physics = card('Robot physics', [row('Mass', (robot.mass || '-') + ' g'), row('Top speed', topSpeed), row('Acceleration', accel), row('Terrain friction', terrain.traction != null ? terrain.traction.toFixed(2) : '-'), row('Battery', rangeHere ? '~' + rangeHere + ' m of driving on a charge here (the ledger the run enforces)' : '~' + (robot.runtimeMin || '-') + ' min on a charge')]);
 
     // Sensor card.
     // Status reflects the gating truth: only a sensor whose command is actually
@@ -23558,12 +23563,16 @@ say("Survey done")`
       }
     }, /*#__PURE__*/React.createElement("table", {
       className: "heatmap-table"
-    }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", null, browserMode ? 'Learner' : 'Pupil'), teacherData.concepts.map(c => /*#__PURE__*/React.createElement("th", {
+    }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", null, /*#__PURE__*/React.createElement("th", {
+      scope: "col"
+    }, browserMode ? 'Learner' : 'Pupil'), teacherData.concepts.map(c => /*#__PURE__*/React.createElement("th", {
       key: c,
+      scope: "col",
       className: "hm-concept"
     }, c)))), /*#__PURE__*/React.createElement("tbody", null, teacherData.pupils.map(p => /*#__PURE__*/React.createElement("tr", {
       key: p.id
-    }, /*#__PURE__*/React.createElement("td", {
+    }, /*#__PURE__*/React.createElement("th", {
+      scope: "row",
       className: "hm-name"
     }, p.name, p.active ? /*#__PURE__*/React.createElement("span", {
       className: "hm-active"

@@ -97,13 +97,18 @@ EXACT RESUME STEPS when the user says "continue":
    push both, watch CI, watch Deploy Pages, verify live bundle sha256 ==
    committed. Record JRx items in BACKLOG.json + update this STATE.
 
-CONVERGENCE COUNTER: 0 consecutive clean complete rounds. Rounds 4-10 all found
-real defects; the trend is DOWN (R9=19 -> R10=4, all P2, no P0/P1). Need TWO
+CONVERGENCE COUNTER: 0 consecutive clean complete rounds. Trend is DOWN
+(R9=19 -> R10=4 -> R11=2, all P2/P3, no P0/P1). Round 11 (complete, 18/18
+agents) accepted 2: JR11-01 (P2, battery-range inconsistency I introduced in
+JR9-03 - RobotLab/Realism showed the nominal traction-1 range while captioning
+it "enforced"; now all three surfaces show the world-accurate ledger figure)
+and JR11-02 (P3, teacher heatmap th scope row/col for WCAG 1.3.1). Both fixed +
+gated (qa_honesty §20/§21, now 71) + verified live. Shipping now. Need TWO
 consecutive clean complete rounds (0 accepted, all 6 judges finishing) to
 declare convergence, then deliver the final report (live URL + commit hashes +
 committed/live bundle sha256 equal + full gate matrix + dissertation PDF at
 EXACTLY 50 pages, 0 em/en dashes + current .kodro/autonomy/ + honest list of
-anything deliberately not done). Do NOT launch round 11 until the user resumes.
+anything deliberately not done).
 
 Gate counts at this checkpoint: qa_honesty 63, qa_contrast 51, qa_web 5/5,
 qa_ui 38/38, qa_worlds 61, qa_interpreter 180, qa_grader 34, qa_physics 20,

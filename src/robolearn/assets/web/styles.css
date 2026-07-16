@@ -1512,7 +1512,9 @@ kbd {
 .heatmap-table th, .heatmap-table td{ border:1px solid var(--border); padding:5px 7px; text-align:center; }
 .heatmap-table th{ background:var(--navy-3); color:var(--fg-2); position:sticky; top:0; }
 .heatmap-table th.hm-concept{ writing-mode:vertical-rl; transform:rotate(180deg); max-height:90px; font-size:var(--text-xs); letter-spacing:0.04em; }
-.heatmap-table td.hm-name{ text-align:left; color:var(--fg-1); white-space:nowrap; font-family:var(--font-body); }
+/* .hm-name is a row-header <th> (WCAG 1.3.1), so override the generic column-
+   header th rule: left-aligned, body-weight, and not sticky-to-top. */
+.heatmap-table .hm-name{ text-align:left; color:var(--fg-1); white-space:nowrap; font-family:var(--font-body); font-weight:400; position:static; }
 .heatmap-table td.hm-cell{ font-variant-numeric:tabular-nums; min-width:30px; }
 
 /* Block reorder controls. */

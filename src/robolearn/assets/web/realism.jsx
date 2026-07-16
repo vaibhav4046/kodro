@@ -39,6 +39,13 @@
       || (robot.world && terrains[robot.world]) || terrains[Object.keys(terrains)[0]] || { name: '-', env: {}, traction: 1, id: '-' };
     const env = terrain.env || {};
     const massFac = robot.massFactor || 1;
+    // World-accurate driving range: the runtime ledger drains at the world's
+    // traction, so the Battery row must too (JR11-01). A measured build keeps its
+    // nominal per-pack figure; a catalogue build recomputes at terrain traction.
+    const KM = window.KodroMotion;
+    const rangeHere = (robot.phys && robot.phys.drainPctPerCmNominal !== undefined)
+      ? robot.rangeM
+      : (KM ? Math.round(KM.catRangeCm(massFac, (terrain.env && terrain.env.gravity) || 9.81, terrain.traction != null ? terrain.traction : 1) / 100) : robot.rangeM);
     const speedFac = robot.speedFactor || 1;
     // Qualitative acceleration: heavier mass -> slower to reach top speed.
     const accel = massFac >= 1.4 ? 'slow (heavy)' : massFac >= 1.0 ? 'moderate' : 'brisk (light)';
@@ -60,7 +67,7 @@
       row('Top speed', topSpeed),
       row('Acceleration', accel),
       row('Terrain friction', (terrain.traction != null ? terrain.traction.toFixed(2) : '-')),
-      row('Battery', robot.rangeM ? '~' + robot.rangeM + ' m of driving on a charge (the ledger the run enforces)' : '~' + (robot.runtimeMin || '-') + ' min on a charge'),
+      row('Battery', rangeHere ? '~' + rangeHere + ' m of driving on a charge here (the ledger the run enforces)' : '~' + (robot.runtimeMin || '-') + ' min on a charge'),
     ]);
 
     // Sensor card.
