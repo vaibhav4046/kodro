@@ -110,18 +110,39 @@ EXACT RESUME STEPS when the user says "continue":
    push both, watch CI, watch Deploy Pages, verify live bundle sha256 ==
    committed. Record JRx items in BACKLOG.json + update this STATE.
 
-CONVERGENCE COUNTER: 0 consecutive clean complete rounds. Trend is DOWN
-(R9=19 -> R10=4 -> R11=2, all P2/P3, no P0/P1). Round 11 (complete, 18/18
-agents) accepted 2: JR11-01 (P2, battery-range inconsistency I introduced in
-JR9-03 - RobotLab/Realism showed the nominal traction-1 range while captioning
-it "enforced"; now all three surfaces show the world-accurate ledger figure)
-and JR11-02 (P3, teacher heatmap th scope row/col for WCAG 1.3.1). Both fixed +
-gated (qa_honesty §20/§21, now 71) + verified live. Shipping now. Need TWO
-consecutive clean complete rounds (0 accepted, all 6 judges finishing) to
-declare convergence, then deliver the final report (live URL + commit hashes +
-committed/live bundle sha256 equal + full gate matrix + dissertation PDF at
-EXACTLY 50 pages, 0 em/en dashes + current .kodro/autonomy/ + honest list of
-anything deliberately not done).
+CONVERGENCE COUNTER: 0 consecutive clean rounds. Trend since resume:
+R9=19 -> R10=4 -> R11=2 -> R12=2 -> R13=2 (all P2/P3, no P0/P1). Rounds 11-13
+ALL SHIPPED + LIVE-VERIFIED: JR11 (battery-range consistency, teacher th scope),
+JR12 (assumed-wheel top-speed honesty, WCAG label-in-name), JR13 (mobile
+world-switch bar dark-glass in every theme, sim-speed aria-label regression from
+JR12). Live commits: 75db527(JR11) -> 9b58d89(JR12) -> dd6cbf5(JR13+sound) ->
+94298da(pip wheel fix) -> 17db315(light-theme Run button contrast).
+
+COMPLETION-DIRECTIVE WORK DONE (2026-07-16):
+- Sound OFF by default (user request); Settings toggle retained. Live.
+- Phase-0 reconciliation: D: authoritative; OneDrive clone stale e1df641/clean.
+- Ledgers written: FINDINGS.jsonl (75), EVIDENCE.json, ACCEPTANCE_MATRIX.md,
+  DISSERTATION_TRACEABILITY.md. All acceptance criteria DELIVERED (matrix).
+- pip wheel build FIXED (PKG-01: redundant hatch force-include double-add);
+  robolearn-2.0.0-py3-none-any.whl builds + installs + imports with assets.
+- Proactive theme-contrast audit (300 runtime measurements across 10 themes x
+  {1280,375}) -> exhausted the class; only the light Run button was sub-AA
+  (4.43:1), FIXED (CTR-01), qa_contrast now 61 (pins --void-on--cyan AA per theme).
+- Dissertation: clean pdflatex build, EXACTLY 50 pages, 0 em/en dashes.
+
+Gate matrix (current): qa_interpreter 180, qa_grader 34, qa_physics 20,
+qa_ai_web 27, qa_web 5/5, qa_parts 40, qa_memgraph 22, qa_pupilstore 23,
+qa_scenario_parity 4, qa_interp_fixes 13, qa_honesty 86, qa_contrast 61,
+qa_ui 6/6+38/38+12/12, qa_worlds 61 (isolate to dodge swiftshader-under-load
+blank-renders), golden-trace+urdf 11. CI green 3 OSes; live 200; bundle+css
+hash-verified live.
+
+NEED TWO consecutive complete clean rounds (0 accepted, all 6 judges finishing)
+to declare convergence, then the final report. Next: round 14 on fresh 17db315
+evidence. FLAKE PROTOCOL: overnight Chrome churn causes ETIMEDOUT spawn failures
++ swiftshader blank-renders in qa_ui/qa_worlds; kill headless chrome, cool down
+20-30s, rerun in ISOLATION; CI (which does NOT run qa_ui/qa_worlds) is
+authoritative for shipping.
 
 Gate counts at this checkpoint: qa_honesty 63, qa_contrast 51, qa_web 5/5,
 qa_ui 38/38, qa_worlds 61, qa_interpreter 180, qa_grader 34, qa_physics 20,
