@@ -93,8 +93,11 @@
     return 0.5 + 0.5 * ((gravityMps2 || MODEL.gravityEarthMps2) / MODEL.gravityEarthMps2);
   }
   // Drive-to-weight headroom on a surface (diagnostics + the live tick agree).
-  function mobilityScore(speedFactor, massFactor, traction) {
-    return (speedFactor * traction) / massFactor;
+  // First arg is the drive GRIP factor (torque/tractive contribution: more/
+  // stronger drive motors grip better), NOT top speed which is count-independent
+  // (JR14). gripFactor*traction/massFactor: heavier hurts, more grip helps.
+  function mobilityScore(gripFactor, massFactor, traction) {
+    return (gripFactor * traction) / massFactor;
   }
   function mobilityMultiplier(hasDrive, mob) {
     return !hasDrive ? MODEL.mobilityNoDriveMul

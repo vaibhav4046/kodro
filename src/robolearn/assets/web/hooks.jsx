@@ -980,6 +980,7 @@
       const physR = robot && robot.phys;
       const massFac = robot && robot.massFactor ? robot.massFactor : 1;
       const speedFac = robot && robot.speedFactor ? robot.speedFactor : 1;
+      const gripFac = robot && robot.gripFactor ? robot.gripFactor : 1;  // drive grip -> mobility (JR14)
       // Mobility: too much weight for the grip its motors get on this surface
       // makes the robot crawl or stall, so an underpowered design visibly
       // struggles instead of gliding along regardless of what was built.
@@ -988,7 +989,7 @@
       const hasDrive = robot && robot.actuators && robot.actuators.some(function (a) { return a === 'motors2' || a === 'motors4' || a === 'servos'; });
       const mob = physR && physR.stallForceN !== undefined
         ? KM.physMobility(physR.stallForceN, physR.massKg, terrain.traction, terrain.env.gravity)
-        : (window.KodroDiagnostics ? window.KodroDiagnostics.mobilityScore(speedFac, massFac, terrain.traction) : 1);
+        : (window.KodroDiagnostics ? window.KodroDiagnostics.mobilityScore(gripFac, massFac, terrain.traction) : 1);
       // E-A5: a physically-specified build that cannot move here HALTS with a
       // torque verdict instead of the catalogue 0.35x crawl - a stall is a
       // result, not an animation style.

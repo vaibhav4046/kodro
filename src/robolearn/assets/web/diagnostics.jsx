@@ -43,6 +43,7 @@
     const actuators = spec.actuators || [];
     const massFactor = derived.massFactor || 1;
     const speedFactor = derived.speedFactor || 1;
+    const gripFactor = derived.gripFactor || 1;  // drive torque/grip -> mobility (JR14)
     const traction = (terrain && terrain.traction) || 0.8;
     const gravity = (terrain && terrain.env && terrain.env.gravity) || 9.81;
     const worldName = (terrain && terrain.name) || 'this world';
@@ -62,7 +63,7 @@
       : (physM && physM.massKg === undefined && derived.mass ? derived.mass / 1000 : massFactor * 0.9);
     const mob = usePhysMob
       ? window.KodroMotion.physMobility(physM.stallForceN, massKg, traction, gravity)
-      : mobilityScore(speedFactor, massFactor, traction);
+      : mobilityScore(gripFactor, massFactor, traction);
     if (driveCount === 0) {
       dims.push({ key: 'mobility', label: 'Mobility', status: 'fail', margin: 0,
         reason: 'No drive parts fitted, so it can barely crawl and cannot complete a moving mission.',

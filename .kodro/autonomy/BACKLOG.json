@@ -705,6 +705,24 @@
       "owner": "completion-owner",
       "evidence": "FOUND by a proactive runtime contrast audit (one CDP session measuring actual rendered contrast of 15 text-bearing selectors across all 10 themes x {1280,375} = 300 measurements). Only the light theme's Run button was sub-AA (4.43:1). FIXED by darkening the light theme --cyan #0c7b73 -> #0a6f68 (and --cyan-2 -> #095f59), so --void text on --cyan is now ~5.3:1; negligible visual change, improves every cyan-bg text in the light theme. NEW qa_contrast check pins --void-on--cyan AA across all 10 themes (now 61). Audit re-run CLEAN with proper repaint settle. This proactively exhausts the theme-contrast class the judge panel had been mining one theme per round.",
       "deps": []
+    },
+    {
+      "id": "JR14-01",
+      "title": "Skip-link target <main id=\"editor-main\"> had no tabindex, so the WCAG 2.4.1 keyboard bypass could silently fail on Safari/VoiceOver (focus stays on the link; next Tab enters the ~15-control toolbar instead of the editor)",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-14",
+      "evidence": "FIXED: added tabIndex={-1} to <main id=\"editor-main\"> so the skip target reliably receives focus on every browser/AT. qa_honesty \u00a727 pins it.",
+      "deps": []
+    },
+    {
+      "id": "JR14-02",
+      "title": "The Design Check (the deterministic layer marketed as authoritative) told catalogue builds to 'fit 4 DC motors for grip/torque' to fix low mobility, but after JR10-04 set all drive parts to speed 1.0, catalogue mobility=(speedFactor*traction)/massFactor took motor count ONLY as mass, so adding motors LOWERED the mobility score - counterproductive advice (refuter ran the modules: motors2 0.73 -> motors4 0.62 on ice). The torque benefit existed only in imported-spec physical mode",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-14",
+      "evidence": "FIXED at the root: added a drive GRIP factor distinct from top speed (motors2 grip 1.0, motors4 1.4, servos 0.85). derive() now returns gripFactor; catalogue mobilityScore uses gripFactor (drive torque) not speedFactor, so more/stronger drive motors improve mobility, matching reality and the advice. Top speed stays count-independent (JR10-04 intact). BOTH the design check and the live tick read gripFactor, preserving their parity. Verified via the real assess(): motors4 now out-grips motors2 on every surface (ice 1.04 vs 0.75, sand 1.28 vs 0.92, city 2.27 vs 1.63). qa_interpreter 180 / grader 34 / physics 20 unaffected (those use the physical force-ratio path). qa_honesty \u00a726 pins motors4>=motors2 mobility on 4 surfaces via the real modules. NOTE: a first fix attempt missed wiring gripFactor into derive()'s out object (it has runtimeMin) - the new gate caught it.",
+      "deps": []
     }
   ]
 }

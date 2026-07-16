@@ -48,10 +48,14 @@
     // drive parts add torque and grip, which surface in Mobility and endurance,
     // never in top speed. An imported measured spec overrides this with a real,
     // per-build figure derived from rpm + wheel radius.
-    motors2: { id: 'motors2', name: '2 DC motors', mass: 120, speed: 1.0, note: 'Two wheels, differential drive.' },
-    motors4: { id: 'motors4', name: '4 DC motors', mass: 220, speed: 1.0, note: 'Four wheels, more grip and torque (not more top speed).' },
-    servos: { id: 'servos', name: 'Steering servo', mass: 40, speed: 1.0, note: 'Car style front steering.' },
-    gripper: { id: 'gripper', name: 'Gripper arm', mass: 90, speed: 1.0, enables: 'manipulator (fitted; adds reach and mass)' },
+    // grip = tractive/torque contribution to MOBILITY (distinct from top
+    // speed, which is count-independent, JR10-04). 4 driven wheels grip better
+    // than 2, so a 4-motor build climbs low-traction ground its 2-motor twin
+    // stalls on - the honest reason the Design Check says 'fit 4 motors' (JR14).
+    motors2: { id: 'motors2', name: '2 DC motors', mass: 120, speed: 1.0, grip: 1.0, note: 'Two wheels, differential drive.' },
+    motors4: { id: 'motors4', name: '4 DC motors', mass: 220, speed: 1.0, grip: 1.4, note: 'Four wheels, more grip and torque (not more top speed).' },
+    servos: { id: 'servos', name: 'Steering servo', mass: 40, speed: 1.0, grip: 0.85, note: 'Car style front steering.' },
+    gripper: { id: 'gripper', name: 'Gripper arm', mass: 90, speed: 1.0, grip: 1.0, enables: 'manipulator (fitted; adds reach and mass)' },
   };
 
   const TYPES = {
@@ -120,8 +124,10 @@
     let mass = CHASSIS_MASS + (BOARDS[spec.board] ? BOARDS[spec.board].mass : (spec.boardMassG || 10));
     sensors.forEach(s => { if (SENSORS[s]) mass += SENSORS[s].mass; });
     let speed = 0;
-    actuators.forEach(a => { if (ACTUATORS[a]) { mass += ACTUATORS[a].mass; speed = Math.max(speed, ACTUATORS[a].speed || 0); } });
+    let grip = 0;
+    actuators.forEach(a => { if (ACTUATORS[a]) { mass += ACTUATORS[a].mass; speed = Math.max(speed, ACTUATORS[a].speed || 0); grip = Math.max(grip, ACTUATORS[a].grip || 0); } });
     if (speed === 0) speed = 0.8; // no drive parts: it barely crawls
+    if (grip === 0) grip = 0.8; // no drive parts: poor grip
     // Catalogue bounds live in the SHARED motion model (E-P1) so the sim, the
     // Lab and the Python twin read the same numbers; values are unchanged.
     const M = (window.KodroMotion && window.KodroMotion.MODEL) || {};
@@ -138,7 +144,7 @@
     const cmds = [];
     sensors.forEach(s => { if (SENSORS[s] && SENSORS[s].cmd) cmds.push(SENSORS[s].cmd); });
     actuators.forEach(a => { if (ACTUATORS[a] && ACTUATORS[a].cmd) cmds.push(ACTUATORS[a].cmd); });
-    const out = { mass, massFactor, speedFactor, runtimeMin, rangeM, commands: cmds };
+    const out = { mass, massFactor, speedFactor, gripFactor: grip, runtimeMin, rangeM, commands: cmds };
     // SI2: an imported KRS spec's physical block overrides the catalogue
     // proxies with measured numbers (top speed from rpm and wheel radius,
     // energy-true battery, real mass). Catalogue builds return exactly the

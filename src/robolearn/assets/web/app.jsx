@@ -1174,7 +1174,7 @@
         </div>
 
         {/* ---- workspace ---- */}
-        <main id="editor-main" className="workspace" style={{ ['--editor-w']: editorW + 'px', ['--tele-w']: teleW + 'px' }}>
+        <main id="editor-main" tabIndex={-1} className="workspace" style={{ ['--editor-w']: editorW + 'px', ['--tele-w']: teleW + 'px' }}>
           {/* left column: editor + console */}
           <div className="panel" style={{ gridColumn: 1 }}>
             <div className="editor-panel" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>

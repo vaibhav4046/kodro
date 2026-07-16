@@ -380,5 +380,42 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
     'the sound module defaults to muted unless the user opted in');
 }
 
+// 26. The Design Check's "fit 4 DC motors for grip/torque" mobility advice must
+//     actually IMPROVE the catalogue mobility it computes (judge round 14):
+//     JR10-04 set all drive parts to speed 1.0, so motor count had entered
+//     mobility only as mass (penalty), making the advice counterproductive. A
+//     gripFactor now models drive torque, so a 4-motor build out-grips its
+//     2-motor twin on every surface. Behavioural, via the REAL assess().
+{
+  const KD = ctx.window.KodroDiagnostics;
+  function derivedFor(motor) {
+    const mass = 300 + 10 + 13 + (motor === 'motors4' ? 220 : 120);
+    return { mass, massFactor: Math.min(1.8, Math.max(0.6, mass / 900)), speedFactor: 1.0, gripFactor: motor === 'motors4' ? 1.4 : 1.0 };
+  }
+  let consistent = true;
+  for (const tr of [0.45, 0.55, 0.75, 0.98]) {
+    const world = { name: 'W', traction: tr, env: { gravity: 9.81 } };
+    const m2 = KD.assess({ sensors: ['ultrasonic', 'imu'], actuators: ['motors2'], type: 'rover' }, derivedFor('motors2'), world).numbers.mobility;
+    const m4 = KD.assess({ sensors: ['ultrasonic', 'imu'], actuators: ['motors4'], type: 'rover' }, derivedFor('motors4'), world).numbers.mobility;
+    if (!(m4 >= m2)) { consistent = false; ok(false, `4 DC motors must not LOWER mobility (traction ${tr}: motors2 ${m2} vs motors4 ${m4})`); }
+  }
+  if (consistent) ok(true, 'the "fit 4 DC motors for grip" advice raises catalogue mobility on every surface (gripFactor models torque)');
+  const lab = read('RobotLab.jsx');
+  ok(/motors4: \{[^}]*grip: 1\.4/.test(lab) && /motors2: \{[^}]*grip: 1\.0/.test(lab),
+    'the drive parts carry a grip (torque) factor, 4 motors > 2 motors');
+  ok(/gripFactor: grip/.test(lab), 'derive() exposes gripFactor');
+  const mm = read('motion-model.js');
+  ok(/function mobilityScore\(gripFactor, massFactor, traction\)/.test(mm),
+    'mobilityScore takes the drive gripFactor (not top speed)');
+}
+
+// 27. The skip-link target must be focusable so the WCAG 2.4.1 bypass works on
+//     Safari/VoiceOver (judge round 14): #editor-main needs tabIndex=-1.
+{
+  const app = read('app.jsx');
+  ok(/<main id="editor-main" tabIndex=\{-1\}/.test(app),
+    'the skip-link target #editor-main is focusable (tabIndex=-1)');
+}
+
 console.log((fail === 0 ? 'PASS' : 'FAIL') + '  honesty: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail === 0 ? 0 : 1);

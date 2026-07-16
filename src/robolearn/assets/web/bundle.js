@@ -96,8 +96,11 @@
     return 0.5 + 0.5 * ((gravityMps2 || MODEL.gravityEarthMps2) / MODEL.gravityEarthMps2);
   }
   // Drive-to-weight headroom on a surface (diagnostics + the live tick agree).
-  function mobilityScore(speedFactor, massFactor, traction) {
-    return speedFactor * traction / massFactor;
+  // First arg is the drive GRIP factor (torque/tractive contribution: more/
+  // stronger drive motors grip better), NOT top speed which is count-independent
+  // (JR14). gripFactor*traction/massFactor: heavier hurts, more grip helps.
+  function mobilityScore(gripFactor, massFactor, traction) {
+    return gripFactor * traction / massFactor;
   }
   function mobilityMultiplier(hasDrive, mob) {
     return !hasDrive ? MODEL.mobilityNoDriveMul : mob < MODEL.mobilityStallBand ? MODEL.mobilityStallMul : mob < MODEL.mobilityWarnBand ? MODEL.mobilityWarnMul : 1;
@@ -12989,6 +12992,7 @@ Object.assign(window, {
     const actuators = spec.actuators || [];
     const massFactor = derived.massFactor || 1;
     const speedFactor = derived.speedFactor || 1;
+    const gripFactor = derived.gripFactor || 1; // drive torque/grip -> mobility (JR14)
     const traction = terrain && terrain.traction || 0.8;
     const gravity = terrain && terrain.env && terrain.env.gravity || 9.81;
     const worldName = terrain && terrain.name || 'this world';
@@ -13006,7 +13010,7 @@ Object.assign(window, {
     const physM = derived.phys;
     const usePhysMob = !!(physM && physM.stallForceN !== undefined && window.KodroMotion);
     const massKg = physM && physM.massKg !== undefined ? physM.massKg : physM && physM.massKg === undefined && derived.mass ? derived.mass / 1000 : massFactor * 0.9;
-    const mob = usePhysMob ? window.KodroMotion.physMobility(physM.stallForceN, massKg, traction, gravity) : mobilityScore(speedFactor, massFactor, traction);
+    const mob = usePhysMob ? window.KodroMotion.physMobility(physM.stallForceN, massKg, traction, gravity) : mobilityScore(gripFactor, massFactor, traction);
     if (driveCount === 0) {
       dims.push({
         key: 'mobility',
@@ -13601,11 +13605,16 @@ Object.assign(window, {
     // drive parts add torque and grip, which surface in Mobility and endurance,
     // never in top speed. An imported measured spec overrides this with a real,
     // per-build figure derived from rpm + wheel radius.
+    // grip = tractive/torque contribution to MOBILITY (distinct from top
+    // speed, which is count-independent, JR10-04). 4 driven wheels grip better
+    // than 2, so a 4-motor build climbs low-traction ground its 2-motor twin
+    // stalls on - the honest reason the Design Check says 'fit 4 motors' (JR14).
     motors2: {
       id: 'motors2',
       name: '2 DC motors',
       mass: 120,
       speed: 1.0,
+      grip: 1.0,
       note: 'Two wheels, differential drive.'
     },
     motors4: {
@@ -13613,6 +13622,7 @@ Object.assign(window, {
       name: '4 DC motors',
       mass: 220,
       speed: 1.0,
+      grip: 1.4,
       note: 'Four wheels, more grip and torque (not more top speed).'
     },
     servos: {
@@ -13620,6 +13630,7 @@ Object.assign(window, {
       name: 'Steering servo',
       mass: 40,
       speed: 1.0,
+      grip: 0.85,
       note: 'Car style front steering.'
     },
     gripper: {
@@ -13627,6 +13638,7 @@ Object.assign(window, {
       name: 'Gripper arm',
       mass: 90,
       speed: 1.0,
+      grip: 1.0,
       enables: 'manipulator (fitted; adds reach and mass)'
     }
   };
@@ -13761,13 +13773,16 @@ Object.assign(window, {
       if (SENSORS[s]) mass += SENSORS[s].mass;
     });
     let speed = 0;
+    let grip = 0;
     actuators.forEach(a => {
       if (ACTUATORS[a]) {
         mass += ACTUATORS[a].mass;
         speed = Math.max(speed, ACTUATORS[a].speed || 0);
+        grip = Math.max(grip, ACTUATORS[a].grip || 0);
       }
     });
     if (speed === 0) speed = 0.8; // no drive parts: it barely crawls
+    if (grip === 0) grip = 0.8; // no drive parts: poor grip
     // Catalogue bounds live in the SHARED motion model (E-P1) so the sim, the
     // Lab and the Python twin read the same numbers; values are unchanged.
     const M = window.KodroMotion && window.KodroMotion.MODEL || {};
@@ -13792,6 +13807,7 @@ Object.assign(window, {
       mass,
       massFactor,
       speedFactor,
+      gripFactor: grip,
       runtimeMin,
       rangeM,
       commands: cmds
@@ -21251,6 +21267,7 @@ Object.assign(window, {
       const physR = robot && robot.phys;
       const massFac = robot && robot.massFactor ? robot.massFactor : 1;
       const speedFac = robot && robot.speedFactor ? robot.speedFactor : 1;
+      const gripFac = robot && robot.gripFactor ? robot.gripFactor : 1; // drive grip -> mobility (JR14)
       // Mobility: too much weight for the grip its motors get on this surface
       // makes the robot crawl or stall, so an underpowered design visibly
       // struggles instead of gliding along regardless of what was built.
@@ -21259,7 +21276,7 @@ Object.assign(window, {
       const hasDrive = robot && robot.actuators && robot.actuators.some(function (a) {
         return a === 'motors2' || a === 'motors4' || a === 'servos';
       });
-      const mob = physR && physR.stallForceN !== undefined ? KM.physMobility(physR.stallForceN, physR.massKg, terrain.traction, terrain.env.gravity) : window.KodroDiagnostics ? window.KodroDiagnostics.mobilityScore(speedFac, massFac, terrain.traction) : 1;
+      const mob = physR && physR.stallForceN !== undefined ? KM.physMobility(physR.stallForceN, physR.massKg, terrain.traction, terrain.env.gravity) : window.KodroDiagnostics ? window.KodroDiagnostics.mobilityScore(gripFac, massFac, terrain.traction) : 1;
       // E-A5: a physically-specified build that cannot move here HALTS with a
       // torque verdict instead of the catalogue 0.35x crawl - a stall is a
       // result, not an animation style.
@@ -26618,6 +26635,7 @@ say("Survey done")`
       className: "set-val"
     }, "\u2192"))))), /*#__PURE__*/React.createElement("main", {
       id: "editor-main",
+      tabIndex: -1,
       className: "workspace",
       style: {
         ['--editor-w']: editorW + 'px',
