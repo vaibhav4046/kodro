@@ -560,7 +560,21 @@ const CAP = `<!DOCTYPE html>
           // memview=graph: after the Memory dialog is open, click its Graph
           // toggle so the relationship-graph view is what the capture sees.
           if (C.memview === 'graph') {
-            setTimeout(function () { try { var g = document.querySelector('[data-mem-graph]'); if (g) g.click(); } catch (e) { void e; } }, 2000);
+            var openMemoryGraph = function () {
+              try {
+                if (document.querySelector('svg.mem-graph')) return true;
+                var g = document.querySelector('[data-mem-graph]');
+                if (g) { g.click(); return true; }
+              } catch (e) { void e; }
+              return false;
+            };
+            // React/WebGL cold starts vary substantially on Windows. Retry the
+            // real click until either the SVG appears or the final bounded
+            // attempt runs; this never manufactures the graph or bypasses its
+            // button, it only avoids firing once before the modal commits.
+            [2000, 3000, 4500, 6500].forEach(function (delay) {
+              setTimeout(openMemoryGraph, delay);
+            });
           }
         } else {
           must(false, 'open=' + C.open + ' (unknown opener name)');

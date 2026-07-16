@@ -859,11 +859,11 @@
                 {vibeMsgs.map((m, i) => m.kind === 'code' ? (
                   <div key={i} className="vibe-msg ai code">
                     {m.validated === false && (
-                      <p className="vibe-error" role="alert">This did not pass Kodro's self-test: {m.validationError || 'unknown error'}. You can still apply it, but it may not run.</p>
+                      <p className="vibe-error" role="alert">This saved draft did not pass Kodro's self-test: {m.validationError || 'unknown error'}. It cannot be applied.</p>
                     )}
                     <pre className="vibe-code">{m.text}</pre>
                     <div className="vibe-code-actions">
-                      <button className="ctrl ctrl-run" onClick={() => vibeApply(m.text, m.model)}>✓ Apply to editor</button>
+                      {m.validated !== false && <button className="ctrl ctrl-run" onClick={() => vibeApply(m.text, m.model)}>✓ Apply to editor</button>}
                       <button className="btn-mini" onClick={() => {
                         // Discard means discard: drop THIS code block from the
                         // thread (and so from storage and the model's history),

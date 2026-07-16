@@ -14,6 +14,7 @@ added as follow-ups once the React app is patched to call into them.
 
 from __future__ import annotations
 
+import ast
 import contextlib
 import json
 import logging
@@ -23,7 +24,7 @@ import threading
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import webview
 
@@ -420,6 +421,22 @@ class BridgeAPI:
     _AI_KEEP_ALIVE = "30m"
     _AI_NUM_PREDICT = 420
 
+    # Hardware-dependent calls are checked against the active Robot Lab build.
+    # Other public calls (say, beep, samples, props, logging) remain available
+    # because they are simulator capabilities rather than fitted sensors or
+    # drive hardware.  The browser sends its canonical commandNames() list and
+    # this mapping translates the Python API aliases onto those capabilities.
+    _AI_HARDWARE_CAPABILITY: ClassVar[dict[str, str]] = {
+        "move_forward": "move_forward",
+        "move_backward": "move_backward",
+        "turn_left": "turn_left",
+        "turn_right": "turn_right",
+        "read_distance": "distance",
+        "obstacle_ahead": "distance",
+        "scan": "distance",
+        "read_heading": "heading",
+    }
+
     _AI_SYSTEM_PROMPT = (
         "You write Python programs for RoboLearn, an educational rover simulator. "
         "Use ONLY these functions: move_forward(metres), move_backward(metres), "
@@ -674,7 +691,12 @@ class BridgeAPI:
             "total": round(float(data.get("total", total)) or total, 2),
         }
 
-    def ai_generate(self, prompt: str, lesson_id: str | None = None) -> dict[str, Any]:
+    def ai_generate(
+        self,
+        prompt: str,
+        lesson_id: str | None = None,
+        allowed_commands: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Generate rover Python from a natural-language prompt via local Ollama.
 
         The code is returned for the pupil to review and Run -- it is never
@@ -725,7 +747,8 @@ class BridgeAPI:
         # Validate through the same sandbox the Run button uses, so the pupil
         # is never handed code that crashes on line 1. One self-repair round:
         # feed the error back to the model and re-validate.
-        error = self._validate_generated(code)
+        allowed = self._normalise_allowed_commands(allowed_commands)
+        error = self._validate_generated(code, allowed)
         if error is not None:
             with contextlib.suppress(OllamaError):
                 repaired = _strip_code_fences(
@@ -740,11 +763,30 @@ class BridgeAPI:
                         keep_alive=self._AI_KEEP_ALIVE,
                     )
                 )
-                if repaired.strip() and self._validate_generated(repaired) is None:
-                    return {"ok": True, "code": repaired, "model": model, "repaired": True}
-        return {"ok": True, "code": code, "model": model, "validated": error is None}
+                if repaired.strip() and self._validate_generated(repaired, allowed) is None:
+                    return {
+                        "ok": True,
+                        "code": repaired,
+                        "model": model,
+                        "repaired": True,
+                        "validated": True,
+                    }
+        if error is not None:
+            return {
+                "ok": False,
+                "reason": "The model's program was rejected by Kodro's safety check.",
+                "validationError": error,
+                "rejectedCode": code,
+                "model": model,
+            }
+        return {"ok": True, "code": code, "model": model, "validated": True}
 
-    def ai_review_code(self, source: str, lesson_id: str | None = None) -> dict[str, Any]:
+    def ai_review_code(
+        self,
+        source: str,
+        lesson_id: str | None = None,
+        allowed_commands: list[str] | None = None,
+    ) -> dict[str, Any]:
         """Second-agent review: critique the pupil's code, suggest a safe rewrite.
 
         Runs the propose-then-critique reviewer on the local model. Any
@@ -767,23 +809,45 @@ class BridgeAPI:
             return {"ok": False, "reason": "Ollama has no models. Pull qwen2.5-coder:3b first."}
         lesson = self._find_lesson(lesson_id) if lesson_id else None
         goal = f"{lesson.title}. {lesson.intro.strip()[:400]}" if lesson is not None else ""
+        allowed = self._normalise_allowed_commands(allowed_commands)
         try:
             review = review_program(
                 code,
                 goal=goal,
                 client=client,
                 model=model,
-                validate=self._validate_generated,
+                validate=lambda candidate: self._validate_generated(candidate, allowed),
             )
         except OllamaError as exc:
             return {"ok": False, "reason": f"Review failed: {exc}"}
+        issues = self._filter_review_issues(review.issues, code)
         return {
             "ok": True,
             "model": model,
-            "issues": review.issues,
+            "issues": issues,
             "code": review.final_code,
             "revised": review.revised,
         }
+
+    @staticmethod
+    def _filter_review_issues(issues: list[str], code: str) -> list[str]:
+        """Drop sensor complaints that have no supporting call in the program."""
+        lower = code.lower()
+        uses_distance = any(
+            token in lower for token in ("read_distance(", "obstacle_ahead(", "scan(")
+        )
+        uses_heading = "read_heading(" in lower
+        kept: list[str] = []
+        for issue in issues:
+            text = str(issue).strip()
+            claim = text.lower()
+            if ("range sensor" in claim or "distance sensor" in claim) and not uses_distance:
+                continue
+            if "heading sensor" in claim and not uses_heading:
+                continue
+            if text:
+                kept.append(text)
+        return kept[:3]
 
     def swarm_run(self, source: str, lesson_id: str | None = None, n: int = 5) -> dict[str, Any]:
         """Run the pupil's program on a fleet of rovers, an offline swarm.
@@ -813,7 +877,7 @@ class BridgeAPI:
         paths = [[[round(x, 2), round(y, 2)] for (x, y) in p] for p in raw_paths]
         return {"ok": True, "n": len(paths), "paths": paths}
 
-    def ai_ask(self, query: str) -> dict[str, Any]:
+    def ai_ask(self, query: str, allowed_commands: list[str] | None = None) -> dict[str, Any]:
         """Answer a how-do-I question grounded in the lesson material.
 
         Retrieval is fully offline, so even with no local model the pupil
@@ -846,10 +910,78 @@ class BridgeAPI:
             out = grounded_answer(q, self._lessons, client=client, model=model)
         except OllamaError as exc:
             return {"ok": False, "reason": f"Ask failed: {exc}"}
-        return {"ok": True, "model": model, **out}
+        answer = _normalize_rover_api(str(out.get("answer", "")))
+        allowed = self._normalise_allowed_commands(allowed_commands)
+        command_error = self._answer_command_error(answer, allowed)
+        if command_error is not None:
+            answer = (
+                "That command is not available on the current robot build. "
+                "Open Robot Lab to fit the required drive or sensor, then ask again."
+            )
+        return {
+            "ok": True,
+            "model": model,
+            **out,
+            "answer": answer,
+            "answerChecked": command_error is None,
+            "answerWarning": command_error,
+        }
 
     @staticmethod
-    def _validate_generated(code: str) -> str | None:
+    def _normalise_allowed_commands(
+        allowed_commands: list[str] | None,
+    ) -> frozenset[str] | None:
+        """Return a bounded command set, or None for legacy callers without a build."""
+        if not isinstance(allowed_commands, list):
+            return None
+        clean = {
+            str(name).strip()
+            for name in allowed_commands[:64]
+            if isinstance(name, str) and str(name).strip()
+        }
+        return frozenset(clean)
+
+    @classmethod
+    def _hardware_command_error(
+        cls, code: str, allowed_commands: frozenset[str] | None
+    ) -> str | None:
+        """Reject calls that require drive/sensor hardware absent from the build."""
+        if allowed_commands is None:
+            return None
+        try:
+            tree = ast.parse(code, mode="exec")
+        except SyntaxError:
+            return None  # the sandbox reports the more useful syntax error
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
+                continue
+            capability = cls._AI_HARDWARE_CAPABILITY.get(node.func.id)
+            if capability is not None and capability not in allowed_commands:
+                return (
+                    f"{node.func.id}() is not available on the current robot build "
+                    f"(missing capability: {capability})."
+                )
+        return None
+
+    @classmethod
+    def _answer_command_error(
+        cls, answer: str, allowed_commands: frozenset[str] | None
+    ) -> str | None:
+        """Apply the same fitted-build gate to command calls in prose answers."""
+        if allowed_commands is None:
+            return None
+        import re
+
+        for name, capability in cls._AI_HARDWARE_CAPABILITY.items():
+            mentions_call = re.search(rf"\b{re.escape(name)}\s*\(", answer)
+            if capability not in allowed_commands and mentions_call:
+                return f"{name}() needs the unavailable {capability} capability."
+        return None
+
+    @classmethod
+    def _validate_generated(
+        cls, code: str, allowed_commands: frozenset[str] | None = None
+    ) -> str | None:
         """Run AI code through the sandbox in an ISOLATED engine; return err/None.
 
         Binds a throwaway rover/world under the binding lock so this validation
@@ -857,6 +989,9 @@ class BridgeAPI:
         thread. Previously it called the executor with no binding, so it ran
         against whatever engine happened to be active.
         """
+        hardware_error = cls._hardware_command_error(code, allowed_commands)
+        if hardware_error is not None:
+            return hardware_error
         world = World(terrain=Terrain("earth"), base=(0.0, 0.0))
         with active_engine(Rover(world), world):
             result = run_pupil_code(code, timeout_s=5.0)
@@ -908,7 +1043,10 @@ class BridgeAPI:
     )
 
     def ai_chat(
-        self, messages: list[dict[str, str]], lesson_id: str | None = None
+        self,
+        messages: list[dict[str, str]],
+        lesson_id: str | None = None,
+        allowed_commands: list[str] | None = None,
     ) -> dict[str, Any]:
         """Chat-style vibe coding: the model may ask a clarifying question first.
 
@@ -944,7 +1082,10 @@ class BridgeAPI:
             ).strip()
         except OllamaError as exc:
             return {"ok": False, "reason": f"AI failed: {exc}"}
-        return self._finalize_chat_reply(client, model, raw, prompt=prompt)
+        allowed = self._normalise_allowed_commands(allowed_commands)
+        return self._finalize_chat_reply(
+            client, model, raw, prompt=prompt, allowed_commands=allowed
+        )
 
     def _build_chat_prompt(self, messages: list[dict[str, str]], lesson_id: str | None) -> str:
         """Render the bounded conversation transcript the model completes."""
@@ -989,6 +1130,7 @@ class BridgeAPI:
         raw: str,
         escalate_model: str | None = None,
         prompt: str = "",
+        allowed_commands: frozenset[str] | None = None,
     ) -> dict[str, Any]:
         """Turn a raw model reply into a question or validated+repaired code.
 
@@ -1011,7 +1153,7 @@ class BridgeAPI:
         code = _strip_code_fences(raw)
         if not code.strip():
             return {"ok": False, "reason": "The model returned nothing. Try rephrasing."}
-        error = self._validate_generated(code)
+        error = self._validate_generated(code, allowed_commands)
         if error is not None:
             with contextlib.suppress(OllamaError):
                 repaired = _strip_code_fences(
@@ -1025,7 +1167,8 @@ class BridgeAPI:
                         keep_alive=self._AI_KEEP_ALIVE,
                     )
                 )
-                if repaired.strip() and self._validate_generated(repaired) is None:
+                repaired_error = self._validate_generated(repaired, allowed_commands)
+                if repaired.strip() and repaired_error is None:
                     return {"ok": True, "type": "code", "code": repaired, "model": model}
             # One fresh draft at a different temperature before escalating --
             # the fast model is cheap and a re-roll often lands valid.
@@ -1044,7 +1187,7 @@ class BridgeAPI:
                     if raw3.upper().startswith("CODE:"):
                         raw3 = raw3[5:]
                     code3 = _strip_code_fences(raw3)
-                    if code3.strip() and self._validate_generated(code3) is None:
+                    if code3.strip() and self._validate_generated(code3, allowed_commands) is None:
                         return {"ok": True, "type": "code", "code": code3, "model": model}
             if escalate_model and escalate_model != model and prompt:
                 with contextlib.suppress(OllamaError):
@@ -1062,14 +1205,25 @@ class BridgeAPI:
                     if raw2.upper().startswith("CODE:"):
                         raw2 = raw2[5:]
                     code2 = _strip_code_fences(raw2)
-                    if code2.strip() and self._validate_generated(code2) is None:
+                    if code2.strip() and self._validate_generated(code2, allowed_commands) is None:
                         return {"ok": True, "type": "code", "code": code2, "model": escalate_model}
+        if error is not None:
+            return {
+                "ok": False,
+                "reason": "The model's program was rejected by Kodro's safety check.",
+                "validationError": error,
+                "rejectedCode": code,
+                "model": model,
+            }
         return {"ok": True, "type": "code", "code": code, "model": model}
 
     # --- streaming chat (start / poll over the pywebview bridge) -----------
 
     def ai_chat_start(
-        self, messages: list[dict[str, str]], lesson_id: str | None = None
+        self,
+        messages: list[dict[str, str]],
+        lesson_id: str | None = None,
+        allowed_commands: list[str] | None = None,
     ) -> dict[str, Any]:
         """Begin a streamed chat reply; returns a job id to poll.
 
@@ -1102,9 +1256,11 @@ class BridgeAPI:
         # escalates to the quality model only when the draft can't be fixed.
         model = self._pick_fast_model(installed) or quality
         job_id = uuid.uuid4().hex
+        allowed = self._normalise_allowed_commands(allowed_commands)
         prompt = self._build_chat_prompt(messages, lesson_id)
+        cache_key = prompt + "\n[allowed:" + ",".join(sorted(allowed or ())) + "]"
         # Instant replay for an identical request (classroom-repeated asks).
-        cached = self._ai_answer_cache.get(prompt)
+        cached = self._ai_answer_cache.get(cache_key)
         if cached is not None:
             with self._ai_jobs_lock:
                 self._ai_jobs[job_id] = {"text": "", "done": True, "result": dict(cached)}
@@ -1115,12 +1271,21 @@ class BridgeAPI:
                 self._ai_jobs.pop(stale, None)
             self._ai_jobs[job_id] = {"text": "", "done": False, "result": None}
         threading.Thread(
-            target=self._run_chat_job, args=(job_id, client, model, prompt, quality), daemon=True
+            target=self._run_chat_job,
+            args=(job_id, client, model, prompt, quality, allowed, cache_key),
+            daemon=True,
         ).start()
         return {"ok": True, "jobId": job_id, "model": model}
 
     def _run_chat_job(
-        self, job_id: str, client: Any, model: str, prompt: str, quality: str | None = None
+        self,
+        job_id: str,
+        client: Any,
+        model: str,
+        prompt: str,
+        quality: str | None = None,
+        allowed_commands: frozenset[str] | None = None,
+        cache_key: str = "",
     ) -> None:
         from robolearn.ai.ollama_client import OllamaError
 
@@ -1144,12 +1309,17 @@ class BridgeAPI:
                 job = self._ai_jobs.get(job_id)
                 raw = job["text"].strip() if job else ""
             result = self._finalize_chat_reply(
-                client, model, raw, escalate_model=quality, prompt=prompt
+                client,
+                model,
+                raw,
+                escalate_model=quality,
+                prompt=prompt,
+                allowed_commands=allowed_commands,
             )
             if result.get("ok") and result.get("type") == "code":
                 if len(self._ai_answer_cache) > 40:
                     self._ai_answer_cache.clear()
-                self._ai_answer_cache[prompt] = dict(result)
+                self._ai_answer_cache[cache_key or prompt] = dict(result)
         except OllamaError as exc:
             result = {"ok": False, "reason": f"AI failed: {exc}"}
         with self._ai_jobs_lock:
@@ -1483,8 +1653,15 @@ def _strip_code_fences(raw: str) -> str:
         first_newline = text.find("\n")
         if first_newline != -1:
             text = text[first_newline + 1 :]
-        if text.rstrip().endswith("```"):
-            text = text.rstrip()[:-3]
+    # Small local models may emit a normal opening fence, or omit it, and then
+    # append an explanation after the closing fence. Everything after the first
+    # closing delimiter is non-code in both cases.
+    for marker in ("\r\n```", "\n```"):
+        if marker in text:
+            text = text.split(marker, 1)[0]
+            break
+    if text.rstrip().endswith("```"):
+        text = text.rstrip()[:-3]
     return (
         _ensure_entrypoint(
             _quote_place_kinds(_normalize_rover_api(_normalize_quotes(text.strip())))

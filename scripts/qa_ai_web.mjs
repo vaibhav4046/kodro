@@ -77,6 +77,10 @@ async function mockFetch(url, options) {
   throw new Error('unexpected fetch ' + u);
 }
 const lsStub = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+win.RoboLearn = {
+  isAvailable: () => false,
+  searchLessonNotes: async () => [{ source: 'QA lesson', text: 'Use the fitted Kodro commands.' }],
+};
 
 // Load the facade against the shared shim (same pattern as qa_interpreter.mjs).
 new Function('window', 'fetch', 'localStorage', web('ai-web.jsx'))(win, mockFetch, lsStub);
@@ -112,7 +116,7 @@ async function chatted(modelReply) {
   if (!start || !start.ok) throw new Error('chatStart failed: ' + (start && start.reason));
   for (let i = 0; i < 400; i++) {
     const r = await AI.chatPoll(start.jobId);
-    if (r && r.done) return r;
+    if (r && (r.done || r.ok === false)) return r;
     await new Promise((res) => setTimeout(res, 5));
   }
   throw new Error('chat job did not complete');
@@ -147,10 +151,12 @@ console.log('\n== normalizeApi + extractCode (via reviewCode) ==');
   check('cm->m NOT double-applied: bare move_forward(2) stays move_forward(2)',
     r6.code.trim() === 'move_forward(2)', JSON.stringify(r6.code));
 
-  // Non-literal argument falls through to a plain rename (no unit maths).
+  // A non-literal argument that uses an undefined variable is rejected by the
+  // real interpreter, so the reviewer keeps the original instead of offering
+  // known-broken code as an applicable rewrite.
   const r7 = await reviewedCode('```python\nrover.forward(step)\n```');
-  check('non-literal arg: rover.forward(step) -> move_forward(step) (rename only)',
-    r7.code.trim() === 'move_forward(step)', JSON.stringify(r7.code));
+  check('invalid reviewer rewrite is rejected and original is retained',
+    r7.revised === false && r7.validated === false && r7.code.trim() === 'placeholder', JSON.stringify(r7));
 
   // extractCode pulls the body out of a ```python fence, backticks gone.
   const r8 = await reviewedCode('Here is a tidy version:\n```python\nmove_forward(1)\n```\ndone');
@@ -202,6 +208,13 @@ console.log('\n== looksLikeCode (via chatStart/chatPoll) ==');
   check('question reply -> looksLikeCode false (result.type == question)', c2.type === 'question', JSON.stringify(c2.type));
   check('question reply preserves the question text',
     c2.text === 'What shape would you like to draw?', JSON.stringify(c2 && c2.text));
+
+  // A draft that fails the interpreter, repair and structured backstop must be
+  // diagnostic-only: never ok:true, never type:code, never applicable.
+  const c3 = await chatted('move_forward(step)');
+  check('known-broken code fails closed after all repair paths',
+    c3.ok === false && !c3.type && !!c3.rejectedCode && !!c3.validationError,
+    JSON.stringify(c3));
 }
 
 console.log('\n== BOUNDED TOOL CALL (OPP-7) ==');

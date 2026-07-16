@@ -200,12 +200,15 @@ ok(/Weather: rain, snow and dust storms change the light level and the visuals o
     'browser export builds and downloads a real report with visible feedback');
 }
 
-// 14. Honest desktop-AI copy (judge round 9): the browser Build modal must not
-//     call separately-installed Ollama "built-in".
+// 14. One evidence-bounded Build surface in both run modes. No model-generated
+//     prices or electrical advice is presented as a purchasing plan.
 {
   const app = read('app.jsx');
   ok(!/uses the built-in local AI/.test(app), 'Build modal no longer claims a "built-in" local AI');
-  ok(/through Ollama, a separate free install/.test(app), 'Build modal names Ollama as a separate free install');
+  ok(!/KodroPanels\.BuildModal/.test(app), 'desktop and browser use the same evidence-bounded Build dialog');
+  ok(/Purchasing advice remains unavailable/.test(app), 'Build refuses unverified purchasing advice');
+  ok(/will not invent live prices, electrical compatibility or a safe wiring plan/.test(app),
+    'Build states the live-price and electrical-evidence boundary');
 }
 
 // 15. The learning pillar is named at first contact (judge round 9).

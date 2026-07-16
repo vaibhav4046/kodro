@@ -950,6 +950,13 @@ select.terrain-btn:hover {
   .panel-head { flex-wrap:wrap; height:auto; row-gap:6px; }
   .tabs { flex-wrap:wrap; }
   .btn-mini { flex:0 0 auto; white-space:nowrap; }
+  /* Classroom adds Lesson + select + Browse to the editor header. At 320px
+     their intrinsic widths totalled 432px and clipped 112px off-screen. Give
+     the row the available width, let it wrap, and allow the native select to
+     shrink instead of contributing its longest option as a page-width floor. */
+  .lesson-picker { width:100%; min-width:0; margin-left:0; flex-wrap:wrap; }
+  .lesson-picker .lesson-select { flex:1 1 160px; min-width:0; max-width:100%; }
+  .lesson-picker .lesson-browse { margin-left:auto; }
   /* Robot Lab footer actions must wrap instead of pushing the primary
      "Build & test" CTA off the right edge (the modal has no horizontal scroll). */
   .rl-foot { flex-wrap:wrap; justify-content:flex-start; }

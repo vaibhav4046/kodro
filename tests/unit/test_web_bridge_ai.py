@@ -212,6 +212,52 @@ def test_ai_generate_self_repairs_invalid_first_draft(
     assert "move_forward" in result["code"]
 
 
+def test_ai_generate_discards_trailing_fence_and_model_explanation(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    fake_ollama.responses = "move_forward(2)\nturn_right(90)\n```\nThis program drives and turns."
+    result = api.ai_generate("drive and turn")
+    assert result["ok"] is True
+    assert result["validated"] is True
+    assert "```" not in result["code"]
+    assert "This program" not in result["code"]
+
+
+def test_ai_generate_discards_explanation_after_wrapped_code_fence(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    fake_ollama.responses = (
+        "```python\nmove_forward(2)\nturn_right(90)\n```\nThis program drives and turns."
+    )
+    result = api.ai_generate("drive and turn")
+    assert result["ok"] is True
+    assert result["validated"] is True
+    assert result["code"].strip().endswith("turn_right(90)")
+
+
+def test_ai_generate_fails_closed_when_repair_is_still_invalid(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    fake_ollama.responses = ["invented_command()\n", "still_invented()\n"]
+    result = api.ai_generate("do something impossible")
+    assert result["ok"] is False
+    assert "safety check" in result["reason"]
+    assert "validationError" in result
+    assert "rejectedCode" in result
+
+
+def test_ai_generate_rejects_sensor_missing_from_active_build(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    fake_ollama.responses = "read_distance()\n"
+    result = api.ai_generate(
+        "stop near a wall",
+        allowed_commands=["move_forward", "turn_right", "set_speed"],
+    )
+    assert result["ok"] is False
+    assert "missing capability: distance" in result["validationError"]
+
+
 def test_ai_generate_offline_returns_guidance(
     api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
 ) -> None:
@@ -270,6 +316,20 @@ def test_ai_review_code_returns_issues_and_code(
     json.dumps(result)
 
 
+def test_ai_review_filters_unsupported_missing_sensor_complaints(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    fake_ollama.responses = json.dumps(
+        {
+            "issues": ["No heading sensor", "No range sensor", "Add a useful comment."],
+            "code": "",
+        }
+    )
+    result = api.ai_review_code("move_forward(2)\nturn_right(90)\n")
+    assert result["ok"] is True
+    assert result["issues"] == ["Add a useful comment."]
+
+
 def test_ai_review_code_rejects_empty_source(
     api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
 ) -> None:
@@ -316,6 +376,27 @@ def test_ai_ask_with_model_returns_grounded_answer(
     assert result["grounded"] is True
     assert result["answer"]
     assert result["model"] == "qwen2.5-coder:3b"
+
+
+def test_ai_ask_normalises_object_method_and_checks_current_build(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    fake_ollama.responses = "Call rover.turn_right(90) to turn. [1]"
+    result = api.ai_ask("how do I turn right", allowed_commands=["turn_right"])
+    assert result["ok"] is True
+    assert "rover.turn_right" not in result["answer"]
+    assert "turn_right(90)" in result["answer"]
+    assert result["answerChecked"] is True
+
+
+def test_ai_ask_refuses_command_missing_from_current_build(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    fake_ollama.responses = "Use move_forward(2). [1]"
+    result = api.ai_ask("how do I drive", allowed_commands=["set_speed", "say"])
+    assert result["ok"] is True
+    assert result["answerChecked"] is False
+    assert "not available" in result["answer"]
 
 
 def test_ai_ask_no_models_returns_pull_hint(
@@ -543,6 +624,34 @@ def test_finalize_chat_reply_returns_original_when_all_repairs_fail(
     )
     assert result["ok"] is True
     assert result["type"] == "code"
+
+
+def test_finalize_chat_reply_fails_closed_when_all_code_is_invalid(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    client = FakeOllamaClient(api)
+    fake_ollama.responses = "still_broken()\n"
+    result = api._finalize_chat_reply(  # type: ignore[attr-defined]
+        client, "qwen2.5-coder:3b", "first_broken()\n", prompt="drive"
+    )
+    assert result["ok"] is False
+    assert "validationError" in result
+    assert result["rejectedCode"].strip() == "first_broken()"
+
+
+def test_finalize_chat_reply_rejects_unfitted_drive_command(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    client = FakeOllamaClient(api)
+    fake_ollama.responses = "move_forward(1)\n"
+    result = api._finalize_chat_reply(  # type: ignore[attr-defined]
+        client,
+        "qwen2.5-coder:3b",
+        "move_forward(2)\n",
+        allowed_commands=frozenset({"set_speed", "say"}),
+    )
+    assert result["ok"] is False
+    assert "current robot build" in result["validationError"]
 
 
 def test_finalize_chat_reply_rejects_empty_reply(

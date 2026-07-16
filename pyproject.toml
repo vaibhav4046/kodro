@@ -176,6 +176,7 @@ testpaths = ["tests"]
 # namespace package (e.g. test_lessons_export -> scripts.export_lessons) under a
 # bare `pytest` invocation on CI, not only under `python -m pytest` locally.
 pythonpath = ["."]
+asyncio_default_fixture_loop_scope = "function"
 addopts = [
     "-ra",
     "--strict-markers",

@@ -1690,16 +1690,11 @@
 
         {showHelp && <window.KodroPanels.HelpModal onClose={() => setShowHelp(false)} />}
 
-        {/* The budget planner (window.RoboLearn.budgetBuild) is desktop-only: bridge.js
-            has no browser path for it, so in the static web build the full planner could
-            only invite a budget and then fail on submit. Rather than dead end, the browser
-            build shows an honest desktop-only notice with the SAME dialog identity
-            (role="dialog" aria-label="Build a real robot") so the modal-render QA and the
-            cap.html open=build driver still resolve a Build dialog. Availability is read at
-            open time (a click), by which point pywebview has injected its API on desktop. */}
-        {buildOpen && ((window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable())
-          ? <window.KodroPanels.BuildModal onClose={() => { setBuildOpen(false); setActiveStage('prove'); }} buildBudget={buildBudget} setBuildBudget={setBuildBudget} buildGoal={buildGoal} setBuildGoal={setBuildGoal} buildBusy={buildBusy} runBuild={runBuild} buildErr={buildErr} buildPlan={buildPlan} robotSpec={robotSpec} onAdoptParts={(plan) => { adoptPlanParts(plan); setActiveStage('design'); }} />
-          : (
+        {/* One evidence-bounded Build surface in desktop and browser. The older
+            local-model budget/price planner remains a compatibility API only;
+            it is not a purchasing surface because it has no live supplier,
+            compatibility or electrical-safety evidence. */}
+        {buildOpen && (
             <div className="modal-backdrop" onClick={() => { setBuildOpen(false); setActiveStage('prove'); }}>
               <div className="modal modal-wide browser-build-modal" role="dialog" aria-modal="true" aria-label="Build a real robot" onClick={e => e.stopPropagation()}>
                 <div className="modal-head">
@@ -1740,11 +1735,11 @@
                       </div>
                     </section>
                   </div>
-                  <p className="browser-build-desktop">Optional desktop enhancement: the planner can use a local model through Ollama, a separate free install. Its prices remain estimates until source-backed connected research and deterministic electrical checks are implemented.</p>
+                   <p className="browser-build-desktop">Optional local AI can explain the design and help draft programs. Purchasing advice remains unavailable until Kodro has source-backed supplier research and deterministic electrical checks.</p>
                 </div>
               </div>
             </div>
-          ))}
+          )}
 
         {/* Toast notifications: success / error / info, bottom-right. */}
         <div className="toast-stack" role="status" aria-live="polite" aria-atomic="false">

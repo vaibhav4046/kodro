@@ -92,6 +92,31 @@
     return all.find((lesson) => lesson && lesson.id === id) || null;
   };
 
+  // Deterministic browser retrieval for Ask. The hosted build already ships
+  // lessons.json, so use that real corpus instead of asking a model from memory
+  // and then labelling the answer ungrounded. Token overlap is deliberately
+  // simple and inspectable; no embedding service or network account is needed.
+  const searchLessonNotesBrowser = async (query, limit) => {
+    const stop = { the: 1, and: 1, for: 1, with: 1, how: 1, what: 1, does: 1, this: 1, that: 1, rover: 1, robot: 1 };
+    const tokens = (text) => String(text || '').toLowerCase().match(/[a-z_][a-z0-9_]{2,}/g) || [];
+    const wanted = {};
+    tokens(query).forEach((t) => { if (!stop[t]) wanted[t] = 1; });
+    if (!Object.keys(wanted).length) return [];
+    const lessons = await fetchLessons();
+    return lessons.map((lesson) => {
+      const glossary = lesson && lesson.glossary
+        ? Object.keys(lesson.glossary).map((k) => k + ': ' + lesson.glossary[k]).join(' ')
+        : '';
+      const text = [lesson && lesson.title, lesson && lesson.intro, glossary, lesson && lesson.starterCode].filter(Boolean).join(' ');
+      let score = 0;
+      tokens(text).forEach((t) => { if (wanted[t]) score += t.indexOf('_') >= 0 ? 3 : 1; });
+      return { score: score, source: (lesson && lesson.title) || 'Kodro lesson', text: text.slice(0, 900) };
+    }).filter((hit) => hit.score > 0)
+      .sort((a, b) => b.score - a.score || a.source.localeCompare(b.source))
+      .slice(0, Math.max(1, Math.min(Number(limit) || 3, 5)))
+      .map((hit) => ({ source: hit.source, text: hit.text }));
+  };
+
   // Browser grading (WebBackend slice 2): with no Python bridge, submit and
   // hints route to the JS lesson grader (lesson-grader.jsx), which re-runs
   // the source headlessly in the lesson's world and applies the same
@@ -155,6 +180,8 @@
     isAvailable: isPywebview,
     listLessons: () => (isPywebview() ? call("list_lessons") : listLessonsBrowser()),
     getLesson: (id) => (isPywebview() ? call("get_lesson", id) : getLessonBrowser(id)),
+    searchLessonNotes: (query, limit) =>
+      (isPywebview() ? Promise.resolve([]) : searchLessonNotesBrowser(query, limit)),
     submitAttempt: (lessonId, source, traceJson) =>
       (isPywebview()
         // Grade against the fitted build, not spec-blind: send its mass factor,
@@ -198,15 +225,19 @@
         : getHintBrowser(lessonId, source)),
     exportReport: () => call("export_report"),
     aiStatus: () => call("ai_status"),
-    aiGenerate: (prompt, lessonId) => call("ai_generate", prompt, lessonId),
-    aiReviewCode: (source, lessonId) => call("ai_review_code", source, lessonId),
-    aiAsk: (query) => call("ai_ask", query),
+    aiGenerate: (prompt, lessonId, allowedCommands) =>
+      call("ai_generate", prompt, lessonId, allowedCommands || null),
+    aiReviewCode: (source, lessonId, allowedCommands) =>
+      call("ai_review_code", source, lessonId, allowedCommands || null),
+    aiAsk: (query, allowedCommands) => call("ai_ask", query, allowedCommands || null),
     swarmRun: (source, lessonId, n) =>
       (isPywebview()
         ? call("swarm_run", source, lessonId || null, n || 5)
         : Promise.resolve(swarmUnavailable())),
-    aiChat: (messages, lessonId) => call("ai_chat", messages, lessonId),
-    aiChatStart: (messages, lessonId) => call("ai_chat_start", messages, lessonId),
+    aiChat: (messages, lessonId, allowedCommands) =>
+      call("ai_chat", messages, lessonId, allowedCommands || null),
+    aiChatStart: (messages, lessonId, allowedCommands) =>
+      call("ai_chat_start", messages, lessonId, allowedCommands || null),
     aiChatPoll: (jobId) => call("ai_chat_poll", jobId),
     pickPhoto: () => call("pick_photo"),
     importRobotSpec: () => call("import_robot_spec"),

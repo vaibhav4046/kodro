@@ -18950,6 +18950,51 @@ Object.assign(window, {
     }
     return '';
   }
+  function currentCommandNames() {
+    try {
+      if (typeof window !== 'undefined' && window.KodroCommands && window.KodroCommands.commandNames && window.getKodroRobot) {
+        return window.KodroCommands.commandNames(window.getKodroRobot()).slice();
+      }
+    } catch (e) {
+      void e;
+    }
+    return ['move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'wait', 'stop'];
+  }
+
+  // Hardware-aware postcondition shared by chat, review and Ask. The runtime
+  // catches syntax and sandbox errors; this catches runnable code that still
+  // calls a drive or sensor missing from the active Robot Lab build.
+  function validateForBuild(code) {
+    const allowed = currentCommandNames();
+    const has = function (name) {
+      return allowed.indexOf(name) >= 0;
+    };
+    const rules = {
+      move_forward: 'move_forward',
+      move_backward: 'move_backward',
+      turn_left: 'turn_left',
+      turn_right: 'turn_right',
+      distance: 'distance',
+      read_distance: 'distance',
+      obstacle_ahead: 'distance',
+      scan: 'distance',
+      heading: 'heading',
+      read_heading: 'heading',
+      tilt: 'heading',
+      on_line: 'on_line'
+    };
+    for (const name in rules) {
+      if (!has(rules[name]) && new RegExp('\\b' + name + '\\s*\\(').test(String(code || ''))) {
+        return {
+          ok: false,
+          error: name + '() is not available on the current robot build.'
+        };
+      }
+    }
+    return {
+      ok: true
+    };
+  }
 
   // The CANONICAL robot API is bare, metre-based function calls. rover.*(...)
   // still runs as a deprecated centimetre-based compatibility alias, but the
@@ -19020,6 +19065,8 @@ Object.assign(window, {
   // does not ship code that fails (the desktop bridge already validates; this
   // gives browser mode the same guarantee). Returns {ok} or {ok:false,error}.
   function validate(code) {
+    const fitted = validateForBuild(code);
+    if (!fitted.ok) return fitted;
     try {
       if (typeof window === 'undefined' || !window.RoverLang) return {
         ok: true
@@ -19066,7 +19113,7 @@ Object.assign(window, {
   let jid = 0;
   async function chatStart(history, lessonId) {
     const b = bridge();
-    if (b && b.aiChatStart) return b.aiChatStart(history, lessonId);
+    if (b && b.aiChatStart) return b.aiChatStart(history, lessonId, currentCommandNames());
     const cloud = typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady();
     let model;
     if (cloud) {
@@ -19104,7 +19151,7 @@ Object.assign(window, {
       result: null
     };
     jobs[id] = job;
-    const sys = 'You are Kodro\'s offline coding assistant for a simulated robot. ' + API_HINT + ' Reply with EITHER one short clarifying question OR only runnable code using those bare functions, in a python fence, no prose around it.';
+    const sys = grounding() + 'You are Kodro\'s coding assistant for a simulated robot. The only fitted commands you may use are: ' + currentCommandNames().join(', ') + '. ' + API_HINT + ' Reply with EITHER one short clarifying question OR only runnable code using the fitted bare functions, in a python fence, no prose around it.';
     const prompt = (history || []).map(function (m) {
       return (m.role === 'user' ? 'User: ' : 'Assistant: ') + (m.text || '');
     }).join('\n') + '\nAssistant:';
@@ -19225,18 +19272,14 @@ Object.assign(window, {
               model: model
             };
           } else {
-            // The self-test, the repair round AND the constrained backstop all
-            // failed. Ship the code so the user is not blocked, but mark it so
-            // the UI warns honestly instead of presenting known-broken code as
-            // OK. Keep the original interpreter error (v.error) for the warning.
+            // Fail closed: known-broken code is useful diagnostic evidence, but
+            // it must never become an applicable editor action.
             job.result = {
-              ok: true,
-              done: true,
-              type: 'code',
-              code: code,
-              model: model,
-              validated: false,
-              validationError: v.error
+              ok: false,
+              reason: 'The model\'s program was rejected by Kodro\'s safety check.',
+              rejectedCode: code,
+              validationError: v.error,
+              model: model
             };
           }
         } else {
@@ -19370,7 +19413,7 @@ Object.assign(window, {
   }
   async function reviewCode(src, lessonId) {
     const b = bridge();
-    if (b && b.aiReviewCode) return b.aiReviewCode(src, lessonId);
+    if (b && b.aiReviewCode) return b.aiReviewCode(src, lessonId, currentCommandNames());
     const cloud = typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady();
     let model;
     if (cloud) {
@@ -19400,7 +19443,10 @@ Object.assign(window, {
       });
       const code = normalizeApi(extractCode(out));
       const notes = stripFences(out.replace(/```[\s\S]*?```/g, '')).trim();
-      const revised = !!code && code !== src.trim();
+      const check = code ? validate(code) : {
+        ok: true
+      };
+      const revised = !!code && code !== src.trim() && check.ok;
       // The review panel renders `issues`; the desktop bridge fills it from
       // Python but this facade never did, so a browser review ALWAYS said
       // "No problems spotted" while presenting a rewrite (bugs D3). Surface
@@ -19410,14 +19456,16 @@ Object.assign(window, {
         return s.trim();
       }).filter(Boolean) : [];
       if (!issues.length && revised) issues.push('The reviewer suggests a tidied rewrite - read the diff below before applying.');
+      if (!check.ok) issues.unshift('Kodro rejected the proposed rewrite: ' + check.error);
       return {
         ok: true,
         revised: revised,
-        code: code,
+        code: revised ? code : src.trim(),
         notes: notes || 'Reviewed.',
         issues: issues,
         model: model,
-        source: cloud ? window.KodroProviders.config().provider : 'local'
+        source: cloud ? window.KodroProviders.config().provider : 'local',
+        validated: check.ok
       };
     } catch (e) {
       return {
@@ -19428,7 +19476,7 @@ Object.assign(window, {
   }
   async function ask(query) {
     const b = bridge();
-    if (b && b.aiAsk) return b.aiAsk(query);
+    if (b && b.aiAsk) return b.aiAsk(query, currentCommandNames());
     const cloud = typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady();
     let model;
     if (cloud) {
@@ -19450,22 +19498,44 @@ Object.assign(window, {
         reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).'
       };
     }
-    // Browser mode has no lesson corpus to ground against (the desktop bridge
-    // does the retrieval), so constrain the model to Kodro's real commands and
-    // make it refuse rather than invent, and mark the answer ungrounded so the
-    // UI does not claim it came from the built-in material.
-    const sys = grounding() + 'You are Kodro\'s offline assistant for a simulated robot. Answer briefly and concretely, only about Kodro\'s actual robot commands and features. If the question is outside that or you are not sure, say you are not sure rather than inventing a command or capability.';
+    const sources = typeof window !== 'undefined' && window.RoboLearn && window.RoboLearn.searchLessonNotes ? await window.RoboLearn.searchLessonNotes(query, 3) : [];
+    if (!sources.length) {
+      return {
+        ok: false,
+        reason: 'I could not find this in Kodro\'s built-in lesson notes, so I will not guess.'
+      };
+    }
+    const evidence = sources.map(function (s, i) {
+      return '[' + (i + 1) + '] ' + s.source + ': ' + s.text;
+    }).join('\n\n');
+    const sys = grounding() + 'Answer using ONLY the numbered Kodro lesson notes below. Cite the supporting note number. If the notes do not answer the question, say so. Use only fitted commands and never invent an object method.\n\n' + evidence;
     try {
-      const text = await genOnce(model, query, {
+      const answer = normalizeApi(stripFences(await genOnce(model, query, {
         system: sys,
         num_predict: 350
-      });
+      })));
+      const checked = validateForBuild(answer);
+      if (!checked.ok) {
+        return {
+          ok: true,
+          answer: 'That command is not available on the current robot build. Fit the required drive or sensor in Robot Lab, then ask again.',
+          text: 'That command is not available on the current robot build. Fit the required drive or sensor in Robot Lab, then ask again.',
+          model: model,
+          grounded: true,
+          sources: sources,
+          answerChecked: false,
+          answerWarning: checked.error,
+          source: cloud ? window.KodroProviders.config().provider : 'local'
+        };
+      }
       return {
         ok: true,
-        text: stripFences(text),
-        answer: stripFences(text),
+        text: answer,
+        answer: answer,
         model: model,
-        grounded: false,
+        grounded: true,
+        sources: sources,
+        answerChecked: true,
         source: cloud ? window.KodroProviders.config().provider : 'local'
       };
     } catch (e) {
@@ -24520,11 +24590,11 @@ say("Survey done")`
     }, m.validated === false && /*#__PURE__*/React.createElement("p", {
       className: "vibe-error",
       role: "alert"
-    }, "This did not pass Kodro's self-test: ", m.validationError || 'unknown error', ". You can still apply it, but it may not run."), /*#__PURE__*/React.createElement("pre", {
+    }, "This saved draft did not pass Kodro's self-test: ", m.validationError || 'unknown error', ". It cannot be applied."), /*#__PURE__*/React.createElement("pre", {
       className: "vibe-code"
     }, m.text), /*#__PURE__*/React.createElement("div", {
       className: "vibe-code-actions"
-    }, /*#__PURE__*/React.createElement("button", {
+    }, m.validated !== false && /*#__PURE__*/React.createElement("button", {
       className: "ctrl ctrl-run",
       onClick: () => vibeApply(m.text, m.model)
     }, "\u2713 Apply to editor"), /*#__PURE__*/React.createElement("button", {
@@ -27656,25 +27726,7 @@ say("Survey done")`
       classroom: classroom
     }), showHelp && /*#__PURE__*/React.createElement(window.KodroPanels.HelpModal, {
       onClose: () => setShowHelp(false)
-    }), buildOpen && (window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable() ? /*#__PURE__*/React.createElement(window.KodroPanels.BuildModal, {
-      onClose: () => {
-        setBuildOpen(false);
-        setActiveStage('prove');
-      },
-      buildBudget: buildBudget,
-      setBuildBudget: setBuildBudget,
-      buildGoal: buildGoal,
-      setBuildGoal: setBuildGoal,
-      buildBusy: buildBusy,
-      runBuild: runBuild,
-      buildErr: buildErr,
-      buildPlan: buildPlan,
-      robotSpec: robotSpec,
-      onAdoptParts: plan => {
-        adoptPlanParts(plan);
-        setActiveStage('design');
-      }
-    }) : /*#__PURE__*/React.createElement("div", {
+    }), buildOpen && /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => {
         setBuildOpen(false);
@@ -27749,7 +27801,7 @@ say("Survey done")`
       onClick: () => goStage('prove')
     }, "Run more tests")))), /*#__PURE__*/React.createElement("p", {
       className: "browser-build-desktop"
-    }, "Optional desktop enhancement: the planner can use a local model through Ollama, a separate free install. Its prices remain estimates until source-backed connected research and deterministic electrical checks are implemented."))))), /*#__PURE__*/React.createElement("div", {
+    }, "Optional local AI can explain the design and help draft programs. Purchasing advice remains unavailable until Kodro has source-backed supplier research and deterministic electrical checks.")))), /*#__PURE__*/React.createElement("div", {
       className: "toast-stack",
       role: "status",
       "aria-live": "polite",
