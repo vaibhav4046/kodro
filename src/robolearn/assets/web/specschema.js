@@ -374,10 +374,19 @@
           out.warnings.push('Top speed ' + realMps + ' m/s is above the simulable ceiling; simulated SLOWER at ' + simMps + ' m/s.');
         }
         out.badges.topSpeed = 'approximated';
+      } else if (drive.wheelRadiusAssumed) {
+        // The quick-fit path guessed the wheel radius (no real wheel given), so
+        // the derived top speed cannot be honoured however cleanly it simulates
+        // (JR12-01) — it is only as good as the assumed ~3.5 cm wheel.
+        out.vMaxSimCmPerS = out.vMaxCmPerS;
+        out.badges.topSpeed = 'approximated';
+        out.warnings.push('Top speed assumes a ' + drive.wheelRadiusCm + ' cm wheel radius (no real wheel given); import a spec with the real wheel for a measured figure.');
       } else {
         out.vMaxSimCmPerS = out.vMaxCmPerS;
         out.badges.topSpeed = 'honoured';
       }
+      out.wheelRadiusCm = drive.wheelRadiusCm;
+      out.wheelRadiusAssumed = !!drive.wheelRadiusAssumed;
     }
     // Tractive force, mobility, acceleration, slope (E-A1/E-A5).
     if (motor.stallTorqueNm !== undefined && drive.wheelRadiusCm !== undefined) {

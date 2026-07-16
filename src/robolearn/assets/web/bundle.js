@@ -716,10 +716,19 @@
           out.warnings.push('Top speed ' + realMps + ' m/s is above the simulable ceiling; simulated SLOWER at ' + simMps + ' m/s.');
         }
         out.badges.topSpeed = 'approximated';
+      } else if (drive.wheelRadiusAssumed) {
+        // The quick-fit path guessed the wheel radius (no real wheel given), so
+        // the derived top speed cannot be honoured however cleanly it simulates
+        // (JR12-01) — it is only as good as the assumed ~3.5 cm wheel.
+        out.vMaxSimCmPerS = out.vMaxCmPerS;
+        out.badges.topSpeed = 'approximated';
+        out.warnings.push('Top speed assumes a ' + drive.wheelRadiusCm + ' cm wheel radius (no real wheel given); import a spec with the real wheel for a measured figure.');
       } else {
         out.vMaxSimCmPerS = out.vMaxCmPerS;
         out.badges.topSpeed = 'honoured';
       }
+      out.wheelRadiusCm = drive.wheelRadiusCm;
+      out.wheelRadiusAssumed = !!drive.wheelRadiusAssumed;
     }
     // Tractive force, mobility, acceleration, slope (E-A1/E-A5).
     if (motor.stallTorqueNm !== undefined && drive.wheelRadiusCm !== undefined) {
@@ -14270,14 +14279,23 @@ Object.assign(window, {
           noLoadRpm: m.noLoadRpm,
           stallTorqueNm: m.stallTorqueNm
         };
-        if (drive.wheelRadiusCm === undefined) drive.wheelRadiusCm = 3.5;
+        if (drive.wheelRadiusCm === undefined) {
+          drive.wheelRadiusCm = 3.5;
+          drive.wheelRadiusAssumed = true;
+        } else {
+          drive.wheelRadiusAssumed = false;
+        }
         if (drive.motorCount === undefined) drive.motorCount = s.actuators && s.actuators.indexOf('motors4') >= 0 ? 4 : 2;
         phys.drive = drive;
         return Object.assign({}, s, {
           physical: phys
         });
       });
-      toast('Fitted motor: derives top speed + torque', 'ok');
+      toast(drive_toast_msg(spec), 'ok');
+    }
+    function drive_toast_msg(sp) {
+      var d = sp && sp.physical && sp.physical.drive;
+      return d && d.wheelRadiusAssumed ? 'Fitted motor. Top speed assumes a 3.5 cm wheel (approximated) - import a spec with a real wheel radius for a measured figure.' : 'Fitted motor: derives top speed + torque.';
     }
     function applyBattery(id) {
       const b = window.KodroParts && window.KodroParts.toKrsBattery(id);
@@ -14517,7 +14535,7 @@ Object.assign(window, {
       }
     }, 'Measured build - imported spec drives the sim; each stat carries its own fidelity badge')), React.createElement('div', {
       className: 'rl-measured-grid'
-    }, React.createElement('span', null, 'Mass ', React.createElement('b', null, d.phys.massKg !== undefined ? d.phys.massKg + ' kg' : '-')), React.createElement('span', null, 'Top speed (no-load) ', React.createElement('b', null, d.phys.vMaxCmPerS !== undefined ? (d.phys.vMaxCmPerS / 100).toFixed(2) + ' m/s' : 'catalogue')), React.createElement('span', null, 'Runtime ', React.createElement('b', null, d.phys.runtimeMin !== undefined ? '~' + d.phys.runtimeMin + ' min' : 'catalogue')), React.createElement('span', null, 'Body ', React.createElement('b', null, d.phys.collisionRadiusCm !== undefined ? Math.round(d.phys.collisionRadiusCm * 2) + ' cm circle' : '60 cm default')), React.createElement('span', null, 'Sensor ', React.createElement('b', null, d.phys.sensor ? '+' + d.phys.sensor.fwdCm + ' cm fwd, ' + d.phys.sensor.rangeCm + ' cm range' : 'none imported')), d.phys.maxSlopeDeg !== undefined ? React.createElement('span', null, 'Max grade (static est.) ', React.createElement('b', null, d.phys.maxSlopeDeg + '°'), ' ', Badge('notSimulated')) : null), d.phys.warnings && d.phys.warnings.length ? React.createElement('ul', {
+    }, React.createElement('span', null, 'Mass ', React.createElement('b', null, d.phys.massKg !== undefined ? d.phys.massKg + ' kg' : '-')), React.createElement('span', null, 'Top speed (no-load) ', React.createElement('b', null, d.phys.vMaxCmPerS !== undefined ? (d.phys.vMaxCmPerS / 100).toFixed(2) + ' m/s' : 'catalogue')), React.createElement('span', null, 'Runtime ', React.createElement('b', null, d.phys.runtimeMin !== undefined ? '~' + d.phys.runtimeMin + ' min' : 'catalogue')), React.createElement('span', null, 'Body ', React.createElement('b', null, d.phys.collisionRadiusCm !== undefined ? Math.round(d.phys.collisionRadiusCm * 2) + ' cm circle' : '60 cm default')), d.phys.wheelRadiusCm !== undefined ? React.createElement('span', null, 'Wheel ', React.createElement('b', null, d.phys.wheelRadiusCm + ' cm' + (d.phys.wheelRadiusAssumed ? ' (assumed)' : '')), d.phys.wheelRadiusAssumed ? ' ' : null, d.phys.wheelRadiusAssumed ? Badge('approximated') : null) : null, React.createElement('span', null, 'Sensor ', React.createElement('b', null, d.phys.sensor ? '+' + d.phys.sensor.fwdCm + ' cm fwd, ' + d.phys.sensor.rangeCm + ' cm range' : 'none imported')), d.phys.maxSlopeDeg !== undefined ? React.createElement('span', null, 'Max grade (static est.) ', React.createElement('b', null, d.phys.maxSlopeDeg + '°'), ' ', Badge('notSimulated')) : null), d.phys.warnings && d.phys.warnings.length ? React.createElement('ul', {
       className: 'rl-issues rl-issues-warn'
     }, d.phys.warnings.map(function (w, i) {
       return React.createElement('li', {
@@ -24422,7 +24440,7 @@ say("Survey done")`
     }, "Use model"), /*#__PURE__*/React.createElement("select", {
       value: aiInfo.override || aiInfo.model || '',
       onChange: e => pickModel(e.target.value),
-      "aria-label": "AI model",
+      "aria-label": "Use model",
       style: {
         background: 'var(--navy-2)',
         color: 'var(--fg-1)',
@@ -26325,7 +26343,6 @@ say("Survey done")`
       step: "0.1",
       value: speedMul,
       onChange: e => setSpeedMul(parseFloat(e.target.value)),
-      "aria-label": "Simulation speed",
       "aria-valuetext": speedMul + ' times'
     }), /*#__PURE__*/React.createElement("span", {
       className: "num",

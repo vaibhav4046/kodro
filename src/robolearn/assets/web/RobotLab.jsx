@@ -496,12 +496,19 @@
         const phys = Object.assign({}, s.physical || {});
         const drive = Object.assign({}, phys.drive || {});
         drive.motor = { noLoadRpm: m.noLoadRpm, stallTorqueNm: m.stallTorqueNm };
-        if (drive.wheelRadiusCm === undefined) drive.wheelRadiusCm = 3.5;
+        if (drive.wheelRadiusCm === undefined) { drive.wheelRadiusCm = 3.5; drive.wheelRadiusAssumed = true; }
+        else { drive.wheelRadiusAssumed = false; }
         if (drive.motorCount === undefined) drive.motorCount = (s.actuators && s.actuators.indexOf('motors4') >= 0) ? 4 : 2;
         phys.drive = drive;
         return Object.assign({}, s, { physical: phys });
       });
-      toast('Fitted motor: derives top speed + torque', 'ok');
+      toast(drive_toast_msg(spec), 'ok');
+    }
+    function drive_toast_msg(sp) {
+      var d = sp && sp.physical && sp.physical.drive;
+      return (d && d.wheelRadiusAssumed)
+        ? 'Fitted motor. Top speed assumes a 3.5 cm wheel (approximated) - import a spec with a real wheel radius for a measured figure.'
+        : 'Fitted motor: derives top speed + torque.';
     }
     function applyBattery(id) {
       const b = window.KodroParts && window.KodroParts.toKrsBattery(id);
@@ -693,6 +700,7 @@
                 React.createElement('span', null, 'Top speed (no-load) ', React.createElement('b', null, d.phys.vMaxCmPerS !== undefined ? (d.phys.vMaxCmPerS / 100).toFixed(2) + ' m/s' : 'catalogue')),
                 React.createElement('span', null, 'Runtime ', React.createElement('b', null, d.phys.runtimeMin !== undefined ? '~' + d.phys.runtimeMin + ' min' : 'catalogue')),
                 React.createElement('span', null, 'Body ', React.createElement('b', null, d.phys.collisionRadiusCm !== undefined ? Math.round(d.phys.collisionRadiusCm * 2) + ' cm circle' : '60 cm default')),
+                d.phys.wheelRadiusCm !== undefined ? React.createElement('span', null, 'Wheel ', React.createElement('b', null, d.phys.wheelRadiusCm + ' cm' + (d.phys.wheelRadiusAssumed ? ' (assumed)' : '')), d.phys.wheelRadiusAssumed ? ' ' : null, d.phys.wheelRadiusAssumed ? Badge('approximated') : null) : null,
                 React.createElement('span', null, 'Sensor ', React.createElement('b', null, d.phys.sensor ? '+' + d.phys.sensor.fwdCm + ' cm fwd, ' + d.phys.sensor.rangeCm + ' cm range' : 'none imported')),
                 d.phys.maxSlopeDeg !== undefined ? React.createElement('span', null, 'Max grade (static est.) ', React.createElement('b', null, d.phys.maxSlopeDeg + '°'), ' ', Badge('notSimulated')) : null
               ),

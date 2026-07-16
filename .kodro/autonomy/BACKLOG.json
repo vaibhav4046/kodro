@@ -651,6 +651,24 @@
       "owner": "judge-round-11",
       "evidence": "FIXED: the learner name is now <th scope=\"row\" class=\"hm-name\">, the concept columns and the corner cell are <th scope=\"col\">; a CSS override keeps the row-header left-aligned, body-weight and non-sticky. Verified live: seeded register renders <th scope=row>This device</th> + 3 scope=col headers. qa_honesty \u00a721 pins the markup.",
       "deps": []
+    },
+    {
+      "id": "JR12-01",
+      "title": "Robot Lab 'Fit a motor' quick-fit silently injected a 3.5 cm wheel radius, then rendered a 2-decimal top speed with a HONOURED badge under a 'Measured build' banner - for a build with no real wheel. No-load top speed is linear in wheel radius (stopping distance quadratic), so the headline figure swings ~2x/~4x with the real wheel. Contradicted the app's own import path, which REFUSES top speed without a wheelRadiusCm",
+      "severity": "P2",
+      "status": "FIXED",
+      "owner": "judge-round-12",
+      "evidence": "FIXED: applyMotor now flags the injected radius (drive.wheelRadiusAssumed=true) and its toast discloses the assumption; deriveFromPhysical caps an assumed-wheel top speed at APPROXIMATED (never honoured, however cleanly it simulates) and pushes a warning 'Top speed assumes a 3.5 cm wheel radius...'; the derived block exposes wheelRadiusCm + wheelRadiusAssumed and the Robot Lab measured banner shows a 'Wheel 3.5 cm (assumed)' row with the approximated badge. A REAL imported wheel radius still honours the top speed (regression-guarded). qa_honesty \u00a722 pins the behaviour (assumed->approximated+warning+exposed; real->honoured) + banner/applyMotor source.",
+      "deps": []
+    },
+    {
+      "id": "JR12-02",
+      "title": "WCAG 2.5.3 Label in Name (Level A): the sim-speed slider showed visible label 'Sim speed' but had aria-label 'Simulation speed' (accessible name did not contain the visible text), and the Vibe model picker showed 'Use model' but had aria-label 'AI model' - voice-control users could not operate either by its visible label",
+      "severity": "P3",
+      "status": "FIXED",
+      "owner": "judge-round-12",
+      "evidence": "FIXED: dropped the sim-speed slider's overriding aria-label so the visible <label for=sim-speed>Sim speed</label> is the accessible name (kept aria-valuetext); the model picker aria-label is now 'Use model' to contain the visible span. Verified live: slider has the label + no mismatched aria-label. qa_honesty \u00a723 pins both.",
+      "deps": []
     }
   ]
 }

@@ -810,7 +810,7 @@
               {aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
                   <span style={{ fontSize: 12.5, color: 'var(--fg-2)' }}>Use model</span>
-                  <select value={aiInfo.override || aiInfo.model || ''} onChange={e => pickModel(e.target.value)} aria-label="AI model"
+                  <select value={aiInfo.override || aiInfo.model || ''} onChange={e => pickModel(e.target.value)} aria-label="Use model"
                     style={{ background: 'var(--navy-2)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
                     {aiInfo.models.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>

@@ -1021,7 +1021,7 @@
           <div className="bar-divider"></div>
           <div className="speed-ctrl">
             <label htmlFor="sim-speed">Sim speed</label>
-            <input id="sim-speed" type="range" className="slider" min="0.4" max="3" step="0.1" value={speedMul} onChange={e => setSpeedMul(parseFloat(e.target.value))} aria-label="Simulation speed" aria-valuetext={speedMul + ' times'} />
+            <input id="sim-speed" type="range" className="slider" min="0.4" max="3" step="0.1" value={speedMul} onChange={e => setSpeedMul(parseFloat(e.target.value))} aria-valuetext={speedMul + ' times'} />
             <span className="num" style={{ fontSize: 11, color: 'var(--fg-2)', width: 30 }}>{speedMul.toFixed(1)}×</span>
           </div>
           <div className="bar-spacer"></div>

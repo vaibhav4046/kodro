@@ -305,5 +305,49 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
   ok(/<th scope="col">\{browserMode \? 'Learner' : 'Pupil'\}<\/th>/.test(panelsSrc), 'the corner header carries scope=col');
 }
 
+// 22. Quick-fit "Fit a motor" must not present a top speed derived from a
+//     silently-assumed wheel radius as HONOURED/measured (judge round 11's
+//     builder finding, JR12-01). The assumed wheel is flagged, badged
+//     approximated (never honoured), disclosed with a warning, and shown in the
+//     Robot Lab measured banner.
+{
+  const lab = read('RobotLab.jsx');
+  ok(/drive\.wheelRadiusCm = 3\.5; drive\.wheelRadiusAssumed = true;/.test(lab),
+    'applyMotor flags the injected wheel radius as assumed');
+  ok(/Wheel ',[\s\S]{0,120}wheelRadiusAssumed \? ' \(assumed\)'/.test(lab),
+    'the measured banner shows the wheel radius, marked (assumed) when guessed');
+  vm.runInContext(read('specschema.js'), ctx, { filename: 'specschema.js' });
+  const SS = ctx.window.KodroSpecSchema;
+  ok(SS && typeof SS.deriveFromPhysical === 'function', 'specschema exposes deriveFromPhysical');
+  const specAssumed = { physical: { massKg: 0.6, drive: { motor: { noLoadRpm: 310, stallTorqueNm: 0.3 }, wheelRadiusCm: 3.5, wheelRadiusAssumed: true, motorCount: 4 } } };
+  const phAssumed = SS.deriveFromPhysical(specAssumed, { massFactor: 0.7, speedFactor: 1, runtimeMin: 60 });
+  ok(phAssumed.badges.topSpeed === 'approximated',
+    'an assumed-wheel top speed is badged approximated, never honoured (got ' + phAssumed.badges.topSpeed + ')');
+  ok((phAssumed.warnings || []).some((w) => /assumes a 3\.5 cm wheel radius/.test(w)),
+    'an assumed-wheel top speed carries a disclosure warning');
+  ok(phAssumed.wheelRadiusAssumed === true && phAssumed.wheelRadiusCm === 3.5,
+    'the derived block exposes the assumed wheel for the banner');
+  // A REAL wheel radius still honours the top speed (regression guard).
+  const specReal = { physical: { massKg: 0.6, drive: { motor: { noLoadRpm: 310, stallTorqueNm: 0.3 }, wheelRadiusCm: 3.5, motorCount: 4 } } };
+  const phReal = SS.deriveFromPhysical(specReal, { massFactor: 0.7, speedFactor: 1, runtimeMin: 60 });
+  ok(phReal.badges.topSpeed === 'honoured' && phReal.wheelRadiusAssumed === false,
+    'a real (non-assumed) wheel radius still honours the top speed');
+}
+
+// 23. WCAG 2.5.3 Label in Name (judge round 12): a control's accessible name
+//     must contain its visible label. The sim-speed slider must not override its
+//     visible "Sim speed" <label> with a different aria-label, and the Vibe model
+//     picker's aria-label must contain the visible "Use model".
+{
+  const app = read('app.jsx');
+  ok(/<label htmlFor="sim-speed">Sim speed<\/label>/.test(app), 'sim-speed keeps its visible label');
+  ok(!/id="sim-speed"[^>]*aria-label="Simulation speed"/.test(app),
+    'sim-speed no longer overrides the visible label with a mismatched aria-label');
+  const panelsSrc = read('panels.jsx');
+  ok(/aria-label="Use model"/.test(panelsSrc), 'the model picker accessible name contains the visible "Use model"');
+  ok(!/onChange=\{e => pickModel\(e\.target\.value\)\} aria-label="AI model"/.test(panelsSrc),
+    'the model picker no longer uses the mismatched "AI model" name');
+}
+
 console.log((fail === 0 ? 'PASS' : 'FAIL') + '  honesty: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail === 0 ? 0 : 1);
