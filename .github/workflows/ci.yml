@@ -172,8 +172,10 @@ jobs:
       #
       # The coverage gate is a property of the whole suite, so it is enforced
       # once on the full Linux run (xvfb runs every test). Windows/macOS skip
-      # a handful of GUI event-loop tests that hang headlessly, so they run
-      # with --no-cov: they verify cross-platform behaviour, not coverage.
+      # a handful of GUI event-loop tests that hang headlessly, so they keep
+      # coverage active but disable the percentage threshold: they verify
+      # cross-platform behaviour, not coverage. Keeping the controller active
+      # also avoids pytest-cov 7.1's --no-cov/no_cover pause bug.
       # -rf prints a short summary line naming every failed test, so a flake
       # in a long run is identifiable from the log tail without scrolling.
       - name: Pytest (Linux with xvfb)
@@ -182,7 +184,7 @@ jobs:
 
       - name: Pytest (Windows / macOS)
         if: runner.os != 'Linux'
-        run: pytest -rf --timeout=120 --timeout-method=thread --no-cov
+        run: pytest -rf --timeout=120 --timeout-method=thread --cov-fail-under=0
 
       - name: Upload coverage to artifact
         if: matrix.os == 'ubuntu-latest'
