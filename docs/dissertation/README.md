@@ -2,7 +2,7 @@
 
 The **canonical, up-to-date dissertation is
 [`Kodro_Dissertation.tex`](Kodro_Dissertation.tex)** (and the PDF built from
-it). It reflects the evaluated source state at commit `9cca973`: a robot
+it). It reflects the evaluated source state at commit `2645af9`: a robot
 **proving ground** where a skeptical builder imports a robot specification
 (KRS) and tests it under a disclosed first-order model, with every reported figure carried at a stated level
 of fidelity (HONOURED / APPROXIMATED / NOT SIMULATED), backed by one shared
