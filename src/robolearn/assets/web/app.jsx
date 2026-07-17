@@ -501,6 +501,12 @@
     // handlers intact while giving every capability a stable place in the
     // journey: design the robot, prove it in scenarios, then prepare a build.
     const [activeStage, setActiveStage] = useState('prove');
+    // Simple mode opens on a test plan, not a wall of source code. The editor
+    // is still one deliberate action away and Expert mode remains unchanged.
+    // Keep this session-local: returning to the product should begin with the
+    // purpose and evidence of the test, not whichever advanced surface happened
+    // to be open last time.
+    const [simpleCodeOpen, setSimpleCodeOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => (window.getKodroRobot ? window.getKodroRobot() : null));
     // Build-a-real-robot planner (budget build). Extracted VERBATIM to
     // window.KodroHooks.useBuild (hooks.jsx); its external inputs are
@@ -1065,7 +1071,10 @@
       setRobotLabOpen(false);
       setBuildOpen(false);
       setLessonHubOpen(false);
-      if (stage === 'prove') setCurrentLessonId(null);
+      if (stage === 'prove') {
+        setCurrentLessonId(null);
+        if (simpleExperience) setSimpleCodeOpen(false);
+      }
       setTimeout(function () {
         const main = document.getElementById('editor-main');
         if (main && main.focus) main.focus({ preventScroll: true });
@@ -1082,7 +1091,29 @@
     const browserBuildParts = [{ id: 'body', name: BUILD_BODY_NAMES[(robotSpec && robotSpec.type) || 'rover'] || 'Robot chassis', role: 'Structure for this concept' }].concat(buildPartIds.map(function (id) {
       return { id: id, name: BUILD_PART_NAMES[id] || String(id).replace(/[_-]+/g, ' '), role: id === (robotSpec && robotSpec.board) ? 'Controller selected in Design' : 'Capability selected in Design' };
     }));
-    const browserRunCount = window.KodroRunReports ? window.KodroRunReports.list().length : 0;
+    const browserRuns = window.KodroRunReports ? window.KodroRunReports.list() : [];
+    const browserRunCount = browserRuns.length;
+    // A result belongs to the visible plan only when it was produced by this
+    // robot, in this world, from this exact source. Never show an old run from
+    // another setup as if it proved the current one.
+    const simpleLatestRun = browserRuns.find(function (r) {
+      return r && r.world === terrainId && r.robotName === chipName && r.source === code;
+    }) || null;
+    const showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen && !currentLessonId;
+    const SIMPLE_PROGRAM_NAMES = {
+      basecamp: 'Build a base camp', autopilot: 'Avoid obstacles automatically', drive: 'Explore the world',
+      systems: 'Check every fitted system', square: 'Drive a precise square', spiral: 'Draw an expanding spiral',
+      avoid: 'Sense and avoid hazards', encore: 'Perform a movement routine', searchlight: 'Search the area',
+      gauntlet: 'Complete an obstacle course', survey: 'Survey and mark the site',
+    };
+    const SIMPLE_OUTCOME_NAMES = { done: 'Test completed', crash: 'Collision detected', flat: 'Battery depleted', stalled: 'Robot stalled', error: 'Program stopped' };
+    const simpleOutcomeLabel = simpleLatestRun ? (SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded') : '';
+    const simpleRunActive = runState === 'running' || runState === 'paused';
+    let simpleAssessment = null;
+    try {
+      const derived = window.getKodroRobot ? window.getKodroRobot() : {};
+      if (window.KodroDiagnostics) simpleAssessment = window.KodroDiagnostics.assess(robotSpec, derived, terrain);
+    } catch (e) { void e; }
     function downloadPrototypeBrief() {
       const esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]; }); };
       const runs = window.KodroRunReports ? window.KodroRunReports.list().slice(0, 12) : [];
@@ -1105,8 +1136,8 @@
     }
 
     return (
-      <div className="app" data-stage={activeStage} data-experience={experience} data-evidence={evidenceOpen ? 'open' : 'closed'} data-obstacles={(terrain.obstacles || []).length} data-active-world={(terrain.siteId || terrain.id) || ''}>
-        <a className="skip-link" href="#editor-main">Skip to code editor</a>
+      <div className="app" data-stage={activeStage} data-experience={experience} data-simple-view={showSimpleCockpit ? 'plan' : 'code'} data-evidence={evidenceOpen ? 'open' : 'closed'} data-obstacles={(terrain.obstacles || []).length} data-active-world={(terrain.siteId || terrain.id) || ''}>
+        <a className="skip-link" href="#editor-main">{simpleExperience ? 'Skip to test workspace' : 'Skip to code editor'}</a>
         <h1 className="sr-only">Kodro, an offline robot design and simulation studio</h1>
         {/* ---- mission bar ---- */}
         <div className="missionbar" role="banner">
@@ -1303,6 +1334,92 @@
         <main id="editor-main" tabIndex={-1} className="workspace" style={{ ['--editor-w']: editorW + 'px', ['--tele-w']: teleW + 'px' }}>
           {/* left column: editor + console */}
           <div className="panel" style={{ gridColumn: 1 }}>
+            {showSimpleCockpit && (
+              <section className="simple-cockpit" aria-label="Robot test plan">
+                <header className="simple-cockpit-head">
+                  <span className="simple-step">Step 2 of 4</span>
+                  <h2>Prove your robot</h2>
+                  <p>Choose one test, run it in the world, then use the result to improve the design.</p>
+                </header>
+
+                <div className="simple-setup" aria-label="Current test setup">
+                  <div className="simple-setup-row">
+                    <span><b>Robot</b><small>The design being tested</small></span>
+                    <button type="button" className="simple-setup-action" onClick={() => goStage('design')}>
+                      <strong>{chipName}</strong><em>Edit</em>
+                    </button>
+                  </div>
+                  <label className="simple-setup-row">
+                    <span><b>World</b><small>The conditions around it</small></span>
+                    <select className="simple-setup-select" value={terrainId} onChange={e => onTerrain(e.target.value)} aria-label="Choose the test world">
+                      <optgroup label="Core worlds">
+                        {['city', 'room', 'earth', 'mars', 'underwater', 'space'].map(id => <option key={id} value={id}>{TERRAINS[id].label}</option>)}
+                      </optgroup>
+                      {window.SITES && [['earth', 'Earth sites'], ['underwater', 'Underwater sites'], ['mars', 'Mars sites'], ['space', 'Space sites'], ['room', 'Test bays']].map(([base, label]) => {
+                        const ids = Object.keys(window.SITES).filter(id => window.SITES[id].base === base);
+                        return ids.length === 0 ? null : <optgroup key={base} label={label}>{ids.map(id => <option key={id} value={id}>{window.SITES[id].name}</option>)}</optgroup>;
+                      })}
+                      {terrainId === 'custom' && <option value="custom">Custom world</option>}
+                    </select>
+                  </label>
+                  <label className="simple-setup-row">
+                    <span><b>Test</b><small>What the robot will do</small></span>
+                    <select className="simple-setup-select" value={activeTab} onChange={e => { setCurrentLessonId(null); setActiveTab(e.target.value); }} aria-label="Choose the robot test">
+                      {Object.keys(EXAMPLES).map(k => <option key={k} value={k}>{SIMPLE_PROGRAM_NAMES[k] || EXAMPLES[k].label}</option>)}
+                    </select>
+                  </label>
+                </div>
+
+                {!simpleLatestRun && !simpleRunActive && <section className={'simple-readiness tone-' + ((simpleAssessment && simpleAssessment.overall) || 'unknown')} aria-label="Pre-run design check">
+                  <div className="simple-readiness-title">
+                    <span>Before the run</span>
+                    <strong>{simpleAssessment ? (simpleAssessment.overall === 'pass' ? 'Ready' : simpleAssessment.overall === 'warn' ? 'Check' : 'Fix first') : 'Not checked'}</strong>
+                  </div>
+                  <p>{simpleAssessment ? simpleAssessment.summary : chipName + ' is ready for a first simulated test.'}</p>
+                  {simpleAssessment && simpleAssessment.topFix ? <p className="simple-fix"><b>Best next change:</b> {simpleAssessment.topFix}</p> : null}
+                  {simpleAssessment && simpleAssessment.numbers && simpleAssessment.numbers.unsimHazard ? <p className="simple-limit"><b>Not modelled:</b> {simpleAssessment.numbers.unsimHazard}.</p> : null}
+                </section>}
+
+                <div className="simple-primary-actions">
+                  <button type="button" className="ctrl ctrl-run simple-run" onClick={onRun}>
+                    {runState === 'running' ? I.pause : I.play}
+                    {runState === 'running' ? 'Pause test' : runState === 'paused' ? 'Resume test' : 'Run this test'}
+                  </button>
+                  <button type="button" className="ctrl simple-edit" onClick={() => setSimpleCodeOpen(true)}>Edit program</button>
+                </div>
+                {(simpleRunActive || simpleLatestRun) && <section className={'simple-result' + (simpleLatestRun ? ' has-result tone-' + simpleLatestRun.outcome : '')} aria-label="Latest test result">
+                  <div className="simple-result-head">
+                    <span>{runState === 'running' ? 'Test in progress' : runState === 'paused' ? 'Test paused' : 'Latest result'}</span>
+                    <strong>{runState === 'running' ? 'Running now' : runState === 'paused' ? 'Paused' : simpleOutcomeLabel}</strong>
+                  </div>
+                  {runState === 'running' ? (
+                    <p>Watch the world. Kodro is recording movement, battery use and the closest obstacle.</p>
+                  ) : runState === 'paused' ? (
+                    <p>The test is paused. Resume when you are ready; the current position and measurements are preserved.</p>
+                  ) : (
+                    <React.Fragment>
+                      <p>{simpleLatestRun.verdict || simpleLatestRun.detail || 'The run finished and its measurements were saved.'}</p>
+                      <div className="simple-result-stats">
+                        <span><b>{simpleLatestRun.distanceCm != null ? (simpleLatestRun.distanceCm / 100).toFixed(1) + ' m' : 'Not recorded'}</b><small>distance</small></span>
+                        <span><b>{simpleLatestRun.batteryUsedPct != null ? simpleLatestRun.batteryUsedPct + '%' : 'Not recorded'}</b><small>battery used</small></span>
+                        <span><b>{simpleLatestRun.minProximityCm != null ? simpleLatestRun.minProximityCm + ' cm' : 'Clear'}</b><small>closest obstacle</small></span>
+                      </div>
+                      <small className="simple-result-context">{simpleLatestRun.robotName || 'Robot'} in {simpleLatestRun.worldName || simpleLatestRun.world || 'the selected world'}</small>
+                    </React.Fragment>
+                  )}
+                  <div className="simple-result-actions">
+                    {simpleLatestRun && <button type="button" onClick={() => { setSimpleCodeOpen(true); setRunsOpen(true); }}>View all runs</button>}
+                    <button type="button" onClick={() => setEvidenceOpen(true)}>Open evidence</button>
+                  </div>
+                </section>}
+                <button type="button" className="simple-companion-action" onClick={() => setVibeOpen(true)}>
+                  <span>{KI('vibe')}<b>Build it with Companion</b></span>
+                  <small>{aiInfo.available ? 'Local AI is ready to change the robot or program with you.' : 'Direct robot and world commands work offline without a model.'}</small>
+                </button>
+              </section>
+            )}
+            {!showSimpleCockpit && (
+              <React.Fragment>
             <div className="editor-panel" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div className="panel-head">
                 <label className="simple-program-picker">
@@ -1335,6 +1452,7 @@
                   </div>
                 )}
                 <div className="panel-actions">
+                  {simpleExperience && simpleCodeOpen && <button className="btn-mini simple-back-plan" onClick={() => { setRunsOpen(false); setSimpleCodeOpen(false); }}>Back to test plan</button>}
                   {!simpleExperience && <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>{KI('blocks')}Blocks</button>}
                   {!simpleExperience && <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>{KI('gauge')}Simulation limits</button>}
                   <details className="editor-tools">
@@ -1569,6 +1687,8 @@
                 />
               </div>}
             </div>
+              </React.Fragment>
+            )}
           </div>
 
           <div className="resizer" role="separator" aria-orientation="vertical" tabIndex={0} aria-label="Resize editor width (arrow left and right)" aria-valuenow={Math.round(editorW)} aria-valuemin={280} aria-valuemax={640} onKeyDown={e => { if (e.key === 'ArrowLeft') { e.preventDefault(); nudge('editor', -16); } else if (e.key === 'ArrowRight') { e.preventDefault(); nudge('editor', 16); } }} onPointerDown={e => startDrag('editor', e)} style={{ gridColumn: 2 }}></div>

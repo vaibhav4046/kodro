@@ -420,5 +420,31 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
     'the skip-link target #editor-main is focusable (tabIndex=-1)');
 }
 
+// 28. Simple mode must be a genuine novice workflow, not the expert IDE with a
+//     few buttons hidden. The proving cockpit owns the first decision, code is
+//     an explicit transition, and only an exact robot/world/source match may be
+//     presented as evidence for the current plan. Four stages must also fit on
+//     one phone navigation row.
+{
+  const app = read('app.jsx');
+  const css = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'styles.css'), 'utf8');
+  ok(/const \[simpleCodeOpen, setSimpleCodeOpen\] = useState\(false\)/.test(app),
+    'Simple mode opens on the test plan instead of source code');
+  ok(/showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen/.test(app),
+    'the novice cockpit is scoped to Simple Prove and yields to deliberate code editing');
+  ok(/r\.world === terrainId && r\.robotName === chipName && r\.source === code/.test(app),
+    'Simple results require the exact current world, robot and source');
+  ok(/aria-label="Robot test plan"/.test(app) && /Build it with Companion/.test(app),
+    'the novice cockpit exposes a named test plan and a visible Companion action');
+  ok(/data-simple-view="plan"/.test(css) && /\.simple-cockpit/.test(css),
+    'Simple plan mode has a dedicated cockpit presentation');
+  ok(/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/.test(css),
+    'all four product stages fit on one phone navigation row');
+  const capGenerator = readFileSync(path.join(HERE, 'build_screenshot_harness.cjs'), 'utf8');
+  ok(/q\.get\('experience'\)/.test(capGenerator)
+      && /q\.get\('code'\)[\s\S]*q\.get\('run'\)[\s\S]*q\.get\('panel'\)[\s\S]*q\.get\('lesson'\)[\s\S]*q\.get\('tab'\)[\s\S]*kodro_experience', 'expert'/.test(capGenerator),
+    'the QA fixture generator can select Simple or Expert and keeps code-driving tests deterministic');
+}
+
 console.log((fail === 0 ? 'PASS' : 'FAIL') + '  honesty: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail === 0 ? 0 : 1);

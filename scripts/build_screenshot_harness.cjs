@@ -125,6 +125,9 @@ fs.writeFileSync(path.join(WEB, 'studio_harness.html'), STUDIO);
 //                             memory-driven UI (Vibe context chip) is testable
 //   cap.html?tab=encore       open a named example tab (writes or_tab)
 //   cap.html?mode=classroom   set the Studio/Classroom mode before mount (A1)
+//   cap.html?experience=expert select the full IDE; default captures use the
+//                             novice test cockpit. Code-driving fixtures select
+//                             Expert automatically so their textarea exists.
 //   cap.html?reverttest=1     blocks-insert then click the Revert toast (A9)
 //   cap.html?importspec=1     import the fixture KRS robot spec through the
 //                             REAL validate-then-save path (SI1) before any
@@ -153,6 +156,10 @@ const CAP = `<!DOCTYPE html>
         var td = q.get('tod'); if (td) localStorage.setItem('kodro_tod', td);
         var wx = q.get('weather'); if (wx) localStorage.setItem('kodro_weather', wx);
         var md = q.get('mode'); if (md) localStorage.setItem('kodro_mode', md);
+        var xp = q.get('experience');
+        if (xp === 'simple' || xp === 'expert') localStorage.setItem('kodro_experience', xp);
+        else if (q.get('code') || q.get('open') || q.get('blockstest') || q.get('reverttest') || q.get('repl') || q.get('replay') || q.get('run') || q.get('panel') || q.get('lesson') || q.get('tab')) localStorage.setItem('kodro_experience', 'expert');
+        else localStorage.setItem('kodro_experience', 'simple');
         var th = q.get('theme'); if (th) localStorage.setItem('or_theme', th);
         var vw = q.get('view');
         if (vw === '2d') localStorage.setItem('or_view3d', '0');

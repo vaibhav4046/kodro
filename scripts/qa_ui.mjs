@@ -40,7 +40,10 @@
  *   node scripts/qa_ui.mjs                                      # this harness
  */
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, existsSync, statSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync, existsSync, statSync, rmSync, writeFileSync, copyFileSync,
+  openSync, closeSync, readFileSync,
+} from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import http from 'node:http';
@@ -77,6 +80,46 @@ const SPAWN_TIMEOUT_MS = 60_000;
 const FIRST_SPAWN_TIMEOUT_MS = 90_000;
 // The flow whose Run we verify actually moved the rover.
 const BEHAVIOUR_FLOW = 'studio-earth-run';
+
+// Chrome descendants can inherit Node's stdout/stderr pipes on Windows. If the
+// browser times out, those descendants may keep the pipes open and make
+// spawnSync itself wait forever. Capture to ordinary files instead: the hard
+// timeout can then return, and a timed-out Windows process tree is removed
+// before the next isolated flow starts.
+function spawnChromeCaptured(chrome, args, tag, timeoutMs) {
+  const outPath = path.join(TMP, `capture_${tag}.out.txt`);
+  const errPath = path.join(TMP, `capture_${tag}.err.txt`);
+  let outFd;
+  let errFd;
+  let result;
+  try {
+    outFd = openSync(outPath, 'w');
+    errFd = openSync(errPath, 'w');
+    result = spawnSync(chrome, args, {
+      timeout: timeoutMs,
+      windowsHide: true,
+      killSignal: 'SIGKILL',
+      stdio: ['ignore', outFd, errFd],
+    });
+  } finally {
+    if (outFd !== undefined) try { closeSync(outFd); } catch { /* noop */ }
+    if (errFd !== undefined) try { closeSync(errFd); } catch { /* noop */ }
+  }
+
+  if (result?.error?.code === 'ETIMEDOUT' && process.platform === 'win32' && result.pid) {
+    spawnSync('taskkill', ['/PID', String(result.pid), '/T', '/F'], {
+      timeout: 10_000,
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+  }
+
+  let stdout = '';
+  let stderr = '';
+  try { stdout = readFileSync(outPath, 'utf8'); } catch { /* noop */ }
+  try { stderr = readFileSync(errPath, 'utf8'); } catch { /* noop */ }
+  return { ...result, stdout, stderr };
+}
 
 // RUN DETERMINISM: the default starter program on world=earth/robot=rover at
 // The default program is the sensor-free patrol demo (drive choreography, pen
@@ -210,12 +253,7 @@ function dumpDom(chrome, tag, url, opts = {}) {
     '--dump-dom',
     url,
   ];
-  const res = spawnSync(chrome, args, {
-    encoding: 'utf8',
-    timeout: opts.timeout || SPAWN_TIMEOUT_MS,
-    windowsHide: true,
-    maxBuffer: 64 * 1024 * 1024, // the dumped DOM can be large; don't truncate it
-  });
+  const res = spawnChromeCaptured(chrome, args, tag, opts.timeout || SPAWN_TIMEOUT_MS);
   const stderr = (res.stderr || '') + (res.error ? `\nSPAWN_ERROR: ${res.error.message}` : '');
   try { writeFileSync(log, stderr); } catch { /* best effort */ }
   const consoleError = stderr
@@ -515,7 +553,7 @@ function checkBuildHonesty(chrome) {
   // classroom mode: the command hint strip (whose greying this asserts) now
   // lives there only; the studio keeps a quiet screen and gates commands at
   // the Telemetry readout and the runtime refusal instead.
-  const url = `${BASE}?world=earth&robot=custom&q=low&mode=classroom`;
+  const url = `${BASE}?world=earth&robot=custom&q=low&mode=classroom&experience=expert`;
   const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_build_honesty', url, { vtime: 8000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
@@ -1112,11 +1150,7 @@ function runFlow(chrome, flow, timeoutMs = SPAWN_TIMEOUT_MS) {
     url,
   ];
 
-  const res = spawnSync(chrome, args, {
-    encoding: 'utf8',
-    timeout: timeoutMs,
-    windowsHide: true,
-  });
+  const res = spawnChromeCaptured(chrome, args, `flow_${flow.name}`, timeoutMs);
 
   // Chrome writes its console/log stream to stderr; persist it for forensics.
   const stderr = (res.stderr || '') + (res.error ? `\nSPAWN_ERROR: ${res.error.message}` : '');
@@ -1150,13 +1184,13 @@ function runFlow(chrome, flow, timeoutMs = SPAWN_TIMEOUT_MS) {
 // here is not a flow failure, so we ignore the result.
 function warmUpChrome(chrome) {
   const udd = path.join(TMP, 'udd_warmup');
-  spawnSync(chrome, [
+  spawnChromeCaptured(chrome, [
     '--headless=new', '--no-sandbox', '--use-angle=swiftshader',
     '--enable-unsafe-swiftshader', '--virtual-time-budget=1500',
     '--no-first-run', '--disable-extensions', '--disable-default-apps',
     '--disable-component-extensions-with-background-pages', '--disable-background-networking',
     `--user-data-dir=${udd}`, '--dump-dom', 'about:blank',
-  ], { encoding: 'utf8', timeout: FIRST_SPAWN_TIMEOUT_MS, windowsHide: true });
+  ], 'warmup', FIRST_SPAWN_TIMEOUT_MS);
 }
 
 function cleanup() {
@@ -1187,6 +1221,28 @@ function cleanup() {
 
   // Pay the cold-start tax on a trivial page so it does not flake flow #1.
   warmUpChrome(chrome);
+
+  // Release documentation capture. This deliberately uses the same generated
+  // cap.html and clean Chrome profile as the UI smoke, so the dissertation
+  // cannot drift onto a hand-composed or stale image of the product.
+  if (process.env.KODRO_CAPTURE_RELEASE === '1') {
+    const flow = {
+      name: 'release_simple_studio',
+      url: 'world=city&robot=rover&q=high&experience=simple',
+    };
+    const result = runFlow(chrome, flow, FIRST_SPAWN_TIMEOUT_MS);
+    if (result.pass) {
+      const source = path.join(TMP, `shot_${flow.name}.png`);
+      const target = path.join(REPO, 'docs', 'dissertation', 'img', 'simple_studio.png');
+      copyFileSync(source, target);
+      console.log(`PASS  release-capture ${result.reason} -> ${target}`);
+    } else {
+      console.error(`FAIL  release-capture ${result.reason}`);
+    }
+    cleanup();
+    process.exitCode = result.pass ? 0 : 1;
+    return;
+  }
 
   const gap = () => { const until = Date.now() + GAP_MS; while (Date.now() < until) { /* dep-free pause */ } };
 

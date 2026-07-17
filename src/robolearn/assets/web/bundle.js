@@ -25698,6 +25698,12 @@ say("Survey done")`
     // handlers intact while giving every capability a stable place in the
     // journey: design the robot, prove it in scenarios, then prepare a build.
     const [activeStage, setActiveStage] = useState('prove');
+    // Simple mode opens on a test plan, not a wall of source code. The editor
+    // is still one deliberate action away and Expert mode remains unchanged.
+    // Keep this session-local: returning to the product should begin with the
+    // purpose and evidence of the test, not whichever advanced surface happened
+    // to be open last time.
+    const [simpleCodeOpen, setSimpleCodeOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => window.getKodroRobot ? window.getKodroRobot() : null);
     // Build-a-real-robot planner (budget build). Extracted VERBATIM to
     // window.KodroHooks.useBuild (hooks.jsx); its external inputs are
@@ -26650,7 +26656,10 @@ say("Survey done")`
       setRobotLabOpen(false);
       setBuildOpen(false);
       setLessonHubOpen(false);
-      if (stage === 'prove') setCurrentLessonId(null);
+      if (stage === 'prove') {
+        setCurrentLessonId(null);
+        if (simpleExperience) setSimpleCodeOpen(false);
+      }
       setTimeout(function () {
         const main = document.getElementById('editor-main');
         if (main && main.focus) main.focus({
@@ -26692,7 +26701,44 @@ say("Survey done")`
         role: id === (robotSpec && robotSpec.board) ? 'Controller selected in Design' : 'Capability selected in Design'
       };
     }));
-    const browserRunCount = window.KodroRunReports ? window.KodroRunReports.list().length : 0;
+    const browserRuns = window.KodroRunReports ? window.KodroRunReports.list() : [];
+    const browserRunCount = browserRuns.length;
+    // A result belongs to the visible plan only when it was produced by this
+    // robot, in this world, from this exact source. Never show an old run from
+    // another setup as if it proved the current one.
+    const simpleLatestRun = browserRuns.find(function (r) {
+      return r && r.world === terrainId && r.robotName === chipName && r.source === code;
+    }) || null;
+    const showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen && !currentLessonId;
+    const SIMPLE_PROGRAM_NAMES = {
+      basecamp: 'Build a base camp',
+      autopilot: 'Avoid obstacles automatically',
+      drive: 'Explore the world',
+      systems: 'Check every fitted system',
+      square: 'Drive a precise square',
+      spiral: 'Draw an expanding spiral',
+      avoid: 'Sense and avoid hazards',
+      encore: 'Perform a movement routine',
+      searchlight: 'Search the area',
+      gauntlet: 'Complete an obstacle course',
+      survey: 'Survey and mark the site'
+    };
+    const SIMPLE_OUTCOME_NAMES = {
+      done: 'Test completed',
+      crash: 'Collision detected',
+      flat: 'Battery depleted',
+      stalled: 'Robot stalled',
+      error: 'Program stopped'
+    };
+    const simpleOutcomeLabel = simpleLatestRun ? SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded' : '';
+    const simpleRunActive = runState === 'running' || runState === 'paused';
+    let simpleAssessment = null;
+    try {
+      const derived = window.getKodroRobot ? window.getKodroRobot() : {};
+      if (window.KodroDiagnostics) simpleAssessment = window.KodroDiagnostics.assess(robotSpec, derived, terrain);
+    } catch (e) {
+      void e;
+    }
     function downloadPrototypeBrief() {
       const esc = function (v) {
         return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) {
@@ -26731,13 +26777,14 @@ say("Survey done")`
       className: "app",
       "data-stage": activeStage,
       "data-experience": experience,
+      "data-simple-view": showSimpleCockpit ? 'plan' : 'code',
       "data-evidence": evidenceOpen ? 'open' : 'closed',
       "data-obstacles": (terrain.obstacles || []).length,
       "data-active-world": terrain.siteId || terrain.id || ''
     }, /*#__PURE__*/React.createElement("a", {
       className: "skip-link",
       href: "#editor-main"
-    }, "Skip to code editor"), /*#__PURE__*/React.createElement("h1", {
+    }, simpleExperience ? 'Skip to test workspace' : 'Skip to code editor'), /*#__PURE__*/React.createElement("h1", {
       className: "sr-only"
     }, "Kodro, an offline robot design and simulation studio"), /*#__PURE__*/React.createElement("div", {
       className: "missionbar",
@@ -27122,7 +27169,102 @@ say("Survey done")`
       style: {
         gridColumn: 1
       }
+    }, showSimpleCockpit && /*#__PURE__*/React.createElement("section", {
+      className: "simple-cockpit",
+      "aria-label": "Robot test plan"
+    }, /*#__PURE__*/React.createElement("header", {
+      className: "simple-cockpit-head"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "simple-step"
+    }, "Step 2 of 4"), /*#__PURE__*/React.createElement("h2", null, "Prove your robot"), /*#__PURE__*/React.createElement("p", null, "Choose one test, run it in the world, then use the result to improve the design.")), /*#__PURE__*/React.createElement("div", {
+      className: "simple-setup",
+      "aria-label": "Current test setup"
     }, /*#__PURE__*/React.createElement("div", {
+      className: "simple-setup-row"
+    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Robot"), /*#__PURE__*/React.createElement("small", null, "The design being tested")), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "simple-setup-action",
+      onClick: () => goStage('design')
+    }, /*#__PURE__*/React.createElement("strong", null, chipName), /*#__PURE__*/React.createElement("em", null, "Edit"))), /*#__PURE__*/React.createElement("label", {
+      className: "simple-setup-row"
+    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "World"), /*#__PURE__*/React.createElement("small", null, "The conditions around it")), /*#__PURE__*/React.createElement("select", {
+      className: "simple-setup-select",
+      value: terrainId,
+      onChange: e => onTerrain(e.target.value),
+      "aria-label": "Choose the test world"
+    }, /*#__PURE__*/React.createElement("optgroup", {
+      label: "Core worlds"
+    }, ['city', 'room', 'earth', 'mars', 'underwater', 'space'].map(id => /*#__PURE__*/React.createElement("option", {
+      key: id,
+      value: id
+    }, TERRAINS[id].label))), window.SITES && [['earth', 'Earth sites'], ['underwater', 'Underwater sites'], ['mars', 'Mars sites'], ['space', 'Space sites'], ['room', 'Test bays']].map(([base, label]) => {
+      const ids = Object.keys(window.SITES).filter(id => window.SITES[id].base === base);
+      return ids.length === 0 ? null : /*#__PURE__*/React.createElement("optgroup", {
+        key: base,
+        label: label
+      }, ids.map(id => /*#__PURE__*/React.createElement("option", {
+        key: id,
+        value: id
+      }, window.SITES[id].name)));
+    }), terrainId === 'custom' && /*#__PURE__*/React.createElement("option", {
+      value: "custom"
+    }, "Custom world"))), /*#__PURE__*/React.createElement("label", {
+      className: "simple-setup-row"
+    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Test"), /*#__PURE__*/React.createElement("small", null, "What the robot will do")), /*#__PURE__*/React.createElement("select", {
+      className: "simple-setup-select",
+      value: activeTab,
+      onChange: e => {
+        setCurrentLessonId(null);
+        setActiveTab(e.target.value);
+      },
+      "aria-label": "Choose the robot test"
+    }, Object.keys(EXAMPLES).map(k => /*#__PURE__*/React.createElement("option", {
+      key: k,
+      value: k
+    }, SIMPLE_PROGRAM_NAMES[k] || EXAMPLES[k].label))))), !simpleLatestRun && !simpleRunActive && /*#__PURE__*/React.createElement("section", {
+      className: 'simple-readiness tone-' + (simpleAssessment && simpleAssessment.overall || 'unknown'),
+      "aria-label": "Pre-run design check"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "simple-readiness-title"
+    }, /*#__PURE__*/React.createElement("span", null, "Before the run"), /*#__PURE__*/React.createElement("strong", null, simpleAssessment ? simpleAssessment.overall === 'pass' ? 'Ready' : simpleAssessment.overall === 'warn' ? 'Check' : 'Fix first' : 'Not checked')), /*#__PURE__*/React.createElement("p", null, simpleAssessment ? simpleAssessment.summary : chipName + ' is ready for a first simulated test.'), simpleAssessment && simpleAssessment.topFix ? /*#__PURE__*/React.createElement("p", {
+      className: "simple-fix"
+    }, /*#__PURE__*/React.createElement("b", null, "Best next change:"), " ", simpleAssessment.topFix) : null, simpleAssessment && simpleAssessment.numbers && simpleAssessment.numbers.unsimHazard ? /*#__PURE__*/React.createElement("p", {
+      className: "simple-limit"
+    }, /*#__PURE__*/React.createElement("b", null, "Not modelled:"), " ", simpleAssessment.numbers.unsimHazard, ".") : null), /*#__PURE__*/React.createElement("div", {
+      className: "simple-primary-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "ctrl ctrl-run simple-run",
+      onClick: onRun
+    }, runState === 'running' ? I.pause : I.play, runState === 'running' ? 'Pause test' : runState === 'paused' ? 'Resume test' : 'Run this test'), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "ctrl simple-edit",
+      onClick: () => setSimpleCodeOpen(true)
+    }, "Edit program")), (simpleRunActive || simpleLatestRun) && /*#__PURE__*/React.createElement("section", {
+      className: 'simple-result' + (simpleLatestRun ? ' has-result tone-' + simpleLatestRun.outcome : ''),
+      "aria-label": "Latest test result"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "simple-result-head"
+    }, /*#__PURE__*/React.createElement("span", null, runState === 'running' ? 'Test in progress' : runState === 'paused' ? 'Test paused' : 'Latest result'), /*#__PURE__*/React.createElement("strong", null, runState === 'running' ? 'Running now' : runState === 'paused' ? 'Paused' : simpleOutcomeLabel)), runState === 'running' ? /*#__PURE__*/React.createElement("p", null, "Watch the world. Kodro is recording movement, battery use and the closest obstacle.") : runState === 'paused' ? /*#__PURE__*/React.createElement("p", null, "The test is paused. Resume when you are ready; the current position and measurements are preserved.") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", null, simpleLatestRun.verdict || simpleLatestRun.detail || 'The run finished and its measurements were saved.'), /*#__PURE__*/React.createElement("div", {
+      className: "simple-result-stats"
+    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, simpleLatestRun.distanceCm != null ? (simpleLatestRun.distanceCm / 100).toFixed(1) + ' m' : 'Not recorded'), /*#__PURE__*/React.createElement("small", null, "distance")), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, simpleLatestRun.batteryUsedPct != null ? simpleLatestRun.batteryUsedPct + '%' : 'Not recorded'), /*#__PURE__*/React.createElement("small", null, "battery used")), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, simpleLatestRun.minProximityCm != null ? simpleLatestRun.minProximityCm + ' cm' : 'Clear'), /*#__PURE__*/React.createElement("small", null, "closest obstacle"))), /*#__PURE__*/React.createElement("small", {
+      className: "simple-result-context"
+    }, simpleLatestRun.robotName || 'Robot', " in ", simpleLatestRun.worldName || simpleLatestRun.world || 'the selected world')), /*#__PURE__*/React.createElement("div", {
+      className: "simple-result-actions"
+    }, simpleLatestRun && /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => {
+        setSimpleCodeOpen(true);
+        setRunsOpen(true);
+      }
+    }, "View all runs"), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => setEvidenceOpen(true)
+    }, "Open evidence"))), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "simple-companion-action",
+      onClick: () => setVibeOpen(true)
+    }, /*#__PURE__*/React.createElement("span", null, KI('vibe'), /*#__PURE__*/React.createElement("b", null, "Build it with Companion")), /*#__PURE__*/React.createElement("small", null, aiInfo.available ? 'Local AI is ready to change the robot or program with you.' : 'Direct robot and world commands work offline without a model.'))), !showSimpleCockpit && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       className: "editor-panel",
       style: {
         display: 'flex',
@@ -27184,7 +27326,13 @@ say("Survey done")`
       onClick: () => setLessonHubOpen(true)
     }, "Browse")), /*#__PURE__*/React.createElement("div", {
       className: "panel-actions"
-    }, !simpleExperience && /*#__PURE__*/React.createElement("button", {
+    }, simpleExperience && simpleCodeOpen && /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini simple-back-plan",
+      onClick: () => {
+        setRunsOpen(false);
+        setSimpleCodeOpen(false);
+      }
+    }, "Back to test plan"), !simpleExperience && /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Build the program from blocks",
       onClick: () => setBlocksOpen(true)
@@ -27530,7 +27678,7 @@ say("Survey done")`
           e.target.blur();
         }
       }
-    })))), /*#__PURE__*/React.createElement("div", {
+    }))))), /*#__PURE__*/React.createElement("div", {
       className: "resizer",
       role: "separator",
       "aria-orientation": "vertical",

@@ -846,7 +846,7 @@ select.terrain-btn:hover {
   .app { grid-template-rows:auto 1fr; padding-bottom:58px; }
   .stage-nav {
     position:fixed; z-index:80; left:0; right:0; bottom:0;
-    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2px;
+    display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:2px;
     padding:6px max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
     border:0; border-top:1px solid var(--border); border-radius:0;
     background:color-mix(in srgb,var(--navy) 96%,transparent); box-shadow:0 -12px 28px rgba(0,0,0,0.28);
@@ -2114,6 +2114,113 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .app[data-experience="simple"] .console-head .eyebrow::after { content:' results'; }
 .app[data-experience="simple"] .repl-row { display:none; }
 
+/* The novice proving surface is a test cockpit, not a smaller IDE. It keeps
+   the world visible, explains the three inputs that define a run, and places
+   the latest measured outcome beside the next decision. Source code remains
+   available through Edit program and Expert mode. */
+.app[data-experience="simple"][data-simple-view="plan"] .terrain-switch { display:none; }
+.simple-cockpit {
+  min-height:0; flex:1; overflow:auto; padding:26px 24px 30px;
+  display:flex; flex-direction:column; gap:18px;
+  background:
+    radial-gradient(circle at 18% 0%,color-mix(in srgb,var(--cyan) 9%,transparent),transparent 34%),
+    linear-gradient(180deg,var(--navy-2),var(--navy));
+  border-right:0.5px solid var(--border);
+}
+.simple-cockpit-head { display:grid; gap:7px; }
+.simple-cockpit-head,
+.simple-setup,
+.simple-readiness,
+.simple-primary-actions,
+.simple-companion-action,
+.simple-result { flex:none; }
+.simple-step {
+  width:max-content; color:var(--cyan); font:700 var(--text-xs)/1 var(--font-mono);
+  letter-spacing:.12em; text-transform:uppercase;
+}
+.simple-cockpit-head h2 {
+  margin:0; color:var(--fg-1); font:650 clamp(26px,2.2vw,34px)/1.08 var(--font-display);
+  letter-spacing:-.02em;
+}
+.simple-cockpit-head p { margin:0; max-width:38ch; color:var(--fg-2); font-size:var(--text-lg); line-height:1.5; }
+.simple-setup {
+  display:grid; border:1px solid var(--border); border-radius:14px; overflow:hidden;
+  background:color-mix(in srgb,var(--void) 38%,transparent);
+}
+.simple-setup-row {
+  min-width:0; min-height:64px; padding:10px 12px;
+  display:grid; grid-template-columns:minmax(0,1fr) minmax(150px,58%); align-items:center; gap:12px;
+  color:var(--fg-1); border-bottom:1px solid var(--border);
+}
+.simple-setup-row:last-child { border-bottom:0; }
+.simple-setup-row > span { min-width:0; display:grid; gap:3px; }
+.simple-setup-row > span b { font-size:var(--text-md); }
+.simple-setup-row > span small { color:var(--fg-3); font-size:var(--text-xs); line-height:1.25; }
+.simple-setup-action,
+.simple-setup-select {
+  width:100%; min-width:0; min-height:38px; border:1px solid var(--border); border-radius:9px;
+  color:var(--fg-1); background:var(--navy-3); font:600 var(--text-md)/1.25 var(--font-body);
+}
+.simple-setup-action {
+  appearance:none; padding:7px 9px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:8px;
+}
+.simple-setup-action strong { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.simple-setup-action em { color:var(--cyan); font-style:normal; font-size:var(--text-xs); }
+.simple-setup-select { padding:7px 32px 7px 9px; cursor:pointer; }
+.simple-setup-action:hover,
+.simple-setup-select:hover { border-color:var(--fg-3); }
+
+.simple-readiness,
+.simple-result {
+  --simple-tone:var(--fg-3); padding:15px 16px; border:1px solid color-mix(in srgb,var(--simple-tone) 42%,var(--border));
+  border-radius:14px; background:color-mix(in srgb,var(--simple-tone) 6%,var(--void));
+}
+.simple-readiness.tone-pass { --simple-tone:var(--success); }
+.simple-readiness.tone-warn { --simple-tone:var(--warning); }
+.simple-readiness.tone-fail { --simple-tone:var(--danger); }
+.simple-readiness-title,
+.simple-result-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.simple-readiness-title > span,
+.simple-result-head > span { color:var(--fg-3); font:650 var(--text-xs)/1 var(--font-mono); letter-spacing:.1em; text-transform:uppercase; }
+.simple-readiness-title strong,
+.simple-result-head strong { color:var(--simple-tone); font-size:var(--text-md); }
+.simple-readiness > p,
+.simple-result > p { margin:9px 0 0; color:var(--fg-2); line-height:1.45; }
+.simple-readiness .simple-fix { color:var(--fg-1); }
+.simple-readiness .simple-limit { color:var(--warning); font-size:var(--text-sm); }
+.simple-primary-actions { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:9px; }
+.simple-primary-actions .ctrl { min-height:46px; justify-content:center; }
+.simple-run { font-size:var(--text-xl); }
+.simple-edit { color:var(--fg-2); }
+.simple-companion-action {
+  appearance:none; width:100%; padding:13px 14px; display:grid; gap:5px; text-align:left; cursor:pointer;
+  border:1px solid color-mix(in srgb,var(--cyan) 32%,var(--border)); border-radius:14px;
+  color:var(--fg-1); background:linear-gradient(135deg,color-mix(in srgb,var(--cyan) 10%,var(--navy-3)),var(--navy-3));
+}
+.simple-companion-action > span { display:flex; align-items:center; gap:9px; }
+.simple-companion-action .ki { color:var(--cyan); }
+.simple-companion-action small { color:var(--fg-2); line-height:1.35; }
+.simple-companion-action:hover { border-color:var(--cyan-deep); transform:translateY(-1px); }
+.simple-result { margin-top:auto; --simple-tone:var(--fg-2); }
+.simple-result.tone-done { --simple-tone:var(--success); }
+.simple-result.tone-crash,
+.simple-result.tone-flat,
+.simple-result.tone-error { --simple-tone:var(--danger); }
+.simple-result.tone-stalled { --simple-tone:var(--warning); }
+.simple-result-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin-top:13px; }
+.simple-result-stats > span { min-width:0; padding:9px; display:grid; gap:3px; border-radius:9px; background:color-mix(in srgb,var(--fg-1) 5%,transparent); }
+.simple-result-stats b { color:var(--fg-1); font:650 var(--text-lg)/1.1 var(--font-mono); overflow-wrap:anywhere; }
+.simple-result-stats small,
+.simple-result-context { color:var(--fg-3); font-size:var(--text-xs); }
+.simple-result-context { display:block; margin-top:9px; }
+.simple-result-actions { display:flex; flex-wrap:wrap; gap:7px; margin-top:12px; }
+.simple-result-actions button {
+  appearance:none; min-height:34px; padding:5px 9px; border:1px solid var(--border); border-radius:8px;
+  color:var(--fg-2); background:transparent; cursor:pointer; font:600 var(--text-sm)/1 var(--font-body);
+}
+.simple-result-actions button:hover { color:var(--fg-1); border-color:var(--fg-3); }
+.simple-back-plan { color:var(--cyan); border-color:var(--cyan-deep); }
+
 /* Evidence is deliberate progressive disclosure in Simple mode. The panel
    remains mounted, so its live state and accessibility relationships persist. */
 .app[data-experience="simple"][data-evidence="closed"] .workspace {
@@ -2155,8 +2262,16 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   .app[data-experience="simple"] .simple-program-picker { width:100%; }
   .app[data-experience="simple"] .simple-program-picker .lesson-select { width:100%; max-width:none; }
   .app[data-experience="simple"] .console { height:128px !important; }
+  .simple-cockpit { min-height:auto; padding:22px 18px 26px; border-right:0; }
+  .simple-cockpit-head p { max-width:48ch; }
   .app[data-stage="design"] .rl-modal,
   .app[data-stage="build"] .browser-build-modal { width:100vw; max-height:100vh; border-radius:0; }
+}
+
+@media (max-width:480px) {
+  .simple-setup-row { grid-template-columns:1fr; gap:8px; }
+  .simple-primary-actions { grid-template-columns:1fr; }
+  .simple-result-stats { grid-template-columns:1fr; }
 }
 /* The action / Next / Done CTAs reuse .ctrl .ctrl-run and the Close / Back
    buttons reuse .ctrl, so this only widens them to the demo's roomier hit area
