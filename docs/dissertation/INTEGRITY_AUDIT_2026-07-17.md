@@ -3,7 +3,7 @@
 ## Scope and source lock
 
 - Canonical source: `Kodro_Dissertation.tex`
-- Evaluated product commit: `d4fbf16`
+- Evaluated product commit: `9cca973`
 - Evaluation artefacts: `docs/eval/persona_eval_results.json` and
   `docs/eval/performance_eval.json`
 - Final PDF: 49 A4 pages
@@ -15,11 +15,12 @@
 | Python correctness | Repository environment with all declared `dev`, `interop` and `rl` extras: 1,081 passed, zero skipped, 89.00% branch-aware coverage | Supported |
 | Shipped interpreter | `node scripts/qa_interpreter.mjs`: 180 passed | Supported |
 | Static web boot and privacy | `node scripts/qa_web.mjs`: 5/5 | Supported |
+| Honesty and claim boundaries | `node scripts/qa_honesty.mjs`: 103/103 | Supported |
 | Contrast and responsive rules | `node scripts/qa_contrast.mjs`: 61 passed over ten themes | Supported |
 | Current full headless UI matrix | 6 of 6 render flows, 39 of 39 behaviour assertions and 12 of 12 modal checks | Supported |
 | Local persona-task benchmark | 40/40 cells under the committed model digest, seed, prompts and deterministic execution gates | Supported only for the stated task set |
 | Human usability or learning | No human participant study was run | Not established |
-| 240 FPS | Both measured SwiftShader tiers missed the 4.17 ms work budget | Not established and not claimed |
+| 240 FPS | Measured SwiftShader tiers reached 16.2 FPS low and 15.3 FPS high; both missed the 4.17 ms work budget | Not established and not claimed |
 | Physical predictive validity and safety | First-order simulation only; no physical calibration study | Not established |
 
 ## Research-integrity checks
