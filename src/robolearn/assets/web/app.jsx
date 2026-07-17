@@ -1165,10 +1165,12 @@
           </nav>
           <div className="bar-divider"></div>
           <div className="run-controls">
-            <button className={'ctrl ' + (runState === 'running' ? '' : 'ctrl-run')} onClick={() => { setRunToolsOpen(false); onRun(); }}>
-              {runState === 'running' ? I.pause : I.play}
-              {runState === 'running' ? 'Pause' : runState === 'paused' ? 'Resume' : 'Run'}
-            </button>
+            {!showSimpleCockpit && (
+              <button className={'ctrl global-run ' + (runState === 'running' ? '' : 'ctrl-run')} onClick={() => { setRunToolsOpen(false); onRun(); }}>
+                {runState === 'running' ? I.pause : I.play}
+                {runState === 'running' ? 'Pause' : runState === 'paused' ? 'Resume' : 'Run'}
+              </button>
+            )}
             <button type="button" className="ctrl run-more-toggle" aria-haspopup="menu" aria-expanded={runToolsOpen} onClick={() => setRunToolsOpen(o => !o)}>More</button>
             <div className={'run-secondary' + (runToolsOpen ? ' is-open' : '')} role={simpleExperience ? 'menu' : undefined}>
             <button className="ctrl" onClick={() => { setRunToolsOpen(false); onStep(); }} disabled={runState === 'running'}>{I.step}Step</button>

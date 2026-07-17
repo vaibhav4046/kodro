@@ -13353,7 +13353,7 @@ Object.assign(window, {
       topFix = warns[0].fix;
     } else {
       overall = 'pass';
-      summary = 'This build suits ' + worldName + '. Press Run to see how your program drives it.';
+      summary = 'This build suits ' + worldName + '. Run the test to see how your program drives it.';
       topFix = '';
     }
 
@@ -13438,7 +13438,7 @@ Object.assign(window, {
       if (prox != null && prox < 30) {
         return {
           tone: 'sys',
-          text: 'Mission complete, but the closest approach was ' + Math.round(prox) + ' cm - one sensor misread from a collision. Add clearance before calling this design safe.'
+          text: 'Mission complete, but only ' + Math.round(prox) + ' cm of clearance remained. Treat this as a near miss and add more margin before calling the behaviour robust.' + hazardNote
         };
       }
       const measured = (run.distanceCm != null ? ' Covered ' + (run.distanceCm / 100).toFixed(1) + ' m' : '') + (prox != null && prox < 600 ? ', closest approach ' + Math.round(prox) + ' cm.' : run.distanceCm != null ? '.' : '');
@@ -26843,8 +26843,8 @@ say("Survey done")`
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "run-controls"
-    }, /*#__PURE__*/React.createElement("button", {
-      className: 'ctrl ' + (runState === 'running' ? '' : 'ctrl-run'),
+    }, !showSimpleCockpit && /*#__PURE__*/React.createElement("button", {
+      className: 'ctrl global-run ' + (runState === 'running' ? '' : 'ctrl-run'),
       onClick: () => {
         setRunToolsOpen(false);
         onRun();

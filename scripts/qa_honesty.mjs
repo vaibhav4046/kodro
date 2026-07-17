@@ -183,6 +183,8 @@ ok(/notSimulated:\s*\[[\s\S]*?buoyancy[\s\S]*?depth pressure[\s\S]*?vacuum[\s\S]
     { massFactor: 0.7, speedFactor: 1.25 }, { name: 'Riverside City', traction: 0.98, env: { gravity: 9.81 } });
   ok(rep.numbers.rangeM > 100 && rep.numbers.rangeM < 170,
     'default-build range on city is the ledger figure (~127 m, got ' + rep.numbers.rangeM + ')');
+  ok(/Run the test/.test(rep.summary) && !/Press Run/.test(rep.summary),
+    'design-check guidance stays action-neutral across Simple and Expert run controls');
   const realism2 = read('realism.jsx');
   ok(/rangeM/.test(realism2), 'realism dashboard shows the ledger range for catalogue builds');
   ok(/none in live runs/.test(realism2), 'realism no longer claims "nominal" sensor noise in noise-free live runs');
@@ -436,6 +438,8 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
     'Simple results require the exact current world, robot and source');
   ok(/aria-label="Robot test plan"/.test(app) && /Build it with Companion/.test(app),
     'the novice cockpit exposes a named test plan and a visible Companion action');
+  ok(/!showSimpleCockpit\s*&&\s*\(\s*<button className=\{'ctrl global-run/.test(app),
+    'Simple plan mode has one primary Run action (the duplicate global Run is withheld)');
   ok(/data-simple-view="plan"/.test(css) && /\.simple-cockpit/.test(css),
     'Simple plan mode has a dedicated cockpit presentation');
   ok(/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/.test(css),
@@ -444,6 +448,25 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
   ok(/q\.get\('experience'\)/.test(capGenerator)
       && /q\.get\('code'\)[\s\S]*q\.get\('run'\)[\s\S]*q\.get\('panel'\)[\s\S]*q\.get\('lesson'\)[\s\S]*q\.get\('tab'\)[\s\S]*kodro_experience', 'expert'/.test(capGenerator),
     'the QA fixture generator can select Simple or Expert and keeps code-driving tests deterministic');
+}
+
+// 29. A measured near miss must not fabricate a sensor error or imply a safety
+//     certification, and it must retain the current site's unmodelled-hazard
+//     disclosure just like every other successful-run branch.
+{
+  const KD = ctx.window.KodroDiagnostics;
+  const spec = { sensors: ['ultrasonic', 'imu'], actuators: ['motors4'], type: 'rover' };
+  const derived = { massFactor: 0.7, speedFactor: 0.7 };
+  const nearRun = { outcome: 'done', commands: 10, distanceCm: 1000, minProximityCm: 20 };
+  const land = KD.afterRun(KD.assess(spec, derived,
+    { name: 'Earth', traction: 0.98, env: { gravity: 9.81 } }), nearRun);
+  ok(/20 cm of clearance/.test(land.text) && /near miss/.test(land.text)
+      && !/sensor misread|design safe/i.test(land.text),
+    'near-miss verdict reports measured clearance without inventing a sensor error or safety claim');
+  const deep = KD.afterRun(KD.assess(spec, derived,
+    { name: 'Abyssal', traction: 0.66, env: { gravity: 9.81 }, unsimHazard: 'depth pressure' }), nearRun);
+  ok(/depth pressure/.test(deep.text) && /not simulated/.test(deep.text),
+    'near-miss verdict retains the current site unmodelled-hazard disclosure');
 }
 
 console.log((fail === 0 ? 'PASS' : 'FAIL') + '  honesty: ' + pass + ' passed, ' + fail + ' failed');

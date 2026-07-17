@@ -192,7 +192,7 @@
       topFix = warns[0].fix;
     } else {
       overall = 'pass';
-      summary = 'This build suits ' + worldName + '. Press Run to see how your program drives it.';
+      summary = 'This build suits ' + worldName + '. Run the test to see how your program drives it.';
       topFix = '';
     }
 
@@ -254,7 +254,7 @@
     const hazardNote = hazard ? ' This site\'s ' + hazard + ' are not simulated, so this run cannot prove the build survives them.' : '';
     if (report && report.overall === 'pass') {
       if (prox != null && prox < 30) {
-        return { tone: 'sys', text: 'Mission complete, but the closest approach was ' + Math.round(prox) + ' cm - one sensor misread from a collision. Add clearance before calling this design safe.' };
+        return { tone: 'sys', text: 'Mission complete, but only ' + Math.round(prox) + ' cm of clearance remained. Treat this as a near miss and add more margin before calling the behaviour robust.' + hazardNote };
       }
       const measured = (run.distanceCm != null ? ' Covered ' + (run.distanceCm / 100).toFixed(1) + ' m' : '')
         + (prox != null && prox < 600 ? ', closest approach ' + Math.round(prox) + ' cm.' : (run.distanceCm != null ? '.' : ''));
