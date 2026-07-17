@@ -38,6 +38,10 @@
       worldName: String(entry.worldName || ''),
       robotName: String(entry.robotName || ''),
       robotType: String(entry.robotType || ''),
+      // Exact configuration fingerprint. Legacy reports intentionally keep an
+      // empty key: they remain historical records but are not current-plan
+      // evidence because their producing configuration cannot be proven.
+      robotKey: String(entry.robotKey || ''),
       massFactor: +entry.massFactor || 1,
       speedFactor: +entry.speedFactor || 1,
       outcome: String(entry.outcome || ''),        // done | crash | flat | stalled | error

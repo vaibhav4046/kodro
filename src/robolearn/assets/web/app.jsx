@@ -34,6 +34,36 @@
   // render, so route every getItem through this guarded helper.
   function lsGet(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
 
+  // A run is evidence for a robot configuration, not merely for a display
+  // name. Build a deterministic fingerprint from every persisted input that
+  // can affect catalogue or measured-spec behaviour. Sorting object keys makes
+  // equivalent imported JSON produce the same key even when its property order
+  // differs; array order stays intact because physical sensor placement can be
+  // positional evidence rather than a set.
+  function stableRunValue(value) {
+    if (Array.isArray(value)) return value.map(stableRunValue);
+    if (value && typeof value === 'object') {
+      const out = {};
+      Object.keys(value).sort().forEach(function (key) { out[key] = stableRunValue(value[key]); });
+      return out;
+    }
+    return value;
+  }
+  function runRobotKey(spec) {
+    const s = spec || {};
+    try {
+      return JSON.stringify(stableRunValue({
+        schema: s.kodroSpec || 0,
+        type: s.type || '',
+        board: s.board || '',
+        boardMassG: s.boardMassG != null ? s.boardMassG : null,
+        sensors: s.sensors || [],
+        actuators: s.actuators || [],
+        physical: s.physical || null,
+      }));
+    } catch (e) { return ''; }
+  }
+
   // ---------------- drive-capability helpers (shared) ----------------
   // ONE definition of "can this build drive?" and "does this tab's starter
   // drive?", used by BOTH the activeTab initialiser (reload path) and the
@@ -382,6 +412,7 @@
         worldName: terrain.name || '',
         robotName: (robotSpec && robotSpec.name) || (rb && rb.name) || '',
         robotType: (robotSpec && robotSpec.type) || (rb && rb.type) || '',
+        robotKey: runRobotKey(robotSpec),
         massFactor: (rb && rb.massFactor) || 1,
         speedFactor: (rb && rb.speedFactor) || 1,
         outcome: outcome,
@@ -1093,11 +1124,14 @@
     }));
     const browserRuns = window.KodroRunReports ? window.KodroRunReports.list() : [];
     const browserRunCount = browserRuns.length;
+    const simpleRobotKey = runRobotKey(robotSpec);
     // A result belongs to the visible plan only when it was produced by this
-    // robot, in this world, from this exact source. Never show an old run from
-    // another setup as if it proved the current one.
+    // exact robot configuration, in this world, from this exact source. A
+    // legacy report without a configuration key remains available in history
+    // but cannot be presented as proof for the plan currently on screen.
     const simpleLatestRun = browserRuns.find(function (r) {
-      return r && r.world === terrainId && r.robotName === chipName && r.source === code;
+      return r && r.world === terrainId && r.robotName === chipName
+        && r.robotKey && r.robotKey === simpleRobotKey && r.source === code;
     }) || null;
     const showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen && !currentLessonId;
     const SIMPLE_PROGRAM_NAMES = {
@@ -1113,6 +1147,16 @@
     try {
       const derived = window.getKodroRobot ? window.getKodroRobot() : {};
       if (window.KodroDiagnostics) simpleAssessment = window.KodroDiagnostics.assess(robotSpec, derived, terrain);
+    } catch (e) { void e; }
+    // Stored prose can outlive a product correction. Recompute the current
+    // coaching sentence from the immutable structured measurements so copy and
+    // safety disclosures migrate immediately after an update.
+    let simpleLatestVerdict = '';
+    try {
+      if (simpleLatestRun && simpleAssessment && window.KodroDiagnostics) {
+        const refreshed = window.KodroDiagnostics.afterRun(simpleAssessment, simpleLatestRun);
+        simpleLatestVerdict = (refreshed && refreshed.text) || '';
+      }
     } catch (e) { void e; }
     function downloadPrototypeBrief() {
       const esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]; }); };
@@ -1400,7 +1444,7 @@
                     <p>The test is paused. Resume when you are ready; the current position and measurements are preserved.</p>
                   ) : (
                     <React.Fragment>
-                      <p>{simpleLatestRun.verdict || simpleLatestRun.detail || 'The run finished and its measurements were saved.'}</p>
+                      <p>{simpleLatestVerdict || simpleLatestRun.detail || 'The run finished and its measurements were saved.'}</p>
                       <div className="simple-result-stats">
                         <span><b>{simpleLatestRun.distanceCm != null ? (simpleLatestRun.distanceCm / 100).toFixed(1) + ' m' : 'Not recorded'}</b><small>distance</small></span>
                         <span><b>{simpleLatestRun.batteryUsedPct != null ? simpleLatestRun.batteryUsedPct + '%' : 'Not recorded'}</b><small>battery used</small></span>

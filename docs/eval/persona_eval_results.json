@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "method": "simulated persona evaluation (LLM-based); NOT human subjects",
-  "generatedAt": "2026-07-17T04:15:53.460Z",
+  "generatedAt": "2026-07-17T21:14:31.325Z",
   "model": "qwen2.5-coder:3b",
   "modelMetadata": {
     "name": "qwen2.5-coder:3b",
@@ -229,8 +229,8 @@
           "turn": 1,
           "seed": 4147,
           "userPrompt": "i want the robot to turn and then drive a little way. i have never coded before, can you write it for me",
-          "raw": "```python\nturn_left(90)\nmove_forward(3)\n```",
-          "code": "turn_left(90)\nmove_forward(3)",
+          "raw": "```python\nturn_left(90)\nmove_forward(2)\n```",
+          "code": "turn_left(90)\nmove_forward(2)",
           "evidence": {
             "stage": null,
             "ok": true,
@@ -239,10 +239,10 @@
             "hitWall": false,
             "steps": 2,
             "endPos": {
-              "x": -300,
+              "x": -200,
               "y": 0
             },
-            "summary": "Self-test passed: 1 moves, 1 turns, ends at (-300, 0), stays in the arena.",
+            "summary": "Self-test passed: 1 moves, 1 turns, ends at (-200, 0), stays in the arena.",
             "error": ""
           },
           "didTask": true
@@ -569,8 +569,8 @@
           "turn": 1,
           "seed": 5147,
           "userPrompt": "For a class demonstration, make the robot turn and then drive a little way. Keep it simple enough to explain to year 8s.",
-          "raw": "```python\nturn_left(90)\nmove_forward(3)\n```",
-          "code": "turn_left(90)\nmove_forward(3)",
+          "raw": "```python\nturn_left(90)\nmove_forward(2)\n```",
+          "code": "turn_left(90)\nmove_forward(2)",
           "evidence": {
             "stage": null,
             "ok": true,
@@ -579,10 +579,10 @@
             "hitWall": false,
             "steps": 2,
             "endPos": {
-              "x": -300,
+              "x": -200,
               "y": 0
             },
-            "summary": "Self-test passed: 1 moves, 1 turns, ends at (-300, 0), stays in the arena.",
+            "summary": "Self-test passed: 1 moves, 1 turns, ends at (-200, 0), stays in the arena.",
             "error": ""
           },
           "didTask": true
@@ -1181,15 +1181,15 @@
           "turn": 1,
           "seed": 6947,
           "userPrompt": "Robot: do a little drive and beep, a few times over. Simple code please. No difficult explanation.",
-          "raw": "```python\nfor i in range(5):\n    move_forward(3)\n    beep(1)\n    wait(0.5)\n```",
-          "code": "for i in range(5):\n    move_forward(3)\n    beep(1)\n    wait(0.5)",
+          "raw": "```python\nfor i in range(5):\n    move_forward(3)\n    beep(1)\n```",
+          "code": "for i in range(5):\n    move_forward(3)\n    beep(1)",
           "evidence": {
             "stage": null,
             "ok": true,
             "moves": 5,
             "turns": 0,
             "hitWall": false,
-            "steps": 20,
+            "steps": 15,
             "endPos": {
               "x": 0,
               "y": 1500

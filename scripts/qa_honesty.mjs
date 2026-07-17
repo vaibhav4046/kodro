@@ -424,9 +424,9 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
 
 // 28. Simple mode must be a genuine novice workflow, not the expert IDE with a
 //     few buttons hidden. The proving cockpit owns the first decision, code is
-//     an explicit transition, and only an exact robot/world/source match may be
-//     presented as evidence for the current plan. Four stages must also fit on
-//     one phone navigation row.
+//     an explicit transition, and only an exact configuration/world/source
+//     match may be presented as evidence for the current plan. Four stages must
+//     also fit on one phone navigation row.
 {
   const app = read('app.jsx');
   const css = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'styles.css'), 'utf8');
@@ -434,8 +434,17 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
     'Simple mode opens on the test plan instead of source code');
   ok(/showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen/.test(app),
     'the novice cockpit is scoped to Simple Prove and yields to deliberate code editing');
-  ok(/r\.world === terrainId && r\.robotName === chipName && r\.source === code/.test(app),
-    'Simple results require the exact current world, robot and source');
+  ok(/r\.world === terrainId && r\.robotName === chipName[\s\S]*r\.robotKey && r\.robotKey === simpleRobotKey && r\.source === code/.test(app),
+    'Simple results require the exact current world, robot configuration and source');
+  ok(/function runRobotKey\(spec\)[\s\S]*boardMassG:[\s\S]*sensors:[\s\S]*actuators:[\s\S]*physical:/.test(app),
+    'run evidence fingerprints catalogue and measured-spec behaviour inputs');
+  const runreport = read('runreport.js');
+  ok(/robotKey: String\(entry\.robotKey \|\| ''\)/.test(runreport),
+    'new structured run reports persist the exact robot configuration fingerprint');
+  ok(/KodroDiagnostics\.afterRun\(simpleAssessment, simpleLatestRun\)/.test(app)
+      && /simpleLatestVerdict \|\| simpleLatestRun\.detail/.test(app)
+      && !/simpleLatestRun\.verdict \|\| simpleLatestRun\.detail/.test(app),
+    'Simple cockpit recomputes current coaching copy instead of trusting persisted prose');
   ok(/aria-label="Robot test plan"/.test(app) && /Build it with Companion/.test(app),
     'the novice cockpit exposes a named test plan and a visible Companion action');
   ok(/!showSimpleCockpit\s*&&\s*\(\s*<button className=\{'ctrl global-run/.test(app),

@@ -1414,6 +1414,10 @@
       worldName: String(entry.worldName || ''),
       robotName: String(entry.robotName || ''),
       robotType: String(entry.robotType || ''),
+      // Exact configuration fingerprint. Legacy reports intentionally keep an
+      // empty key: they remain historical records but are not current-plan
+      // evidence because their producing configuration cannot be proven.
+      robotKey: String(entry.robotKey || ''),
       massFactor: +entry.massFactor || 1,
       speedFactor: +entry.speedFactor || 1,
       outcome: String(entry.outcome || ''),
@@ -25016,6 +25020,40 @@ say("Survey done")`
     }
   }
 
+  // A run is evidence for a robot configuration, not merely for a display
+  // name. Build a deterministic fingerprint from every persisted input that
+  // can affect catalogue or measured-spec behaviour. Sorting object keys makes
+  // equivalent imported JSON produce the same key even when its property order
+  // differs; array order stays intact because physical sensor placement can be
+  // positional evidence rather than a set.
+  function stableRunValue(value) {
+    if (Array.isArray(value)) return value.map(stableRunValue);
+    if (value && typeof value === 'object') {
+      const out = {};
+      Object.keys(value).sort().forEach(function (key) {
+        out[key] = stableRunValue(value[key]);
+      });
+      return out;
+    }
+    return value;
+  }
+  function runRobotKey(spec) {
+    const s = spec || {};
+    try {
+      return JSON.stringify(stableRunValue({
+        schema: s.kodroSpec || 0,
+        type: s.type || '',
+        board: s.board || '',
+        boardMassG: s.boardMassG != null ? s.boardMassG : null,
+        sensors: s.sensors || [],
+        actuators: s.actuators || [],
+        physical: s.physical || null
+      }));
+    } catch (e) {
+      return '';
+    }
+  }
+
   // ---------------- drive-capability helpers (shared) ----------------
   // ONE definition of "can this build drive?" and "does this tab's starter
   // drive?", used by BOTH the activeTab initialiser (reload path) and the
@@ -25516,6 +25554,7 @@ say("Survey done")`
         worldName: terrain.name || '',
         robotName: robotSpec && robotSpec.name || rb && rb.name || '',
         robotType: robotSpec && robotSpec.type || rb && rb.type || '',
+        robotKey: runRobotKey(robotSpec),
         massFactor: rb && rb.massFactor || 1,
         speedFactor: rb && rb.speedFactor || 1,
         outcome: outcome,
@@ -26703,11 +26742,13 @@ say("Survey done")`
     }));
     const browserRuns = window.KodroRunReports ? window.KodroRunReports.list() : [];
     const browserRunCount = browserRuns.length;
+    const simpleRobotKey = runRobotKey(robotSpec);
     // A result belongs to the visible plan only when it was produced by this
-    // robot, in this world, from this exact source. Never show an old run from
-    // another setup as if it proved the current one.
+    // exact robot configuration, in this world, from this exact source. A
+    // legacy report without a configuration key remains available in history
+    // but cannot be presented as proof for the plan currently on screen.
     const simpleLatestRun = browserRuns.find(function (r) {
-      return r && r.world === terrainId && r.robotName === chipName && r.source === code;
+      return r && r.world === terrainId && r.robotName === chipName && r.robotKey && r.robotKey === simpleRobotKey && r.source === code;
     }) || null;
     const showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen && !currentLessonId;
     const SIMPLE_PROGRAM_NAMES = {
@@ -26736,6 +26777,18 @@ say("Survey done")`
     try {
       const derived = window.getKodroRobot ? window.getKodroRobot() : {};
       if (window.KodroDiagnostics) simpleAssessment = window.KodroDiagnostics.assess(robotSpec, derived, terrain);
+    } catch (e) {
+      void e;
+    }
+    // Stored prose can outlive a product correction. Recompute the current
+    // coaching sentence from the immutable structured measurements so copy and
+    // safety disclosures migrate immediately after an update.
+    let simpleLatestVerdict = '';
+    try {
+      if (simpleLatestRun && simpleAssessment && window.KodroDiagnostics) {
+        const refreshed = window.KodroDiagnostics.afterRun(simpleAssessment, simpleLatestRun);
+        simpleLatestVerdict = refreshed && refreshed.text || '';
+      }
     } catch (e) {
       void e;
     }
@@ -27245,7 +27298,7 @@ say("Survey done")`
       "aria-label": "Latest test result"
     }, /*#__PURE__*/React.createElement("div", {
       className: "simple-result-head"
-    }, /*#__PURE__*/React.createElement("span", null, runState === 'running' ? 'Test in progress' : runState === 'paused' ? 'Test paused' : 'Latest result'), /*#__PURE__*/React.createElement("strong", null, runState === 'running' ? 'Running now' : runState === 'paused' ? 'Paused' : simpleOutcomeLabel)), runState === 'running' ? /*#__PURE__*/React.createElement("p", null, "Watch the world. Kodro is recording movement, battery use and the closest obstacle.") : runState === 'paused' ? /*#__PURE__*/React.createElement("p", null, "The test is paused. Resume when you are ready; the current position and measurements are preserved.") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", null, simpleLatestRun.verdict || simpleLatestRun.detail || 'The run finished and its measurements were saved.'), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("span", null, runState === 'running' ? 'Test in progress' : runState === 'paused' ? 'Test paused' : 'Latest result'), /*#__PURE__*/React.createElement("strong", null, runState === 'running' ? 'Running now' : runState === 'paused' ? 'Paused' : simpleOutcomeLabel)), runState === 'running' ? /*#__PURE__*/React.createElement("p", null, "Watch the world. Kodro is recording movement, battery use and the closest obstacle.") : runState === 'paused' ? /*#__PURE__*/React.createElement("p", null, "The test is paused. Resume when you are ready; the current position and measurements are preserved.") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", null, simpleLatestVerdict || simpleLatestRun.detail || 'The run finished and its measurements were saved.'), /*#__PURE__*/React.createElement("div", {
       className: "simple-result-stats"
     }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, simpleLatestRun.distanceCm != null ? (simpleLatestRun.distanceCm / 100).toFixed(1) + ' m' : 'Not recorded'), /*#__PURE__*/React.createElement("small", null, "distance")), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, simpleLatestRun.batteryUsedPct != null ? simpleLatestRun.batteryUsedPct + '%' : 'Not recorded'), /*#__PURE__*/React.createElement("small", null, "battery used")), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, simpleLatestRun.minProximityCm != null ? simpleLatestRun.minProximityCm + ' cm' : 'Clear'), /*#__PURE__*/React.createElement("small", null, "closest obstacle"))), /*#__PURE__*/React.createElement("small", {
       className: "simple-result-context"
