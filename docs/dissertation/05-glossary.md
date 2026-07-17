@@ -13,7 +13,7 @@
 | **Fidelity tier** | One of HONOURED, APPROXIMATED or NOT SIMULATED: the disclosed level at which the simulation treats a reported figure. |
 | **RobotSpec** | The structured robot specification, imported as KRS or derived from chosen parts; the single source of truth for behaviour and the command registry. |
 | **Shared motion model** | The single set of closed-form equations and constants, mirrored in `motion-model.js` and `motion_model.py` and locked by conformance tests, that both engines obey. |
-| **Grounding** | Constraining the model's suggestions to the build the user assembled or imported, so it cannot call a part that is not fitted. |
+| **Grounding** | Supplying the active build and fitted-command set to generation; deterministic validation separately rejects output that exceeds that set. |
 | **Kinematic motion** | Motion advanced by a hand-written tick that fakes the feel of weight and traction, as distinct from a rigid-body solver that resolves forces. |
 | **Trace** | The recorded sequence of command events from one run; the single representation that scoring, hinting and replay all read. |
 | **Sandbox** | The pre-execution check that rejects unsafe imports, builtins and operations before a program runs. |

@@ -2,12 +2,16 @@
 
 The **canonical, up-to-date dissertation is
 [`Kodro_Dissertation.tex`](Kodro_Dissertation.tex)** (and the PDF built from
-it). It reflects the shipped v2.0 system: a robot **proving ground** where a
-skeptical builder imports a real robot specification (KRS) and sees how that
-machine would perform, with every reported figure carried at a stated level
+it). It reflects the evaluated source state at commit `02ab71f`: a robot
+**proving ground** where a skeptical builder imports a robot specification
+(KRS) and tests it under a disclosed first-order model, with every reported figure carried at a stated level
 of fidelity (HONOURED / APPROXIMATED / NOT SIMULATED), backed by one shared
 motion model locked across the two engines. The same platform doubles as a
 design studio for a non-expert who has only an idea.
+
+The previously tracked HTML dissertation was an obsolete early draft and has
+been removed. It contradicted the canonical LaTeX on ethics, evaluation and
+feature status. Generate or submit the PDF from the canonical `.tex` only.
 
 ## Chapter markdown files
 
@@ -30,8 +34,8 @@ matches the `.tex` evaluation chapter.
 
 ## Integrity note
 
-Everything technical in the `.tex` can be checked against the repository at
-the tag you are writing about. Where a claim depends on external literature
+Technical claims revised in the `.tex` were checked against the named source
+commit and verification date. Where a claim depends on external literature
 or on the not-yet-run human study, the text says so explicitly rather than
 asserting an unsupported result. No result from a study with real users is
 reported anywhere, because that study has not been run.
