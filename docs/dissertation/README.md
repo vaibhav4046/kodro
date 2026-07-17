@@ -2,13 +2,14 @@
 
 The **canonical, up-to-date dissertation is
 [`Kodro_Dissertation.tex`](Kodro_Dissertation.tex)** (and the PDF built from
-it). It reflects the evaluated source state at commit `0ca2fa9`: a robot
+it). It reflects the evaluated source state at commit `d4fbf16`: a robot
 **proving ground** where a skeptical builder imports a robot specification
 (KRS) and tests it under a disclosed first-order model, with every reported figure carried at a stated level
 of fidelity (HONOURED / APPROXIMATED / NOT SIMULATED), backed by one shared
 motion model locked across the two engines. The same platform doubles as a
 design studio for a non-expert who has only an idea. The final interface uses
-Simple progressive disclosure by default and keeps an opt-in Expert surface.
+Simple progressive disclosure by default, opens Prove on a focused mission
+cockpit, and keeps an opt-in Expert surface.
 The complete declared Python matrix passes 1,081 tests with zero skips at
 89.00% branch-aware coverage. Synthetic-persona and renderer results are
 reported as engineering evidence only, with their human-study and hardware

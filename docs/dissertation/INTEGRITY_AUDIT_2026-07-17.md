@@ -3,10 +3,10 @@
 ## Scope and source lock
 
 - Canonical source: `Kodro_Dissertation.tex`
-- Evaluated product commit: `0ca2fa9`
+- Evaluated product commit: `d4fbf16`
 - Evaluation artefacts: `docs/eval/persona_eval_results.json` and
   `docs/eval/performance_eval.json`
-- Final PDF: 48 A4 pages
+- Final PDF: 49 A4 pages
 
 ## Evidence checks
 
@@ -16,7 +16,7 @@
 | Shipped interpreter | `node scripts/qa_interpreter.mjs`: 180 passed | Supported |
 | Static web boot and privacy | `node scripts/qa_web.mjs`: 5/5 | Supported |
 | Contrast and responsive rules | `node scripts/qa_contrast.mjs`: 61 passed over ten themes | Supported |
-| Current full headless UI matrix | Did not return on the degraded local Chrome host | Explicitly not counted |
+| Current full headless UI matrix | 6 of 6 render flows, 39 of 39 behaviour assertions and 12 of 12 modal checks | Supported |
 | Local persona-task benchmark | 40/40 cells under the committed model digest, seed, prompts and deterministic execution gates | Supported only for the stated task set |
 | Human usability or learning | No human participant study was run | Not established |
 | 240 FPS | Both measured SwiftShader tiers missed the 4.17 ms work budget | Not established and not claimed |
@@ -40,7 +40,7 @@
 
 The document was compiled through three direct `pdflatex` passes. The final log
 contains no overfull box, unresolved reference or unresolved citation warning.
-All 48 pages were rendered through Poppler. Full contact sheets and the revised
+All 49 pages were rendered through Poppler. Full contact sheets and the revised
 abstract, UI figures, evaluation tables and bibliography were visually
 inspected at full resolution.
 
