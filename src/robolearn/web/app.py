@@ -117,7 +117,7 @@ class BridgeAPI:
             if not client.available():
                 return
             installed = client.models()
-            model = self._pick_fast_model(installed) or self._pick_ai_model(installed)
+            model = self._pick_ai_model(installed)
             if model is None:
                 return
             client.generate(
@@ -411,9 +411,20 @@ class BridgeAPI:
 
     # --- AI vibe coding (local Ollama only; graceful when absent) ----------
 
-    #: Installed-model preference for code generation. Qwen's coder models
-    #: are best-in-class locally; Gemma is the common school-laptop fallback.
-    _AI_MODEL_PREFERENCE = ("qwen2.5-coder", "qwen", "codegemma", "gemma", "llama")
+    #: Installed-model preference for code generation. Keep the measured stock
+    #: coder/general models ahead of the legacy Kodro fine-tunes: the latter
+    #: mixed centimetres into the metre API and invented symbols in KodroBench.
+    _AI_MODEL_PREFERENCE = (
+        "qwen2.5-coder",
+        "qwen",
+        "codegemma",
+        "gemma3",
+        "gemma",
+        "llama",
+        "kodro-coder",
+        "kodro-tutor",
+        "robolearn",
+    )
 
     #: Keep the model loaded between requests (the model-load is the painful
     #: multi-second cold-start) and bound how much it may generate (programs
@@ -448,6 +459,9 @@ class BridgeAPI:
         "pen_down(), pen_up(), place(kind), clear_props(). place plants a prop "
         'where the rover stands: "flag", "beacon", "person", "tree", '
         '"rock", "crate", "photo" (the pupil pictures) or "drone" - use it to BUILD scenes. '
+        "All movement distances and read_distance() values are in METRES: half "
+        "a metre is 0.5 and one metre is 1.0, never 50 or 100. scan() only "
+        "shows a radar ping and returns no distance value. "
         "Plain procedural Python only: for/while/if, "
         "simple variables, def with no classes or imports. Define every "
         "variable before you use it. No f-strings, lists, dicts or input(). "
@@ -465,14 +479,6 @@ class BridgeAPI:
         """
         if self._ai_model_override and (not installed or self._ai_model_override in installed):
             return self._ai_model_override
-        # Prefer the locally fine-tuned model (QLoRA on Kodro tasks), then the
-        # older baked tutor, both more accurate on this domain than a stock model.
-        for name in installed:
-            if name.lower().startswith("kodro-coder"):
-                return name
-        for name in installed:
-            if name.lower().startswith("kodro-tutor"):
-                return name
 
         def size_of(name: str) -> float:
             import re
@@ -1020,6 +1026,9 @@ class BridgeAPI:
         "pen_down(), pen_up(), place(kind), clear_props(). place plants a prop "
         'where the rover stands: "flag", "beacon", "person", "tree", '
         '"rock", "crate", "photo" (the pupil pictures) or "drone" - use it to BUILD scenes. '
+        "All movement distances and read_distance() values are in METRES: half "
+        "a metre is 0.5 and one metre is 1.0, never 50 or 100. scan() only "
+        "shows a radar ping and returns no distance value. "
         "Plain procedural Python: for/while/if, simple "
         "variables, def with no classes or imports. Define every variable before "
         "use. No f-strings, lists, dicts or input(). Write top-level statements; "
@@ -1254,9 +1263,10 @@ class BridgeAPI:
         quality = self._pick_ai_model(installed)
         if quality is None:
             return {"ok": False, "reason": "Ollama has no models. Try: ollama pull gemma3"}
-        # Draft with the fastest capable model; the validate/repair pipeline
-        # escalates to the quality model only when the draft can't be fixed.
-        model = self._pick_fast_model(installed) or quality
+        # Use the measured quality model directly. A fast draft can be
+        # syntactically valid yet semantically wrong (notably centimetres in the
+        # metre API), which execution validation cannot infer from the request.
+        model = quality
         job_id = uuid.uuid4().hex
         allowed = self._normalise_allowed_commands(allowed_commands)
         prompt = self._build_chat_prompt(messages, lesson_id)

@@ -93,15 +93,20 @@
     return (j.models || []).map(function (m) { return m && m.name; }).filter(Boolean);
   }
 
-  // Mirror the Python picker: prefer the locally fine-tuned Kodro models, then
-  // any coder-style model, then any non-embedding model.
+  // Mirror the Python picker. Measured stock models come before the legacy
+  // Kodro fine-tunes, which mixed centimetres into the metre movement API.
+  // Within a family choose the largest installed parameter variant.
   function pick(models) {
     if (!models || !models.length) return null;
     if (override && models.indexOf(override) >= 0) return override;
-    const prefixes = ['kodro-coder', 'kodro-fast', 'kodro-tutor', 'robolearn'];
+    const sizeOf = function (name) {
+      const m = String(name || '').toLowerCase().match(/:(\d+(?:\.\d+)?)b\b/);
+      return m ? parseFloat(m[1]) : 0;
+    };
+    const prefixes = ['qwen2.5-coder', 'qwen', 'codegemma', 'gemma3', 'gemma', 'llama', 'kodro-coder', 'kodro-tutor', 'robolearn'];
     for (let i = 0; i < prefixes.length; i++) {
-      const m = models.find(function (n) { return n.toLowerCase().indexOf(prefixes[i]) === 0; });
-      if (m) return m;
+      const candidates = models.filter(function (n) { return n.toLowerCase().indexOf(prefixes[i]) === 0; });
+      if (candidates.length) return candidates.reduce(function (best, n) { return sizeOf(n) > sizeOf(best) ? n : best; });
     }
     const coder = models.find(function (n) { return /coder|code|qwen|deepseek|llama|gemma|mistral/i.test(n); });
     if (coder) return coder;

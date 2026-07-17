@@ -41,6 +41,7 @@ new Function('window', web('motion-model.js'))(win);
 // Each test sets this right before it drives a public entry point.
 let nextGen = '';
 function setGen(t) { nextGen = t; }
+let tagModels = ['kodro-coder:latest'];
 
 // A streamed body shim for chatStart's stream:true path: yields the whole
 // reply as one Ollama NDJSON line { "response": "..." }, then done.
@@ -66,7 +67,7 @@ function streamBody(text) {
 async function mockFetch(url, options) {
   const u = String(url);
   if (u.includes('/api/tags')) {
-    return { ok: true, json: async () => ({ models: [{ name: 'kodro-coder:latest' }] }) };
+    return { ok: true, json: async () => ({ models: tagModels.map((name) => ({ name })) }) };
   }
   if (u.includes('/api/generate')) {
     let body = {};
@@ -125,6 +126,12 @@ async function chatted(modelReply) {
 console.log('== FACADE LOADED ==');
 check('window.KodroAI facade loaded', !!(AI && typeof AI.reviewCode === 'function'), '');
 check('interpreter (RoverLang) loaded into shim', !!(win.RoverLang && win.RoverLang.compile), '');
+
+tagModels = ['kodro-coder:latest', 'gemma3:1b', 'gemma3:4b', 'qwen2.5-coder:3b'];
+const picked = await AI.status();
+check('quality picker prefers Qwen over legacy fine-tunes and smaller Gemma',
+  picked.model === 'qwen2.5-coder:3b', JSON.stringify(picked.model));
+tagModels = ['kodro-coder:latest'];
 
 console.log('\n== normalizeApi + extractCode (via reviewCode) ==');
 {

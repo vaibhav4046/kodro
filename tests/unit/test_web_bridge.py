@@ -120,11 +120,11 @@ def test_submit_attempt_grades_and_persists(api: BridgeAPI) -> None:
     assert json.loads(json.dumps(result))["lessonId"] == target_id
 
 
-def test_model_picker_prefers_the_custom_kodro_tutor(api: BridgeAPI) -> None:
-    """The locally customised tutor model is chosen ahead of stock models."""
+def test_model_picker_prefers_measured_stock_model_over_legacy_tutor(api: BridgeAPI) -> None:
+    """Measured stock quality wins; the custom tutor remains a fallback."""
     installed = ["gemma3:4b", "kodro-tutor:latest", "llama3.2:3b"]
-    assert api._pick_ai_model(installed) == "kodro-tutor:latest"  # type: ignore[attr-defined]
-    # Without it, the normal family/size preference still applies.
+    assert api._pick_ai_model(installed) == "gemma3:4b"  # type: ignore[attr-defined]
+    assert api._pick_ai_model(["kodro-tutor:latest"]) == "kodro-tutor:latest"  # type: ignore[attr-defined]
     assert api._pick_ai_model(["llama3.2:3b", "gemma3:4b"]) is not None  # type: ignore[attr-defined]
 
 
