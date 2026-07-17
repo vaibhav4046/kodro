@@ -432,9 +432,11 @@ class BridgeAPI:
         "turn_left": "turn_left",
         "turn_right": "turn_right",
         "read_distance": "distance",
+        "distance": "distance",
         "obstacle_ahead": "distance",
         "scan": "distance",
         "read_heading": "heading",
+        "heading": "heading",
     }
 
     _AI_SYSTEM_PROMPT = (

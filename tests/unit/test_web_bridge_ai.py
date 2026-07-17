@@ -258,6 +258,35 @@ def test_ai_generate_rejects_sensor_missing_from_active_build(
     assert "missing capability: distance" in result["validationError"]
 
 
+def test_ai_generate_accepts_browser_distance_alias_when_sensor_is_fitted(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    fake_ollama.responses = "if distance() < 100:\n    turn_right(90)\n"
+
+    result = api.ai_generate(
+        "turn when the wall is within one metre",
+        allowed_commands=["distance", "turn_right"],
+    )
+
+    assert result["ok"] is True
+    assert "distance()" in result["code"]
+    assert result["validated"] is True
+
+
+def test_ai_generate_rejects_browser_distance_alias_when_sensor_is_missing(
+    api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
+) -> None:
+    fake_ollama.responses = "distance()\n"
+
+    result = api.ai_generate(
+        "read the wall distance",
+        allowed_commands=["move_forward", "turn_right"],
+    )
+
+    assert result["ok"] is False
+    assert "missing capability: distance" in result["validationError"]
+
+
 def test_ai_generate_offline_returns_guidance(
     api: BridgeAPI, fake_ollama: type[FakeOllamaClient]
 ) -> None:

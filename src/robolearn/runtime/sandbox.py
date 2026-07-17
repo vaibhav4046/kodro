@@ -319,4 +319,13 @@ def restricted_globals() -> dict[str, Any]:
     namespace: dict[str, Any] = {"__builtins__": builtins_dict}
     for name in rover_api.__all__:
         namespace[name] = getattr(rover_api, name)
+    # Browser-compatible sensor spellings. The static interpreter exposes
+    # distance() in centimetres plus heading()/battery(), while the canonical
+    # Python API uses read_distance() in metres and read_* for the other two.
+    # Keep these as compatibility aliases (not rover_api.__all__) so a program
+    # written or AI-drafted in either Kodro surface runs with the same units,
+    # without widening KodroBench's fitted-command research surface.
+    namespace["distance"] = lambda: rover_api.read_distance() * 100.0
+    namespace["heading"] = rover_api.read_heading
+    namespace["battery"] = rover_api.read_battery
     return namespace

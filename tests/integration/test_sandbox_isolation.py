@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from robolearn import rover_api
 from robolearn.runtime import (
     Tracer,
     execute,
@@ -137,6 +138,14 @@ def test_restricted_globals_contains_rover_api_and_safe_builtins() -> None:
     from robolearn import rover_api
 
     assert g["__builtins__"]["print"] is rover_api.log
+
+
+def test_restricted_globals_exposes_browser_sensor_aliases_with_matching_units() -> None:
+    g = restricted_globals()
+
+    assert g["distance"]() == rover_api.read_distance() * 100.0
+    assert g["heading"]() == rover_api.read_heading()
+    assert g["battery"]() == rover_api.read_battery()
 
 
 def test_restricted_globals_does_not_leak_os_or_sys() -> None:
