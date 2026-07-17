@@ -2,12 +2,17 @@
 
 The **canonical, up-to-date dissertation is
 [`Kodro_Dissertation.tex`](Kodro_Dissertation.tex)** (and the PDF built from
-it). It reflects the evaluated source state at commit `02ab71f`: a robot
+it). It reflects the evaluated source state at commit `0ca2fa9`: a robot
 **proving ground** where a skeptical builder imports a robot specification
 (KRS) and tests it under a disclosed first-order model, with every reported figure carried at a stated level
 of fidelity (HONOURED / APPROXIMATED / NOT SIMULATED), backed by one shared
 motion model locked across the two engines. The same platform doubles as a
-design studio for a non-expert who has only an idea.
+design studio for a non-expert who has only an idea. The final interface uses
+Simple progressive disclosure by default and keeps an opt-in Expert surface.
+The complete declared Python matrix passes 1,081 tests with zero skips at
+89.00% branch-aware coverage. Synthetic-persona and renderer results are
+reported as engineering evidence only, with their human-study and hardware
+boundaries explicit.
 
 The previously tracked HTML dissertation was an obsolete early draft and has
 been removed. It contradicted the canonical LaTeX on ethics, evaluation and
@@ -39,3 +44,8 @@ commit and verification date. Where a claim depends on external literature
 or on the not-yet-run human study, the text says so explicitly rather than
 asserting an unsupported result. No result from a study with real users is
 reported anywhere, because that study has not been run.
+
+The final evidence trail is recorded in
+[`INTEGRITY_AUDIT_2026-07-17.md`](INTEGRITY_AUDIT_2026-07-17.md), and the
+item-by-item bibliography check is recorded in
+[`REFERENCE_AUDIT_2026-07-17.md`](REFERENCE_AUDIT_2026-07-17.md).

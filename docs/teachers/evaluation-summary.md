@@ -5,8 +5,8 @@
 > surface design requirements ahead of any classroom contact. It is a design review, not a
 > study: it involved **no participants, no measurements, and no model-generated scores**.
 > Nothing below is a finding. The measured evidence for the assistant is the objective
-> persona-task evaluation (`docs/developers/evaluation.md`, section 3.5: 40% task
-> completion, scored by the shipped interpreter and self-test). The real classroom
+> persona-task evaluation (`docs/developers/evaluation.md`, section 4: 40/40 narrow
+> executable cells, scored by the shipped interpreter and self-test). The real classroom
 > questions are answered only by the planned human study (`HUMAN_TODO.md`).
 
 **Status:** Design-review artefact. No study has been conducted with teachers, simulated or otherwise, and this document approves nothing.
@@ -77,7 +77,7 @@ end to end.
 
 | Question | Where it is actually answered |
 |---|---|
-| Does the assistant produce working programs? | Objective persona-task evaluation, `docs/developers/evaluation.md` section 3.5 (40% task completion, measured) |
-| Is unsafe generated code caught? | Same evaluation: the deterministic self-test caught every unsafe program (measured) |
+| Does the assistant produce working programs? | Objective persona-task evaluation, `docs/developers/evaluation.md` section 4 (40/40 cells in one narrow seeded synthetic run; not a usability result) |
+| Is invalid generated code caught? | Deterministic interpreter, grounding and honesty gates; the current 40-cell run produced no failing cell, so it does not by itself measure rejection recall |
 | Does Kodro work for teachers and pupils in a classroom? | Planned human study (`HUMAN_TODO.md`); not yet run, no results exist |
 | What should the classroom study look for? | The hypotheses above |

@@ -25,6 +25,7 @@ frequency. The human study (Section 6) is specified but not run.
 | World and interface nets | Site identity across worlds; interface flows and modals | `qa_worlds.mjs`, `qa_ui.mjs` (headless browser) | **Done, smoke** |
 | Heuristic persona review | Whole-product usability across user types | Author, simulating personas | **Done, formative** |
 | Objective persona-task eval | Assistant code generation and the self-test safety net | `scripts/qa_personas.mjs`, scored by execution | **Done, deterministic** |
+| Renderer evidence | Cadence and render-submission work against the 240 Hz budget | `scripts/qa_performance.mjs` | **Done, environment-specific** |
 | User and refinement study | Real efficacy and the refinement loop | non-experts + builders | **Planned, future work** |
 
 The first methods ran throughout the build and drove the design. The last
@@ -37,10 +38,10 @@ Every task closed only when the full gate passed: `pytest` (with branch
 coverage), `ruff`, `ruff format --check`, and `mypy --strict`. The suite
 grew with the codebase and is the primary evidence of correctness.
 
-- **Python suite:** about **870 tests** (unit, property-based with
-  Hypothesis, and headless integration), gated at a minimum of **85 %**
-  line+branch coverage that every push must clear. Measured with
-  `python -m pytest -q --no-cov`: **870 passed**.
+- **Python suite:** the complete declared matrix, including optional RL and
+  URDF surfaces, is gated at a minimum of **85%** line+branch coverage.
+  Measured on source commit `0ca2fa9` with the repository environment:
+  **1,081 passed, zero skipped, 89.00% coverage**.
 - **Cross-platform:** Linux (under `xvfb`) and Windows are hard gates on
   every push. macOS is an *informational* leg: its headless runner has no
   Aqua window server, so Tk intermittently segfaults under the GUI-heavy
@@ -56,7 +57,7 @@ grew with the codebase and is the primary evidence of correctness.
   every bundled example (including the three showcases), the interpreter
   diagnostics, the honesty of the design-check command list, and the
   absence of emoji glyphs from the interface chrome. Measured with
-  `node scripts/qa_interpreter.mjs`: **156 passed, 0 failed**.
+  `node scripts/qa_interpreter.mjs`: **180 passed, 0 failed**.
 
 A running, per-capability log lives in [`test-evidence.md`](test-evidence.md);
 design decisions and their rationale are in [`decision-log.md`](decision-log.md).
@@ -160,75 +161,56 @@ address.
 
 ## 4. Objective persona-task evaluation
 
-The heuristic review above is subjective. A second, **deterministic**
-persona evaluation removes the analyst from the scoring entirely: four
-simulated personas (a beginner with no code, a teacher preparing a class
-demo, a precise hobbyist maker, and an accessibility-focused low-vision
-user) each attempt five tasks (drive forward; turn and move; drive a
-square; stop before an obstacle using the distance sensor; a counted loop),
-phrased in that persona's own words. The local assistant model answers;
-success is judged **only by the shipped interpreter and self-test**
-(`scripts/qa_personas.mjs`), over up to three correction turns in which the
-self-test summary is fed back as a user would report it. No model and no
-human scores the outcome; execution does. Fully offline; the local model is
-the only peer.
+The heuristic review above is subjective. A second evaluation asks a
+narrower reproducible question: whether the offline assistant turns a plain
+request into code that compiles, runs, stays inside the arena and completes
+an executable task predicate. Eight simulated personas each attempt five
+tasks with persona-specific phrasing. The local `qwen2.5-coder:3b` model runs
+at temperature zero with base seed 4046. The shipped interpreter and
+self-test, not a model judge, decide every outcome over up to three turns.
+The committed JSON retains prompts, raw replies, extracted code, execution
+evidence, seeds, the model digest and evaluator hashes.
 
-Measured funnel over the 20 persona-task cells (model `kodro-coder`), as
-recorded in `docs/eval/persona_eval_results.json`:
+Measured funnel over 40 cells, recorded in
+`docs/eval/persona_eval_results.json`:
 
 | Outcome | Cells |
 | --- | :--: |
-| Compiled (valid program produced) | 17/20 (85%) |
-| Ran clean through the interpreter | 15/20 (75%) |
-| Stayed inside the arena (no wall hit) | 7/20 (35%) |
-| Completed the task | 7/20 (35%) |
+| Compiled (valid program produced) | 40/40 (100%) |
+| Ran clean through the interpreter | 40/40 (100%) |
+| Stayed inside the arena (no wall hit) | 40/40 (100%) |
+| Completed the task | 40/40 (100%) |
 
-Mean turns to success: 1.0 (every success in this run landed on the first
-attempt).
+Mean turns to success: 1.0.
 
-| Persona | Done | | Task | Done |
+| Persona group | Done | | Task | Done |
 | --- | :--: | :-- | --- | :--: |
-| Beginner (no code) | 0/5 | | Forward | 2/4 |
-| Teacher (class demo) | 1/5 | | Turn + move | 1/4 |
-| Maker (precise) | 3/5 | | Square | 0/4 |
-| Low-vision (accessibility) | 3/5 | | Obstacle stop | 1/4 |
-| | | | Counted loop | 3/4 |
+| Beginner and younger learner | 10/10 | | Forward | 8/8 |
+| Teacher and maker | 10/10 | | Turn + move | 8/8 |
+| Low-vision and EAL | 10/10 | | Square | 8/8 |
+| Engineer and skeptic | 10/10 | | Obstacle stop | 8/8 |
+| | | | Counted loop | 8/8 |
 
-The reading cuts both ways. The assistant produces compiling (85%) and
-running (75%) code, the floor a beginner needs to not be stranded on a
-syntax error. Task-correct behaviour is limited but real (35% in the
-reported run), strongly dependent on phrasing precision (the precise maker
-and the accessibility-focused phrasing each at 60% against 0 to 20% for the
-beginner and teacher voices) and task complexity (the counted loop
-succeeded for three of four personas, the square nowhere, the obstacle stop
-once). This is the honest ceiling of a 1-to-4-billion-parameter model on a
-laptop with no cloud, reported as such rather than hidden.
+This establishes a narrow fact about one model, prompt contract and five
+short tasks. It supersedes a historical 7/20 run with `kodro-coder`, but the
+change is not a controlled comparison because the model, personas and
+harness all changed. It does not establish open-ended generation, learning,
+usability or real-robot safety.
 
-These figures are themselves iterations the eval drove. The first run
-scored 30% task-complete and only 10% in-arena (the model over-shot
-distances, reading "a few metres" as a 30-metre move). Feeding that back as
-a single grounding change (the arena is small, a normal move is 1 to 5
-metres, plus loop and sensor patterns) lifted in-arena from 10% into the 35
-to 40% band. A second pass fixed the code extraction in the harness and the
-shipped assistant, lifting compilation from 65% to 85% without touching the
-model. Sampling makes repeated runs vary by 5 to 10 points even at low
-temperature; the tables report the latest run, not the best one. Re-running
-`scripts/qa_personas.mjs` overwrites the results JSON, so the numbers here
-must always be read against the current file rather than assumed stable.
+Three role prompts inspected the summary as an advisory panel. Usability
+and robotics returned PASS; methodology returned FAIL because synthetic
+personas are not human participants. These are prompts to the same model,
+not independent experts, and they cannot override execution. The
+methodology failure is retained and points to the planned human study.
 
-The result that matters most for the design is the safety row read against
-the run row. Of the 15 programs that ran, 8 would still have driven the
-robot into the arena wall. **The deterministic self-test caught every one**
-before it reached the user and returned an actionable correction. The
-weakness of the model and the value of the safety net are one finding, not
-two: it is *because* the small offline model is not fully trustworthy alone,
-even when well grounded, that Kodro pairs it with a deterministic execution
-check rather than surfacing raw generated code.
+### 4.1 Renderer evidence
 
-**Its own limits**, stated plainly: the personas are simulated phrasings,
-not real users; the task predicates are coarse proxies for success; and it
-exercises one model in one configuration on five short tasks. It points to
-the same human study and is not a substitute for it.
+`scripts/qa_performance.mjs` measures a rolling 120-frame sample from the
+shipped 3D loop and hash-locks the harness and bundle. Windows headless
+Chrome with SwiftShader measured 19.5 FPS Low and 18.6 FPS High; P95
+render-submission work was 7.6 ms and 8.6 ms respectively, so both missed
+the 4.17 ms budget required for 240 Hz. This is an environment-specific
+negative result, not a hardware-GPU benchmark or a universal FPS claim.
 
 ## 5. Instrumentation for the planned study
 

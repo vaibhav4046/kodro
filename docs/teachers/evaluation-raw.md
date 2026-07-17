@@ -6,7 +6,7 @@
 > participants, no measurements, and no model-generated scores**. There are no timings,
 > no quotes, and no feedback below, only hypotheses the analyst wrote in each archetype's
 > voice of concern. The measured evidence for the assistant is the objective persona-task
-> evaluation (`docs/developers/evaluation.md`, section 3.5: 40% task completion). The real
+> evaluation (`docs/developers/evaluation.md`, section 4: 40/40 narrow executable cells in one seeded synthetic run). The real
 > classroom questions are answered only by the planned human study (`HUMAN_TODO.md`).
 
 **Status:** Design-review artefact; approves nothing.
