@@ -1034,6 +1034,18 @@ select.terrain-btn:hover {
 .lesson-teacher-link { align-self:center; min-height:38px; padding-inline:14px; }
 .lesson-hub-scroll { overflow:auto; padding:22px 28px 28px; }
 .lesson-hub-loading { color:var(--fg-2); font-size:var(--text-lg); text-align:center; padding:40px; }
+.lesson-hub-focused { display:grid; place-items:center; padding:clamp(26px,5vw,64px); }
+.lesson-recommended {
+  width:min(680px,100%); display:flex; flex-direction:column; align-items:flex-start; gap:12px;
+  padding:clamp(24px,4vw,42px); border:1px solid var(--border-2); border-radius:18px;
+  background:linear-gradient(145deg,color-mix(in srgb,var(--cyan) 8%,var(--navy-2)),var(--navy)); box-shadow:var(--shadow-card);
+}
+.lesson-recommended h3 { margin:0; color:var(--fg-1); font-family:var(--font-display); font-size:clamp(28px,4vw,46px); line-height:1.05; }
+.lesson-recommended p { margin:0; max-width:60ch; color:var(--fg-2); font-size:var(--text-lg); line-height:1.55; }
+.lesson-recommended-meta { display:flex; flex-wrap:wrap; gap:7px; }
+.lesson-recommended-meta span { padding:5px 9px; border:1px solid var(--border); border-radius:99px; color:var(--fg-2); font:500 var(--text-xs)/1 var(--font-mono); }
+.lesson-recommended-start { min-width:180px; min-height:46px; justify-content:center; margin-top:4px; }
+.lesson-browse-all { align-self:center; margin-top:2px; }
 .lesson-stage + .lesson-stage { margin-top:28px; }
 .lesson-stage-head { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom:10px; }
 .lesson-stage-head > div { display:flex; align-items:baseline; gap:10px; }
@@ -1799,6 +1811,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 /* Stronger, always-on focus ring for keyboard orbit (programmatic focus on
    open does not always trip :focus-visible, so target :focus too). */
 .viewport3d canvas:focus{ outline:3px solid var(--cyan); outline-offset:-3px; box-shadow:inset 0 0 0 1px rgba(0,0,0,.45); }
+.renderer-boundary{ margin:10px 0 0; color:var(--fg-3); font-size:10px; line-height:1.55; }
 /* Keyboard-control caption: hidden until the canvas (a descendant) is focused,
    so sighted keyboard users get a visible hint without cluttering the view. */
 .vp3d-help{ position:absolute; left:50%; bottom:12px; transform:translateX(-50%); padding:5px 12px; border-radius:99px;
@@ -2061,6 +2074,90 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .demo-result.tone-err { border-color:color-mix(in srgb, var(--danger) 33%, transparent); }
 .demo-foot { display:flex; gap:10px; justify-content:space-between; margin-top:22px; }
 .demo-nav { display:flex; gap:10px; }
+
+/* ===================== Less-is-more workspace =====================
+   Simple is the default experience. It changes presentation only: no engine,
+   command, report, export or lesson is removed. Expert mode restores the
+   permanently visible controls used for debugging and detailed evaluation. */
+.simple-program-picker { display:none; align-items:center; gap:8px; min-width:0; }
+.simple-program-picker .lesson-select { width:min(220px,38vw); }
+.run-controls { position:relative; }
+.run-secondary { display:flex; align-items:center; gap:6px; }
+.run-more-toggle { display:none; }
+.evidence-toggle.active { color:var(--cyan); border-color:var(--cyan-deep); background:color-mix(in srgb,var(--cyan) 10%,transparent); }
+
+.app[data-experience="simple"] .brand-sub { display:none; }
+.app[data-experience="simple"] .icon-btn-lessons { display:none; }
+.app[data-experience="simple"] .stage-link { min-width:74px; padding-inline:9px; }
+.app[data-experience="simple"] .stage-link small { display:none; }
+.app[data-experience="simple"] .stage-count { width:20px; height:20px; }
+.app[data-experience="simple"] .run-more-toggle { display:flex; }
+.app[data-experience="simple"] .run-secondary {
+  display:none; position:absolute; z-index:80; top:calc(100% + 9px); right:0;
+  width:210px; padding:7px; flex-direction:column; align-items:stretch;
+  border:1px solid var(--border); border-radius:var(--radius-md);
+  background:var(--navy-2); box-shadow:var(--shadow-menu);
+}
+.app[data-experience="simple"] .run-secondary.is-open { display:flex; }
+.app[data-experience="simple"] .run-secondary .ctrl { width:100%; justify-content:flex-start; min-height:38px; }
+.app[data-experience="simple"] .simple-program-picker { display:flex; }
+.app[data-experience="simple"] .tabs { display:none; }
+.app[data-experience="simple"] .editor-panel > .panel-head { min-height:48px; }
+.app[data-experience="simple"] .editor-tools-menu { width:min(280px,calc(100vw - 24px)); }
+.app[data-experience="simple"] .terrain-switch { padding:6px 8px; }
+.app[data-experience="simple"] .view-toggle,
+.app[data-experience="simple"] .test-conditions { display:none; }
+.app[data-experience="simple"] .world-picker { padding-left:0; }
+.app[data-experience="simple"] .world-select { min-width:min(300px,42vw); }
+.app[data-experience="simple"] .resizer-row { display:none; }
+.app[data-experience="simple"] .console { height:116px !important; }
+.app[data-experience="simple"] .console-head .eyebrow::after { content:' results'; }
+.app[data-experience="simple"] .repl-row { display:none; }
+
+/* Evidence is deliberate progressive disclosure in Simple mode. The panel
+   remains mounted, so its live state and accessibility relationships persist. */
+.app[data-experience="simple"][data-evidence="closed"] .workspace {
+  grid-template-columns:minmax(320px,var(--editor-w,404px)) 5px minmax(0,1fr) 0 0;
+}
+.app[data-experience="simple"][data-evidence="closed"] .tele-resizer,
+.app[data-experience="simple"][data-evidence="closed"] .tele-panel { display:none; }
+.app[data-experience="simple"][data-evidence="open"] .workspace {
+  grid-template-columns:minmax(300px,var(--editor-w,380px)) 5px minmax(340px,1fr) 5px minmax(260px,var(--tele-w,300px));
+}
+
+/* The core Design and Build workspaces read as product stages rather than
+   small utility popovers. Content still scrolls within a bounded surface. */
+.app[data-stage="design"] .rl-modal,
+.app[data-stage="build"] .browser-build-modal {
+  width:min(1120px,calc(100vw - 40px)); max-height:calc(100vh - 40px);
+  border-radius:18px; border-color:color-mix(in srgb,var(--cyan) 22%,var(--border));
+}
+.app[data-stage="design"] .rl-body,
+.app[data-stage="build"] .browser-build-body { max-height:calc(100vh - 170px); }
+
+@media (max-width:1180px) {
+  .app[data-experience="simple"] .brand { min-width:0; }
+  .app[data-experience="simple"] .brand-text { display:none; }
+  .app[data-experience="simple"] .stage-link { min-width:60px; }
+  .app[data-experience="simple"] .bar-status { display:none; }
+  .app[data-experience="simple"][data-evidence="open"] .workspace {
+    grid-template-columns:minmax(300px,38vw) 5px minmax(330px,1fr) 0 0;
+  }
+  .app[data-experience="simple"][data-evidence="open"] .tele-resizer,
+  .app[data-experience="simple"][data-evidence="open"] .tele-panel { display:none; }
+}
+
+@media (max-width:760px) {
+  .app[data-experience="simple"] .stage-link { min-width:0; padding:6px 8px; }
+  .app[data-experience="simple"] .stage-link .stage-count { display:none; }
+  .app[data-experience="simple"] .stage-link b { font-size:var(--text-xs); letter-spacing:.04em; text-transform:uppercase; }
+  .app[data-experience="simple"] .evidence-toggle { display:none; }
+  .app[data-experience="simple"] .simple-program-picker { width:100%; }
+  .app[data-experience="simple"] .simple-program-picker .lesson-select { width:100%; max-width:none; }
+  .app[data-experience="simple"] .console { height:128px !important; }
+  .app[data-stage="design"] .rl-modal,
+  .app[data-stage="build"] .browser-build-modal { width:100vw; max-height:100vh; border-radius:0; }
+}
 /* The action / Next / Done CTAs reuse .ctrl .ctrl-run and the Close / Back
    buttons reuse .ctrl, so this only widens them to the demo's roomier hit area
    without touching the shared hover / focus-visible / disabled treatment. */

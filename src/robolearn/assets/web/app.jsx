@@ -291,9 +291,19 @@
     // with the maker profile as the default identity.
     const [mode, setMode] = useState(() => { try { return localStorage.getItem('kodro_mode') || 'studio'; } catch (e) { return 'studio'; } });
     const classroom = mode === 'classroom';
+    // Progressive disclosure is the default. "Simple" keeps the complete
+    // product reachable while presenting one primary decision at a time;
+    // "Expert" restores the permanently visible instruments and shortcuts.
+    const [experience, setExperience] = useState(() => {
+      try { return localStorage.getItem('kodro_experience') === 'expert' ? 'expert' : 'simple'; } catch (e) { return 'simple'; }
+    });
+    const simpleExperience = experience !== 'expert';
     const [lessonHubOpen, setLessonHubOpen] = useState(false);
+    const [lessonBrowseAll, setLessonBrowseAll] = useState(false);
     function openLessonLibrary() {
       if (!classroom) setMode('classroom');
+      setActiveStage('learn');
+      setLessonBrowseAll(false);
       setLessonHubOpen(true);
       setSettingsOpen(false);
     }
@@ -319,6 +329,9 @@
         setCurrentLessonId(null);
       }
     }, [mode]);
+    useEffect(() => {
+      try { localStorage.setItem('kodro_experience', experience); } catch (e) { void e; }
+    }, [experience]);
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     // (Toast state + showToast now live in useConsoleToast, destructured above.)
@@ -327,6 +340,16 @@
     const [worldLoading, setWorldLoading] = useState(null);
     // Mobile telemetry: collapsed by default under 768px; toggle expands it.
     const [teleCollapsed, setTeleCollapsed] = useState(() => { try { return window.innerWidth <= 768; } catch (e) { return false; } });
+    const [evidenceOpen, setEvidenceOpen] = useState(() => {
+      try { return localStorage.getItem('kodro_experience') === 'expert'; } catch (e) { return false; }
+    });
+    const [runToolsOpen, setRunToolsOpen] = useState(false);
+    useEffect(() => {
+      if (experience === 'expert') {
+        setEvidenceOpen(true);
+        setRunToolsOpen(false);
+      }
+    }, [experience]);
     // First-run onboarding / landing flow (shown once, remembered, skippable).
     const [onboarded, setOnboarded] = useState(() => lsGet('or_onboarded') === '1');
     // Budget robot builder (local AI hardware guide for a real-world rover).
@@ -704,6 +727,7 @@
     }, []);
     function loadLesson(lesson) {
       if (!lesson) return;
+      setActiveStage('learn');
       setLessonHubOpen(false);
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
@@ -1030,8 +1054,18 @@
         openBuildReal();
         return;
       }
+      if (stage === 'learn') {
+        setRobotLabOpen(false);
+        setBuildOpen(false);
+        if (!classroom) setMode('classroom');
+        setLessonBrowseAll(false);
+        setLessonHubOpen(true);
+        return;
+      }
       setRobotLabOpen(false);
       setBuildOpen(false);
+      setLessonHubOpen(false);
+      if (stage === 'prove') setCurrentLessonId(null);
       setTimeout(function () {
         const main = document.getElementById('editor-main');
         if (main && main.focus) main.focus({ preventScroll: true });
@@ -1071,7 +1105,7 @@
     }
 
     return (
-      <div className="app" data-stage={activeStage} data-obstacles={(terrain.obstacles || []).length} data-active-world={(terrain.siteId || terrain.id) || ''}>
+      <div className="app" data-stage={activeStage} data-experience={experience} data-evidence={evidenceOpen ? 'open' : 'closed'} data-obstacles={(terrain.obstacles || []).length} data-active-world={(terrain.siteId || terrain.id) || ''}>
         <a className="skip-link" href="#editor-main">Skip to code editor</a>
         <h1 className="sr-only">Kodro, an offline robot design and simulation studio</h1>
         {/* ---- mission bar ---- */}
@@ -1094,15 +1128,20 @@
             <button type="button" className={'stage-link' + (activeStage === 'build' ? ' active' : '')} aria-label="3 Build a prototype pack" aria-current={activeStage === 'build' ? 'step' : undefined} onClick={() => goStage('build')}>
               <span className="stage-count">3</span><span><b>Build</b><small>Prototype pack</small></span>
             </button>
+            <button type="button" className={'stage-link' + (activeStage === 'learn' ? ' active' : '')} aria-label="4 Learn with guided robotics lessons" aria-current={activeStage === 'learn' ? 'step' : undefined} onClick={() => goStage('learn')}>
+              <span className="stage-count">4</span><span><b>Learn</b><small>{currentLessonId ? 'Current lesson' : 'Guided lessons'}</small></span>
+            </button>
           </nav>
           <div className="bar-divider"></div>
           <div className="run-controls">
-            <button className={'ctrl ' + (runState === 'running' ? '' : 'ctrl-run')} onClick={onRun}>
+            <button className={'ctrl ' + (runState === 'running' ? '' : 'ctrl-run')} onClick={() => { setRunToolsOpen(false); onRun(); }}>
               {runState === 'running' ? I.pause : I.play}
               {runState === 'running' ? 'Pause' : runState === 'paused' ? 'Resume' : 'Run'}
             </button>
-            <button className="ctrl" onClick={onStep} disabled={runState === 'running'}>{I.step}Step</button>
-            <button className="ctrl ctrl-stop" onClick={onReset}>{I.reset}Reset</button>
+            <button type="button" className="ctrl run-more-toggle" aria-haspopup="menu" aria-expanded={runToolsOpen} onClick={() => setRunToolsOpen(o => !o)}>More</button>
+            <div className={'run-secondary' + (runToolsOpen ? ' is-open' : '')} role={simpleExperience ? 'menu' : undefined}>
+            <button className="ctrl" onClick={() => { setRunToolsOpen(false); onStep(); }} disabled={runState === 'running'}>{I.step}Step</button>
+            <button className="ctrl ctrl-stop" onClick={() => { setRunToolsOpen(false); onReset(); }}>{I.reset}Reset</button>
             {/* Validate lives in the main run bar, next to Run, because it is a
                 run-family action (it drives the program across 5 seeds) and a
                 real user reported they could not find it when it was buried as
@@ -1113,13 +1152,15 @@
                 the cap.html modal-coverage driver opens it via
                 clickTitleStartsWith('Validate this program across 5 randomised
                 seeds'); qa_ui's modal-validate assert depends on that string. */}
-            <button className="ctrl" title="Validate this program across 5 randomised seeds" onClick={runValidation}>{KI('target')}Validate</button>
+            <button className="ctrl" title="Validate this program across 5 randomised seeds" onClick={() => { setRunToolsOpen(false); runValidation(); }}>{KI('target')}Validate</button>
+            </div>
           </div>
           <div className="bar-spacer"></div>
           <div className="bar-status" role="status" aria-live="polite" aria-label={'Status: ' + statusLabel}>
             <span className={'status-dot ' + runState} aria-hidden="true"></span>
             <span>{statusLabel}</span>
           </div>
+          <button type="button" className={'icon-btn evidence-toggle' + (evidenceOpen ? ' active' : '')} title={evidenceOpen ? 'Hide evidence' : 'Show evidence'} aria-label={evidenceOpen ? 'Hide evidence' : 'Show evidence'} aria-expanded={evidenceOpen} aria-controls="kodro-evidence-panel" onClick={() => setEvidenceOpen(v => !v)}>{KI('report')}<span className="icon-btn-label">Evidence</span></button>
           <div className="bar-divider"></div>
           <button className="icon-btn icon-btn-lessons" title="Lessons. Learn robotics and coding step by step (ages 5 to 16)" aria-label="Lessons — browse robotics and coding lessons" aria-pressed={mode === 'classroom'} onClick={openLessonLibrary}>{KI('report')}<span className="icon-btn-label">Lessons</span></button>
           <button className="icon-btn btn-vibe companion-btn" title={aiInfo.available ? 'Open Companion (' + aiInfo.model + ')' : 'Open Companion. Direct robot and world actions work without a model.'} aria-label="Open Kodro Companion" onClick={() => setVibeOpen(true)}>{KI('vibe')}<span className="icon-btn-label">Companion</span><span className={'companion-dot' + (aiInfo.available ? ' ready' : '')} aria-hidden="true"></span></button>
@@ -1128,6 +1169,13 @@
             <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings — theme, sound, readable text, and teacher tools" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>{KI('gear')}<span className="icon-btn-label">Settings</span></button>
             {settingsOpen && (
               <div className="settings-pop" role="dialog" aria-label="Settings">
+                <label className="set-row">
+                  <span>Interface</span>
+                  <select className="lesson-select" value={experience} onChange={e => setExperience(e.target.value === 'expert' ? 'expert' : 'simple')} aria-label="Interface complexity">
+                    <option value="simple">Simple</option>
+                    <option value="expert">Expert</option>
+                  </select>
+                </label>
                 {/* P7/A1: the Studio/Classroom split. Studio (default) is the
                     professional tool; Classroom brings back pupils, lessons,
                     the teacher dashboard and the novelty themes. */}
@@ -1257,6 +1305,13 @@
           <div className="panel" style={{ gridColumn: 1 }}>
             <div className="editor-panel" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div className="panel-head">
+                <label className="simple-program-picker">
+                  <span className="eyebrow">Program</span>
+                  <select className="lesson-select" value={currentLessonId ? '' : activeTab} onChange={e => { setCurrentLessonId(null); setActiveStage('prove'); setActiveTab(e.target.value); }} aria-label="Choose an example program">
+                    <option value="" disabled>Lesson program</option>
+                    {Object.keys(EXAMPLES).map(k => <option key={k} value={k}>{EXAMPLES[k].label}</option>)}
+                  </select>
+                </label>
                 <div className="tabs">
                   {Object.keys(EXAMPLES).map(k => (
                     <button key={k} type="button" className={'tab' + (!currentLessonId && activeTab === k ? ' active' : '')} aria-pressed={!currentLessonId && activeTab === k} onClick={() => { setCurrentLessonId(null); setActiveTab(k); }}>{EXAMPLES[k].label}</button>
@@ -1280,11 +1335,13 @@
                   </div>
                 )}
                 <div className="panel-actions">
-                  <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>{KI('blocks')}Blocks</button>
-                  <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>{KI('gauge')}Simulation limits</button>
+                  {!simpleExperience && <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>{KI('blocks')}Blocks</button>}
+                  {!simpleExperience && <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>{KI('gauge')}Simulation limits</button>}
                   <details className="editor-tools">
-                    <summary className="btn-mini">More tools</summary>
+                    <summary className="btn-mini">Tools</summary>
                     <div className="editor-tools-menu">
+                      {simpleExperience && <button className="set-row set-btn" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}><span>{KI('blocks')}Build with blocks</span><span className="set-val">&rarr;</span></button>}
+                      {simpleExperience && <button className="set-row set-btn" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}><span>{KI('gauge')}Simulation limits</span><span className="set-val">&rarr;</span></button>}
                       <button className="set-row set-btn" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)'} onClick={runReview}><span>{KI('review')}Review program</span><span className="set-val">&rarr;</span></button>
                       <button className="set-row set-btn" title="Guided 2 to 3 minute realism demo" onClick={() => setDemoOpen(true)}><span>{KI('demo')}Guided demo</span><span className="set-val">&rarr;</span></button>
                       <button className="set-row set-btn" title={aiInfo.available ? 'Ask a question, answered from the built-in material' : 'Ask a question, answered from the built-in material (needs a local model or a cloud key)'} onClick={() => { setAskOpen(true); setAskData(null); }}><span>{KI('ask')}Ask from lessons</span><span className="set-val">&rarr;</span></button>
@@ -1565,12 +1622,12 @@
             )}
           </div>
 
-          <div className="resizer" role="separator" aria-orientation="vertical" tabIndex={0} aria-label="Resize telemetry width (arrow left and right)" aria-valuenow={Math.round(teleW)} aria-valuemin={240} aria-valuemax={460} onKeyDown={e => { if (e.key === 'ArrowLeft') { e.preventDefault(); nudge('tele', 16); } else if (e.key === 'ArrowRight') { e.preventDefault(); nudge('tele', -16); } }} onPointerDown={e => startDrag('tele', e)} style={{ gridColumn: 4 }}></div>
+          <div className="resizer tele-resizer" role="separator" aria-orientation="vertical" tabIndex={0} aria-label="Resize telemetry width (arrow left and right)" aria-valuenow={Math.round(teleW)} aria-valuemin={240} aria-valuemax={460} onKeyDown={e => { if (e.key === 'ArrowLeft') { e.preventDefault(); nudge('tele', 16); } else if (e.key === 'ArrowRight') { e.preventDefault(); nudge('tele', -16); } }} onPointerDown={e => startDrag('tele', e)} style={{ gridColumn: 4 }}></div>
 
           {/* right: telemetry */}
-          <div className={'panel tele-panel' + (teleCollapsed ? ' tele-collapsed' : '')} style={{ gridColumn: 5 }}>
+          <div id="kodro-evidence-panel" className={'panel tele-panel' + (teleCollapsed ? ' tele-collapsed' : '')} style={{ gridColumn: 5 }}>
             <div className="panel-head">
-              <span className="eyebrow" role="heading" aria-level="2">Live readouts</span>
+              <span className="eyebrow" role="heading" aria-level="2">Evidence</span>
               <div className="ph-spacer" style={{ flex: 1 }}></div>
               {/* The panel is captioned with the robot the user actually
                   built, not a hard-coded callsign (product-coherence D3). */}
@@ -1608,7 +1665,7 @@
                   <h2>Choose your next mission</h2>
                   <p>Each lesson gives you a starter program, a real simulated world, clear goals and feedback after every run.</p>
                 </div>
-                <button className="btn-mini lesson-hub-close" aria-label="Close lesson library" onClick={() => setLessonHubOpen(false)}>✕</button>
+                <button className="btn-mini lesson-hub-close" aria-label="Close lesson library" onClick={() => { setLessonHubOpen(false); if (!currentLessonId) setActiveStage('prove'); }}>✕</button>
               </div>
               <div className="lesson-hub-summary" aria-label="Lesson progress summary">
                 <div className="lesson-summary-card">
@@ -1625,9 +1682,28 @@
                 </div>
                 <button className="btn-mini lesson-teacher-link" onClick={() => { setLessonHubOpen(false); openTeacher(); }}>View progress</button>
               </div>
-              <div className="lesson-hub-scroll">
+              <div className={'lesson-hub-scroll' + (simpleExperience && !lessonBrowseAll ? ' lesson-hub-focused' : '')}>
                 {lessons.length === 0 && <p className="lesson-hub-loading">Loading the offline lesson library…</p>}
-                {['KS1', 'KS2', 'KS3', 'KS4'].map(stage => {
+                {simpleExperience && !lessonBrowseAll && lessons.length > 0 ? (() => {
+                  const lesson = lessons.find(l => !(lessonResults[l.id] && lessonResults[l.id].passed)) || lessons[0];
+                  const result = lessonResults[lesson.id];
+                  return (
+                    <section className="lesson-recommended" aria-labelledby="recommended-lesson-title">
+                      <span className="lesson-stage-code">Recommended next</span>
+                      <h3 id="recommended-lesson-title">{lesson.title}</h3>
+                      <p>{(lesson.intro || 'Program the robot and test your solution in the simulated world.').trim()}</p>
+                      <div className="lesson-recommended-meta">
+                        <span>{AGE_FOR[lesson.keyStage] || lesson.keyStage}</span>
+                        <span>{(lesson.terrain || 'earth').replace(/^./, c => c.toUpperCase())} world</span>
+                        {lesson.readingAge ? <span>Reading age {lesson.readingAge}+</span> : null}
+                      </div>
+                      <button type="button" className="ctrl ctrl-run lesson-recommended-start" aria-label={'Open recommended lesson: ' + lesson.title} onClick={() => loadLesson(lesson)}>
+                        {result && result.passed ? 'Review lesson' : 'Start lesson'}
+                      </button>
+                      <button type="button" className="btn-mini lesson-browse-all" onClick={() => setLessonBrowseAll(true)}>Browse all {lessons.length} missions</button>
+                    </section>
+                  );
+                })() : ['KS1', 'KS2', 'KS3', 'KS4'].map(stage => {
                   const stageLessons = lessons.filter(l => l.keyStage === stage);
                   if (stageLessons.length === 0) return null;
                   const stageDone = stageLessons.filter(l => lessonResults[l.id] && lessonResults[l.id].passed).length;
@@ -1668,7 +1744,7 @@
               </div>
               <div className="lesson-hub-foot">
                 <span>{KI('shield')} Progress is calculated only from graded attempts saved on this device.</span>
-                <button className="btn-mini" onClick={() => { setLessonHubOpen(false); setMode('studio'); }}>Return to Studio</button>
+                <button className="btn-mini" onClick={() => { setLessonHubOpen(false); setMode('studio'); setActiveStage('prove'); }}>Return to Studio</button>
               </div>
             </div>
           </div>

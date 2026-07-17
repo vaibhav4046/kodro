@@ -15,21 +15,27 @@
  *
  * Fully offline: the only peer is the local Ollama server.
  *
- *   node scripts/qa_personas.mjs                          # default kodro-coder:latest
+ *   node scripts/qa_personas.mjs                          # default qwen2.5-coder:3b
  *   KODRO_PERSONA_MODEL=kodro-tutor:latest node scripts/qa_personas.mjs
  *   KODRO_PERSONA_TURNS=3 node scripts/qa_personas.mjs    # max correction turns
+ *   KODRO_PERSONA_SEED=4046 node scripts/qa_personas.mjs  # reproducible seed root
+ *   KODRO_PERSONA_AI_JUDGES=0 node scripts/qa_personas.mjs # deterministic gates only
  */
 import fs from 'fs';
 import vm from 'vm';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web');
 const OUT_DIR = path.join(HERE, '..', 'docs', 'eval');
 const OLLAMA = 'http://localhost:11434';
-const MODEL = process.env.KODRO_PERSONA_MODEL || 'kodro-coder:latest';
+const MODEL = process.env.KODRO_PERSONA_MODEL || 'qwen2.5-coder:3b';
 const MAX_TURNS = Math.max(1, parseInt(process.env.KODRO_PERSONA_TURNS || '3', 10));
+const BASE_SEED = Math.max(1, parseInt(process.env.KODRO_PERSONA_SEED || '4046', 10));
+const AI_JUDGES = process.env.KODRO_PERSONA_AI_JUDGES !== '0';
+const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
 
 // --- load the REAL interpreter + self-test into one sandbox -----------------
 const ctx = { console };
@@ -83,9 +89,13 @@ const SYS = "You are Kodro's offline coding assistant for a simulated robot. The
 // assistant's robustness to how different users ask, not LLM phrasing noise.
 const PERSONAS = [
   { id: 'beginner', name: 'Maya (KS3 beginner, no code)', phrase: (g) => 'i want the robot to ' + g.plain + '. i have never coded before, can you write it for me' },
+  { id: 'young', name: 'Leo (KS2 learner, literal phrasing)', phrase: (g) => 'Please make it ' + g.plain + '. Show me the smallest program because long code is confusing.' },
   { id: 'teacher', name: 'Mr Okafor (teacher, class demo)', phrase: (g) => 'For a class demonstration, make the robot ' + g.plain + '. Keep it simple enough to explain to year 8s.' },
   { id: 'maker', name: 'Sam (hobbyist maker, precise)', phrase: (g) => g.precise },
   { id: 'access', name: 'Priya (low vision, voice-first)', phrase: (g) => 'Make the robot ' + g.plain + ', and have it say out loud what it is doing so I can follow without watching closely.' },
+  { id: 'eal', name: 'Amina (English as an additional language)', phrase: (g) => 'Robot: ' + g.plain + '. Simple code please. No difficult explanation.' },
+  { id: 'expert', name: 'Dr Chen (robotics engineer, constraint-first)', phrase: (g) => g.precise + ' Use only the available Kodro API and keep units explicit.' },
+  { id: 'skeptic', name: 'Morgan (safety-minded reviewer)', phrase: (g) => 'Make the robot ' + g.plain + ', but do not invent sensors or let it collide with anything.' },
 ];
 
 // --- the 5 tasks, each with a deterministic success predicate over the -------
@@ -104,12 +114,12 @@ const TASKS = [
     ok: (t, code) => t.ok && t.moves >= 2 && /\b(for|while|repeat)\b/.test(code) },
 ];
 
-async function gen(messages) {
+async function gen(messages, seed) {
   // messages: [{role, content}] -> single prompt string (Ollama /generate with system).
   const prompt = messages.map((m) => (m.role === 'user' ? 'USER: ' + m.content : 'ASSISTANT: ' + m.content)).join('\n\n') + '\n\nASSISTANT:';
   const r = await fetch(OLLAMA + '/api/generate', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, system: SYS, prompt, stream: false, options: { temperature: 0.2, num_predict: 220 } }),
+    body: JSON.stringify({ model: MODEL, system: SYS, prompt, stream: false, options: { temperature: 0, seed, num_predict: 220 } }),
   });
   if (!r.ok) throw new Error('generate ' + r.status);
   return (await r.json()).response || '';
@@ -117,13 +127,23 @@ async function gen(messages) {
 
 // One persona attempts one task, up to MAX_TURNS, feeding the self-test summary
 // back as a correction the way a real user would. Returns the measured funnel.
-async function attempt(persona, task) {
+function testEvidence(t) {
+  return {
+    stage: t.stage || null, ok: !!t.ok, moves: Number(t.moves || 0), turns: Number(t.turns || 0),
+    hitWall: !!t.hitWall, steps: Number(t.steps || 0), endPos: t.endPos || null,
+    summary: t.summary || '', error: t.error || '',
+  };
+}
+
+async function attempt(persona, task, cellIndex) {
   const messages = [{ role: 'user', content: persona.phrase(task) }];
-  const res = { compiled: false, ran: false, safe: false, didTask: false, turns: 0, lastError: '' };
+  const res = { compiled: false, ran: false, safe: false, didTask: false, turns: 0, lastError: '', attempts: [] };
   for (let turn = 1; turn <= MAX_TURNS; turn++) {
     res.turns = turn;
+    const seed = BASE_SEED + cellIndex * 100 + turn;
+    const userPrompt = messages[messages.length - 1].content;
     let raw = '';
-    try { raw = await gen(messages); } catch (e) { res.lastError = 'gen ' + ((e && e.message) || e); return res; }
+    try { raw = await gen(messages, seed); } catch (e) { res.lastError = 'gen ' + ((e && e.message) || e); res.attempts.push({ turn, seed, userPrompt, error: res.lastError }); return res; }
     const code = normalizeApi(extractCode(raw));
     messages.push({ role: 'assistant', content: '```python\n' + code + '\n```' });
     const t = KodroSelfTest(code);
@@ -132,6 +152,7 @@ async function attempt(persona, task) {
     res.safe = t.ok && !t.hitWall;
     res.didTask = !!task.ok(t, code);
     res.lastError = t.ok ? (t.hitWall ? 'hit the wall' : '') : (t.summary || t.error || 'did not run');
+    res.attempts.push({ turn, seed, userPrompt, raw, code, evidence: testEvidence(t), didTask: res.didTask });
     if (res.didTask) return res;
     // correction turn: tell the assistant what actually happened, as a user would
     const fb = t.ok
@@ -142,6 +163,39 @@ async function attempt(persona, task) {
   return res;
 }
 
+const JUDGE_ROLES = [
+  { id: 'usability', name: 'Usability and inclusion judge', instruction: 'Look for wording sensitivity, novice failure patterns, accessibility regressions, and whether correction turns genuinely recover.' },
+  { id: 'robotics', name: 'Robotics grounding judge', instruction: 'Look for unit mistakes, invented APIs, unsafe motion, weak sensor logic, and gaps between requested and executed behaviour.' },
+  { id: 'methodology', name: 'Methodology devil advocate', instruction: 'Challenge the evaluation design, identify bias or under-coverage, and reject any inference that synthetic personas are human evidence.' },
+];
+
+function parseJudgeJson(raw) {
+  const clean = String(raw || '').replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+  try { return JSON.parse(clean); } catch (e) { return null; }
+}
+
+async function runJudgePanel(summary) {
+  if (!AI_JUDGES) return { enabled: false, advisoryOnly: true, reviews: [] };
+  const reviews = [];
+  for (let i = 0; i < JUDGE_ROLES.length; i++) {
+    const role = JUDGE_ROLES[i];
+    const system = 'You are an independent audit role. Review only the supplied measured evidence. Do not invent observations. Synthetic personas are NOT human participants. Return strict JSON with keys verdict (PASS, CONCERNS, or FAIL), confidence (0 to 1), findings (array of short evidence-linked strings), and nextTests (array). Include at least one finding and one concrete next test even when the verdict is PASS.';
+    const prompt = role.instruction + '\n\nMEASURED EVIDENCE:\n' + JSON.stringify(summary);
+    const seed = BASE_SEED + 9000 + i;
+    let raw = '', error = '';
+    try {
+      const response = await fetch(OLLAMA + '/api/generate', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: MODEL, system, prompt, stream: false, options: { temperature: 0, seed, num_predict: 500 } }),
+      });
+      if (!response.ok) throw new Error('generate ' + response.status);
+      raw = (await response.json()).response || '';
+    } catch (e) { error = String((e && e.message) || e); }
+    reviews.push({ role: role.id, name: role.name, advisoryOnly: true, seed, raw, parsed: parseJudgeJson(raw), error });
+  }
+  return { enabled: true, advisoryOnly: true, authority: 'advisory critique only; deterministic execution gates are authoritative', reviews };
+}
+
 function pct(n, d) { return d ? Math.round((n / d) * 100) : 0; }
 
 (async function () {
@@ -149,17 +203,19 @@ function pct(n, d) { return d ? Math.round((n / d) * 100) : 0; }
     const tags = await fetch(OLLAMA + '/api/tags').then((r) => r.json());
     const have = (tags.models || []).some((m) => m.name === MODEL);
     if (!have) { console.log('SKIP: model ' + MODEL + ' not installed. Pull it or set KODRO_PERSONA_MODEL.'); process.exit(0); }
+    globalThis.__modelMeta = (tags.models || []).find((m) => m.name === MODEL) || null;
   } catch (e) {
     console.log('SKIP: Ollama not reachable at ' + OLLAMA + ' (' + ((e && e.message) || e) + '). No data produced (honest skip).'); process.exit(0);
   }
 
   console.log('== SIMULATED PERSONA EVALUATION (LLM-based, offline) ==');
-  console.log('model ' + MODEL + ', up to ' + MAX_TURNS + ' correction turns. NOT a human study.\n');
+  console.log('model ' + MODEL + ', seed ' + BASE_SEED + ', up to ' + MAX_TURNS + ' correction turns. NOT a human study.\n');
 
   const cells = [];
+  let cellIndex = 0;
   for (const persona of PERSONAS) {
     for (const task of TASKS) {
-      const r = await attempt(persona, task);
+      const r = await attempt(persona, task, cellIndex++);
       cells.push({ persona: persona.id, task: task.id, ...r });
       console.log(
         (r.didTask ? 'DONE ' : r.safe ? 'ran  ' : r.compiled ? 'cmp  ' : 'fail ') +
@@ -193,16 +249,36 @@ function pct(n, d) { return d ? Math.round((n / d) * 100) : 0; }
     console.log('  ' + t.id.padEnd(9) + ' ' + d + '/' + cc.length + ' (' + pct(d, cc.length) + '%)');
   }
 
+  const judgeEvidence = {
+    method: 'synthetic persona benchmark', model: MODEL, seed: BASE_SEED, cells: N,
+    funnel: { compiled: sum('compiled'), ran: sum('ran'), safe: sum('safe'), taskComplete: done.length },
+    byPersona: PERSONAS.map((p) => { const cc = cells.filter((c) => c.persona === p.id); return { persona: p.id, done: cc.filter((c) => c.didTask).length, of: cc.length }; }),
+    byTask: TASKS.map((t) => { const cc = cells.filter((c) => c.task === t.id); return { task: t.id, done: cc.filter((c) => c.didTask).length, of: cc.length }; }),
+    failures: cells.filter((c) => !c.didTask).slice(0, 12).map((c) => ({ persona: c.persona, task: c.task, turns: c.turns, lastError: c.lastError, final: c.attempts[c.attempts.length - 1] || null })),
+  };
+  console.log('\n-- local advisory judge panel --');
+  const aiJudgePanel = await runJudgePanel(judgeEvidence);
+  for (const review of aiJudgePanel.reviews) console.log('  ' + review.role.padEnd(12) + ' ' + ((review.parsed && review.parsed.verdict) || 'UNPARSED'));
+
   try {
     fs.mkdirSync(OUT_DIR, { recursive: true });
     const outPath = path.join(OUT_DIR, 'persona_eval_results.json');
     fs.writeFileSync(outPath, JSON.stringify({
+      schemaVersion: 2,
       method: 'simulated persona evaluation (LLM-based); NOT human subjects',
-      model: MODEL, maxTurns: MAX_TURNS, cellCount: N,
+      generatedAt: new Date().toISOString(),
+      model: MODEL, modelMetadata: globalThis.__modelMeta || null, baseSeed: BASE_SEED, maxTurns: MAX_TURNS, cellCount: N,
+      artifactHashes: {
+        interpreterSha256: sha256(fs.readFileSync(path.join(WEB, 'interpreter.js'))),
+        selfTestSha256: sha256(fs.readFileSync(path.join(WEB, 'selftest.jsx'))),
+        harnessSha256: sha256(fs.readFileSync(fileURLToPath(import.meta.url))),
+      },
       funnel: { compiled: sum('compiled'), ran: sum('ran'), safe: sum('safe'), taskComplete: done.length },
       meanTurnsToSuccess: Number(meanTurns.toFixed(2)),
       byPersona: PERSONAS.map((p) => { const cc = cells.filter((c) => c.persona === p.id); return { persona: p.id, name: p.name, done: cc.filter((c) => c.didTask).length, of: cc.length }; }),
       byTask: TASKS.map((t) => { const cc = cells.filter((c) => c.task === t.id); return { task: t.id, done: cc.filter((c) => c.didTask).length, of: cc.length }; }),
+      deterministicAuthority: 'RoverLang compile/run plus KodroSelfTest task predicates; AI judges never override these gates',
+      aiJudgePanel,
       cells,
     }, null, 2));
     console.log('\nwrote ' + outPath);

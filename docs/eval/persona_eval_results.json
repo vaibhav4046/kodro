@@ -1,118 +1,525 @@
 {
+  "schemaVersion": 2,
   "method": "simulated persona evaluation (LLM-based); NOT human subjects",
-  "model": "kodro-coder:latest",
+  "generatedAt": "2026-07-17T04:15:53.460Z",
+  "model": "qwen2.5-coder:3b",
+  "modelMetadata": {
+    "name": "qwen2.5-coder:3b",
+    "model": "qwen2.5-coder:3b",
+    "modified_at": "2026-07-17T01:42:26.9215444+01:00",
+    "size": 1929912626,
+    "digest": "f72c60cabf6237b07f6e632b2c48d533cef25eda2efbd34bed21c5e9c01e6225",
+    "details": {
+      "parent_model": "",
+      "format": "gguf",
+      "family": "qwen2",
+      "families": [
+        "qwen2"
+      ],
+      "parameter_size": "3.1B",
+      "quantization_level": "Q4_K_M"
+    }
+  },
+  "baseSeed": 4046,
   "maxTurns": 3,
-  "cellCount": 20,
+  "cellCount": 40,
+  "artifactHashes": {
+    "interpreterSha256": "e7f2978a5d3e62f0b667f8c738eec36b6c68f460bc0efa1b4902c3e5c8fb94ba",
+    "selfTestSha256": "9c648830e4846fee8e05808dd60fc3032d496578e692a7ffaf8a68ea616e165a",
+    "harnessSha256": "af1b7d9fd6cbfe3acf187a851500be7dcaa14bd7250b3e3c0562d8908a26d8d1"
+  },
   "funnel": {
-    "compiled": 17,
-    "ran": 15,
-    "safe": 7,
-    "taskComplete": 7
+    "compiled": 40,
+    "ran": 40,
+    "safe": 40,
+    "taskComplete": 40
   },
   "meanTurnsToSuccess": 1,
   "byPersona": [
     {
       "persona": "beginner",
       "name": "Maya (KS3 beginner, no code)",
-      "done": 0,
+      "done": 5,
+      "of": 5
+    },
+    {
+      "persona": "young",
+      "name": "Leo (KS2 learner, literal phrasing)",
+      "done": 5,
       "of": 5
     },
     {
       "persona": "teacher",
       "name": "Mr Okafor (teacher, class demo)",
-      "done": 1,
+      "done": 5,
       "of": 5
     },
     {
       "persona": "maker",
       "name": "Sam (hobbyist maker, precise)",
-      "done": 3,
+      "done": 5,
       "of": 5
     },
     {
       "persona": "access",
       "name": "Priya (low vision, voice-first)",
-      "done": 3,
+      "done": 5,
+      "of": 5
+    },
+    {
+      "persona": "eal",
+      "name": "Amina (English as an additional language)",
+      "done": 5,
+      "of": 5
+    },
+    {
+      "persona": "expert",
+      "name": "Dr Chen (robotics engineer, constraint-first)",
+      "done": 5,
+      "of": 5
+    },
+    {
+      "persona": "skeptic",
+      "name": "Morgan (safety-minded reviewer)",
+      "done": 5,
       "of": 5
     }
   ],
   "byTask": [
     {
       "task": "forward",
-      "done": 2,
-      "of": 4
+      "done": 8,
+      "of": 8
     },
     {
       "task": "turn_move",
-      "done": 1,
-      "of": 4
+      "done": 8,
+      "of": 8
     },
     {
       "task": "square",
-      "done": 0,
-      "of": 4
+      "done": 8,
+      "of": 8
     },
     {
       "task": "obstacle",
-      "done": 1,
-      "of": 4
+      "done": 8,
+      "of": 8
     },
     {
       "task": "loop",
-      "done": 3,
-      "of": 4
+      "done": 8,
+      "of": 8
     }
   ],
+  "deterministicAuthority": "RoverLang compile/run plus KodroSelfTest task predicates; AI judges never override these gates",
+  "aiJudgePanel": {
+    "enabled": true,
+    "advisoryOnly": true,
+    "authority": "advisory critique only; deterministic execution gates are authoritative",
+    "reviews": [
+      {
+        "role": "usability",
+        "name": "Usability and inclusion judge",
+        "advisoryOnly": true,
+        "seed": 13046,
+        "raw": "```json\n{\n  \"verdict\": \"PASS\",\n  \"confidence\": 0.9,\n  \"findings\": [\n    \"The model successfully completed all tasks for the synthetic persona benchmark without any failures.\"\n  ],\n  \"nextTests\": []\n}\n```",
+        "parsed": {
+          "verdict": "PASS",
+          "confidence": 0.9,
+          "findings": [
+            "The model successfully completed all tasks for the synthetic persona benchmark without any failures."
+          ],
+          "nextTests": []
+        },
+        "error": ""
+      },
+      {
+        "role": "robotics",
+        "name": "Robotics grounding judge",
+        "advisoryOnly": true,
+        "seed": 13047,
+        "raw": "```json\n{\n  \"verdict\": \"PASS\",\n  \"confidence\": 0.9,\n  \"findings\": [\n    \"No unit mistakes, invented APIs, unsafe motion, weak sensor logic, or gaps between requested and executed behavior were identified.\"\n  ],\n  \"nextTests\": []\n}\n```",
+        "parsed": {
+          "verdict": "PASS",
+          "confidence": 0.9,
+          "findings": [
+            "No unit mistakes, invented APIs, unsafe motion, weak sensor logic, or gaps between requested and executed behavior were identified."
+          ],
+          "nextTests": []
+        },
+        "error": ""
+      },
+      {
+        "role": "methodology",
+        "name": "Methodology devil advocate",
+        "advisoryOnly": true,
+        "seed": 13048,
+        "raw": "```json\n{\n  \"verdict\": \"FAIL\",\n  \"confidence\": 0.9,\n  \"findings\": [\n    \"The evaluation design uses synthetic personas, which are not human participants and should be treated as evidence with caution.\"\n  ],\n  \"nextTests\": [\n    {\n      \"description\": \"Conduct a pilot study with actual human users to gather feedback on the synthetic persona benchmark.\",\n      \"method\": \"human user testing\",\n      \"model\": null,\n      \"seed\": null,\n      \"cells\": null,\n      \"funnel\": null,\n      \"byPersona\": null,\n      \"byTask\": null,\n      \"failures\": []\n    }\n  ]\n}\n```",
+        "parsed": {
+          "verdict": "FAIL",
+          "confidence": 0.9,
+          "findings": [
+            "The evaluation design uses synthetic personas, which are not human participants and should be treated as evidence with caution."
+          ],
+          "nextTests": [
+            {
+              "description": "Conduct a pilot study with actual human users to gather feedback on the synthetic persona benchmark.",
+              "method": "human user testing",
+              "model": null,
+              "seed": null,
+              "cells": null,
+              "funnel": null,
+              "byPersona": null,
+              "byTask": null,
+              "failures": []
+            }
+          ]
+        },
+        "error": ""
+      }
+    ]
+  },
   "cells": [
     {
       "persona": "beginner",
       "task": "forward",
-      "compiled": false,
-      "ran": false,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "Will not compile (line 1): Unexpected token \"kept\"."
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 4047,
+          "userPrompt": "i want the robot to drive forwards a few metres. i have never coded before, can you write it for me",
+          "raw": "```python\nmove_forward(3)\n```",
+          "code": "move_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 1,
+            "endPos": {
+              "x": 0,
+              "y": 300
+            },
+            "summary": "Self-test passed: 1 moves, 0 turns, ends at (0, 300), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "beginner",
       "task": "turn_move",
       "compiled": true,
       "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 4147,
+          "userPrompt": "i want the robot to turn and then drive a little way. i have never coded before, can you write it for me",
+          "raw": "```python\nturn_left(90)\nmove_forward(3)\n```",
+          "code": "turn_left(90)\nmove_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 1,
+            "hitWall": false,
+            "steps": 2,
+            "endPos": {
+              "x": -300,
+              "y": 0
+            },
+            "summary": "Self-test passed: 1 moves, 1 turns, ends at (-300, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "beginner",
       "task": "square",
       "compiled": true,
       "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 4247,
+          "userPrompt": "i want the robot to drive around in a square. i have never coded before, can you write it for me",
+          "raw": "```python\nfor _ in range(4):\n    move_forward(3)\n    turn_right(90)\n```",
+          "code": "for _ in range(4):\n    move_forward(3)\n    turn_right(90)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 4,
+            "turns": 4,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 0
+            },
+            "summary": "Self-test passed: 4 moves, 4 turns, ends at (0, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "beginner",
       "task": "obstacle",
       "compiled": true,
-      "ran": false,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "Errors while running: 'float' object cannot be interpreted as an integer"
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 4347,
+          "userPrompt": "i want the robot to drive forward but stop before it bumps into anything. i have never coded before, can you write it for me",
+          "raw": "```python\nwhile distance() > 40:\n    move_forward(1)\n```",
+          "code": "while distance() > 40:\n    move_forward(1)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 15,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 30,
+            "endPos": {
+              "x": 0,
+              "y": 1500
+            },
+            "summary": "Self-test passed: 15 moves, 0 turns, ends at (0, 1500), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "beginner",
       "task": "loop",
-      "compiled": false,
-      "ran": false,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "Will not compile (line 8): Unexpected character \":\"."
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 4447,
+          "userPrompt": "i want the robot to do a little drive and beep, a few times over. i have never coded before, can you write it for me",
+          "raw": "```python\nfor i in range(3):\n    move_forward(2)\n    beep(1)\n    wait(0.5)\n```",
+          "code": "for i in range(3):\n    move_forward(2)\n    beep(1)\n    wait(0.5)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 3,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 600
+            },
+            "summary": "Self-test passed: 3 moves, 0 turns, ends at (0, 600), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "young",
+      "task": "forward",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 4547,
+          "userPrompt": "Please make it drive forwards a few metres. Show me the smallest program because long code is confusing.",
+          "raw": "```python\nmove_forward(3)\n```",
+          "code": "move_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 1,
+            "endPos": {
+              "x": 0,
+              "y": 300
+            },
+            "summary": "Self-test passed: 1 moves, 0 turns, ends at (0, 300), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "young",
+      "task": "turn_move",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 4647,
+          "userPrompt": "Please make it turn and then drive a little way. Show me the smallest program because long code is confusing.",
+          "raw": "```python\nturn_left(90)\nmove_forward(3)\n```",
+          "code": "turn_left(90)\nmove_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 1,
+            "hitWall": false,
+            "steps": 2,
+            "endPos": {
+              "x": -300,
+              "y": 0
+            },
+            "summary": "Self-test passed: 1 moves, 1 turns, ends at (-300, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "young",
+      "task": "square",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 4747,
+          "userPrompt": "Please make it drive around in a square. Show me the smallest program because long code is confusing.",
+          "raw": "```python\nfor i in range(4):\n    move_forward(3)\n    turn_right(90)\n```",
+          "code": "for i in range(4):\n    move_forward(3)\n    turn_right(90)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 4,
+            "turns": 4,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 0
+            },
+            "summary": "Self-test passed: 4 moves, 4 turns, ends at (0, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "young",
+      "task": "obstacle",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 4847,
+          "userPrompt": "Please make it drive forward but stop before it bumps into anything. Show me the smallest program because long code is confusing.",
+          "raw": "```python\nwhile distance() > 40:\n    move_forward(1)\n```",
+          "code": "while distance() > 40:\n    move_forward(1)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 15,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 30,
+            "endPos": {
+              "x": 0,
+              "y": 1500
+            },
+            "summary": "Self-test passed: 15 moves, 0 turns, ends at (0, 1500), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "young",
+      "task": "loop",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 4947,
+          "userPrompt": "Please make it do a little drive and beep, a few times over. Show me the smallest program because long code is confusing.",
+          "raw": "```python\nfor i in range(3):\n    move_forward(2)\n    beep(1)\n    wait(0.5)\n```",
+          "code": "for i in range(3):\n    move_forward(2)\n    beep(1)\n    wait(0.5)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 3,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 600
+            },
+            "summary": "Self-test passed: 3 moves, 0 turns, ends at (0, 600), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "teacher",
@@ -120,49 +527,169 @@
       "compiled": true,
       "ran": true,
       "safe": true,
-      "didTask": false,
-      "turns": 3,
-      "lastError": ""
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 5047,
+          "userPrompt": "For a class demonstration, make the robot drive forwards a few metres. Keep it simple enough to explain to year 8s.",
+          "raw": "```python\nmove_forward(3)\n```",
+          "code": "move_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 1,
+            "endPos": {
+              "x": 0,
+              "y": 300
+            },
+            "summary": "Self-test passed: 1 moves, 0 turns, ends at (0, 300), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "teacher",
       "task": "turn_move",
       "compiled": true,
       "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 5147,
+          "userPrompt": "For a class demonstration, make the robot turn and then drive a little way. Keep it simple enough to explain to year 8s.",
+          "raw": "```python\nturn_left(90)\nmove_forward(3)\n```",
+          "code": "turn_left(90)\nmove_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 1,
+            "hitWall": false,
+            "steps": 2,
+            "endPos": {
+              "x": -300,
+              "y": 0
+            },
+            "summary": "Self-test passed: 1 moves, 1 turns, ends at (-300, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "teacher",
       "task": "square",
       "compiled": true,
-      "ran": false,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "Does not finish: it loops without stopping (200001+ steps)."
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 5247,
+          "userPrompt": "For a class demonstration, make the robot drive around in a square. Keep it simple enough to explain to year 8s.",
+          "raw": "```python\nfor i in range(4):\n    move_forward(3)\n    turn_right(90)\n```",
+          "code": "for i in range(4):\n    move_forward(3)\n    turn_right(90)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 4,
+            "turns": 4,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 0
+            },
+            "summary": "Self-test passed: 4 moves, 4 turns, ends at (0, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "teacher",
       "task": "obstacle",
-      "compiled": false,
-      "ran": false,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "Will not compile (line 1): Unterminated string."
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 5347,
+          "userPrompt": "For a class demonstration, make the robot drive forward but stop before it bumps into anything. Keep it simple enough to explain to year 8s.",
+          "raw": "```python\nwhile distance() > 40:\n    move_forward(1)\n```",
+          "code": "while distance() > 40:\n    move_forward(1)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 15,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 30,
+            "endPos": {
+              "x": 0,
+              "y": 1500
+            },
+            "summary": "Self-test passed: 15 moves, 0 turns, ends at (0, 1500), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "teacher",
       "task": "loop",
       "compiled": true,
       "ran": true,
-      "safe": false,
+      "safe": true,
       "didTask": true,
       "turns": 1,
-      "lastError": "hit the wall"
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 5447,
+          "userPrompt": "For a class demonstration, make the robot do a little drive and beep, a few times over. Keep it simple enough to explain to year 8s.",
+          "raw": "```python\nfor i in range(3):\n    move_forward(2)\n    beep(1)\n    wait(0.5)\n```",
+          "code": "for i in range(3):\n    move_forward(2)\n    beep(1)\n    wait(0.5)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 3,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 600
+            },
+            "summary": "Self-test passed: 3 moves, 0 turns, ends at (0, 600), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "maker",
@@ -172,7 +699,31 @@
       "safe": true,
       "didTask": true,
       "turns": 1,
-      "lastError": ""
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 5547,
+          "userPrompt": "Drive forward 3 metres and stop.",
+          "raw": "```python\nmove_forward(3)\n```",
+          "code": "move_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 1,
+            "endPos": {
+              "x": 0,
+              "y": 300
+            },
+            "summary": "Self-test passed: 1 moves, 0 turns, ends at (0, 300), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "maker",
@@ -182,27 +733,99 @@
       "safe": true,
       "didTask": true,
       "turns": 1,
-      "lastError": ""
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 5647,
+          "userPrompt": "Turn right 90 degrees, then drive forward 2 metres.",
+          "raw": "```python\nturn_right(90)\nmove_forward(2)\n```",
+          "code": "turn_right(90)\nmove_forward(2)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 1,
+            "hitWall": false,
+            "steps": 2,
+            "endPos": {
+              "x": 200,
+              "y": 0
+            },
+            "summary": "Self-test passed: 1 moves, 1 turns, ends at (200, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "maker",
       "task": "square",
       "compiled": true,
       "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 5747,
+          "userPrompt": "Drive in a square 2 metres on each side using a loop.",
+          "raw": "```python\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n```",
+          "code": "for i in range(4):\n    move_forward(2)\n    turn_right(90)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 4,
+            "turns": 4,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 0
+            },
+            "summary": "Self-test passed: 4 moves, 4 turns, ends at (0, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "maker",
       "task": "obstacle",
       "compiled": true,
       "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 5847,
+          "userPrompt": "Drive forward while distance() is greater than 40, then stop so it does not hit the wall.",
+          "raw": "```python\nwhile distance() > 40:\n    move_forward(1)\n```",
+          "code": "while distance() > 40:\n    move_forward(1)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 15,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 30,
+            "endPos": {
+              "x": 0,
+              "y": 1500
+            },
+            "summary": "Self-test passed: 15 moves, 0 turns, ends at (0, 1500), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "maker",
@@ -212,7 +835,31 @@
       "safe": true,
       "didTask": true,
       "turns": 1,
-      "lastError": ""
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 5947,
+          "userPrompt": "Repeat 3 times: move forward 1 metre then beep.",
+          "raw": "```python\nfor i in range(3):\n    move_forward(1)\n    beep(1)\n```",
+          "code": "for i in range(3):\n    move_forward(1)\n    beep(1)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 3,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 9,
+            "endPos": {
+              "x": 0,
+              "y": 300
+            },
+            "summary": "Self-test passed: 3 moves, 0 turns, ends at (0, 300), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "access",
@@ -222,27 +869,99 @@
       "safe": true,
       "didTask": true,
       "turns": 1,
-      "lastError": ""
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 6047,
+          "userPrompt": "Make the robot drive forwards a few metres, and have it say out loud what it is doing so I can follow without watching closely.",
+          "raw": "```python\nmove_forward(3)\nsay(\"Driving forward for 3 metres\")\n```",
+          "code": "move_forward(3)\nsay(\"Driving forward for 3 metres\")",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 2,
+            "endPos": {
+              "x": 0,
+              "y": 300
+            },
+            "summary": "Self-test passed: 1 moves, 0 turns, ends at (0, 300), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "access",
       "task": "turn_move",
       "compiled": true,
       "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 6147,
+          "userPrompt": "Make the robot turn and then drive a little way, and have it say out loud what it is doing so I can follow without watching closely.",
+          "raw": "```python\nturn_left(90)\nmove_forward(3)\nsay(\"Turning left and driving forward 3 metres.\")\n```",
+          "code": "turn_left(90)\nmove_forward(3)\nsay(\"Turning left and driving forward 3 metres.\")",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 1,
+            "hitWall": false,
+            "steps": 3,
+            "endPos": {
+              "x": -300,
+              "y": 0
+            },
+            "summary": "Self-test passed: 1 moves, 1 turns, ends at (-300, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "access",
       "task": "square",
       "compiled": true,
       "ran": true,
-      "safe": false,
-      "didTask": false,
-      "turns": 3,
-      "lastError": "hit the wall"
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 6247,
+          "userPrompt": "Make the robot drive around in a square, and have it say out loud what it is doing so I can follow without watching closely.",
+          "raw": "```python\nfor i in range(4):\n    move_forward(3)\n    say(\"Moving forward\")\n    turn_right(90)\n    say(\"Turning right\")\nwait(1)\n```",
+          "code": "for i in range(4):\n    move_forward(3)\n    say(\"Moving forward\")\n    turn_right(90)\n    say(\"Turning right\")\nwait(1)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 4,
+            "turns": 4,
+            "hitWall": false,
+            "steps": 21,
+            "endPos": {
+              "x": 0,
+              "y": 0
+            },
+            "summary": "Self-test passed: 4 moves, 4 turns, ends at (0, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "access",
@@ -252,7 +971,31 @@
       "safe": true,
       "didTask": true,
       "turns": 1,
-      "lastError": ""
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 6347,
+          "userPrompt": "Make the robot drive forward but stop before it bumps into anything, and have it say out loud what it is doing so I can follow without watching closely.",
+          "raw": "```python\nwhile distance() > 40:\n    move_forward(1)\n    say(\"Driving forward\")\n```",
+          "code": "while distance() > 40:\n    move_forward(1)\n    say(\"Driving forward\")",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 15,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 45,
+            "endPos": {
+              "x": 0,
+              "y": 1500
+            },
+            "summary": "Self-test passed: 15 moves, 0 turns, ends at (0, 1500), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     },
     {
       "persona": "access",
@@ -262,7 +1005,541 @@
       "safe": true,
       "didTask": true,
       "turns": 1,
-      "lastError": ""
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 6447,
+          "userPrompt": "Make the robot do a little drive and beep, a few times over, and have it say out loud what it is doing so I can follow without watching closely.",
+          "raw": "```python\nfor i in range(3):\n    move_forward(2)\n    beep(1)\n    say(\"Driving forward\")\n    wait(0.5)\n    turn_right(90)\n    move_forward(2)\n    beep(1)\n    say(\"Turning right and driving forward\")\n    wait(0.5)\n    turn_left(90)\n    move_forward(2)\n    beep(1)\n    say(\"Turning left and driving forward\")\n    wait(0.5)\n```",
+          "code": "for i in range(3):\n    move_forward(2)\n    beep(1)\n    say(\"Driving forward\")\n    wait(0.5)\n    turn_right(90)\n    move_forward(2)\n    beep(1)\n    say(\"Turning right and driving forward\")\n    wait(0.5)\n    turn_left(90)\n    move_forward(2)\n    beep(1)\n    say(\"Turning left and driving forward\")\n    wait(0.5)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 9,
+            "turns": 6,
+            "hitWall": false,
+            "steps": 45,
+            "endPos": {
+              "x": 600,
+              "y": 1200
+            },
+            "summary": "Self-test passed: 9 moves, 6 turns, ends at (600, 1200), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "eal",
+      "task": "forward",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 6547,
+          "userPrompt": "Robot: drive forwards a few metres. Simple code please. No difficult explanation.",
+          "raw": "```python\nmove_forward(3)\n```",
+          "code": "move_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 1,
+            "endPos": {
+              "x": 0,
+              "y": 300
+            },
+            "summary": "Self-test passed: 1 moves, 0 turns, ends at (0, 300), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "eal",
+      "task": "turn_move",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 6647,
+          "userPrompt": "Robot: turn and then drive a little way. Simple code please. No difficult explanation.",
+          "raw": "```python\nturn_left(90)\nmove_forward(3)\n```",
+          "code": "turn_left(90)\nmove_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 1,
+            "hitWall": false,
+            "steps": 2,
+            "endPos": {
+              "x": -300,
+              "y": 0
+            },
+            "summary": "Self-test passed: 1 moves, 1 turns, ends at (-300, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "eal",
+      "task": "square",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 6747,
+          "userPrompt": "Robot: drive around in a square. Simple code please. No difficult explanation.",
+          "raw": "```python\nfor i in range(4):\n    move_forward(3)\n    turn_right(90)\n```",
+          "code": "for i in range(4):\n    move_forward(3)\n    turn_right(90)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 4,
+            "turns": 4,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 0
+            },
+            "summary": "Self-test passed: 4 moves, 4 turns, ends at (0, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "eal",
+      "task": "obstacle",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 6847,
+          "userPrompt": "Robot: drive forward but stop before it bumps into anything. Simple code please. No difficult explanation.",
+          "raw": "```python\nwhile distance() > 40:\n    move_forward(1)\n```",
+          "code": "while distance() > 40:\n    move_forward(1)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 15,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 30,
+            "endPos": {
+              "x": 0,
+              "y": 1500
+            },
+            "summary": "Self-test passed: 15 moves, 0 turns, ends at (0, 1500), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "eal",
+      "task": "loop",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 6947,
+          "userPrompt": "Robot: do a little drive and beep, a few times over. Simple code please. No difficult explanation.",
+          "raw": "```python\nfor i in range(5):\n    move_forward(3)\n    beep(1)\n    wait(0.5)\n```",
+          "code": "for i in range(5):\n    move_forward(3)\n    beep(1)\n    wait(0.5)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 5,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 20,
+            "endPos": {
+              "x": 0,
+              "y": 1500
+            },
+            "summary": "Self-test passed: 5 moves, 0 turns, ends at (0, 1500), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "expert",
+      "task": "forward",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 7047,
+          "userPrompt": "Drive forward 3 metres and stop. Use only the available Kodro API and keep units explicit.",
+          "raw": "```python\nmove_forward(3)\n```",
+          "code": "move_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 1,
+            "endPos": {
+              "x": 0,
+              "y": 300
+            },
+            "summary": "Self-test passed: 1 moves, 0 turns, ends at (0, 300), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "expert",
+      "task": "turn_move",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 7147,
+          "userPrompt": "Turn right 90 degrees, then drive forward 2 metres. Use only the available Kodro API and keep units explicit.",
+          "raw": "```python\nturn_right(90)\nmove_forward(2)\n```",
+          "code": "turn_right(90)\nmove_forward(2)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 1,
+            "hitWall": false,
+            "steps": 2,
+            "endPos": {
+              "x": 200,
+              "y": 0
+            },
+            "summary": "Self-test passed: 1 moves, 1 turns, ends at (200, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "expert",
+      "task": "square",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 7247,
+          "userPrompt": "Drive in a square 2 metres on each side using a loop. Use only the available Kodro API and keep units explicit.",
+          "raw": "```python\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n```",
+          "code": "for i in range(4):\n    move_forward(2)\n    turn_right(90)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 4,
+            "turns": 4,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 0
+            },
+            "summary": "Self-test passed: 4 moves, 4 turns, ends at (0, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "expert",
+      "task": "obstacle",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 7347,
+          "userPrompt": "Drive forward while distance() is greater than 40, then stop so it does not hit the wall. Use only the available Kodro API and keep units explicit.",
+          "raw": "```python\nwhile distance() > 40:\n    move_forward(1)\n```",
+          "code": "while distance() > 40:\n    move_forward(1)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 15,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 30,
+            "endPos": {
+              "x": 0,
+              "y": 1500
+            },
+            "summary": "Self-test passed: 15 moves, 0 turns, ends at (0, 1500), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "expert",
+      "task": "loop",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 7447,
+          "userPrompt": "Repeat 3 times: move forward 1 metre then beep. Use only the available Kodro API and keep units explicit.",
+          "raw": "```python\nfor i in range(3):\n    move_forward(1)\n    beep(1)\n```",
+          "code": "for i in range(3):\n    move_forward(1)\n    beep(1)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 3,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 9,
+            "endPos": {
+              "x": 0,
+              "y": 300
+            },
+            "summary": "Self-test passed: 3 moves, 0 turns, ends at (0, 300), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "skeptic",
+      "task": "forward",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 7547,
+          "userPrompt": "Make the robot drive forwards a few metres, but do not invent sensors or let it collide with anything.",
+          "raw": "```python\nmove_forward(3)\n```",
+          "code": "move_forward(3)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 1,
+            "endPos": {
+              "x": 0,
+              "y": 300
+            },
+            "summary": "Self-test passed: 1 moves, 0 turns, ends at (0, 300), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "skeptic",
+      "task": "turn_move",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 7647,
+          "userPrompt": "Make the robot turn and then drive a little way, but do not invent sensors or let it collide with anything.",
+          "raw": "```python\nturn_left(90)\nmove_forward(2)\n```",
+          "code": "turn_left(90)\nmove_forward(2)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 1,
+            "turns": 1,
+            "hitWall": false,
+            "steps": 2,
+            "endPos": {
+              "x": -200,
+              "y": 0
+            },
+            "summary": "Self-test passed: 1 moves, 1 turns, ends at (-200, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "skeptic",
+      "task": "square",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 7747,
+          "userPrompt": "Make the robot drive around in a square, but do not invent sensors or let it collide with anything.",
+          "raw": "```python\nfor i in range(4):\n    move_forward(3)\n    turn_right(90)\n```",
+          "code": "for i in range(4):\n    move_forward(3)\n    turn_right(90)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 4,
+            "turns": 4,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 0
+            },
+            "summary": "Self-test passed: 4 moves, 4 turns, ends at (0, 0), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "skeptic",
+      "task": "obstacle",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 7847,
+          "userPrompt": "Make the robot drive forward but stop before it bumps into anything, but do not invent sensors or let it collide with anything.",
+          "raw": "```python\nwhile distance() > 40:\n    move_forward(1)\n```",
+          "code": "while distance() > 40:\n    move_forward(1)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 15,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 30,
+            "endPos": {
+              "x": 0,
+              "y": 1500
+            },
+            "summary": "Self-test passed: 15 moves, 0 turns, ends at (0, 1500), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
+    },
+    {
+      "persona": "skeptic",
+      "task": "loop",
+      "compiled": true,
+      "ran": true,
+      "safe": true,
+      "didTask": true,
+      "turns": 1,
+      "lastError": "",
+      "attempts": [
+        {
+          "turn": 1,
+          "seed": 7947,
+          "userPrompt": "Make the robot do a little drive and beep, a few times over, but do not invent sensors or let it collide with anything.",
+          "raw": "```python\nfor i in range(3):\n    move_forward(2)\n    beep(1)\n    wait(0.5)\n```",
+          "code": "for i in range(3):\n    move_forward(2)\n    beep(1)\n    wait(0.5)",
+          "evidence": {
+            "stage": null,
+            "ok": true,
+            "moves": 3,
+            "turns": 0,
+            "hitWall": false,
+            "steps": 12,
+            "endPos": {
+              "x": 0,
+              "y": 600
+            },
+            "summary": "Self-test passed: 3 moves, 0 turns, ends at (0, 600), stays in the arena.",
+            "error": ""
+          },
+          "didTask": true
+        }
+      ]
     }
   ]
 }

@@ -201,6 +201,8 @@ function dumpDom(chrome, tag, url, opts = {}) {
     '--use-angle=swiftshader',
     '--enable-unsafe-swiftshader',
     '--no-sandbox',
+    '--no-first-run', '--disable-extensions', '--disable-default-apps',
+    '--disable-component-extensions-with-background-pages', '--disable-background-networking',
     `--virtual-time-budget=${opts.vtime || BEHAVIOUR_VTIME_MS}`,
     `--user-data-dir=${udd}`,
     '--enable-logging=stderr',
@@ -1100,6 +1102,8 @@ function runFlow(chrome, flow, timeoutMs = SPAWN_TIMEOUT_MS) {
     '--use-angle=swiftshader',
     '--enable-unsafe-swiftshader',
     '--no-sandbox',
+    '--no-first-run', '--disable-extensions', '--disable-default-apps',
+    '--disable-component-extensions-with-background-pages', '--disable-background-networking',
     `--virtual-time-budget=${VTIME_MS}`,
     `--user-data-dir=${udd}`,
     '--enable-logging=stderr',
@@ -1149,6 +1153,8 @@ function warmUpChrome(chrome) {
   spawnSync(chrome, [
     '--headless=new', '--no-sandbox', '--use-angle=swiftshader',
     '--enable-unsafe-swiftshader', '--virtual-time-budget=1500',
+    '--no-first-run', '--disable-extensions', '--disable-default-apps',
+    '--disable-component-extensions-with-background-pages', '--disable-background-networking',
     `--user-data-dir=${udd}`, '--dump-dom', 'about:blank',
   ], { encoding: 'utf8', timeout: FIRST_SPAWN_TIMEOUT_MS, windowsHide: true });
 }

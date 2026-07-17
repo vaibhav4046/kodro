@@ -69,6 +69,8 @@ export async function measureViewports(chrome, url, viewports, settleMs = 2800) 
   const child = spawn(chrome, [
     '--headless=new', `--remote-debugging-port=${port}`,
     '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox',
+    '--no-first-run', '--disable-extensions', '--disable-default-apps',
+    '--disable-component-extensions-with-background-pages', '--disable-background-networking',
     `--user-data-dir=${udd}`, 'about:blank',
   ], { windowsHide: true });
 

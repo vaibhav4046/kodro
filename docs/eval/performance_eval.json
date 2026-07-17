@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-17T05:06:07.628Z",
+  "method": "headless Chrome requestAnimationFrame cadence plus in-render submission timing on the shipped Three.js scene",
+  "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "platform": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "v24.12.0"
+  },
+  "artifactHashes": {
+    "bundleSha256": "e8f55c179c911af466a2ff61096aa35fb690fb7ae741f1313ceec2e6c0d3a6b4",
+    "harnessSha256": "99ef3df738510ddefdb4442c8c1d54b5768cdde22588e3b194f1cc48ed62076e"
+  },
+  "target240HzFrameMs": 4.17,
+  "interpretation": {
+    "measuredFps": "Observed requestAnimationFrame cadence in this browser environment; bounded by its virtual display.",
+    "p95RenderSubmissionMs": "CPU-side render submission duration. It is not a GPU completion time or a promise of displayed FPS.",
+    "highRefreshSubmissionReady": "True only when p95 submission work is at or below 4.17 ms in this run.",
+    "guarantee": "No universal FPS guarantee is made. Hardware, display refresh, browser scheduling, driver and scene all matter."
+  },
+  "runs": [
+    {
+      "qualityRequested": "low",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 10481,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 19.5,
+        "refreshEstimateHz": 19.7,
+        "p95FrameIntervalMs": 56,
+        "p95RenderSubmissionMs": 7.6,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": false,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "low-adaptive",
+        "downgraded": true
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9417/devtools/browser/aa0ddb3f-b2f1-4b55-9b93-e751e9d94ef1",
+        "[28244:20592:0717/060550.909:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+      ]
+    },
+    {
+      "qualityRequested": "high",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 11621,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 18.6,
+        "refreshEstimateHz": 18.6,
+        "p95FrameIntervalMs": 64.6,
+        "p95RenderSubmissionMs": 8.6,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": false,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "low-adaptive",
+        "downgraded": true
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9418/devtools/browser/9acc137a-9b51-455f-9513-b497b6b19969",
+        "[11536:9164:0717/060603.002:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+      ]
+    }
+  ],
+  "verdict": "MEASURED"
+}

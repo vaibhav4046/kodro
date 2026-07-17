@@ -1759,6 +1759,17 @@
         if (post) post.setSize(w, h);
       };
       window.addEventListener('resize', onResize);
+      // The workspace can resize without the browser window changing (Simple
+      // mode hides/reveals Evidence, onboarding closes, and draggable columns
+      // move). A window-only listener left the WebGL canvas at its 800x500
+      // bootstrap size and exposed a black strip below it. Observe the actual
+      // mount so the drawing buffer always fills the product surface.
+      let resizeObserver = null;
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(onResize);
+        resizeObserver.observe(mount);
+      }
+      window.requestAnimationFrame(onResize);
 
       let raf = 0;
       const tmp = new THREE.Vector3();
@@ -1773,6 +1784,57 @@
       // Auto-quality: if the first couple of seconds run slow on a weak GPU,
       // drop shadows and the pixel ratio once so the view stays usable.
       let frames = 0, slow = 0, downgraded = false, last = (window.performance && window.performance.now) ? window.performance.now() : 0;
+      let frameIntervals = [], renderWork = [], budgetMissWindows = 0;
+      const downgradeQuality = () => {
+        if (downgraded) return;
+        renderer.shadowMap.enabled = false; sun.castShadow = false;
+        renderer.setPixelRatio(1); downgraded = true;
+        // Propagate the drop to every quality-gated system, not just the
+        // renderer: ambient reads window.KODRO_QUALITY live each frame, and
+        // heavy weather particle buffers should stop with the tier.
+        try { window.KODRO_QUALITY = 'low'; } catch (e) { void e; }
+        if (weatherFx && weatherFx.dispose) { try { weatherFx.dispose(); } catch (e) { void e; } }
+        weatherFx = null;
+      };
+      const publishPerformance = () => {
+        if (frameIntervals.length < 120 || renderWork.length < 120) return;
+        const framesSorted = frameIntervals.slice().sort((a, b) => a - b);
+        const workSorted = renderWork.slice().sort((a, b) => a - b);
+        const p95i = framesSorted[Math.floor((framesSorted.length - 1) * 0.95)];
+        const p95w = workSorted[Math.floor((workSorted.length - 1) * 0.95)];
+        const median = framesSorted[Math.floor((framesSorted.length - 1) * 0.5)];
+        const avg = frameIntervals.reduce((a, b) => a + b, 0) / frameIntervals.length;
+        const report = {
+          schemaVersion: 1,
+          sampleFrames: frameIntervals.length,
+          measuredFps: Number((1000 / Math.max(0.001, avg)).toFixed(1)),
+          refreshEstimateHz: Number((1000 / Math.max(0.001, median)).toFixed(1)),
+          p95FrameIntervalMs: Number(p95i.toFixed(2)),
+          p95RenderSubmissionMs: Number(p95w.toFixed(2)),
+          target240HzFrameMs: 4.17,
+          highRefreshSubmissionReady: p95w <= 4.17,
+          actual240FpsGuaranteed: false,
+          actualFpsBoundary: 'Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.',
+          quality: downgraded ? 'low-adaptive' : (window.KODRO_QUALITY || Q),
+          downgraded,
+        };
+        try { window.KodroPerformance = report; } catch (e) { void e; }
+        try {
+          mount.dataset.perfFps = String(report.measuredFps);
+          mount.dataset.perfRefreshHz = String(report.refreshEstimateHz);
+          mount.dataset.perfP95FrameMs = String(report.p95FrameIntervalMs);
+          mount.dataset.perfP95WorkMs = String(report.p95RenderSubmissionMs);
+          mount.dataset.perf240Ready = report.highRefreshSubmissionReady ? 'true' : 'false';
+          mount.dataset.perfQuality = report.quality;
+          window.dispatchEvent(new CustomEvent('kodro-performance', { detail: report }));
+        } catch (e) { void e; }
+        // Two sustained windows outside the normal 40 FPS / 120 Hz work
+        // budgets trigger the same safe Low-tier fallback as the legacy
+        // long-frame detector. One noisy window never changes the scene.
+        if (p95i > 25 || p95w > 8.33) budgetMissWindows++; else budgetMissWindows = Math.max(0, budgetMissWindows - 1);
+        if (budgetMissWindows >= 2) downgradeQuality();
+        frameIntervals = []; renderWork = [];
+      };
       const tick = () => {
         if (disposed) return;
         // Backgrounded tab: do no render or sim work. rAF is already throttled
@@ -1789,15 +1851,7 @@
         if (!downgraded && ++frames > 12) {
           if (dt > 40) slow++; else slow = Math.max(0, slow - 1);
           if (slow > 30) {
-            renderer.shadowMap.enabled = false; sun.castShadow = false;
-            renderer.setPixelRatio(1); downgraded = true;
-            // Propagate the drop to every quality-gated system, not just the
-            // renderer: ambient reads window.KODRO_QUALITY live each frame,
-            // and the heavy weather particles (rain/snow re-upload their whole
-            // buffer per frame) should die with the tier (judge round 9).
-            try { window.KODRO_QUALITY = 'low'; } catch (e) { void e; }
-            if (weatherFx && weatherFx.dispose) { try { weatherFx.dispose(); } catch (e) { void e; } }
-            weatherFx = null;
+            downgradeQuality();
           }
         }
         const s = stateRef.current;
@@ -1991,12 +2045,17 @@
         // the post pass ever throws at frame time (e.g. an old GPU that cannot
         // linear-filter the half-float bloom target), disable it permanently and
         // fall back to the plain render so the view never freezes.
+        const renderStarted = (window.performance && window.performance.now) ? window.performance.now() : now;
         if (post && !downgraded) {
           try { post.render(scene, camera); }
           catch (e) { void e; try { post.dispose(); } catch (e2) { void e2; } post = null; renderer.setRenderTarget(null); renderer.render(scene, camera); }
         } else {
           renderer.render(scene, camera);
         }
+        const renderEnded = (window.performance && window.performance.now) ? window.performance.now() : renderStarted;
+        if (dt > 0 && dt < 250) frameIntervals.push(dt);
+        renderWork.push(Math.max(0, renderEnded - renderStarted));
+        publishPerformance();
         raf = window.requestAnimationFrame(tick);
       };
       // Expose the live renderer + sun so the in-place quality effect can adjust
@@ -2020,6 +2079,7 @@
         // traverse below (the single owner of disposal) frees GPU resources.
         if (ambient) { try { ambient.dispose(); } catch (e) { void e; } ambient = null; }
         if (post) { try { post.dispose(); } catch (e) { void e; } post = null; }
+        if (resizeObserver) { try { resizeObserver.disconnect(); } catch (e) { void e; } resizeObserver = null; }
         window.removeEventListener('resize', onResize);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointermove', onMove);

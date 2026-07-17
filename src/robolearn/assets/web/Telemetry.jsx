@@ -50,6 +50,13 @@
   }
 
   function Telemetry({ rover, terrain, sensorDist, odometer, robot, runState }) {
+    const [performanceReport, setPerformanceReport] = React.useState(() => window.KodroPerformance || null);
+    React.useEffect(() => {
+      const receivePerformance = (event) => setPerformanceReport(event.detail || window.KodroPerformance || null);
+      window.addEventListener('kodro-performance', receivePerformance);
+      if (window.KodroPerformance) setPerformanceReport(window.KodroPerformance);
+      return () => window.removeEventListener('kodro-performance', receivePerformance);
+    }, []);
     const accent = terrain.accent;
     const env = terrain.env;
     const battery = rover.battery;
@@ -137,6 +144,37 @@
               </span>
             </div>
           </div>
+        </div>
+
+        <div className="tele-section renderer-evidence" aria-label="Measured renderer evidence">
+          <span className="eyebrow" role="heading" aria-level="2">Renderer</span>
+          {performanceReport ? (
+            <>
+              <div className="gauges">
+                <div className="gauge">
+                  <span className="g-label">Observed cadence</span>
+                  <span className="g-val">{performanceReport.measuredFps}<span className="g-unit">fps</span></span>
+                </div>
+                <div className="gauge">
+                  <span className="g-label">P95 submission</span>
+                  <span className="g-val">{performanceReport.p95RenderSubmissionMs}<span className="g-unit">ms</span></span>
+                </div>
+                <div className="gauge">
+                  <span className="g-label">240 Hz work budget</span>
+                  <span className="g-val" style={{ fontSize: 12, color: performanceReport.highRefreshSubmissionReady ? 'var(--success)' : 'var(--warning)', paddingTop: 4 }}>
+                    {performanceReport.highRefreshSubmissionReady ? 'MET HERE' : 'NOT MET HERE'}
+                  </span>
+                </div>
+                <div className="gauge">
+                  <span className="g-label">Effective quality</span>
+                  <span className="g-val" style={{ fontSize: 12, paddingTop: 4 }}>{String(performanceReport.quality || 'unknown').toUpperCase()}</span>
+                </div>
+              </div>
+              <p className="renderer-boundary">A 120-frame sample on this browser. Displayed FPS remains bounded by the display, browser, GPU, scene and device.</p>
+            </>
+          ) : (
+            <p className="renderer-boundary">Sampling the 3D renderer. Evidence appears after 120 visible frames.</p>
+          )}
         </div>
 
         <div className="tele-section" style={{ borderBottom: 'none' }}>

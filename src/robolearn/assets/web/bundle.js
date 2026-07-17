@@ -11192,6 +11192,17 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         if (post) post.setSize(w, h);
       };
       window.addEventListener('resize', onResize);
+      // The workspace can resize without the browser window changing (Simple
+      // mode hides/reveals Evidence, onboarding closes, and draggable columns
+      // move). A window-only listener left the WebGL canvas at its 800x500
+      // bootstrap size and exposed a black strip below it. Observe the actual
+      // mount so the drawing buffer always fills the product surface.
+      let resizeObserver = null;
+      if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(onResize);
+        resizeObserver.observe(mount);
+      }
+      window.requestAnimationFrame(onResize);
       let raf = 0;
       const tmp = new THREE.Vector3();
       const camTarget = new THREE.Vector3();
@@ -11208,6 +11219,80 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         slow = 0,
         downgraded = false,
         last = window.performance && window.performance.now ? window.performance.now() : 0;
+      let frameIntervals = [],
+        renderWork = [],
+        budgetMissWindows = 0;
+      const downgradeQuality = () => {
+        if (downgraded) return;
+        renderer.shadowMap.enabled = false;
+        sun.castShadow = false;
+        renderer.setPixelRatio(1);
+        downgraded = true;
+        // Propagate the drop to every quality-gated system, not just the
+        // renderer: ambient reads window.KODRO_QUALITY live each frame, and
+        // heavy weather particle buffers should stop with the tier.
+        try {
+          window.KODRO_QUALITY = 'low';
+        } catch (e) {
+          void e;
+        }
+        if (weatherFx && weatherFx.dispose) {
+          try {
+            weatherFx.dispose();
+          } catch (e) {
+            void e;
+          }
+        }
+        weatherFx = null;
+      };
+      const publishPerformance = () => {
+        if (frameIntervals.length < 120 || renderWork.length < 120) return;
+        const framesSorted = frameIntervals.slice().sort((a, b) => a - b);
+        const workSorted = renderWork.slice().sort((a, b) => a - b);
+        const p95i = framesSorted[Math.floor((framesSorted.length - 1) * 0.95)];
+        const p95w = workSorted[Math.floor((workSorted.length - 1) * 0.95)];
+        const median = framesSorted[Math.floor((framesSorted.length - 1) * 0.5)];
+        const avg = frameIntervals.reduce((a, b) => a + b, 0) / frameIntervals.length;
+        const report = {
+          schemaVersion: 1,
+          sampleFrames: frameIntervals.length,
+          measuredFps: Number((1000 / Math.max(0.001, avg)).toFixed(1)),
+          refreshEstimateHz: Number((1000 / Math.max(0.001, median)).toFixed(1)),
+          p95FrameIntervalMs: Number(p95i.toFixed(2)),
+          p95RenderSubmissionMs: Number(p95w.toFixed(2)),
+          target240HzFrameMs: 4.17,
+          highRefreshSubmissionReady: p95w <= 4.17,
+          actual240FpsGuaranteed: false,
+          actualFpsBoundary: 'Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.',
+          quality: downgraded ? 'low-adaptive' : window.KODRO_QUALITY || Q,
+          downgraded
+        };
+        try {
+          window.KodroPerformance = report;
+        } catch (e) {
+          void e;
+        }
+        try {
+          mount.dataset.perfFps = String(report.measuredFps);
+          mount.dataset.perfRefreshHz = String(report.refreshEstimateHz);
+          mount.dataset.perfP95FrameMs = String(report.p95FrameIntervalMs);
+          mount.dataset.perfP95WorkMs = String(report.p95RenderSubmissionMs);
+          mount.dataset.perf240Ready = report.highRefreshSubmissionReady ? 'true' : 'false';
+          mount.dataset.perfQuality = report.quality;
+          window.dispatchEvent(new CustomEvent('kodro-performance', {
+            detail: report
+          }));
+        } catch (e) {
+          void e;
+        }
+        // Two sustained windows outside the normal 40 FPS / 120 Hz work
+        // budgets trigger the same safe Low-tier fallback as the legacy
+        // long-frame detector. One noisy window never changes the scene.
+        if (p95i > 25 || p95w > 8.33) budgetMissWindows++;else budgetMissWindows = Math.max(0, budgetMissWindows - 1);
+        if (budgetMissWindows >= 2) downgradeQuality();
+        frameIntervals = [];
+        renderWork = [];
+      };
       const tick = () => {
         if (disposed) return;
         // Backgrounded tab: do no render or sim work. rAF is already throttled
@@ -11225,27 +11310,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         if (!downgraded && ++frames > 12) {
           if (dt > 40) slow++;else slow = Math.max(0, slow - 1);
           if (slow > 30) {
-            renderer.shadowMap.enabled = false;
-            sun.castShadow = false;
-            renderer.setPixelRatio(1);
-            downgraded = true;
-            // Propagate the drop to every quality-gated system, not just the
-            // renderer: ambient reads window.KODRO_QUALITY live each frame,
-            // and the heavy weather particles (rain/snow re-upload their whole
-            // buffer per frame) should die with the tier (judge round 9).
-            try {
-              window.KODRO_QUALITY = 'low';
-            } catch (e) {
-              void e;
-            }
-            if (weatherFx && weatherFx.dispose) {
-              try {
-                weatherFx.dispose();
-              } catch (e) {
-                void e;
-              }
-            }
-            weatherFx = null;
+            downgradeQuality();
           }
         }
         const s = stateRef.current;
@@ -11474,6 +11539,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         // the post pass ever throws at frame time (e.g. an old GPU that cannot
         // linear-filter the half-float bloom target), disable it permanently and
         // fall back to the plain render so the view never freezes.
+        const renderStarted = window.performance && window.performance.now ? window.performance.now() : now;
         if (post && !downgraded) {
           try {
             post.render(scene, camera);
@@ -11491,6 +11557,10 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         } else {
           renderer.render(scene, camera);
         }
+        const renderEnded = window.performance && window.performance.now ? window.performance.now() : renderStarted;
+        if (dt > 0 && dt < 250) frameIntervals.push(dt);
+        renderWork.push(Math.max(0, renderEnded - renderStarted));
+        publishPerformance();
         raf = window.requestAnimationFrame(tick);
       };
       // Expose the live renderer + sun so the in-place quality effect can adjust
@@ -11537,6 +11607,14 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
             void e;
           }
           post = null;
+        }
+        if (resizeObserver) {
+          try {
+            resizeObserver.disconnect();
+          } catch (e) {
+            void e;
+          }
+          resizeObserver = null;
         }
         window.removeEventListener('resize', onResize);
         window.removeEventListener('pointerup', onUp);
@@ -11951,6 +12029,13 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     robot,
     runState
   }) {
+    const [performanceReport, setPerformanceReport] = React.useState(() => window.KodroPerformance || null);
+    React.useEffect(() => {
+      const receivePerformance = event => setPerformanceReport(event.detail || window.KodroPerformance || null);
+      window.addEventListener('kodro-performance', receivePerformance);
+      if (window.KodroPerformance) setPerformanceReport(window.KodroPerformance);
+      return () => window.removeEventListener('kodro-performance', receivePerformance);
+    }, []);
     const accent = terrain.accent;
     const env = terrain.env;
     const battery = rover.battery;
@@ -12104,6 +12189,56 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         paddingTop: 4
       }
     }, statusWord)))), /*#__PURE__*/React.createElement("div", {
+      className: "tele-section renderer-evidence",
+      "aria-label": "Measured renderer evidence"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow",
+      role: "heading",
+      "aria-level": "2"
+    }, "Renderer"), performanceReport ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "gauges"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "gauge"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "g-label"
+    }, "Observed cadence"), /*#__PURE__*/React.createElement("span", {
+      className: "g-val"
+    }, performanceReport.measuredFps, /*#__PURE__*/React.createElement("span", {
+      className: "g-unit"
+    }, "fps"))), /*#__PURE__*/React.createElement("div", {
+      className: "gauge"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "g-label"
+    }, "P95 submission"), /*#__PURE__*/React.createElement("span", {
+      className: "g-val"
+    }, performanceReport.p95RenderSubmissionMs, /*#__PURE__*/React.createElement("span", {
+      className: "g-unit"
+    }, "ms"))), /*#__PURE__*/React.createElement("div", {
+      className: "gauge"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "g-label"
+    }, "240 Hz work budget"), /*#__PURE__*/React.createElement("span", {
+      className: "g-val",
+      style: {
+        fontSize: 12,
+        color: performanceReport.highRefreshSubmissionReady ? 'var(--success)' : 'var(--warning)',
+        paddingTop: 4
+      }
+    }, performanceReport.highRefreshSubmissionReady ? 'MET HERE' : 'NOT MET HERE')), /*#__PURE__*/React.createElement("div", {
+      className: "gauge"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "g-label"
+    }, "Effective quality"), /*#__PURE__*/React.createElement("span", {
+      className: "g-val",
+      style: {
+        fontSize: 12,
+        paddingTop: 4
+      }
+    }, String(performanceReport.quality || 'unknown').toUpperCase()))), /*#__PURE__*/React.createElement("p", {
+      className: "renderer-boundary"
+    }, "A 120-frame sample on this browser. Displayed FPS remains bounded by the display, browser, GPU, scene and device.")) : /*#__PURE__*/React.createElement("p", {
+      className: "renderer-boundary"
+    }, "Sampling the 3D renderer. Evidence appears after 120 visible frames.")), /*#__PURE__*/React.createElement("div", {
       className: "tele-section",
       style: {
         borderBottom: 'none'
@@ -25244,9 +25379,23 @@ say("Survey done")`
       }
     });
     const classroom = mode === 'classroom';
+    // Progressive disclosure is the default. "Simple" keeps the complete
+    // product reachable while presenting one primary decision at a time;
+    // "Expert" restores the permanently visible instruments and shortcuts.
+    const [experience, setExperience] = useState(() => {
+      try {
+        return localStorage.getItem('kodro_experience') === 'expert' ? 'expert' : 'simple';
+      } catch (e) {
+        return 'simple';
+      }
+    });
+    const simpleExperience = experience !== 'expert';
     const [lessonHubOpen, setLessonHubOpen] = useState(false);
+    const [lessonBrowseAll, setLessonBrowseAll] = useState(false);
     function openLessonLibrary() {
       if (!classroom) setMode('classroom');
+      setActiveStage('learn');
+      setLessonBrowseAll(false);
       setLessonHubOpen(true);
       setSettingsOpen(false);
     }
@@ -25284,6 +25433,13 @@ say("Survey done")`
         setCurrentLessonId(null);
       }
     }, [mode]);
+    useEffect(() => {
+      try {
+        localStorage.setItem('kodro_experience', experience);
+      } catch (e) {
+        void e;
+      }
+    }, [experience]);
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
     // (Toast state + showToast now live in useConsoleToast, destructured above.)
@@ -25298,6 +25454,20 @@ say("Survey done")`
         return false;
       }
     });
+    const [evidenceOpen, setEvidenceOpen] = useState(() => {
+      try {
+        return localStorage.getItem('kodro_experience') === 'expert';
+      } catch (e) {
+        return false;
+      }
+    });
+    const [runToolsOpen, setRunToolsOpen] = useState(false);
+    useEffect(() => {
+      if (experience === 'expert') {
+        setEvidenceOpen(true);
+        setRunToolsOpen(false);
+      }
+    }, [experience]);
     // First-run onboarding / landing flow (shown once, remembered, skippable).
     const [onboarded, setOnboarded] = useState(() => lsGet('or_onboarded') === '1');
     // Budget robot builder (local AI hardware guide for a real-world rover).
@@ -25881,6 +26051,7 @@ say("Survey done")`
     }, []);
     function loadLesson(lesson) {
       if (!lesson) return;
+      setActiveStage('learn');
       setLessonHubOpen(false);
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
@@ -26468,8 +26639,18 @@ say("Survey done")`
         openBuildReal();
         return;
       }
+      if (stage === 'learn') {
+        setRobotLabOpen(false);
+        setBuildOpen(false);
+        if (!classroom) setMode('classroom');
+        setLessonBrowseAll(false);
+        setLessonHubOpen(true);
+        return;
+      }
       setRobotLabOpen(false);
       setBuildOpen(false);
+      setLessonHubOpen(false);
+      if (stage === 'prove') setCurrentLessonId(null);
       setTimeout(function () {
         const main = document.getElementById('editor-main');
         if (main && main.focus) main.focus({
@@ -26549,6 +26730,8 @@ say("Survey done")`
     return /*#__PURE__*/React.createElement("div", {
       className: "app",
       "data-stage": activeStage,
+      "data-experience": experience,
+      "data-evidence": evidenceOpen ? 'open' : 'closed',
       "data-obstacles": (terrain.obstacles || []).length,
       "data-active-world": terrain.siteId || terrain.id || ''
     }, /*#__PURE__*/React.createElement("a", {
@@ -26601,25 +26784,54 @@ say("Survey done")`
       onClick: () => goStage('build')
     }, /*#__PURE__*/React.createElement("span", {
       className: "stage-count"
-    }, "3"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Build"), /*#__PURE__*/React.createElement("small", null, "Prototype pack")))), /*#__PURE__*/React.createElement("div", {
+    }, "3"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Build"), /*#__PURE__*/React.createElement("small", null, "Prototype pack"))), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: 'stage-link' + (activeStage === 'learn' ? ' active' : ''),
+      "aria-label": "4 Learn with guided robotics lessons",
+      "aria-current": activeStage === 'learn' ? 'step' : undefined,
+      onClick: () => goStage('learn')
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "stage-count"
+    }, "4"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Learn"), /*#__PURE__*/React.createElement("small", null, currentLessonId ? 'Current lesson' : 'Guided lessons')))), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "run-controls"
     }, /*#__PURE__*/React.createElement("button", {
       className: 'ctrl ' + (runState === 'running' ? '' : 'ctrl-run'),
-      onClick: onRun
+      onClick: () => {
+        setRunToolsOpen(false);
+        onRun();
+      }
     }, runState === 'running' ? I.pause : I.play, runState === 'running' ? 'Pause' : runState === 'paused' ? 'Resume' : 'Run'), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "ctrl run-more-toggle",
+      "aria-haspopup": "menu",
+      "aria-expanded": runToolsOpen,
+      onClick: () => setRunToolsOpen(o => !o)
+    }, "More"), /*#__PURE__*/React.createElement("div", {
+      className: 'run-secondary' + (runToolsOpen ? ' is-open' : ''),
+      role: simpleExperience ? 'menu' : undefined
+    }, /*#__PURE__*/React.createElement("button", {
       className: "ctrl",
-      onClick: onStep,
+      onClick: () => {
+        setRunToolsOpen(false);
+        onStep();
+      },
       disabled: runState === 'running'
     }, I.step, "Step"), /*#__PURE__*/React.createElement("button", {
       className: "ctrl ctrl-stop",
-      onClick: onReset
+      onClick: () => {
+        setRunToolsOpen(false);
+        onReset();
+      }
     }, I.reset, "Reset"), /*#__PURE__*/React.createElement("button", {
       className: "ctrl",
       title: "Validate this program across 5 randomised seeds",
-      onClick: runValidation
-    }, KI('target'), "Validate")), /*#__PURE__*/React.createElement("div", {
+      onClick: () => {
+        setRunToolsOpen(false);
+        runValidation();
+      }
+    }, KI('target'), "Validate"))), /*#__PURE__*/React.createElement("div", {
       className: "bar-spacer"
     }), /*#__PURE__*/React.createElement("div", {
       className: "bar-status",
@@ -26629,7 +26841,17 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("span", {
       className: 'status-dot ' + runState,
       "aria-hidden": "true"
-    }), /*#__PURE__*/React.createElement("span", null, statusLabel)), /*#__PURE__*/React.createElement("div", {
+    }), /*#__PURE__*/React.createElement("span", null, statusLabel)), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: 'icon-btn evidence-toggle' + (evidenceOpen ? ' active' : ''),
+      title: evidenceOpen ? 'Hide evidence' : 'Show evidence',
+      "aria-label": evidenceOpen ? 'Hide evidence' : 'Show evidence',
+      "aria-expanded": evidenceOpen,
+      "aria-controls": "kodro-evidence-panel",
+      onClick: () => setEvidenceOpen(v => !v)
+    }, KI('report'), /*#__PURE__*/React.createElement("span", {
+      className: "icon-btn-label"
+    }, "Evidence")), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn icon-btn-lessons",
@@ -26676,6 +26898,17 @@ say("Survey done")`
       role: "dialog",
       "aria-label": "Settings"
     }, /*#__PURE__*/React.createElement("label", {
+      className: "set-row"
+    }, /*#__PURE__*/React.createElement("span", null, "Interface"), /*#__PURE__*/React.createElement("select", {
+      className: "lesson-select",
+      value: experience,
+      onChange: e => setExperience(e.target.value === 'expert' ? 'expert' : 'simple'),
+      "aria-label": "Interface complexity"
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "simple"
+    }, "Simple"), /*#__PURE__*/React.createElement("option", {
+      value: "expert"
+    }, "Expert"))), /*#__PURE__*/React.createElement("label", {
       className: "set-row"
     }, /*#__PURE__*/React.createElement("span", null, "Mode"), /*#__PURE__*/React.createElement("select", {
       className: "lesson-select",
@@ -26899,7 +27132,26 @@ say("Survey done")`
       }
     }, /*#__PURE__*/React.createElement("div", {
       className: "panel-head"
-    }, /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("label", {
+      className: "simple-program-picker"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "Program"), /*#__PURE__*/React.createElement("select", {
+      className: "lesson-select",
+      value: currentLessonId ? '' : activeTab,
+      onChange: e => {
+        setCurrentLessonId(null);
+        setActiveStage('prove');
+        setActiveTab(e.target.value);
+      },
+      "aria-label": "Choose an example program"
+    }, /*#__PURE__*/React.createElement("option", {
+      value: "",
+      disabled: true
+    }, "Lesson program"), Object.keys(EXAMPLES).map(k => /*#__PURE__*/React.createElement("option", {
+      key: k,
+      value: k
+    }, EXAMPLES[k].label)))), /*#__PURE__*/React.createElement("div", {
       className: "tabs"
     }, Object.keys(EXAMPLES).map(k => /*#__PURE__*/React.createElement("button", {
       key: k,
@@ -26932,11 +27184,11 @@ say("Survey done")`
       onClick: () => setLessonHubOpen(true)
     }, "Browse")), /*#__PURE__*/React.createElement("div", {
       className: "panel-actions"
-    }, /*#__PURE__*/React.createElement("button", {
+    }, !simpleExperience && /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Build the program from blocks",
       onClick: () => setBlocksOpen(true)
-    }, KI('blocks'), "Blocks"), /*#__PURE__*/React.createElement("button", {
+    }, KI('blocks'), "Blocks"), !simpleExperience && /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       title: "Realism dashboard: how the build drives the simulation",
       onClick: () => setRealismOpen(true)
@@ -26944,9 +27196,21 @@ say("Survey done")`
       className: "editor-tools"
     }, /*#__PURE__*/React.createElement("summary", {
       className: "btn-mini"
-    }, "More tools"), /*#__PURE__*/React.createElement("div", {
+    }, "Tools"), /*#__PURE__*/React.createElement("div", {
       className: "editor-tools-menu"
-    }, /*#__PURE__*/React.createElement("button", {
+    }, simpleExperience && /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      title: "Build the program from blocks",
+      onClick: () => setBlocksOpen(true)
+    }, /*#__PURE__*/React.createElement("span", null, KI('blocks'), "Build with blocks"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), simpleExperience && /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      title: "Realism dashboard: how the build drives the simulation",
+      onClick: () => setRealismOpen(true)
+    }, /*#__PURE__*/React.createElement("span", null, KI('gauge'), "Simulation limits"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
       title: aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)',
       onClick: runReview
@@ -27453,7 +27717,7 @@ say("Survey done")`
       className: "world-loading-spinner",
       "aria-hidden": "true"
     }), /*#__PURE__*/React.createElement("span", null, "Loading ", worldLoading.name, "\u2026")))), /*#__PURE__*/React.createElement("div", {
-      className: "resizer",
+      className: "resizer tele-resizer",
       role: "separator",
       "aria-orientation": "vertical",
       tabIndex: 0,
@@ -27475,6 +27739,7 @@ say("Survey done")`
         gridColumn: 4
       }
     }), /*#__PURE__*/React.createElement("div", {
+      id: "kodro-evidence-panel",
       className: 'panel tele-panel' + (teleCollapsed ? ' tele-collapsed' : ''),
       style: {
         gridColumn: 5
@@ -27485,7 +27750,7 @@ say("Survey done")`
       className: "eyebrow",
       role: "heading",
       "aria-level": "2"
-    }, "Live readouts"), /*#__PURE__*/React.createElement("div", {
+    }, "Evidence"), /*#__PURE__*/React.createElement("div", {
       className: "ph-spacer",
       style: {
         flex: 1
@@ -27594,7 +27859,10 @@ say("Survey done")`
     }, "Classroom \xB7 learn by making the robot move"), /*#__PURE__*/React.createElement("h2", null, "Choose your next mission"), /*#__PURE__*/React.createElement("p", null, "Each lesson gives you a starter program, a real simulated world, clear goals and feedback after every run.")), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini lesson-hub-close",
       "aria-label": "Close lesson library",
-      onClick: () => setLessonHubOpen(false)
+      onClick: () => {
+        setLessonHubOpen(false);
+        if (!currentLessonId) setActiveStage('prove');
+      }
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
       className: "lesson-hub-summary",
       "aria-label": "Lesson progress summary"
@@ -27617,10 +27885,32 @@ say("Survey done")`
         openTeacher();
       }
     }, "View progress")), /*#__PURE__*/React.createElement("div", {
-      className: "lesson-hub-scroll"
+      className: 'lesson-hub-scroll' + (simpleExperience && !lessonBrowseAll ? ' lesson-hub-focused' : '')
     }, lessons.length === 0 && /*#__PURE__*/React.createElement("p", {
       className: "lesson-hub-loading"
-    }, "Loading the offline lesson library\u2026"), ['KS1', 'KS2', 'KS3', 'KS4'].map(stage => {
+    }, "Loading the offline lesson library\u2026"), simpleExperience && !lessonBrowseAll && lessons.length > 0 ? (() => {
+      const lesson = lessons.find(l => !(lessonResults[l.id] && lessonResults[l.id].passed)) || lessons[0];
+      const result = lessonResults[lesson.id];
+      return /*#__PURE__*/React.createElement("section", {
+        className: "lesson-recommended",
+        "aria-labelledby": "recommended-lesson-title"
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "lesson-stage-code"
+      }, "Recommended next"), /*#__PURE__*/React.createElement("h3", {
+        id: "recommended-lesson-title"
+      }, lesson.title), /*#__PURE__*/React.createElement("p", null, (lesson.intro || 'Program the robot and test your solution in the simulated world.').trim()), /*#__PURE__*/React.createElement("div", {
+        className: "lesson-recommended-meta"
+      }, /*#__PURE__*/React.createElement("span", null, AGE_FOR[lesson.keyStage] || lesson.keyStage), /*#__PURE__*/React.createElement("span", null, (lesson.terrain || 'earth').replace(/^./, c => c.toUpperCase()), " world"), lesson.readingAge ? /*#__PURE__*/React.createElement("span", null, "Reading age ", lesson.readingAge, "+") : null), /*#__PURE__*/React.createElement("button", {
+        type: "button",
+        className: "ctrl ctrl-run lesson-recommended-start",
+        "aria-label": 'Open recommended lesson: ' + lesson.title,
+        onClick: () => loadLesson(lesson)
+      }, result && result.passed ? 'Review lesson' : 'Start lesson'), /*#__PURE__*/React.createElement("button", {
+        type: "button",
+        className: "btn-mini lesson-browse-all",
+        onClick: () => setLessonBrowseAll(true)
+      }, "Browse all ", lessons.length, " missions"));
+    })() : ['KS1', 'KS2', 'KS3', 'KS4'].map(stage => {
       const stageLessons = lessons.filter(l => l.keyStage === stage);
       if (stageLessons.length === 0) return null;
       const stageDone = stageLessons.filter(l => lessonResults[l.id] && lessonResults[l.id].passed).length;
@@ -27660,6 +27950,7 @@ say("Survey done")`
       onClick: () => {
         setLessonHubOpen(false);
         setMode('studio');
+        setActiveStage('prove');
       }
     }, "Return to Studio")))), robotLabOpen && RobotLab && /*#__PURE__*/React.createElement(RobotLab, {
       onClose: () => {
