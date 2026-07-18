@@ -15115,6 +15115,7 @@ Object.assign(window, {
   // the scenario's own successCriteria.maxCollisions. The UI renders this one
   // boolean instead of each surface re-deriving its own 0.6 threshold.
   const PASS_RATE = 0.6;
+  const ENGINE_VERSION = 'kodro-web-kinematic/1';
 
   // Deterministic PRNG so a seed reproduces a run exactly (reproducible demo).
   function mulberry32(a) {
@@ -15133,6 +15134,12 @@ Object.assign(window, {
       h = Math.imul(h, 16777619);
     }
     return h >>> 0;
+  }
+  function hashHex(s) {
+    return ('00000000' + hashStr(s).toString(16)).slice(-8);
+  }
+  function codeHash(s) {
+    return 'fnv1a32:' + hashHex(s);
   }
   function lerp(a, b, t) {
     return a + (b - a) * t;
@@ -15265,6 +15272,10 @@ Object.assign(window, {
     const massMul = 1 + (rng() * 2 - 1) * massTol;
     const noiseCm = cfg.sensorNoise || 0;
     const jitter = cfg.obstacleJitter || 0;
+    const delayRange = cfg.startDelay || [0, 3];
+    const batteryRange = cfg.initialBattery || [88, 100];
+    const startDelay = lerp(delayRange[0], delayRange[1], rng());
+    const initialBattery = lerp(batteryRange[0], batteryRange[1], rng());
     const robot = gateRobot;
     const massFac = (robot && robot.massFactor ? robot.massFactor : 1) * massMul;
     const start = scenario.startPose || {
@@ -15292,12 +15303,15 @@ Object.assign(window, {
     // measures clearance against the BODY, not a dimensionless point.
     const KMc = window.KodroMotion;
     const R = robot && robot.phys && robot.phys.collisionRadiusCm || KMc && KMc.MODEL && KMc.MODEL.roverRadiusCm || 30;
+
+    // Start delay is a declared test condition. The small idle drain makes it
+    // affect the engine state instead of being decorative metadata.
     const s = {
       x: start.x,
       y: start.y,
       heading: start.heading || 0,
       speed: 50,
-      battery: 100
+      battery: Math.max(0, initialBattery - startDelay * 0.02)
     };
     let minObstacleDistance = Infinity;
     function noteClearance() {
@@ -15512,8 +15526,48 @@ Object.assign(window, {
       sensorFailures: sensorFailures,
       friction: Math.round(friction * 100) / 100,
       massMul: Math.round(massMul * 100) / 100,
+      conditions: {
+        obstacleJitterCm: jitter,
+        sensorNoiseCm: noiseCm,
+        startDelayS: Math.round(startDelay * 1000) / 1000,
+        initialBatteryPct: Math.round(initialBattery * 1000) / 1000
+      },
       error: runError,
       finalScore: score
+    };
+  }
+  function evidenceRun(run) {
+    return {
+      seed: run.seed,
+      conditions: run.conditions,
+      metrics: {
+        reachedGoal: run.reachedGoal,
+        collisions: run.collisions,
+        timeToGoal: run.timeToGoal,
+        batteryUsedPct: run.batteryUsed,
+        minClearanceCm: run.minObstacleDistance,
+        commandErrors: run.commandErrors,
+        sensorFailures: run.sensorFailures,
+        finalScore: run.finalScore,
+        error: run.error
+      }
+    };
+  }
+  function compare(previous, current) {
+    if (!previous || !previous.manifest) return {
+      status: 'no-baseline',
+      changed: []
+    };
+    const changed = [];
+    const a = previous.manifest,
+      b = current.manifest;
+    if (a.contractId !== b.contractId) changed.push('contract');
+    if (a.controllerHash !== b.controllerHash) changed.push('controller');
+    if (JSON.stringify(a.runs) !== JSON.stringify(b.runs)) changed.push('per-seed metrics');
+    if (a.verdict !== b.verdict) changed.push('verdict');
+    return {
+      status: changed.length ? 'changed' : 'same',
+      changed: changed
     };
   }
   function run(src, scenario, n, opts) {
@@ -15582,6 +15636,7 @@ Object.assign(window, {
     // already captured by successRate; maxCollisions gates the collision spread.
     const crit = scenario && scenario.successCriteria || {};
     aggregate.passed = !allCompileFail && aggregate.successRate >= PASS_RATE && (crit.maxCollisions == null || aggregate.meanCollisions <= crit.maxCollisions);
+    const controllerHash = codeHash(src);
     const report = {
       scenario: {
         scenarioId: scenario.scenarioId,
@@ -15591,8 +15646,25 @@ Object.assign(window, {
       },
       runs: runs,
       aggregate: aggregate,
+      manifest: {
+        schema: 'kodro.web-prove-manifest/1',
+        contractId: scenario.scenarioId,
+        controllerHash: controllerHash,
+        engine: ENGINE_VERSION,
+        seeds: runs.map(function (r) {
+          return r.seed;
+        }),
+        runs: runs.map(evidenceRun),
+        verdict: aggregate.passed ? 'pass' : 'fail',
+        evidenceBoundary: 'Kinematic simulation evidence only. This does not validate or certify physical performance or safety.'
+      },
       ts: Date.now()
     };
+    const previousReports = window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports() || [];
+    const previous = previousReports.find(function (item) {
+      return item && item.manifest && item.manifest.contractId === scenario.scenarioId && item.manifest.controllerHash === controllerHash;
+    });
+    report.regression = compare(previous, report);
     // Persist locally (offline) so the realism dashboard and the assistant can
     // read past validation. The desktop SQLite bridge mirrors this when present.
     if (!allCompileFail) {
@@ -15864,7 +15936,10 @@ Object.assign(window, {
     run: run,
     runOnce: runOnce,
     defaultFor: defaultFor,
-    PASS_RATE: PASS_RATE
+    compare: compare,
+    codeHash: codeHash,
+    PASS_RATE: PASS_RATE,
+    ENGINE_VERSION: ENGINE_VERSION
   };
 })();
 })();
@@ -25432,10 +25507,11 @@ say("Survey done")`
     const [lessonBrowseAll, setLessonBrowseAll] = useState(false);
     function openLessonLibrary() {
       if (!classroom) setMode('classroom');
-      setActiveStage('learn');
+      setActiveStage('prove');
       setLessonBrowseAll(false);
       setLessonHubOpen(true);
       setSettingsOpen(false);
+      setMoreToolsOpen(false);
     }
     // On a phone the lesson picker sits below the world panel, so tapping the
     // Lessons button produced no visible change (judge round 9): bring the
@@ -25480,6 +25556,7 @@ say("Survey done")`
     }, [experience]);
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [moreToolsOpen, setMoreToolsOpen] = useState(false);
     // (Toast state + showToast now live in useConsoleToast, destructured above.)
     // Brief "Loading {world}..." overlay shown while the 3D scene rebuilds on a
     // world switch, so the viewport does not flash empty for a frame.
@@ -25599,6 +25676,30 @@ say("Survey done")`
         if (settingsBtnRef.current) settingsBtnRef.current.focus();
       };
     }, [settingsOpen]);
+
+    // Secondary capabilities stay reachable without competing with the three
+    // project decisions. The global More Tools popover uses the same keyboard,
+    // click-away and focus-restoration behaviour as Settings.
+    const moreToolsBtnRef = useRef(null);
+    useEffect(() => {
+      if (!moreToolsOpen) return undefined;
+      const pop = document.querySelector('.more-tools-pop');
+      const first = pop && pop.querySelector('button, [tabindex]');
+      if (first) first.focus();
+      const close = e => {
+        if (!e.target.closest || !e.target.closest('.more-tools-wrap')) setMoreToolsOpen(false);
+      };
+      const key = e => {
+        if (e.key === 'Escape') setMoreToolsOpen(false);
+      };
+      document.addEventListener('pointerdown', close);
+      document.addEventListener('keydown', key);
+      return () => {
+        document.removeEventListener('pointerdown', close);
+        document.removeEventListener('keydown', key);
+        if (moreToolsBtnRef.current) moreToolsBtnRef.current.focus();
+      };
+    }, [moreToolsOpen]);
 
     // currentLessonId ref: the vibe streamed job is scoped to the lesson open
     // when it started, so useVibeChat (below) reads this ref. Created here
@@ -25737,6 +25838,14 @@ say("Survey done")`
     // handlers intact while giving every capability a stable place in the
     // journey: design the robot, prove it in scenarios, then prepare a build.
     const [activeStage, setActiveStage] = useState('prove');
+    const [proveReport, setProveReport] = useState(() => {
+      try {
+        const reports = window.KodroMemory && window.KodroMemory.scenarioReports ? window.KodroMemory.scenarioReports() : [];
+        return reports[0] || null;
+      } catch (e) {
+        return null;
+      }
+    });
     // Simple mode opens on a test plan, not a wall of source code. The editor
     // is still one deliberate action away and Expert mode remains unchanged.
     // Keep this session-local: returning to the product should begin with the
@@ -25931,6 +26040,7 @@ say("Survey done")`
       const scn = window.KodroScenario.defaultFor(terrain && terrain.id);
       addConsole('Validating across 5 randomised seeds in "' + scn.name + '" on ' + (terrain.name || terrain.id) + ' (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
       const rep = window.KodroScenario.run(code, scn, 5);
+      setProveReport(rep);
       const a = rep.aggregate;
       // A compile error in the program is a code mistake, not a 0% behaviour
       // result: surface it as an error and do not show a misleading pass rate
@@ -25947,6 +26057,23 @@ say("Survey done")`
         addConsole('0% success means the program never reached the goal marker (the cyan beacon ring drawn in the viewport). It is a mission result, not a crash count.', 'sys');
       }
       setRealismOpen(true);
+    }
+    function downloadProveManifest() {
+      if (!proveReport || !proveReport.manifest) return;
+      const payload = JSON.stringify(proveReport.manifest, null, 2) + '\n';
+      const blob = new Blob([payload], {
+        type: 'application/json'
+      });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (proveReport.manifest.contractId || 'kodro-proof') + '-manifest.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () {
+        URL.revokeObjectURL(a.href);
+      }, 2000);
+      showToast('Evidence manifest downloaded', 'ok');
     }
 
     // Autonomous test: when code is applied, run it through the real interpreter
@@ -26096,7 +26223,7 @@ say("Survey done")`
     }, []);
     function loadLesson(lesson) {
       if (!lesson) return;
-      setActiveStage('learn');
+      setActiveStage('prove');
       setLessonHubOpen(false);
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
@@ -26476,7 +26603,7 @@ say("Survey done")`
     // fires; the duplicate close is harmless) but excludes FPV, which has a
     // dedicated Escape handler for motion-sensitive exit.
     const anyOverlayOpenRef = useRef(false);
-    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen);
+    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen);
     const fpvRef = useRef(fpv);
     fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
@@ -26498,6 +26625,7 @@ say("Survey done")`
         setDemoOpen(false);
         setLessonHubOpen(false);
         setSettingsOpen(false);
+        setMoreToolsOpen(false);
         setActiveStage('prove');
       };
       const h = e => {
@@ -26674,6 +26802,7 @@ say("Survey done")`
     function goStage(stage) {
       setActiveStage(stage);
       setSettingsOpen(false);
+      setMoreToolsOpen(false);
       if (stage === 'design') {
         setBuildOpen(false);
         setRobotLabOpen(true);
@@ -26682,14 +26811,6 @@ say("Survey done")`
       if (stage === 'build') {
         setRobotLabOpen(false);
         openBuildReal();
-        return;
-      }
-      if (stage === 'learn') {
-        setRobotLabOpen(false);
-        setBuildOpen(false);
-        if (!classroom) setMode('classroom');
-        setLessonBrowseAll(false);
-        setLessonHubOpen(true);
         return;
       }
       setRobotLabOpen(false);
@@ -26751,6 +26872,8 @@ say("Survey done")`
       return r && r.world === terrainId && r.robotName === chipName && r.robotKey && r.robotKey === simpleRobotKey && r.source === code;
     }) || null;
     const showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen && !currentLessonId;
+    const planScenario = window.KodroScenario && window.KodroScenario.defaultFor ? window.KodroScenario.defaultFor(terrain && terrain.id) : null;
+    const planProveReport = proveReport && proveReport.manifest && planScenario && proveReport.manifest.contractId === planScenario.scenarioId && window.KodroScenario.codeHash && proveReport.manifest.controllerHash === window.KodroScenario.codeHash(code) ? proveReport : null;
     const SIMPLE_PROGRAM_NAMES = {
       basecamp: 'Build a base camp',
       autopilot: 'Avoid obstacles automatically',
@@ -26884,15 +27007,7 @@ say("Survey done")`
       onClick: () => goStage('build')
     }, /*#__PURE__*/React.createElement("span", {
       className: "stage-count"
-    }, "3"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Build"), /*#__PURE__*/React.createElement("small", null, "Prototype pack"))), /*#__PURE__*/React.createElement("button", {
-      type: "button",
-      className: 'stage-link' + (activeStage === 'learn' ? ' active' : ''),
-      "aria-label": "4 Learn with guided robotics lessons",
-      "aria-current": activeStage === 'learn' ? 'step' : undefined,
-      onClick: () => goStage('learn')
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "stage-count"
-    }, "4"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Learn"), /*#__PURE__*/React.createElement("small", null, currentLessonId ? 'Current lesson' : 'Guided lessons')))), /*#__PURE__*/React.createElement("div", {
+    }, "3"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Build"), /*#__PURE__*/React.createElement("small", null, "Prototype pack")))), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "run-controls"
@@ -26953,15 +27068,108 @@ say("Survey done")`
       className: "icon-btn-label"
     }, "Evidence")), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
-    }), /*#__PURE__*/React.createElement("button", {
-      className: "icon-btn icon-btn-lessons",
-      title: "Lessons. Learn robotics and coding step by step (ages 5 to 16)",
-      "aria-label": "Lessons \u2014 browse robotics and coding lessons",
-      "aria-pressed": mode === 'classroom',
-      onClick: openLessonLibrary
-    }, KI('report'), /*#__PURE__*/React.createElement("span", {
+    }), /*#__PURE__*/React.createElement("div", {
+      className: "more-tools-wrap"
+    }, /*#__PURE__*/React.createElement("button", {
+      ref: moreToolsBtnRef,
+      className: "icon-btn more-tools-trigger",
+      title: "More tools",
+      "aria-label": "More tools",
+      "aria-haspopup": "menu",
+      "aria-expanded": moreToolsOpen,
+      onClick: () => {
+        setSettingsOpen(false);
+        setMoreToolsOpen(o => !o);
+      }
+    }, KI('blocks'), /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
-    }, "Lessons")), /*#__PURE__*/React.createElement("button", {
+    }, "More Tools")), moreToolsOpen && /*#__PURE__*/React.createElement("div", {
+      className: "more-tools-pop",
+      role: "menu",
+      "aria-label": "More tools"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "more-tools-heading"
+    }, "Learn and review"), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      "aria-label": "Lessons, browse guided robotics missions",
+      onClick: openLessonLibrary
+    }, /*#__PURE__*/React.createElement("span", null, KI('report'), "Lessons"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      "aria-label": "Teacher progress dashboard",
+      onClick: () => {
+        setMoreToolsOpen(false);
+        if (!classroom) setMode('classroom');
+        openTeacher();
+      }
+    }, /*#__PURE__*/React.createElement("span", null, KI('gauge'), "Teacher progress"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      title: aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)',
+      onClick: () => {
+        setMoreToolsOpen(false);
+        runReview();
+      }
+    }, /*#__PURE__*/React.createElement("span", null, KI('review'), "Review program"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("span", {
+      className: "more-tools-heading"
+    }, "Create and inspect"), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      title: "Build the program from blocks",
+      onClick: () => {
+        setMoreToolsOpen(false);
+        setBlocksOpen(true);
+      }
+    }, /*#__PURE__*/React.createElement("span", null, KI('blocks'), "Build with blocks"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      title: "Realism dashboard: how the build drives the simulation",
+      onClick: () => {
+        setMoreToolsOpen(false);
+        setRealismOpen(true);
+      }
+    }, /*#__PURE__*/React.createElement("span", null, KI('gauge'), "Simulation limits"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      "aria-label": "Open project history, memory and skills",
+      onClick: () => {
+        setMoreToolsOpen(false);
+        setMemoryOpen(true);
+      }
+    }, /*#__PURE__*/React.createElement("span", null, KI('memory'), "Project history"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      title: "Guided 2 to 3 minute realism demo",
+      onClick: () => {
+        setMoreToolsOpen(false);
+        setDemoOpen(true);
+      }
+    }, /*#__PURE__*/React.createElement("span", null, KI('demo'), "Guided demo"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "\u2192")), /*#__PURE__*/React.createElement("button", {
+      className: "set-row set-btn",
+      role: "menuitem",
+      "aria-label": "Open keyboard shortcuts",
+      onClick: () => {
+        setMoreToolsOpen(false);
+        setShowHelp(true);
+      }
+    }, /*#__PURE__*/React.createElement("span", null, "Keyboard shortcuts"), /*#__PURE__*/React.createElement("span", {
+      className: "set-val"
+    }, "?")))), /*#__PURE__*/React.createElement("button", {
       className: "icon-btn btn-vibe companion-btn",
       title: aiInfo.available ? 'Open Companion (' + aiInfo.model + ')' : 'Open Companion. Direct robot and world actions work without a model.',
       "aria-label": "Open Kodro Companion",
@@ -26987,10 +27195,13 @@ say("Survey done")`
       ref: settingsBtnRef,
       className: "icon-btn",
       title: "Settings",
-      "aria-label": "Settings \u2014 theme, sound, readable text, and teacher tools",
+      "aria-label": "Settings for theme, sound and readable text",
       "aria-haspopup": "dialog",
       "aria-expanded": settingsOpen,
-      onClick: () => setSettingsOpen(o => !o)
+      onClick: () => {
+        setMoreToolsOpen(false);
+        setSettingsOpen(o => !o);
+      }
     }, KI('gear'), /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
     }, "Settings")), settingsOpen && /*#__PURE__*/React.createElement("div", {
@@ -27198,11 +27409,6 @@ say("Survey done")`
       }, "\u2192")));
     })(), classroom && /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",
-      onClick: openTeacher
-    }, /*#__PURE__*/React.createElement("span", null, "Teacher dashboard"), /*#__PURE__*/React.createElement("span", {
-      className: "set-val"
-    }, "\u2192")), classroom && /*#__PURE__*/React.createElement("button", {
-      className: "set-row set-btn",
       onClick: () => {
         setSettingsOpen(false);
         exportReportClick();
@@ -27229,7 +27435,7 @@ say("Survey done")`
       className: "simple-cockpit-head"
     }, /*#__PURE__*/React.createElement("span", {
       className: "simple-step"
-    }, "Step 2 of 4"), /*#__PURE__*/React.createElement("h2", null, "Prove your robot"), /*#__PURE__*/React.createElement("p", null, "Choose one test, run it in the world, then use the result to improve the design.")), /*#__PURE__*/React.createElement("div", {
+    }, "Step 2 of 3"), /*#__PURE__*/React.createElement("h2", null, "Prove your robot"), /*#__PURE__*/React.createElement("p", null, "Choose one test, run it in the world, then use the result to improve the design.")), /*#__PURE__*/React.createElement("div", {
       className: "simple-setup",
       "aria-label": "Current test setup"
     }, /*#__PURE__*/React.createElement("div", {
@@ -27274,7 +27480,30 @@ say("Survey done")`
     }, Object.keys(EXAMPLES).map(k => /*#__PURE__*/React.createElement("option", {
       key: k,
       value: k
-    }, SIMPLE_PROGRAM_NAMES[k] || EXAMPLES[k].label))))), !simpleLatestRun && !simpleRunActive && /*#__PURE__*/React.createElement("section", {
+    }, SIMPLE_PROGRAM_NAMES[k] || EXAMPLES[k].label))))), /*#__PURE__*/React.createElement("section", {
+      className: 'simple-proof' + (planProveReport && planProveReport.aggregate ? planProveReport.aggregate.passed ? ' proof-pass' : ' proof-fail' : ''),
+      "aria-label": "Deterministic proof"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "simple-proof-head"
+    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Deterministic evidence"), /*#__PURE__*/React.createElement("small", null, "Five fixed seeds vary traction, mass, sensor noise, obstacle position, start delay and battery.")), planProveReport && planProveReport.aggregate ? /*#__PURE__*/React.createElement("strong", null, planProveReport.aggregate.passed ? 'PASS' : 'FAIL') : /*#__PURE__*/React.createElement("strong", null, "NOT RUN")), planProveReport && planProveReport.aggregate ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      className: "simple-proof-metrics"
+    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.successCount, "/", planProveReport.aggregate.seeds), " goals reached"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.meanCollisions), " mean collisions"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.meanBattery, "%"), " mean battery used")), /*#__PURE__*/React.createElement("p", {
+      className: "simple-proof-regression"
+    }, "Regression: ", planProveReport.regression && planProveReport.regression.status === 'same' ? 'matches the previous run byte for byte' : planProveReport.regression && planProveReport.regression.status === 'changed' ? 'changed in ' + planProveReport.regression.changed.join(', ') : 'no matching baseline yet', ".")) : /*#__PURE__*/React.createElement("p", null, "No multi-seed evidence has been recorded for this session."), /*#__PURE__*/React.createElement("p", {
+      className: "simple-proof-boundary"
+    }, "Kinematic simulation evidence only. It does not validate or certify physical performance or safety."), /*#__PURE__*/React.createElement("div", {
+      className: "simple-proof-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "ctrl ctrl-run",
+      onClick: runValidation
+    }, "Run 5-seed proof"), planProveReport && planProveReport.manifest && /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: downloadProveManifest
+    }, "Download manifest"), planProveReport && /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => setRealismOpen(true)
+    }, "Inspect limits"))), !simpleLatestRun && !simpleRunActive && /*#__PURE__*/React.createElement("section", {
       className: 'simple-readiness tone-' + (simpleAssessment && simpleAssessment.overall || 'unknown'),
       "aria-label": "Pre-run design check"
     }, /*#__PURE__*/React.createElement("div", {
@@ -27397,7 +27626,7 @@ say("Survey done")`
       className: "editor-tools"
     }, /*#__PURE__*/React.createElement("summary", {
       className: "btn-mini"
-    }, "Tools"), /*#__PURE__*/React.createElement("div", {
+    }, "Program tools"), /*#__PURE__*/React.createElement("div", {
       className: "editor-tools-menu"
     }, simpleExperience && /*#__PURE__*/React.createElement("button", {
       className: "set-row set-btn",

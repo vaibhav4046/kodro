@@ -451,8 +451,8 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
     'Simple plan mode has one primary Run action (the duplicate global Run is withheld)');
   ok(/data-simple-view="plan"/.test(css) && /\.simple-cockpit/.test(css),
     'Simple plan mode has a dedicated cockpit presentation');
-  ok(/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/.test(css),
-    'all four product stages fit on one phone navigation row');
+  ok(/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/.test(css),
+    'the three primary stages fit on one phone navigation row');
   const capGenerator = readFileSync(path.join(HERE, 'build_screenshot_harness.cjs'), 'utf8');
   ok(/q\.get\('experience'\)/.test(capGenerator)
       && /q\.get\('code'\)[\s\S]*q\.get\('run'\)[\s\S]*q\.get\('panel'\)[\s\S]*q\.get\('lesson'\)[\s\S]*q\.get\('tab'\)[\s\S]*kodro_experience', 'expert'/.test(capGenerator),

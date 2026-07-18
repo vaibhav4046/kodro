@@ -130,18 +130,16 @@ body {
   .missionbar .brand-sub { display:none; }
   .missionbar .icon-btn-label { display:none; }
   .missionbar .icon-btn { min-width:32px; justify-content:center; }
-  /* The Lessons entry keeps its visible label at every width: it is the only
-     route into the learning pillar, and an anonymous glyph hid half of the
-     product from a first-time visitor (judge round 9). The bar wraps below
-     768px, so the extra ~52px never clips anything. */
-  .missionbar .icon-btn-lessons { min-width:0; padding:0 8px; }
-  .missionbar .icon-btn-lessons .icon-btn-label { display:inline; }
+  .missionbar .more-tools-trigger { min-width:0; padding:0 8px; }
+  .missionbar .more-tools-trigger .icon-btn-label { display:inline; }
   .missionbar .companion-btn { min-width:0; padding:0 8px; }
   .missionbar .companion-btn .icon-btn-label { display:inline; }
   .stage-link { padding-inline:8px; }
   .stage-link small { display:none; }
 }
 @media (max-width: 1360px) {
+  .missionbar .more-tools-trigger { width:34px; min-width:34px; padding:0; }
+  .missionbar .more-tools-trigger .icon-btn-label { display:none; }
   .missionbar .companion-btn { width:34px; min-width:34px; padding:0; }
   .missionbar .companion-btn .icon-btn-label { display:none; }
   .stage-link { padding-inline:7px; }
@@ -846,7 +844,7 @@ select.terrain-btn:hover {
   .app { grid-template-rows:auto 1fr; padding-bottom:58px; }
   .stage-nav {
     position:fixed; z-index:80; left:0; right:0; bottom:0;
-    display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:2px;
+    display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2px;
     padding:6px max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));
     border:0; border-top:1px solid var(--border); border-radius:0;
     background:color-mix(in srgb,var(--navy) 96%,transparent); box-shadow:0 -12px 28px rgba(0,0,0,0.28);
@@ -1355,6 +1353,21 @@ kbd {
 .dist-readout.no-range { display:flex; flex-direction:column; gap:2px; }
 
 .settings-wrap { position:relative; }
+.more-tools-wrap { position:relative; }
+.more-tools-pop {
+  position:absolute; top:38px; right:0; z-index:200; width:270px;
+  max-height:calc(100vh - 80px); overflow-y:auto;
+  background:var(--navy-2);
+  border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:var(--shadow-menu);
+  padding:6px; display:flex; flex-direction:column; gap:2px;
+  animation:pop-in 140ms var(--ease);
+}
+.more-tools-pop .set-row { width:100%; }
+.more-tools-pop .ki { margin-right:7px; vertical-align:-3px; }
+.more-tools-heading {
+  padding:8px 10px 3px; color:var(--fg-3);
+  font:600 var(--text-xs)/1.2 var(--font-mono); letter-spacing:0.1em; text-transform:uppercase;
+}
 .settings-pop {
   /* z-index sits above the editor tab strip and panel toolbars (z 20 to 30) so
      the popover floats OVER the content instead of bleeding into the tab strip.
@@ -1395,7 +1408,7 @@ kbd {
 }
 .api-hint b { font-weight:500; color:var(--fg-2); }
 .api-hint .sep { color:var(--fg-4); }
-@media (prefers-reduced-motion: reduce) { .settings-pop { animation:none; } }
+@media (prefers-reduced-motion: reduce) { .settings-pop, .more-tools-pop { animation:none; } }
 
 /* Memory context chip in the Vibe panel: the reflection fed to the assistant,
    made visible (the memory loop must be seen to be believed). */
@@ -2087,7 +2100,6 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .evidence-toggle.active { color:var(--cyan); border-color:var(--cyan-deep); background:color-mix(in srgb,var(--cyan) 10%,transparent); }
 
 .app[data-experience="simple"] .brand-sub { display:none; }
-.app[data-experience="simple"] .icon-btn-lessons { display:none; }
 .app[data-experience="simple"] .stage-link { min-width:74px; padding-inline:9px; }
 .app[data-experience="simple"] .stage-link small { display:none; }
 .app[data-experience="simple"] .stage-count { width:20px; height:20px; }
@@ -2119,6 +2131,31 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
    the latest measured outcome beside the next decision. Source code remains
    available through Edit program and Expert mode. */
 .app[data-experience="simple"][data-simple-view="plan"] .terrain-switch { display:none; }
+
+.simple-proof {
+  display:flex; flex-direction:column; gap:9px; padding:14px;
+  border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--navy-2);
+}
+.simple-proof.proof-pass { border-color:color-mix(in srgb,var(--success) 46%,var(--border)); }
+.simple-proof.proof-fail { border-color:color-mix(in srgb,var(--warning) 55%,var(--border)); }
+.simple-proof-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.simple-proof-head > span { display:flex; flex-direction:column; gap:3px; }
+.simple-proof-head b { color:var(--fg-1); font-size:var(--text-xl); }
+.simple-proof-head small { color:var(--fg-2); line-height:1.45; }
+.simple-proof-head > strong { color:var(--fg-2); font:700 var(--text-sm)/1 var(--font-mono); letter-spacing:0.08em; }
+.proof-pass .simple-proof-head > strong { color:var(--success); }
+.proof-fail .simple-proof-head > strong { color:var(--warning); }
+.simple-proof-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.simple-proof-metrics span { padding:8px; border-radius:var(--radius-sm); background:var(--navy-3); color:var(--fg-2); font-size:var(--text-sm); }
+.simple-proof-metrics b { display:block; color:var(--fg-1); font:650 var(--text-xl)/1.2 var(--font-mono); }
+.simple-proof > p { margin:0; color:var(--fg-2); font-size:var(--text-sm); line-height:1.45; }
+.simple-proof .simple-proof-boundary { color:var(--warning); }
+.simple-proof-actions { display:flex; flex-wrap:wrap; gap:7px; }
+.simple-proof-actions button:not(.ctrl) { border:1px solid var(--border); border-radius:var(--radius-sm); background:transparent; color:var(--fg-1); padding:8px 10px; cursor:pointer; }
+@media (max-width: 520px) {
+  .simple-proof-metrics { grid-template-columns:1fr; }
+  .simple-proof-actions .ctrl, .simple-proof-actions button { width:100%; justify-content:center; }
+}
 .simple-cockpit {
   min-height:0; flex:1; overflow:auto; padding:26px 24px 30px;
   display:flex; flex-direction:column; gap:18px;

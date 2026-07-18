@@ -1,0 +1,135 @@
+# Study Protocol
+
+## Material Passport
+
+- Origin Skill: experiment-agent
+- Origin Mode: plan
+- Origin Date: 2026-07-18
+- Verification Status: UNVERIFIED
+- Version Label: study_protocol_v1
+
+## Study overview
+
+- **Title**: Deterministic evidence for diagnosing simulated robot-controller faults
+- **Research question**: Does access to Kodro's seeded deterministic evidence help
+  adult users identify and correct controller faults more effectively than console
+  output alone?
+- **Primary hypothesis**: Participants will achieve a higher mission-correction
+  success rate with deterministic evidence than with console output alone.
+- **Secondary hypotheses**: Deterministic evidence will reduce time to a correct
+  solution and the number of incorrect edits, and will increase confidence in the
+  final diagnosis.
+- **Design**: Within-participant counterbalanced crossover pilot
+- **Type**: Moderated usability experiment
+
+This is an exploratory MSc pilot. A target of 10 to 15 participants is feasible
+for the project but is not claimed to provide confirmatory statistical power.
+Effect sizes, uncertainty intervals and complete outcome counts take priority over
+binary significance language. A later confirmatory study should use the pilot's
+variance and discordant-pair estimates in a prospective power analysis.
+
+## Participants
+
+- **Target population**: Adults interested in computing, engineering or making,
+  including novices and experienced programmers
+- **Sampling strategy**: Convenience sampling with condition sequences allocated
+  in a balanced rotating order
+- **Target sample size**: 12, with a permissible range of 10 to 15 completed sessions
+- **Inclusion criteria**: age 18 or older; able to read the study materials in
+  English; able to use a keyboard and pointer; no prior involvement in developing
+  Kodro
+- **Exclusion criteria**: under 18; member of the project development team;
+  inability to give informed consent; prior exposure to the mission answers
+- **Power differential control**: do not recruit anyone whose grades, employment
+  or supervision are controlled by the researcher
+
+## Conditions
+
+| Code | Condition | Available information |
+|---|---|---|
+| C | Console | Program, simulated world and console messages only. Seeded proof, evidence history, manifests and Simulation Limits are unavailable. |
+| E | Evidence | The same program and world plus the five-seed proof card, structured metrics, regression status, manifest and Simulation Limits. |
+
+The deterministic engine owns all metrics and verdicts. Companion or other AI
+features remain disabled in both conditions so they cannot alter the independent
+variable or supply an answer.
+
+## Counterbalancing
+
+Every participant completes all three missions and experiences both conditions.
+Allocate sequences cyclically in recruitment order:
+
+| Sequence | Mission 1 | Mission 2 | Mission 3 |
+|---|---|---|---|
+| S1 | C | C | E |
+| S2 | C | E | C |
+| S3 | E | C | C |
+| S4 | E | E | C |
+| S5 | E | C | E |
+| S6 | C | E | E |
+
+Repeat S1 to S6 in order. This balances condition by mission across each complete
+block of six participants. Mission order should rotate separately using orders
+123, 231 and 312.
+
+## Variables
+
+| Role | Variable | Measurement | Scale |
+|---|---|---|---|
+| IV | Diagnostic interface | C or E | Nominal |
+| DV primary | Corrected mission | Meets the declared deterministic contract within 10 minutes | Binary |
+| DV secondary | Time to correction | Seconds from task start to first passing proof or accepted console run | Ratio |
+| DV secondary | Incorrect edits | Submitted controller edits before success or timeout | Count |
+| DV secondary | Collision burden | Collisions in the final submitted run or proof aggregate | Count |
+| DV secondary | Diagnostic confidence | One item, 1 not confident to 5 very confident | Ordinal |
+| DV secondary | Task ease | One item, 1 very difficult to 7 very easy | Ordinal |
+| Control | Mission | M1, M2 or M3 | Nominal |
+| Control | Mission order | 123, 231 or 312 | Nominal |
+| Confound | Programming experience | Self-reported category, used descriptively | Ordinal |
+| Confound | Learning and fatigue | Counterbalanced condition and rotated mission order | Nominal |
+
+## Instruments
+
+| Instrument | Purpose | Source | Reliability |
+|---|---|---|---|
+| Kodro deterministic manifest | Objective contract outcome and per-seed metrics | Product-generated | Deterministic same-seed gate |
+| Facilitator event sheet | Time, edits and protocol deviations | Self-developed | Not established |
+| Confidence item | Confidence in diagnosis | Self-developed | Single item, not established |
+| Task-ease item | Perceived difficulty | Self-developed | Single item, not established |
+| Exit prompts | Qualitative usability observations | Self-developed | Not a validated scale |
+
+## Data collection
+
+| Phase | Duration | Activity | Responsible |
+|---|---:|---|---|
+| Consent and briefing | 5 minutes | Confirm eligibility, information sheet, consent and study code | Researcher |
+| Familiarisation | 5 minutes | Neutral practice task excluded from analysis | Facilitator |
+| Three missions | 30 minutes maximum | Ten minutes per mission under assigned condition | Participant and facilitator |
+| Exit questions | 5 to 10 minutes | Confidence, ease and short open questions | Participant |
+| Data lock | After final session | Validate rows, record exclusions, freeze CSV hash | Researcher |
+
+## Analysis strategy
+
+| Outcome | Primary analysis | Assumptions | Fallback or limitation |
+|---|---|---|---|
+| Mission success | Condition success proportions, participant-level paired difference, exact sign-flip permutation | Both conditions observed per participant | Report counts and effect estimate only if pair count is too small |
+| Time to correction | Successful trials only, median and participant-level paired mean difference | Completion times are comparable | Report medians and all censored failures separately |
+| Incorrect edits | Condition means, medians and paired difference | Count distribution may be skewed | Descriptive medians and full range |
+| Confidence and ease | Condition medians and paired difference | Ordinal interpretation | Descriptive distribution only |
+| Qualitative comments | Brief content coding after quantitative lock | No claim of saturation | Illustrative themes, no frequency inflation |
+
+No outcome may be replaced after data inspection. Missing rows, exclusions,
+timeouts and protocol deviations remain visible in the final report.
+
+## Ethics
+
+- **Ethics status**: ETHICS_PENDING
+- **Consent method**: Written or approved digital consent before the session
+- **Data anonymisation**: Pseudonymous study code during collection; names and
+  contact details are not entered into the outcome dataset
+- **Data storage**: Encrypted University-managed storage, restricted to the
+  student and supervisor
+- **Retention period**: Proposed 12 months after degree award, subject to
+  supervisor and University policy confirmation before submission
+- **Risk level**: Drafted as low risk, with possible frustration and screen fatigue
+- **Recruitment gate**: No recruitment or data collection before written approval

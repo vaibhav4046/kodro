@@ -30,9 +30,10 @@
  * interpreter, a Run button wired to nothing, a frozen loop, a blocks->editor
  * break, a swallowed error, or worlds collapsing onto a single terrain.
  *
- * It is a SMOKE report: it always exits 0. If Chrome or the static server is
- * missing (e.g. a headless CI box with no GPU) it prints SKIP and exits 0 so it
- * never breaks a pipeline. Flows run SEQUENTIALLY with a short gap between them
+ * It can run as four independently failing suites: paint, behaviour, layout and
+ * modals. If Chrome or the static server is missing it prints SKIP locally;
+ * KODRO_QA_UI_REQUIRED=1 turns that into a CI failure. Flows run sequentially
+ * with a short gap between them
  * because the dev http.server is single-threaded and stalls if hammered.
  *
  *   cd src/robolearn/assets/web && python -m http.server 8099   # serve first
@@ -58,6 +59,15 @@ const CAP = path.join(REPO, 'src', 'robolearn', 'assets', 'web', 'cap.html');
 const HOST = 'localhost';
 const PORT = 8099;
 const BASE = `http://${HOST}:${PORT}/cap.html`;
+const SUITE_ARG = process.argv.find((arg) => arg.startsWith('--suite='));
+const SUITE = SUITE_ARG ? SUITE_ARG.slice('--suite='.length) : 'all';
+const VALID_SUITES = new Set(['all', 'paint', 'behaviour', 'layout', 'modals']);
+if (!VALID_SUITES.has(SUITE)) throw new Error(`unknown UI suite: ${SUITE}`);
+const RUN_PAINT = SUITE === 'all' || SUITE === 'paint';
+const RUN_BEHAVIOUR = SUITE === 'all' || SUITE === 'behaviour';
+const RUN_LAYOUT = SUITE === 'all' || SUITE === 'layout';
+const RUN_MODALS = SUITE === 'all' || SUITE === 'modals';
+const REQUIRED = process.env.KODRO_QA_UI_REQUIRED === '1';
 
 // A real studio render fills a 1280x800 canvas; anything under this is a blank
 // page or a partial paint, which is exactly the regression we are hunting.
@@ -920,23 +930,20 @@ function checkFirstRunClean(chrome) {
   return { pass: false, reason: `${last} (after 4 attempts)` };
 }
 
-// LESSONS ENTRY (judge round 1) — the learning half of the product must be
-// discoverable and understandable in one click. The old implementation only
-// exposed a select inside the IDE, which gave no curriculum map or progress.
-// Drive the real top-bar button and require the dedicated library, a mission
-// card, and the quick-switch picker retained in the classroom workspace.
+// LESSONS ENTRY: lessons remain discoverable through the global More Tools
+// menu without competing with the Design, Prove, Build project loop.
 function checkLessonsEntry(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&open=lessons`;
   const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lessons_entry', url, { vtime: 11000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
-  const hasButton = /aria-label="Lessons[^"]*"/.test(dom);
+  const hasButton = /aria-label="More tools"/.test(dom);
   const hasPicker = /class="lesson-picker"|<label[^>]*for="lesson-select"/.test(dom);
   const hasLibrary = /aria-label="Lesson library"/.test(dom) && /Choose your next mission/.test(dom);
   const hasMission = /class="lesson-tile/.test(dom) && /Open lesson:|Completed lesson:/.test(dom);
   if (hasButton && hasPicker && hasLibrary && hasMission) {
-    return { pass: true, reason: 'one Lessons click opens the curriculum library with mission cards, progress and the quick-switch picker' };
+    return { pass: true, reason: 'More Tools then Lessons opens the curriculum library with mission cards, progress and the quick-switch picker' };
   }
   return { pass: false, reason: `lessons entry incomplete (button: ${hasButton}, picker: ${hasPicker}, library: ${hasLibrary}, mission: ${hasMission})` };
 }
@@ -1200,24 +1207,24 @@ function cleanup() {
 (async function main() {
   if (!existsSync(CAP)) {
     console.log('SKIP: cap.html missing — run `node scripts/build_screenshot_harness.cjs` first.');
-    process.exit(0);
+    process.exit(REQUIRED ? 1 : 0);
   }
 
   const chrome = resolveChrome();
   if (!chrome) {
     console.log('SKIP: Chrome not found (set CHROME_PATH). UI smoke needs headless Chrome.');
-    process.exit(0);
+    process.exit(REQUIRED ? 1 : 0);
   }
 
   const status = await probeServer();
   if (status !== 200) {
     console.log(`SKIP: static server not serving cap.html on :${PORT} (got ${status || 'no connection'}).`);
     console.log('      Start it with:  cd src/robolearn/assets/web && python -m http.server 8099');
-    process.exit(0);
+    process.exit(REQUIRED ? 1 : 0);
   }
 
   mkdirSync(TMP, { recursive: true });
-  console.log('== UI SMOKE: driving the real Kodro bundle through cap.html (headless Chrome) ==');
+  console.log(`== UI ${SUITE.toUpperCase()}: driving the real Kodro bundle through cap.html (headless Chrome) ==`);
 
   // Pay the cold-start tax on a trivial page so it does not flake flow #1.
   warmUpChrome(chrome);
@@ -1248,7 +1255,7 @@ function cleanup() {
 
   // ---- Phase 1: paint + console smoke across the core flows (unchanged) -----
   let clean = 0;
-  for (let i = 0; i < FLOWS.length; i++) {
+  if (RUN_PAINT) for (let i = 0; i < FLOWS.length; i++) {
     const flow = FLOWS[i];
     // The very first real flow still warms WebGL for the full app; give it room.
     const r = runFlow(chrome, flow, i === 0 ? FIRST_SPAWN_TIMEOUT_MS : SPAWN_TIMEOUT_MS);
@@ -1271,8 +1278,9 @@ function cleanup() {
   // ---- Phase 2: per-concern behaviour asserts (deterministic, no Ollama) -----
   // Each drives a concrete action and asserts a concrete DOM marker. These run
   // AFTER the paint smoke so a blank bundle is already reported above.
-  console.log('\n== UI BEHAVIOUR: per-concern asserts on the real bundle ==');
   const behaviour = [];
+  if (RUN_BEHAVIOUR) {
+  console.log('\n== UI BEHAVIOUR: per-concern asserts on the real bundle ==');
 
   const blocks = checkBlocksInsert(chrome);
   behaviour.push(blocks.pass);
@@ -1431,9 +1439,13 @@ function cleanup() {
   console.log(`${encore.pass ? 'PASS' : 'FAIL'}  ${'encore-run'.padEnd(20)} ${encore.reason}`);
   gap();
 
+  }
+
   // Layout at LAPTOP widths: the studio must fit with zero horizontal overflow
   // (bugs D1: 1280x800 clipped the Settings button offscreen). --window-size is
   // fine here because both widths are above Chrome's ~482px window floor.
+  if (RUN_LAYOUT) {
+  console.log('\n== UI LAYOUT: laptop and true mobile viewport checks ==');
   for (const [w, h] of [[1280, 800], [1366, 768]]) {
     const lr = checkLayout(chrome, w, h);
     behaviour.push(lr.pass);
@@ -1469,6 +1481,7 @@ function cleanup() {
     console.log(`FAIL  ${'layout-phone-cdp'.padEnd(20)} CDP viewport probe failed: ${e.message}`);
     gap();
   }
+  }
 
   const behClean = behaviour.filter(Boolean).length;
 
@@ -1478,9 +1491,10 @@ function cleanup() {
   // markup silently breaks, now FAILS here instead of shipping unseen. Runs
   // sequentially like the other phases (single-threaded dev server). No Ollama
   // needed — we assert the modal OPENS, not that any AI responds.
-  console.log('\n== UI MODALS: open and verify every toolbar modal/popover renders ==');
   const modals = [];
 
+  if (RUN_MODALS) {
+  console.log('\n== UI MODALS: open and verify every toolbar modal/popover renders ==');
   for (const m of MODALS) {
     const mr = checkModalRenders(chrome, m);
     modals.push(mr.pass);
@@ -1492,11 +1506,14 @@ function cleanup() {
   modals.push(val.pass);
   console.log(`${val.pass ? 'PASS' : 'FAIL'}  ${('modal-' + VALIDATE.name).padEnd(20)} ${val.reason}`);
   gap();
+  }
 
   const modalsClean = modals.filter(Boolean).length;
 
   cleanup();
-  console.log(`\n== UI SMOKE: ${clean}/${FLOWS.length} flows clean · ${behClean}/${behaviour.length} behaviour asserts pass · ${modalsClean}/${modals.length} modals render ==`);
-  // Smoke report: never break CI on a render/console hiccup or a GPU-less box.
-  process.exit(0);
+  console.log(`\n== UI ${SUITE.toUpperCase()}: ${clean}/${RUN_PAINT ? FLOWS.length : 0} flows clean · ${behClean}/${behaviour.length} behaviour or layout asserts pass · ${modalsClean}/${modals.length} modals render ==`);
+  const passed = (!RUN_PAINT || clean === FLOWS.length)
+    && behClean === behaviour.length
+    && modalsClean === modals.length;
+  process.exit(passed ? 0 : 1);
 })();

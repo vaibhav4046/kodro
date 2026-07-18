@@ -45,5 +45,17 @@ ok(hit && hit.type === 'obstacle', 'sim-physics.collisionAt agrees the body coll
 // gap is exactly the body-vs-point regime this fix closes.
 ok(60 > 40 && 60 < 40 + R, 'the graze lies in the body-vs-point band (40 < 60 < 70)');
 
+// Same contract, controller and seeds must emit byte-identical evidence.
+const first = win.KodroScenario.run(src, scenario, 5, { harness: true });
+const second = win.KodroScenario.run(src, scenario, 5, { harness: true });
+ok(JSON.stringify(first.manifest) === JSON.stringify(second.manifest),
+  'same controller and seeds produce a byte-identical evidence manifest');
+ok(first.manifest && first.manifest.engine === 'kodro-web-kinematic/1',
+  'manifest records the deterministic engine version');
+ok(first.manifest && /^fnv1a32:[0-9a-f]{8}$/.test(first.manifest.controllerHash),
+  'manifest records the controller code hash');
+ok(first.runs.every((r) => r.conditions && r.conditions.startDelayS != null && r.conditions.initialBatteryPct != null),
+  'every seed records start delay and initial battery conditions');
+
 console.log((fail ? 'FAIL' : 'PASS') + '  scenario collision parity: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

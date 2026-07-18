@@ -98,6 +98,16 @@ jobs:
       - name: Web physics gate
         run: node scripts/qa_physics.mjs
 
+      - name: Web scenario evidence gate
+        run: node scripts/qa_scenario_parity.mjs
+
+      # Deterministic Prove gate: four declarative contracts run through the
+      # existing Python rover engine. The test pins byte-identical manifests,
+      # traceability fields, all required perturbations, regression comparison,
+      # and proves a deliberately broken controller receives a FAIL verdict.
+      - name: Deterministic Prove contracts
+        run: python -m pytest tests/unit/test_prove.py -q --cov-fail-under=0
+
       # AI-facade gate: unit coverage for the browser assistant's pure string
       # logic in ai-web.jsx (normalizeApi / extractCode / stripFences /
       # looksLikeCode) -- the rover.X(cm) -> bare-metre rewrite, fence
@@ -165,6 +175,46 @@ jobs:
         run: |
           node scripts/build_web.cjs --static
           node scripts/qa_web.mjs
+
+      - name: Build split browser harness (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: node scripts/build_screenshot_harness.cjs
+
+      - name: Start browser harness server (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: python -m http.server 8099 --directory src/robolearn/assets/web > /tmp/kodro-http.log 2>&1 &
+
+      - name: UI paint gate (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          KODRO_QA_UI_REQUIRED: "1"
+        run: node scripts/qa_ui.mjs --suite=paint
+
+      - name: UI behaviour gate (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        timeout-minutes: 25
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          KODRO_QA_UI_REQUIRED: "1"
+        run: node scripts/qa_ui.mjs --suite=behaviour
+
+      - name: UI layout gate (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        timeout-minutes: 12
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          KODRO_QA_UI_REQUIRED: "1"
+        run: node scripts/qa_ui.mjs --suite=layout
+
+      - name: UI modal gate (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        timeout-minutes: 15
+        env:
+          CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          KODRO_QA_UI_REQUIRED: "1"
+        run: node scripts/qa_ui.mjs --suite=modals
 
       # --timeout converts any hung GUI/thread test into a fast failure
       # with a full per-thread traceback instead of burning to the 6h cap.

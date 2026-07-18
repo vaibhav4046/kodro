@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
+from hashlib import sha256
 
 from .motion_model import (
     BATTERY_PCT_PER_COLLISION,
@@ -81,6 +82,8 @@ class Rover:
         state: RoverState | None = None,
         *,
         drain_scale: float = 1.0,
+        sensor_noise_m: float = 0.0,
+        sensor_seed: int = 0,
     ) -> None:
         """Bind the rover to a world.
 
@@ -96,6 +99,9 @@ class Rover:
                 heavier robot drains faster, mirroring the web sim's
                 mass-scaled drain (KodroMotion.moveDrainPct) instead of grading
                 every build spec-blind.
+            sensor_noise_m: Maximum absolute deterministic range noise in metres.
+                The default of zero preserves normal product behaviour.
+            sensor_seed: Seed used for deterministic range-noise samples.
         """
         self.world = world
         if state is None:
@@ -103,6 +109,19 @@ class Rover:
             state = RoverState(x=bx, y=by)
         self.state = state
         self._drain_scale = drain_scale if drain_scale and drain_scale > 0 else 1.0
+        self._sensor_noise_m = max(0.0, sensor_noise_m)
+        self._sensor_seed = sensor_seed
+        self._sensor_read_index = 0
+
+    def apply_range_noise(self, distance_m: float) -> float:
+        """Apply the configured deterministic range error to one reading."""
+        if self._sensor_noise_m == 0.0 or math.isinf(distance_m):
+            return distance_m
+        sample_key = f"{self._sensor_seed}:{self._sensor_read_index}".encode()
+        self._sensor_read_index += 1
+        raw = int.from_bytes(sha256(sample_key).digest()[:8], "big") / float(2**64)
+        error_m = (raw * 2.0 - 1.0) * self._sensor_noise_m
+        return max(0.0, distance_m + error_m)
 
     # --- driving --------------------------------------------------------------
 

@@ -500,37 +500,35 @@ const CAP = `<!DOCTYPE html>
             // Lessons opens the dedicated library. The retry is idempotent so a
             // slow first paint cannot close or replace an already-open library.
             if (document.querySelector('[aria-label="Lesson library"]')) return true;
-            return clickAriaStartsWith('Lessons');
+            if (!document.querySelector('.more-tools-pop')) clickAriaStartsWith('More tools');
+            setTimeout(function () { clickAriaStartsWith('Lessons'); }, 250);
+            return true;
           },
           memory: function () {
             if (document.querySelector('[aria-label="Memory and skills"]')) return true;
-            if (!document.querySelector('.settings-pop')) clickAriaStartsWith('Settings');
+            if (!document.querySelector('.more-tools-pop')) clickAriaStartsWith('More tools');
             setTimeout(function () { clickAriaStartsWith('Open project history'); }, 250);
             return true;
           },
           build: function () { return clickAriaStartsWith('3 Build'); },
           help: function () {
             if (document.querySelector('[aria-label="Keyboard shortcuts"]')) return true;
-            if (!document.querySelector('.settings-pop')) clickAriaStartsWith('Settings');
+            if (!document.querySelector('.more-tools-pop')) clickAriaStartsWith('More tools');
             setTimeout(function () { clickAriaStartsWith('Open keyboard shortcuts'); }, 250);
             return true;
           },
           settings: function () { return clickAriaStartsWith('Settings'); },
-          // Teacher dashboard is a row INSIDE the Settings popover (classroom
-          // mode only, so use mode=classroom). The Settings popover is itself
-          // role=dialog, so the generic dialog-skip retry below will not fire the
-          // second stage -- open Settings here, then schedule the row-click, which
-          // swaps the popover for the dashboard modal.
+          // Teacher progress is a secondary capability inside More Tools.
           teacher: function () {
             var clickTeacherRow = function () {
               var btns = document.querySelectorAll('button');
               for (var i = 0; i < btns.length; i++) {
-                if (/Teacher dashboard/.test(btns[i].textContent || '')) { btns[i].click(); return true; }
+                if (/Teacher progress/.test(btns[i].textContent || '')) { btns[i].click(); return true; }
               }
               return false;
             };
-            if (document.querySelector('.settings-pop')) return clickTeacherRow();
-            if (OPENERS.settings()) {
+            if (document.querySelector('.more-tools-pop')) return clickTeacherRow();
+            if (clickAriaStartsWith('More tools')) {
               setTimeout(clickTeacherRow, 250);
               setTimeout(clickTeacherRow, 600);
               return true;

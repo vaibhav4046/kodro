@@ -332,10 +332,11 @@
     const [lessonBrowseAll, setLessonBrowseAll] = useState(false);
     function openLessonLibrary() {
       if (!classroom) setMode('classroom');
-      setActiveStage('learn');
+      setActiveStage('prove');
       setLessonBrowseAll(false);
       setLessonHubOpen(true);
       setSettingsOpen(false);
+      setMoreToolsOpen(false);
     }
     // On a phone the lesson picker sits below the world panel, so tapping the
     // Lessons button produced no visible change (judge round 9): bring the
@@ -364,6 +365,7 @@
     }, [experience]);
     const [showHelp, setShowHelp] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [moreToolsOpen, setMoreToolsOpen] = useState(false);
     // (Toast state + showToast now live in useConsoleToast, destructured above.)
     // Brief "Loading {world}..." overlay shown while the 3D scene rebuilds on a
     // world switch, so the viewport does not flash empty for a frame.
@@ -454,6 +456,26 @@
       };
     }, [settingsOpen]);
 
+    // Secondary capabilities stay reachable without competing with the three
+    // project decisions. The global More Tools popover uses the same keyboard,
+    // click-away and focus-restoration behaviour as Settings.
+    const moreToolsBtnRef = useRef(null);
+    useEffect(() => {
+      if (!moreToolsOpen) return undefined;
+      const pop = document.querySelector('.more-tools-pop');
+      const first = pop && pop.querySelector('button, [tabindex]');
+      if (first) first.focus();
+      const close = (e) => { if (!e.target.closest || !e.target.closest('.more-tools-wrap')) setMoreToolsOpen(false); };
+      const key = (e) => { if (e.key === 'Escape') setMoreToolsOpen(false); };
+      document.addEventListener('pointerdown', close);
+      document.addEventListener('keydown', key);
+      return () => {
+        document.removeEventListener('pointerdown', close);
+        document.removeEventListener('keydown', key);
+        if (moreToolsBtnRef.current) moreToolsBtnRef.current.focus();
+      };
+    }, [moreToolsOpen]);
+
     // currentLessonId ref: the vibe streamed job is scoped to the lesson open
     // when it started, so useVibeChat (below) reads this ref. Created here
     // (ahead of useVibeChat) and kept in lockstep with the currentLessonId
@@ -532,6 +554,12 @@
     // handlers intact while giving every capability a stable place in the
     // journey: design the robot, prove it in scenarios, then prepare a build.
     const [activeStage, setActiveStage] = useState('prove');
+    const [proveReport, setProveReport] = useState(() => {
+      try {
+        const reports = window.KodroMemory && window.KodroMemory.scenarioReports ? window.KodroMemory.scenarioReports() : [];
+        return reports[0] || null;
+      } catch (e) { return null; }
+    });
     // Simple mode opens on a test plan, not a wall of source code. The editor
     // is still one deliberate action away and Expert mode remains unchanged.
     // Keep this session-local: returning to the product should begin with the
@@ -642,6 +670,7 @@
       const scn = window.KodroScenario.defaultFor(terrain && terrain.id);
       addConsole('Validating across 5 randomised seeds in "' + scn.name + '" on ' + (terrain.name || terrain.id) + ' (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
       const rep = window.KodroScenario.run(code, scn, 5);
+      setProveReport(rep);
       const a = rep.aggregate;
       // A compile error in the program is a code mistake, not a 0% behaviour
       // result: surface it as an error and do not show a misleading pass rate
@@ -658,6 +687,18 @@
         addConsole('0% success means the program never reached the goal marker (the cyan beacon ring drawn in the viewport). It is a mission result, not a crash count.', 'sys');
       }
       setRealismOpen(true);
+    }
+
+    function downloadProveManifest() {
+      if (!proveReport || !proveReport.manifest) return;
+      const payload = JSON.stringify(proveReport.manifest, null, 2) + '\n';
+      const blob = new Blob([payload], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (proveReport.manifest.contractId || 'kodro-proof') + '-manifest.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+      showToast('Evidence manifest downloaded', 'ok');
     }
 
     // Autonomous test: when code is applied, run it through the real interpreter
@@ -764,7 +805,7 @@
     }, []);
     function loadLesson(lesson) {
       if (!lesson) return;
-      setActiveStage('learn');
+      setActiveStage('prove');
       setLessonHubOpen(false);
       setCurrentLessonId(lesson.id);
       setLessonVerdict(null);
@@ -976,7 +1017,7 @@
     // fires; the duplicate close is harmless) but excludes FPV, which has a
     // dedicated Escape handler for motion-sensitive exit.
     const anyOverlayOpenRef = useRef(false);
-    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen);
+    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen);
     const fpvRef = useRef(fpv); fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
     const WORLDS_KB = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
@@ -989,6 +1030,7 @@
         setShowHelp(false); setRealismOpen(false); setDemoOpen(false);
         setLessonHubOpen(false);
         setSettingsOpen(false);
+        setMoreToolsOpen(false);
         setActiveStage('prove');
       };
       const h = (e) => {
@@ -1081,6 +1123,7 @@
     function goStage(stage) {
       setActiveStage(stage);
       setSettingsOpen(false);
+      setMoreToolsOpen(false);
       if (stage === 'design') {
         setBuildOpen(false);
         setRobotLabOpen(true);
@@ -1089,14 +1132,6 @@
       if (stage === 'build') {
         setRobotLabOpen(false);
         openBuildReal();
-        return;
-      }
-      if (stage === 'learn') {
-        setRobotLabOpen(false);
-        setBuildOpen(false);
-        if (!classroom) setMode('classroom');
-        setLessonBrowseAll(false);
-        setLessonHubOpen(true);
         return;
       }
       setRobotLabOpen(false);
@@ -1134,6 +1169,11 @@
         && r.robotKey && r.robotKey === simpleRobotKey && r.source === code;
     }) || null;
     const showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen && !currentLessonId;
+    const planScenario = window.KodroScenario && window.KodroScenario.defaultFor ? window.KodroScenario.defaultFor(terrain && terrain.id) : null;
+    const planProveReport = proveReport && proveReport.manifest && planScenario
+      && proveReport.manifest.contractId === planScenario.scenarioId
+      && window.KodroScenario.codeHash && proveReport.manifest.controllerHash === window.KodroScenario.codeHash(code)
+      ? proveReport : null;
     const SIMPLE_PROGRAM_NAMES = {
       basecamp: 'Build a base camp', autopilot: 'Avoid obstacles automatically', drive: 'Explore the world',
       systems: 'Check every fitted system', square: 'Drive a precise square', spiral: 'Draw an expanding spiral',
@@ -1203,9 +1243,6 @@
             <button type="button" className={'stage-link' + (activeStage === 'build' ? ' active' : '')} aria-label="3 Build a prototype pack" aria-current={activeStage === 'build' ? 'step' : undefined} onClick={() => goStage('build')}>
               <span className="stage-count">3</span><span><b>Build</b><small>Prototype pack</small></span>
             </button>
-            <button type="button" className={'stage-link' + (activeStage === 'learn' ? ' active' : '')} aria-label="4 Learn with guided robotics lessons" aria-current={activeStage === 'learn' ? 'step' : undefined} onClick={() => goStage('learn')}>
-              <span className="stage-count">4</span><span><b>Learn</b><small>{currentLessonId ? 'Current lesson' : 'Guided lessons'}</small></span>
-            </button>
           </nav>
           <div className="bar-divider"></div>
           <div className="run-controls">
@@ -1239,11 +1276,27 @@
           </div>
           <button type="button" className={'icon-btn evidence-toggle' + (evidenceOpen ? ' active' : '')} title={evidenceOpen ? 'Hide evidence' : 'Show evidence'} aria-label={evidenceOpen ? 'Hide evidence' : 'Show evidence'} aria-expanded={evidenceOpen} aria-controls="kodro-evidence-panel" onClick={() => setEvidenceOpen(v => !v)}>{KI('report')}<span className="icon-btn-label">Evidence</span></button>
           <div className="bar-divider"></div>
-          <button className="icon-btn icon-btn-lessons" title="Lessons. Learn robotics and coding step by step (ages 5 to 16)" aria-label="Lessons — browse robotics and coding lessons" aria-pressed={mode === 'classroom'} onClick={openLessonLibrary}>{KI('report')}<span className="icon-btn-label">Lessons</span></button>
+          <div className="more-tools-wrap">
+            <button ref={moreToolsBtnRef} className="icon-btn more-tools-trigger" title="More tools" aria-label="More tools" aria-haspopup="menu" aria-expanded={moreToolsOpen} onClick={() => { setSettingsOpen(false); setMoreToolsOpen(o => !o); }}>{KI('blocks')}<span className="icon-btn-label">More Tools</span></button>
+            {moreToolsOpen && (
+              <div className="more-tools-pop" role="menu" aria-label="More tools">
+                <span className="more-tools-heading">Learn and review</span>
+                <button className="set-row set-btn" role="menuitem" aria-label="Lessons, browse guided robotics missions" onClick={openLessonLibrary}><span>{KI('report')}Lessons</span><span className="set-val">&rarr;</span></button>
+                <button className="set-row set-btn" role="menuitem" aria-label="Teacher progress dashboard" onClick={() => { setMoreToolsOpen(false); if (!classroom) setMode('classroom'); openTeacher(); }}><span>{KI('gauge')}Teacher progress</span><span className="set-val">&rarr;</span></button>
+                <button className="set-row set-btn" role="menuitem" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)'} onClick={() => { setMoreToolsOpen(false); runReview(); }}><span>{KI('review')}Review program</span><span className="set-val">&rarr;</span></button>
+                <span className="more-tools-heading">Create and inspect</span>
+                <button className="set-row set-btn" role="menuitem" title="Build the program from blocks" onClick={() => { setMoreToolsOpen(false); setBlocksOpen(true); }}><span>{KI('blocks')}Build with blocks</span><span className="set-val">&rarr;</span></button>
+                <button className="set-row set-btn" role="menuitem" title="Realism dashboard: how the build drives the simulation" onClick={() => { setMoreToolsOpen(false); setRealismOpen(true); }}><span>{KI('gauge')}Simulation limits</span><span className="set-val">&rarr;</span></button>
+                <button className="set-row set-btn" role="menuitem" aria-label="Open project history, memory and skills" onClick={() => { setMoreToolsOpen(false); setMemoryOpen(true); }}><span>{KI('memory')}Project history</span><span className="set-val">&rarr;</span></button>
+                <button className="set-row set-btn" role="menuitem" title="Guided 2 to 3 minute realism demo" onClick={() => { setMoreToolsOpen(false); setDemoOpen(true); }}><span>{KI('demo')}Guided demo</span><span className="set-val">&rarr;</span></button>
+                <button className="set-row set-btn" role="menuitem" aria-label="Open keyboard shortcuts" onClick={() => { setMoreToolsOpen(false); setShowHelp(true); }}><span>Keyboard shortcuts</span><span className="set-val">?</span></button>
+              </div>
+            )}
+          </div>
           <button className="icon-btn btn-vibe companion-btn" title={aiInfo.available ? 'Open Companion (' + aiInfo.model + ')' : 'Open Companion. Direct robot and world actions work without a model.'} aria-label="Open Kodro Companion" onClick={() => setVibeOpen(true)}>{KI('vibe')}<span className="icon-btn-label">Companion</span><span className={'companion-dot' + (aiInfo.available ? ' ready' : '')} aria-hidden="true"></span></button>
           <input ref={projectFileRef} type="file" accept=".kodro,.json,application/json" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} onChange={onProjectFilePicked} />
           <div className="settings-wrap">
-            <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings — theme, sound, readable text, and teacher tools" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => setSettingsOpen(o => !o)}>{KI('gear')}<span className="icon-btn-label">Settings</span></button>
+            <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings for theme, sound and readable text" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => { setMoreToolsOpen(false); setSettingsOpen(o => !o); }}>{KI('gear')}<span className="icon-btn-label">Settings</span></button>
             {settingsOpen && (
               <div className="settings-pop" role="dialog" aria-label="Settings">
                 <label className="set-row">
@@ -1362,11 +1415,6 @@
                   );
                 })()}
                 {classroom && (
-                  <button className="set-row set-btn" onClick={openTeacher}>
-                    <span>Teacher dashboard</span><span className="set-val">→</span>
-                  </button>
-                )}
-                {classroom && (
                   <button className="set-row set-btn" onClick={() => { setSettingsOpen(false); exportReportClick(); }}>
                     <span>Export progress report</span><span className="set-val">→</span>
                   </button>
@@ -1383,7 +1431,7 @@
             {showSimpleCockpit && (
               <section className="simple-cockpit" aria-label="Robot test plan">
                 <header className="simple-cockpit-head">
-                  <span className="simple-step">Step 2 of 4</span>
+                  <span className="simple-step">Step 2 of 3</span>
                   <h2>Prove your robot</h2>
                   <p>Choose one test, run it in the world, then use the result to improve the design.</p>
                 </header>
@@ -1415,6 +1463,36 @@
                     </select>
                   </label>
                 </div>
+
+                <section className={'simple-proof' + (planProveReport && planProveReport.aggregate ? (planProveReport.aggregate.passed ? ' proof-pass' : ' proof-fail') : '')} aria-label="Deterministic proof">
+                  <div className="simple-proof-head">
+                    <span>
+                      <b>Deterministic evidence</b>
+                      <small>Five fixed seeds vary traction, mass, sensor noise, obstacle position, start delay and battery.</small>
+                    </span>
+                    {planProveReport && planProveReport.aggregate
+                      ? <strong>{planProveReport.aggregate.passed ? 'PASS' : 'FAIL'}</strong>
+                      : <strong>NOT RUN</strong>}
+                  </div>
+                  {planProveReport && planProveReport.aggregate ? (
+                    <React.Fragment>
+                      <div className="simple-proof-metrics">
+                        <span><b>{planProveReport.aggregate.successCount}/{planProveReport.aggregate.seeds}</b> goals reached</span>
+                        <span><b>{planProveReport.aggregate.meanCollisions}</b> mean collisions</span>
+                        <span><b>{planProveReport.aggregate.meanBattery}%</b> mean battery used</span>
+                      </div>
+                      <p className="simple-proof-regression">
+                        Regression: {planProveReport.regression && planProveReport.regression.status === 'same' ? 'matches the previous run byte for byte' : planProveReport.regression && planProveReport.regression.status === 'changed' ? 'changed in ' + planProveReport.regression.changed.join(', ') : 'no matching baseline yet'}.
+                      </p>
+                    </React.Fragment>
+                  ) : <p>No multi-seed evidence has been recorded for this session.</p>}
+                  <p className="simple-proof-boundary">Kinematic simulation evidence only. It does not validate or certify physical performance or safety.</p>
+                  <div className="simple-proof-actions">
+                    <button type="button" className="ctrl ctrl-run" onClick={runValidation}>Run 5-seed proof</button>
+                    {planProveReport && planProveReport.manifest && <button type="button" onClick={downloadProveManifest}>Download manifest</button>}
+                    {planProveReport && <button type="button" onClick={() => setRealismOpen(true)}>Inspect limits</button>}
+                  </div>
+                </section>
 
                 {!simpleLatestRun && !simpleRunActive && <section className={'simple-readiness tone-' + ((simpleAssessment && simpleAssessment.overall) || 'unknown')} aria-label="Pre-run design check">
                   <div className="simple-readiness-title">
@@ -1502,7 +1580,7 @@
                   {!simpleExperience && <button className="btn-mini" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}>{KI('blocks')}Blocks</button>}
                   {!simpleExperience && <button className="btn-mini" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}>{KI('gauge')}Simulation limits</button>}
                   <details className="editor-tools">
-                    <summary className="btn-mini">Tools</summary>
+                    <summary className="btn-mini">Program tools</summary>
                     <div className="editor-tools-menu">
                       {simpleExperience && <button className="set-row set-btn" title="Build the program from blocks" onClick={() => setBlocksOpen(true)}><span>{KI('blocks')}Build with blocks</span><span className="set-val">&rarr;</span></button>}
                       {simpleExperience && <button className="set-row set-btn" title="Realism dashboard: how the build drives the simulation" onClick={() => setRealismOpen(true)}><span>{KI('gauge')}Simulation limits</span><span className="set-val">&rarr;</span></button>}

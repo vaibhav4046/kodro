@@ -117,8 +117,8 @@ ok(/\.world-pick-row\s*\{[^}]*width\s*:\s*100%[^}]*flex-wrap\s*:\s*wrap/.test(CS
   && /\.world-select\s*\{[^}]*min-width\s*:\s*0[^}]*max-width\s*:\s*none/.test(CSS),
   'phone world picker wraps and its select can shrink inside the viewport');
 
-// 5. The mission bar must WRAP at phone width, not hide the nav icons (Lessons,
-//    Robot Lab, Build, Memory, Settings) behind a scrollbar-less scroll (judge
+// 5. The mission bar must WRAP at phone width, not hide its navigation and
+//    utility controls behind a scrollbar-less scroll (judge
 //    round 7). Assert the <=768 block sets the bar to wrap, not nowrap-scroll.
 {
   const phone = (CSS.match(/@media\s*\(max-width:\s*768px\)\s*\{([\s\S]*?)\n\}/) || [])[1] || '';
@@ -188,10 +188,10 @@ ok(/\.run-controls \{ flex-wrap:wrap; min-width:0; \}/.test(CSS),
     'phone panels get min-width:0 so wide code scrolls inside the editor, not the page');
 }
 
-// 9. The Lessons entry keeps a visible text label at every width (judge round
-//    9): it is the only route into the learning pillar.
-ok(/\.missionbar \.icon-btn-lessons \.icon-btn-label \{ display:inline; \}/.test(CSS),
-  'Lessons button label stays visible below the label-hiding breakpoint');
+// 9. The global More Tools entry keeps a visible label through the normal
+//    laptop breakpoint, then becomes an accessible icon at narrow widths.
+ok(/\.missionbar \.more-tools-trigger \.icon-btn-label \{ display:inline; \}/.test(CSS),
+  'More Tools label stays visible at the normal label-hiding breakpoint');
 
 // 10. Source-level render + a11y pins for judge round 9 fixes.
 {

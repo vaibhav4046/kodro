@@ -28,6 +28,7 @@
   // the scenario's own successCriteria.maxCollisions. The UI renders this one
   // boolean instead of each surface re-deriving its own 0.6 threshold.
   const PASS_RATE = 0.6;
+  const ENGINE_VERSION = 'kodro-web-kinematic/1';
 
   // Deterministic PRNG so a seed reproduces a run exactly (reproducible demo).
   function mulberry32(a) {
@@ -39,6 +40,8 @@
     };
   }
   function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function hashHex(s) { return ('00000000' + hashStr(s).toString(16)).slice(-8); }
+  function codeHash(s) { return 'fnv1a32:' + hashHex(s); }
   function lerp(a, b, t) { return a + (b - a) * t; }
 
   // Distance from point p to segment a->b, used for swept collision tests.
@@ -126,6 +129,10 @@
     const massMul = 1 + (rng() * 2 - 1) * massTol;
     const noiseCm = cfg.sensorNoise || 0;
     const jitter = cfg.obstacleJitter || 0;
+    const delayRange = cfg.startDelay || [0, 3];
+    const batteryRange = cfg.initialBattery || [88, 100];
+    const startDelay = lerp(delayRange[0], delayRange[1], rng());
+    const initialBattery = lerp(batteryRange[0], batteryRange[1], rng());
 
     const robot = gateRobot;
     const massFac = (robot && robot.massFactor ? robot.massFactor : 1) * massMul;
@@ -143,7 +150,9 @@
     const KMc = window.KodroMotion;
     const R = (robot && robot.phys && robot.phys.collisionRadiusCm) || (KMc && KMc.MODEL && KMc.MODEL.roverRadiusCm) || 30;
 
-    const s = { x: start.x, y: start.y, heading: start.heading || 0, speed: 50, battery: 100 };
+    // Start delay is a declared test condition. The small idle drain makes it
+    // affect the engine state instead of being decorative metadata.
+    const s = { x: start.x, y: start.y, heading: start.heading || 0, speed: 50, battery: Math.max(0, initialBattery - startDelay * 0.02) };
     let minObstacleDistance = Infinity;
     function noteClearance() {
       for (const o of obstacles) { const d = Math.hypot(s.x - o.x, s.y - o.y) - (o.r + R); if (d < minObstacleDistance) minObstacleDistance = d; }
@@ -287,8 +296,43 @@
       batteryUsed: batteryUsed, minObstacleDistance: Math.round(minObstacleDistance),
       commandErrors: commandErrors, sensorFailures: sensorFailures,
       friction: Math.round(friction * 100) / 100, massMul: Math.round(massMul * 100) / 100,
+      conditions: {
+        obstacleJitterCm: jitter,
+        sensorNoiseCm: noiseCm,
+        startDelayS: Math.round(startDelay * 1000) / 1000,
+        initialBatteryPct: Math.round(initialBattery * 1000) / 1000,
+      },
       error: runError, finalScore: score,
     };
+  }
+
+  function evidenceRun(run) {
+    return {
+      seed: run.seed,
+      conditions: run.conditions,
+      metrics: {
+        reachedGoal: run.reachedGoal,
+        collisions: run.collisions,
+        timeToGoal: run.timeToGoal,
+        batteryUsedPct: run.batteryUsed,
+        minClearanceCm: run.minObstacleDistance,
+        commandErrors: run.commandErrors,
+        sensorFailures: run.sensorFailures,
+        finalScore: run.finalScore,
+        error: run.error,
+      },
+    };
+  }
+
+  function compare(previous, current) {
+    if (!previous || !previous.manifest) return { status: 'no-baseline', changed: [] };
+    const changed = [];
+    const a = previous.manifest, b = current.manifest;
+    if (a.contractId !== b.contractId) changed.push('contract');
+    if (a.controllerHash !== b.controllerHash) changed.push('controller');
+    if (JSON.stringify(a.runs) !== JSON.stringify(b.runs)) changed.push('per-seed metrics');
+    if (a.verdict !== b.verdict) changed.push('verdict');
+    return { status: changed.length ? 'changed' : 'same', changed: changed };
   }
 
   function run(src, scenario, n, opts) {
@@ -332,7 +376,29 @@
     aggregate.passed = !allCompileFail
       && aggregate.successRate >= PASS_RATE
       && (crit.maxCollisions == null || aggregate.meanCollisions <= crit.maxCollisions);
-    const report = { scenario: { scenarioId: scenario.scenarioId, name: scenario.name, environmentPreset: scenario.environmentPreset, seed: base }, runs: runs, aggregate: aggregate, ts: Date.now() };
+    const controllerHash = codeHash(src);
+    const report = {
+      scenario: { scenarioId: scenario.scenarioId, name: scenario.name, environmentPreset: scenario.environmentPreset, seed: base },
+      runs: runs,
+      aggregate: aggregate,
+      manifest: {
+        schema: 'kodro.web-prove-manifest/1',
+        contractId: scenario.scenarioId,
+        controllerHash: controllerHash,
+        engine: ENGINE_VERSION,
+        seeds: runs.map(function (r) { return r.seed; }),
+        runs: runs.map(evidenceRun),
+        verdict: aggregate.passed ? 'pass' : 'fail',
+        evidenceBoundary: 'Kinematic simulation evidence only. This does not validate or certify physical performance or safety.',
+      },
+      ts: Date.now(),
+    };
+    const previousReports = (window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports()) || [];
+    const previous = previousReports.find(function (item) {
+      return item && item.manifest && item.manifest.contractId === scenario.scenarioId
+        && item.manifest.controllerHash === controllerHash;
+    });
+    report.regression = compare(previous, report);
     // Persist locally (offline) so the realism dashboard and the assistant can
     // read past validation. The desktop SQLite bridge mirrors this when present.
     if (!allCompileFail) {
@@ -408,5 +474,5 @@
     return PRESETS.terrain_traverse;
   }
 
-  window.KodroScenario = { PRESETS: PRESETS, run: run, runOnce: runOnce, defaultFor: defaultFor, PASS_RATE: PASS_RATE };
+  window.KodroScenario = { PRESETS: PRESETS, run: run, runOnce: runOnce, defaultFor: defaultFor, compare: compare, codeHash: codeHash, PASS_RATE: PASS_RATE, ENGINE_VERSION: ENGINE_VERSION };
 })();

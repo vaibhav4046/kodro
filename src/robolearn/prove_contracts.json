@@ -1,0 +1,113 @@
+{
+  "schema": "kodro.contracts/1",
+  "contracts": [
+    {
+      "id": "straight_transit",
+      "title": "Straight transit",
+      "description": "Drive three metres through a clear corridor without contact.",
+      "terrain": "earth",
+      "bounds_m": [6.0, 4.0],
+      "base_m": [1.0, 1.0],
+      "start": {"x_m": 1.0, "y_m": 1.0, "heading_deg": 0.0},
+      "goal": {"x_m": 4.0, "y_m": 1.0},
+      "obstacles": [
+        {"x_m": 2.5, "y_m": 2.2, "radius_m": 0.25}
+      ],
+      "controller": "move_forward(3)\n",
+      "criteria": {
+        "min_distance_m": 2.95,
+        "max_collisions": 0.0,
+        "min_battery_pct": 80.0,
+        "max_goal_error_m": 0.08,
+        "required_pass_rate": 1.0
+      },
+      "perturbations": {
+        "obstacle_offset_m": [-0.12, 0.12],
+        "sensor_noise_m": [0.0, 0.04],
+        "start_delay_s": [0.0, 2.0],
+        "initial_battery_pct": [90.0, 100.0]
+      }
+    },
+    {
+      "id": "corner_route",
+      "title": "Controlled corner",
+      "description": "Drive an L route and finish at the marker without contact.",
+      "terrain": "earth",
+      "bounds_m": [6.0, 6.0],
+      "base_m": [1.0, 1.0],
+      "start": {"x_m": 1.0, "y_m": 1.0, "heading_deg": 0.0},
+      "goal": {"x_m": 3.0, "y_m": 3.0},
+      "obstacles": [
+        {"x_m": 4.2, "y_m": 2.0, "radius_m": 0.3}
+      ],
+      "controller": "move_forward(2)\nturn_left(90)\nmove_forward(2)\n",
+      "criteria": {
+        "min_distance_m": 3.95,
+        "max_collisions": 0.0,
+        "min_battery_pct": 78.0,
+        "max_goal_error_m": 0.08,
+        "required_pass_rate": 1.0
+      },
+      "perturbations": {
+        "obstacle_offset_m": [-0.12, 0.12],
+        "sensor_noise_m": [0.0, 0.04],
+        "start_delay_s": [0.0, 2.5],
+        "initial_battery_pct": [88.0, 100.0]
+      }
+    },
+    {
+      "id": "obstacle_clearance",
+      "title": "Obstacle clearance",
+      "description": "Use the range sensor to route around a blocking obstacle.",
+      "terrain": "earth",
+      "bounds_m": [6.0, 5.0],
+      "base_m": [1.0, 1.0],
+      "start": {"x_m": 1.0, "y_m": 1.0, "heading_deg": 0.0},
+      "goal": {"x_m": 4.0, "y_m": 2.0},
+      "obstacles": [
+        {"x_m": 2.0, "y_m": 1.0, "radius_m": 0.3}
+      ],
+      "controller": "if obstacle_ahead(1.2):\n    turn_left(90)\n    move_forward(1)\n    turn_right(90)\nmove_forward(3)\n",
+      "criteria": {
+        "min_distance_m": 3.95,
+        "max_collisions": 0.0,
+        "min_battery_pct": 76.0,
+        "max_goal_error_m": 0.08,
+        "required_pass_rate": 1.0
+      },
+      "perturbations": {
+        "obstacle_offset_m": [-0.1, 0.1],
+        "sensor_noise_m": [0.01, 0.08],
+        "start_delay_s": [0.0, 3.0],
+        "initial_battery_pct": [86.0, 100.0]
+      }
+    },
+    {
+      "id": "battery_reserve",
+      "title": "Battery reserve",
+      "description": "Complete a four metre transit while retaining a declared reserve.",
+      "terrain": "mars",
+      "bounds_m": [7.0, 4.0],
+      "base_m": [1.0, 1.0],
+      "start": {"x_m": 1.0, "y_m": 1.0, "heading_deg": 0.0},
+      "goal": {"x_m": 5.0, "y_m": 1.0},
+      "obstacles": [
+        {"x_m": 3.0, "y_m": 2.3, "radius_m": 0.3}
+      ],
+      "controller": "move_forward(4)\n",
+      "criteria": {
+        "min_distance_m": 3.95,
+        "max_collisions": 0.0,
+        "min_battery_pct": 50.0,
+        "max_goal_error_m": 0.08,
+        "required_pass_rate": 1.0
+      },
+      "perturbations": {
+        "obstacle_offset_m": [-0.12, 0.12],
+        "sensor_noise_m": [0.0, 0.05],
+        "start_delay_s": [0.0, 4.0],
+        "initial_battery_pct": [58.0, 72.0]
+      }
+    }
+  ]
+}

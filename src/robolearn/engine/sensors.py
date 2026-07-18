@@ -93,7 +93,7 @@ def lidar_distance(
             nearest = min(nearest, hit)
     if nearest >= max_range_m:
         return math.inf
-    return max(0.0, nearest)
+    return rover.apply_range_noise(max(0.0, nearest))
 
 
 def ultrasonic_distance(rover: Rover) -> float:

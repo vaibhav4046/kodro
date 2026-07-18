@@ -28,9 +28,9 @@ frequency. The human study (Section 6) is specified but not run.
 | Renderer evidence | Cadence and render-submission work against the 240 Hz budget | `scripts/qa_performance.mjs` | **Done, environment-specific** |
 | User and refinement study | Real efficacy and the refinement loop | non-experts + builders | **Planned, future work** |
 
-The first methods ran throughout the build and drove the design. The last
-is the summative study a human will run before any release claim of
-usefulness; the instrumentation (Section 5) exists to feed it.
+The first methods ran throughout the build and drove the design. The planned
+pilot remains ethics-pending and is the only method here designed to measure
+human diagnosis performance; the instrumentation in Section 5 exists to feed it.
 
 ## 2. Automated verification
 
@@ -40,8 +40,8 @@ grew with the codebase and is the primary evidence of correctness.
 
 - **Python suite:** the complete declared matrix, including optional RL and
   URDF surfaces, is gated at a minimum of **85%** line+branch coverage.
-  Measured on source commit `0ca2fa9` with the repository environment:
-  **1,081 passed, zero skipped, 89.00% coverage**.
+  Measured on the candidate release state on Windows:
+  **1,087 passed, zero skipped, 88.21% coverage**.
 - **Cross-platform:** Linux (under `xvfb`) and Windows are hard gates on
   every push. macOS is an *informational* leg: its headless runner has no
   Aqua window server, so Tk intermittently segfaults under the GUI-heavy
@@ -62,19 +62,34 @@ grew with the codebase and is the primary evidence of correctness.
 A running, per-capability log lives in [`test-evidence.md`](test-evidence.md);
 design decisions and their rationale are in [`decision-log.md`](decision-log.md).
 
-### 2.1 The one shared motion model and its conformance gates
+### 2.1 Deterministic Prove contracts
+
+Four declarative contracts cover straight transit, a controlled corner,
+obstacle clearance and battery reserve. Each runs over five seeds while
+obstacle offset, sensor noise, start delay and initial battery vary within
+declared ranges. The canonical manifest records the code hash, contract,
+seed, engine identity, conditions, metrics and verdict. It contains no clock
+timestamp, so the same source, contract and seed reproduce byte for byte.
+
+The candidate baseline passes 20 of 20 runs. A second replay is byte-identical,
+baseline comparison passes, and `tests/fixtures/broken_controller.py` fails all
+four contracts with a non-zero process status. The Companion may explain this
+evidence but cannot change the deterministic verdict. The report states that a
+pass is kinematic simulation evidence only, not physical or safety validation.
+
+### 2.2 The one shared motion model and its conformance gates
 
 The simulation is driven by a single set of closed-form equations and
 constants, mirrored in `assets/web/motion-model.js` and
 `engine/motion_model.py`. Three tests gate the pair on every push:
 
-- **Constants hash (E-C4)** — `test_motion_model_conformance.py` serialises
+- **Constants hash (E-C4):** `test_motion_model_conformance.py` serialises
   both constant tables to a canonical form and compares their SHA-256
   hashes, so a constant edited in one engine and not the other fails.
-- **Golden traces (E-P2)** — `test_golden_traces.py` runs a corpus through
+- **Golden traces (E-P2):** `test_golden_traces.py` runs a corpus through
   both engines and asserts displacement, distance, heading and battery
   agree, so catalogue-mode motion cannot drift.
-- **Formula parity (M1)** — `test_physical_golden_trace.py` runs the studio
+- **Formula parity (M1):** `test_physical_golden_trace.py` runs the studio
   closed forms over a reference robot through a Node fixture and asserts the
   Python twin returns identical values (relative tolerance 1e-12), so an
   imported build's derived numbers (top speed, stall force, mobility,
@@ -91,7 +106,7 @@ the derived numbers and grades catalogue-mode motion. This is why the
 "HONOURED" sensor-pose/range line in the fidelity table is scoped to the
 studio sim. See [`../known-limitations.md`](../known-limitations.md).
 
-### 2.2 World and interface nets (smoke)
+### 2.3 World and interface nets (smoke)
 
 Two headless-browser nets cover the interactive surface the deterministic
 suites do not reach. `qa_worlds.mjs` loads every base world and all
@@ -207,8 +222,8 @@ methodology failure is retained and points to the planned human study.
 
 `scripts/qa_performance.mjs` measures a rolling 120-frame sample from the
 shipped 3D loop and hash-locks the harness and bundle. Windows headless
-Chrome with SwiftShader measured 19.5 FPS Low and 18.6 FPS High; P95
-render-submission work was 7.6 ms and 8.6 ms respectively, so both missed
+Chrome with SwiftShader measured 18.7 FPS Low and 18.4 FPS High; P95
+render-submission work was 51.4 ms and 37.0 ms respectively, so both missed
 the 4.17 ms budget required for 240 Hz. This is an environment-specific
 negative result, not a hardware-GPU benchmark or a universal FPS claim.
 
@@ -221,37 +236,21 @@ report entirely on-device. This is consistent with the project's hard
 constraint of no cloud, no accounts and no third-party data processing,
 which also simplifies the ethics/GDPR position for a study.
 
-## 6. Planned user and refinement study (future work)
+## 6. Planned human evaluation
 
-Three studies are specified and left for a point at which they can be run
-under consent. **No result from any of them is reported here, because none
-has been run.**
+One bounded, ethics-pending pilot asks whether the deterministic evidence view
+helps a user diagnose a failed robot program more accurately than the raw
+console alone. A target of 12 participants, with 10 to 15 accepted for the
+pilot, completes both conditions in a counterbalanced within-participant
+design. Three missions expose a goal shortfall, unsafe clearance and
+insufficient battery reserve. Correct diagnosis is primary; time, confidence,
+workload and evidence use are secondary.
 
-- **Help study:** a within-subject design with about sixteen non-experts,
-  each attempting two comparable held-out scenarios, one with Kodro's
-  grounded help and reviewer and one without, order counterbalanced.
-  Success is a design that completes the scenario in at least 16 of 20
-  randomised runs; iterations and collisions are recorded alongside.
-- **Refinement-ablation study:** the same participant tackles a sequence of
-  related scenarios in two arms differing only in the memory (full vs
-  reflection/skill retrieval turned off), with the full arm expected to
-  reach a working design in at least a quarter fewer iterations.
-- **Assistant study:** the assistant is measured directly on a fixed set of
-  design questions (including adversarial and off-specification ones), where
-  grounded answers must be correct at least 85% of the time and invent a
-  missing part less than 5% of the time, with the 5% invention rate set as a
-  release gate.
-
-The analysis for each is fixed before any data is collected, and a positive
-result is a signal to confirm at scale, not proof, because the samples are
-small and convenient.
-
-A separate **speculative teacher-persona walkthrough** (eight UK secondary
-teacher archetypes) is kept with the teacher documentation and is labelled
-as speculation: it involved no participants, no timings and no scores, and
-it produced design hypotheses (toggleable hints for summative assessment,
-exam-board terminology mapping, offline-deployment logistics), not
-findings. It must not be confused with a study.
+The protocol, participant information sheet, consent form, task script,
+measures, data templates and analysis script are versioned in `docs/study`.
+They contain no participant data. Recruitment, consent and data collection
+must not begin before ethics approval and supervisor agreement. No human
+result is reported because the study has not been run.
 
 ## 7. Honest position
 

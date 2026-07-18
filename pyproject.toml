@@ -66,6 +66,7 @@ rl = [
 robolearn = "robolearn.__main__:main"
 kodro = "robolearn.bench:main"
 kodrobench = "robolearn.kodrobench:main"
+kodro-prove = "robolearn.prove:main"
 
 [project.urls]
 Homepage = "https://github.com/vaibhav4046/robolearn"

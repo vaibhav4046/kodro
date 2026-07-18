@@ -1,22 +1,20 @@
-# Kodro: An Offline AI-Assisted Robotics Design and Simulation Platform
+# Kodro: Offline Robot Design, Deterministic Proof, and Build Planning
 
 [![CI](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml)
 [![Deploy Pages](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
-**Design a robot. Program it. Validate its behaviour in a realistic simulation. All offline, on one laptop.**
+**Design a robot. Test its program under disclosed simulation limits. Carry the evidence into a provisional build plan.**
 
 **Try it now, zero install: [vaibhav4046.github.io/robolearn](https://vaibhav4046.github.io/robolearn/)**. The browser build runs entirely client side and works offline after the first load. The full desktop app adds the local Python engine, lesson grading, and multi pupil progress.
 
-Kodro is a self contained desktop studio. You build a custom robot from
-real parts, write its behaviour in code, blocks or plain language, and
-validate it in a 3D world chosen to suit it. The system reflects on each
-run and refines what it suggests next. It runs entirely on your own
-computer with no account and, by default, no cloud. You can optionally
-connect a free-tier key (Groq, or OpenRouter's free models such as the
-DeepSeek family) for a stronger assistant; the offline local model stays
-the default and requires no connection, and nothing here needs payment.
+Kodro is a self-contained desktop and static web studio. You assemble or
+import a robot specification, write its behaviour in code, blocks or plain
+language, and test it in a disclosed kinematic simulation. Deterministic
+code owns capability checks, seeded metrics and PASS or FAIL verdicts. The
+optional local model can draft and explain, but it cannot change a verdict.
+The default path requires no account, paid service or cloud connection.
 
 Kodro is for a capable non expert adult who wants to design and test robot
 behaviour without a lab, a kit, or a cloud subscription.
@@ -48,37 +46,41 @@ set honest expectations up front:
   only to the provider you pick, and is never required.
 - **Not a childrens coding toy.** It assumes a capable non expert adult.
 
-## The loop
+## The three-stage loop
 
-```
-  design  ->  program  ->  validate  ->  refine
-    |           |             |            |
-  Robot Lab   code /        a 3D world   localStorage
-  boards,     blocks /      picked for   reflections
-  sensors,    with a        the robot:   and saved
-  actuators   grounded      city, room,  skills feed
-  and type    local AI      or terrain   the next run
+```text
+Design  ->  Prove  ->  Build
+ parts      program    provisional brief
+ spec       contracts  assumptions and limits
+ commands   manifests  competent-person checks
 ```
 
-1. **Design.** In the Robot Lab you assemble a robot from a board,
-   sensors, actuators and a chassis type (rover, car, home or arm).
-   Kodro derives its mass, top speed and runtime from the parts you
-   choose.
-2. **Program.** Write procedural Python against a small, readable API,
-   stack Scratch style blocks that compile to that same Python, or
-   describe the behaviour and let a local AI model draft it. A code
-   reviewer and an ask panel sit alongside the editor.
-3. **Validate.** Kodro recommends the world that fits the robot and
-   drops it in: a self driving car gets the City with one way traffic,
-   pedestrians and a crossing; a home or arm robot gets the Room with
-   furniture; a rover gets planetary terrain. You orbit the scene 360
-   degrees and watch it drive with weight transfer, banking and
-   suspension rather than sliding.
-4. **Refine.** Every run is recorded. The memory layer reflects on
-   outcomes and keeps the skills you save, so the studio gets more
-   useful from your own verified work. This is honest, system level
-   self refinement in localStorage, not retraining of any model
-   weights.
+1. **Design.** Assemble a catalogue robot or import measured values.
+   Kodro derives its mass, motion envelope, battery estimate, fitted
+   command set and per-value fidelity disclosure.
+2. **Prove.** Write or generate a program, choose a world and replay a
+   declarative contract over controlled seeds. Kodro emits metrics, a
+   deterministic verdict and a downloadable evidence manifest.
+3. **Build.** Export a provisional brief that carries requirements,
+   assumptions and simulation limits forward. Original datasheets,
+   electrical protection and mechanical fit still require competent
+   review before purchase or power-up.
+
+Lessons, teacher progress, blocks, replay, history and simulation limits
+remain available through **More Tools** without competing with the primary
+journey. Expert mode exposes the full editor, console and evidence rail.
+
+## Five-minute evidence demo
+
+1. Open [the live build](https://vaibhav4046.github.io/robolearn/) and choose **Design**.
+2. Change a part and inspect the resulting capability and fidelity changes.
+3. Choose **Prove**, run the program, then run the five-seed proof.
+4. Inspect the contract metrics and download the evidence manifest.
+5. Open **Simulation limits** from **More Tools** and state the kinematic boundary.
+6. Choose **Build** and inspect the provisional build brief.
+
+The demo does not establish real-world equivalence, electrical safety,
+classroom efficacy or a guaranteed frame rate.
 
 ## Features
 
@@ -97,9 +99,9 @@ What actually ships in this repository, verified against the test suite:
 - **Natural motion.** Per type motion feel so a car throws its weight
   around, a heavy rover stays measured, a humanoid stays upright, and
   a fixed arm does not pitch as it works.
-- **Self refinement memory.** A localStorage memory of reflections and
-  saved skills that informs later sessions. No cloud, no accounts, no
-  model retraining.
+- **Local experience memory.** Reflections and saved skills can inform
+  later suggestions. Storage and retrieval are implemented; a causal
+  reduction in design iterations has not been demonstrated.
 - **Telemetry.** Live heading, battery, LIDAR distance and traction, plus a
   compass dial and arc gauges in the sensors rail.
 - **Procedural sound effects.** Every cue (drive, turn, scan, LED,
@@ -108,13 +110,20 @@ What actually ships in this repository, verified against the test suite:
 - **Curriculum lessons.** Eighteen bundled lessons mapped to the UK
   DfE / BCS computing programme of study, from KS1 through KS4
   stretch, each with success criteria and offline hints.
-- **Offline by default.** No account required, no paid service required,
-  and no mandatory network call: the local Ollama assistant is the
-  default and the app is fully functional with no connection. Cloud
-  models are an optional, bring-your-own-key extra.
+- **Offline by default.** No account, paid service or mandatory network
+  call is required for Design, Prove, lessons or deterministic checking.
+  Local Ollama is optional, and cloud models are an explicit
+  bring-your-own-key connected mode.
 
 For what is partial, experimental or only on the roadmap, see
 [`docs/implementation-status.md`](docs/implementation-status.md).
+
+## Product loop
+
+This loop is captured from the real application and shows the primary
+Design, Prove and Build stages.
+
+![Kodro Design, Prove and Build loop](docs/launch/kodro-loop.gif)
 
 ## Screenshots
 
@@ -246,7 +255,7 @@ node scripts/qa_interpreter.mjs   # interpreter and kinematics functional QA
 python -m pytest                  # Python engine test suite
 ```
 
-- **Interpreter QA: all checks pass** (157 at time of writing; reproduce
+- **Interpreter QA: all checks pass** (180 at the candidate release state; reproduce
   with `node scripts/qa_interpreter.mjs`). Every shipped example program
   terminates, moves, stays inside the arena box, never hits a wall and
   never throws. Command semantics (metres versus centimetres, turn,
@@ -255,9 +264,14 @@ python -m pytest                  # Python engine test suite
   rounding, range validation) and malformed input handling are all
   asserted.
 - **UI regression net.** `node scripts/qa_ui.mjs` drives the real
-  bundle in headless Chrome: six studio flows, five behaviour asserts
-  (the rover measurably moves, blocks insert real code, errors surface,
-  worlds are distinct) and a render check for every modal.
+  bundle in headless Chrome: six rendered flows, 33 behavior assertions,
+  six responsive layouts and 12 modal surfaces. `qa_worlds.mjs` adds 61
+  world, robot, quality, site and weather identity checks.
+- **Python matrix.** 1,087 tests pass with zero skips and 88.21 percent
+  branch-aware coverage on the candidate Windows verification host,
+  above the 85 percent repository gate.
+- **Deterministic Prove.** Four contracts pass 20 of 20 seeded runs,
+  reproduce byte-identically and reject the deliberately broken controller.
 - **Python engine and CLI: 950+ tests passing**, coverage gated at
   `--cov-fail-under=85` on every push.
 
