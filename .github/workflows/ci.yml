@@ -182,7 +182,18 @@ jobs:
 
       - name: Start browser harness server (Linux only)
         if: matrix.os == 'ubuntu-latest'
-        run: python -m http.server 8099 --directory src/robolearn/assets/web > /tmp/kodro-http.log 2>&1 &
+        run: |
+          python -m http.server 8099 --directory src/robolearn/assets/web > /tmp/kodro-http.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:8099/cap.html > /dev/null; then
+              echo "Browser harness server is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/kodro-http.log
+          echo "Browser harness server did not become ready" >&2
+          exit 1
 
       - name: UI paint gate (Linux only)
         if: matrix.os == 'ubuntu-latest'
