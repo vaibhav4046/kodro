@@ -100,6 +100,13 @@
       // Escape releases the textarea so keyboard-only users are never trapped
       // by Tab-inserts-spaces (WCAG 2.1.2 No Keyboard Trap).
       if (e.key === 'Escape') { e.target.blur(); return; }
+      // A readOnly textarea still fires keydown, so the editing keys below
+      // would rewrite the program mid-run through onChange even though the
+      // field is locked. That desynchronises the source from the code the
+      // engine is executing AND silently invalidates the run's evidence gate
+      // (a report matches its plan only while report.source === code).
+      // Escape above still works, so the field is never a keyboard trap.
+      if (readOnly) return;
       const ta = e.target;
       const s = ta.selectionStart, en = ta.selectionEnd;
       const val = ta.value;

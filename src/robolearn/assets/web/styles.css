@@ -1407,10 +1407,14 @@ kbd {
      The background is a single SOLID opaque theme surface (not a translucent or
      gradient fill) so the tabs can never show through and every row sits on the
      same navy-2 surface the contrast ratios below were computed against. */
-  /* Anchored LEFT: the gear button lives in the icon strip at the screen's
-     left edge, so a right:0 anchor hung ~26-66px of the popover off-screen
-     and clipped every label's first letters (judge round 1). */
-  position:absolute; top:38px; left:0; z-index:200; width:248px;
+  /* Anchored RIGHT, like .more-tools-pop. The gear once sat in a left-edge
+     icon strip, where left:0 was correct; the Design/Prove/Build redesign
+     moved Settings to the RIGHT end of the mission bar, where left:0 pushed
+     the 248px panel ~195px past the viewport, widened the document and
+     shoved the whole app off-screen (measured at 1280px: app x=-195,
+     scrollWidth 1475). Anchoring to the button's right edge keeps it in
+     view at every width. */
+  position:absolute; top:38px; right:0; z-index:200; width:248px;
   /* Cap to the viewport and scroll internally so the popover can never run
      past the bottom edge on a short (800px) laptop screen (bugs D1). */
   max-height:calc(100vh - 80px); overflow-y:auto;
