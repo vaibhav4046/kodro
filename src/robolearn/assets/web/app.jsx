@@ -632,6 +632,9 @@
     // handlers intact while giving every capability a stable place in the
     // journey: design the robot, prove it in scenarios, then prepare a build.
     const [activeStage, setActiveStage] = useState('prove');
+    // A compile error from the last 5-seed attempt, shown inline in the
+    // cockpit where the console does not exist.
+    const [proveError, setProveError] = useState(null);
     const [proveReport, setProveReport] = useState(() => {
       try {
         const reports = window.KodroMemory && window.KodroMemory.scenarioReports ? window.KodroMemory.scenarioReports() : [];
@@ -751,15 +754,28 @@
         robotKey: runRobotKey(robotSpec),
         robotName: (robotSpec && robotSpec.name) || '',
       });
-      setProveReport(rep);
       const a = rep.aggregate;
       // A compile error in the program is a code mistake, not a 0% behaviour
       // result: surface it as an error and do not show a misleading pass rate
       // (scenario.run also skips persisting the junk all-zero report).
+      // The report is NOT adopted in this case: an all-compile-fail run still
+      // carries a full aggregate (passed:false, 0/5, 0 collisions, 0% battery)
+      // and a manifest with verdict 'fail', all of which satisfy the cockpit's
+      // evidence gate. Adopting it painted a red FAIL with fabricated
+      // 0-metrics for a program that never executed a single step. Clear any
+      // previous verdict instead, so the panel honestly reads NOT RUN.
       if (a.compileError) {
+        setProveReport(null);
         addConsole('Validation could not run: ' + a.compileError + ' Fix the code and try again.', 'err');
+        // The console is not mounted in the simple cockpit, so a console-only
+        // error is invisible exactly where novices hit it. Toast + inline
+        // state carry it to every experience.
+        setProveError(a.compileError);
+        showToast('Could not run the proof: ' + a.compileError, 'err');
         return;
       }
+      setProveError(null);
+      setProveReport(rep);
       addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', (a.passed ? 'ok' : 'warn'));
       // "0%" without context reads as a broken product when the program simply
       // never drove to the goal. Say exactly what 0% measures, and point at
@@ -1109,7 +1125,21 @@
       if (r.world && r.world !== here) onTerrain(r.world);
       applyProgramText(r.source);
       queueReplaySeed(r.seed);
-      addConsole('Replay: same program, same world, seed ' + r.seed + '. Outcome should match the recorded run exactly.', 'sys');
+      // The robot is the FOURTH determinant of a run (mass and speed factors
+      // scale every move, drain comes from the pack, and fitted parts gate
+      // move/turn/scan), and the Runs panel deliberately lists every build's
+      // history so runs can be compared. Replay restores world, program and
+      // seed but cannot restore the build, so the determinism claim only
+      // holds when the current build IS the recorded one. Say which case
+      // this is instead of asserting an exact match that may be false.
+      const sameBuild = !!(r.robotKey && r.robotKey === runRobotKey(robotSpec));
+      if (sameBuild) {
+        addConsole('Replay: same robot, program, world and seed ' + r.seed + '. Outcome should match the recorded run exactly.', 'sys');
+      } else {
+        addConsole('Replay: same program, world and seed ' + r.seed + ', but the current build is NOT the one that produced this run'
+          + (r.robotName ? ' (recorded on "' + r.robotName + '")' : '')
+          + '. The robot changes movement, battery and which commands work, so the outcome can legitimately differ.', 'warn');
+      }
       setTimeout(() => onRun(), 350);
     }
 
@@ -1642,6 +1672,8 @@
                         Regression: {planProveReport.regression && planProveReport.regression.status === 'same' ? 'matches the previous run byte for byte' : planProveReport.regression && planProveReport.regression.status === 'changed' ? 'changed in ' + planProveReport.regression.changed.join(', ') : 'no matching baseline yet'}.
                       </p>
                     </React.Fragment>
+                  ) : proveError ? (
+                    <p className="simple-proof-error"><b>The proof could not run.</b> {proveError} Fix the program with Edit program, then try again.</p>
                   ) : <p>No multi-seed evidence has been recorded for this session.</p>}
                   <p className="simple-proof-boundary">Kinematic simulation evidence only. It does not validate or certify physical performance or safety.</p>
                   <div className="simple-proof-actions">
@@ -1927,7 +1959,7 @@
                               </span>
                               <span className="run-pred" title="The design check's prediction before the run">{r.predicted ? 'predicted: ' + r.predicted : ''}</span>
                               {r.seed != null && r.source
-                                ? <button className="btn-mini" data-replay title="Re-run this exact program in its world with its recorded seed" onClick={() => replayRun(r)}>Replay</button>
+                                ? <button className="btn-mini" data-replay title="Re-run this exact program in its world with its recorded seed. The robot is not restored, so a run recorded on a different build can differ." onClick={() => replayRun(r)}>Replay</button>
                                 : <span className="run-pred" title="Recorded before replay support, so the program and seed were not saved">no replay</span>}
                               <span className="run-time num">{fmtTime(r.ts)}</span>
                             </li>
@@ -2161,7 +2193,7 @@
 
         {reviewOpen && <window.KodroPanels.ReviewModal reviewBusy={reviewBusy} setReviewOpen={setReviewOpen} reviewErr={reviewErr} reviewData={reviewData} applyReview={applyReview} />}
 
-        {realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, { onClose: () => setRealismOpen(false), terrain: terrain })}
+        {realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, { onClose: () => setRealismOpen(false), terrain: terrain, code: code })}
         {demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, { onClose: () => setDemoOpen(false) })}
         {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} onExplain={() => { setVibeOpen(false); setAskData(null); setAskOpen(true); }} onReview={() => { setVibeOpen(false); runReview(); }} />}
 

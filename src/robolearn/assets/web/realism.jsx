@@ -53,8 +53,21 @@
     const reports = (window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports()) || [];
     // Same rule as the cockpit and the verification export: only a validation
     // recorded by THIS exact build may be presented beside its physics.
+    // Match on the PROGRAM too, not the robot alone: the same build validated
+    // with an earlier program still matches by fingerprint, and its success
+    // rate was being presented as this plan's current evidence. controllerHash
+    // is the same identity the cockpit's proof gate uses.
     const buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(window.KODRO_ROBOT || null) : '';
-    const last = reports.find(function (r) { return r && r.robotKey && buildKey && r.robotKey === buildKey; }) || null;
+    // Hash the LIVE editor buffer (same reference the cockpit's proof gate
+    // uses), not the last executed source: after an edit the two diverge, and
+    // the stale one would keep an outdated validation on screen.
+    const liveHash = (window.KodroScenario && window.KodroScenario.codeHash && typeof props.code === 'string')
+      ? window.KodroScenario.codeHash(props.code) : null;
+    const last = reports.find(function (r) {
+      if (!r || !r.robotKey || !buildKey || r.robotKey !== buildKey) return false;
+      if (liveHash && r.manifest && r.manifest.controllerHash && r.manifest.controllerHash !== liveHash) return false;
+      return true;
+    }) || null;
     const agg = last && last.aggregate;
 
     // Physics card. Top speed: a measured build (imported spec) carries a real
@@ -88,7 +101,13 @@
             : row(SENSOR_LABEL[s] || s, 'fitted, no command', 'var(--fg-2)');
         })
       : [row('Sensors', 'none fitted', 'var(--warning)')];
-    sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'none in live runs (injected only during multi-seed validation)'));
+    // This dashboard describes the LIVE simulation the user is looking at, and
+    // the live sim injects no sensor noise at all: distance() is a pure ray
+    // cast (hooks.jsx sensorRayDistance). Noise exists only inside the headless
+    // multi-seed validator. Flipping this row to 'randomised per seed' merely
+    // because a stored validation exists told the reader the live sim perturbs
+    // its sensors, which is false regardless of validation history.
+    sensorRows.push(row('Sensor noise', 'none in live runs (injected only during multi-seed validation)'));
     const sensors = card('Sensors', sensorRows, 'var(--cyan)');
 
     // Scenario score card. The single pass/fail verdict comes from the report

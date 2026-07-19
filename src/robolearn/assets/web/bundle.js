@@ -17540,9 +17540,19 @@ Object.assign(window, {
     const reports = window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports() || [];
     // Same rule as the cockpit and the verification export: only a validation
     // recorded by THIS exact build may be presented beside its physics.
+    // Match on the PROGRAM too, not the robot alone: the same build validated
+    // with an earlier program still matches by fingerprint, and its success
+    // rate was being presented as this plan's current evidence. controllerHash
+    // is the same identity the cockpit's proof gate uses.
     const buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(window.KODRO_ROBOT || null) : '';
+    // Hash the LIVE editor buffer (same reference the cockpit's proof gate
+    // uses), not the last executed source: after an edit the two diverge, and
+    // the stale one would keep an outdated validation on screen.
+    const liveHash = window.KodroScenario && window.KodroScenario.codeHash && typeof props.code === 'string' ? window.KodroScenario.codeHash(props.code) : null;
     const last = reports.find(function (r) {
-      return r && r.robotKey && buildKey && r.robotKey === buildKey;
+      if (!r || !r.robotKey || !buildKey || r.robotKey !== buildKey) return false;
+      if (liveHash && r.manifest && r.manifest.controllerHash && r.manifest.controllerHash !== liveHash) return false;
+      return true;
     }) || null;
     const agg = last && last.aggregate;
 
@@ -17569,7 +17579,13 @@ Object.assign(window, {
     const sensorRows = robot.sensors && robot.sensors.length ? robot.sensors.map(function (s) {
       return sensorHasCmd(s) ? row(SENSOR_LABEL[s] || s, 'command ready', 'var(--cyan)') : row(SENSOR_LABEL[s] || s, 'fitted, no command', 'var(--fg-2)');
     }) : [row('Sensors', 'none fitted', 'var(--warning)')];
-    sensorRows.push(row('Sensor noise', last && last.scenario ? 'randomised per seed' : 'none in live runs (injected only during multi-seed validation)'));
+    // This dashboard describes the LIVE simulation the user is looking at, and
+    // the live sim injects no sensor noise at all: distance() is a pure ray
+    // cast (hooks.jsx sensorRayDistance). Noise exists only inside the headless
+    // multi-seed validator. Flipping this row to 'randomised per seed' merely
+    // because a stored validation exists told the reader the live sim perturbs
+    // its sensors, which is false regardless of validation history.
+    sensorRows.push(row('Sensor noise', 'none in live runs (injected only during multi-seed validation)'));
     const sensors = card('Sensors', sensorRows, 'var(--cyan)');
 
     // Scenario score card. The single pass/fail verdict comes from the report
@@ -26015,6 +26031,9 @@ say("Survey done")`
     // handlers intact while giving every capability a stable place in the
     // journey: design the robot, prove it in scenarios, then prepare a build.
     const [activeStage, setActiveStage] = useState('prove');
+    // A compile error from the last 5-seed attempt, shown inline in the
+    // cockpit where the console does not exist.
+    const [proveError, setProveError] = useState(null);
     const [proveReport, setProveReport] = useState(() => {
       try {
         const reports = window.KodroMemory && window.KodroMemory.scenarioReports ? window.KodroMemory.scenarioReports() : [];
@@ -26220,15 +26239,28 @@ say("Survey done")`
         robotKey: runRobotKey(robotSpec),
         robotName: robotSpec && robotSpec.name || ''
       });
-      setProveReport(rep);
       const a = rep.aggregate;
       // A compile error in the program is a code mistake, not a 0% behaviour
       // result: surface it as an error and do not show a misleading pass rate
       // (scenario.run also skips persisting the junk all-zero report).
+      // The report is NOT adopted in this case: an all-compile-fail run still
+      // carries a full aggregate (passed:false, 0/5, 0 collisions, 0% battery)
+      // and a manifest with verdict 'fail', all of which satisfy the cockpit's
+      // evidence gate. Adopting it painted a red FAIL with fabricated
+      // 0-metrics for a program that never executed a single step. Clear any
+      // previous verdict instead, so the panel honestly reads NOT RUN.
       if (a.compileError) {
+        setProveReport(null);
         addConsole('Validation could not run: ' + a.compileError + ' Fix the code and try again.', 'err');
+        // The console is not mounted in the simple cockpit, so a console-only
+        // error is invisible exactly where novices hit it. Toast + inline
+        // state carry it to every experience.
+        setProveError(a.compileError);
+        showToast('Could not run the proof: ' + a.compileError, 'err');
         return;
       }
+      setProveError(null);
+      setProveReport(rep);
       addConsole('Validation: success ' + Math.round((a.successRate || 0) * 100) + '% (' + a.successCount + '/' + a.seeds + '), mean collisions ' + a.meanCollisions + ', mean time ' + (a.meanTimeToGoal != null ? a.meanTimeToGoal + ' steps' : 'n/a') + ', mean battery ' + a.meanBattery + '%, mean score ' + a.meanScore + '. Saved.', a.passed ? 'ok' : 'warn');
       // "0%" without context reads as a broken product when the program simply
       // never drove to the goal. Say exactly what 0% measures, and point at
@@ -26782,7 +26814,19 @@ say("Survey done")`
       if (r.world && r.world !== here) onTerrain(r.world);
       applyProgramText(r.source);
       queueReplaySeed(r.seed);
-      addConsole('Replay: same program, same world, seed ' + r.seed + '. Outcome should match the recorded run exactly.', 'sys');
+      // The robot is the FOURTH determinant of a run (mass and speed factors
+      // scale every move, drain comes from the pack, and fitted parts gate
+      // move/turn/scan), and the Runs panel deliberately lists every build's
+      // history so runs can be compared. Replay restores world, program and
+      // seed but cannot restore the build, so the determinism claim only
+      // holds when the current build IS the recorded one. Say which case
+      // this is instead of asserting an exact match that may be false.
+      const sameBuild = !!(r.robotKey && r.robotKey === runRobotKey(robotSpec));
+      if (sameBuild) {
+        addConsole('Replay: same robot, program, world and seed ' + r.seed + '. Outcome should match the recorded run exactly.', 'sys');
+      } else {
+        addConsole('Replay: same program, world and seed ' + r.seed + ', but the current build is NOT the one that produced this run' + (r.robotName ? ' (recorded on "' + r.robotName + '")' : '') + '. The robot changes movement, battery and which commands work, so the outcome can legitimately differ.', 'warn');
+      }
       setTimeout(() => onRun(), 350);
     }
 
@@ -27750,7 +27794,9 @@ say("Survey done")`
       className: "simple-proof-metrics"
     }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.successCount, "/", planProveReport.aggregate.seeds), " goals reached"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.meanCollisions), " mean collisions"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.meanBattery, "%"), " mean battery used")), /*#__PURE__*/React.createElement("p", {
       className: "simple-proof-regression"
-    }, "Regression: ", planProveReport.regression && planProveReport.regression.status === 'same' ? 'matches the previous run byte for byte' : planProveReport.regression && planProveReport.regression.status === 'changed' ? 'changed in ' + planProveReport.regression.changed.join(', ') : 'no matching baseline yet', ".")) : /*#__PURE__*/React.createElement("p", null, "No multi-seed evidence has been recorded for this session."), /*#__PURE__*/React.createElement("p", {
+    }, "Regression: ", planProveReport.regression && planProveReport.regression.status === 'same' ? 'matches the previous run byte for byte' : planProveReport.regression && planProveReport.regression.status === 'changed' ? 'changed in ' + planProveReport.regression.changed.join(', ') : 'no matching baseline yet', ".")) : proveError ? /*#__PURE__*/React.createElement("p", {
+      className: "simple-proof-error"
+    }, /*#__PURE__*/React.createElement("b", null, "The proof could not run."), " ", proveError, " Fix the program with Edit program, then try again.") : /*#__PURE__*/React.createElement("p", null, "No multi-seed evidence has been recorded for this session."), /*#__PURE__*/React.createElement("p", {
       className: "simple-proof-boundary"
     }, "Kinematic simulation evidence only. It does not validate or certify physical performance or safety."), /*#__PURE__*/React.createElement("div", {
       className: "simple-proof-actions"
@@ -28162,7 +28208,7 @@ say("Survey done")`
       }, r.predicted ? 'predicted: ' + r.predicted : ''), r.seed != null && r.source ? /*#__PURE__*/React.createElement("button", {
         className: "btn-mini",
         "data-replay": true,
-        title: "Re-run this exact program in its world with its recorded seed",
+        title: "Re-run this exact program in its world with its recorded seed. The robot is not restored, so a run recorded on a different build can differ.",
         onClick: () => replayRun(r)
       }, "Replay") : /*#__PURE__*/React.createElement("span", {
         className: "run-pred",
@@ -28675,7 +28721,8 @@ say("Survey done")`
       applyReview: applyReview
     }), realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, {
       onClose: () => setRealismOpen(false),
-      terrain: terrain
+      terrain: terrain,
+      code: code
     }), demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, {
       onClose: () => setDemoOpen(false)
     }), vibeOpen && /*#__PURE__*/React.createElement(window.KodroPanels.VibeModal, {

@@ -1407,14 +1407,15 @@ kbd {
      The background is a single SOLID opaque theme surface (not a translucent or
      gradient fill) so the tabs can never show through and every row sits on the
      same navy-2 surface the contrast ratios below were computed against. */
-  /* Anchored RIGHT, like .more-tools-pop. The gear once sat in a left-edge
-     icon strip, where left:0 was correct; the Design/Prove/Build redesign
-     moved Settings to the RIGHT end of the mission bar, where left:0 pushed
-     the 248px panel ~195px past the viewport, widened the document and
-     shoved the whole app off-screen (measured at 1280px: app x=-195,
-     scrollWidth 1475). Anchoring to the button's right edge keeps it in
-     view at every width. */
-  position:absolute; top:38px; right:0; z-index:200; width:248px;
+  /* Anchored to the VIEWPORT, not the gear button. Button-relative anchoring
+     clips on whichever side the button happens to sit near, and the button
+     moves with interface mode and width: left:0 shoved the whole app 195px
+     off-screen at 1280px once the redesign moved Settings to the right of
+     the bar, and right:0 then clipped the panel off the LEFT edge in Expert
+     at ~850-1050px. Fixed + right-clamped + max-width cannot clip on either
+     side at any width, in any mode. */
+  position:fixed; top:52px; right:10px; left:auto; z-index:200;
+  width:248px; max-width:calc(100vw - 20px);
   /* Cap to the viewport and scroll internally so the popover can never run
      past the bottom edge on a short (800px) laptop screen (bugs D1). */
   max-height:calc(100vh - 80px); overflow-y:auto;
@@ -2190,6 +2191,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .simple-proof-metrics b { display:block; color:var(--fg-1); font:650 var(--text-xl)/1.2 var(--font-mono); }
 .simple-proof > p { margin:0; color:var(--fg-2); font-size:var(--text-sm); line-height:1.45; }
 .simple-proof .simple-proof-boundary { color:var(--warning); }
+.simple-proof .simple-proof-error { color:var(--danger); }
 .simple-proof-actions { display:flex; flex-wrap:wrap; gap:7px; }
 .simple-proof-actions button:not(.ctrl) { border:1px solid var(--border); border-radius:var(--radius-sm); background:transparent; color:var(--fg-1); padding:8px 10px; cursor:pointer; }
 @media (max-width: 520px) {
