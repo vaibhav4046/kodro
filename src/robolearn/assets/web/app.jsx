@@ -52,8 +52,12 @@
   function runRobotKey(spec) {
     const s = spec || {};
     try {
+      // PHYSICAL identity only. The kodroSpec version stamp is deliberately
+      // excluded: it is storage metadata that load()-side migration adds and
+      // a fresh Lab pick lacks, and including it split physically identical
+      // builds into different fingerprints (a build's own evidence was then
+      // dropped as "another robot's").
       return JSON.stringify(stableRunValue({
-        schema: s.kodroSpec || 0,
         type: s.type || '',
         board: s.board || '',
         boardMassG: s.boardMassG != null ? s.boardMassG : null,

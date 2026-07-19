@@ -253,6 +253,13 @@ class BridgeAPI:
         if lesson is None:
             return {"ok": False, "reason": f"unknown lesson: {lesson_id}"}
 
+        # Attribution is fixed at ENTRY: bridge calls run on their own threads,
+        # so a select_pupil landing while this attempt is being graded must not
+        # re-file the result under the newly selected pupil. The pupil who was
+        # active when the attempt was submitted owns it (the client's late-grade
+        # handling states and relies on exactly this rule).
+        pupil_id = self._pupil_id
+
         drain_scale = _drain_scale_for(robot_mass_factor, robot_drain_pct_per_m)
 
         world = _world_from_lesson(lesson)
@@ -306,20 +313,20 @@ class BridgeAPI:
         # Self-improving hints: this graded attempt is the verdict on whatever
         # hint we showed last time for this pupil+lesson. Score it first, so
         # the ranking below already reflects the freshest evidence.
-        self._store.resolve_pending_hint(self._pupil_id, lesson.id, passed=verdict.passed)
+        self._store.resolve_pending_hint(pupil_id, lesson.id, passed=verdict.passed)
         hint = best_hint(ctx, self._store)
         if not verdict.passed and hint is not None:
-            self._store.set_pending_hint(self._pupil_id, lesson.id, hint.rule_name)
+            self._store.set_pending_hint(pupil_id, lesson.id, hint.rule_name)
 
         # PRIOR history, read BEFORE recording this submission. The achievement
         # predicates take a history that EXCLUDES the current submission (they
         # append c.submission themselves, e.g. `(*c.history, c.submission)`).
         # Reading it after the record below double-counted the current pass, so
         # "three in a row" fired on only two consecutive passes.
-        history = tuple(self._store.list_submissions(pupil_id=self._pupil_id))
+        history = tuple(self._store.list_submissions(pupil_id=pupil_id))
 
         submission = self._store.record_submission(
-            pupil_id=self._pupil_id,
+            pupil_id=pupil_id,
             lesson_id=lesson.id,
             code=source or "",
             passed=verdict.passed,
@@ -334,17 +341,15 @@ class BridgeAPI:
         # legacy Tk shell: update concept strength so the recommender and the
         # teacher heatmap actually move, unlock achievements, and surface the
         # adaptive next-lesson pick. All local, all from this one submission.
-        update_on_submission(
-            self._store, pupil_id=self._pupil_id, lesson=lesson, passed=verdict.passed
-        )
+        update_on_submission(self._store, pupil_id=pupil_id, lesson=lesson, passed=verdict.passed)
         pctx = PupilContext(
-            pupil_id=self._pupil_id, lesson=lesson, submission=submission, history=history
+            pupil_id=pupil_id, lesson=lesson, submission=submission, history=history
         )
         achievements = [
             {"id": a.id, "title": a.title, "description": a.description, "icon": a.icon}
             for a in check_and_unlock(self._store, pctx)
         ]
-        recommended = suggest_next_lesson(self._store, self._pupil_id, self._lessons)
+        recommended = suggest_next_lesson(self._store, pupil_id, self._lessons)
         rec = None
         if recommended is not None and recommended.id != lesson.id:
             rec = {"id": recommended.id, "title": recommended.title}

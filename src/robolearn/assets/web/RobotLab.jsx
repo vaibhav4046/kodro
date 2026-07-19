@@ -215,10 +215,18 @@
   }
 
   function save(spec) {
-    try { localStorage.setItem(STORE, JSON.stringify(spec)); } catch (e) { void e; }
-    const d = derive(spec);
-    const rec = WORLD_FOR[spec.type] || {};
-    window.KODRO_ROBOT = Object.assign({}, spec, d, { world: rec.id });
+    // Persist the CANONICAL form load() would produce. Saving verbatim while
+    // load() migrated (kodroSpec stamp, sensor floor) meant the same physical
+    // build fingerprinted differently before and after a Lab remount, so a
+    // saved build's verification report dropped its own run and validation
+    // evidence. Canonicalising a CLONE keeps the caller's state unmutated;
+    // the kodro-robot event still delivers the canonical build to the app.
+    let canon = spec;
+    try { canon = migrateSpec(JSON.parse(JSON.stringify(spec)), false).spec; } catch (e) { void e; }
+    try { localStorage.setItem(STORE, JSON.stringify(canon)); } catch (e) { void e; }
+    const d = derive(canon);
+    const rec = WORLD_FOR[canon.type] || {};
+    window.KODRO_ROBOT = Object.assign({}, canon, d, { world: rec.id });
     try { window.dispatchEvent(new CustomEvent('kodro-robot', { detail: window.KODRO_ROBOT })); } catch (e) { void e; }
   }
 

@@ -14044,14 +14044,26 @@ Object.assign(window, {
     return defaultSpec();
   }
   function save(spec) {
+    // Persist the CANONICAL form load() would produce. Saving verbatim while
+    // load() migrated (kodroSpec stamp, sensor floor) meant the same physical
+    // build fingerprinted differently before and after a Lab remount, so a
+    // saved build's verification report dropped its own run and validation
+    // evidence. Canonicalising a CLONE keeps the caller's state unmutated;
+    // the kodro-robot event still delivers the canonical build to the app.
+    let canon = spec;
     try {
-      localStorage.setItem(STORE, JSON.stringify(spec));
+      canon = migrateSpec(JSON.parse(JSON.stringify(spec)), false).spec;
     } catch (e) {
       void e;
     }
-    const d = derive(spec);
-    const rec = WORLD_FOR[spec.type] || {};
-    window.KODRO_ROBOT = Object.assign({}, spec, d, {
+    try {
+      localStorage.setItem(STORE, JSON.stringify(canon));
+    } catch (e) {
+      void e;
+    }
+    const d = derive(canon);
+    const rec = WORLD_FOR[canon.type] || {};
+    window.KODRO_ROBOT = Object.assign({}, canon, d, {
       world: rec.id
     });
     try {
@@ -25175,8 +25187,12 @@ say("Survey done")`
   function runRobotKey(spec) {
     const s = spec || {};
     try {
+      // PHYSICAL identity only. The kodroSpec version stamp is deliberately
+      // excluded: it is storage metadata that load()-side migration adds and
+      // a fresh Lab pick lacks, and including it split physically identical
+      // builds into different fingerprints (a build's own evidence was then
+      // dropped as "another robot's").
       return JSON.stringify(stableRunValue({
-        schema: s.kodroSpec || 0,
         type: s.type || '',
         board: s.board || '',
         boardMassG: s.boardMassG != null ? s.boardMassG : null,
