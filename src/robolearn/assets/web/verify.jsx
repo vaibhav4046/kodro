@@ -165,14 +165,16 @@
     var liveCodeHash = (window.KodroScenario && window.KodroScenario.codeHash && typeof window.KODRO_LIVE_CODE === 'string')
       ? window.KodroScenario.codeHash(window.KODRO_LIVE_CODE) : null;
     var last = null;
+    var validationOtherProgram = false;
     for (var ri = 0; ri < reports.length; ri++) {
       var candidate = reports[ri];
       if (!candidate || !candidate.robotKey || !buildKey || candidate.robotKey !== buildKey) continue;
       // Legacy reports without a controllerHash cannot prove a mismatch.
       if (liveCodeHash && candidate.manifest && candidate.manifest.controllerHash
-        && candidate.manifest.controllerHash !== liveCodeHash) continue;
+        && candidate.manifest.controllerHash !== liveCodeHash) { validationOtherProgram = true; continue; }
       last = candidate; break;
     }
+    empirical.validationOtherProgram = !last && validationOtherProgram;
     if (last && last.aggregate) {
       empirical.validation = {
         scenario: last.scenario && last.scenario.name,
@@ -230,7 +232,13 @@
       var va = r.empirical.validation;
       h.push('<p>Last validation ("' + esc(va.scenario || '-') + '", ' + va.seeds + ' randomised seeds): success ' + va.successRate + ' percent, mean collisions ' + va.meanCollisions + ', mean battery used ' + va.meanBatteryUsed + ' percent.</p>');
     } else {
-      h.push('<p class="muted">No multi-seed validation recorded yet. Press Validate in the studio for the spread.</p>');
+      // Distinguish the two ways the lookup can come back empty, exactly as
+      // the realism dashboard does. Telling a builder on paper that nothing
+      // was ever recorded, when a validation for this robot exists under a
+      // different program, states a falsehood in an exported artefact.
+      h.push(r.empirical.validationOtherProgram
+        ? '<p class="muted">No multi-seed validation for this program. A validation exists for this robot under a different program; press Validate in the studio to record one for the current program.</p>'
+        : '<p class="muted">No multi-seed validation recorded yet. Press Validate in the studio for the spread.</p>');
     }
     if (r.design) {
       h.push('<h2>Design check (' + esc(r.design.overall).toUpperCase() + ')</h2><p>' + esc(r.design.summary) + '</p><ul>');

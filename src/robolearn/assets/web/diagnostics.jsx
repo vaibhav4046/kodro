@@ -109,7 +109,7 @@
       : stoppingDistance(speedFactor, massFactor);
     if (!hasRange) {
       dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'fail', margin: 0,
-        reason: 'No range sensor fitted, so the robot drives blind. distance() reads clear no matter what is ahead, and it will run into obstacles.',
+        reason: 'No range sensor fitted, so the robot drives blind. distance() is not available at all on this build: calling it stops the run with a refusal rather than returning a reading. Fit an Ultrasonic in the Robot Lab, or drive without sensing and expect collisions.',
         fix: 'Fit an Ultrasonic range sensor so it can see and avoid what is in front.' });
     } else if (stop > SENSOR_RANGE_BUILD * 0.6) {
       dims.push({ key: 'sensing', label: 'Obstacle sensing', status: 'warn', margin: +(SENSOR_RANGE_BUILD / stop).toFixed(2),

@@ -1965,21 +1965,30 @@
                         compare builds, so it must say when the program or the
                         world also changed, rather than leaving them invisible. */}
                     {sel.length === 2 && (() => {
-                      const sameRobot = !!(sel[0].robotKey && sel[1].robotKey && sel[0].robotKey === sel[1].robotKey);
-                      const sameProgram = sel[0].source === sel[1].source;
-                      const sameWorld = sel[0].world === sel[1].world;
-                      const differs = [];
-                      if (!sameRobot) differs.push('robot');
-                      if (!sameProgram) differs.push('program');
-                      if (!sameWorld) differs.push('world');
+                      // Three states per input, never two: same, different, or
+                      // UNKNOWN. Reports written before fingerprints and replay
+                      // support carry no robotKey and no source, and an absent
+                      // record cannot prove either sameness or difference.
+                      // Collapsing unknown into "different" invented the exact
+                      // causal claim these rounds have been removing.
+                      const cmp = (a, b) => (a == null || b == null || a === '' || b === '') ? 'unknown' : (a === b ? 'same' : 'different');
+                      const parts = [
+                        { name: 'robot', state: cmp(sel[0].robotKey, sel[1].robotKey) },
+                        { name: 'program', state: cmp(sel[0].source, sel[1].source) },
+                        { name: 'world', state: cmp(sel[0].world, sel[1].world) },
+                      ];
+                      const differs = parts.filter(p => p.state === 'different').map(p => p.name);
+                      const unknown = parts.filter(p => p.state === 'unknown').map(p => p.name);
+                      const list = (xs) => xs.length === 1 ? xs[0] : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+                      let msg;
+                      if (differs.length === 0 && unknown.length === 0) msg = 'Same robot, program and world: this delta is run-to-run variation.';
+                      else if (differs.length === 1 && unknown.length === 0) msg = 'These runs differ only in ' + differs[0] + ', so the delta is attributable to the ' + differs[0] + '.';
+                      else if (differs.length > 1 && unknown.length === 0) msg = 'These runs differ in ' + list(differs) + ', so the delta cannot be attributed to any one of them.';
+                      else msg = (differs.length ? 'These runs differ in ' + list(differs) + ', and the ' : 'The ')
+                        + list(unknown) + (unknown.length === 1 ? ' behind' : ' behind')
+                        + ' at least one run was not recorded, so this delta cannot be attributed with confidence.';
                       return (
-                        <p className={'runs-compare-scope' + (differs.length > 1 ? ' mixed' : '')}>
-                          {differs.length === 0
-                            ? 'Same robot, program and world: this delta is run-to-run variation.'
-                            : differs.length === 1
-                              ? 'These runs differ only in ' + differs[0] + ', so the delta is attributable to the ' + differs[0] + '.'
-                              : 'These runs differ in ' + differs.slice(0, -1).join(', ') + ' and ' + differs[differs.length - 1] + ', so the delta cannot be attributed to any one of them.'}
-                        </p>
+                        <p className={'runs-compare-scope' + (differs.length > 1 || unknown.length ? ' mixed' : '')}>{msg}</p>
                       );
                     })()}
                     {runs.length === 0

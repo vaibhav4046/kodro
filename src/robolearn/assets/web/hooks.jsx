@@ -178,15 +178,45 @@
     }
     function endBlock() { setBlockIndent(d => Math.max(0, d - 1)); }
     function removeBlock(i) {
-      setBlocks(bs => bs.filter((_, j) => j !== i));
+      setBlocks(bs => {
+        const gone = bs[i];
+        const next = bs.filter((_, j) => j !== i);
+        // Deleting a container orphaned its nesting level: every block added
+        // afterwards kept the now-meaningless indent. Step the pending indent
+        // back so the next block lands where the list actually reads.
+        if (gone && gone.container) setBlockIndent(d => Math.max(0, d - 1));
+        return next;
+      });
+    }
+    // A block's SPAN is the block plus, for a container, the contiguous run of
+    // deeper-indented blocks that form its body.
+    function blockSpan(bs, i) {
+      let end = i + 1;
+      if (bs[i] && bs[i].container) {
+        while (end < bs.length && bs[end].indent > bs[i].indent) end++;
+      }
+      return { start: i, end: end };
     }
     function moveBlock(i, dir) {
       setBlocks(bs => {
-        const j = i + dir;
-        if (j < 0 || j >= bs.length) return bs;
-        const next = bs.slice();
-        const tmp = next[i]; next[i] = next[j]; next[j] = tmp;
-        return next;
+        if (i < 0 || i >= bs.length) return bs;
+        const span = blockSpan(bs, i);
+        // Reorder within one nesting level only, carrying a container's body
+        // with it. A bare positional swap let a statement trade places with
+        // the loop header above it, which stranded the statement at body
+        // depth and gave the emptied loop a 'pass' the user never wrote,
+        // silently changing what the program did. Moving ACROSS levels is not
+        // a reorder, so it is refused rather than guessed at.
+        const at = dir < 0 ? span.start - 1 : span.end;
+        if (at < 0 || at >= bs.length) return bs;
+        const nbrStart = dir < 0 ? (() => { let s = at; while (s > 0 && bs[s].indent > bs[i].indent) s--; return s; })() : at;
+        if (bs[nbrStart].indent !== bs[i].indent) return bs;
+        const nbr = blockSpan(bs, nbrStart);
+        const moving = bs.slice(span.start, span.end);
+        const other = bs.slice(nbr.start, nbr.end);
+        const head = bs.slice(0, Math.min(span.start, nbr.start));
+        const tail = bs.slice(Math.max(span.end, nbr.end));
+        return dir < 0 ? head.concat(moving, other, tail) : head.concat(other, moving, tail);
       });
       sfx('led');
     }

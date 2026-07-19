@@ -39,7 +39,12 @@
     }
     if (run.outcome === 'crash') {
       if (what.indexOf('pedestrian') >= 0) {
-        return "A pedestrian crossed. Add 'while distance() > 40: move_forward(1)' to sense and stop before moving into a crossing.";
+        // Two lines, not a compound one-liner: Kodro's interpreter rejects a
+        // statement on the same line as the colon ('Unexpected character ":"'),
+        // and this reflection is echoed to the console, stored in Memory and
+        // fed to the Companion as a learned instruction, so an invalid form
+        // propagates into generated code.
+        return "A pedestrian crossed. Sense before moving into a crossing:\nwhile distance() > 40:\n    move_forward(1)";
       }
       if (what.indexOf('vehicle') >= 0 || what.indexOf('car') >= 0 || what.indexOf('traffic') >= 0) {
         return "Traffic was in the way. Scan with distance() before entering a lane, and wait if the reading is under 100.";

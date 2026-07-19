@@ -2420,7 +2420,12 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }
     if (run.outcome === 'crash') {
       if (what.indexOf('pedestrian') >= 0) {
-        return "A pedestrian crossed. Add 'while distance() > 40: move_forward(1)' to sense and stop before moving into a crossing.";
+        // Two lines, not a compound one-liner: Kodro's interpreter rejects a
+        // statement on the same line as the colon ('Unexpected character ":"'),
+        // and this reflection is echoed to the console, stored in Memory and
+        // fed to the Companion as a learned instruction, so an invalid form
+        // propagates into generated code.
+        return "A pedestrian crossed. Sense before moving into a crossing:\nwhile distance() > 40:\n    move_forward(1)";
       }
       if (what.indexOf('vehicle') >= 0 || what.indexOf('car') >= 0 || what.indexOf('traffic') >= 0) {
         return "Traffic was in the way. Scan with distance() before entering a lane, and wait if the reading is under 100.";
@@ -13235,7 +13240,7 @@ Object.assign(window, {
         label: 'Obstacle sensing',
         status: 'fail',
         margin: 0,
-        reason: 'No range sensor fitted, so the robot drives blind. distance() reads clear no matter what is ahead, and it will run into obstacles.',
+        reason: 'No range sensor fitted, so the robot drives blind. distance() is not available at all on this build: calling it stops the run with a refusal rather than returning a reading. Fit an Ultrasonic in the Robot Lab, or drive without sensing and expect collisions.',
         fix: 'Fit an Ultrasonic range sensor so it can see and avoid what is in front.'
       });
     } else if (stop > SENSOR_RANGE_BUILD * 0.6) {
@@ -17356,14 +17361,19 @@ Object.assign(window, {
     var buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(robot || null) : '';
     var liveCodeHash = window.KodroScenario && window.KodroScenario.codeHash && typeof window.KODRO_LIVE_CODE === 'string' ? window.KodroScenario.codeHash(window.KODRO_LIVE_CODE) : null;
     var last = null;
+    var validationOtherProgram = false;
     for (var ri = 0; ri < reports.length; ri++) {
       var candidate = reports[ri];
       if (!candidate || !candidate.robotKey || !buildKey || candidate.robotKey !== buildKey) continue;
       // Legacy reports without a controllerHash cannot prove a mismatch.
-      if (liveCodeHash && candidate.manifest && candidate.manifest.controllerHash && candidate.manifest.controllerHash !== liveCodeHash) continue;
+      if (liveCodeHash && candidate.manifest && candidate.manifest.controllerHash && candidate.manifest.controllerHash !== liveCodeHash) {
+        validationOtherProgram = true;
+        continue;
+      }
       last = candidate;
       break;
     }
+    empirical.validationOtherProgram = !last && validationOtherProgram;
     if (last && last.aggregate) {
       empirical.validation = {
         scenario: last.scenario && last.scenario.name,
@@ -17430,7 +17440,11 @@ Object.assign(window, {
       var va = r.empirical.validation;
       h.push('<p>Last validation ("' + esc(va.scenario || '-') + '", ' + va.seeds + ' randomised seeds): success ' + va.successRate + ' percent, mean collisions ' + va.meanCollisions + ', mean battery used ' + va.meanBatteryUsed + ' percent.</p>');
     } else {
-      h.push('<p class="muted">No multi-seed validation recorded yet. Press Validate in the studio for the spread.</p>');
+      // Distinguish the two ways the lookup can come back empty, exactly as
+      // the realism dashboard does. Telling a builder on paper that nothing
+      // was ever recorded, when a validation for this robot exists under a
+      // different program, states a falsehood in an exported artefact.
+      h.push(r.empirical.validationOtherProgram ? '<p class="muted">No multi-seed validation for this program. A validation exists for this robot under a different program; press Validate in the studio to record one for the current program.</p>' : '<p class="muted">No multi-seed validation recorded yet. Press Validate in the studio for the spread.</p>');
     }
     if (r.design) {
       h.push('<h2>Design check (' + esc(r.design.overall).toUpperCase() + ')</h2><p>' + esc(r.design.summary) + '</p><ul>');
@@ -20481,17 +20495,52 @@ Object.assign(window, {
       setBlockIndent(d => Math.max(0, d - 1));
     }
     function removeBlock(i) {
-      setBlocks(bs => bs.filter((_, j) => j !== i));
+      setBlocks(bs => {
+        const gone = bs[i];
+        const next = bs.filter((_, j) => j !== i);
+        // Deleting a container orphaned its nesting level: every block added
+        // afterwards kept the now-meaningless indent. Step the pending indent
+        // back so the next block lands where the list actually reads.
+        if (gone && gone.container) setBlockIndent(d => Math.max(0, d - 1));
+        return next;
+      });
+    }
+    // A block's SPAN is the block plus, for a container, the contiguous run of
+    // deeper-indented blocks that form its body.
+    function blockSpan(bs, i) {
+      let end = i + 1;
+      if (bs[i] && bs[i].container) {
+        while (end < bs.length && bs[end].indent > bs[i].indent) end++;
+      }
+      return {
+        start: i,
+        end: end
+      };
     }
     function moveBlock(i, dir) {
       setBlocks(bs => {
-        const j = i + dir;
-        if (j < 0 || j >= bs.length) return bs;
-        const next = bs.slice();
-        const tmp = next[i];
-        next[i] = next[j];
-        next[j] = tmp;
-        return next;
+        if (i < 0 || i >= bs.length) return bs;
+        const span = blockSpan(bs, i);
+        // Reorder within one nesting level only, carrying a container's body
+        // with it. A bare positional swap let a statement trade places with
+        // the loop header above it, which stranded the statement at body
+        // depth and gave the emptied loop a 'pass' the user never wrote,
+        // silently changing what the program did. Moving ACROSS levels is not
+        // a reorder, so it is refused rather than guessed at.
+        const at = dir < 0 ? span.start - 1 : span.end;
+        if (at < 0 || at >= bs.length) return bs;
+        const nbrStart = dir < 0 ? (() => {
+          let s = at;
+          while (s > 0 && bs[s].indent > bs[i].indent) s--;
+          return s;
+        })() : at;
+        if (bs[nbrStart].indent !== bs[i].indent) return bs;
+        const nbr = blockSpan(bs, nbrStart);
+        const moving = bs.slice(span.start, span.end);
+        const other = bs.slice(nbr.start, nbr.end);
+        const head = bs.slice(0, Math.min(span.start, nbr.start));
+        const tail = bs.slice(Math.max(span.end, nbr.end));
+        return dir < 0 ? head.concat(moving, other, tail) : head.concat(other, moving, tail);
       });
       sfx('led');
     }
@@ -28222,16 +28271,31 @@ say("Survey done")`
       }, d.b), /*#__PURE__*/React.createElement("td", {
         className: "num"
       }, d.delta != null ? (d.delta > 0 ? '+' : '') + d.delta : '-'))))), sel.length === 2 && (() => {
-        const sameRobot = !!(sel[0].robotKey && sel[1].robotKey && sel[0].robotKey === sel[1].robotKey);
-        const sameProgram = sel[0].source === sel[1].source;
-        const sameWorld = sel[0].world === sel[1].world;
-        const differs = [];
-        if (!sameRobot) differs.push('robot');
-        if (!sameProgram) differs.push('program');
-        if (!sameWorld) differs.push('world');
+        // Three states per input, never two: same, different, or
+        // UNKNOWN. Reports written before fingerprints and replay
+        // support carry no robotKey and no source, and an absent
+        // record cannot prove either sameness or difference.
+        // Collapsing unknown into "different" invented the exact
+        // causal claim these rounds have been removing.
+        const cmp = (a, b) => a == null || b == null || a === '' || b === '' ? 'unknown' : a === b ? 'same' : 'different';
+        const parts = [{
+          name: 'robot',
+          state: cmp(sel[0].robotKey, sel[1].robotKey)
+        }, {
+          name: 'program',
+          state: cmp(sel[0].source, sel[1].source)
+        }, {
+          name: 'world',
+          state: cmp(sel[0].world, sel[1].world)
+        }];
+        const differs = parts.filter(p => p.state === 'different').map(p => p.name);
+        const unknown = parts.filter(p => p.state === 'unknown').map(p => p.name);
+        const list = xs => xs.length === 1 ? xs[0] : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+        let msg;
+        if (differs.length === 0 && unknown.length === 0) msg = 'Same robot, program and world: this delta is run-to-run variation.';else if (differs.length === 1 && unknown.length === 0) msg = 'These runs differ only in ' + differs[0] + ', so the delta is attributable to the ' + differs[0] + '.';else if (differs.length > 1 && unknown.length === 0) msg = 'These runs differ in ' + list(differs) + ', so the delta cannot be attributed to any one of them.';else msg = (differs.length ? 'These runs differ in ' + list(differs) + ', and the ' : 'The ') + list(unknown) + (unknown.length === 1 ? ' behind' : ' behind') + ' at least one run was not recorded, so this delta cannot be attributed with confidence.';
         return /*#__PURE__*/React.createElement("p", {
-          className: 'runs-compare-scope' + (differs.length > 1 ? ' mixed' : '')
-        }, differs.length === 0 ? 'Same robot, program and world: this delta is run-to-run variation.' : differs.length === 1 ? 'These runs differ only in ' + differs[0] + ', so the delta is attributable to the ' + differs[0] + '.' : 'These runs differ in ' + differs.slice(0, -1).join(', ') + ' and ' + differs[differs.length - 1] + ', so the delta cannot be attributed to any one of them.');
+          className: 'runs-compare-scope' + (differs.length > 1 || unknown.length ? ' mixed' : '')
+        }, msg);
       })(), runs.length === 0 ? /*#__PURE__*/React.createElement("p", {
         className: "vibe-status",
         style: {
