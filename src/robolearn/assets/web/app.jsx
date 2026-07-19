@@ -306,19 +306,33 @@
       lessonResultsPupilRef.current = activePupilId;
       let stored = null;
       try { stored = JSON.parse(lsGet('or_lesson_results__' + activePupilId)); } catch (e) { stored = null; }
-      // Upgrade path: results recorded before per-pupil scoping live under the
-      // device-wide key. With exactly ONE pupil the ownership is unambiguous,
-      // so seed their record from it once instead of showing progress reset to
-      // zero. With several pupils the combined record cannot be attributed to
-      // any one learner, so it stays under the device key untouched.
-      if (!stored && pupils.length === 1) {
-        try {
-          const legacy = JSON.parse(lsGet('or_lesson_results'));
-          if (legacy && Object.keys(legacy).length) stored = legacy;
-        } catch (e) { void e; }
-      }
       setLessonResults(stored || {});
     }, [activePupilId]);
+    // Upgrade path, run ONCE per device and only from a fresh pupil LIST (not
+    // the activePupilId render, whose closure can hold a stale one-element
+    // list while a second pupil is being created): results recorded before
+    // per-pupil scoping live under the device-wide key, and with exactly ONE
+    // known pupil the ownership is unambiguous, so seed that pupil's record
+    // from it. An empty stamped record ("{}") counts as absent, because every
+    // pre-migration session wrote one. With several pupils the combined
+    // record cannot be attributed to any one learner and stays untouched.
+    useEffect(() => {
+      if (pupils.length !== 1) return;
+      try {
+        if (localStorage.getItem('or_lesson_results_migrated')) return;
+        const pupilId = pupils[0].id;
+        const key = 'or_lesson_results__' + pupilId;
+        let existing = null;
+        try { existing = JSON.parse(lsGet(key)); } catch (e) { existing = null; }
+        if (existing && Object.keys(existing).length) { localStorage.setItem('or_lesson_results_migrated', '1'); return; }
+        let legacy = null;
+        try { legacy = JSON.parse(lsGet('or_lesson_results')); } catch (e) { legacy = null; }
+        if (!legacy || !Object.keys(legacy).length) { localStorage.setItem('or_lesson_results_migrated', '1'); return; }
+        localStorage.setItem(key, JSON.stringify(legacy));
+        localStorage.setItem('or_lesson_results_migrated', '1');
+        if (lessonResultsPupilRef.current === pupilId) setLessonResults(legacy);
+      } catch (e) { void e; }
+    }, [pupils]);
     const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
     // Learner scaffolding: how many consecutive fails on this lesson (drives
     // the "the app noticed you are stuck" nudge) and how many extra hints the
@@ -904,7 +918,25 @@
         const r = await window.RoboLearn.submitAttempt(lessonId, source, null);
         if (!r) return;
         if (lessonResultsPupilRef.current !== pupilAtSubmit) {
-          setConsoleLines(l => [...l, { type: 'sys', text: 'A graded attempt finished after the pupil changed; it was not recorded under the new pupil.' }]);
+          // File the late result under the pupil who EARNED it (matching the
+          // backend, which graded while they were still active), never under
+          // the pupil the teacher has since switched to.
+          if (pupilAtSubmit && r.ok !== false) {
+            try {
+              const lateKey = 'or_lesson_results__' + pupilAtSubmit;
+              let lateIndex = null;
+              try { lateIndex = JSON.parse(lsGet(lateKey)); } catch (err) { lateIndex = null; }
+              lateIndex = lateIndex || {};
+              lateIndex[lessonId] = {
+                passed: !!r.passed,
+                score: Number.isFinite(Number(r.score)) ? Number(r.score) : 0,
+                attempts: ((lateIndex[lessonId] && lateIndex[lessonId].attempts) || 0) + 1,
+                updatedAt: Date.now(),
+              };
+              localStorage.setItem(lateKey, JSON.stringify(lateIndex));
+            } catch (err) { void err; }
+          }
+          setConsoleLines(l => [...l, { type: 'sys', text: 'A graded attempt finished after the pupil changed; it was recorded under the previous pupil.' }]);
           return;
         }
         if (r.ok === false) { setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') }]); return; }
@@ -1096,8 +1128,24 @@
     // Below 1181px the Simple-mode evidence panel is a fixed DRAWER (an
     // overlay), so Escape must close it before resetting the rover. At wider
     // widths it is a grid column, where Escape-to-close would be surprising.
-    const evidenceDrawerActive = simpleExperience && evidenceOpen
-      && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1180px)').matches;
+    // The breakpoint is STATE tracked through a matchMedia listener, not a
+    // render-time snapshot: resizing across 1180px with evidence open must
+    // retarget Escape immediately, or it resets the rover under an open
+    // drawer (narrowing) or closes the desktop column (widening).
+    const [narrowViewport, setNarrowViewport] = useState(() =>
+      typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1180px)').matches);
+    useEffect(() => {
+      if (typeof window.matchMedia !== 'function') return undefined;
+      const mql = window.matchMedia('(max-width: 1180px)');
+      const onChange = (e) => setNarrowViewport(e.matches);
+      if (mql.addEventListener) mql.addEventListener('change', onChange);
+      else if (mql.addListener) mql.addListener(onChange);
+      return () => {
+        if (mql.removeEventListener) mql.removeEventListener('change', onChange);
+        else if (mql.removeListener) mql.removeListener(onChange);
+      };
+    }, []);
+    const evidenceDrawerActive = simpleExperience && evidenceOpen && narrowViewport;
     const evidenceDrawerRef = useRef(false);
     evidenceDrawerRef.current = evidenceDrawerActive;
     anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);

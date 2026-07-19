@@ -1389,6 +1389,9 @@
           wallMs: runStartRef.current ? (Date.now() - runStartRef.current) : 0,
           battery: live.current.battery,
           speedMul: speedMulRef.current,
+          // Fingerprint of the build that PRODUCED this measurement, so the
+          // verification report never presents it as another robot's evidence.
+          robotKey: window.KodroRunRobotKey ? window.KodroRunRobotKey(window.KODRO_ROBOT || robotSpec) : '',
           ts: Date.now(),
         };
       } catch (err) { void err; }

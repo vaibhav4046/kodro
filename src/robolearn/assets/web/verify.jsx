@@ -117,7 +117,14 @@
 
     // ---- empirical block: measured evidence already recorded -------------
     var empirical = { lastRun: null, validation: null, agreement: null };
+    // Measured evidence must come from THIS exact build: a run stamped by a
+    // previous robot configuration is not this robot's empirical record. The
+    // stamp is session-local (a window global), so the check is a mismatch
+    // test between two PRESENT fingerprints; a stamp or host without keys
+    // (isolated harness) cannot prove a mismatch and passes through.
+    var reportKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(window.KODRO_ROBOT || null) : '';
     var lastRun = window.KODRO_LAST_RUN;
+    if (lastRun && lastRun.robotKey && reportKey && lastRun.robotKey !== reportKey) lastRun = null;
     if (lastRun && lastRun.distanceCm > 0 && lastRun.wallMs > 400) {
       // The animation plays back at speedMul (durations are divided by it), so
       // wall time is compressed by that factor. Multiply it back out so the
