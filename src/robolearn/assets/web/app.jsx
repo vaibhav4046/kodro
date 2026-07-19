@@ -882,14 +882,14 @@
     const {
       BLOCK_DEFS, blocksOpen, setBlocksOpen, blocks, setBlocks,
       blockIndent, setBlockIndent, addBlock, endBlock, removeBlock,
-      moveBlock, insertBlocksCode,
+      moveBlock, canMoveBlock, insertBlocksCode,
     } = (window.KodroHooks && window.KodroHooks.useBlocks)
       ? window.KodroHooks.useBlocks({ sfx, addConsole, typewriteCode })
       : {
         BLOCK_DEFS: window.KodroBlockDefs || [],
         blocksOpen: false, setBlocksOpen: () => {}, blocks: [], setBlocks: () => {},
         blockIndent: 0, setBlockIndent: () => {}, addBlock: () => {}, endBlock: () => {},
-        removeBlock: () => {}, moveBlock: () => {}, insertBlocksCode: () => {},
+        removeBlock: () => {}, moveBlock: () => {}, canMoveBlock: () => false, insertBlocksCode: () => {},
       };
     function toggleSound() {
       setMuted(m => { const next = !m; if (window.RLSound) window.RLSound.setMuted(next); return next; });
@@ -2245,7 +2245,7 @@
         {demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, { onClose: () => setDemoOpen(false) })}
         {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} onExplain={() => { setVibeOpen(false); setAskData(null); setAskOpen(true); }} onReview={() => { setVibeOpen(false); runReview(); }} />}
 
-        {blocksOpen && <window.KodroPanels.BlocksModal setBlocksOpen={setBlocksOpen} BLOCK_DEFS={BLOCK_DEFS} robotSpec={robotSpec} addBlock={addBlock} endBlock={endBlock} blockIndent={blockIndent} setBlockIndent={setBlockIndent} blocks={blocks} setBlocks={setBlocks} moveBlock={moveBlock} removeBlock={removeBlock} insertBlocksCode={insertBlocksCode} classroom={classroom} />}
+        {blocksOpen && <window.KodroPanels.BlocksModal setBlocksOpen={setBlocksOpen} BLOCK_DEFS={BLOCK_DEFS} robotSpec={robotSpec} addBlock={addBlock} endBlock={endBlock} blockIndent={blockIndent} setBlockIndent={setBlockIndent} blocks={blocks} setBlocks={setBlocks} moveBlock={moveBlock} canMoveBlock={canMoveBlock} removeBlock={removeBlock} insertBlocksCode={insertBlocksCode} classroom={classroom} />}
 
         {showHelp && <window.KodroPanels.HelpModal onClose={() => setShowHelp(false)} />}
 

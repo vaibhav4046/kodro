@@ -20517,7 +20517,24 @@ Object.assign(window, {
         end: end
       };
     }
+    // Can this arrow actually move the block? A refusal must be visible on the
+    // control itself: an enabled arrow that returns the array unchanged (and
+    // still plays the success cue) reads as a broken button.
+    function canMoveBlock(i, dir) {
+      const bs = blocks;
+      if (!bs || i < 0 || i >= bs.length) return false;
+      const span = blockSpan(bs, i);
+      const at = dir < 0 ? span.start - 1 : span.end;
+      if (at < 0 || at >= bs.length) return false;
+      const nbrStart = dir < 0 ? (() => {
+        let s = at;
+        while (s > 0 && bs[s].indent > bs[i].indent) s--;
+        return s;
+      })() : at;
+      return bs[nbrStart].indent === bs[i].indent;
+    }
     function moveBlock(i, dir) {
+      if (!canMoveBlock(i, dir)) return;
       setBlocks(bs => {
         if (i < 0 || i >= bs.length) return bs;
         const span = blockSpan(bs, i);
@@ -20579,6 +20596,7 @@ Object.assign(window, {
       endBlock,
       removeBlock,
       moveBlock,
+      canMoveBlock,
       blocksToPython,
       insertBlocksCode
     };
@@ -23757,7 +23775,7 @@ say("Survey done")`
       className: "shortcut-group-title"
     }, "View controls"), /*#__PURE__*/React.createElement("dl", {
       className: "shortcut-list"
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "D")), /*#__PURE__*/React.createElement("dd", null, "Toggle 2D / 3D view")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "F")), /*#__PURE__*/React.createElement("dd", null, "Toggle first-person camera")))), /*#__PURE__*/React.createElement("section", {
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, /*#__PURE__*/React.createElement("kbd", null, "Ctrl"), "+", /*#__PURE__*/React.createElement("kbd", null, "D")), /*#__PURE__*/React.createElement("dd", null, "Toggle 2D / 3D view")))), /*#__PURE__*/React.createElement("section", {
       className: "shortcut-group"
     }, /*#__PURE__*/React.createElement("h3", {
       className: "shortcut-group-title"
@@ -25049,6 +25067,7 @@ say("Survey done")`
     blocks,
     setBlocks,
     moveBlock,
+    canMoveBlock,
     removeBlock,
     insertBlocksCode,
     classroom
@@ -25140,15 +25159,15 @@ say("Survey done")`
       className: "block-actions"
     }, /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      disabled: i === 0,
+      disabled: !canMoveBlock(i, -1),
       "aria-label": 'move ' + b.label + ' up',
-      title: "Move up",
+      title: canMoveBlock(i, -1) ? 'Move up' : 'Cannot move up: reordering stays inside one loop level',
       onClick: () => moveBlock(i, -1)
     }, "\u2191"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
-      disabled: i === blocks.length - 1,
+      disabled: !canMoveBlock(i, 1),
       "aria-label": 'move ' + b.label + ' down',
-      title: "Move down",
+      title: canMoveBlock(i, 1) ? 'Move down' : 'Cannot move down: reordering stays inside one loop level',
       onClick: () => moveBlock(i, 1)
     }, "\u2193"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
@@ -26465,6 +26484,7 @@ say("Survey done")`
       endBlock,
       removeBlock,
       moveBlock,
+      canMoveBlock,
       insertBlocksCode
     } = window.KodroHooks && window.KodroHooks.useBlocks ? window.KodroHooks.useBlocks({
       sfx,
@@ -26482,6 +26502,7 @@ say("Survey done")`
       endBlock: () => {},
       removeBlock: () => {},
       moveBlock: () => {},
+      canMoveBlock: () => false,
       insertBlocksCode: () => {}
     };
     function toggleSound() {
@@ -28880,6 +28901,7 @@ say("Survey done")`
       blocks: blocks,
       setBlocks: setBlocks,
       moveBlock: moveBlock,
+      canMoveBlock: canMoveBlock,
       removeBlock: removeBlock,
       insertBlocksCode: insertBlocksCode,
       classroom: classroom

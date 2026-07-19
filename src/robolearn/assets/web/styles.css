@@ -1460,7 +1460,10 @@ kbd {
   font-family:var(--font-mono); font-size:var(--text-xs); letter-spacing:0.14em;
   text-transform:uppercase; color:var(--cyan);
 }
-.vibe-ctx-text { font-size:var(--text-lg); color:var(--fg-2); line-height:1.45; }
+/* Reflections embed real code across multiple lines. Without pre-wrap the
+   browser collapses the newline and indent, re-forming a compound one-liner
+   the interpreter rejects, so the app would display code it refuses to run. */
+.vibe-ctx-text { font-size:var(--text-lg); color:var(--fg-2); line-height:1.45; white-space:pre-wrap; }
 
 /* Memory panel export/import cluster (head row, before the close button). */
 .mem-io { display:inline-flex; gap:4px; margin-right:6px; }
@@ -2037,7 +2040,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .mem-detail-close { margin-left:auto; flex:none; }
 .mem-detail-body { display:flex; flex-direction:column; gap:6px; }
 .mem-detail-ctx { margin:0; font-family:var(--font-mono); font-size:var(--text-xs); letter-spacing:0.04em; color:var(--fg-3); }
-.mem-detail-text { margin:0; font-size:var(--text-md); color:var(--fg-2); line-height:1.5; }
+.mem-detail-text { margin:0; font-size:var(--text-md); color:var(--fg-2); line-height:1.5; white-space:pre-wrap; }
 .mem-detail-code { margin:0; font-family:var(--font-mono); font-size:var(--text-xs); line-height:1.55; color:var(--fg-2); background:var(--void); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; max-height:140px; overflow:auto; white-space:pre; }
 .mem-detail-chips { display:flex; flex-wrap:wrap; gap:6px; }
 .mem-chip { font-size:var(--text-sm); padding:3px 9px; border:1px solid var(--border); border-radius:99px; background:transparent; color:var(--fg-2); cursor:pointer; }
@@ -2051,7 +2054,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   .mem-graph-edge, .mem-graph-node, .mem-layer-btn { transition:none; }
 }
 .mem-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; }
-.mem-refl { font-size:var(--text-md); color:var(--fg-1); padding:8px 10px; border-radius:var(--radius-md);
+.mem-refl { font-size:var(--text-md); color:var(--fg-1); padding:8px 10px; border-radius:var(--radius-md); white-space:pre-wrap;
   border:1px solid var(--border); border-left:3px solid var(--fg-3); background:rgba(245,240,228,0.02); }
 .mem-refl.mem-done { border-left-color:var(--success); }
 .mem-refl.mem-crash { border-left-color:var(--danger); }

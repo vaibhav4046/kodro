@@ -197,7 +197,20 @@
       }
       return { start: i, end: end };
     }
+    // Can this arrow actually move the block? A refusal must be visible on the
+    // control itself: an enabled arrow that returns the array unchanged (and
+    // still plays the success cue) reads as a broken button.
+    function canMoveBlock(i, dir) {
+      const bs = blocks;
+      if (!bs || i < 0 || i >= bs.length) return false;
+      const span = blockSpan(bs, i);
+      const at = dir < 0 ? span.start - 1 : span.end;
+      if (at < 0 || at >= bs.length) return false;
+      const nbrStart = dir < 0 ? (() => { let s = at; while (s > 0 && bs[s].indent > bs[i].indent) s--; return s; })() : at;
+      return bs[nbrStart].indent === bs[i].indent;
+    }
     function moveBlock(i, dir) {
+      if (!canMoveBlock(i, dir)) return;
       setBlocks(bs => {
         if (i < 0 || i >= bs.length) return bs;
         const span = blockSpan(bs, i);
@@ -240,7 +253,7 @@
       addConsole('Blocks turned into Python. Read it, then press Run.', 'sys');
       typewriteCode(blocksToPython());
     }
-    return { BLOCK_DEFS, blocksOpen, setBlocksOpen, blocks, setBlocks, blockIndent, setBlockIndent, addBlock, endBlock, removeBlock, moveBlock, blocksToPython, insertBlocksCode };
+    return { BLOCK_DEFS, blocksOpen, setBlocksOpen, blocks, setBlocks, blockIndent, setBlockIndent, addBlock, endBlock, removeBlock, moveBlock, canMoveBlock, blocksToPython, insertBlocksCode };
   }
 
   function useReview(opts) {

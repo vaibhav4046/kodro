@@ -83,8 +83,12 @@
             <section className="shortcut-group">
               <h3 className="shortcut-group-title">View controls</h3>
               <dl className="shortcut-list">
+                {/* First-person was removed in round 3 (2D + 3D only; `fpv` is
+                    a hard-coded false in app.jsx). Its Ctrl+F entry outlived
+                    it, documenting a shortcut with no handler — and in the
+                    browser build Ctrl+F is not preventDefault-ed, so the
+                    documented key opens the browser's find bar instead. */}
                 <div><dt><kbd>Ctrl</kbd>+<kbd>D</kbd></dt><dd>Toggle 2D / 3D view</dd></div>
-                <div><dt><kbd>Ctrl</kbd>+<kbd>F</kbd></dt><dd>Toggle first-person camera</dd></div>
               </dl>
             </section>
             <section className="shortcut-group">
@@ -920,7 +924,7 @@
   }
 
   // ---- Blocks (visual block editor) ----
-  function BlocksModal({ setBlocksOpen, BLOCK_DEFS, robotSpec, addBlock, endBlock, blockIndent, setBlockIndent, blocks, setBlocks, moveBlock, removeBlock, insertBlocksCode, classroom }) {
+  function BlocksModal({ setBlocksOpen, BLOCK_DEFS, robotSpec, addBlock, endBlock, blockIndent, setBlockIndent, blocks, setBlocks, moveBlock, canMoveBlock, removeBlock, insertBlocksCode, classroom }) {
     // lessonOnly blocks (collect/drop sample) only do something when a lesson
     // supplies the sample mechanic; hide them on the free Studio surface where
     // they would be silent print stubs (judge round 10), matching the studio
@@ -979,8 +983,13 @@
                 )}
                 {b.unit && <span className="vibe-hint">{b.unit}</span>}
                 <span className="block-actions">
-                  <button className="btn-mini" disabled={i === 0} aria-label={'move ' + b.label + ' up'} title="Move up" onClick={() => moveBlock(i, -1)}>↑</button>
-                  <button className="btn-mini" disabled={i === blocks.length - 1} aria-label={'move ' + b.label + ' down'} title="Move down" onClick={() => moveBlock(i, 1)}>↓</button>
+                  {/* Disabled whenever the move is genuinely impossible, not
+                      just at the list ends: reordering happens within one
+                      nesting level, so a block at the top or bottom of a loop
+                      body cannot swap past the loop. The button says so
+                      instead of looking live and doing nothing. */}
+                  <button className="btn-mini" disabled={!canMoveBlock(i, -1)} aria-label={'move ' + b.label + ' up'} title={canMoveBlock(i, -1) ? 'Move up' : 'Cannot move up: reordering stays inside one loop level'} onClick={() => moveBlock(i, -1)}>↑</button>
+                  <button className="btn-mini" disabled={!canMoveBlock(i, 1)} aria-label={'move ' + b.label + ' down'} title={canMoveBlock(i, 1) ? 'Move down' : 'Cannot move down: reordering stays inside one loop level'} onClick={() => moveBlock(i, 1)}>↓</button>
                   <button className="btn-mini" aria-label={'remove ' + b.label} onClick={() => removeBlock(i)}>✕</button>
                 </span>
               </div>
