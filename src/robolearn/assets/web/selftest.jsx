@@ -85,7 +85,13 @@
     let summary;
     if (hitWall) summary = 'Runs, but it would drive into the arena wall. Add a distance() check before moving, or shorten the moves.';
     else if (moves === 0) summary = 'Runs clean but the robot never moves. Add a move_forward or rover.forward.';
-    else summary = 'Self-test passed: ' + moves + ' moves, ' + turns + ' turns, ends at (' + endPos.x + ', ' + endPos.y + '), stays in the arena.';
+    // Scope the verdict to what this check ACTUALLY exercises. The self-test
+    // runs in a bare arena: it models the four walls only and never reads
+    // terrain.obstacles, so distance() here ranges to walls and no boulder,
+    // vehicle or pedestrian exists. Calling that "passed" invited the reader
+    // to treat it as validation for the world the code will really run in,
+    // where every shipped terrain has obstacles and the live run does collide.
+    else summary = 'Self-test passed (empty arena): ' + moves + ' moves, ' + turns + ' turns, ends at (' + endPos.x + ', ' + endPos.y + '), stays inside the arena walls. Obstacles in the world are NOT part of this check, so run it to see collisions.';
     return { ok: true, steps: steps, moves: moves, turns: turns, hitWall: hitWall, endPos: endPos, summary: summary };
   }
 

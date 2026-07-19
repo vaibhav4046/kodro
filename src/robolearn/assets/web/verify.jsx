@@ -156,11 +156,22 @@
     // verification report; a legacy or other-robot report is history, not
     // evidence for the robot being exported. Same rule as above: fingerprint
     // the robot BEING REPORTED, not the global saved one.
+    // A validation is a property of the robot AND the program that drove it,
+    // so gate on both, exactly as the cockpit (planProveReport) and the
+    // realism dashboard do. This report is the one artefact that LEAVES the
+    // app as a file, so an earlier program's success rate must never be
+    // exported as this design's measured evidence.
     var buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(robot || null) : '';
+    var liveCodeHash = (window.KodroScenario && window.KodroScenario.codeHash && typeof window.KODRO_LIVE_CODE === 'string')
+      ? window.KodroScenario.codeHash(window.KODRO_LIVE_CODE) : null;
     var last = null;
     for (var ri = 0; ri < reports.length; ri++) {
       var candidate = reports[ri];
-      if (candidate && candidate.robotKey && buildKey && candidate.robotKey === buildKey) { last = candidate; break; }
+      if (!candidate || !candidate.robotKey || !buildKey || candidate.robotKey !== buildKey) continue;
+      // Legacy reports without a controllerHash cannot prove a mismatch.
+      if (liveCodeHash && candidate.manifest && candidate.manifest.controllerHash
+        && candidate.manifest.controllerHash !== liveCodeHash) continue;
+      last = candidate; break;
     }
     if (last && last.aggregate) {
       empirical.validation = {

@@ -2192,6 +2192,8 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .simple-proof > p { margin:0; color:var(--fg-2); font-size:var(--text-sm); line-height:1.45; }
 .simple-proof .simple-proof-boundary { color:var(--warning); }
 .simple-proof .simple-proof-error { color:var(--danger); }
+.runs-compare-scope { margin:2px 10px 8px; color:var(--fg-2); font-size:var(--text-sm); line-height:1.45; }
+.runs-compare-scope.mixed { color:var(--warning); }
 .simple-proof-actions { display:flex; flex-wrap:wrap; gap:7px; }
 .simple-proof-actions button:not(.ctrl) { border:1px solid var(--border); border-radius:var(--radius-sm); background:transparent; color:var(--fg-1); padding:8px 10px; cursor:pointer; }
 @media (max-width: 520px) {

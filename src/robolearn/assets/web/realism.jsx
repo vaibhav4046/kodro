@@ -63,9 +63,16 @@
     // the stale one would keep an outdated validation on screen.
     const liveHash = (window.KodroScenario && window.KodroScenario.codeHash && typeof props.code === 'string')
       ? window.KodroScenario.codeHash(props.code) : null;
+    // Track WHY a report was rejected so the empty state can say which:
+    // "no validation for this robot" and "this robot, different program" are
+    // different situations and send the reader looking in different places.
+    let matchedBuildOnly = false;
     const last = reports.find(function (r) {
       if (!r || !r.robotKey || !buildKey || r.robotKey !== buildKey) return false;
-      if (liveHash && r.manifest && r.manifest.controllerHash && r.manifest.controllerHash !== liveHash) return false;
+      if (liveHash && r.manifest && r.manifest.controllerHash && r.manifest.controllerHash !== liveHash) {
+        matchedBuildOnly = true;
+        return false;
+      }
       return true;
     }) || null;
     const agg = last && last.aggregate;
@@ -122,7 +129,9 @@
       row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'),
       row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'),
       row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-')),
-    ] : [row('Validation', 'none recorded for this exact build', 'var(--warning)'), row('Tip', 'Run "Validate across seeds"')];
+    ] : [row('Validation', matchedBuildOnly
+      ? 'none for this program (the stored run used a different program)'
+      : 'none recorded for this exact build', 'var(--warning)'), row('Tip', 'Run "Validate across seeds"')];
     const score = card('Scenario score', scoreRows, 'var(--warning)');
 
     // Environment card. Lighting is a 0-100 percentage (same number telemetry

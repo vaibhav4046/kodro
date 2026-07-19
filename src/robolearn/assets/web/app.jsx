@@ -770,7 +770,14 @@
         // The console is not mounted in the simple cockpit, so a console-only
         // error is invisible exactly where novices hit it. Toast + inline
         // state carry it to every experience.
-        setProveError(a.compileError);
+        // Stamped with the program it describes, so it self-invalidates the
+        // moment the program changes (edit, or a different test's starter).
+        // A stale "fix your syntax error" on a program the user already fixed
+        // is exactly the loop this message exists to end.
+        setProveError({
+          message: a.compileError,
+          hash: (window.KodroScenario.codeHash ? window.KodroScenario.codeHash(code) : null),
+        });
         showToast('Could not run the proof: ' + a.compileError, 'err');
         return;
       }
@@ -1043,6 +1050,10 @@
     useEffect(() => { try { localStorage.setItem('or_tab', activeTab); } catch (e) { void e; } }, [activeTab]);
     useEffect(() => { try { localStorage.setItem('or_programs', JSON.stringify(programs)); } catch (e) {} }, [programs]);
     useEffect(() => { try { localStorage.setItem('or_lesson_buffers', JSON.stringify(lessonBuffers)); } catch (e) { void e; } }, [lessonBuffers]);
+    // Mirror the live editor buffer so surfaces rendered outside App (the
+    // Robot Lab's exported verification report) can apply the SAME
+    // "this program produced it" rule the cockpit and realism panel use.
+    useEffect(() => { try { window.KODRO_LIVE_CODE = code; } catch (e) { void e; } }, [code]);
     useEffect(() => {
       // Persist under the identity whose data this is (stamped at reload time),
       // so a pupil switch can never file one learner's results under another.
@@ -1356,6 +1367,12 @@
     // Same rule as simpleLatestRun six lines up: a proof counts for the plan on
     // screen only when THIS robot configuration produced it. A legacy report
     // without a fingerprint stays in history but is never presented as current.
+    // The compile error is shown only while it still describes the program on
+    // screen; any edit or test change shifts the hash and retires it.
+    const liveProveError = (proveError && proveError.message
+      && window.KodroScenario && window.KodroScenario.codeHash
+      && proveError.hash === window.KodroScenario.codeHash(code))
+      ? proveError.message : null;
     const planProveReport = proveReport && proveReport.manifest && planScenario
       && proveReport.manifest.contractId === planScenario.scenarioId
       && window.KodroScenario.codeHash && proveReport.manifest.controllerHash === window.KodroScenario.codeHash(code)
@@ -1672,8 +1689,8 @@
                         Regression: {planProveReport.regression && planProveReport.regression.status === 'same' ? 'matches the previous run byte for byte' : planProveReport.regression && planProveReport.regression.status === 'changed' ? 'changed in ' + planProveReport.regression.changed.join(', ') : 'no matching baseline yet'}.
                       </p>
                     </React.Fragment>
-                  ) : proveError ? (
-                    <p className="simple-proof-error"><b>The proof could not run.</b> {proveError} Fix the program with Edit program, then try again.</p>
+                  ) : liveProveError ? (
+                    <p className="simple-proof-error"><b>The proof could not run.</b> {liveProveError} Fix the program with Edit program, then try again.</p>
                   ) : <p>No multi-seed evidence has been recorded for this session.</p>}
                   <p className="simple-proof-boundary">Kinematic simulation evidence only. It does not validate or certify physical performance or safety.</p>
                   <div className="simple-proof-actions">
@@ -1916,7 +1933,7 @@
               <div className="console-head">
                 <span className="eyebrow" role="heading" aria-level="2">{runsOpen ? 'Run reports' : 'Console'}</span>
                 <div className="ph-spacer" style={{ flex: 1 }}></div>
-                <button className={'btn-mini' + (runsOpen ? ' active' : '')} title="Run reports. A structured record of every run; tick two to compare builds" aria-pressed={runsOpen} onClick={() => setRunsOpen(o => !o)}>Runs</button>
+                <button className={'btn-mini' + (runsOpen ? ' active' : '')} title="Run reports. A structured record of every run; tick two to compare them" aria-pressed={runsOpen} onClick={() => setRunsOpen(o => !o)}>Runs</button>
                 {!runsOpen && <button className="btn-mini" onClick={() => setConsoleLines([{ type: 'sys', text: 'Console cleared.' }])}>Clear</button>}
               </div>
               {runsOpen && (() => {
@@ -1943,6 +1960,28 @@
                         </tbody>
                       </table>
                     )}
+                    {/* A delta is only a BUILD comparison when the robot is the
+                        only thing that differs. The panel invites the reader to
+                        compare builds, so it must say when the program or the
+                        world also changed, rather than leaving them invisible. */}
+                    {sel.length === 2 && (() => {
+                      const sameRobot = !!(sel[0].robotKey && sel[1].robotKey && sel[0].robotKey === sel[1].robotKey);
+                      const sameProgram = sel[0].source === sel[1].source;
+                      const sameWorld = sel[0].world === sel[1].world;
+                      const differs = [];
+                      if (!sameRobot) differs.push('robot');
+                      if (!sameProgram) differs.push('program');
+                      if (!sameWorld) differs.push('world');
+                      return (
+                        <p className={'runs-compare-scope' + (differs.length > 1 ? ' mixed' : '')}>
+                          {differs.length === 0
+                            ? 'Same robot, program and world: this delta is run-to-run variation.'
+                            : differs.length === 1
+                              ? 'These runs differ only in ' + differs[0] + ', so the delta is attributable to the ' + differs[0] + '.'
+                              : 'These runs differ in ' + differs.slice(0, -1).join(', ') + ' and ' + differs[differs.length - 1] + ', so the delta cannot be attributed to any one of them.'}
+                        </p>
+                      );
+                    })()}
                     {runs.length === 0
                       ? <p className="vibe-status" style={{ padding: '10px 12px' }}>No runs recorded yet. Press Run; every finished, crashed, stalled or flat-battery run leaves a report here.</p>
                       : (
@@ -1967,7 +2006,7 @@
                         </ul>
                       )}
                     <div className="runs-foot">
-                      <span className="vibe-hint" style={{ flex: 1 }}>Tick two runs to compare builds side by side.</span>
+                      <span className="vibe-hint" style={{ flex: 1 }}>Tick two runs to compare them side by side. Kodro says which inputs differ.</span>
                       <button className="btn-mini" onClick={() => { if (window.KodroRunReports) window.KodroRunReports.clear(); setCmpSel([]); }}>Clear history</button>
                     </div>
                   </div>
@@ -2158,7 +2197,7 @@
                             <button type="button" key={lesson.id}
                               className={'lesson-tile' + (isCurrent ? ' current' : '') + (result && result.passed ? ' complete' : '')}
                               aria-label={(result && result.passed ? 'Completed lesson: ' : result ? 'Continue lesson: ' : 'Open lesson: ') + lesson.title
-                                + (result ? ', latest score ' + result.score + ' out of 100, ' + result.attempts + (result.attempts === 1 ? ' attempt' : ' attempts') : '')}
+                                + (result ? ', ' + (result.passed ? 'passed' : 'not passed yet') + ', latest score ' + result.score + ' out of 100, ' + result.attempts + (result.attempts === 1 ? ' attempt' : ' attempts') : '')}
                               onClick={() => loadLesson(lesson)}>
                               <span className="lesson-tile-number">{String(index + 1).padStart(2, '0')}</span>
                               <span className="lesson-tile-copy">
@@ -2167,7 +2206,7 @@
                                 <small>{(lesson.terrain || 'earth').replace(/^./, c => c.toUpperCase())} world{lesson.readingAge ? ' · Reading age ' + lesson.readingAge + '+' : ''}</small>
                               </span>
                               <span className={'lesson-tile-status' + (result && result.passed ? ' done' : '')}>
-                                {result ? (result.passed ? '✓ Complete' : result.score + '/100') : 'Start'}
+                                {result ? (result.passed ? '✓ Complete' : 'Not yet · ' + result.score + '/100') : 'Start'}
                               </span>
                             </button>
                           );

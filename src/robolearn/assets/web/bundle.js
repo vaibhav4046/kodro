@@ -13646,7 +13646,14 @@ Object.assign(window, {
       y: Math.round(-s.y)
     };
     let summary;
-    if (hitWall) summary = 'Runs, but it would drive into the arena wall. Add a distance() check before moving, or shorten the moves.';else if (moves === 0) summary = 'Runs clean but the robot never moves. Add a move_forward or rover.forward.';else summary = 'Self-test passed: ' + moves + ' moves, ' + turns + ' turns, ends at (' + endPos.x + ', ' + endPos.y + '), stays in the arena.';
+    if (hitWall) summary = 'Runs, but it would drive into the arena wall. Add a distance() check before moving, or shorten the moves.';else if (moves === 0) summary = 'Runs clean but the robot never moves. Add a move_forward or rover.forward.';
+    // Scope the verdict to what this check ACTUALLY exercises. The self-test
+    // runs in a bare arena: it models the four walls only and never reads
+    // terrain.obstacles, so distance() here ranges to walls and no boulder,
+    // vehicle or pedestrian exists. Calling that "passed" invited the reader
+    // to treat it as validation for the world the code will really run in,
+    // where every shipped terrain has obstacles and the live run does collide.
+    else summary = 'Self-test passed (empty arena): ' + moves + ' moves, ' + turns + ' turns, ends at (' + endPos.x + ', ' + endPos.y + '), stays inside the arena walls. Obstacles in the world are NOT part of this check, so run it to see collisions.';
     return {
       ok: true,
       steps: steps,
@@ -17341,14 +17348,21 @@ Object.assign(window, {
     // verification report; a legacy or other-robot report is history, not
     // evidence for the robot being exported. Same rule as above: fingerprint
     // the robot BEING REPORTED, not the global saved one.
+    // A validation is a property of the robot AND the program that drove it,
+    // so gate on both, exactly as the cockpit (planProveReport) and the
+    // realism dashboard do. This report is the one artefact that LEAVES the
+    // app as a file, so an earlier program's success rate must never be
+    // exported as this design's measured evidence.
     var buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(robot || null) : '';
+    var liveCodeHash = window.KodroScenario && window.KodroScenario.codeHash && typeof window.KODRO_LIVE_CODE === 'string' ? window.KodroScenario.codeHash(window.KODRO_LIVE_CODE) : null;
     var last = null;
     for (var ri = 0; ri < reports.length; ri++) {
       var candidate = reports[ri];
-      if (candidate && candidate.robotKey && buildKey && candidate.robotKey === buildKey) {
-        last = candidate;
-        break;
-      }
+      if (!candidate || !candidate.robotKey || !buildKey || candidate.robotKey !== buildKey) continue;
+      // Legacy reports without a controllerHash cannot prove a mismatch.
+      if (liveCodeHash && candidate.manifest && candidate.manifest.controllerHash && candidate.manifest.controllerHash !== liveCodeHash) continue;
+      last = candidate;
+      break;
     }
     if (last && last.aggregate) {
       empirical.validation = {
@@ -17549,9 +17563,16 @@ Object.assign(window, {
     // uses), not the last executed source: after an edit the two diverge, and
     // the stale one would keep an outdated validation on screen.
     const liveHash = window.KodroScenario && window.KodroScenario.codeHash && typeof props.code === 'string' ? window.KodroScenario.codeHash(props.code) : null;
+    // Track WHY a report was rejected so the empty state can say which:
+    // "no validation for this robot" and "this robot, different program" are
+    // different situations and send the reader looking in different places.
+    let matchedBuildOnly = false;
     const last = reports.find(function (r) {
       if (!r || !r.robotKey || !buildKey || r.robotKey !== buildKey) return false;
-      if (liveHash && r.manifest && r.manifest.controllerHash && r.manifest.controllerHash !== liveHash) return false;
+      if (liveHash && r.manifest && r.manifest.controllerHash && r.manifest.controllerHash !== liveHash) {
+        matchedBuildOnly = true;
+        return false;
+      }
       return true;
     }) || null;
     const agg = last && last.aggregate;
@@ -17593,7 +17614,7 @@ Object.assign(window, {
     // fall back to the shared PASS_RATE for reports saved before that field.
     const passRate = window.KodroScenario && window.KodroScenario.PASS_RATE || 0.6;
     const aggPassed = agg ? agg.passed != null ? agg.passed : (agg.successRate || 0) >= passRate : false;
-    const scoreRows = agg ? [row('Scenario', last.scenario && last.scenario.name || '-'), row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', aggPassed ? 'var(--cyan)' : 'var(--warning)'), row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')), row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'), row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'), row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-'))] : [row('Validation', 'none recorded for this exact build', 'var(--warning)'), row('Tip', 'Run "Validate across seeds"')];
+    const scoreRows = agg ? [row('Scenario', last.scenario && last.scenario.name || '-'), row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', aggPassed ? 'var(--cyan)' : 'var(--warning)'), row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')), row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'), row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'), row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-'))] : [row('Validation', matchedBuildOnly ? 'none for this program (the stored run used a different program)' : 'none recorded for this exact build', 'var(--warning)'), row('Tip', 'Run "Validate across seeds"')];
     const score = card('Scenario score', scoreRows, 'var(--warning)');
 
     // Environment card. Lighting is a 0-100 percentage (same number telemetry
@@ -26255,7 +26276,14 @@ say("Survey done")`
         // The console is not mounted in the simple cockpit, so a console-only
         // error is invisible exactly where novices hit it. Toast + inline
         // state carry it to every experience.
-        setProveError(a.compileError);
+        // Stamped with the program it describes, so it self-invalidates the
+        // moment the program changes (edit, or a different test's starter).
+        // A stale "fix your syntax error" on a program the user already fixed
+        // is exactly the loop this message exists to end.
+        setProveError({
+          message: a.compileError,
+          hash: window.KodroScenario.codeHash ? window.KodroScenario.codeHash(code) : null
+        });
         showToast('Could not run the proof: ' + a.compileError, 'err');
         return;
       }
@@ -26653,6 +26681,16 @@ say("Survey done")`
         void e;
       }
     }, [lessonBuffers]);
+    // Mirror the live editor buffer so surfaces rendered outside App (the
+    // Robot Lab's exported verification report) can apply the SAME
+    // "this program produced it" rule the cockpit and realism panel use.
+    useEffect(() => {
+      try {
+        window.KODRO_LIVE_CODE = code;
+      } catch (e) {
+        void e;
+      }
+    }, [code]);
     useEffect(() => {
       // Persist under the identity whose data this is (stamped at reload time),
       // so a pupil switch can never file one learner's results under another.
@@ -27177,6 +27215,9 @@ say("Survey done")`
     // Same rule as simpleLatestRun six lines up: a proof counts for the plan on
     // screen only when THIS robot configuration produced it. A legacy report
     // without a fingerprint stays in history but is never presented as current.
+    // The compile error is shown only while it still describes the program on
+    // screen; any edit or test change shifts the hash and retires it.
+    const liveProveError = proveError && proveError.message && window.KodroScenario && window.KodroScenario.codeHash && proveError.hash === window.KodroScenario.codeHash(code) ? proveError.message : null;
     const planProveReport = proveReport && proveReport.manifest && planScenario && proveReport.manifest.contractId === planScenario.scenarioId && window.KodroScenario.codeHash && proveReport.manifest.controllerHash === window.KodroScenario.codeHash(code) && proveReport.robotKey && proveReport.robotKey === simpleRobotKey ? proveReport : null;
     const SIMPLE_PROGRAM_NAMES = {
       basecamp: 'Build a base camp',
@@ -27794,9 +27835,9 @@ say("Survey done")`
       className: "simple-proof-metrics"
     }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.successCount, "/", planProveReport.aggregate.seeds), " goals reached"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.meanCollisions), " mean collisions"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.meanBattery, "%"), " mean battery used")), /*#__PURE__*/React.createElement("p", {
       className: "simple-proof-regression"
-    }, "Regression: ", planProveReport.regression && planProveReport.regression.status === 'same' ? 'matches the previous run byte for byte' : planProveReport.regression && planProveReport.regression.status === 'changed' ? 'changed in ' + planProveReport.regression.changed.join(', ') : 'no matching baseline yet', ".")) : proveError ? /*#__PURE__*/React.createElement("p", {
+    }, "Regression: ", planProveReport.regression && planProveReport.regression.status === 'same' ? 'matches the previous run byte for byte' : planProveReport.regression && planProveReport.regression.status === 'changed' ? 'changed in ' + planProveReport.regression.changed.join(', ') : 'no matching baseline yet', ".")) : liveProveError ? /*#__PURE__*/React.createElement("p", {
       className: "simple-proof-error"
-    }, /*#__PURE__*/React.createElement("b", null, "The proof could not run."), " ", proveError, " Fix the program with Edit program, then try again.") : /*#__PURE__*/React.createElement("p", null, "No multi-seed evidence has been recorded for this session."), /*#__PURE__*/React.createElement("p", {
+    }, /*#__PURE__*/React.createElement("b", null, "The proof could not run."), " ", liveProveError, " Fix the program with Edit program, then try again.") : /*#__PURE__*/React.createElement("p", null, "No multi-seed evidence has been recorded for this session."), /*#__PURE__*/React.createElement("p", {
       className: "simple-proof-boundary"
     }, "Kinematic simulation evidence only. It does not validate or certify physical performance or safety."), /*#__PURE__*/React.createElement("div", {
       className: "simple-proof-actions"
@@ -28133,7 +28174,7 @@ say("Survey done")`
       }
     }), /*#__PURE__*/React.createElement("button", {
       className: 'btn-mini' + (runsOpen ? ' active' : ''),
-      title: "Run reports. A structured record of every run; tick two to compare builds",
+      title: "Run reports. A structured record of every run; tick two to compare them",
       "aria-pressed": runsOpen,
       onClick: () => setRunsOpen(o => !o)
     }, "Runs"), !runsOpen && /*#__PURE__*/React.createElement("button", {
@@ -28180,7 +28221,18 @@ say("Survey done")`
         className: "num"
       }, d.b), /*#__PURE__*/React.createElement("td", {
         className: "num"
-      }, d.delta != null ? (d.delta > 0 ? '+' : '') + d.delta : '-'))))), runs.length === 0 ? /*#__PURE__*/React.createElement("p", {
+      }, d.delta != null ? (d.delta > 0 ? '+' : '') + d.delta : '-'))))), sel.length === 2 && (() => {
+        const sameRobot = !!(sel[0].robotKey && sel[1].robotKey && sel[0].robotKey === sel[1].robotKey);
+        const sameProgram = sel[0].source === sel[1].source;
+        const sameWorld = sel[0].world === sel[1].world;
+        const differs = [];
+        if (!sameRobot) differs.push('robot');
+        if (!sameProgram) differs.push('program');
+        if (!sameWorld) differs.push('world');
+        return /*#__PURE__*/React.createElement("p", {
+          className: 'runs-compare-scope' + (differs.length > 1 ? ' mixed' : '')
+        }, differs.length === 0 ? 'Same robot, program and world: this delta is run-to-run variation.' : differs.length === 1 ? 'These runs differ only in ' + differs[0] + ', so the delta is attributable to the ' + differs[0] + '.' : 'These runs differ in ' + differs.slice(0, -1).join(', ') + ' and ' + differs[differs.length - 1] + ', so the delta cannot be attributed to any one of them.');
+      })(), runs.length === 0 ? /*#__PURE__*/React.createElement("p", {
         className: "vibe-status",
         style: {
           padding: '10px 12px'
@@ -28222,7 +28274,7 @@ say("Survey done")`
         style: {
           flex: 1
         }
-      }, "Tick two runs to compare builds side by side."), /*#__PURE__*/React.createElement("button", {
+      }, "Tick two runs to compare them side by side. Kodro says which inputs differ."), /*#__PURE__*/React.createElement("button", {
         className: "btn-mini",
         onClick: () => {
           if (window.KodroRunReports) window.KodroRunReports.clear();
@@ -28677,7 +28729,7 @@ say("Survey done")`
           type: "button",
           key: lesson.id,
           className: 'lesson-tile' + (isCurrent ? ' current' : '') + (result && result.passed ? ' complete' : ''),
-          "aria-label": (result && result.passed ? 'Completed lesson: ' : result ? 'Continue lesson: ' : 'Open lesson: ') + lesson.title + (result ? ', latest score ' + result.score + ' out of 100, ' + result.attempts + (result.attempts === 1 ? ' attempt' : ' attempts') : ''),
+          "aria-label": (result && result.passed ? 'Completed lesson: ' : result ? 'Continue lesson: ' : 'Open lesson: ') + lesson.title + (result ? ', ' + (result.passed ? 'passed' : 'not passed yet') + ', latest score ' + result.score + ' out of 100, ' + result.attempts + (result.attempts === 1 ? ' attempt' : ' attempts') : ''),
           onClick: () => loadLesson(lesson)
         }, /*#__PURE__*/React.createElement("span", {
           className: "lesson-tile-number"
@@ -28685,7 +28737,7 @@ say("Survey done")`
           className: "lesson-tile-copy"
         }, /*#__PURE__*/React.createElement("strong", null, lesson.title), /*#__PURE__*/React.createElement("span", null, (lesson.intro || 'Program the robot and test your solution in the simulated world.').trim()), /*#__PURE__*/React.createElement("small", null, (lesson.terrain || 'earth').replace(/^./, c => c.toUpperCase()), " world", lesson.readingAge ? ' · Reading age ' + lesson.readingAge + '+' : '')), /*#__PURE__*/React.createElement("span", {
           className: 'lesson-tile-status' + (result && result.passed ? ' done' : '')
-        }, result ? result.passed ? '✓ Complete' : result.score + '/100' : 'Start'));
+        }, result ? result.passed ? '✓ Complete' : 'Not yet · ' + result.score + '/100' : 'Start'));
       })));
     })), /*#__PURE__*/React.createElement("div", {
       className: "lesson-hub-foot"
