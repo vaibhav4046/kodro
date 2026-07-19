@@ -920,8 +920,15 @@
         if (lessonResultsPupilRef.current !== pupilAtSubmit) {
           // File the late result under the pupil who EARNED it (matching the
           // backend, which graded while they were still active), never under
-          // the pupil the teacher has since switched to.
-          if (pupilAtSubmit && r.ok !== false) {
+          // the pupil the teacher has since switched to. The console line
+          // states what ACTUALLY happened: a grader error still surfaces its
+          // reason, and a skipped or failed write is never reported as filed.
+          if (r.ok === false) {
+            setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') + ' (the pupil changed while this attempt was being graded; nothing was recorded).' }]);
+            return;
+          }
+          let lateFiled = false;
+          if (pupilAtSubmit) {
             try {
               const lateKey = 'or_lesson_results__' + pupilAtSubmit;
               let lateIndex = null;
@@ -934,9 +941,12 @@
                 updatedAt: Date.now(),
               };
               localStorage.setItem(lateKey, JSON.stringify(lateIndex));
+              lateFiled = true;
             } catch (err) { void err; }
           }
-          setConsoleLines(l => [...l, { type: 'sys', text: 'A graded attempt finished after the pupil changed; it was recorded under the previous pupil.' }]);
+          setConsoleLines(l => [...l, { type: 'sys', text: lateFiled
+            ? 'A graded attempt finished after the pupil changed; it was recorded under the previous pupil.'
+            : 'A graded attempt finished after the pupil changed; it was not recorded under the new pupil.' }]);
           return;
         }
         if (r.ok === false) { setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') }]); return; }

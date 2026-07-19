@@ -17285,10 +17285,14 @@ Object.assign(window, {
     };
     // Measured evidence must come from THIS exact build: a run stamped by a
     // previous robot configuration is not this robot's empirical record. The
-    // stamp is session-local (a window global), so the check is a mismatch
-    // test between two PRESENT fingerprints; a stamp or host without keys
-    // (isolated harness) cannot prove a mismatch and passes through.
-    var reportKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(window.KODRO_ROBOT || null) : '';
+    // fingerprint is taken from the `robot` PARAMETER - the build this report
+    // actually describes - never from the global saved robot: Robot Lab
+    // exports reports for edited, unsaved specs, and those must not inherit
+    // the saved build's measured runs. The stamp is session-local (a window
+    // global), so the check is a mismatch test between two PRESENT
+    // fingerprints; a stamp or host without keys (isolated harness) cannot
+    // prove a mismatch and passes through.
+    var reportKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(robot || null) : '';
     var lastRun = window.KODRO_LAST_RUN;
     if (lastRun && lastRun.robotKey && reportKey && lastRun.robotKey !== reportKey) lastRun = null;
     if (lastRun && lastRun.distanceCm > 0 && lastRun.wallMs > 400) {
@@ -17316,8 +17320,9 @@ Object.assign(window, {
     var reports = window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports() || [];
     // Only a validation produced by THIS exact build belongs in this build's
     // verification report; a legacy or other-robot report is history, not
-    // evidence for the robot being exported.
-    var buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(window.KODRO_ROBOT || null) : '';
+    // evidence for the robot being exported. Same rule as above: fingerprint
+    // the robot BEING REPORTED, not the global saved one.
+    var buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(robot || null) : '';
     var last = null;
     for (var ri = 0; ri < reports.length; ri++) {
       var candidate = reports[ri];
@@ -26418,8 +26423,18 @@ say("Survey done")`
         if (lessonResultsPupilRef.current !== pupilAtSubmit) {
           // File the late result under the pupil who EARNED it (matching the
           // backend, which graded while they were still active), never under
-          // the pupil the teacher has since switched to.
-          if (pupilAtSubmit && r.ok !== false) {
+          // the pupil the teacher has since switched to. The console line
+          // states what ACTUALLY happened: a grader error still surfaces its
+          // reason, and a skipped or failed write is never reported as filed.
+          if (r.ok === false) {
+            setConsoleLines(l => [...l, {
+              type: 'err',
+              text: 'Grader: ' + (r.reason || 'unknown error') + ' (the pupil changed while this attempt was being graded; nothing was recorded).'
+            }]);
+            return;
+          }
+          let lateFiled = false;
+          if (pupilAtSubmit) {
             try {
               const lateKey = 'or_lesson_results__' + pupilAtSubmit;
               let lateIndex = null;
@@ -26436,13 +26451,14 @@ say("Survey done")`
                 updatedAt: Date.now()
               };
               localStorage.setItem(lateKey, JSON.stringify(lateIndex));
+              lateFiled = true;
             } catch (err) {
               void err;
             }
           }
           setConsoleLines(l => [...l, {
             type: 'sys',
-            text: 'A graded attempt finished after the pupil changed; it was recorded under the previous pupil.'
+            text: lateFiled ? 'A graded attempt finished after the pupil changed; it was recorded under the previous pupil.' : 'A graded attempt finished after the pupil changed; it was not recorded under the new pupil.'
           }]);
           return;
         }
