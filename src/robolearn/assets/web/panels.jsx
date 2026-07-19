@@ -825,8 +825,11 @@
               <button className="btn-mini" aria-label="Close" onClick={() => { vibeCancelRef.current = true; setVibeBusy(false); setVibeOpen(false); }}>✕</button>
             </div>
           </div>
-          <div className="companion-modes" aria-label="Companion modes">
-            <button className="btn-mini active" aria-pressed="true">Create & code</button>
+          <div className="companion-modes" role="group" aria-label="Companion modes">
+            {/* "Create & code" IS this surface, so it is a state marker, not a
+                button: a focusable control that does nothing lies to keyboard
+                and switch users. The other two navigate to their tools. */}
+            <span className="btn-mini active" aria-current="true">Create &amp; code</span>
             <button className="btn-mini" onClick={onExplain}>Explain a lesson</button>
             <button className="btn-mini" onClick={onReview}>Check my program</button>
           </div>

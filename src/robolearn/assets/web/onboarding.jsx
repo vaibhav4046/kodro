@@ -481,8 +481,8 @@
                     names the lessons and where to find them. */}
                 <p className="konb-sub" style={{ marginTop: 10 }}>
                   Prefer to learn step by step? The studio also has <b>Lessons</b>: 18 graded missions,
-                  from first drive to full autopilot, for ages 5 and up. Open them any time with the
-                  Lessons button in the top bar.
+                  from first drive to full autopilot, for ages 5 and up. Open them any time from
+                  <b> More Tools &rarr; Lessons</b> in the top bar.
                 </p>
                 <Steps current={2} />
                 <div className="konb-actions">

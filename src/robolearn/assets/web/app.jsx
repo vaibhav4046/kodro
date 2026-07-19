@@ -289,10 +289,20 @@
     // A compact local index of the latest result for each lesson. The grader
     // remains authoritative; this is only the learner-facing resume/progress
     // view used by the lesson library. It is stored on this device alongside
-    // the editable lesson buffers and never leaves the machine.
+    // the editable lesson buffers and never leaves the machine. On desktop,
+    // where several pupils can share one machine, the index is stored PER
+    // PUPIL: the library must never show one learner another learner's
+    // completions as their own. The browser edition keeps one device-wide
+    // record and says so ("Learning as: this device").
     const [lessonResults, setLessonResults] = useState(() => {
       try { return JSON.parse(lsGet('or_lesson_results')) || {}; } catch (e) { return {}; }
     });
+    const lessonResultsPupilRef = useRef(null);
+    useEffect(() => {
+      if (!activePupilId) return;
+      lessonResultsPupilRef.current = activePupilId;
+      try { setLessonResults(JSON.parse(lsGet('or_lesson_results__' + activePupilId)) || {}); } catch (e) { setLessonResults({}); }
+    }, [activePupilId]);
     const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
     // Learner scaffolding: how many consecutive fails on this lesson (drives
     // the "the app noticed you are stuck" nudge) and how many extra hints the
@@ -466,7 +476,23 @@
       const first = pop && pop.querySelector('button, [tabindex]');
       if (first) first.focus();
       const close = (e) => { if (!e.target.closest || !e.target.closest('.more-tools-wrap')) setMoreToolsOpen(false); };
-      const key = (e) => { if (e.key === 'Escape') setMoreToolsOpen(false); };
+      const key = (e) => {
+        if (e.key === 'Escape') { setMoreToolsOpen(false); return; }
+        // role=menu carries the ARIA menu keyboard contract: Arrow keys move
+        // between items, Home/End jump to the ends (WAI-ARIA APG menu pattern).
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+        const menu = document.querySelector('.more-tools-pop');
+        if (!menu || !menu.contains(document.activeElement)) return;
+        const items = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+        if (!items.length) return;
+        e.preventDefault();
+        const at = items.indexOf(document.activeElement);
+        const next = e.key === 'Home' ? 0
+          : e.key === 'End' ? items.length - 1
+          : e.key === 'ArrowDown' ? (at + 1) % items.length
+          : (at - 1 + items.length) % items.length;
+        items[next].focus();
+      };
       document.addEventListener('pointerdown', close);
       document.addEventListener('keydown', key);
       return () => {
@@ -475,6 +501,16 @@
         if (moreToolsBtnRef.current) moreToolsBtnRef.current.focus();
       };
     }, [moreToolsOpen]);
+
+    // The Simple-mode run tools (Step/Reset/Validate behind "More") are a
+    // popover like Settings and More Tools, so they close the same way:
+    // click-away and Escape (via the global overlay-first Escape rule).
+    useEffect(() => {
+      if (!runToolsOpen) return undefined;
+      const close = (e) => { if (!e.target.closest || !e.target.closest('.run-controls')) setRunToolsOpen(false); };
+      document.addEventListener('pointerdown', close);
+      return () => document.removeEventListener('pointerdown', close);
+    }, [runToolsOpen]);
 
     // currentLessonId ref: the vibe streamed job is scoped to the lesson open
     // when it started, so useVibeChat (below) reads this ref. Created here
@@ -668,8 +704,11 @@
       // verdict must be about what the user is looking at (product-coherence
       // D1). A mission site validates on its base world's scenario.
       const scn = window.KodroScenario.defaultFor(terrain && terrain.id);
-      addConsole('Validating across 5 randomised seeds in "' + scn.name + '" on ' + (terrain.name || terrain.id) + ' (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
-      const rep = window.KodroScenario.run(code, scn, 5);
+      addConsole('Validating across 5 randomised seeds in "' + scn.name + '" on ' + (terrain.name || terrain.id) + ' (friction, mass, sensor noise, obstacle placement, start delay and starting battery vary)...', 'sys');
+      const rep = window.KodroScenario.run(code, scn, 5, {
+        robotKey: runRobotKey(robotSpec),
+        robotName: (robotSpec && robotSpec.name) || '',
+      });
       setProveReport(rep);
       const a = rep.aggregate;
       // A compile error in the program is a code mistake, not a 0% behaviour
@@ -910,7 +949,12 @@
     useEffect(() => { try { localStorage.setItem('or_tab', activeTab); } catch (e) { void e; } }, [activeTab]);
     useEffect(() => { try { localStorage.setItem('or_programs', JSON.stringify(programs)); } catch (e) {} }, [programs]);
     useEffect(() => { try { localStorage.setItem('or_lesson_buffers', JSON.stringify(lessonBuffers)); } catch (e) { void e; } }, [lessonBuffers]);
-    useEffect(() => { try { localStorage.setItem('or_lesson_results', JSON.stringify(lessonResults)); } catch (e) { void e; } }, [lessonResults]);
+    useEffect(() => {
+      // Persist under the identity whose data this is (stamped at reload time),
+      // so a pupil switch can never file one learner's results under another.
+      const key = lessonResultsPupilRef.current ? 'or_lesson_results__' + lessonResultsPupilRef.current : 'or_lesson_results';
+      try { localStorage.setItem(key, JSON.stringify(lessonResults)); } catch (e) { void e; }
+    }, [lessonResults]);
 
 
     // (addConsole now lives in useConsoleToast, destructured near the top.)
@@ -1017,7 +1061,7 @@
     // fires; the duplicate close is harmless) but excludes FPV, which has a
     // dedicated Escape handler for motion-sensitive exit.
     const anyOverlayOpenRef = useRef(false);
-    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen);
+    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen);
     const fpvRef = useRef(fpv); fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
     const WORLDS_KB = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
@@ -1031,6 +1075,7 @@
         setLessonHubOpen(false);
         setSettingsOpen(false);
         setMoreToolsOpen(false);
+        setRunToolsOpen(false);
         setActiveStage('prove');
       };
       const h = (e) => {
@@ -1138,8 +1183,10 @@
       setBuildOpen(false);
       setLessonHubOpen(false);
       if (stage === 'prove') {
-        setCurrentLessonId(null);
-        if (simpleExperience) setSimpleCodeOpen(false);
+        // An open lesson IS prove-stage work: navigating here must not silently
+        // discard it. Leaving a lesson stays an explicit act (the lesson picker
+        // or the library), never a side effect of the stage nav.
+        if (simpleExperience && !currentLessonId) setSimpleCodeOpen(false);
       }
       setTimeout(function () {
         const main = document.getElementById('editor-main');
@@ -1157,9 +1204,13 @@
     const browserBuildParts = [{ id: 'body', name: BUILD_BODY_NAMES[(robotSpec && robotSpec.type) || 'rover'] || 'Robot chassis', role: 'Structure for this concept' }].concat(buildPartIds.map(function (id) {
       return { id: id, name: BUILD_PART_NAMES[id] || String(id).replace(/[_-]+/g, ' '), role: id === (robotSpec && robotSpec.board) ? 'Controller selected in Design' : 'Capability selected in Design' };
     }));
-    const browserRuns = window.KodroRunReports ? window.KodroRunReports.list() : [];
-    const browserRunCount = browserRuns.length;
     const simpleRobotKey = runRobotKey(robotSpec);
+    // Build-stage evidence counts only runs produced by THIS design: runs from
+    // other robot configurations are history, not proof for this concept.
+    const browserRuns = (window.KodroRunReports ? window.KodroRunReports.list() : []).filter(function (r) {
+      return r && r.robotKey && r.robotKey === simpleRobotKey;
+    });
+    const browserRunCount = browserRuns.length;
     // A result belongs to the visible plan only when it was produced by this
     // exact robot configuration, in this world, from this exact source. A
     // legacy report without a configuration key remains available in history
@@ -1170,9 +1221,13 @@
     }) || null;
     const showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen && !currentLessonId;
     const planScenario = window.KodroScenario && window.KodroScenario.defaultFor ? window.KodroScenario.defaultFor(terrain && terrain.id) : null;
+    // Same rule as simpleLatestRun six lines up: a proof counts for the plan on
+    // screen only when THIS robot configuration produced it. A legacy report
+    // without a fingerprint stays in history but is never presented as current.
     const planProveReport = proveReport && proveReport.manifest && planScenario
       && proveReport.manifest.contractId === planScenario.scenarioId
       && window.KodroScenario.codeHash && proveReport.manifest.controllerHash === window.KodroScenario.codeHash(code)
+      && proveReport.robotKey && proveReport.robotKey === simpleRobotKey
       ? proveReport : null;
     const SIMPLE_PROGRAM_NAMES = {
       basecamp: 'Build a base camp', autopilot: 'Avoid obstacles automatically', drive: 'Explore the world',
@@ -1200,9 +1255,9 @@
     } catch (e) { void e; }
     function downloadPrototypeBrief() {
       const esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]; }); };
-      const runs = window.KodroRunReports ? window.KodroRunReports.list().slice(0, 12) : [];
+      const runs = browserRuns.slice(0, 12);
       const rows = browserBuildParts.map(function (p) { return '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.role) + '</td><td>Verify exact voltage, current, dimensions and connector before buying</td></tr>'; }).join('');
-      const runRows = runs.length ? runs.map(function (r) { return '<tr><td>' + esc(r.worldName || r.world || '') + '</td><td>' + esc(r.outcome || '') + '</td><td>' + esc(r.distanceCm != null ? (r.distanceCm / 100).toFixed(1) + ' m' : 'not recorded') + '</td><td>' + esc(r.predicted || '') + '</td></tr>'; }).join('') : '<tr><td colspan="4">No completed runs recorded on this device.</td></tr>';
+      const runRows = runs.length ? runs.map(function (r) { return '<tr><td>' + esc(r.worldName || r.world || '') + '</td><td>' + esc(r.outcome || '') + '</td><td>' + esc(r.distanceCm != null ? (r.distanceCm / 100).toFixed(1) + ' m' : 'not recorded') + '</td><td>' + esc(r.predicted || '') + '</td></tr>'; }).join('') : '<tr><td colspan="4">No completed runs recorded for this exact design on this device.</td></tr>';
       const html = '<!doctype html><html><head><meta charset="utf-8"><title>Kodro prototype brief</title><style>body{font:16px/1.5 system-ui;max-width:980px;margin:40px auto;padding:0 24px;color:#172033}h1,h2{color:#10233f}table{width:100%;border-collapse:collapse;margin:12px 0 26px}th,td{border:1px solid #ccd3dd;padding:9px;text-align:left;vertical-align:top}.notice{background:#fff7dd;border-left:5px solid #cf9a22;padding:14px}small{color:#526173}</style></head><body>' +
         '<h1>Kodro prototype brief: ' + esc(chipName) + '</h1><p><b>Generated:</b> ' + esc(new Date().toISOString()) + '<br><b>Concept:</b> ' + esc((robotSpec && robotSpec.type) || 'robot') + '<br><b>Scenario currently open:</b> ' + esc(terrain.name || terrain.id) + '</p>' +
         '<div class="notice"><b>This is a pre-build concept brief, not a certified wiring plan or purchasing recommendation.</b> Kodro has not verified supplier stock, live price, logic levels, current limits, battery safety or mechanical fit. Check original manufacturer datasheets and have a competent adult or engineer review the electrical design before power is applied.</div>' +
@@ -1252,8 +1307,8 @@
                 {runState === 'running' ? 'Pause' : runState === 'paused' ? 'Resume' : 'Run'}
               </button>
             )}
-            <button type="button" className="ctrl run-more-toggle" aria-haspopup="menu" aria-expanded={runToolsOpen} onClick={() => setRunToolsOpen(o => !o)}>More</button>
-            <div className={'run-secondary' + (runToolsOpen ? ' is-open' : '')} role={simpleExperience ? 'menu' : undefined}>
+            <button type="button" className="ctrl run-more-toggle" aria-haspopup="true" aria-expanded={runToolsOpen} onClick={() => setRunToolsOpen(o => !o)}>More</button>
+            <div className={'run-secondary' + (runToolsOpen ? ' is-open' : '')} role={simpleExperience ? 'group' : undefined} aria-label={simpleExperience ? 'More run tools' : undefined}>
             <button className="ctrl" onClick={() => { setRunToolsOpen(false); onStep(); }} disabled={runState === 'running'}>{I.step}Step</button>
             <button className="ctrl ctrl-stop" onClick={() => { setRunToolsOpen(false); onReset(); }}>{I.reset}Reset</button>
             {/* Validate lives in the main run bar, next to Run, because it is a
@@ -1877,8 +1932,9 @@
                   built, not a hard-coded callsign (product-coherence D3). */}
               <span className="num" style={{ fontSize: 10, color: 'var(--fg-3)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>{chipName}</span>
               <button type="button" className="tele-toggle" aria-expanded={!teleCollapsed} aria-label={teleCollapsed ? 'Expand telemetry panel' : 'Collapse telemetry panel'} onClick={() => setTeleCollapsed(c => !c)}>{teleCollapsed ? '▸' : '▾'}</button>
+              <button type="button" className="tele-close" aria-label="Close the evidence panel" onClick={() => setEvidenceOpen(false)}>✕</button>
             </div>
-            <window.Telemetry rover={rover} terrain={terrain} sensorDist={sensorDist} odometer={odo} robot={robotSpec} runState={runState} />
+            <window.Telemetry rover={rover} terrain={terrain} sensorDist={sensorDist} odometer={odo} robot={robotSpec} runState={runState} view3d={view3d} />
           </div>
         </main>
 
@@ -1911,7 +1967,7 @@
                 </div>
                 <button className="btn-mini lesson-hub-close" aria-label="Close lesson library" onClick={() => { setLessonHubOpen(false); if (!currentLessonId) setActiveStage('prove'); }}>✕</button>
               </div>
-              <div className="lesson-hub-summary" aria-label="Lesson progress summary">
+              <div className="lesson-hub-summary" role="group" aria-label="Lesson progress summary">
                 <div className="lesson-summary-card">
                   <span className="lesson-summary-value">{Object.keys(lessonResults).filter(id => lessonResults[id] && lessonResults[id].passed).length}</span>
                   <span>completed</span>
@@ -1967,7 +2023,8 @@
                           return (
                             <button type="button" key={lesson.id}
                               className={'lesson-tile' + (isCurrent ? ' current' : '') + (result && result.passed ? ' complete' : '')}
-                              aria-label={(result && result.passed ? 'Completed lesson: ' : 'Open lesson: ') + lesson.title}
+                              aria-label={(result && result.passed ? 'Completed lesson: ' : result ? 'Continue lesson: ' : 'Open lesson: ') + lesson.title
+                                + (result ? ', latest score ' + result.score + ' out of 100, ' + result.attempts + (result.attempts === 1 ? ' attempt' : ' attempts') : '')}
                               onClick={() => loadLesson(lesson)}>
                               <span className="lesson-tile-number">{String(index + 1).padStart(2, '0')}</span>
                               <span className="lesson-tile-copy">

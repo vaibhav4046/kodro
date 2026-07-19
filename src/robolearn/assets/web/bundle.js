@@ -1971,6 +1971,11 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       cy: "17.6",
       r: "1.9",
       fill: "var(--void,#08090f)"
+    })),
+    shield: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M12 3.4l6.6 2.5v5.2c0 4.1-2.7 7.3-6.6 9.5-3.9-2.2-6.6-5.4-6.6-9.5V5.9L12 3.4z"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M9.2 12.1l2 2 3.6-4"
     }))
   };
   function el(name, cls) {
@@ -12031,7 +12036,8 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     sensorDist,
     odometer,
     robot,
-    runState
+    runState,
+    view3d
   }) {
     const [performanceReport, setPerformanceReport] = React.useState(() => window.KodroPerformance || null);
     React.useEffect(() => {
@@ -12194,12 +12200,20 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       }
     }, statusWord)))), /*#__PURE__*/React.createElement("div", {
       className: "tele-section renderer-evidence",
+      role: "group",
       "aria-label": "Measured renderer evidence"
     }, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow",
       role: "heading",
       "aria-level": "2"
-    }, "Renderer"), performanceReport ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    }, "Renderer"), view3d === false ?
+    /*#__PURE__*/
+    /* The 2D view never drives the 3D renderer, so no sample can
+       arrive and any stored numbers describe an EARLIER 3D session.
+       Say that instead of promising measurements forever. */
+    React.createElement("p", {
+      className: "renderer-boundary"
+    }, "The flat 2D view does not use the 3D renderer, so there is nothing to measure here. Switch to 3D to record a fresh 120-frame sample.") : performanceReport ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       className: "gauges"
     }, /*#__PURE__*/React.createElement("div", {
       className: "gauge"
@@ -15501,7 +15515,10 @@ Object.assign(window, {
       timeToGoal = steps;
     }
     if (minObstacleDistance === Infinity) minObstacleDistance = WALL;
-    const batteryUsed = Math.round((100 - s.battery) * 10) / 10;
+    // Consumption is measured from the seed's ACTUAL starting charge, not a
+    // fixed 100%: the randomised initial battery is a test condition, and
+    // counting its deficit as "used" would inflate the evidence by up to 12pp.
+    const batteryUsed = Math.round((Math.max(0, initialBattery - startDelay * 0.02) - s.battery) * 10) / 10;
 
     // Final score: reaching the goal is most of it, then collisions, battery and
     // command errors pull it down. Bounded 0 to 100.
@@ -15637,6 +15654,11 @@ Object.assign(window, {
     const crit = scenario && scenario.successCriteria || {};
     aggregate.passed = !allCompileFail && aggregate.successRate >= PASS_RATE && (crit.maxCollisions == null || aggregate.meanCollisions <= crit.maxCollisions);
     const controllerHash = codeHash(src);
+    // The robot fingerprint travels with the report AND the exportable
+    // manifest: a proof produced by one build must never be presented as
+    // evidence for another (the same rule single-run reports already follow).
+    const robotKey = opts && opts.robotKey || null;
+    const robotName = opts && opts.robotName || '';
     const report = {
       scenario: {
         scenarioId: scenario.scenarioId,
@@ -15644,12 +15666,15 @@ Object.assign(window, {
         environmentPreset: scenario.environmentPreset,
         seed: base
       },
+      robotKey: robotKey,
       runs: runs,
       aggregate: aggregate,
       manifest: {
         schema: 'kodro.web-prove-manifest/1',
         contractId: scenario.scenarioId,
         controllerHash: controllerHash,
+        robotKey: robotKey,
+        robotName: robotName,
         engine: ENGINE_VERSION,
         seeds: runs.map(function (r) {
           return r.seed;
@@ -15662,7 +15687,7 @@ Object.assign(window, {
     };
     const previousReports = window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports() || [];
     const previous = previousReports.find(function (item) {
-      return item && item.manifest && item.manifest.contractId === scenario.scenarioId && item.manifest.controllerHash === controllerHash;
+      return item && item.manifest && item.manifest.contractId === scenario.scenarioId && item.manifest.controllerHash === controllerHash && (item.robotKey || null) === robotKey;
     });
     report.regression = compare(previous, report);
     // Persist locally (offline) so the realism dashboard and the assistant can
@@ -18480,7 +18505,7 @@ Object.assign(window, {
       style: {
         marginTop: 10
       }
-    }, "Prefer to learn step by step? The studio also has ", /*#__PURE__*/React.createElement("b", null, "Lessons"), ": 18 graded missions, from first drive to full autopilot, for ages 5 and up. Open them any time with the Lessons button in the top bar."), /*#__PURE__*/React.createElement(Steps, {
+    }, "Prefer to learn step by step? The studio also has ", /*#__PURE__*/React.createElement("b", null, "Lessons"), ": 18 graded missions, from first drive to full autopilot, for ages 5 and up. Open them any time from", /*#__PURE__*/React.createElement("b", null, " More Tools \u2192 Lessons"), " in the top bar."), /*#__PURE__*/React.createElement(Steps, {
       current: 2
     }), /*#__PURE__*/React.createElement("div", {
       className: "konb-actions"
@@ -24744,10 +24769,11 @@ say("Survey done")`
       }
     }, "\u2715"))), /*#__PURE__*/React.createElement("div", {
       className: "companion-modes",
+      role: "group",
       "aria-label": "Companion modes"
-    }, /*#__PURE__*/React.createElement("button", {
+    }, /*#__PURE__*/React.createElement("span", {
       className: "btn-mini active",
-      "aria-pressed": "true"
+      "aria-current": "true"
     }, "Create & code"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       onClick: onExplain
@@ -25451,7 +25477,11 @@ say("Survey done")`
     // A compact local index of the latest result for each lesson. The grader
     // remains authoritative; this is only the learner-facing resume/progress
     // view used by the lesson library. It is stored on this device alongside
-    // the editable lesson buffers and never leaves the machine.
+    // the editable lesson buffers and never leaves the machine. On desktop,
+    // where several pupils can share one machine, the index is stored PER
+    // PUPIL: the library must never show one learner another learner's
+    // completions as their own. The browser edition keeps one device-wide
+    // record and says so ("Learning as: this device").
     const [lessonResults, setLessonResults] = useState(() => {
       try {
         return JSON.parse(lsGet('or_lesson_results')) || {};
@@ -25459,6 +25489,16 @@ say("Survey done")`
         return {};
       }
     });
+    const lessonResultsPupilRef = useRef(null);
+    useEffect(() => {
+      if (!activePupilId) return;
+      lessonResultsPupilRef.current = activePupilId;
+      try {
+        setLessonResults(JSON.parse(lsGet('or_lesson_results__' + activePupilId)) || {});
+      } catch (e) {
+        setLessonResults({});
+      }
+    }, [activePupilId]);
     const [lessonVerdict, setLessonVerdict] = useState(null); // {passed,score,reasons,hint}
     // Learner scaffolding: how many consecutive fails on this lesson (drives
     // the "the app noticed you are stuck" nudge) and how many extra hints the
@@ -25690,7 +25730,21 @@ say("Survey done")`
         if (!e.target.closest || !e.target.closest('.more-tools-wrap')) setMoreToolsOpen(false);
       };
       const key = e => {
-        if (e.key === 'Escape') setMoreToolsOpen(false);
+        if (e.key === 'Escape') {
+          setMoreToolsOpen(false);
+          return;
+        }
+        // role=menu carries the ARIA menu keyboard contract: Arrow keys move
+        // between items, Home/End jump to the ends (WAI-ARIA APG menu pattern).
+        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
+        const menu = document.querySelector('.more-tools-pop');
+        if (!menu || !menu.contains(document.activeElement)) return;
+        const items = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+        if (!items.length) return;
+        e.preventDefault();
+        const at = items.indexOf(document.activeElement);
+        const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : e.key === 'ArrowDown' ? (at + 1) % items.length : (at - 1 + items.length) % items.length;
+        items[next].focus();
       };
       document.addEventListener('pointerdown', close);
       document.addEventListener('keydown', key);
@@ -25700,6 +25754,18 @@ say("Survey done")`
         if (moreToolsBtnRef.current) moreToolsBtnRef.current.focus();
       };
     }, [moreToolsOpen]);
+
+    // The Simple-mode run tools (Step/Reset/Validate behind "More") are a
+    // popover like Settings and More Tools, so they close the same way:
+    // click-away and Escape (via the global overlay-first Escape rule).
+    useEffect(() => {
+      if (!runToolsOpen) return undefined;
+      const close = e => {
+        if (!e.target.closest || !e.target.closest('.run-controls')) setRunToolsOpen(false);
+      };
+      document.addEventListener('pointerdown', close);
+      return () => document.removeEventListener('pointerdown', close);
+    }, [runToolsOpen]);
 
     // currentLessonId ref: the vibe streamed job is scoped to the lesson open
     // when it started, so useVibeChat (below) reads this ref. Created here
@@ -26038,8 +26104,11 @@ say("Survey done")`
       // verdict must be about what the user is looking at (product-coherence
       // D1). A mission site validates on its base world's scenario.
       const scn = window.KodroScenario.defaultFor(terrain && terrain.id);
-      addConsole('Validating across 5 randomised seeds in "' + scn.name + '" on ' + (terrain.name || terrain.id) + ' (friction, mass, sensor noise and obstacle placement vary)...', 'sys');
-      const rep = window.KodroScenario.run(code, scn, 5);
+      addConsole('Validating across 5 randomised seeds in "' + scn.name + '" on ' + (terrain.name || terrain.id) + ' (friction, mass, sensor noise, obstacle placement, start delay and starting battery vary)...', 'sys');
+      const rep = window.KodroScenario.run(code, scn, 5, {
+        robotKey: runRobotKey(robotSpec),
+        robotName: robotSpec && robotSpec.name || ''
+      });
       setProveReport(rep);
       const a = rep.aggregate;
       // A compile error in the program is a code mistake, not a 0% behaviour
@@ -26396,8 +26465,11 @@ say("Survey done")`
       }
     }, [lessonBuffers]);
     useEffect(() => {
+      // Persist under the identity whose data this is (stamped at reload time),
+      // so a pupil switch can never file one learner's results under another.
+      const key = lessonResultsPupilRef.current ? 'or_lesson_results__' + lessonResultsPupilRef.current : 'or_lesson_results';
       try {
-        localStorage.setItem('or_lesson_results', JSON.stringify(lessonResults));
+        localStorage.setItem(key, JSON.stringify(lessonResults));
       } catch (e) {
         void e;
       }
@@ -26603,7 +26675,7 @@ say("Survey done")`
     // fires; the duplicate close is harmless) but excludes FPV, which has a
     // dedicated Escape handler for motion-sensitive exit.
     const anyOverlayOpenRef = useRef(false);
-    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen);
+    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen);
     const fpvRef = useRef(fpv);
     fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
@@ -26626,6 +26698,7 @@ say("Survey done")`
         setLessonHubOpen(false);
         setSettingsOpen(false);
         setMoreToolsOpen(false);
+        setRunToolsOpen(false);
         setActiveStage('prove');
       };
       const h = e => {
@@ -26817,8 +26890,10 @@ say("Survey done")`
       setBuildOpen(false);
       setLessonHubOpen(false);
       if (stage === 'prove') {
-        setCurrentLessonId(null);
-        if (simpleExperience) setSimpleCodeOpen(false);
+        // An open lesson IS prove-stage work: navigating here must not silently
+        // discard it. Leaving a lesson stays an explicit act (the lesson picker
+        // or the library), never a side effect of the stage nav.
+        if (simpleExperience && !currentLessonId) setSimpleCodeOpen(false);
       }
       setTimeout(function () {
         const main = document.getElementById('editor-main');
@@ -26861,9 +26936,13 @@ say("Survey done")`
         role: id === (robotSpec && robotSpec.board) ? 'Controller selected in Design' : 'Capability selected in Design'
       };
     }));
-    const browserRuns = window.KodroRunReports ? window.KodroRunReports.list() : [];
-    const browserRunCount = browserRuns.length;
     const simpleRobotKey = runRobotKey(robotSpec);
+    // Build-stage evidence counts only runs produced by THIS design: runs from
+    // other robot configurations are history, not proof for this concept.
+    const browserRuns = (window.KodroRunReports ? window.KodroRunReports.list() : []).filter(function (r) {
+      return r && r.robotKey && r.robotKey === simpleRobotKey;
+    });
+    const browserRunCount = browserRuns.length;
     // A result belongs to the visible plan only when it was produced by this
     // exact robot configuration, in this world, from this exact source. A
     // legacy report without a configuration key remains available in history
@@ -26873,7 +26952,10 @@ say("Survey done")`
     }) || null;
     const showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen && !currentLessonId;
     const planScenario = window.KodroScenario && window.KodroScenario.defaultFor ? window.KodroScenario.defaultFor(terrain && terrain.id) : null;
-    const planProveReport = proveReport && proveReport.manifest && planScenario && proveReport.manifest.contractId === planScenario.scenarioId && window.KodroScenario.codeHash && proveReport.manifest.controllerHash === window.KodroScenario.codeHash(code) ? proveReport : null;
+    // Same rule as simpleLatestRun six lines up: a proof counts for the plan on
+    // screen only when THIS robot configuration produced it. A legacy report
+    // without a fingerprint stays in history but is never presented as current.
+    const planProveReport = proveReport && proveReport.manifest && planScenario && proveReport.manifest.contractId === planScenario.scenarioId && window.KodroScenario.codeHash && proveReport.manifest.controllerHash === window.KodroScenario.codeHash(code) && proveReport.robotKey && proveReport.robotKey === simpleRobotKey ? proveReport : null;
     const SIMPLE_PROGRAM_NAMES = {
       basecamp: 'Build a base camp',
       autopilot: 'Avoid obstacles automatically',
@@ -26927,13 +27009,13 @@ say("Survey done")`
           }[ch];
         });
       };
-      const runs = window.KodroRunReports ? window.KodroRunReports.list().slice(0, 12) : [];
+      const runs = browserRuns.slice(0, 12);
       const rows = browserBuildParts.map(function (p) {
         return '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.role) + '</td><td>Verify exact voltage, current, dimensions and connector before buying</td></tr>';
       }).join('');
       const runRows = runs.length ? runs.map(function (r) {
         return '<tr><td>' + esc(r.worldName || r.world || '') + '</td><td>' + esc(r.outcome || '') + '</td><td>' + esc(r.distanceCm != null ? (r.distanceCm / 100).toFixed(1) + ' m' : 'not recorded') + '</td><td>' + esc(r.predicted || '') + '</td></tr>';
-      }).join('') : '<tr><td colspan="4">No completed runs recorded on this device.</td></tr>';
+      }).join('') : '<tr><td colspan="4">No completed runs recorded for this exact design on this device.</td></tr>';
       const html = '<!doctype html><html><head><meta charset="utf-8"><title>Kodro prototype brief</title><style>body{font:16px/1.5 system-ui;max-width:980px;margin:40px auto;padding:0 24px;color:#172033}h1,h2{color:#10233f}table{width:100%;border-collapse:collapse;margin:12px 0 26px}th,td{border:1px solid #ccd3dd;padding:9px;text-align:left;vertical-align:top}.notice{background:#fff7dd;border-left:5px solid #cf9a22;padding:14px}small{color:#526173}</style></head><body>' + '<h1>Kodro prototype brief: ' + esc(chipName) + '</h1><p><b>Generated:</b> ' + esc(new Date().toISOString()) + '<br><b>Concept:</b> ' + esc(robotSpec && robotSpec.type || 'robot') + '<br><b>Scenario currently open:</b> ' + esc(terrain.name || terrain.id) + '</p>' + '<div class="notice"><b>This is a pre-build concept brief, not a certified wiring plan or purchasing recommendation.</b> Kodro has not verified supplier stock, live price, logic levels, current limits, battery safety or mechanical fit. Check original manufacturer datasheets and have a competent adult or engineer review the electrical design before power is applied.</div>' + '<h2>Concept bill of materials</h2><table><thead><tr><th>Design requirement</th><th>Why it is present</th><th>Before purchase</th></tr></thead><tbody>' + rows + '</tbody></table>' + '<h2>Recorded simulation evidence</h2><table><thead><tr><th>Scenario</th><th>Outcome</th><th>Distance</th><th>Pre-run prediction</th></tr></thead><tbody>' + runRows + '</tbody></table>' + '<h2>Safe prototype sequence</h2><ol><li>Choose exact parts from original datasheets, then check supply voltage, logic voltage, stall current, driver limits and connector pinout.</li><li>Confirm chassis dimensions, wheel clearance, payload and battery restraint before assembly.</li><li>Power the controller separately first. Test each sensor, then the motor driver with wheels raised and an accessible power disconnect.</li><li>Measure speed, current draw, wheel slip and sensor error on the physical prototype. Enter measured values into a KRS specification and repeat the Kodro scenarios.</li></ol>' + '<h2>Evidence boundary</h2><p>Kodro reduces uncertainty before a first prototype. It does not certify real-world performance or safety. Simulation results apply only to the variables marked honoured or approximated in the verification report; unmodelled hazards remain untested.</p><small>Created locally in your browser. No order was placed and no supplier was contacted.</small></body></html>';
       const blob = new Blob([html], {
         type: 'text/html'
@@ -27020,12 +27102,13 @@ say("Survey done")`
     }, runState === 'running' ? I.pause : I.play, runState === 'running' ? 'Pause' : runState === 'paused' ? 'Resume' : 'Run'), /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: "ctrl run-more-toggle",
-      "aria-haspopup": "menu",
+      "aria-haspopup": "true",
       "aria-expanded": runToolsOpen,
       onClick: () => setRunToolsOpen(o => !o)
     }, "More"), /*#__PURE__*/React.createElement("div", {
       className: 'run-secondary' + (runToolsOpen ? ' is-open' : ''),
-      role: simpleExperience ? 'menu' : undefined
+      role: simpleExperience ? 'group' : undefined,
+      "aria-label": simpleExperience ? 'More run tools' : undefined
     }, /*#__PURE__*/React.createElement("button", {
       className: "ctrl",
       onClick: () => {
@@ -28199,13 +28282,19 @@ say("Survey done")`
       "aria-expanded": !teleCollapsed,
       "aria-label": teleCollapsed ? 'Expand telemetry panel' : 'Collapse telemetry panel',
       onClick: () => setTeleCollapsed(c => !c)
-    }, teleCollapsed ? '▸' : '▾')), /*#__PURE__*/React.createElement(window.Telemetry, {
+    }, teleCollapsed ? '▸' : '▾'), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "tele-close",
+      "aria-label": "Close the evidence panel",
+      onClick: () => setEvidenceOpen(false)
+    }, "\u2715")), /*#__PURE__*/React.createElement(window.Telemetry, {
       rover: rover,
       terrain: terrain,
       sensorDist: sensorDist,
       odometer: odo,
       robot: robotSpec,
-      runState: runState
+      runState: runState,
+      view3d: view3d
     }))), /*#__PURE__*/React.createElement(window.TweaksPanel, {
       title: "Tweaks"
     }, /*#__PURE__*/React.createElement(window.TweakSection, {
@@ -28295,6 +28384,7 @@ say("Survey done")`
       }
     }, "\u2715")), /*#__PURE__*/React.createElement("div", {
       className: "lesson-hub-summary",
+      role: "group",
       "aria-label": "Lesson progress summary"
     }, /*#__PURE__*/React.createElement("div", {
       className: "lesson-summary-card"
@@ -28363,7 +28453,7 @@ say("Survey done")`
           type: "button",
           key: lesson.id,
           className: 'lesson-tile' + (isCurrent ? ' current' : '') + (result && result.passed ? ' complete' : ''),
-          "aria-label": (result && result.passed ? 'Completed lesson: ' : 'Open lesson: ') + lesson.title,
+          "aria-label": (result && result.passed ? 'Completed lesson: ' : result ? 'Continue lesson: ' : 'Open lesson: ') + lesson.title + (result ? ', latest score ' + result.score + ' out of 100, ' + result.attempts + (result.attempts === 1 ? ' attempt' : ' attempts') : ''),
           onClick: () => loadLesson(lesson)
         }, /*#__PURE__*/React.createElement("span", {
           className: "lesson-tile-number"

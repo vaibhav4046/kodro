@@ -279,7 +279,10 @@
 
     if (!reachedGoal && Math.hypot(s.x - goal.x, s.y - goal.y) <= goal.r) { reachedGoal = true; timeToGoal = steps; }
     if (minObstacleDistance === Infinity) minObstacleDistance = WALL;
-    const batteryUsed = Math.round((100 - s.battery) * 10) / 10;
+    // Consumption is measured from the seed's ACTUAL starting charge, not a
+    // fixed 100%: the randomised initial battery is a test condition, and
+    // counting its deficit as "used" would inflate the evidence by up to 12pp.
+    const batteryUsed = Math.round((Math.max(0, initialBattery - startDelay * 0.02) - s.battery) * 10) / 10;
 
     // Final score: reaching the goal is most of it, then collisions, battery and
     // command errors pull it down. Bounded 0 to 100.
@@ -377,14 +380,22 @@
       && aggregate.successRate >= PASS_RATE
       && (crit.maxCollisions == null || aggregate.meanCollisions <= crit.maxCollisions);
     const controllerHash = codeHash(src);
+    // The robot fingerprint travels with the report AND the exportable
+    // manifest: a proof produced by one build must never be presented as
+    // evidence for another (the same rule single-run reports already follow).
+    const robotKey = (opts && opts.robotKey) || null;
+    const robotName = (opts && opts.robotName) || '';
     const report = {
       scenario: { scenarioId: scenario.scenarioId, name: scenario.name, environmentPreset: scenario.environmentPreset, seed: base },
+      robotKey: robotKey,
       runs: runs,
       aggregate: aggregate,
       manifest: {
         schema: 'kodro.web-prove-manifest/1',
         contractId: scenario.scenarioId,
         controllerHash: controllerHash,
+        robotKey: robotKey,
+        robotName: robotName,
         engine: ENGINE_VERSION,
         seeds: runs.map(function (r) { return r.seed; }),
         runs: runs.map(evidenceRun),
@@ -396,7 +407,8 @@
     const previousReports = (window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports()) || [];
     const previous = previousReports.find(function (item) {
       return item && item.manifest && item.manifest.contractId === scenario.scenarioId
-        && item.manifest.controllerHash === controllerHash;
+        && item.manifest.controllerHash === controllerHash
+        && (item.robotKey || null) === robotKey;
     });
     report.regression = compare(previous, report);
     // Persist locally (offline) so the realism dashboard and the assistant can

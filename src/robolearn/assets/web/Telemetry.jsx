@@ -49,7 +49,7 @@
     );
   }
 
-  function Telemetry({ rover, terrain, sensorDist, odometer, robot, runState }) {
+  function Telemetry({ rover, terrain, sensorDist, odometer, robot, runState, view3d }) {
     const [performanceReport, setPerformanceReport] = React.useState(() => window.KodroPerformance || null);
     React.useEffect(() => {
       const receivePerformance = (event) => setPerformanceReport(event.detail || window.KodroPerformance || null);
@@ -146,9 +146,14 @@
           </div>
         </div>
 
-        <div className="tele-section renderer-evidence" aria-label="Measured renderer evidence">
+        <div className="tele-section renderer-evidence" role="group" aria-label="Measured renderer evidence">
           <span className="eyebrow" role="heading" aria-level="2">Renderer</span>
-          {performanceReport ? (
+          {view3d === false ? (
+            /* The 2D view never drives the 3D renderer, so no sample can
+               arrive and any stored numbers describe an EARLIER 3D session.
+               Say that instead of promising measurements forever. */
+            <p className="renderer-boundary">The flat 2D view does not use the 3D renderer, so there is nothing to measure here. Switch to 3D to record a fresh 120-frame sample.</p>
+          ) : performanceReport ? (
             <>
               <div className="gauges">
                 <div className="gauge">

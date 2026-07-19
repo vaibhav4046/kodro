@@ -821,6 +821,12 @@ select.terrain-btn:hover {
 @media (max-width: 1099px) {
   html, body { overflow:auto; height:auto; }
   .app { height:auto; min-height:100vh; grid-template-rows:auto 1fr; }
+  /* In the stacked layout the PAGE scrolls, not the cockpit. overflow:auto
+     here would make the cockpit a zero-scroll scrollport, which pins the
+     sticky Run row to itself and leaves the primary action below the fold.
+     (.app prefix: the cockpit's base rule appears later in this sheet, so
+     the override needs higher specificity, not just this media block.) */
+  .app .simple-cockpit { overflow:visible; }
   .workspace { display:flex; flex-direction:column; height:auto; min-height:0; }
   .workspace > .resizer, .workspace > .resizer-row { display:none; }
   .workspace > .panel, .view-panel, .tele-panel, .editor-panel {
@@ -842,6 +848,8 @@ select.terrain-btn:hover {
      governance pillars, so they must be on screen, not off the right edge
      with no affordance (judge round 7). The bar grows to a second row. */
   .app { grid-template-rows:auto 1fr; padding-bottom:58px; }
+  /* Toasts rise above the fixed bottom stage-nav instead of painting over it. */
+  .toast-stack { bottom:calc(58px + max(10px,env(safe-area-inset-bottom))); }
   .stage-nav {
     position:fixed; z-index:80; left:0; right:0; bottom:0;
     display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2px;
@@ -905,6 +913,21 @@ select.terrain-btn:hover {
      the left edge and read as broken rendering (judge round 1). Fewer words. */
   .brand-sub { display:none; }
   .editor-tools-menu { width:min(250px,calc(100vw - 24px)); }
+  /* The wrapped mission bar can leave .run-controls near the LEFT edge, so a
+     right-aligned 210px popover would hang off-screen left. Anchor the menu
+     to the viewport instead, above the fixed bottom stage-nav. (Selectors
+     carry an extra ancestor: the base rules appear LATER in this sheet, so
+     these overrides must win on specificity, not order.) */
+  .app[data-experience="simple"] .run-controls .run-secondary {
+    position:fixed; top:auto; bottom:74px; left:10px; right:10px; width:auto;
+    z-index:110;
+  }
+  /* Same trap for the More Tools popover at 320px: right:0 inside its wrap
+     clipped ~53px off the left edge. Clamp it to the viewport. */
+  .more-tools-wrap .more-tools-pop {
+    position:fixed; top:56px; left:10px; right:10px; width:auto;
+    max-height:calc(100vh - 140px);
+  }
   .browser-build-body { padding:14px; max-height:82vh; }
   .browser-build-intro { align-items:stretch; flex-direction:column; gap:12px; }
   .browser-build-intro .ctrl { justify-content:center; }
@@ -928,7 +951,11 @@ select.terrain-btn:hover {
        button labels are light cream --hud-fg-3, so a light-theme bar dropped
        them to ~1.05:1 on phones (judge round 13). Dark glass holds >=4.5:1 in
        every theme, exactly as on desktop. */
-    max-width:100%; padding:6px; background:rgba(8,9,15,0.85); backdrop-filter:blur(12px);
+    /* NO backdrop-filter here: a backdrop-filter ancestor becomes the
+       containing block for position:fixed descendants, which trapped the
+       fixed .test-conditions-menu inside this bar and made it unusable at
+       phone widths. The 0.85 dark glass alone keeps labels >=4.5:1. */
+    max-width:100%; padding:6px; background:rgba(8,9,15,0.85);
   }
   /* The view controls (3D / 2D / quality / time / weather) are a rigid
      content-sized child of .terrain-switch (flex:0 0 auto), so at phone width
@@ -1742,7 +1769,10 @@ kbd {
 
 /* Teacher dashboard. The original 560px modal forced concept names into
    rotated labels and left the actual classroom story unreadable. */
-.teacher-dashboard{ width:min(980px,96vw); padding:0; overflow:hidden; }
+/* Bounded height + an internal scroll: on short laptop screens (<=720px tall)
+   the legend and privacy note clipped with no scrollbar at all. */
+.teacher-dashboard{ width:min(980px,96vw); padding:0; overflow:hidden; max-height:min(92vh,calc(100vh - 24px)); display:flex; flex-direction:column; }
+.teacher-dashboard .teacher-body{ overflow-y:auto; min-height:0; flex:1; }
 .teacher-head{ display:flex; justify-content:space-between; gap:24px; padding:25px 28px 18px; border-bottom:1px solid var(--border-2); background:radial-gradient(circle at 88% 0,color-mix(in srgb,var(--cyan) 13%,transparent),transparent 45%); }
 .teacher-head h2{ margin:7px 0 5px; font-family:var(--font-display); font-size:clamp(26px,3vw,38px); color:var(--fg-1); line-height:1; }
 .teacher-head p{ max-width:700px; margin:0; color:var(--fg-2); font-size:var(--text-md); line-height:1.5; }
@@ -2225,7 +2255,17 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .simple-result > p { margin:9px 0 0; color:var(--fg-2); line-height:1.45; }
 .simple-readiness .simple-fix { color:var(--fg-1); }
 .simple-readiness .simple-limit { color:var(--warning); font-size:var(--text-sm); }
-.simple-primary-actions { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:9px; }
+/* The primary action must never hide below the fold: on short laptop
+   viewports the cockpit's world list + proof card push Run past ~720px, so
+   the action row sticks to the scroll container's bottom edge until its
+   natural position scrolls into view (WCAG 2.4.x discoverability + the
+   product's own "primary action obvious at every stage" rule). */
+.simple-primary-actions {
+  display:grid; grid-template-columns:minmax(0,1fr) auto; gap:9px;
+  position:sticky; bottom:0; z-index:5;
+  padding:10px 0; margin:-10px 0;
+  background:linear-gradient(180deg,transparent,var(--navy) 32%);
+}
 .simple-primary-actions .ctrl { min-height:46px; justify-content:center; }
 .simple-run { font-size:var(--text-xl); }
 .simple-edit { color:var(--fg-2); }
@@ -2259,7 +2299,12 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .simple-back-plan { color:var(--cyan); border-color:var(--cyan-deep); }
 
 /* Evidence is deliberate progressive disclosure in Simple mode. The panel
-   remains mounted, so its live state and accessibility relationships persist. */
+   remains mounted, so its live state and accessibility relationships persist.
+   In Expert mode evidence is a permanent debugging surface, so the toggle is
+   removed there entirely: a control whose aria-expanded flips while nothing
+   changes on screen is a dead control, not progressive disclosure. */
+.app[data-experience="expert"] .evidence-toggle { display:none; }
+.tele-close { display:none; }
 .app[data-experience="simple"][data-evidence="closed"] .workspace {
   grid-template-columns:minmax(320px,var(--editor-w,404px)) 5px minmax(0,1fr) 0 0;
 }
@@ -2283,12 +2328,31 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   .app[data-experience="simple"] .brand { min-width:0; }
   .app[data-experience="simple"] .brand-text { display:none; }
   .app[data-experience="simple"] .stage-link { min-width:60px; }
-  .app[data-experience="simple"] .bar-status { display:none; }
+  /* Visually hidden, NOT display:none: this is the run-state live region
+     (role=status), and display:none silences it for screen readers. */
+  .app[data-experience="simple"] .bar-status {
+    position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+    overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+  }
+  /* No room for a fifth grid column here, so open evidence becomes a fixed
+     drawer instead of silently never appearing: the mission-bar toggle and
+     the cockpit's "Open evidence" button must DO something at every width. */
   .app[data-experience="simple"][data-evidence="open"] .workspace {
     grid-template-columns:minmax(300px,38vw) 5px minmax(330px,1fr) 0 0;
   }
-  .app[data-experience="simple"][data-evidence="open"] .tele-resizer,
-  .app[data-experience="simple"][data-evidence="open"] .tele-panel { display:none; }
+  .app[data-experience="simple"][data-evidence="open"] .tele-resizer { display:none; }
+  .app[data-experience="simple"][data-evidence="open"] .tele-panel {
+    display:flex; flex-direction:column;
+    position:fixed; z-index:120; top:0; right:0; bottom:0;
+    width:min(360px,94vw); max-width:none; border-left:1px solid var(--border);
+    background:var(--navy); box-shadow:-18px 0 44px rgba(0,0,0,0.45);
+    overflow-y:auto;
+  }
+  .app[data-experience="simple"][data-evidence="open"] .tele-panel .tele-close {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:34px; min-height:34px; border:1px solid var(--border);
+    border-radius:8px; background:transparent; color:var(--fg-2); cursor:pointer;
+  }
 }
 
 @media (max-width:760px) {
