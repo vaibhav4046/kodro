@@ -141,7 +141,15 @@
       };
     }
     var reports = (window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports()) || [];
-    var last = reports[0];
+    // Only a validation produced by THIS exact build belongs in this build's
+    // verification report; a legacy or other-robot report is history, not
+    // evidence for the robot being exported.
+    var buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(window.KODRO_ROBOT || null) : '';
+    var last = null;
+    for (var ri = 0; ri < reports.length; ri++) {
+      var candidate = reports[ri];
+      if (candidate && candidate.robotKey && buildKey && candidate.robotKey === buildKey) { last = candidate; break; }
+    }
     if (last && last.aggregate) {
       empirical.validation = {
         scenario: last.scenario && last.scenario.name,

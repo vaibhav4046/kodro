@@ -51,7 +51,10 @@
     const accel = massFac >= 1.4 ? 'slow (heavy)' : massFac >= 1.0 ? 'moderate' : 'brisk (light)';
     const avail = (window.KodroCommands && window.KodroCommands.availability(robot)) || [];
     const reports = (window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports()) || [];
-    const last = reports[0] || null;
+    // Same rule as the cockpit and the verification export: only a validation
+    // recorded by THIS exact build may be presented beside its physics.
+    const buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(window.KODRO_ROBOT || null) : '';
+    const last = reports.find(function (r) { return r && r.robotKey && buildKey && r.robotKey === buildKey; }) || null;
     const agg = last && last.aggregate;
 
     // Physics card. Top speed: a measured build (imported spec) carries a real
@@ -100,7 +103,7 @@
       row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'),
       row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'),
       row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-')),
-    ] : [row('Validation', 'no runs yet', 'var(--warning)'), row('Tip', 'Run "Validate across seeds"')];
+    ] : [row('Validation', 'none recorded for this exact build', 'var(--warning)'), row('Tip', 'Run "Validate across seeds"')];
     const score = card('Scenario score', scoreRows, 'var(--warning)');
 
     // Environment card. Lighting is a 0-100 percentage (same number telemetry

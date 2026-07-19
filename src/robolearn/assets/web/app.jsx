@@ -63,6 +63,9 @@
       }));
     } catch (e) { return ''; }
   }
+  // Shared with verify.jsx and realism.jsx so every surface that presents a
+  // stored validation applies the SAME "this exact build produced it" rule.
+  window.KodroRunRobotKey = runRobotKey;
 
   // ---------------- drive-capability helpers (shared) ----------------
   // ONE definition of "can this build drive?" and "does this tab's starter
@@ -301,7 +304,20 @@
     useEffect(() => {
       if (!activePupilId) return;
       lessonResultsPupilRef.current = activePupilId;
-      try { setLessonResults(JSON.parse(lsGet('or_lesson_results__' + activePupilId)) || {}); } catch (e) { setLessonResults({}); }
+      let stored = null;
+      try { stored = JSON.parse(lsGet('or_lesson_results__' + activePupilId)); } catch (e) { stored = null; }
+      // Upgrade path: results recorded before per-pupil scoping live under the
+      // device-wide key. With exactly ONE pupil the ownership is unambiguous,
+      // so seed their record from it once instead of showing progress reset to
+      // zero. With several pupils the combined record cannot be attributed to
+      // any one learner, so it stays under the device key untouched.
+      if (!stored && pupils.length === 1) {
+        try {
+          const legacy = JSON.parse(lsGet('or_lesson_results'));
+          if (legacy && Object.keys(legacy).length) stored = legacy;
+        } catch (e) { void e; }
+      }
+      setLessonResults(stored || {});
     }, [activePupilId]);
     const [lessonVerdict, setLessonVerdict] = useState(null);  // {passed,score,reasons,hint}
     // Learner scaffolding: how many consecutive fails on this lesson (drives
@@ -504,12 +520,20 @@
 
     // The Simple-mode run tools (Step/Reset/Validate behind "More") are a
     // popover like Settings and More Tools, so they close the same way:
-    // click-away and Escape (via the global overlay-first Escape rule).
+    // click-away, Escape (via the global overlay-first Escape rule), focus
+    // moved in on open and restored to the toggle on close (WCAG 2.4.3).
+    const runMoreBtnRef = useRef(null);
     useEffect(() => {
       if (!runToolsOpen) return undefined;
+      const pop = document.querySelector('.run-secondary');
+      const first = pop && pop.querySelector('button:not([disabled])');
+      if (first) first.focus();
       const close = (e) => { if (!e.target.closest || !e.target.closest('.run-controls')) setRunToolsOpen(false); };
       document.addEventListener('pointerdown', close);
-      return () => document.removeEventListener('pointerdown', close);
+      return () => {
+        document.removeEventListener('pointerdown', close);
+        if (runMoreBtnRef.current) runMoreBtnRef.current.focus();
+      };
     }, [runToolsOpen]);
 
     // currentLessonId ref: the vibe streamed job is scoped to the lesson open
@@ -872,9 +896,17 @@
       if (!window.RoboLearn) return;
       const lessonId = currentLessonIdRef.current;
       if (!lessonId) return;
+      // Identity captured BEFORE the async grade: if the teacher switches
+      // pupil while the grade is in flight, the resolved result must not be
+      // filed under (or displayed as) the new pupil's record.
+      const pupilAtSubmit = lessonResultsPupilRef.current;
       try {
         const r = await window.RoboLearn.submitAttempt(lessonId, source, null);
         if (!r) return;
+        if (lessonResultsPupilRef.current !== pupilAtSubmit) {
+          setConsoleLines(l => [...l, { type: 'sys', text: 'A graded attempt finished after the pupil changed; it was not recorded under the new pupil.' }]);
+          return;
+        }
         if (r.ok === false) { setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') }]); return; }
         // Persist the verdict in a panel that survives Reset (QA #3).
         setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null });
@@ -1061,7 +1093,14 @@
     // fires; the duplicate close is harmless) but excludes FPV, which has a
     // dedicated Escape handler for motion-sensitive exit.
     const anyOverlayOpenRef = useRef(false);
-    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen);
+    // Below 1181px the Simple-mode evidence panel is a fixed DRAWER (an
+    // overlay), so Escape must close it before resetting the rover. At wider
+    // widths it is a grid column, where Escape-to-close would be surprising.
+    const evidenceDrawerActive = simpleExperience && evidenceOpen
+      && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1180px)').matches;
+    const evidenceDrawerRef = useRef(false);
+    evidenceDrawerRef.current = evidenceDrawerActive;
+    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
     const fpvRef = useRef(fpv); fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
     const WORLDS_KB = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
@@ -1076,6 +1115,7 @@
         setSettingsOpen(false);
         setMoreToolsOpen(false);
         setRunToolsOpen(false);
+        if (evidenceDrawerRef.current) setEvidenceOpen(false);
         setActiveStage('prove');
       };
       const h = (e) => {
@@ -1307,7 +1347,7 @@
                 {runState === 'running' ? 'Pause' : runState === 'paused' ? 'Resume' : 'Run'}
               </button>
             )}
-            <button type="button" className="ctrl run-more-toggle" aria-haspopup="true" aria-expanded={runToolsOpen} onClick={() => setRunToolsOpen(o => !o)}>More</button>
+            <button type="button" ref={runMoreBtnRef} className="ctrl run-more-toggle" aria-expanded={runToolsOpen} onClick={() => setRunToolsOpen(o => !o)}>More</button>
             <div className={'run-secondary' + (runToolsOpen ? ' is-open' : '')} role={simpleExperience ? 'group' : undefined} aria-label={simpleExperience ? 'More run tools' : undefined}>
             <button className="ctrl" onClick={() => { setRunToolsOpen(false); onStep(); }} disabled={runState === 'running'}>{I.step}Step</button>
             <button className="ctrl ctrl-stop" onClick={() => { setRunToolsOpen(false); onReset(); }}>{I.reset}Reset</button>
@@ -2089,7 +2129,7 @@
                   </div>
                   <div className="build-readiness" aria-label="Prototype brief readiness">
                     <div><strong>{browserBuildParts.length}</strong><span>design requirements captured</span></div>
-                    <div><strong>{browserRunCount}</strong><span>simulation runs recorded</span></div>
+                    <div><strong>{browserRunCount}</strong><span>runs recorded for this exact design</span></div>
                     <div><strong>4</strong><span>checks required before power-on</span></div>
                   </div>
                   <div className="browser-build-grid">

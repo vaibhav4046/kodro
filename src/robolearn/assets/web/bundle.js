@@ -15129,7 +15129,10 @@ Object.assign(window, {
   // the scenario's own successCriteria.maxCollisions. The UI renders this one
   // boolean instead of each surface re-deriving its own 0.6 threshold.
   const PASS_RATE = 0.6;
-  const ENGINE_VERSION = 'kodro-web-kinematic/1';
+  // /2: batteryUsed is measured from the seed's actual initial charge (was a
+  // fixed 100% baseline), and reports carry a robot fingerprint. Manifests
+  // from /1 are not numerically comparable, so the engine tag must say so.
+  const ENGINE_VERSION = 'kodro-web-kinematic/2';
 
   // Deterministic PRNG so a seed reproduces a run exactly (reproducible demo).
   function mulberry32(a) {
@@ -17304,7 +17307,18 @@ Object.assign(window, {
       };
     }
     var reports = window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports() || [];
-    var last = reports[0];
+    // Only a validation produced by THIS exact build belongs in this build's
+    // verification report; a legacy or other-robot report is history, not
+    // evidence for the robot being exported.
+    var buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(window.KODRO_ROBOT || null) : '';
+    var last = null;
+    for (var ri = 0; ri < reports.length; ri++) {
+      var candidate = reports[ri];
+      if (candidate && candidate.robotKey && buildKey && candidate.robotKey === buildKey) {
+        last = candidate;
+        break;
+      }
+    }
     if (last && last.aggregate) {
       empirical.validation = {
         scenario: last.scenario && last.scenario.name,
@@ -17493,7 +17507,12 @@ Object.assign(window, {
     const accel = massFac >= 1.4 ? 'slow (heavy)' : massFac >= 1.0 ? 'moderate' : 'brisk (light)';
     const avail = window.KodroCommands && window.KodroCommands.availability(robot) || [];
     const reports = window.KodroMemory && window.KodroMemory.scenarioReports && window.KodroMemory.scenarioReports() || [];
-    const last = reports[0] || null;
+    // Same rule as the cockpit and the verification export: only a validation
+    // recorded by THIS exact build may be presented beside its physics.
+    const buildKey = window.KodroRunRobotKey ? window.KodroRunRobotKey(window.KODRO_ROBOT || null) : '';
+    const last = reports.find(function (r) {
+      return r && r.robotKey && buildKey && r.robotKey === buildKey;
+    }) || null;
     const agg = last && last.aggregate;
 
     // Physics card. Top speed: a measured build (imported spec) carries a real
@@ -17527,7 +17546,7 @@ Object.assign(window, {
     // fall back to the shared PASS_RATE for reports saved before that field.
     const passRate = window.KodroScenario && window.KodroScenario.PASS_RATE || 0.6;
     const aggPassed = agg ? agg.passed != null ? agg.passed : (agg.successRate || 0) >= passRate : false;
-    const scoreRows = agg ? [row('Scenario', last.scenario && last.scenario.name || '-'), row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', aggPassed ? 'var(--cyan)' : 'var(--warning)'), row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')), row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'), row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'), row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-'))] : [row('Validation', 'no runs yet', 'var(--warning)'), row('Tip', 'Run "Validate across seeds"')];
+    const scoreRows = agg ? [row('Scenario', last.scenario && last.scenario.name || '-'), row('Success rate', Math.round((agg.successRate || 0) * 100) + '%  (' + (agg.successCount || 0) + '/' + (agg.seeds || 0) + ')', aggPassed ? 'var(--cyan)' : 'var(--warning)'), row('Mean collisions', String(agg.meanCollisions != null ? agg.meanCollisions : '-')), row('Mean time to goal', agg.meanTimeToGoal != null ? agg.meanTimeToGoal + ' steps' : 'n/a'), row('Mean battery used', (agg.meanBattery != null ? agg.meanBattery : '-') + '%'), row('Base seed', String((last.scenario && last.scenario.seed) != null ? last.scenario.seed : '-'))] : [row('Validation', 'none recorded for this exact build', 'var(--warning)'), row('Tip', 'Run "Validate across seeds"')];
     const score = card('Scenario score', scoreRows, 'var(--warning)');
 
     // Environment card. Lighting is a 0-100 percentage (same number telemetry
@@ -25154,6 +25173,9 @@ say("Survey done")`
       return '';
     }
   }
+  // Shared with verify.jsx and realism.jsx so every surface that presents a
+  // stored validation applies the SAME "this exact build produced it" rule.
+  window.KodroRunRobotKey = runRobotKey;
 
   // ---------------- drive-capability helpers (shared) ----------------
   // ONE definition of "can this build drive?" and "does this tab's starter
@@ -25493,11 +25515,26 @@ say("Survey done")`
     useEffect(() => {
       if (!activePupilId) return;
       lessonResultsPupilRef.current = activePupilId;
+      let stored = null;
       try {
-        setLessonResults(JSON.parse(lsGet('or_lesson_results__' + activePupilId)) || {});
+        stored = JSON.parse(lsGet('or_lesson_results__' + activePupilId));
       } catch (e) {
-        setLessonResults({});
+        stored = null;
       }
+      // Upgrade path: results recorded before per-pupil scoping live under the
+      // device-wide key. With exactly ONE pupil the ownership is unambiguous,
+      // so seed their record from it once instead of showing progress reset to
+      // zero. With several pupils the combined record cannot be attributed to
+      // any one learner, so it stays under the device key untouched.
+      if (!stored && pupils.length === 1) {
+        try {
+          const legacy = JSON.parse(lsGet('or_lesson_results'));
+          if (legacy && Object.keys(legacy).length) stored = legacy;
+        } catch (e) {
+          void e;
+        }
+      }
+      setLessonResults(stored || {});
     }, [activePupilId]);
     const [lessonVerdict, setLessonVerdict] = useState(null); // {passed,score,reasons,hint}
     // Learner scaffolding: how many consecutive fails on this lesson (drives
@@ -25757,14 +25794,22 @@ say("Survey done")`
 
     // The Simple-mode run tools (Step/Reset/Validate behind "More") are a
     // popover like Settings and More Tools, so they close the same way:
-    // click-away and Escape (via the global overlay-first Escape rule).
+    // click-away, Escape (via the global overlay-first Escape rule), focus
+    // moved in on open and restored to the toggle on close (WCAG 2.4.3).
+    const runMoreBtnRef = useRef(null);
     useEffect(() => {
       if (!runToolsOpen) return undefined;
+      const pop = document.querySelector('.run-secondary');
+      const first = pop && pop.querySelector('button:not([disabled])');
+      if (first) first.focus();
       const close = e => {
         if (!e.target.closest || !e.target.closest('.run-controls')) setRunToolsOpen(false);
       };
       document.addEventListener('pointerdown', close);
-      return () => document.removeEventListener('pointerdown', close);
+      return () => {
+        document.removeEventListener('pointerdown', close);
+        if (runMoreBtnRef.current) runMoreBtnRef.current.focus();
+      };
     }, [runToolsOpen]);
 
     // currentLessonId ref: the vibe streamed job is scoped to the lesson open
@@ -26325,9 +26370,20 @@ say("Survey done")`
       if (!window.RoboLearn) return;
       const lessonId = currentLessonIdRef.current;
       if (!lessonId) return;
+      // Identity captured BEFORE the async grade: if the teacher switches
+      // pupil while the grade is in flight, the resolved result must not be
+      // filed under (or displayed as) the new pupil's record.
+      const pupilAtSubmit = lessonResultsPupilRef.current;
       try {
         const r = await window.RoboLearn.submitAttempt(lessonId, source, null);
         if (!r) return;
+        if (lessonResultsPupilRef.current !== pupilAtSubmit) {
+          setConsoleLines(l => [...l, {
+            type: 'sys',
+            text: 'A graded attempt finished after the pupil changed; it was not recorded under the new pupil.'
+          }]);
+          return;
+        }
         if (r.ok === false) {
           setConsoleLines(l => [...l, {
             type: 'err',
@@ -26675,7 +26731,13 @@ say("Survey done")`
     // fires; the duplicate close is harmless) but excludes FPV, which has a
     // dedicated Escape handler for motion-sensitive exit.
     const anyOverlayOpenRef = useRef(false);
-    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen);
+    // Below 1181px the Simple-mode evidence panel is a fixed DRAWER (an
+    // overlay), so Escape must close it before resetting the rover. At wider
+    // widths it is a grid column, where Escape-to-close would be surprising.
+    const evidenceDrawerActive = simpleExperience && evidenceOpen && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1180px)').matches;
+    const evidenceDrawerRef = useRef(false);
+    evidenceDrawerRef.current = evidenceDrawerActive;
+    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
     const fpvRef = useRef(fpv);
     fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
@@ -26699,6 +26761,7 @@ say("Survey done")`
         setSettingsOpen(false);
         setMoreToolsOpen(false);
         setRunToolsOpen(false);
+        if (evidenceDrawerRef.current) setEvidenceOpen(false);
         setActiveStage('prove');
       };
       const h = e => {
@@ -27101,8 +27164,8 @@ say("Survey done")`
       }
     }, runState === 'running' ? I.pause : I.play, runState === 'running' ? 'Pause' : runState === 'paused' ? 'Resume' : 'Run'), /*#__PURE__*/React.createElement("button", {
       type: "button",
+      ref: runMoreBtnRef,
       className: "ctrl run-more-toggle",
-      "aria-haspopup": "true",
       "aria-expanded": runToolsOpen,
       onClick: () => setRunToolsOpen(o => !o)
     }, "More"), /*#__PURE__*/React.createElement("div", {
@@ -28581,7 +28644,7 @@ say("Survey done")`
     }, "Download prototype brief")), /*#__PURE__*/React.createElement("div", {
       className: "build-readiness",
       "aria-label": "Prototype brief readiness"
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserBuildParts.length), /*#__PURE__*/React.createElement("span", null, "design requirements captured")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserRunCount), /*#__PURE__*/React.createElement("span", null, "simulation runs recorded")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "4"), /*#__PURE__*/React.createElement("span", null, "checks required before power-on"))), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserBuildParts.length), /*#__PURE__*/React.createElement("span", null, "design requirements captured")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserRunCount), /*#__PURE__*/React.createElement("span", null, "runs recorded for this exact design")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "4"), /*#__PURE__*/React.createElement("span", null, "checks required before power-on"))), /*#__PURE__*/React.createElement("div", {
       className: "browser-build-grid"
     }, /*#__PURE__*/React.createElement("section", null, /*#__PURE__*/React.createElement("div", {
       className: "eyebrow"

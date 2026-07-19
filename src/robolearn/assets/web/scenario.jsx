@@ -28,7 +28,10 @@
   // the scenario's own successCriteria.maxCollisions. The UI renders this one
   // boolean instead of each surface re-deriving its own 0.6 threshold.
   const PASS_RATE = 0.6;
-  const ENGINE_VERSION = 'kodro-web-kinematic/1';
+  // /2: batteryUsed is measured from the seed's actual initial charge (was a
+  // fixed 100% baseline), and reports carry a robot fingerprint. Manifests
+  // from /1 are not numerically comparable, so the engine tag must say so.
+  const ENGINE_VERSION = 'kodro-web-kinematic/2';
 
   // Deterministic PRNG so a seed reproduces a run exactly (reproducible demo).
   function mulberry32(a) {

@@ -50,7 +50,7 @@ const first = win.KodroScenario.run(src, scenario, 5, { harness: true });
 const second = win.KodroScenario.run(src, scenario, 5, { harness: true });
 ok(JSON.stringify(first.manifest) === JSON.stringify(second.manifest),
   'same controller and seeds produce a byte-identical evidence manifest');
-ok(first.manifest && first.manifest.engine === 'kodro-web-kinematic/1',
+ok(first.manifest && first.manifest.engine === 'kodro-web-kinematic/2',
   'manifest records the deterministic engine version');
 ok(first.manifest && /^fnv1a32:[0-9a-f]{8}$/.test(first.manifest.controllerHash),
   'manifest records the controller code hash');

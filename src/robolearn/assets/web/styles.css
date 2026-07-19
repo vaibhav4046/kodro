@@ -850,6 +850,12 @@ select.terrain-btn:hover {
   .app { grid-template-rows:auto 1fr; padding-bottom:58px; }
   /* Toasts rise above the fixed bottom stage-nav instead of painting over it. */
   .toast-stack { bottom:calc(58px + max(10px,env(safe-area-inset-bottom))); }
+  /* The sticky Run row and the evidence drawer stop ABOVE the fixed bottom
+     stage-nav (z 80): pinned at bottom:0 they would sit underneath it and
+     taps where Run appears would hit the stage buttons instead. (Extra
+     ancestors for specificity: the base rules appear later in the sheet.) */
+  .app .simple-cockpit .simple-primary-actions { bottom:calc(58px + env(safe-area-inset-bottom, 0px)); }
+  .app[data-experience="simple"][data-evidence="open"] .workspace .tele-panel { bottom:calc(58px + env(safe-area-inset-bottom, 0px)); }
   .stage-nav {
     position:fixed; z-index:80; left:0; right:0; bottom:0;
     display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:2px;
@@ -2343,8 +2349,13 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   .app[data-experience="simple"][data-evidence="open"] .tele-resizer { display:none; }
   .app[data-experience="simple"][data-evidence="open"] .tele-panel {
     display:flex; flex-direction:column;
-    position:fixed; z-index:120; top:0; right:0; bottom:0;
-    width:min(360px,94vw); max-width:none; border-left:1px solid var(--border);
+    /* z 75: above the workspace but BELOW .modal-backdrop (z 80), so a modal
+       opened while the drawer is out renders and receives clicks on top of
+       it. width carries !important because the <=1099px stacked layout sets
+       .tele-panel { width:100% !important } and would otherwise make the
+       drawer a full-screen takeover between 769 and 1099px. */
+    position:fixed; z-index:75; top:0; right:0; bottom:0;
+    width:min(360px,94vw) !important; max-width:none; border-left:1px solid var(--border);
     background:var(--navy); box-shadow:-18px 0 44px rgba(0,0,0,0.45);
     overflow-y:auto;
   }
