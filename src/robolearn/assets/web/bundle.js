@@ -16101,11 +16101,11 @@ Object.assign(window, {
     },
     "00b_repeat_square": {
       "world": {
-        "base": [1, 1],
-        "height": 8,
-        "obstacles": [],
+        "base": [3, 3],
         "samples": [],
-        "width": 8
+        "obstacles": [],
+        "width": 8,
+        "height": 8
       },
       "criteria": [{
         "uses_construct": "for"

@@ -23,7 +23,12 @@ starter_code: |
 allowed_constructs: [function_call, for]
 max_lines: 8
 world:
-  base: [1.0, 1.0]
+  # The rover starts facing east and turn_right sends it SOUTH, so a 2 m
+  # square from [1, 1] drove straight into the south wall at y=0: the taught
+  # starter, which the intro presents as the finished answer, failed its own
+  # no_collisions criterion. Start with a full side's clearance on every wall
+  # so the square the lesson teaches actually fits, whichever way it turns.
+  base: [3.0, 3.0]
   samples: []
   obstacles: []
   width: 8.0
