@@ -31,7 +31,13 @@
       run: function () {
         const r = window.RobotLab.buildFromText('a light rover with an ultrasonic distance sensor');
         const d = r.derived;
-        return { text: 'Built "' + r.spec.name + '": ' + d.mass + ' g, top speed ' + d.speedFactor.toFixed(2) + 'x, battery ~' + d.runtimeMin + ' min. Recommended world: ' + (r.world.label || 'city') + '.', tone: 'ok' };
+        // Show battery as a driving RANGE in metres, like every other surface
+        // (Lab card, diagnostics Endurance, verification report, Realism). The
+        // raw catalogue runtimeMin floors+rounds to exactly 1 across the whole
+        // mass/speed band, so 'battery ~1 min' was a constant that contradicted
+        // this step's own 'battery comes from the parts' claim. rangeM varies
+        // with mass (a light rover ~132 m, a heavy one ~51 m), demonstrating it.
+        return { text: 'Built "' + r.spec.name + '": ' + d.mass + ' g, top speed ' + d.speedFactor.toFixed(2) + 'x, battery about ' + d.rangeM + ' m of driving on a charge. Recommended world: ' + (r.world.label || 'city') + '.', tone: 'ok' };
       },
     },
     {
