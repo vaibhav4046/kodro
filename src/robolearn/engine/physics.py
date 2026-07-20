@@ -21,8 +21,11 @@ import pymunk
 
 from .terrain import Terrain, TerrainParams, params_for
 
-#: Fixed engine timestep in seconds. Matches the value in
-#: ``~/.robolearn/config.toml`` under ``[engine] timestep``.
+#: Fixed engine timestep in seconds. This is the single source of truth: the
+#: value is compiled in, not configurable. (The docstring used to say it
+#: "matches ~/.robolearn/config.toml under [engine] timestep"; that file is
+#: the welcome-wizard profile, has no [engine] section, and nothing reads a
+#: timestep from it.)
 TIMESTEP_S: float = 1.0 / 60.0
 
 #: Mass of the rover body in kilograms. Educational rover, not a real one.

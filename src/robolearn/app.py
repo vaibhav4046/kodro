@@ -97,7 +97,7 @@ def build_app(
         lessons = list(library)
     else:
         lessons = list(load_library()) + list(load_custom_lessons())
-    starting_lesson = lessons[0] if lessons else _default_lesson()
+    starting_lesson = _starting_lesson(lessons)
     world = _world_from_lesson(starting_lesson)
     rover = Rover(world)
     tracer = Tracer()
@@ -461,6 +461,18 @@ def launch() -> None:
 
 #: Sentinel written once the welcome wizard has been completed.
 WELCOME_SENTINEL: Path = Path.home() / ".robolearn" / "config.toml"
+
+
+def _starting_lesson(lessons: list[Lesson]) -> Lesson:
+    """Pick the lesson the app opens with: the first of the curriculum.
+
+    Deliberately NOT filtered by the welcome wizard's terrain answer. Jumping
+    to the first lesson matching the chosen scenery drops a beginner deep into
+    the curriculum (picking "underwater" lands on 07_sensors, a KS3 lesson),
+    which is a worse outcome than the inert preference it would fix. The
+    wizard's copy no longer promises otherwise.
+    """
+    return lessons[0] if lessons else _default_lesson()
 
 
 def _maybe_show_welcome(app: App) -> None:

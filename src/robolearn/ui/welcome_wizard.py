@@ -178,7 +178,16 @@ class WelcomeWizard:
 
     def _build_step_terrain(self, parent: ttk.Frame) -> ttk.Frame:
         frame = ttk.Frame(parent)
-        ttk.Label(frame, text="Where would you like to start?").pack(anchor=tk.W)
+        # Was "Where would you like to start?", which promised to change where
+        # the app opens. Nothing acted on the answer, and making it act on it
+        # would drop a beginner into whichever lesson happens to use that
+        # scenery. The curriculum always starts at lesson one; this is a saved
+        # preference, so the label says that rather than implying otherwise.
+        ttk.Label(frame, text="Which world are you most curious about?").pack(anchor=tk.W)
+        ttk.Label(
+            frame,
+            text="Saved to your local profile. Lessons still begin at the first one.",
+        ).pack(anchor=tk.W)
         for terrain in Terrain:
             ttk.Radiobutton(
                 frame,
