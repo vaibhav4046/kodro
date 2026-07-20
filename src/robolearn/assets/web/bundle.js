@@ -6129,11 +6129,17 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     }, /*#__PURE__*/React.createElement("span", null, "Pos Y"), /*#__PURE__*/React.createElement("span", null, (-rover.y).toFixed(0), " cm")), /*#__PURE__*/React.createElement("div", {
       className: "hl"
     }, /*#__PURE__*/React.createElement("span", null, "Heading"), /*#__PURE__*/React.createElement("span", null, (rover.heading % 360 + 360) % 360 | 0, "\xB0"))), onTilt && /*#__PURE__*/React.createElement("div", {
-      className: "view-mode-pill"
+      className: "view-mode-pill",
+      role: "group",
+      "aria-label": "Diorama tilt"
     }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      "aria-pressed": tl <= 4,
       className: tl <= 4 ? 'on' : '',
       onClick: () => onTilt(0)
     }, "2D"), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      "aria-pressed": tl > 4,
       className: tl > 4 ? 'on' : '',
       onClick: () => onTilt(46)
     }, "3D")), /*#__PURE__*/React.createElement("div", {

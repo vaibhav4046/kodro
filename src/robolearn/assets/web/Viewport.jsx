@@ -254,11 +254,15 @@
           <div className="hl"><span>Heading</span><span>{((rover.heading % 360) + 360) % 360 | 0}°</span></div>
         </div>
 
-        {/* view mode toggle */}
+        {/* view mode toggle. aria-pressed carries the active tilt to assistive
+            tech: the highlight was colour-only, so a screen reader could not
+            tell which mode was selected (WCAG 4.1.2 / 1.4.1). Matches the
+            aria-pressed pattern the terrain-bar 2D/3D buttons and program tabs
+            already use. */}
         {onTilt && (
-          <div className="view-mode-pill">
-            <button className={tl <= 4 ? 'on' : ''} onClick={() => onTilt(0)}>2D</button>
-            <button className={tl > 4 ? 'on' : ''} onClick={() => onTilt(46)}>3D</button>
+          <div className="view-mode-pill" role="group" aria-label="Diorama tilt">
+            <button type="button" aria-pressed={tl <= 4} className={tl <= 4 ? 'on' : ''} onClick={() => onTilt(0)}>2D</button>
+            <button type="button" aria-pressed={tl > 4} className={tl > 4 ? 'on' : ''} onClick={() => onTilt(46)}>3D</button>
           </div>
         )}
         <div className="orbit-hint">Drag to orbit · scroll to zoom</div>
