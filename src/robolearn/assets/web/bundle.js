@@ -13315,12 +13315,17 @@ Object.assign(window, {
     // enforced drain then contradicts (judge round 9). Missions here run tens
     // of metres, so the bands are range-based. Physical builds use their real
     // pack's per-cm drain; catalogue builds use the shared ledger.
-    const rangeM = physM && physM.drainPctPerCmNominal !== undefined
-    // 1/drain metres, NOT 1/drain/100: drain is %/cm on a 0..100 battery, so
-    // range = (100/drain) cm / 100 = 1/drain m. The extra /100 made this
-    // dimension's endurance bands (fail<30, warn<80 m) and the cockpit's
-    // out-of-charge message read ~100x short of the range the run enforces.
-    ? 1 / physM.drainPctPerCmNominal : window.KodroMotion ? window.KodroMotion.catRangeCm(massFactor, gravity, traction) / 100 : Math.round(60 / massFactor);
+    // The reason text below says "on one charge HERE", so the range must be
+    // the range at THIS world's gravity and traction, matching the enforced
+    // sim and the Realism Battery row. A measured build recomputes from its
+    // real pack drain (1 / physDrainPctPerCm(massKg, energyWh, vMaxSim*traction,
+    // g, traction)); a catalogue build uses catRangeCm at the world. The
+    // measured branch used to show the fixed Earth-nominal 1/drainNominal on
+    // every world, so it disagreed with Realism's per-world 'here' figure on
+    // low-traction worlds (underwater ~8.3km vs a claimed ~12.5km) and read as
+    // 1/drain metres, NOT 1/drain/100 (drain is %/cm on a 0..100 battery).
+    const KMd = window.KodroMotion;
+    const rangeM = physM && physM.drainPctPerCmNominal !== undefined ? KMd && KMd.physDrainPctPerCm && physM.massKg !== undefined && physM.energyWh !== undefined && physM.vMaxSimCmPerS !== undefined ? 1 / KMd.physDrainPctPerCm(physM.massKg, physM.energyWh, physM.vMaxSimCmPerS * traction, gravity, traction) : 1 / physM.drainPctPerCmNominal : KMd ? KMd.catRangeCm(massFactor, gravity, traction) / 100 : Math.round(60 / massFactor);
     const rangeShown = Math.round(rangeM);
     if (rangeM < 30) {
       dims.push({

@@ -84,6 +84,26 @@ ok(D && typeof D.assess === 'function' && V && typeof V.report === 'function',
     ok(Math.abs(dcStop - repStop) <= 1, name + ': design check and report print the same stop (' + dcStop + ' vs ' + repStop + ')');
     ok(Math.abs(dcStop - tickStop) <= 1, name + ': stop matches the tick throttled approach (' + dcStop + ' vs ' + tickStop + ')');
   }
+
+  // 2b. A MEASURED build's Endurance range is per-world (drains at the world's
+  //     gravity/traction) and equals the enforced sim, so the design-check
+  //     'here' figure agrees with the Realism 'here' row and never shows a
+  //     fixed Earth-nominal on every world. Behavioural: assert it VARIES
+  //     across worlds and matches 1/physDrainPctPerCm at each.
+  const mSpec = { type: 'rover', board: 'esp32', sensors: ['ultrasonic', 'imu'], actuators: ['motors4'] };
+  const mPhys = { drainPctPerCmNominal: 7.9775e-5, massKg: 1.0, energyWh: 13.024, vMaxSimCmPerS: 95.79 };
+  const mDerived = { massFactor: 0.692, speedFactor: 1.0, gripFactor: 1.4, mass: 1000, phys: mPhys, commands: ['distance'] };
+  const endRange = (g, tr) => {
+    const a = D.assess(mSpec, mDerived, { id: 'w', name: 'w', traction: tr, env: { gravity: g } });
+    const p = a.dimensions.find((d) => d.key === 'power');
+    return parseInt((p.reason.match(/(\d+) m of driving/) || [])[1], 10);
+  };
+  const rEarth = endRange(9.81, 1.0);
+  const rUnder = endRange(9.81, 0.66);
+  const tickUnder = Math.round(1 / KM.physDrainPctPerCm(1.0, 13.024, 95.79 * 0.66, 9.81, 0.66));
+  ok(rEarth > 100 && rEarth < 100000, 'measured endurance is metres, not the 100x-short 125 m bug (earth ' + rEarth + ')');
+  ok(rUnder < rEarth - 100, 'measured endurance varies per world, not a fixed Earth-nominal (earth ' + rEarth + ' vs underwater ' + rUnder + ')');
+  ok(Math.abs(rUnder - tickUnder) <= 2, 'measured endurance matches the enforced pack drain per world (' + rUnder + ' vs ' + tickUnder + ')');
 }
 
 // 3. Catalogue top speed is APPROXIMATED, never a defaulted HONOURED.
