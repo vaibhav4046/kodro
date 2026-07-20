@@ -209,7 +209,7 @@ node scripts/build_web.cjs
 To build the standalone Windows executable:
 
 ```bash
-python scripts/build_exe.py    # -> dist/RoboLearn.exe (windowed WebView2 app)
+python scripts/build_exe.py    # -> dist/Kodro.exe (windowed WebView2 app)
 ```
 
 A one command demo is also available:

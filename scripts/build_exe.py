@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _build_web_app() -> int:
-    """On Windows, also build the pywebview desktop app (RoboLearn.exe).
+    """On Windows, also build the pywebview desktop app (Kodro.exe).
 
     The web UI ships in a pywebview window; its spec pulls in pywebview +
     pythonnet, which are Windows-specific here, so it is built on Windows only.
@@ -104,9 +104,14 @@ def _build_web_app() -> int:
     if result.returncode != 0:
         sys.stderr.write(f"Web-app PyInstaller failed with exit code {result.returncode}\n")
         return result.returncode
-    web_binary = DIST_DIR / "RoboLearn.exe"
-    if web_binary.exists():
-        sys.stdout.write(f"Built: {web_binary}\n")
+    # robolearn-web.spec sets name="Kodro", so the artefact is Kodro.exe. This
+    # checked for the pre-rename RoboLearn.exe, so the "Built:" line never
+    # printed and a genuinely missing binary looked identical to a good build.
+    web_binary = DIST_DIR / "Kodro.exe"
+    if not web_binary.exists():
+        sys.stderr.write(f"Web-app build reported success but {web_binary} is missing\n")
+        return 1
+    sys.stdout.write(f"Built: {web_binary}\n")
     return 0
 
 

@@ -871,7 +871,7 @@ class BridgeAPI:
         see how one decentralised program produces a coordinated pattern.
         Fully local; no model, no network.
         """
-        from robolearn.runtime.swarm import run_swarm
+        from robolearn.runtime.swarm import SwarmProgramError, run_swarm
 
         code = (source or "").strip()
         if not code:
@@ -881,10 +881,20 @@ class BridgeAPI:
         def factory() -> World:
             if lesson is not None:
                 return _world_from_lesson(lesson)
-            return World(terrain=Terrain("earth"), base=(0.0, 0.0))
+            # Centre of the default 10x10 arena, NOT the (0, 0) corner. The
+            # fleet is spread on a ring around the base, so a corner base put
+            # half the rovers at negative x/y -- outside the bounds, pinned to
+            # the walls, one never moving -- while the modal captioned the plot
+            # as an emergent pattern. This is the default path: free play with
+            # no lesson open.
+            return World(terrain=Terrain("earth"), base=(5.0, 5.0))
 
         try:
             raw_paths = run_swarm(code, world_factory=factory, n=int(n))
+        except SwarmProgramError as exc:
+            # The program never ran; say so instead of drawing stationary dots
+            # under a caption claiming a pattern formed.
+            return {"ok": False, "reason": f"The program did not run: {exc}"}
         except Exception as exc:  # pragma: no cover - sandbox already guards
             return {"ok": False, "reason": f"Swarm failed: {exc}"}
         paths = [[[round(x, 2), round(y, 2)] for (x, y) in p] for p in raw_paths]

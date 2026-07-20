@@ -51,9 +51,13 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then
             # Headline: the pywebview desktop app (Kodro web UI). The Tk build
             # ships alongside as a fallback.
-            if [ -f dist/RoboLearn.exe ]; then
-              cp dist/RoboLearn.exe out/RoboLearn-windows.exe
-            fi
+            # robolearn-web.spec emits dist/Kodro.exe. This step used to test
+            # for dist/RoboLearn.exe -- a name that has not existed since the
+            # rename -- inside an `if` that swallowed the miss, so every
+            # tagged release silently shipped ONLY the Tk fallback and dropped
+            # the headline app. Copy it unconditionally so a missing headline
+            # binary fails the release instead of quietly publishing without it.
+            cp dist/Kodro.exe out/Kodro-windows.exe
             cp dist/robolearn-tk.exe out/robolearn-windows-tk.exe
           elif [ "$RUNNER_OS" = "macOS" ]; then
             if [ -d dist/robolearn.app ]; then

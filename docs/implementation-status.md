@@ -25,7 +25,7 @@ today. Status values:
 | Lesson Grading | Complete | Pure function grader over the trace; per criterion checks for samples, collisions, battery, constructs, base return, steps, distance; AST walk for allowed constructs. |
 | Teacher Dashboard | Complete | Class concept strength heatmap, per pupil drill down, CSV export, progress report. Web app and legacy Tk both surface it. |
 | SQLite Persistence | Complete | Pupils, submissions and concept strength tables; EMA updates; submission trace round trips through JSON. |
-| PyInstaller Packaging | Complete | `python scripts/build_exe.py` builds a windowed WebView2 `RoboLearn.exe`; verified launching and rendering the full UI. |
+| PyInstaller Packaging | Complete | `python scripts/build_exe.py` builds a windowed WebView2 `Kodro.exe`; verified launching and rendering the full UI. |
 | Command Registry | Complete | `KodroCommands` (in `RobotLab.jsx`) is the single source of truth; every fitted-part command is gated across text, blocks and the assistant, with a readable refusal when a part is missing. |
 | Movement Dynamics | Complete | Mass-scaled acceleration, cruise and braking plus momentum carry-over in `animateMove`; move endpoints are exact, so collisions and distances are unchanged. Kinematic, not rigid body. |
 | Scenario Validation | Complete | `KodroScenario` runs a program across seeded, domain-randomised runs (friction, mass, sensor noise, obstacle placement) and reports a spread; results persist to localStorage and to SQLite (`Store.save_scenario_run`, tested). |

@@ -34,6 +34,18 @@ MIN_ROVERS: int = 2
 MAX_ROVERS: int = 8
 
 
+class SwarmProgramError(RuntimeError):
+    """The pupil's program failed to run, so there is no swarm to show.
+
+    ``run_pupil_code`` folds syntax errors, NameErrors, sandbox rejections and
+    timeouts into its ExecutionResult rather than raising. Discarding that
+    result let a program that never executed be presented as a successful
+    swarm: N stationary dots under a caption asserting that a pattern formed.
+    Every rover runs the SAME source, so a failure on the first is a failure
+    for all, and stopping there reports the real error instead of a fiction.
+    """
+
+
 def _snap(rover: Rover) -> RoverSnapshot:
     s = rover.state
     return RoverSnapshot(
@@ -92,7 +104,12 @@ def run_swarm(
             # partial binds this iteration's rover immediately, so the provider
             # always snapshots the right vehicle (and avoids a late-binding closure).
             set_state_provider(partial(_snap, rover))
-            run_pupil_code(source or "", timeout_s=timeout_s)
+            result = run_pupil_code(source or "", timeout_s=timeout_s)
+        if not result.success:
+            where = f" (line {result.error_line})" if result.error_line else ""
+            raise SwarmProgramError(
+                f"{result.error_message or result.error_kind or 'the program failed to run'}{where}"
+            )
         path: list[tuple[float, float]] = [(start_x, start_y)]
         for event in tracer.events():
             rs = event.rover_state
