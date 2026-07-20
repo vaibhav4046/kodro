@@ -62,10 +62,28 @@
       rows.push(row('0 to top speed (best case)', (vCmPerS / phys.accelCmPerS2).toFixed(2) + ' s', 'approximated',
         'a = (F_stall - Crr*m*g)/m at stall torque held constant; a lower bound on the time - real motors lose torque with speed, so hardware is slower'));
     }
-    // Stopping distance: v^2/(2*mu*g) replaces the old proxy.
-    var stopCm = KM.physStoppingDistanceCm(vCmPerS, traction, gravity);
+    // Stopping distance: v^2/(2*mu*g). The APPROACH speed is the one the live
+    // tick actually cruises at, NOT the no-load top above: the tick throttles
+    // by the mobility multiplier and by traction (physV = vMaxSimCmPerS *
+    // mobMul * traction; catalogue cruise = baseSpeedCmPerS * speedFactor *
+    // mobMul * traction). This mirrors the Design Check (diagnostics.jsx)
+    // exactly, so the two surfaces can never print two different stopping
+    // distances for one build -- the invariant the design check's comment
+    // claims and which using vCmPerS (the un-throttled top) here quietly broke.
+    var vActuators = (robot && robot.actuators) || [];
+    var vDriveCount = vActuators.filter(function (a) { return a === 'motors2' || a === 'motors4' || a === 'servos'; }).length;
+    var vUsePhysMob = !!(phys && phys.stallForceN !== undefined && KM.physMobility);
+    var vMassKg = (phys && phys.massKg !== undefined) ? phys.massKg
+      : (robot && robot.mass ? robot.mass / 1000 : massFac * 0.9);
+    var vApproachMobMul = vUsePhysMob
+      ? KM.mobilityMultiplier(vDriveCount > 0, KM.physMobility(phys.stallForceN, vMassKg, traction, gravity))
+      : 1;
+    var vApproach = (phys && phys.vMaxSimCmPerS !== undefined)
+      ? phys.vMaxSimCmPerS * vApproachMobMul * traction
+      : M.baseSpeedCmPerS * speedFac * vApproachMobMul * traction;
+    var stopCm = KM.physStoppingDistanceCm(vApproach, traction, gravity);
     rows.push(row('Stopping distance', (stopCm / 100).toFixed(2) + ' m', 'approximated',
-      'd = v^2 / (2*mu*g), mu = ' + (M.brakeMu * traction).toFixed(2)));
+      'd = v^2 / (2*mu*g) at the throttled approach speed, mu = ' + (M.brakeMu * traction).toFixed(2)));
     // Turn radius: ackermann geometry when specified, else turns in place.
     if (phys && phys.turnRadiusCm !== undefined) {
       rows.push(row('Minimum turn radius', (phys.turnRadiusCm / 100).toFixed(2) + ' m', 'notSimulated',

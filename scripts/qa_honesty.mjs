@@ -48,14 +48,43 @@ for (const sf of [0.7, 1.0, 1.25, 1.45]) {
   near(stop, expect, 'catalogue stop at sf=' + sf + ' follows d = v^2/2*mu*g');
 }
 
-// 2. The design check (diagnostics) catalogue path uses the SAME anchor as the
-//    report (verify), so the two surfaces agree for a catalogue build.
+// 2. The design check (diagnostics) and the verification report (verify) must
+//    print the SAME stopping distance for one build, and it must be the
+//    throttled approach speed the live tick actually cruises at (mobMul x
+//    traction), NOT the un-throttled top speed -- otherwise a low-traction
+//    world gets a stop inflated ~2-4x that WARNs when the run never crashes.
+//    Behavioural, not a source regex: the earlier regex pinned the exact
+//    un-throttled formula and so pinned the very bug (design check said 266cm
+//    on Europa while the report still said 1065). Load both surfaces into the
+//    motion-model context and compare their real output across worlds.
 const diag = read('diagnostics.jsx');
 const verify = read('verify.jsx');
-ok(/physStoppingDistanceCm\(\s*[\s\S]*?baseSpeedCmPerS\s*\*\s*speedFactor/.test(diag),
-  'diagnostics catalogue stop uses physStoppingDistanceCm on baseSpeedCmPerS*speedFactor');
-ok(/physStoppingDistanceCm\(vCmPerS/.test(verify) && /baseSpeedCmPerS\s*\*\s*speedFac/.test(verify),
-  'verify catalogue stop uses physStoppingDistanceCm on baseSpeedCmPerS*speedFac');
+vm.runInContext(diag, ctx, { filename: 'diagnostics.jsx' });
+vm.runInContext(verify, ctx, { filename: 'verify.jsx' });
+const D = ctx.window.KodroDiagnostics;
+const V = ctx.window.KodroVerify;
+ok(D && typeof D.assess === 'function' && V && typeof V.report === 'function',
+  'diagnostics.assess and verify.report both load headlessly');
+{
+  const spec = { type: 'rover', board: 'esp32', sensors: ['ultrasonic', 'imu'], actuators: ['motors4'] };
+  const derived = { massFactor: 0.692, speedFactor: 1.0, gripFactor: 1.4, mass: 623, commands: ['distance', 'heading'] };
+  const robot = Object.assign({}, spec, derived);
+  // Europa (traction 0.5) is the world where the un-throttled bug inflated the
+  // stop the most; earth (traction 1.0) is the no-throttle control.
+  for (const [name, tr, g] of [['europa', 0.5, 1.31], ['mars', 0.6, 3.71], ['earth', 1.0, 9.81]]) {
+    const terrain = { id: name, name, traction: tr, env: { gravity: g } };
+    const dcStop = D.assess(spec, derived, terrain).numbers.stoppingCm;
+    const rep = V.report(robot, terrain);
+    const stopRow = rep.rows.find((r) => r.label === 'Stopping distance');
+    const repStop = Math.round(parseFloat(stopRow.value) * 100);
+    // Both must equal the tick's throttled physics: catalogue cruise is
+    // baseSpeedCmPerS * speedFactor * mobMul(=1 for catalogue) * traction.
+    const vTick = M.baseSpeedCmPerS * derived.speedFactor * tr;
+    const tickStop = Math.round(KM.physStoppingDistanceCm(vTick, tr, g));
+    ok(Math.abs(dcStop - repStop) <= 1, name + ': design check and report print the same stop (' + dcStop + ' vs ' + repStop + ')');
+    ok(Math.abs(dcStop - tickStop) <= 1, name + ': stop matches the tick throttled approach (' + dcStop + ' vs ' + tickStop + ')');
+  }
+}
 
 // 3. Catalogue top speed is APPROXIMATED, never a defaulted HONOURED.
 const lab = read('RobotLab.jsx');
