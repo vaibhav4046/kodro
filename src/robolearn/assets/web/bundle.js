@@ -13264,7 +13264,14 @@ Object.assign(window, {
     // traction at full speed), so a mobility-limited build reaches an obstacle
     // far slower and stops far sooner. Using vMaxSimCmPerS alone made the sensing
     // dimension emit a WARN the live run never earns, contradicting the tick.
-    const approachMobMul = usePhysMob ? window.KodroMotion.mobilityMultiplier(driveCount > 0, mob) : 1;
+    // The tick throttles BOTH build kinds by the mobility multiplier
+    // (hooks.jsx: mobMul = mobilityMultiplier(hasDrive, mob), and mob is the
+    // same mobilityScore for catalogue / physMobility for imported that this
+    // file computes above). Hard-coding this to 1 for catalogue builds left
+    // the stopping distance ~2x too large on low-traction worlds where mobMul
+    // drops to 0.7 (up to ~8x at 0.35), so a low-traction stop read wider than
+    // the run needs. mob is defined for both cases, so throttle both.
+    const approachMobMul = window.KodroMotion.mobilityMultiplier(driveCount > 0, mob);
     // Stopping distance uses the SAME physics as the verification report
     // (d = v^2/2*mu*g) for a catalogue build, so the design check and the
     // report can never print two different numbers for one build (judge round
@@ -17351,7 +17358,14 @@ Object.assign(window, {
     }).length;
     var vUsePhysMob = !!(phys && phys.stallForceN !== undefined && KM.physMobility);
     var vMassKg = phys && phys.massKg !== undefined ? phys.massKg : robot && robot.mass ? robot.mass / 1000 : massFac * 0.9;
-    var vApproachMobMul = vUsePhysMob ? KM.mobilityMultiplier(vDriveCount > 0, KM.physMobility(phys.stallForceN, vMassKg, traction, gravity)) : 1;
+    // The tick throttles BOTH build kinds by the mobility multiplier, so a
+    // catalogue build's mob is mobilityScore(gripFactor, massFactor, traction)
+    // exactly as the Design Check computes it -- NOT a hard-coded 1, which left
+    // the report overstating the stop ~2x on low-traction worlds and (since the
+    // Design Check now throttles catalogue too) disagreeing with it.
+    var vGripFac = robot && robot.gripFactor || 1;
+    var vMob = vUsePhysMob ? KM.physMobility(phys.stallForceN, vMassKg, traction, gravity) : KM.mobilityScore ? KM.mobilityScore(vGripFac, massFac, traction) : vGripFac * traction / massFac;
+    var vApproachMobMul = KM.mobilityMultiplier(vDriveCount > 0, vMob);
     var vApproach = phys && phys.vMaxSimCmPerS !== undefined ? phys.vMaxSimCmPerS * vApproachMobMul * traction : M.baseSpeedCmPerS * speedFac * vApproachMobMul * traction;
     var stopCm = KM.physStoppingDistanceCm(vApproach, traction, gravity);
     rows.push(row('Stopping distance', (stopCm / 100).toFixed(2) + ' m', 'approximated', 'd = v^2 / (2*mu*g) at the throttled approach speed, mu = ' + (M.brakeMu * traction).toFixed(2)));

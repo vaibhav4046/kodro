@@ -85,6 +85,28 @@ ok(D && typeof D.assess === 'function' && V && typeof V.report === 'function',
     ok(Math.abs(dcStop - tickStop) <= 1, name + ': stop matches the tick throttled approach (' + dcStop + ' vs ' + tickStop + ')');
   }
 
+  // A LOW-MOBILITY build on a low-traction world where mobMul actually drops
+  // below 1: the design check and report must throttle the approach speed by
+  // mobMul exactly as the tick does, or the stop reads ~2x too wide. The
+  // high-mobility rover above never triggers this (mob is high, mobMul=1), so
+  // this case is what pins the catalogue-mobMul fix.
+  {
+    const lowSpec = { type: 'car', board: 'esp32', sensors: ['ultrasonic'], actuators: ['motors2', 'servos'] };
+    const lowDerived = { massFactor: 0.643, speedFactor: 1.0, gripFactor: 1.0, mass: 900, commands: ['distance'] };
+    const lowRobot = Object.assign({}, lowSpec, lowDerived);
+    const ice = { id: 'ice', name: 'ice', traction: 0.45, env: { gravity: 9.81 } };
+    const mob = KM.mobilityScore(1.0, 0.643, 0.45);
+    const mobMul = KM.mobilityMultiplier(true, mob);
+    ok(mobMul < 1, 'low-mobility car on ice actually throttles (mobMul ' + mobMul + ' < 1)');
+    const vTickLow = M.baseSpeedCmPerS * 1.0 * mobMul * 0.45;
+    const tickLow = Math.round(KM.physStoppingDistanceCm(vTickLow, 0.45, 9.81));
+    const dcLow = D.assess(lowSpec, lowDerived, ice).numbers.stoppingCm;
+    const repRow = V.report(lowRobot, ice).rows.find((r) => r.label === 'Stopping distance');
+    const repLow = Math.round(parseFloat(repRow.value) * 100);
+    ok(Math.abs(dcLow - tickLow) <= 1, 'low-mobility stop matches the mobMul-throttled tick (' + dcLow + ' vs ' + tickLow + ')');
+    ok(Math.abs(dcLow - repLow) <= 1, 'low-mobility design check and report agree (' + dcLow + ' vs ' + repLow + ')');
+  }
+
   // 2b. A MEASURED build's Endurance range is per-world (drains at the world's
   //     gravity/traction) and equals the enforced sim, so the design-check
   //     'here' figure agrees with the Realism 'here' row and never shows a

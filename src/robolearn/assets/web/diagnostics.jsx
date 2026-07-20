@@ -94,7 +94,14 @@
     // traction at full speed), so a mobility-limited build reaches an obstacle
     // far slower and stops far sooner. Using vMaxSimCmPerS alone made the sensing
     // dimension emit a WARN the live run never earns, contradicting the tick.
-    const approachMobMul = usePhysMob ? window.KodroMotion.mobilityMultiplier(driveCount > 0, mob) : 1;
+    // The tick throttles BOTH build kinds by the mobility multiplier
+    // (hooks.jsx: mobMul = mobilityMultiplier(hasDrive, mob), and mob is the
+    // same mobilityScore for catalogue / physMobility for imported that this
+    // file computes above). Hard-coding this to 1 for catalogue builds left
+    // the stopping distance ~2x too large on low-traction worlds where mobMul
+    // drops to 0.7 (up to ~8x at 0.35), so a low-traction stop read wider than
+    // the run needs. mob is defined for both cases, so throttle both.
+    const approachMobMul = window.KodroMotion.mobilityMultiplier(driveCount > 0, mob);
     // Stopping distance uses the SAME physics as the verification report
     // (d = v^2/2*mu*g) for a catalogue build, so the design check and the
     // report can never print two different numbers for one build (judge round

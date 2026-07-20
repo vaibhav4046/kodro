@@ -75,9 +75,16 @@
     var vUsePhysMob = !!(phys && phys.stallForceN !== undefined && KM.physMobility);
     var vMassKg = (phys && phys.massKg !== undefined) ? phys.massKg
       : (robot && robot.mass ? robot.mass / 1000 : massFac * 0.9);
-    var vApproachMobMul = vUsePhysMob
-      ? KM.mobilityMultiplier(vDriveCount > 0, KM.physMobility(phys.stallForceN, vMassKg, traction, gravity))
-      : 1;
+    // The tick throttles BOTH build kinds by the mobility multiplier, so a
+    // catalogue build's mob is mobilityScore(gripFactor, massFactor, traction)
+    // exactly as the Design Check computes it -- NOT a hard-coded 1, which left
+    // the report overstating the stop ~2x on low-traction worlds and (since the
+    // Design Check now throttles catalogue too) disagreeing with it.
+    var vGripFac = (robot && robot.gripFactor) || 1;
+    var vMob = vUsePhysMob
+      ? KM.physMobility(phys.stallForceN, vMassKg, traction, gravity)
+      : (KM.mobilityScore ? KM.mobilityScore(vGripFac, massFac, traction) : ((vGripFac * traction) / massFac));
+    var vApproachMobMul = KM.mobilityMultiplier(vDriveCount > 0, vMob);
     var vApproach = (phys && phys.vMaxSimCmPerS !== undefined)
       ? phys.vMaxSimCmPerS * vApproachMobMul * traction
       : M.baseSpeedCmPerS * speedFac * vApproachMobMul * traction;
