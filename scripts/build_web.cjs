@@ -103,14 +103,18 @@ function emitStaticSite() {
 // installs the new SW, precaches the fresh shell, and drops the old cache on
 // activate. The SOURCE sw.js keeps a stable 'kodro-shell-v1' placeholder (clean
 // diffs, no churn in the freshness check); only this site copy is stamped.
-// Deploys that touch only lessons.json are still picked up network-first.
+// lessons.json is included because it is now PRECACHED in the SW shell (it
+// has to be: the runtime cache never populated on a first visit, so an
+// offline second visit lost every lesson). Precached means a lessons-only
+// deploy would otherwise leave returning visitors with a stale OFFLINE copy,
+// even though the online path stays network-first.
 function stampServiceWorker(siteDir) {
   const swPath = path.join(siteDir, 'sw.js');
   if (!fs.existsSync(swPath)) return;
   // Fixed order so the hash is deterministic across rebuilds. sound.js is
   // hashed "if present" (some builds omit it); each file is tagged with its
   // name so adding or removing an asset also shifts the fingerprint.
-  const CACHE_CRITICAL = ['bundle.js', 'interpreter.js', 'bridge.js', 'sound.js', 'styles.css', 'index.html'];
+  const CACHE_CRITICAL = ['bundle.js', 'interpreter.js', 'bridge.js', 'sound.js', 'styles.css', 'index.html', 'lessons.json'];
   const h = crypto.createHash('sha256');
   let hashedAny = false;
   for (const name of CACHE_CRITICAL) {

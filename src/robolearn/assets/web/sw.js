@@ -22,6 +22,16 @@ const CACHE = 'kodro-shell-v1';
 const SHELL = [
   './', './index.html', './styles.css', './bundle.js',
   './interpreter.js', './sound.js', './bridge.js',
+  // lessons.json is PRECACHED, not left to runtime caching. It is fetched
+  // network-first (see isFreshFirst) so a new deploy reaches returning
+  // visitors, but the runtime cache never populated on the FIRST visit: the
+  // SW registers on window 'load', so it activates after the app's mount-time
+  // listLessons() fetch has already gone straight to the network. A visitor
+  // who then went offline kept the shell but lost all 18 lessons, and the
+  // library sat on "Loading the offline lesson library..." forever because
+  // bridge.js memoises the empty result. Precaching makes the cache fallback
+  // exist from the first load, which is what index.html promises.
+  './lessons.json',
   './vendor/react.production.min.js', './vendor/react-dom.production.min.js',
   './vendor/three.min.js', './vendor/fonts.css',
   './manifest.webmanifest', './icon.svg',

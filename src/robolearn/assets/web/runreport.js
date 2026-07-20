@@ -24,8 +24,12 @@
     try { var raw = store().getItem(KEY); var v = raw ? JSON.parse(raw) : []; return Array.isArray(v) ? v : []; }
     catch (e) { return []; }
   }
+  // Returns whether the write landed. Swallowing the throw let a run vanish
+  // under the panel's promise that "every finished, crashed, stalled or
+  // flat-battery run leaves a report here".
   function persist(list) {
-    try { store().setItem(KEY, JSON.stringify(list)); } catch (e) { void e; }
+    try { store().setItem(KEY, JSON.stringify(list)); return true; }
+    catch (e) { void e; return false; }
   }
 
   var seq = 0;
@@ -62,8 +66,16 @@
     var list = load();
     list.unshift(rec);
     if (list.length > MAX) list.length = MAX;
-    persist(list);
+    var stored = persist(list);
+    rec.stored = stored;
     try { window.dispatchEvent(new CustomEvent('kodro-runreport')); } catch (e) { void e; }
+    if (!stored) {
+      try {
+        window.dispatchEvent(new CustomEvent('kodro-storage-failed', {
+          detail: { what: 'this run report', reason: 'storage is full or blocked' },
+        }));
+      } catch (e) { void e; }
+    }
     return rec;
   }
 

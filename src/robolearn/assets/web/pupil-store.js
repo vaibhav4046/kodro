@@ -89,8 +89,22 @@
         s.lastSeen = t;
       }
     }
-    save(data);
+    // save() reports whether the write actually landed. Discarding it meant a
+    // full or blocked store still fired 'kodro-pupils' and returned the
+    // in-memory data, so the pupil saw a pass while the register stayed empty,
+    // under copy promising "Concept strength updates after each graded lesson
+    // attempt". Surface the failure the way the memory-import path already
+    // does, and tell the caller.
+    var stored = save(data);
     announce();
+    if (!stored) {
+      try {
+        window.dispatchEvent(new CustomEvent('kodro-storage-failed', {
+          detail: { what: 'concept progress', reason: 'storage is full or blocked' },
+        }));
+      } catch (e) { void e; }
+    }
+    data.stored = stored;
     return data;
   }
 

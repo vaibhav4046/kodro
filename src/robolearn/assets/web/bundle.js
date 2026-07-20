@@ -1397,11 +1397,16 @@
       return [];
     }
   }
+  // Returns whether the write landed. Swallowing the throw let a run vanish
+  // under the panel's promise that "every finished, crashed, stalled or
+  // flat-battery run leaves a report here".
   function persist(list) {
     try {
       store().setItem(KEY, JSON.stringify(list));
+      return true;
     } catch (e) {
       void e;
+      return false;
     }
   }
   var seq = 0;
@@ -1441,11 +1446,24 @@
     var list = load();
     list.unshift(rec);
     if (list.length > MAX) list.length = MAX;
-    persist(list);
+    var stored = persist(list);
+    rec.stored = stored;
     try {
       window.dispatchEvent(new CustomEvent('kodro-runreport'));
     } catch (e) {
       void e;
+    }
+    if (!stored) {
+      try {
+        window.dispatchEvent(new CustomEvent('kodro-storage-failed', {
+          detail: {
+            what: 'this run report',
+            reason: 'storage is full or blocked'
+          }
+        }));
+      } catch (e) {
+        void e;
+      }
     }
     return rec;
   }
@@ -1604,8 +1622,27 @@
         s.lastSeen = t;
       }
     }
-    save(data);
+    // save() reports whether the write actually landed. Discarding it meant a
+    // full or blocked store still fired 'kodro-pupils' and returned the
+    // in-memory data, so the pupil saw a pass while the register stayed empty,
+    // under copy promising "Concept strength updates after each graded lesson
+    // attempt". Surface the failure the way the memory-import path already
+    // does, and tell the caller.
+    var stored = save(data);
     announce();
+    if (!stored) {
+      try {
+        window.dispatchEvent(new CustomEvent('kodro-storage-failed', {
+          detail: {
+            what: 'concept progress',
+            reason: 'storage is full or blocked'
+          }
+        }));
+      } catch (e) {
+        void e;
+      }
+    }
+    data.stored = stored;
     return data;
   }
 
@@ -25877,6 +25914,17 @@ say("Survey done")`
       const on = () => setRunsTick(n => n + 1 & 1023);
       window.addEventListener('kodro-runreport', on);
       return () => window.removeEventListener('kodro-runreport', on);
+    }, []);
+    // A write that could not land must SAY so. The stores used to swallow a
+    // full or blocked localStorage, so a pupil saw a pass verdict and a run
+    // report while nothing was actually recorded.
+    useEffect(() => {
+      const onFail = e => {
+        const what = e && e.detail && e.detail.what || 'your work';
+        showToast('Could not save ' + what + ': storage is full or blocked. Free up space, or export the project to keep it.', 'err');
+      };
+      window.addEventListener('kodro-storage-failed', onFail);
+      return () => window.removeEventListener('kodro-storage-failed', onFail);
     }, []);
     function recordRunReport(outcome, detail, verdictText) {
       if (!window.KodroRunReports) return;

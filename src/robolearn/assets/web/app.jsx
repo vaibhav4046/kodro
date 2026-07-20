@@ -446,6 +446,17 @@
       window.addEventListener('kodro-runreport', on);
       return () => window.removeEventListener('kodro-runreport', on);
     }, []);
+    // A write that could not land must SAY so. The stores used to swallow a
+    // full or blocked localStorage, so a pupil saw a pass verdict and a run
+    // report while nothing was actually recorded.
+    useEffect(() => {
+      const onFail = (e) => {
+        const what = (e && e.detail && e.detail.what) || 'your work';
+        showToast('Could not save ' + what + ': storage is full or blocked. Free up space, or export the project to keep it.', 'err');
+      };
+      window.addEventListener('kodro-storage-failed', onFail);
+      return () => window.removeEventListener('kodro-storage-failed', onFail);
+    }, []);
     function recordRunReport(outcome, detail, verdictText) {
       if (!window.KodroRunReports) return;
       const rb = window.getKodroRobot ? window.getKodroRobot() : {};
