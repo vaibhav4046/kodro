@@ -104,7 +104,15 @@
       ? Math.round(window.KodroMotion.physStoppingDistanceCm(
           (phys && phys.vMaxSimCmPerS !== undefined)
             ? phys.vMaxSimCmPerS * approachMobMul * traction
-            : window.KodroMotion.MODEL.baseSpeedCmPerS * speedFactor,
+            // Catalogue builds get the SAME throttle the tick applies. The
+            // tick's top cruise is baseSpeedCmPerS * speedFactor * mobMul *
+            // traction (effectiveSpeedUnits x traction / msPerCm, and
+            // 100 / msPerCm = baseSpeedCmPerS), so omitting mobMul and traction
+            // here inflated the stopping distance ~2-4x on low-traction worlds
+            // and made the sensing dimension WARN that a robot cannot stop in
+            // sight range when the run stops it in a quarter of it. The physical
+            // branch already threads both factors; this line was the omission.
+            : window.KodroMotion.MODEL.baseSpeedCmPerS * speedFactor * approachMobMul * traction,
           traction, gravity))
       : stoppingDistance(speedFactor, massFactor);
     if (!hasRange) {
