@@ -472,14 +472,20 @@ console.log('\n== ENGINE PARITY SPOT-CHECKS (Python rover semantics) ==');
   // Obstacle sweep: driving at the 00c rock from the base must stop AT the
   // contact point and record exactly one collision (swept circle, grown by
   // the 0.3 m rover radius), like engine/rover.py Rover.move.
+  // These two assertions previously PINNED the lesson's bug: the rock sat at
+  // (1, 2.2), due north of a rover facing east, so obstacle_ahead() was never
+  // true, the taught if-body was dead code, and the gate asserted exactly
+  // that ("ray does not see the off-axis rock"). The rock now sits ahead at
+  // (1.8, 1), so the assertions check what the lesson actually teaches.
   const r = grade('00c_look_first', 'if obstacle_ahead():\n    turn_left(90)\nmove_forward(3)\n');
-  // From (1,1) heading east, the rock is NORTH at (1,2.2) -- obstacle_ahead
-  // is false, the if does not fire, and the eastward drive is clear: passes.
-  check('00c clear-lane drive passes (ray does not see the off-axis rock)',
+  // The sensor sees the rock (0.40 m, inside the 0.5 m default), the rover
+  // turns north into open arena and drives clear: the taught answer passes.
+  check('00c taught starter senses the rock, turns away and passes',
     r.passed === true, JSON.stringify(r.reasons));
-  const r2 = grade('00c_look_first', 'turn_left(90)\nmove_forward(3)\n');
-  // Now the drive is NORTH into the rock: one collision, stopped short.
-  check('00c northward drive registers exactly one collision',
+  const r2 = grade('00c_look_first', 'move_forward(3)\n');
+  // Driving east WITHOUT the check is the mistake the lesson exists to teach:
+  // one collision against the rock, stopped at the contact point.
+  check('00c unguarded eastward drive registers exactly one collision',
     r2.passed === false && r2.reasons.some((s) => s.indexOf('Recorded 1 collision(s)') === 0),
     JSON.stringify(r2.reasons));
 }

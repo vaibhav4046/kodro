@@ -21,7 +21,11 @@ allowed_constructs: [for, while, function_call, arithmetic, assignment, comparis
 max_lines: 16
 world:
   base: [1.0, 1.0]
-  samples: [[3.0, 2.0], [5.0, 2.0], [7.0, 2.0], [3.0, 4.0], [5.0, 4.0], [7.0, 4.0]]
+  # Row one sits ON the line the starter already sweeps (y = base y = 1.0).
+  # With the rows at y=2/4 the starter passed 1 m short of every sample
+  # (collection radius 0.3), so it collected NOTHING while the intro and
+  # hint[0] both told the pupil they had collected one row.
+  samples: [[3.0, 1.0], [5.0, 1.0], [7.0, 1.0], [3.0, 3.0], [5.0, 3.0], [7.0, 3.0]]
   obstacles: []
   width: 10.0
   height: 10.0

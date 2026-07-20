@@ -122,6 +122,15 @@
           throw new RoverError('Unexpected indentation.', ln.line);
         }
         pos++;
+        // A compound header missing its ':' fell through to the expression
+        // parser, which tokenised the keyword as a bare name and then tripped
+        // on the NEXT token: `for i in range(3)` reported 'Unexpected token
+        // "i"'. Every lesson from 00b onward needs a colon and the audience is
+        // KS1-KS4, so name the actual mistake the way CPython does.
+        if (!/:\s*$/.test(ln.text) && /^\s*(if|elif|else|for|while|def)\b/.test(ln.text)) {
+          const kw = ln.text.trim().split(/\s+/)[0].replace(/[^a-z]/g, '');
+          throw new RoverError('expected ":" at the end of this "' + kw + '" line', ln.line);
+        }
         if (/:\s*$/.test(ln.text)) {
           // compound statement header
           const header = ln.text.replace(/:\s*$/, '');
@@ -798,6 +807,15 @@
           const fn = evalExpr(callee);
           const args = node.args.map(evalExpr);
           if (typeof fn === 'function') return fn.apply(null, args);
+          // A method call reaches here with an 'attr' callee, and describe()
+          // returned the internal AST node kind, so the pupil saw
+          // '"attr" is not callable.' Name the real limitation instead: the
+          // Python engine runs xs.append(...) and "s".upper(), this one does
+          // not, so the message must say so rather than leak an AST tag.
+          if (callee && callee.k === 'attr') {
+            throw new RoverError('Method calls like .' + (callee.name || callee.attr || 'method')
+              + '() are not supported in the browser engine. Use the built-in commands instead.', curLine);
+          }
           throw new RoverError('"' + describe(callee) + '" is not callable.', curLine);
         }
 
@@ -1066,6 +1084,15 @@
   function binop(op, l, r, line) {
     if (op === '+') {
       if (typeof l === 'string' || typeof r === 'string') {
+        // Python does NOT coerce for '+': "moved " + 3 is a TypeError, not
+        // "moved 3". Concatenating silently let a program pass in the browser
+        // and fail on the Python engine from the SAME source, which breaks the
+        // parity the rest of this file maintains ('*' already raises). The
+        // message matches CPython so the two engines read identically.
+        if (typeof l !== typeof r) {
+          const bad = typeof l === 'string' ? r : l;
+          throw new RoverError('can only concatenate str (not "' + pyTypeName(bad) + '") to str', line);
+        }
         const s = pyStr(l) + pyStr(r);
         capSeqLen(s.length, line); // F1: refuse a `s = s + s` doubling-to-OOM loop
         return s;

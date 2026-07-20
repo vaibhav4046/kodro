@@ -988,8 +988,28 @@
                       nesting level, so a block at the top or bottom of a loop
                       body cannot swap past the loop. The button says so
                       instead of looking live and doing nothing. */}
-                  <button className="btn-mini" disabled={!canMoveBlock(i, -1)} aria-label={'move ' + b.label + ' up'} title={canMoveBlock(i, -1) ? 'Move up' : 'Cannot move up: reordering stays inside one loop level'} onClick={() => moveBlock(i, -1)}>↑</button>
-                  <button className="btn-mini" disabled={!canMoveBlock(i, 1)} aria-label={'move ' + b.label + ' down'} title={canMoveBlock(i, 1) ? 'Move down' : 'Cannot move down: reordering stays inside one loop level'} onClick={() => moveBlock(i, 1)}>↓</button>
+                  {/* Two distinct reasons an arrow is disabled, and they need
+                      different words: the block is simply first/last in the
+                      list, or the move would cross a loop level. One canned
+                      loop message for both told a learner with no loop in
+                      their program that loop nesting was blocking them. The
+                      reason also goes in the aria-label, because a `title` on
+                      a disabled button is unreliable for both tooltips and
+                      assistive tech. */}
+                  {[-1, 1].map(dir => {
+                    const ok = canMoveBlock(i, dir);
+                    const word = dir < 0 ? 'up' : 'down';
+                    const atEnd = dir < 0 ? i === 0 : i === blocks.length - 1;
+                    const why = ok ? '' : atEnd
+                      ? ' (already ' + (dir < 0 ? 'first' : 'last') + ')'
+                      : ' (would move it out of the loop)';
+                    return (
+                      <button key={dir} className="btn-mini" disabled={!ok}
+                        aria-label={'move ' + b.label + ' ' + word + why}
+                        title={ok ? 'Move ' + word : 'Cannot move ' + word + why}
+                        onClick={() => moveBlock(i, dir)}>{dir < 0 ? '↑' : '↓'}</button>
+                    );
+                  })}
                   <button className="btn-mini" aria-label={'remove ' + b.label} onClick={() => removeBlock(i)}>✕</button>
                 </span>
               </div>

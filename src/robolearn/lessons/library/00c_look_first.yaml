@@ -27,7 +27,18 @@ world:
   base: [1.0, 1.0]
   samples: []
   obstacles:
-    - {x: 1.0, y: 2.2, r: 0.4}
+    # Directly AHEAD of the start pose (rover begins at [1,1] facing east).
+    # At [1.0, 2.2] the rock sat due north, perpendicular to the heading, so
+    # obstacle_ahead() was never True: the if-body was dead code and the
+    # starter passed only because it never ran. Worse, turn_left(90) - the
+    # escape the lesson teaches - pointed straight AT that rock. Ahead on the
+    # x axis makes the sensor question real and turning north the safe way out.
+    # Close enough to trip obstacle_ahead(), whose default threshold is 0.5 m
+    # (rover_api.obstacle_ahead). lidar_distance is measured centre-to-surface,
+    # so this rock reads 0.40 m at the start pose (measured) and the sensor
+    # question is genuinely True. Anything from x=1.9 outward reads >= 0.5 and
+    # leaves the if-body dead, which is what the old placement did.
+    - {x: 1.8, y: 1.0, r: 0.4}
   width: 6.0
   height: 6.0
 success_criteria:

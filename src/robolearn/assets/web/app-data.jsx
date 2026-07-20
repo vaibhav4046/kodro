@@ -261,6 +261,7 @@ def drumroll(drum_n):
         drum_i = drum_i + 1
 
 def strut(strut_m):
+    global metres_total
     # A confident straight walk, pen down so the stage keeps the mark.
     pen_down()
     move_forward(strut_m)
@@ -268,6 +269,7 @@ def strut(strut_m):
     metres_total = metres_total + strut_m
 
 def shimmy(shim_deg):
+    global turns_total
     # Wiggle in place: left, right past centre, and back to the line.
     turn_left(shim_deg)
     turn_right(2 * shim_deg)
@@ -275,6 +277,7 @@ def shimmy(shim_deg):
     turns_total = turns_total + 4 * shim_deg
 
 def corner_pose(pose_col):
+    global turns_total
     # Hit the corner mark, light up, one full spotlight spin.
     led(pose_col)
     beep(1)
@@ -282,6 +285,7 @@ def corner_pose(pose_col):
     turns_total = turns_total + 360
 
 def bow():
+    global metres_total, turns_total
     turn_left(25)
     wait(0.2)
     turn_right(50)
@@ -376,7 +380,7 @@ say("That is the encore!")
 
 used_charge = start_charge - battery()
 print("--- ENCORE DEBRIEF ---")
-print("Distance strutted:", metres_total, "m")
+print("Distance strutted:", metres_total * 100 // 1 / 100, "m")
 print("Degrees performed:", turns_total)
 print("Battery used:", used_charge, "% - remaining:", battery(), "%")
 if battery() > 40:
@@ -609,6 +613,7 @@ def banner(banner_msg):
     print(banner_msg)
 
 def polygon(poly_sides, poly_m, poly_col):
+    global shapes, vertices
     # Draw a regular polygon as a closed turtle path: exterior angle is
     # 360 / sides, so the pen comes back to where it started, heading intact.
     led(poly_col)
@@ -624,6 +629,7 @@ def polygon(poly_sides, poly_m, poly_col):
     vertices = vertices + poly_sides
 
 def star5(star_m, star_col):
+    global shapes, vertices
     # A five-point star: turn 144 at each point closes the pentagram exactly.
     led(star_col)
     pen_down()
@@ -637,6 +643,7 @@ def star5(star_m, star_col):
     vertices = vertices + 5
 
 def countdown(n):
+    global shapes, vertices
     # Recursion for its own sake, and to prove the call stack works: count
     # down to lift-off, one frame per level.
     if n <= 0:
