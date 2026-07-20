@@ -164,7 +164,14 @@
           if (ph.speedFactor !== undefined) out.speedFactor = ph.speedFactor;
           if (ph.runtimeMin !== undefined) out.runtimeMin = ph.runtimeMin;
           // Real pack data supersedes the catalogue ledger range.
-          if (ph.drainPctPerCmNominal !== undefined) out.rangeM = Math.round(1 / ph.drainPctPerCmNominal / 100);
+          // drainPctPerCmNominal is PERCENT-per-cm and the sim battery runs
+          // 0..100, so the budget is 100% / (drain%/cm) = cm, then /100 -> m,
+          // i.e. rangeM = (100/drain)/100 = 1/drain. The old '1/drain/100'
+          // carried an extra division by 100, showing a measured build's range
+          // as ~125 m when the ledger the run enforces is ~12,500 m (100x too
+          // small, and contradicting this build's own runtimeMin card). The
+          // catalogue path proves the correct form: catRangeCm/100 = 1/drain.
+          if (ph.drainPctPerCmNominal !== undefined) out.rangeM = Math.round(1 / ph.drainPctPerCmNominal);
           else out.rangeM = undefined;
         }
       } catch (e) {

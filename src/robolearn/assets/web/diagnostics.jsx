@@ -135,7 +135,11 @@
     // of metres, so the bands are range-based. Physical builds use their real
     // pack's per-cm drain; catalogue builds use the shared ledger.
     const rangeM = (physM && physM.drainPctPerCmNominal !== undefined)
-      ? 1 / physM.drainPctPerCmNominal / 100
+      // 1/drain metres, NOT 1/drain/100: drain is %/cm on a 0..100 battery, so
+      // range = (100/drain) cm / 100 = 1/drain m. The extra /100 made this
+      // dimension's endurance bands (fail<30, warn<80 m) and the cockpit's
+      // out-of-charge message read ~100x short of the range the run enforces.
+      ? 1 / physM.drainPctPerCmNominal
       : (window.KodroMotion
         ? window.KodroMotion.catRangeCm(massFactor, gravity, traction) / 100
         : Math.round(60 / massFactor));

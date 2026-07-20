@@ -13315,7 +13315,12 @@ Object.assign(window, {
     // enforced drain then contradicts (judge round 9). Missions here run tens
     // of metres, so the bands are range-based. Physical builds use their real
     // pack's per-cm drain; catalogue builds use the shared ledger.
-    const rangeM = physM && physM.drainPctPerCmNominal !== undefined ? 1 / physM.drainPctPerCmNominal / 100 : window.KodroMotion ? window.KodroMotion.catRangeCm(massFactor, gravity, traction) / 100 : Math.round(60 / massFactor);
+    const rangeM = physM && physM.drainPctPerCmNominal !== undefined
+    // 1/drain metres, NOT 1/drain/100: drain is %/cm on a 0..100 battery, so
+    // range = (100/drain) cm / 100 = 1/drain m. The extra /100 made this
+    // dimension's endurance bands (fail<30, warn<80 m) and the cockpit's
+    // out-of-charge message read ~100x short of the range the run enforces.
+    ? 1 / physM.drainPctPerCmNominal : window.KodroMotion ? window.KodroMotion.catRangeCm(massFactor, gravity, traction) / 100 : Math.round(60 / massFactor);
     const rangeShown = Math.round(rangeM);
     if (rangeM < 30) {
       dims.push({
@@ -14049,7 +14054,14 @@ Object.assign(window, {
           if (ph.speedFactor !== undefined) out.speedFactor = ph.speedFactor;
           if (ph.runtimeMin !== undefined) out.runtimeMin = ph.runtimeMin;
           // Real pack data supersedes the catalogue ledger range.
-          if (ph.drainPctPerCmNominal !== undefined) out.rangeM = Math.round(1 / ph.drainPctPerCmNominal / 100);else out.rangeM = undefined;
+          // drainPctPerCmNominal is PERCENT-per-cm and the sim battery runs
+          // 0..100, so the budget is 100% / (drain%/cm) = cm, then /100 -> m,
+          // i.e. rangeM = (100/drain)/100 = 1/drain. The old '1/drain/100'
+          // carried an extra division by 100, showing a measured build's range
+          // as ~125 m when the ledger the run enforces is ~12,500 m (100x too
+          // small, and contradicting this build's own runtimeMin card). The
+          // catalogue path proves the correct form: catRangeCm/100 = 1/drain.
+          if (ph.drainPctPerCmNominal !== undefined) out.rangeM = Math.round(1 / ph.drainPctPerCmNominal);else out.rangeM = undefined;
         }
       } catch (e) {
         try {
@@ -17623,10 +17635,18 @@ Object.assign(window, {
     const env = terrain.env || {};
     const massFac = robot.massFactor || 1;
     // World-accurate driving range: the runtime ledger drains at the world's
-    // traction, so the Battery row must too (JR11-01). A measured build keeps its
-    // nominal per-pack figure; a catalogue build recomputes at terrain traction.
+    // gravity and traction, so this "here (the ledger the run enforces)" row
+    // must too (JR11-01). BOTH build kinds now recompute at the world's
+    // conditions -- a catalogue build via catRangeCm, and a MEASURED build via
+    // its real pack drain at the world's cruise (1 / physDrainPctPerCm(massKg,
+    // energyWh, vMaxSim*traction, g, traction), which matches the enforced sim
+    // metre-for-metre). Previously the measured branch showed the fixed
+    // Earth-nominal robot.rangeM on every world under a "here" label, so an
+    // underwater/off-Earth reading overstated the enforced range ~1.5x.
     const KM = window.KodroMotion;
-    const rangeHere = robot.phys && robot.phys.drainPctPerCmNominal !== undefined ? robot.rangeM : KM ? Math.round(KM.catRangeCm(massFac, terrain.env && terrain.env.gravity || 9.81, terrain.traction != null ? terrain.traction : 1) / 100) : robot.rangeM;
+    const gravityHere = terrain.env && terrain.env.gravity || 9.81;
+    const tractionHere = terrain.traction != null ? terrain.traction : 1;
+    const rangeHere = robot.phys && robot.phys.drainPctPerCmNominal !== undefined ? KM && KM.physDrainPctPerCm && robot.phys.massKg !== undefined && robot.phys.energyWh !== undefined && robot.phys.vMaxSimCmPerS !== undefined ? Math.round(1 / KM.physDrainPctPerCm(robot.phys.massKg, robot.phys.energyWh, robot.phys.vMaxSimCmPerS * tractionHere, gravityHere, tractionHere)) : robot.rangeM : KM ? Math.round(KM.catRangeCm(massFac, gravityHere, tractionHere) / 100) : robot.rangeM;
     const speedFac = robot.speedFactor || 1;
     // Qualitative acceleration: heavier mass -> slower to reach top speed.
     const accel = massFac >= 1.4 ? 'slow (heavy)' : massFac >= 1.0 ? 'moderate' : 'brisk (light)';

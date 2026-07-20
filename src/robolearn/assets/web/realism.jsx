@@ -40,12 +40,25 @@
     const env = terrain.env || {};
     const massFac = robot.massFactor || 1;
     // World-accurate driving range: the runtime ledger drains at the world's
-    // traction, so the Battery row must too (JR11-01). A measured build keeps its
-    // nominal per-pack figure; a catalogue build recomputes at terrain traction.
+    // gravity and traction, so this "here (the ledger the run enforces)" row
+    // must too (JR11-01). BOTH build kinds now recompute at the world's
+    // conditions -- a catalogue build via catRangeCm, and a MEASURED build via
+    // its real pack drain at the world's cruise (1 / physDrainPctPerCm(massKg,
+    // energyWh, vMaxSim*traction, g, traction), which matches the enforced sim
+    // metre-for-metre). Previously the measured branch showed the fixed
+    // Earth-nominal robot.rangeM on every world under a "here" label, so an
+    // underwater/off-Earth reading overstated the enforced range ~1.5x.
     const KM = window.KodroMotion;
+    const gravityHere = (terrain.env && terrain.env.gravity) || 9.81;
+    const tractionHere = terrain.traction != null ? terrain.traction : 1;
     const rangeHere = (robot.phys && robot.phys.drainPctPerCmNominal !== undefined)
-      ? robot.rangeM
-      : (KM ? Math.round(KM.catRangeCm(massFac, (terrain.env && terrain.env.gravity) || 9.81, terrain.traction != null ? terrain.traction : 1) / 100) : robot.rangeM);
+      ? ((KM && KM.physDrainPctPerCm && robot.phys.massKg !== undefined
+          && robot.phys.energyWh !== undefined && robot.phys.vMaxSimCmPerS !== undefined)
+        ? Math.round(1 / KM.physDrainPctPerCm(
+            robot.phys.massKg, robot.phys.energyWh,
+            robot.phys.vMaxSimCmPerS * tractionHere, gravityHere, tractionHere))
+        : robot.rangeM)
+      : (KM ? Math.round(KM.catRangeCm(massFac, gravityHere, tractionHere) / 100) : robot.rangeM);
     const speedFac = robot.speedFactor || 1;
     // Qualitative acceleration: heavier mass -> slower to reach top speed.
     const accel = massFac >= 1.4 ? 'slow (heavy)' : massFac >= 1.0 ? 'moderate' : 'brisk (light)';

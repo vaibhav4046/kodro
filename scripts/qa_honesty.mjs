@@ -312,8 +312,15 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
   ok(/report && report\.numbers && report\.numbers\.rangeM/.test(lab),
     'Robot Lab range badge reuses the design-check world-accurate rangeM');
   const realism2 = read('realism.jsx');
-  ok(/catRangeCm\(massFac, \(terrain\.env && terrain\.env\.gravity\)/.test(realism2),
-    'realism recomputes the battery range at the world traction');
+  // Both build kinds recompute the battery range at the WORLD's gravity and
+  // traction (gravityHere/tractionHere), so the "here (the ledger the run
+  // enforces)" row is world-accurate for a catalogue build (catRangeCm) AND a
+  // measured build (real pack drain, physDrainPctPerCm). The measured branch
+  // used to show the fixed Earth-nominal robot.rangeM on every world.
+  ok(/catRangeCm\(massFac, gravityHere, tractionHere\)/.test(realism2),
+    'realism recomputes the catalogue battery range at the world gravity/traction');
+  ok(/physDrainPctPerCm\([\s\S]*?vMaxSimCmPerS \* tractionHere, gravityHere, tractionHere\)/.test(realism2),
+    'realism recomputes the MEASURED battery range at the world gravity/traction (not fixed Earth-nominal)');
   ok(!/robot\.rangeM \? '~' \+ robot\.rangeM \+ ' m of driving on a charge \(the ledger/.test(realism2),
     'realism no longer captions the nominal traction-1 range as the enforced ledger');
   // Behavioural: the design-check range at city traction (0.98) is a few metres
