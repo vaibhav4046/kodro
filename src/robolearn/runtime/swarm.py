@@ -98,13 +98,24 @@ def run_swarm(
         # AI-validation run cannot rebind the engine mid-run (same process
         # global the web submission path guards).
         with binding_lock:
-            set_active(tracer)
-            set_active_rover(rover)
-            set_active_world(world)
-            # partial binds this iteration's rover immediately, so the provider
-            # always snapshots the right vehicle (and avoids a late-binding closure).
-            set_state_provider(partial(_snap, rover))
-            result = run_pupil_code(source or "", timeout_s=timeout_s)
+            try:
+                set_active(tracer)
+                set_active_rover(rover)
+                set_active_world(world)
+                # partial binds this iteration's rover immediately, so the provider
+                # always snapshots the right vehicle (and avoids a late-binding closure).
+                set_state_provider(partial(_snap, rover))
+                result = run_pupil_code(source or "", timeout_s=timeout_s)
+            finally:
+                # Detach before releasing the lock, exactly as the graded submit
+                # path does. Without this the engine globals stayed bound to the
+                # last fleet member after run_swarm returned, so a later reader
+                # could snapshot a rover from a finished swarm; the error path
+                # added below would otherwise leave them bound on the way out.
+                set_active(None)
+                set_active_rover(None)
+                set_active_world(None)
+                set_state_provider(None)
         if not result.success:
             where = f" (line {result.error_line})" if result.error_line else ""
             raise SwarmProgramError(
