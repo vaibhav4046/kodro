@@ -13338,7 +13338,7 @@ Object.assign(window, {
     // low-traction worlds (underwater ~8.3km vs a claimed ~12.5km) and read as
     // 1/drain metres, NOT 1/drain/100 (drain is %/cm on a 0..100 battery).
     const KMd = window.KodroMotion;
-    const rangeM = physM && physM.drainPctPerCmNominal !== undefined ? KMd && KMd.physDrainPctPerCm && physM.massKg !== undefined && physM.energyWh !== undefined && physM.vMaxSimCmPerS !== undefined ? 1 / KMd.physDrainPctPerCm(physM.massKg, physM.energyWh, physM.vMaxSimCmPerS * traction, gravity, traction) : 1 / physM.drainPctPerCmNominal : KMd ? KMd.catRangeCm(massFactor, gravity, traction) / 100 : Math.round(60 / massFactor);
+    const rangeM = physM && physM.drainPctPerCmNominal !== undefined ? KMd && KMd.physDrainPctPerCm && physM.massKg !== undefined && physM.energyWh !== undefined && physM.vMaxSimCmPerS !== undefined ? 1 / KMd.physDrainPctPerCm(physM.massKg, physM.energyWh, physM.vMaxSimCmPerS * approachMobMul * traction, gravity, traction) : 1 / physM.drainPctPerCmNominal : KMd ? KMd.catRangeCm(massFactor, gravity, traction) / 100 : Math.round(60 / massFactor);
     const rangeShown = Math.round(rangeM);
     if (rangeM < 30) {
       dims.push({
@@ -17671,7 +17671,18 @@ Object.assign(window, {
     const KM = window.KodroMotion;
     const gravityHere = terrain.env && terrain.env.gravity || 9.81;
     const tractionHere = terrain.traction != null ? terrain.traction : 1;
-    const rangeHere = robot.phys && robot.phys.drainPctPerCmNominal !== undefined ? KM && KM.physDrainPctPerCm && robot.phys.massKg !== undefined && robot.phys.energyWh !== undefined && robot.phys.vMaxSimCmPerS !== undefined ? Math.round(1 / KM.physDrainPctPerCm(robot.phys.massKg, robot.phys.energyWh, robot.phys.vMaxSimCmPerS * tractionHere, gravityHere, tractionHere)) : robot.rangeM : KM ? Math.round(KM.catRangeCm(massFac, gravityHere, tractionHere) / 100) : robot.rangeM;
+    // The tick's full cruise is vMaxSim * mobMul * traction, so the enforced
+    // drain (and thus the range shown here) must include the mobility throttle
+    // too, exactly as the Design Check now does. Omitting it overstated the
+    // range for a mobility-limited measured build on a low-traction world (the
+    // idle-power term in physDrainPctPerCm makes a slower cruise drain MORE per
+    // cm). mob is computed the way the live tick computes it.
+    const rHasDrive = (robot.actuators || []).some(function (a) {
+      return a === 'motors2' || a === 'motors4' || a === 'servos';
+    });
+    const rMob = robot.phys && robot.phys.stallForceN !== undefined && KM && KM.physMobility ? KM.physMobility(robot.phys.stallForceN, robot.phys.massKg, tractionHere, gravityHere) : KM && KM.mobilityScore ? KM.mobilityScore(robot.gripFactor || 1, massFac, tractionHere) : 1;
+    const rMobMul = KM && KM.mobilityMultiplier ? KM.mobilityMultiplier(rHasDrive, rMob) : 1;
+    const rangeHere = robot.phys && robot.phys.drainPctPerCmNominal !== undefined ? KM && KM.physDrainPctPerCm && robot.phys.massKg !== undefined && robot.phys.energyWh !== undefined && robot.phys.vMaxSimCmPerS !== undefined ? Math.round(1 / KM.physDrainPctPerCm(robot.phys.massKg, robot.phys.energyWh, robot.phys.vMaxSimCmPerS * rMobMul * tractionHere, gravityHere, tractionHere)) : robot.rangeM : KM ? Math.round(KM.catRangeCm(massFac, gravityHere, tractionHere) / 100) : robot.rangeM;
     const speedFac = robot.speedFactor || 1;
     // Qualitative acceleration: heavier mass -> slower to reach top speed.
     const accel = massFac >= 1.4 ? 'slow (heavy)' : massFac >= 1.0 ? 'moderate' : 'brisk (light)';

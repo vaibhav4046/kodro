@@ -126,6 +126,27 @@ ok(D && typeof D.assess === 'function' && V && typeof V.report === 'function',
   ok(rEarth > 100 && rEarth < 100000, 'measured endurance is metres, not the 100x-short 125 m bug (earth ' + rEarth + ')');
   ok(rUnder < rEarth - 100, 'measured endurance varies per world, not a fixed Earth-nominal (earth ' + rEarth + ' vs underwater ' + rUnder + ')');
   ok(Math.abs(rUnder - tickUnder) <= 2, 'measured endurance matches the enforced pack drain per world (' + rUnder + ' vs ' + tickUnder + ')');
+
+  // 2c. A THROTTLED measured build (low mobility on a low-traction world, so
+  //     mobMul < 1) drains at the tick's throttled cruise vMaxSim*mobMul*trac,
+  //     NOT the un-throttled vMaxSim*trac. Omitting mobMul overstated the
+  //     range. This build has stallForceN so mob = physMobility, and on
+  //     underwater it drops mobMul below 1 - the case the earlier
+  //     high-mobility build never exercised.
+  const tStall = 8.0, tMassKg = 0.9, tEnergy = 14.65, tVmax = 93.75;
+  const tPhys = { drainPctPerCmNominal: KM.physDrainPctPerCm(tMassKg, tEnergy, tVmax, 9.81, 1), massKg: tMassKg, energyWh: tEnergy, vMaxSimCmPerS: tVmax, stallForceN: tStall };
+  const tSpec = { type: 'rover', board: 'esp32', sensors: ['ultrasonic'], actuators: ['motors2'] };
+  const tDerived = { massFactor: 0.6, speedFactor: 1.0, gripFactor: 1.0, mass: 900, phys: tPhys, commands: ['distance'] };
+  const tMob = KM.physMobility(tStall, tMassKg, 0.66, 9.81);
+  const tMobMul = KM.mobilityMultiplier(true, tMob);
+  ok(tMobMul < 1, 'throttled measured build actually drops mobMul below 1 on underwater (' + tMobMul + ')');
+  const tTick = Math.round(1 / KM.physDrainPctPerCm(tMassKg, tEnergy, tVmax * tMobMul * 0.66, 9.81, 0.66));
+  const tDc = (() => {
+    const a = D.assess(tSpec, tDerived, { id: 'underwater', name: 'underwater', traction: 0.66, env: { gravity: 9.81 } });
+    const p = a.dimensions.find((d) => d.key === 'power');
+    return parseInt((p.reason.match(/(\d+) m of driving/) || [])[1], 10);
+  })();
+  ok(Math.abs(tDc - tTick) <= 2, 'throttled measured endurance matches the mobMul-throttled tick (' + tDc + ' vs ' + tTick + ')');
 }
 
 // 3. Catalogue top speed is APPROXIMATED, never a defaulted HONOURED.
@@ -361,8 +382,8 @@ ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
   // used to show the fixed Earth-nominal robot.rangeM on every world.
   ok(/catRangeCm\(massFac, gravityHere, tractionHere\)/.test(realism2),
     'realism recomputes the catalogue battery range at the world gravity/traction');
-  ok(/physDrainPctPerCm\([\s\S]*?vMaxSimCmPerS \* tractionHere, gravityHere, tractionHere\)/.test(realism2),
-    'realism recomputes the MEASURED battery range at the world gravity/traction (not fixed Earth-nominal)');
+  ok(/physDrainPctPerCm\([\s\S]*?vMaxSimCmPerS \* rMobMul \* tractionHere, gravityHere, tractionHere\)/.test(realism2),
+    'realism recomputes the MEASURED battery range at the world gravity/traction AND mobility throttle (not fixed Earth-nominal, not un-throttled)');
   ok(!/robot\.rangeM \? '~' \+ robot\.rangeM \+ ' m of driving on a charge \(the ledger/.test(realism2),
     'realism no longer captions the nominal traction-1 range as the enforced ledger');
   // Behavioural: the design-check range at city traction (0.98) is a few metres

@@ -154,7 +154,7 @@
     const rangeM = (physM && physM.drainPctPerCmNominal !== undefined)
       ? ((KMd && KMd.physDrainPctPerCm && physM.massKg !== undefined
           && physM.energyWh !== undefined && physM.vMaxSimCmPerS !== undefined)
-        ? 1 / KMd.physDrainPctPerCm(physM.massKg, physM.energyWh, physM.vMaxSimCmPerS * traction, gravity, traction)
+        ? 1 / KMd.physDrainPctPerCm(physM.massKg, physM.energyWh, physM.vMaxSimCmPerS * approachMobMul * traction, gravity, traction)
         : 1 / physM.drainPctPerCmNominal)
       : (KMd
         ? KMd.catRangeCm(massFactor, gravity, traction) / 100
