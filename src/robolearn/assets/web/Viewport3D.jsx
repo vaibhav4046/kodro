@@ -119,6 +119,14 @@
       // fidelity for a screenshot. Read at (re)build time so a change reapplies
       // when the viewport remounts.
       const Q = (window.KODRO_QUALITY || 'high');
+      // Normally the app's first-run quality probe has already populated this.
+      // The performance harness mounts the viewport on its own, though, so
+      // without a lazy probe here the evidence file recorded its renderer as
+      // 'unknown' -- an fps figure that cannot say whether a GPU or a CPU drew
+      // it is not evidence of much, so detect once if nobody has yet.
+      if (!window.KODRO_GPU_CAPS && window.KodroGpuCaps && window.KodroGpuCaps.detect) {
+        try { window.KODRO_GPU_CAPS = window.KodroGpuCaps.detect(); } catch (e) { void e; }
+      }
       const _dpr = (window.devicePixelRatio || 1);
       renderer.setPixelRatio(Q === 'low' ? 1 : Q === 'med' ? Math.min(1.25, _dpr) : Q === 'cinematic' ? Math.min(2, _dpr * 1.5) : Math.min(1.5, _dpr));
       renderer.shadowMap.enabled = (Q !== 'low');
@@ -130,6 +138,19 @@
       canvas.setAttribute('aria-label', 'Three dimensional world. Drag or use the arrow keys to orbit, plus and minus to zoom.');
       const onContextLost = (e) => { e.preventDefault(); mount.classList.add('vp3d-lost'); };
       canvas.addEventListener('webglcontextlost', onContextLost, false);
+      // A lost context used to be terminal: the notice appeared and 3D stayed
+      // dead until the whole viewport remounted. GPU resets are routine on the
+      // laptops this is aimed at (lid close, sleep, driver recovery, switching
+      // graphics), so honour the restore event. preventDefault() above is what
+      // makes the browser willing to send it. Rebuilding the scene graph from
+      // here is not safe mid-teardown, so ask the host to remount cleanly.
+      const onContextRestored = () => {
+        mount.classList.remove('vp3d-lost');
+        try {
+          window.dispatchEvent(new CustomEvent('kodro-webgl-restored'));
+        } catch (err) { void err; }
+      };
+      canvas.addEventListener('webglcontextrestored', onContextRestored, false);
       mount.appendChild(canvas);
 
       // Cinematic post-processing (offline bloom + vignette). Gated to the
@@ -1816,6 +1837,11 @@
           actual240FpsGuaranteed: false,
           actualFpsBoundary: 'Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.',
           quality: downgraded ? 'low-adaptive' : (window.KODRO_QUALITY || Q),
+          // What actually rasterises these frames. A software figure is not
+          // comparable to a hardware one, so any fps number quoted from this
+          // report has to carry the class alongside it or it overstates the
+          // result. 'unknown' when the browser withholds the renderer string.
+          rendererClass: (window.KODRO_GPU_CAPS && window.KODRO_GPU_CAPS.rendererClass) || 'unknown',
           downgraded,
         };
         try { window.KodroPerformance = report; } catch (e) { void e; }
@@ -2087,6 +2113,7 @@
         dom.removeEventListener('wheel', onWheel);
         dom.removeEventListener('keydown', onKey);
         canvas.removeEventListener('webglcontextlost', onContextLost);
+        canvas.removeEventListener('webglcontextrestored', onContextRestored);
         trailGeo.dispose();
         renderer.dispose();
         // The PMREM environment map is a render-target texture and is not a

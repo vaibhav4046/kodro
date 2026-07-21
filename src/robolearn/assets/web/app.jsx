@@ -626,8 +626,18 @@
         // can still step down further, and the user can pick any tier.
         const mem = (navigator && navigator.deviceMemory) || 8;
         const cores = (navigator && navigator.hardwareConcurrency) || 8;
-        if (mem <= 2 || cores <= 2) return 'low';
-        return (mem <= 4 || cores <= 4) ? 'med' : 'high';
+        const cpuTier = (mem <= 2 || cores <= 2) ? 'low' : ((mem <= 4 || cores <= 4) ? 'med' : 'high');
+        // deviceMemory and hardwareConcurrency describe the CPU and RAM, never
+        // the GPU, so a box with plenty of both but only software GL (a VM, a
+        // remote session, a missing driver) still landed on 'high' and crawled
+        // until the frame monitor reacted seconds later. Ask what actually
+        // rasterises the pixels. recommendedTier only ever lowers cpuTier.
+        if (window.KodroGpuCaps && window.KodroGpuCaps.detect) {
+          const caps = window.KodroGpuCaps.detect();
+          try { window.KODRO_GPU_CAPS = caps; } catch (err) { void err; }
+          return window.KodroGpuCaps.recommendedTier(cpuTier, caps);
+        }
+        return cpuTier;
       } catch (e) { return 'high'; }
     });
     // Lessons carry UK Key Stage codes; parents and pupils outside that system
@@ -637,6 +647,16 @@
     // Bumped each time the user explicitly opens the 3D view, so the canvas can
     // take focus (keyboard orbit) without stealing focus on the initial load.
     const [focus3dKey, setFocus3dKey] = useState(0);
+    // Bumped when the GPU hands the context back after a reset (lid close,
+    // sleep, driver recovery). The scene graph cannot be rebuilt safely from
+    // inside the lost context, so the viewport is remounted against a fresh
+    // one instead of leaving the learner staring at a dead panel.
+    const [glEpoch, setGlEpoch] = useState(0);
+    useEffect(() => {
+      const onRestored = () => setGlEpoch((n) => n + 1);
+      window.addEventListener('kodro-webgl-restored', onRestored);
+      return () => window.removeEventListener('kodro-webgl-restored', onRestored);
+    }, []);
     // Robot Lab: design a custom robot whose spec drives the simulation.
     const [robotLabOpen, setRobotLabOpen] = useState(false);
     // One product, three decisions. This first redesign layer keeps the proven
@@ -2102,7 +2122,7 @@
               </div>
             </div>
             {view3d
-              ? <window.Viewport3D key={'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + '-' + ((terrain && terrain.tod) || 'noon') + '-' + ((terrain && terrain.weather) || 'clear') + (quality === 'cinematic' ? '-cine' : '-std')} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the flat view.', 'sys'); }} />
+              ? <window.Viewport3D key={'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + '-' + ((terrain && terrain.tod) || 'noon') + '-' + ((terrain && terrain.weather) || 'clear') + (quality === 'cinematic' ? '-cine' : '-std') + '-gl' + glEpoch} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the flat view.', 'sys'); }} />
               : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
             {worldLoading && (
               <div className="world-loading" role="status" aria-live="polite" aria-label={'Loading ' + worldLoading.name}>

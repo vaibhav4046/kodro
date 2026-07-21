@@ -63,3 +63,7 @@ src/robolearn/assets/web/cap.html
 
 # Kodro autonomy: track handoff, ignore local evidence stream
 .kodro/autonomy/EVIDENCE.jsonl
+
+# Headless-Chrome profiles and scratch output from the QA harnesses
+# (qa_performance.mjs, qa_ui.mjs). Thousands of files; never source.
+tmp/
