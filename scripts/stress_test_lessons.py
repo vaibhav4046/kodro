@@ -59,6 +59,12 @@ def _snapshot(rover: Rover) -> RoverSnapshot:
         samples_held=s.samples_held,
         samples_collected=s.samples_collected,
         collisions=s.collisions,
+        # Without this the snapshot defaulted distance to 0.0, so the grader's
+        # min_distance check (grader._compute_aggregates reads
+        # rover_state.distance_travelled_m) always saw "Travelled 0.0 m" and
+        # this harness falsely failed every distance lesson. The web bridge's
+        # _snapshot already carries it; this dev copy had drifted.
+        distance_travelled_m=s.distance_travelled_m,
     )
 
 
