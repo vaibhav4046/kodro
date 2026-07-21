@@ -29,6 +29,7 @@ from robolearn.memory.achievements import (
 from robolearn.memory.hint_engine import HintContext, find_first_hint
 from robolearn.memory.pupil_model import (
     attempted_lesson_ids,
+    get_strengths,
     suggest_next_lesson,
     update_on_submission,
 )
@@ -308,6 +309,10 @@ def build_app(
 
     with contextlib.suppress(Exception):
         lessons_panel.set_completed(attempted_lesson_ids(store, pupil.id))
+    # Populate the "Your progress" drawer at startup too, so a returning pupil
+    # sees their concept strengths before running anything.
+    with contextlib.suppress(Exception):
+        lessons_panel.update_pupil_memory(get_strengths(store, pupil.id))
     sim.set_world(world, rover)
     sensors.update_from_rover(rover)
     console.log("Kodro ready. Pick a lesson on the right, write code, press Run.")
@@ -897,6 +902,12 @@ def _finish_run(app: App, console: ConsolePanel) -> None:
         app.lessons_panel.set_lessons(app.lessons)
         with contextlib.suppress(Exception):
             app.lessons_panel.set_completed(attempted_lesson_ids(app.store, app.pupil_id))
+        # Fill the "Your progress" concept drawer. Its only writer,
+        # update_pupil_memory, was never called anywhere, so the labelled box
+        # stayed permanently blank even after the store had concept-strength
+        # rows -- a dead labelled control promising progress it never showed.
+        with contextlib.suppress(Exception):
+            app.lessons_panel.update_pupil_memory(get_strengths(app.store, app.pupil_id))
 
     # 9) Refresh the at-a-glance progress strip (streak / passed / score).
     _refresh_progress(app)
