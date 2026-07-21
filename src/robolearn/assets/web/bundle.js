@@ -16329,10 +16329,10 @@ Object.assign(window, {
     "00_first_drive": {
       "world": {
         "base": [1, 1],
-        "height": 6,
-        "obstacles": [],
         "samples": [],
-        "width": 6
+        "obstacles": [],
+        "width": 6,
+        "height": 6
       },
       "criteria": [{
         "min_distance_travelled": 3
@@ -16353,6 +16353,8 @@ Object.assign(window, {
         "height": 8
       },
       "criteria": [{
+        "min_distance_travelled": 6
+      }, {
         "uses_construct": "for"
       }, {
         "no_collisions": true
@@ -16375,6 +16377,8 @@ Object.assign(window, {
         "height": 6
       },
       "criteria": [{
+        "min_distance_travelled": 2.5
+      }, {
         "uses_construct": "if"
       }, {
         "no_collisions": true
@@ -16387,12 +16391,14 @@ Object.assign(window, {
     "01_hello_rover": {
       "world": {
         "base": [1, 1],
-        "height": 6,
-        "obstacles": [],
         "samples": [],
-        "width": 6
+        "obstacles": [],
+        "width": 6,
+        "height": 6
       },
       "criteria": [{
+        "min_distance_travelled": 1.5
+      }, {
         "max_battery_used": 5
       }, {
         "no_collisions": true
@@ -16405,10 +16411,10 @@ Object.assign(window, {
     "02_move_turn": {
       "world": {
         "base": [1, 1],
-        "height": 6,
-        "obstacles": [],
         "samples": [[4, 4]],
-        "width": 6
+        "obstacles": [],
+        "width": 6,
+        "height": 6
       },
       "criteria": [{
         "samples_collected": 1
@@ -16425,10 +16431,10 @@ Object.assign(window, {
     "03_sequence": {
       "world": {
         "base": [1, 1],
-        "height": 6,
-        "obstacles": [],
         "samples": [[1, 3]],
-        "width": 6
+        "obstacles": [],
+        "width": 6,
+        "height": 6
       },
       "criteria": [{
         "samples_collected": 1
@@ -16445,14 +16451,14 @@ Object.assign(window, {
     "04_selection": {
       "world": {
         "base": [1, 1],
-        "height": 6,
-        "obstacles": [{
-          "r": 0.4,
-          "x": 3,
-          "y": 1
-        }],
         "samples": [[5, 1]],
-        "width": 6
+        "obstacles": [{
+          "x": 3,
+          "y": 1,
+          "r": 0.4
+        }],
+        "width": 6,
+        "height": 6
       },
       "criteria": [{
         "samples_collected": 1
@@ -16469,14 +16475,14 @@ Object.assign(window, {
     "05_iteration": {
       "world": {
         "base": [1, 5],
-        "height": 8,
-        "obstacles": [{
-          "r": 0.3,
-          "x": 8,
-          "y": 5.5
-        }],
         "samples": [[3, 6], [4.5, 5.4], [6, 6.4]],
-        "width": 10
+        "obstacles": [{
+          "x": 8,
+          "y": 5.5,
+          "r": 0.3
+        }],
+        "width": 10,
+        "height": 8
       },
       "criteria": [{
         "samples_collected": 3
@@ -16495,10 +16501,10 @@ Object.assign(window, {
     "06_functions": {
       "world": {
         "base": [3, 3],
-        "height": 8,
-        "obstacles": [],
         "samples": [[5, 3], [5, 5], [3, 5], [3, 3]],
-        "width": 8
+        "obstacles": [],
+        "width": 8,
+        "height": 8
       },
       "criteria": [{
         "samples_collected": 4
@@ -16515,10 +16521,10 @@ Object.assign(window, {
     "07_sensors": {
       "world": {
         "base": [1, 1],
-        "height": 6,
-        "obstacles": [],
         "samples": [[5, 1]],
-        "width": 6
+        "obstacles": [],
+        "width": 6,
+        "height": 6
       },
       "criteria": [{
         "samples_collected": 1
@@ -16533,14 +16539,14 @@ Object.assign(window, {
     "08_pathfinding": {
       "world": {
         "base": [1, 5],
-        "height": 10,
-        "obstacles": [{
-          "r": 0.4,
-          "x": 5,
-          "y": 5
-        }],
         "samples": [[9, 5]],
-        "width": 10
+        "obstacles": [{
+          "x": 5,
+          "y": 5,
+          "r": 0.4
+        }],
+        "width": 10,
+        "height": 10
       },
       "criteria": [{
         "samples_collected": 1
@@ -16557,12 +16563,14 @@ Object.assign(window, {
     "09_recursion": {
       "world": {
         "base": [5, 5],
-        "height": 10,
-        "obstacles": [],
         "samples": [],
-        "width": 10
+        "obstacles": [],
+        "width": 10,
+        "height": 10
       },
       "criteria": [{
+        "min_distance_travelled": 8
+      }, {
         "max_battery_used": 80
       }, {
         "no_collisions": true
@@ -16577,10 +16585,10 @@ Object.assign(window, {
     "10_optimisation": {
       "world": {
         "base": [1, 1],
-        "height": 8,
-        "obstacles": [],
         "samples": [[2, 6], [5, 5], [7, 2]],
-        "width": 10
+        "obstacles": [],
+        "width": 10,
+        "height": 8
       },
       "criteria": [{
         "samples_collected": 3
@@ -16597,10 +16605,10 @@ Object.assign(window, {
     "11_decomposition": {
       "world": {
         "base": [1, 1],
-        "height": 10,
-        "obstacles": [],
         "samples": [[4, 1], [4, 4]],
-        "width": 10
+        "obstacles": [],
+        "width": 10,
+        "height": 10
       },
       "criteria": [{
         "samples_collected": 2
@@ -16617,14 +16625,14 @@ Object.assign(window, {
     "12_abstraction": {
       "world": {
         "base": [5, 1],
-        "height": 10,
-        "obstacles": [{
-          "r": 0.6,
-          "x": 5,
-          "y": 4
-        }],
         "samples": [],
-        "width": 10
+        "obstacles": [{
+          "x": 5,
+          "y": 4,
+          "r": 0.6
+        }],
+        "width": 10,
+        "height": 10
       },
       "criteria": [{
         "no_collisions": true
@@ -16661,10 +16669,10 @@ Object.assign(window, {
     "14_counting": {
       "world": {
         "base": [1, 1],
-        "height": 10,
-        "obstacles": [],
         "samples": [[3, 1], [5, 1], [7, 1]],
-        "width": 10
+        "obstacles": [],
+        "width": 10,
+        "height": 10
       },
       "criteria": [{
         "samples_collected": 3
@@ -16681,10 +16689,10 @@ Object.assign(window, {
     "15_parameters": {
       "world": {
         "base": [1, 1],
-        "height": 10,
-        "obstacles": [],
         "samples": [[3, 1], [6, 1], [8, 1]],
-        "width": 10
+        "obstacles": [],
+        "width": 10,
+        "height": 10
       },
       "criteria": [{
         "samples_collected": 3
@@ -23995,6 +24003,28 @@ say("Survey done")`
     }
     return false;
   }
+  // Where the code is going, decided BEFORE the answer comes back.
+  //
+  // The result line below is already honest about a hosted reviewer, but the
+  // in-flight line said "on this machine" unconditionally -- so during the one
+  // moment the upload is actually happening, a BYOK pupil was told the exact
+  // opposite of the truth. The earlier fix for this (see providerIsLocal
+  // above, judge HIGH-2) corrected the settled label and missed the pending
+  // one. A cloud model is only ever used when a key is present and the active
+  // provider is not local, which mirrors the cloudReady() gate the request
+  // path itself applies.
+  function pendingReviewLabel() {
+    try {
+      const cfg = window.KodroProviders && window.KodroProviders.config ? window.KodroProviders.config() : null;
+      if (cfg && cfg.cloudReady && !cfg.local) {
+        const who = providerName(cfg.provider);
+        return 'Sending your code to ' + who + ' for a second opinion. It is leaving this machine…';
+      }
+    } catch (e) {
+      void e;
+    }
+    return 'A second AI is reading your code on this machine…';
+  }
   // Short, human display name for a provider source used in the labels above.
   function providerName(source) {
     const NAMES = {
@@ -24473,7 +24503,7 @@ say("Survey done")`
       "aria-live": "polite"
     }, reviewBusy && /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, "A second AI is reading your code on this machine\u2026"), reviewErr && /*#__PURE__*/React.createElement("p", {
+    }, pendingReviewLabel()), reviewErr && /*#__PURE__*/React.createElement("p", {
       className: "vibe-error",
       role: "alert"
     }, reviewErr), reviewData && !reviewBusy && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
@@ -27665,6 +27695,29 @@ say("Survey done")`
     } catch (e) {
       void e;
     }
+    // Spoken summary of a settled run.
+    //
+    // Every region that carried real run information could be unmounted at
+    // once: the console (role=log) only exists in the expert layout and is
+    // replaced by the Runs panel, and the telemetry live region is display:none
+    // in the default simple experience. That left a blind learner pressing Run
+    // and hearing an outcome word with no measurement behind it -- the whole
+    // feedback loop this product teaches. This region is mounted unconditionally
+    // so it survives every panel toggle, and it must already be in the DOM
+    // before its text changes or the first run would not announce at all.
+    //
+    // Built from the same expressions the visible result panel renders, so the
+    // spoken numbers cannot drift from the shown ones. Recomputed only when a
+    // run settles, never per frame, so it does not chatter mid-run.
+    const runAnnouncement = useMemo(() => {
+      if (runState === 'running' || runState === 'paused' || !simpleLatestRun) return '';
+      const r = simpleLatestRun;
+      const dist = r.distanceCm != null ? 'travelled ' + (r.distanceCm / 100).toFixed(1) + ' metres' : 'distance not recorded';
+      const batt = r.batteryUsedPct != null ? r.batteryUsedPct + ' percent battery used' : 'battery not recorded';
+      const prox = r.minProximityCm != null ? 'closest obstacle ' + r.minProximityCm + ' centimetres' : 'nothing came close';
+      const where = (r.robotName || 'Robot') + ' in ' + (r.worldName || r.world || 'the selected world');
+      return [simpleOutcomeLabel, simpleLatestVerdict || r.detail || '', dist, batt, prox, where].filter(Boolean).join('. ') + '.';
+    }, [runState, simpleLatestRun, simpleOutcomeLabel, simpleLatestVerdict]);
     function downloadPrototypeBrief() {
       const esc = function (v) {
         return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) {
@@ -28175,6 +28228,11 @@ say("Survey done")`
         ['--tele-w']: teleW + 'px'
       }
     }, /*#__PURE__*/React.createElement("div", {
+      className: "sr-only",
+      role: "status",
+      "aria-live": "polite",
+      "aria-atomic": "true"
+    }, runAnnouncement), /*#__PURE__*/React.createElement("div", {
       className: "panel",
       style: {
         gridColumn: 1

@@ -1,0 +1,35 @@
+<!doctype html><meta charset=utf8>
+<iframe id=f src="http://localhost:8099/cap.html?onb=1&step=2" style="width:1280px;height:800px"></iframe>
+<pre id=out></pre>
+<script>
+const out=document.getElementById('out');
+function log(s){out.textContent+=s+"\n";}
+window.addEventListener('load',()=>setTimeout(()=>{
+ try{
+  const doc=document.getElementById('f').contentDocument;
+  const win=document.getElementById('f').contentWindow;
+  const onb=doc.querySelector('.konb-root[aria-modal="true"]');
+  log('onboarding modal present: '+!!onb);
+  log('aria-modal='+(onb&&onb.getAttribute('aria-modal')));
+  // Is there an app-level Tab trap that keeps focus inside onboarding?
+  // Enumerate tabbable elements INSIDE onb vs OUTSIDE onb but in the app.
+  const sel='a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  const all=[...doc.querySelectorAll(sel)].filter(e=>e.offsetParent!==null||e.getClientRects().length);
+  const inside=all.filter(e=>onb&&onb.contains(e));
+  const outside=all.filter(e=>!onb||!onb.contains(e));
+  log('tabbable INSIDE onboarding: '+inside.length);
+  log('tabbable OUTSIDE onboarding (background, still reachable by Tab): '+outside.length);
+  log('sample outside: '+outside.slice(0,6).map(e=>(e.getAttribute('aria-label')||e.textContent||'').trim().slice(0,18)).join(' | '));
+  // Simulate focusing the LAST inside element then a Tab keydown; see if a trap intercepts.
+  if(inside.length){
+    const last=inside[inside.length-1];
+    last.focus();
+    log('focused last-inside: '+(doc.activeElement===last));
+    // Dispatch Tab; a proper trap would preventDefault and wrap to first-inside.
+    const ev=new win.KeyboardEvent('keydown',{key:'Tab',bubbles:true,cancelable:true});
+    doc.dispatchEvent(ev);
+    log('Tab defaultPrevented by a trap? '+ev.defaultPrevented);
+  }
+ }catch(e){log('ERR '+e.message);}
+},6500));
+</script>

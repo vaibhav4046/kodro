@@ -34,6 +34,7 @@ world:
   width: 8.0
   height: 8.0
 success_criteria:
+  - min_distance_travelled: 6.0
   - uses_construct: for
   - no_collisions: true
 hints:

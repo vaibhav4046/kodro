@@ -1433,6 +1433,30 @@
         simpleLatestVerdict = (refreshed && refreshed.text) || '';
       }
     } catch (e) { void e; }
+    // Spoken summary of a settled run.
+    //
+    // Every region that carried real run information could be unmounted at
+    // once: the console (role=log) only exists in the expert layout and is
+    // replaced by the Runs panel, and the telemetry live region is display:none
+    // in the default simple experience. That left a blind learner pressing Run
+    // and hearing an outcome word with no measurement behind it -- the whole
+    // feedback loop this product teaches. This region is mounted unconditionally
+    // so it survives every panel toggle, and it must already be in the DOM
+    // before its text changes or the first run would not announce at all.
+    //
+    // Built from the same expressions the visible result panel renders, so the
+    // spoken numbers cannot drift from the shown ones. Recomputed only when a
+    // run settles, never per frame, so it does not chatter mid-run.
+    const runAnnouncement = useMemo(() => {
+      if (runState === 'running' || runState === 'paused' || !simpleLatestRun) return '';
+      const r = simpleLatestRun;
+      const dist = r.distanceCm != null ? 'travelled ' + (r.distanceCm / 100).toFixed(1) + ' metres' : 'distance not recorded';
+      const batt = r.batteryUsedPct != null ? r.batteryUsedPct + ' percent battery used' : 'battery not recorded';
+      const prox = r.minProximityCm != null ? 'closest obstacle ' + r.minProximityCm + ' centimetres' : 'nothing came close';
+      const where = (r.robotName || 'Robot') + ' in ' + (r.worldName || r.world || 'the selected world');
+      return [simpleOutcomeLabel, simpleLatestVerdict || r.detail || '', dist, batt, prox, where]
+        .filter(Boolean).join('. ') + '.';
+    }, [runState, simpleLatestRun, simpleOutcomeLabel, simpleLatestVerdict]);
     function downloadPrototypeBrief() {
       const esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]; }); };
       const runs = browserRuns.slice(0, 12);
@@ -1661,6 +1685,10 @@
 
         {/* ---- workspace ---- */}
         <main id="editor-main" tabIndex={-1} className="workspace" style={{ ['--editor-w']: editorW + 'px', ['--tele-w']: teleW + 'px' }}>
+          {/* Always mounted, outside every panel toggle: see runAnnouncement.
+              .sr-only is clip-based, not display:none, so it stays in the
+              accessibility tree while taking no visual space. */}
+          <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{runAnnouncement}</div>
           {/* left column: editor + console */}
           <div className="panel" style={{ gridColumn: 1 }}>
             {showSimpleCockpit && (

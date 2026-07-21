@@ -29,6 +29,7 @@ world:
   width: 10.0
   height: 10.0
 success_criteria:
+  - min_distance_travelled: 8.0
   - max_battery_used: 80.0
   - no_collisions: true
   - uses_construct: recursion

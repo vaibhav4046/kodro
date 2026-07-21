@@ -32,6 +32,27 @@
     } catch (e) { void e; }
     return false;
   }
+  // Where the code is going, decided BEFORE the answer comes back.
+  //
+  // The result line below is already honest about a hosted reviewer, but the
+  // in-flight line said "on this machine" unconditionally -- so during the one
+  // moment the upload is actually happening, a BYOK pupil was told the exact
+  // opposite of the truth. The earlier fix for this (see providerIsLocal
+  // above, judge HIGH-2) corrected the settled label and missed the pending
+  // one. A cloud model is only ever used when a key is present and the active
+  // provider is not local, which mirrors the cloudReady() gate the request
+  // path itself applies.
+  function pendingReviewLabel() {
+    try {
+      const cfg = window.KodroProviders && window.KodroProviders.config
+        ? window.KodroProviders.config() : null;
+      if (cfg && cfg.cloudReady && !cfg.local) {
+        const who = providerName(cfg.provider);
+        return 'Sending your code to ' + who + ' for a second opinion. It is leaving this machine…';
+      }
+    } catch (e) { void e; }
+    return 'A second AI is reading your code on this machine…';
+  }
   // Short, human display name for a provider source used in the labels above.
   function providerName(source) {
     const NAMES = { groq: 'Groq', openrouter: 'OpenRouter', ollama: 'Ollama' };
@@ -365,7 +386,7 @@
             <button className="btn-mini" aria-label="Close" onClick={() => setReviewOpen(false)}>✕</button>
           </div>
           <div className="review-body" role="status" aria-live="polite">
-            {reviewBusy && <p className="vibe-status">A second AI is reading your code on this machine…</p>}
+            {reviewBusy && <p className="vibe-status">{pendingReviewLabel()}</p>}
             {reviewErr && <p className="vibe-error" role="alert">{reviewErr}</p>}
             {reviewData && !reviewBusy && (
               <div>

@@ -258,5 +258,28 @@ console.log('\n== BOUNDED TOOL CALL (OPP-7) ==');
   check('non-whitelisted tool rejected (null)', (await AI.toolCall('do it', TOOLS)) === null, '');
 }
 
+// --- provider-locality honesty in PENDING states -----------------------------
+// The settled labels were corrected once already (judge HIGH-2) while the
+// in-flight one kept saying "on this machine" unconditionally, which is the
+// exact moment a BYOK pupil's code is leaving the machine. Assert the
+// invariant -- no in-flight label may hardcode a locality claim -- rather than
+// pinning the wording, so a future rewrite still has to consult the provider.
+{
+  const panels = web('panels.jsx');
+
+  const busyLines = panels.split('\n').filter((l) => /Busy &&/.test(l));
+  const lying = busyLines.filter((l) => /on this machine|entirely offline|nothing leaves/i.test(l));
+  check('no in-flight AI label hardcodes a locality claim',
+    lying.length === 0, lying.join(' | '));
+
+  check('the pending review label consults the active provider',
+    /function pendingReviewLabel\(\)[\s\S]{0,400}KodroProviders[\s\S]{0,200}cloudReady/.test(panels),
+    'pendingReviewLabel must read KodroProviders.config().cloudReady/local');
+
+  check('the pending review label can name a hosted provider',
+    /function pendingReviewLabel\(\)[\s\S]{0,600}providerName\(/.test(panels),
+    'pendingReviewLabel must be able to name the provider it is sending to');
+}
+
 console.log('\n== RESULT: ' + pass + ' passed, ' + fail + ' failed ==');
 if (fail) { console.log('FAILURES:'); fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

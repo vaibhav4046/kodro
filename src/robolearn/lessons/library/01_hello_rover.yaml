@@ -25,6 +25,7 @@ world:
   width: 6.0
   height: 6.0
 success_criteria:
+  - min_distance_travelled: 1.5
   - max_battery_used: 5.0
   - no_collisions: true
 hints:

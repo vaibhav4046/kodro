@@ -1,0 +1,27 @@
+<!doctype html><meta charset=utf8>
+<iframe id=f src="http://localhost:8099/cap.html" style="width:1280px;height:800px"></iframe>
+<pre id=out></pre>
+<script>
+const out=document.getElementById('out');
+function log(s){out.textContent+=s+"\n";}
+window.addEventListener('load',()=>setTimeout(()=>{
+ try{
+  const doc=document.getElementById('f').contentDocument;
+  const win=document.getElementById('f').contentWindow;
+  const skip=doc.querySelector('.skip-link');
+  skip.focus();
+  log('skip focused: '+(doc.activeElement===skip));
+  win.location.hash='editor-main';
+  setTimeout(()=>{
+     log('after hash nav, activeElement='+doc.activeElement.tagName+' id='+(doc.activeElement.id||'(none)'));
+     log('is editor-main focused? '+(doc.activeElement.id==='editor-main'));
+     const teleRes=[...doc.querySelectorAll('.resizer')].find(r=>(r.getAttribute('aria-label')||'').includes('telemetry'));
+     if(teleRes){
+       const before=teleRes.getAttribute('aria-valuenow');
+       teleRes.dispatchEvent(new win.KeyboardEvent('keydown',{key:'ArrowLeft',bubbles:true}));
+       setTimeout(()=>{ log('tele resizer valuenow before='+before+' after ArrowLeft='+teleRes.getAttribute('aria-valuenow')); },400);
+     } else { log('no tele resizer found'); }
+  },250);
+ }catch(e){log('ERR '+e.message);}
+},6000));
+</script>
