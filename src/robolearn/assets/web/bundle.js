@@ -1088,11 +1088,16 @@
       return fallback;
     }
   }
+  // Reports whether the value actually landed. It used to swallow the throw
+  // and return nothing, which let apply() declare success after a quota or
+  // private-mode failure had dropped an arbitrary subset of the document.
   function write(key, value) {
     try {
       store().setItem(key, value);
+      return true;
     } catch (e) {
       void e;
+      return false;
     }
   }
   function collect() {
@@ -1321,14 +1326,24 @@
       };
     }
     var doc = res.doc;
-    write(KEYS.world, doc.world);
-    write(KEYS.tab, doc.tab);
-    write(KEYS.tod, doc.tod);
-    write(KEYS.weather, doc.weather);
-    write(KEYS.quality, doc.quality);
-    write(KEYS.view3d, doc.view3d);
-    write(KEYS.mode, doc.mode);
-    write(KEYS.theme, doc.theme);
+    // Storage can refuse a write at any point: quota exhausted part-way
+    // through a large document, or private mode refusing all of them. The
+    // writes are not transactional and cannot be rolled back once some have
+    // landed, so the only honest option is to notice and say so. Reporting
+    // ok:true here meant the caller announced "Project loaded" and reloaded
+    // the studio into a half-applied mixture of the old and new documents.
+    var failed = [];
+    function put(key, value) {
+      if (!write(key, value)) failed.push(key);
+    }
+    put(KEYS.world, doc.world);
+    put(KEYS.tab, doc.tab);
+    put(KEYS.tod, doc.tod);
+    put(KEYS.weather, doc.weather);
+    put(KEYS.quality, doc.quality);
+    put(KEYS.view3d, doc.view3d);
+    put(KEYS.mode, doc.mode);
+    put(KEYS.theme, doc.theme);
     if (doc.spec) {
       // A catalogue spec routes through the Lab's validate-then-save (parts
       // are checked against the catalogue, unknown ids dropped). A measured
@@ -1338,16 +1353,27 @@
       if (!doc.spec.physical && window.RobotLab && window.RobotLab.applySpec) {
         window.RobotLab.applySpec(doc.spec);
       } else {
-        write(KEYS.spec, JSON.stringify(doc.spec));
+        put(KEYS.spec, JSON.stringify(doc.spec));
       }
     }
-    write(KEYS.programs, JSON.stringify(doc.programs));
-    write(KEYS.reflections, JSON.stringify(doc.memory.reflections));
-    write(KEYS.skills, JSON.stringify(doc.memory.skills));
-    write(KEYS.scenarios, JSON.stringify(doc.scenarioReports));
-    write(KEYS.runReports, JSON.stringify(doc.runReports));
+    put(KEYS.programs, JSON.stringify(doc.programs));
+    put(KEYS.reflections, JSON.stringify(doc.memory.reflections));
+    put(KEYS.skills, JSON.stringify(doc.memory.skills));
+    put(KEYS.scenarios, JSON.stringify(doc.scenarioReports));
+    put(KEYS.runReports, JSON.stringify(doc.runReports));
+    if (failed.length) {
+      return {
+        ok: false,
+        partial: true,
+        failedKeys: failed,
+        warnings: res.warnings,
+        errors: ['This device refused to store ' + failed.length + ' of the project\'s ' + 'settings, so only part of it was applied. Storage is probably full ' + 'or disabled. Free some space and open the file again.']
+      };
+    }
     return {
       ok: true,
+      partial: false,
+      failedKeys: [],
       warnings: res.warnings,
       errors: []
     };
@@ -21425,7 +21451,16 @@ Object.assign(window, {
       const r = window.KodroProject.apply(text);
       if (!r.ok) {
         addConsole('Project open failed: ' + (r.errors || []).join(' '), 'err');
-        showToast('Not a Kodro project file', 'err');
+        // A partial write is not the same failure as a bad file: the document
+        // was valid and some of it already landed. Saying "Not a Kodro project
+        // file" would be wrong, and reloading would commit the studio to the
+        // half-applied mixture, so neither happens here.
+        if (r.partial) {
+          showToast('Project only partly loaded: this device is out of storage', 'err');
+          addConsole('Storage rejected ' + (r.failedKeys || []).length + ' item(s). ' + 'The studio has NOT been restarted, so what you see is still the previous ' + 'project. Free some space and open the file again.', 'err');
+        } else {
+          showToast('Not a Kodro project file', 'err');
+        }
         return;
       }
       (r.warnings || []).forEach(w => addConsole('Project: ' + w, 'sys'));
@@ -25552,6 +25587,41 @@ say("Survey done")`
   const WALL = TERRAINS.WALL;
   const RobotLab = window.RobotLab;
   const R_DEFAULT = 30; // rover collision radius (cm) for catalogue builds
+  // Persist something the PUPIL made, and say so when it does not land.
+  //
+  // The stores that hold progress and run reports already announce a failed
+  // write (see the kodro-storage-failed listener below), but the pupil's own
+  // code buffers and lesson results were still written with an empty catch --
+  // the one category where a silent loss costs them work they typed. UI
+  // preferences deliberately keep swallowing: losing a theme is cosmetic and
+  // warning about it would bury the message that matters.
+  //
+  // Warned once per key: these run on every edit, so an out-of-space device
+  // would otherwise raise a toast on every keystroke. The flag clears as soon
+  // as a write succeeds, so a later failure is reported again.
+  const _storageWarned = Object.create(null);
+  function persistWork(key, value, label) {
+    try {
+      localStorage.setItem(key, value);
+      delete _storageWarned[key];
+      return true;
+    } catch (e) {
+      void e;
+      if (!_storageWarned[key]) {
+        _storageWarned[key] = true;
+        try {
+          window.dispatchEvent(new CustomEvent('kodro-storage-failed', {
+            detail: {
+              what: label
+            }
+          }));
+        } catch (err) {
+          void err;
+        }
+      }
+      return false;
+    }
+  }
   // Live check (re-evaluated per move) so toggling the OS setting takes effect.
   const PREFERS_REDUCED_MOTION = () => typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
 
@@ -27105,16 +27175,10 @@ say("Survey done")`
       }
     }, [activeTab]);
     useEffect(() => {
-      try {
-        localStorage.setItem('or_programs', JSON.stringify(programs));
-      } catch (e) {}
+      persistWork('or_programs', JSON.stringify(programs), 'your programs');
     }, [programs]);
     useEffect(() => {
-      try {
-        localStorage.setItem('or_lesson_buffers', JSON.stringify(lessonBuffers));
-      } catch (e) {
-        void e;
-      }
+      persistWork('or_lesson_buffers', JSON.stringify(lessonBuffers), 'your lesson code');
     }, [lessonBuffers]);
     // Mirror the live editor buffer so surfaces rendered outside App (the
     // Robot Lab's exported verification report) can apply the SAME
@@ -27130,11 +27194,7 @@ say("Survey done")`
       // Persist under the identity whose data this is (stamped at reload time),
       // so a pupil switch can never file one learner's results under another.
       const key = lessonResultsPupilRef.current ? 'or_lesson_results__' + lessonResultsPupilRef.current : 'or_lesson_results';
-      try {
-        localStorage.setItem(key, JSON.stringify(lessonResults));
-      } catch (e) {
-        void e;
-      }
+      persistWork(key, JSON.stringify(lessonResults), 'your lesson results');
     }, [lessonResults]);
 
     // (addConsole now lives in useConsoleToast, destructured near the top.)

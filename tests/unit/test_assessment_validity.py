@@ -44,7 +44,9 @@ IDLE_PROGRAMS = {
     "for-noop": "for _i in range(1):\n    pass\n",
     "if-noop": "if False:\n    pass\n",
     "while-noop": "while False:\n    pass\n",
-    "recursion-noop": ("def f(n):\n    if n <= 0:\n        return 0\n    return f(n - 1)\n\nf(3)\n"),
+    "recursion-noop": (
+        "def f(n):\n    if n <= 0:\n        return 0\n    return f(n - 1)\n\nf(3)\n"
+    ),
 }
 
 

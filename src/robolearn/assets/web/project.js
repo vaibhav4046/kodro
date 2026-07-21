@@ -63,8 +63,11 @@
       return raw == null ? fallback : String(raw);
     } catch (e) { return fallback; }
   }
+  // Reports whether the value actually landed. It used to swallow the throw
+  // and return nothing, which let apply() declare success after a quota or
+  // private-mode failure had dropped an arbitrary subset of the document.
   function write(key, value) {
-    try { store().setItem(key, value); } catch (e) { void e; }
+    try { store().setItem(key, value); return true; } catch (e) { void e; return false; }
   }
 
   function collect() {
@@ -243,14 +246,22 @@
       if (!res.ok) return { ok: false, warnings: res.warnings, errors: res.errors };
     }
     var doc = res.doc;
-    write(KEYS.world, doc.world);
-    write(KEYS.tab, doc.tab);
-    write(KEYS.tod, doc.tod);
-    write(KEYS.weather, doc.weather);
-    write(KEYS.quality, doc.quality);
-    write(KEYS.view3d, doc.view3d);
-    write(KEYS.mode, doc.mode);
-    write(KEYS.theme, doc.theme);
+    // Storage can refuse a write at any point: quota exhausted part-way
+    // through a large document, or private mode refusing all of them. The
+    // writes are not transactional and cannot be rolled back once some have
+    // landed, so the only honest option is to notice and say so. Reporting
+    // ok:true here meant the caller announced "Project loaded" and reloaded
+    // the studio into a half-applied mixture of the old and new documents.
+    var failed = [];
+    function put(key, value) { if (!write(key, value)) failed.push(key); }
+    put(KEYS.world, doc.world);
+    put(KEYS.tab, doc.tab);
+    put(KEYS.tod, doc.tod);
+    put(KEYS.weather, doc.weather);
+    put(KEYS.quality, doc.quality);
+    put(KEYS.view3d, doc.view3d);
+    put(KEYS.mode, doc.mode);
+    put(KEYS.theme, doc.theme);
     if (doc.spec) {
       // A catalogue spec routes through the Lab's validate-then-save (parts
       // are checked against the catalogue, unknown ids dropped). A measured
@@ -260,15 +271,28 @@
       if (!doc.spec.physical && window.RobotLab && window.RobotLab.applySpec) {
         window.RobotLab.applySpec(doc.spec);
       } else {
-        write(KEYS.spec, JSON.stringify(doc.spec));
+        put(KEYS.spec, JSON.stringify(doc.spec));
       }
     }
-    write(KEYS.programs, JSON.stringify(doc.programs));
-    write(KEYS.reflections, JSON.stringify(doc.memory.reflections));
-    write(KEYS.skills, JSON.stringify(doc.memory.skills));
-    write(KEYS.scenarios, JSON.stringify(doc.scenarioReports));
-    write(KEYS.runReports, JSON.stringify(doc.runReports));
-    return { ok: true, warnings: res.warnings, errors: [] };
+    put(KEYS.programs, JSON.stringify(doc.programs));
+    put(KEYS.reflections, JSON.stringify(doc.memory.reflections));
+    put(KEYS.skills, JSON.stringify(doc.memory.skills));
+    put(KEYS.scenarios, JSON.stringify(doc.scenarioReports));
+    put(KEYS.runReports, JSON.stringify(doc.runReports));
+    if (failed.length) {
+      return {
+        ok: false,
+        partial: true,
+        failedKeys: failed,
+        warnings: res.warnings,
+        errors: [
+          'This device refused to store ' + failed.length + ' of the project\'s '
+          + 'settings, so only part of it was applied. Storage is probably full '
+          + 'or disabled. Free some space and open the file again.',
+        ],
+      };
+    }
+    return { ok: true, partial: false, failedKeys: [], warnings: res.warnings, errors: [] };
   }
 
   window.KodroProject = {

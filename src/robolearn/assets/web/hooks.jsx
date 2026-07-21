@@ -606,7 +606,18 @@
       const r = window.KodroProject.apply(text);
       if (!r.ok) {
         addConsole('Project open failed: ' + (r.errors || []).join(' '), 'err');
-        showToast('Not a Kodro project file', 'err');
+        // A partial write is not the same failure as a bad file: the document
+        // was valid and some of it already landed. Saying "Not a Kodro project
+        // file" would be wrong, and reloading would commit the studio to the
+        // half-applied mixture, so neither happens here.
+        if (r.partial) {
+          showToast('Project only partly loaded: this device is out of storage', 'err');
+          addConsole('Storage rejected ' + ((r.failedKeys || []).length) + ' item(s). '
+            + 'The studio has NOT been restarted, so what you see is still the previous '
+            + 'project. Free some space and open the file again.', 'err');
+        } else {
+          showToast('Not a Kodro project file', 'err');
+        }
         return;
       }
       (r.warnings || []).forEach(w => addConsole('Project: ' + w, 'sys'));

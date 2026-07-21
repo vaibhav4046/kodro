@@ -7,6 +7,35 @@
   const WALL = TERRAINS.WALL;
   const RobotLab = window.RobotLab;
   const R_DEFAULT = 30; // rover collision radius (cm) for catalogue builds
+  // Persist something the PUPIL made, and say so when it does not land.
+  //
+  // The stores that hold progress and run reports already announce a failed
+  // write (see the kodro-storage-failed listener below), but the pupil's own
+  // code buffers and lesson results were still written with an empty catch --
+  // the one category where a silent loss costs them work they typed. UI
+  // preferences deliberately keep swallowing: losing a theme is cosmetic and
+  // warning about it would bury the message that matters.
+  //
+  // Warned once per key: these run on every edit, so an out-of-space device
+  // would otherwise raise a toast on every keystroke. The flag clears as soon
+  // as a write succeeds, so a later failure is reported again.
+  const _storageWarned = Object.create(null);
+  function persistWork(key, value, label) {
+    try {
+      localStorage.setItem(key, value);
+      delete _storageWarned[key];
+      return true;
+    } catch (e) {
+      void e;
+      if (!_storageWarned[key]) {
+        _storageWarned[key] = true;
+        try {
+          window.dispatchEvent(new CustomEvent('kodro-storage-failed', { detail: { what: label } }));
+        } catch (err) { void err; }
+      }
+      return false;
+    }
+  }
   // Live check (re-evaluated per move) so toggling the OS setting takes effect.
   const PREFERS_REDUCED_MOTION = () =>
     typeof window !== 'undefined' && window.matchMedia
@@ -1079,8 +1108,8 @@
       else root.removeAttribute('data-theme');
     }, [theme]);
     useEffect(() => { try { localStorage.setItem('or_tab', activeTab); } catch (e) { void e; } }, [activeTab]);
-    useEffect(() => { try { localStorage.setItem('or_programs', JSON.stringify(programs)); } catch (e) {} }, [programs]);
-    useEffect(() => { try { localStorage.setItem('or_lesson_buffers', JSON.stringify(lessonBuffers)); } catch (e) { void e; } }, [lessonBuffers]);
+    useEffect(() => { persistWork('or_programs', JSON.stringify(programs), 'your programs'); }, [programs]);
+    useEffect(() => { persistWork('or_lesson_buffers', JSON.stringify(lessonBuffers), 'your lesson code'); }, [lessonBuffers]);
     // Mirror the live editor buffer so surfaces rendered outside App (the
     // Robot Lab's exported verification report) can apply the SAME
     // "this program produced it" rule the cockpit and realism panel use.
@@ -1089,7 +1118,7 @@
       // Persist under the identity whose data this is (stamped at reload time),
       // so a pupil switch can never file one learner's results under another.
       const key = lessonResultsPupilRef.current ? 'or_lesson_results__' + lessonResultsPupilRef.current : 'or_lesson_results';
-      try { localStorage.setItem(key, JSON.stringify(lessonResults)); } catch (e) { void e; }
+      persistWork(key, JSON.stringify(lessonResults), 'your lesson results');
     }, [lessonResults]);
 
 
