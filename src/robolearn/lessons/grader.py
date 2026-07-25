@@ -223,7 +223,11 @@ def _is_provably_empty_iterable(node: ast.AST) -> bool:
         and node.args
         and all(isinstance(a, ast.Constant) and isinstance(a.value, int) for a in node.args)
     ):
-        values = [a.value for a in node.args]  # type: ignore[attr-defined]
+        # Narrowed to int explicitly: ast.Constant.value is typed Any, so the
+        # comparisons below would otherwise leak Any into a bool return.
+        values: list[int] = [
+            a.value for a in node.args if isinstance(a, ast.Constant) and isinstance(a.value, int)
+        ]
         if len(values) == 1:
             return values[0] <= 0
         if len(values) >= 2:
