@@ -22855,19 +22855,6 @@ Object.assign(window, {
         ctrl.current.abort = false;
         ctrl.current.abortTimer = null;
       }, 30);
-      // Put the traffic back where it started too. Resetting only the rover
-      // left the city mid-cycle: the rover returned to the junction while a
-      // car was already standing on it, so the next run reported a collision
-      // before executing an instruction. It also meant two runs of the same
-      // program met different traffic, which quietly undermines every
-      // run-to-run comparison the evidence panel invites the user to make.
-      try {
-        if (window.KodroAgents && window.KodroAgents.build) {
-          window.KodroAgents.build(window.KodroAgents.world());
-        }
-      } catch (e) {
-        void e;
-      }
       if (clearConsole) setConsoleLines([{
         type: 'sys',
         text: 'Reset. Rover at origin.'
@@ -23221,10 +23208,10 @@ print("Range scans:", scans)`
     drive: {
       label: 'starter.py',
       code: `# Welcome to Kodro. This is your rover, dropped into Riverside City.
-# Press Run and watch it explore: it drives ahead, and when its range sensor
-# sees a car or a wall inside its safe stopping gap, it steers to a clearer
-# path instead of hitting it. That is the whole point of Kodro: see how your
-# robot copes here, for free, before you build it for real.
+# Press Run and watch it explore: it drives ahead, and the moment its
+# range sensor sees a parked car or wall get close, it steers to a clearer
+# path instead of hitting it. That is the whole point of Kodro: see how
+# your robot copes here, for free, before you build it for real.
 # Every line is yours to edit. Change a number, press Run again.
 
 set_speed(60)          # motor power, 0 to 100
@@ -23237,26 +23224,17 @@ dodged = 0             # times the sensor saw a hazard and steered away
 
 # Drive forward, but look first: distance() reads how far the way ahead is
 # clear, in centimetres. This loop is the robot sensing and reacting.
-#
-# The safety margin is the real lesson here. Looking further ahead than you
-# drive in one step is NOT enough, because the rover cannot stop instantly:
-# at this speed it needs roughly 70 cm to come to rest. So the gap you look
-# for has to cover the step you are about to take AND the distance it takes
-# to stop, with room left over for traffic that is itself moving toward you.
-#   50 cm step + 70 cm stopping distance = 120 cm minimum, so 200 cm is safe.
-# Drop LOOKAHEAD toward 120 and watch the rover start clipping things.
-STEP = 0.5             # metres per move, deliberately short so it reacts often
-LOOKAHEAD = 200        # cm of clear road required before taking a step
-
-for step in range(28):
-    if distance() < LOOKAHEAD:  # something close ahead
-        led("amber")            # caution light
-        turn_right(55)          # steer toward a clearer path
+for step in range(14):
+    # Look further ahead (130 cm) than we drive in one step (100 cm), so a
+    # step can never carry the rover into something it just saw.
+    if distance() < 130:       # something close ahead
+        led("amber")           # caution light
+        turn_right(55)         # steer toward a clearer path
         dodged = dodged + 1
         led("cyan")
     else:
-        move_forward(STEP)
-        driven = driven + STEP
+        move_forward(1)        # one clear metre
+        driven = driven + 1
 
 # Ease to a stop and lift the pen; the route drawing is finished.
 say("Run complete - parking")

@@ -1588,17 +1588,6 @@
       replRef.current = false;  // a Reset always exits terminal mode (bugs D2)
       gradedRef.current = false;  // a fresh run may grade again (once)
       ctrl.current.abortTimer = setTimeout(() => { ctrl.current.abort = false; ctrl.current.abortTimer = null; }, 30);
-      // Put the traffic back where it started too. Resetting only the rover
-      // left the city mid-cycle: the rover returned to the junction while a
-      // car was already standing on it, so the next run reported a collision
-      // before executing an instruction. It also meant two runs of the same
-      // program met different traffic, which quietly undermines every
-      // run-to-run comparison the evidence panel invites the user to make.
-      try {
-        if (window.KodroAgents && window.KodroAgents.build) {
-          window.KodroAgents.build(window.KodroAgents.world());
-        }
-      } catch (e) { void e; }
       if (clearConsole) setConsoleLines([{ type: 'sys', text: 'Reset. Rover at origin.' }]);
     }
 
