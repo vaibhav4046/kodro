@@ -194,6 +194,82 @@ _CONSTRUCT_NODE_TYPES: dict[str, tuple[type[ast.AST], ...]] = {
 }
 
 
+def _is_constant_falsy(node: ast.AST) -> bool:
+    """True when a test expression is a literal that can never be truthy."""
+    if isinstance(node, ast.Constant):
+        return not bool(node.value)
+    # An empty display literal is a constant too: `while []:` never runs.
+    if isinstance(node, ast.List | ast.Tuple | ast.Set):
+        return not node.elts
+    if isinstance(node, ast.Dict):
+        return not node.keys
+    return False
+
+
+def _is_provably_empty_iterable(node: ast.AST) -> bool:
+    """True when a ``for`` iterates something that is literally empty."""
+    if isinstance(node, ast.List | ast.Tuple | ast.Set):
+        return not node.elts
+    if isinstance(node, ast.Dict):
+        return not node.keys
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value == ""
+    # range(0) and range(n, n) never yield. Only literal arguments are judged;
+    # anything computed is left alone rather than guessed at.
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "range"
+        and node.args
+        and all(isinstance(a, ast.Constant) and isinstance(a.value, int) for a in node.args)
+    ):
+        values = [a.value for a in node.args]  # type: ignore[attr-defined]
+        if len(values) == 1:
+            return values[0] <= 0
+        if len(values) >= 2:
+            start, stop = values[0], values[1]
+            step = values[2] if len(values) > 2 else 1
+            if step == 0:
+                return False
+            return start >= stop if step > 0 else start <= stop
+    return False
+
+
+def _is_live(node: ast.AST, tree: ast.AST) -> bool:
+    """Reject constructs that provably cannot do the work the lesson asks for.
+
+    A criterion such as ``uses_construct: if`` exists because the lesson is
+    teaching selection. A dead ``if False:`` satisfies the node-presence test
+    while teaching nothing and doing nothing, which lets a pupil pass a
+    sensor-reading lesson without ever reading the sensor.
+
+    This is a STATIC check, and deliberately so: the executor detaches every
+    trace hook (``sys.settrace(None)``) because tracing a force-killed pupil
+    thread could deadlock the run, so runtime line coverage is not available
+    here. It therefore rejects what is *provably* dead at parse time rather
+    than everything that happens not to run on a given input. That covers the
+    deliberate-gaming cases; a condition that is merely false at runtime is
+    still counted, and that is the honest limit of the check.
+    """
+    if isinstance(node, ast.If | ast.While):
+        # Only a body that can NEVER run is rejected. `while True:` with a
+        # break is an ordinary idiom and `if True:` still executes its body,
+        # so neither is dead even though neither is elegant. Judging style
+        # here would fail honest pupils; judging deadness does not.
+        return not _is_constant_falsy(node.test)
+    if isinstance(node, ast.For):
+        return not _is_provably_empty_iterable(node.iter)
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+        # A definition nobody ever names is not modular design, it is dead
+        # code. Any mention of the name outside the definition counts, so a
+        # function passed as a value still qualifies.
+        for other in ast.walk(tree):
+            if isinstance(other, ast.Name) and other.id == node.name:
+                return True
+        return False
+    return True
+
+
 def _source_uses(source: str, construct: str) -> bool:
     """Return True if ``source`` contains an AST node of the given construct."""
     if not source.strip():
@@ -207,7 +283,9 @@ def _source_uses(source: str, construct: str) -> bool:
     node_types = _CONSTRUCT_NODE_TYPES.get(construct)
     if node_types is None:
         return False
-    return any(isinstance(node, node_types) for node in ast.walk(tree))
+    return any(
+        isinstance(node, node_types) and _is_live(node, tree) for node in ast.walk(tree)
+    )
 
 
 def _has_recursion(tree: ast.AST) -> bool:

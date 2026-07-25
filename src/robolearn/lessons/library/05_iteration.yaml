@@ -3,7 +3,7 @@ title: Iteration with while-loops
 key_stage: KS3
 ct_concepts: [iteration, selection]
 curriculum_refs:
-  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 attainment target 5: understand several key algorithms that reflect computational thinking; use logical reasoning to compare the utility of alternative algorithms."
+  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 subject content: understand several key algorithms that reflect computational thinking; use logical reasoning to compare the utility of alternative algorithms for the same problem."
   - "BCS Csizmadia et al., 2015: iteration."
 prereqs: [04_selection]
 terrain: mars

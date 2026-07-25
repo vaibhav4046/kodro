@@ -520,6 +520,58 @@
     'return': function (n) { return n.kind === 'return'; },
   };
 
+  // grader.py _is_constant_falsy: a literal test that can never be truthy.
+  function isConstantFalsy(t) {
+    if (!t) return false;
+    if (t.k === 'bool' || t.k === 'num' || t.k === 'str') return !t.v;
+    if (t.k === 'none') return true;
+    if (t.k === 'list') return !(t.items && t.items.length);
+    return false;
+  }
+
+  // grader.py _is_provably_empty_iterable: a `for` over something literally empty.
+  function isProvablyEmptyIterable(it) {
+    if (!it) return false;
+    if (it.k === 'list') return !(it.items && it.items.length);
+    if (it.k === 'str') return it.v === '';
+    if (it.k === 'call' && it.callee && it.callee.k === 'name' && it.callee.v === 'range'
+        && it.args && it.args.length && it.args.every(function (a) { return a.k === 'num'; })) {
+      var v = it.args.map(function (a) { return a.v; });
+      if (v.length === 1) return v[0] <= 0;
+      var step = v.length > 2 ? v[2] : 1;
+      if (step === 0) return false;
+      return step > 0 ? v[0] >= v[1] : v[0] <= v[1];
+    }
+    return false;
+  }
+
+  // grader.py _is_live: reject constructs that provably cannot do the work the
+  // lesson asks for. A dead `if False:` satisfied the bare node-presence test
+  // while letting a pupil pass a sensor lesson without reading the sensor.
+  // Only PROVABLY dead code is rejected: `while True:` is an ordinary idiom
+  // and `if True:` still runs its body, so both still count. Must stay in step
+  // with the Python grader or the two engines disagree on the same program.
+  function isLive(n, program) {
+    if (n.kind === 'if') {
+      var branches = n.branches || [];
+      for (var i = 0; i < branches.length; i++) {
+        if (!isConstantFalsy(branches[i].test)) return true;
+      }
+      return false;
+    }
+    if (n.kind === 'while') return !isConstantFalsy(n.test);
+    if (n.kind === 'for') return !isProvablyEmptyIterable(n.iter);
+    if (n.kind === 'def') {
+      // A definition nobody ever names is dead code, not modular design.
+      var named = false;
+      walkList(program, function (o) {
+        if (o && o.k === 'name' && o.v === n.name) named = true;
+      });
+      return named;
+    }
+    return true;
+  }
+
   function sourceUses(source, construct) {
     if (!source || !source.trim()) return false;
     if (!window.RoverLang) return false;
@@ -534,7 +586,7 @@
     var test = CONSTRUCT_TESTS[construct];
     if (!test) return false;
     var found = false;
-    walkList(program, function (n) { if (test(n)) found = true; });
+    walkList(program, function (n) { if (test(n) && isLive(n, program)) found = true; });
     return found;
   }
 

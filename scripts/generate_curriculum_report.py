@@ -47,21 +47,33 @@ def main(argv: list[str] | None = None) -> int:
     from robolearn.lessons.schema import load_library
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    doc = SimpleDocTemplate(str(args.output), pagesize=A4, title="RoboLearn curriculum coverage")
+    doc = SimpleDocTemplate(str(args.output), pagesize=A4, title="Kodro curriculum coverage")
     styles = getSampleStyleSheet()
+    lessons = load_library()
+    # Every key stage the library actually contains, in teaching order. This
+    # was hardcoded to ("KS3", "KS4"), so the three KS1/KS2 lessons were
+    # silently dropped from a document whose whole purpose is to evidence
+    # coverage. Deriving it means a new key stage cannot be omitted by
+    # forgetting to update this list, and ORDER puts them in a sensible
+    # sequence while still emitting anything unrecognised rather than hiding it.
+    ORDER = ("KS1", "KS2", "KS3", "KS4")
+    present = {lsn.key_stage for lsn in lessons}
+    key_stages = [ks for ks in ORDER if ks in present]
+    key_stages += sorted(present - set(ORDER))
     story: list[object] = [
-        Paragraph("<b>RoboLearn — Curriculum coverage report</b>", styles["Title"]),
+        Paragraph("<b>Kodro - Curriculum coverage report</b>", styles["Title"]),
         Spacer(1, 12),
         Paragraph(
-            "Each bundled lesson is mapped to a Department for Education attainment "
-            "target. Generated automatically by "
+            "Each bundled lesson is mapped to the Department for Education subject "
+            "content it addresses. Covers all "
+            f"{len(lessons)} bundled lessons across {', '.join(key_stages)}. "
+            "Generated automatically by "
             "<font face='Courier'>scripts/generate_curriculum_report.py</font>.",
             styles["Normal"],
         ),
         Spacer(1, 18),
     ]
-    lessons = load_library()
-    for key_stage in ("KS3", "KS4"):
+    for key_stage in key_stages:
         ks_lessons = [lsn for lsn in lessons if lsn.key_stage == key_stage]
         story.append(Paragraph(f"<b>{key_stage}</b>", styles["Heading2"]))
         table_data: list[list[str]] = [["Lesson", "Concepts", "Success criteria", "DfE reference"]]

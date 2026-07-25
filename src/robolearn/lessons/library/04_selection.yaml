@@ -3,7 +3,7 @@ title: Selection (if / else)
 key_stage: KS3
 ct_concepts: [selection]
 curriculum_refs:
-  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 attainment target 7: understand simple Boolean logic and some of its uses in circuits and programming."
+  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 subject content: understand simple Boolean logic and some of its uses in circuits and programming."
   - "BCS Csizmadia et al., 2015: selection as a control-flow primitive."
 prereqs: [03_sequence]
 terrain: mars

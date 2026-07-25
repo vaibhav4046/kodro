@@ -3,7 +3,7 @@ title: Pathfinding basics
 key_stage: KS3
 ct_concepts: [iteration, selection, decomposition]
 curriculum_refs:
-  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 attainment target 5 (compare the utility of alternative algorithms)."
+  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 subject content: understand several key algorithms that reflect computational thinking; use logical reasoning to compare the utility of alternative algorithms for the same problem."
   - "DfE 'Computer Science GCSE subject content' (DfE-00094-2015), section 2: algorithms (search and traversal)."
 prereqs: [06_functions, 04_selection]
 terrain: mars

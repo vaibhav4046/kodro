@@ -951,6 +951,38 @@
     // they would be silent print stubs (judge round 10), matching the studio
     // command hint strip which already delists them.
     const PALETTE = BLOCK_DEFS.filter(d => classroom || !d.lessonOnly);
+    // Keyboard focus after a delete.
+    //
+    // Removing a row unmounts the button that had focus, so the browser drops
+    // focus to document.body and a keyboard user is thrown back to the top of
+    // the dialog. Deleting three blocks in a row meant tabbing back down three
+    // times. Focus now follows the list: to whichever row slid into the
+    // deleted position, or the new last row if the end was deleted, or the
+    // Clear button once the list is empty.
+    const blocksRef = React.useRef(null);
+    const pendingFocus = React.useRef(null);
+    React.useEffect(() => {
+      const want = pendingFocus.current;
+      if (want == null) return;
+      pendingFocus.current = null;
+      const root = blocksRef.current;
+      if (!root) return;
+      const buttons = root.querySelectorAll('[data-block-remove]');
+      const target = buttons[Math.min(want, buttons.length - 1)];
+      if (target) { target.focus(); return; }
+      // The list is empty now, so there is no row to land on. Both controls in
+      // .vibe-actions are disabled in exactly this state (Clear and Insert
+      // both require at least one block), so reaching for a nearby button
+      // finds nothing and focus falls to body. Focus the list container
+      // itself: it is tabIndex={-1}, so it accepts focus programmatically
+      // without joining the tab order, it keeps the user's position in the
+      // dialog, and its aria-label announces the now-empty program.
+      root.focus();
+    }, [blocks.length]);
+    function removeBlockKeepingFocus(i) {
+      pendingFocus.current = i;
+      removeBlock(i);
+    }
     return (
       <div className="modal-backdrop" onClick={() => setBlocksOpen(false)}>
         <div className="modal modal-wide" role="dialog" aria-modal="true" aria-label="Block coding" onClick={e => e.stopPropagation()}>
@@ -973,7 +1005,7 @@
             })}
             <button className="block-chip block-end" onClick={endBlock} disabled={blockIndent === 0}>↤ end block</button>
           </div>
-          <div className="blocks-program" aria-label="Your program">
+          <div className="blocks-program" aria-label="Your program" tabIndex={-1} ref={blocksRef}>
             {blocks.length === 0 && (
               <EmptyState
                 icon="blocks"
@@ -1031,7 +1063,7 @@
                         onClick={() => moveBlock(i, dir)}>{dir < 0 ? '↑' : '↓'}</button>
                     );
                   })}
-                  <button className="btn-mini" aria-label={'remove ' + b.label} onClick={() => removeBlock(i)}>✕</button>
+                  <button className="btn-mini" data-block-remove={i} aria-label={'remove ' + b.label} onClick={() => removeBlockKeepingFocus(i)}>✕</button>
                 </span>
               </div>
             ))}

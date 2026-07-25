@@ -215,7 +215,37 @@ def test_source_uses_detects_if_statement() -> None:
 
 
 def test_source_uses_detects_function_def() -> None:
-    assert _source_uses("def f():\n    pass", "function_def") is True
+    assert _source_uses("def f():\n    pass\n\nf()\n", "function_def") is True
+
+
+def test_source_uses_rejects_a_function_that_is_never_called() -> None:
+    """A definition nobody names is dead code, not modular design.
+
+    The lessons that require ``function_def`` are teaching pupils to decompose
+    a route into reusable procedures. A ``def`` that is never called satisfies
+    a bare node-presence check while doing none of that, so it does not count.
+    This test previously asserted the opposite and was pinning the weaker
+    behaviour in place.
+    """
+    assert _source_uses("def f():\n    pass", "function_def") is False
+
+
+def test_source_uses_rejects_provably_dead_constructs() -> None:
+    """The construct must be able to run, or it teaches nothing.
+
+    ``if False:`` satisfies "the source contains an If node" while guaranteeing
+    the body never executes, which let a pupil pass a sensor-reading lesson
+    without reading the sensor. Only provably dead constructs are rejected:
+    ``while True:`` is an ordinary idiom and ``if True:`` still runs its body,
+    so both still count.
+    """
+    assert _source_uses("if False:\n    pass", "if") is False
+    assert _source_uses("while False:\n    pass", "while") is False
+    assert _source_uses("for i in range(0):\n    pass", "for") is False
+    assert _source_uses("for i in []:\n    pass", "for") is False
+    # Live constructs are unaffected.
+    assert _source_uses("while True:\n    move_forward(1)", "while") is True
+    assert _source_uses("for i in range(4):\n    move_forward(1)", "for") is True
 
 
 def test_source_uses_detects_recursion() -> None:

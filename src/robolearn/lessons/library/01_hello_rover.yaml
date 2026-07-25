@@ -3,7 +3,7 @@ title: Hello, Rover!
 key_stage: KS3
 ct_concepts: [sequence]
 curriculum_refs:
-  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 attainment target 4: use two or more programming languages, at least one of which is textual, to solve a variety of computational problems."
+  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 subject content: use two or more programming languages, at least one of which is textual, to solve a variety of computational problems."
   - "BCS 'Computational Thinking - A Guide for Teachers' (Csizmadia et al., 2015): sequence as a foundation construct."
 prereqs: []
 terrain: earth
