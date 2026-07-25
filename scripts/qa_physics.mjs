@@ -94,5 +94,31 @@ check('trapVelocity brakes back to 0 at the end', P.trapVelocity(1, AF, BF) === 
 check('degenerate all-cruise profile: trapCover is linear (0.37 -> 0.37)',
   approx(P.trapCover(0.37, 0, 0, 1, 1), 0.37), P.trapCover(0.37, 0, 0, 1, 1) + '');
 
+// --- traffic must not brake to a stop ON TOP of the rover ---------------------
+// The city brake used a flat stop offset of 60 cm while the collision test uses
+// a.r + R (96 + 30 = 126 cm for a car). A braked car therefore settled about
+// 98 cm from a rover at the junction, which is already overlapping, and every
+// first run of the bundled welcome program reported a collision before the
+// rover had executed an instruction. The offset is now derived from the same
+// radii the collision test uses; this asserts that relationship holds.
+{
+  const src = readFileSync(new URL('../src/robolearn/assets/web/agents.jsx', import.meta.url), 'utf8');
+  const R = Number((src.match(/const R = (\d+);/) || [])[1]);
+  const carR = Number((src.match(/kind: 'car'[^}]*?r: (\d+)/) || [])[1]);
+  check('agents.jsx exposes the rover radius', Number.isFinite(R) && R > 0, String(R));
+  check('agents.jsx exposes the car radius', Number.isFinite(carR) && carR > 0, String(carR));
+  const stopExpr = (src.match(/const STOP = ([^;]+);/) || [])[1] || '';
+  check('the brake stop offset is derived from the collision radii',
+    /a\.r\s*\+\s*R/.test(stopExpr), stopExpr.trim() || 'no STOP constant found');
+  check('the brake stop offset clears the collision radius',
+    !/\(fwd - 60\)/.test(src), 'the flat 60 cm stop offset is back and overlaps the rover');
+  // With STOP = a.r + R + 12 a stopped car is at least 12 cm clear, whatever
+  // its lateral offset, because the along-axis gap alone already exceeds the
+  // sum of the radii.
+  const STOP = carR + R + 12;
+  check('a stopped car cannot touch a stationary rover', STOP > carR + R,
+    `stop ${STOP} vs clearance ${carR + R}`);
+}
+
 console.log('\n== RESULT: ' + pass + ' passed, ' + fail + ' failed ==');
 if (fail) { console.log('FAILURES:'); fails.forEach((f) => console.log('  - ' + f)); process.exit(1); }

@@ -1483,8 +1483,13 @@
       const batt = r.batteryUsedPct != null ? r.batteryUsedPct + ' percent battery used' : 'battery not recorded';
       const prox = r.minProximityCm != null ? 'closest obstacle ' + r.minProximityCm + ' centimetres' : 'nothing came close';
       const where = (r.robotName || 'Robot') + ' in ' + (r.worldName || r.world || 'the selected world');
-      return [simpleOutcomeLabel, simpleLatestVerdict || r.detail || '', dist, batt, prox, where]
-        .filter(Boolean).join('. ') + '.';
+      // Several of these parts already end in a full stop (the coaching verdict
+      // is a written sentence), so strip trailing punctuation before joining or
+      // a screen reader reads "add sensing.. travelled 2.7 metres".
+      const parts = [simpleOutcomeLabel, simpleLatestVerdict || r.detail || '', dist, batt, prox, where]
+        .map((p) => String(p || '').trim().replace(/[.\s]+$/, ''))
+        .filter(Boolean);
+      return parts.join('. ') + '.';
     }, [runState, simpleLatestRun, simpleOutcomeLabel, simpleLatestVerdict]);
     function downloadPrototypeBrief() {
       const esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]; }); };

@@ -2369,6 +2369,10 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     stop();
     agents = [];
     worldId = id;
+    // Restart the clock with the scene. simT drives the traffic-light phase,
+    // so leaving it running meant a rebuilt city inherited the previous run's
+    // light state and the same program met a different junction each time.
+    simT = 0;
     if (id === 'city') {
       const shirts = [0xd98c4a, 0x5aa0d8, 0x8a6fc0, 0x5bbf86, 0xd35d7a, 0xe0b45c];
       // Traffic: two lanes each way on both roads, flowing one direction, looping.
@@ -2440,7 +2444,19 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           rely = rov.y - ay;
         const fwd = a.horiz ? relx * a.dir : rely * a.dir; // distance ahead
         const lat = a.horiz ? Math.abs(rely - 0) : Math.abs(relx - 0); // cross-track
-        if (fwd > 0 && fwd < 240 && lat < a.r + R + 24) brake = Math.max(0, (fwd - 60) / 180);
+        // Stop far enough back that the car cannot be touching the rover when
+        // it comes to rest. The old stop offset was a flat 60, which is less
+        // than the a.r + R clearance the collision test uses (96 + 30 = 126 for
+        // a car), so a braked car settled 98 cm from a rover sitting at the
+        // junction: already overlapping. Every first run of the bundled welcome
+        // program ended in "collision detected" before the rover had moved,
+        // because traffic parked itself on top of the start position.
+        // Deriving the offset from the same radii the collision test uses means
+        // it stays correct if either radius changes.
+        const STOP = a.r + R + 12; // 12 cm of daylight, not a bumper kiss
+        if (fwd > 0 && fwd < STOP + 180 && lat < a.r + R + 24) {
+          brake = Math.max(0, (fwd - STOP) / 180);
+        }
       }
       // desired speed this frame; the eased `vel` below chases it, so cars
       // pull away gently from stops and brake smoothly, never step-change
@@ -22839,6 +22855,19 @@ Object.assign(window, {
         ctrl.current.abort = false;
         ctrl.current.abortTimer = null;
       }, 30);
+      // Put the traffic back where it started too. Resetting only the rover
+      // left the city mid-cycle: the rover returned to the junction while a
+      // car was already standing on it, so the next run reported a collision
+      // before executing an instruction. It also meant two runs of the same
+      // program met different traffic, which quietly undermines every
+      // run-to-run comparison the evidence panel invites the user to make.
+      try {
+        if (window.KodroAgents && window.KodroAgents.build) {
+          window.KodroAgents.build(window.KodroAgents.world());
+        }
+      } catch (e) {
+        void e;
+      }
       if (clearConsole) setConsoleLines([{
         type: 'sys',
         text: 'Reset. Rover at origin.'
@@ -23192,10 +23221,10 @@ print("Range scans:", scans)`
     drive: {
       label: 'starter.py',
       code: `# Welcome to Kodro. This is your rover, dropped into Riverside City.
-# Press Run and watch it explore: it drives ahead, and the moment its
-# range sensor sees a parked car or wall get close, it steers to a clearer
-# path instead of hitting it. That is the whole point of Kodro: see how
-# your robot copes here, for free, before you build it for real.
+# Press Run and watch it explore: it drives ahead, and when its range sensor
+# sees a car or a wall inside its safe stopping gap, it steers to a clearer
+# path instead of hitting it. That is the whole point of Kodro: see how your
+# robot copes here, for free, before you build it for real.
 # Every line is yours to edit. Change a number, press Run again.
 
 set_speed(60)          # motor power, 0 to 100
@@ -23208,17 +23237,26 @@ dodged = 0             # times the sensor saw a hazard and steered away
 
 # Drive forward, but look first: distance() reads how far the way ahead is
 # clear, in centimetres. This loop is the robot sensing and reacting.
-for step in range(14):
-    # Look further ahead (130 cm) than we drive in one step (100 cm), so a
-    # step can never carry the rover into something it just saw.
-    if distance() < 130:       # something close ahead
-        led("amber")           # caution light
-        turn_right(55)         # steer toward a clearer path
+#
+# The safety margin is the real lesson here. Looking further ahead than you
+# drive in one step is NOT enough, because the rover cannot stop instantly:
+# at this speed it needs roughly 70 cm to come to rest. So the gap you look
+# for has to cover the step you are about to take AND the distance it takes
+# to stop, with room left over for traffic that is itself moving toward you.
+#   50 cm step + 70 cm stopping distance = 120 cm minimum, so 200 cm is safe.
+# Drop LOOKAHEAD toward 120 and watch the rover start clipping things.
+STEP = 0.5             # metres per move, deliberately short so it reacts often
+LOOKAHEAD = 200        # cm of clear road required before taking a step
+
+for step in range(28):
+    if distance() < LOOKAHEAD:  # something close ahead
+        led("amber")            # caution light
+        turn_right(55)          # steer toward a clearer path
         dodged = dodged + 1
         led("cyan")
     else:
-        move_forward(1)        # one clear metre
-        driven = driven + 1
+        move_forward(STEP)
+        driven = driven + STEP
 
 # Ease to a stop and lift the pen; the route drawing is finished.
 say("Run complete - parking")
@@ -27869,7 +27907,11 @@ say("Survey done")`
       const batt = r.batteryUsedPct != null ? r.batteryUsedPct + ' percent battery used' : 'battery not recorded';
       const prox = r.minProximityCm != null ? 'closest obstacle ' + r.minProximityCm + ' centimetres' : 'nothing came close';
       const where = (r.robotName || 'Robot') + ' in ' + (r.worldName || r.world || 'the selected world');
-      return [simpleOutcomeLabel, simpleLatestVerdict || r.detail || '', dist, batt, prox, where].filter(Boolean).join('. ') + '.';
+      // Several of these parts already end in a full stop (the coaching verdict
+      // is a written sentence), so strip trailing punctuation before joining or
+      // a screen reader reads "add sensing.. travelled 2.7 metres".
+      const parts = [simpleOutcomeLabel, simpleLatestVerdict || r.detail || '', dist, batt, prox, where].map(p => String(p || '').trim().replace(/[.\s]+$/, '')).filter(Boolean);
+      return parts.join('. ') + '.';
     }, [runState, simpleLatestRun, simpleOutcomeLabel, simpleLatestVerdict]);
     function downloadPrototypeBrief() {
       const esc = function (v) {

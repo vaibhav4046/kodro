@@ -109,6 +109,10 @@
     stop();
     agents = [];
     worldId = id;
+    // Restart the clock with the scene. simT drives the traffic-light phase,
+    // so leaving it running meant a rebuilt city inherited the previous run's
+    // light state and the same program met a different junction each time.
+    simT = 0;
     if (id === 'city') {
       const shirts = [0xd98c4a, 0x5aa0d8, 0x8a6fc0, 0x5bbf86, 0xd35d7a, 0xe0b45c];
       // Traffic: two lanes each way on both roads, flowing one direction, looping.
@@ -175,7 +179,19 @@
         const relx = rov.x - ax, rely = rov.y - ay;
         const fwd = a.horiz ? relx * a.dir : rely * a.dir;     // distance ahead
         const lat = a.horiz ? Math.abs(rely - 0) : Math.abs(relx - 0); // cross-track
-        if (fwd > 0 && fwd < 240 && lat < a.r + R + 24) brake = Math.max(0, (fwd - 60) / 180);
+        // Stop far enough back that the car cannot be touching the rover when
+        // it comes to rest. The old stop offset was a flat 60, which is less
+        // than the a.r + R clearance the collision test uses (96 + 30 = 126 for
+        // a car), so a braked car settled 98 cm from a rover sitting at the
+        // junction: already overlapping. Every first run of the bundled welcome
+        // program ended in "collision detected" before the rover had moved,
+        // because traffic parked itself on top of the start position.
+        // Deriving the offset from the same radii the collision test uses means
+        // it stays correct if either radius changes.
+        const STOP = a.r + R + 12;   // 12 cm of daylight, not a bumper kiss
+        if (fwd > 0 && fwd < STOP + 180 && lat < a.r + R + 24) {
+          brake = Math.max(0, (fwd - STOP) / 180);
+        }
       }
       // desired speed this frame; the eased `vel` below chases it, so cars
       // pull away gently from stops and brake smoothly, never step-change
