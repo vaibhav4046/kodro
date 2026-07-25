@@ -96,6 +96,17 @@ class LessonEditor:
             return None
         target = self._custom_dir / f"{lesson.id}.yaml"
         target.parent.mkdir(parents=True, exist_ok=True)
+        # Saving used to overwrite an existing lesson of the same id without a
+        # word, so a teacher who reused an id lost the earlier lesson and had
+        # no way to know until they went looking for it. Ask first; a decline
+        # leaves the file on disk untouched.
+        if target.exists() and not messagebox.askyesno(
+            "Replace lesson?",
+            f"A custom lesson with the id '{lesson.id}' already exists at\n{target}\n\n"
+            "Saving will replace it. Replace?",
+            parent=self._window,
+        ):
+            return None
         target.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
         self._saved_lesson = lesson
         if self._on_saved is not None:

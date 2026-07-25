@@ -7,7 +7,7 @@ Full content lands in Task 20 of the build plan.
 
 | Platform | Steps |
 | --- | --- |
-| Windows | Download the latest `RoboLearn-windows.exe` from the releases page, double-click to run. No admin rights required. |
+| Windows | Download the latest `Kodro-windows.exe` from the releases page, double-click to run. No admin rights required. |
 | macOS | Download `RoboLearn-macos.dmg`, drag the app into Applications. |
 | Linux | `pip install robolearn && python -m robolearn` |
 

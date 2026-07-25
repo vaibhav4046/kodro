@@ -21,7 +21,7 @@ import tkinter as tk
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from tkinter import filedialog, ttk
+from tkinter import filedialog, messagebox, ttk
 
 from robolearn.memory.pupil_model import class_heatmap, get_strengths
 from robolearn.memory.store import Pupil, Store
@@ -104,8 +104,6 @@ class TeacherDashboard:
             from reportlab.lib.styles import getSampleStyleSheet
             from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
         except ImportError:
-            from tkinter import messagebox
-
             messagebox.showerror(
                 "Missing dependency",
                 "reportlab is required to export PDF. Install it with `pip install reportlab`",
@@ -273,17 +271,44 @@ class TeacherDashboard:
         self._widgets.drill_text.insert("1.0", text)
         self._widgets.drill_text.configure(state=tk.DISABLED)
 
+    # Both handlers used to call straight through, so a write that could not
+    # land (the file open in Excel, a read-only stick, a full disk) raised into
+    # the Tk callback and vanished: the teacher saw no error, no confirmation,
+    # and no file. Report both outcomes.
     def _on_export_clicked(self) -> None:
         path = self._export_path_chooser()
         if path is None:
             return
-        self.export_csv(path)
+        try:
+            out = self.export_csv(path)
+        except OSError as exc:
+            messagebox.showerror(
+                "Could not save the CSV",
+                f"{path}\n\n{exc}\n\nIf the file is open in another program, "
+                "close it and try again.",
+                parent=self._window,
+            )
+            return
+        messagebox.showinfo("Exported", f"Class heatmap written to:\n{out}", parent=self._window)
 
     def _on_export_pdf_clicked(self) -> None:
         path = self._pdf_path_chooser()
         if path is None:
             return
-        self.export_pdf(path)
+        try:
+            out = self.export_pdf(path)
+        except OSError as exc:
+            messagebox.showerror(
+                "Could not save the PDF",
+                f"{path}\n\n{exc}\n\nIf the file is open in another program, "
+                "close it and try again.",
+                parent=self._window,
+            )
+            return
+        # export_pdf returns None when reportlab is absent, and has already
+        # explained that itself, so there is nothing to confirm.
+        if out is not None:
+            messagebox.showinfo("Exported", f"Class report written to:\n{out}", parent=self._window)
 
 
 def _default_export_chooser() -> Path | None:  # pragma: no cover -- GUI

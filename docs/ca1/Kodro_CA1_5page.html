@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>COMP702 CA1 Specification and Design Proposal, Vaibhav Lalwani</title>
+<style>
+  @page { size: A4; margin: 16mm 19mm 14mm 19mm; }
+  :root{ --ink:#111; --muted:#444; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:#fff; }
+  body{ font-family:"CMU Serif","Latin Modern Roman","Georgia","Cambria",serif;
+        color:var(--ink); font-size:9.8pt; line-height:1.2; text-align:justify;
+        hyphens:auto; -webkit-hyphens:auto; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  h1{ font-size:16pt; font-weight:700; text-align:center; line-height:1.16; margin:0 0 3pt; }
+  .subtitle{ text-align:center; font-style:italic; font-size:10.5pt; margin:0 0 6pt; }
+  h2{ font-size:11pt; font-weight:700; margin:8pt 0 2pt; page-break-after:avoid; }
+  h2 .n{ margin-right:.4em; }
+  .meta{ font-size:9.4pt; line-height:1.5; margin:0 0 4pt; }
+  .meta b{ font-weight:700; }
+  hr{ border:none; border-top:1px solid #000; margin:5pt 0; }
+  .abstract{ font-size:9.6pt; line-height:1.38; margin:0 0 3pt; }
+  p{ margin:0 0 4pt; }
+  /* tables, booktabs style */
+  table{ width:100%; border-collapse:collapse; margin:2pt 0 5pt; font-size:8.5pt; line-height:1.18; }
+  caption{ caption-side:top; text-align:left; font-size:8.8pt; font-style:italic; color:var(--muted); margin-bottom:2pt; }
+  caption b{ font-style:normal; color:#000; }
+  th,td{ padding:2pt 5pt; text-align:left; vertical-align:top; }
+  thead th{ border-top:1.3px solid #000; border-bottom:1px solid #000; font-weight:700; }
+  tbody tr:last-child td{ border-bottom:1.3px solid #000; }
+  td.c,th.c{ text-align:center; }
+  figure{ margin:4pt 0 2pt; text-align:center; page-break-inside:avoid; }
+  figure img{ width:50%; border:1px solid #000; display:block; margin:0 auto; }
+  figcaption{ font-size:8.3pt; color:var(--muted); margin-top:2pt; font-style:italic; }
+  figcaption b{ font-style:normal; color:#000; }
+  .refs p{ font-size:8.8pt; line-height:1.28; padding-left:14pt; text-indent:-14pt; margin:0 0 2.3pt; }
+  .disc{ margin-top:5pt; font-size:8.4pt; color:var(--muted); font-style:italic; border-top:1px solid #000; padding-top:4pt; }
+  .avoid{ page-break-inside:avoid; }
+  em,i{ font-style:italic; }
+</style>
+</head>
+<body>
+
+<div style="display:flex;align-items:center;gap:10pt;border-bottom:1.3px solid #000;padding-bottom:5pt;margin-bottom:6pt;">
+  <img src="img/uol_logo.png" alt="University of Liverpool" style="height:34pt;width:auto;display:block;">
+  <div style="font-size:8.6pt;letter-spacing:1.4px;text-transform:uppercase;color:#444;">University of Liverpool<br>Department of Computer Science &nbsp;&middot;&nbsp; COMP702 MSc Project</div>
+</div>
+
+<h1>Kodro: An Offline, Self-Refining Platform for Designing Robots and Validating Their Behaviour in Realistic Simulation</h1>
+<div class="subtitle">Specification and Design Proposal (CA1)</div>
+
+<div class="meta">
+  <b>Name</b> Vaibhav Lalwani &nbsp;&nbsp; <b>Student ID</b> 201979723 &nbsp;&nbsp; <b>Supervisor</b> Keith Dures &nbsp;&nbsp; <b>Date</b> 19 June 2026<br>
+  <b>Ethics</b> data category A0, participant category 2. The work completed to date uses simulated personas only, with no human participants and no personal data. Any subsequent study involving real users will be agreed with the supervisor and conducted under appropriate consent.
+</div>
+<hr>
+<p class="abstract"><b>Abstract.</b> Kodro is an offline desktop platform on which a non-expert designs a custom robot, programs it in Python, in blocks, or by voice with the support of a grounded local assistant and an automatic code reviewer, and validates its behaviour in a realistic simulated environment before committing to hardware. The robot assembled by the user parameterises the simulation, so a change to the build alters the simulated behaviour. A small language model, executed entirely on the local machine, grounds its suggestions in that specification and refines its advice from accumulated use through stored reflections and a reusable skill library, without retraining the model or accessing the network. This document states the aims and measurable objectives, the literature on which the design draws, the implementation and technology stack, the data and ethics position, and an evaluation that distinguishes usability from efficacy and from measurable self-refinement.</p>
+
+<h2><span class="n">1.</span>Introduction</h2>
+<p>Prototyping a physical robot is costly and slow. Component selection, wiring, and control programming demand expertise that many prospective builders lack, and control errors are expensive and unsafe to discover on real hardware. Kodro addresses this through a single offline application. The user designs a robot in a builder by selecting a chassis, a controller board such as an ESP32 or a micro:bit, and the sensors and actuators it carries; programs its behaviour in Python, in blocks, or by voice, supported by a grounded assistant and a second agent that reviews the generated code; and executes it in a simulated environment with terrain, physics, and independent moving agents such as pedestrians and traffic. The cycle of design, execution, observation, and revision is completed in simulation before any hardware is committed.</p>
+<p>The research contribution lies in the layer above the simulator. A small language model, executed locally, assists in writing and reviewing control code and refines its behaviour through use: after each run it records the outcome, retains validated behaviours in a growing library, and draws on that record when assisting the next design. This occurs without model retraining and without network access, so the user's designs remain on the device. The project examines a focused question: the extent to which such a system can refine itself, and how dependable its validation can be, under a strict offline constraint that excludes both cloud services and any modification of model weights.</p>
+
+<h2><span class="n">2.</span>Aims and objectives</h2>
+<p>The aim is a functional offline platform on which a non-expert designs, programs, and validates a robot's behaviour in a realistic, agent-populated simulation prior to physical construction. Table 1 states each core objective together with the acceptance criterion against which its completion is judged.</p>
+<table class="avoid">
+  <caption><b>Table 1.</b> Core objectives and acceptance criteria.</caption>
+  <thead><tr><th style="width:38%">Core objective</th><th>Acceptance criterion (test of done)</th></tr></thead>
+  <tbody>
+    <tr><td>Custom robot design that parameterises the simulation</td><td>Changing the build measurably changes behaviour: greater mass increases battery drain, a stronger motor raises top speed, and a fitted sensor exposes its command while an absent sensor withholds it.</td></tr>
+    <tr><td>Sandboxed execution and scenario scoring</td><td>The robot's Python runs in a sandbox that denies file, network, and process access; a hostile program cannot reach the disk and a correct program is scored correctly.</td></tr>
+    <tr><td>Realistic, repeatable validation</td><td>One program executes across several randomised seeds and returns a per-run report of successes, collisions, and time to goal.</td></tr>
+    <tr><td>Grounded local assistant with deterministic fallback</td><td>The platform is fully usable with the network disabled and no model installed; the assistant cannot reference a component the build does not contain; the fallback engages within two seconds.</td></tr>
+    <tr><td>Self-refinement from use without retraining</td><td>Across a session the system reuses a stored reflection or skill, and the median number of iterations to a working design decreases.</td></tr>
+  </tbody>
+</table>
+<p>Beyond the core artefact, broader provision for users with particular access needs, comprising a complete screen-reader path, dyslexia and low-vision modes, and a study population selected to include such users, is recorded as a future-work objective. The core artefact is specified to deliver a working and validated platform first, so the scope remains achievable within the project window.</p>
+
+<h2><span class="n">3.</span>Background and related work</h2>
+<p>The design proceeds from three established lines of research. The first is constructionism (Papert, 1980), the durable finding that learning is strongest when a learner builds an artefact whose behaviour can be observed and corrected. Kodro is organised around that cycle, and offers a block representation that compiles to the same Python so that the transition from blocks to text requires no change of tool.</p>
+<p>The second concerns the conditions under which a simulator can be trusted. The principal obstacle in robotics is the gap between simulation and reality, namely the loss of performance when behaviour tuned in simulation is transferred to physical hardware. The accepted response is not a perfect simulator but domain randomisation (Tobin et al., 2017): friction, mass, sensor noise, and scene composition are varied across many runs, so that behaviour surviving the variation is likely to transfer. Kodro applies this directly, validating each design across randomised seeds and reporting the resulting distribution rather than a single run, and populating its environments with agents that avoid one another and the robot, so that a vehicle or domestic robot is evaluated among independent moving entities.</p>
+<p>The third concerns the language model and justifies both the offline design and the careful framing of refinement. Hallucination is intrinsic to such models rather than a defect that can be removed (Huang et al., 2023), and in generated code it appears as plausible but incorrect calls (Lee et al., 2025); this is consequential when the output is control code whose errors a non-expert cannot reliably detect. The accepted mitigation is to ground generation in retrieved material rather than the model's parameters (Lewis et al., 2020); for robotics specifically, the model is constrained to compose a fixed and safe set of capabilities rather than to invent them, following the approach of programs written against a defined robot interface (Liang et al., 2023; dos Santos et al., 2026) and of grounding instructions in the robot's actual affordances (Ahn et al., 2022). Kodro grounds every suggestion in the specification the user assembled, so that the model cannot reference an unfitted sensor; grounding also removes the need for a remote service, since it operates on local material. Regarding refinement over time, weight-level self-evolution remains unsolved (Tao et al., 2024) and is therefore not claimed. Refinement is instead performed at the level of the system, through a verbal reflection loop (Shinn et al., 2023) and a growing library of validated behaviours (Wang et al., 2023), an experience-driven pattern consistent with recent self-evolving agents that improve from their own history without altering weights (Wu et al., 2025). Where multiple agents cooperate, naive configurations fail in characteristic ways (Cemri et al., 2025); a deterministic check, rather than a second model, therefore holds final authority, an automatic reviewer screens generated code beforehand following current code-review practice (Sun et al., 2025), and deterministic static analysis can identify hallucinated code directly (Khati et al., 2026).</p>
+
+<h2><span class="n">4.</span>Design and implementation</h2>
+<p>The platform is implemented in Python 3.12 behind a desktop web view. Each component of the technology stack, summarised in Table 2, follows from the offline and low-resource constraint.</p>
+<table class="avoid">
+  <caption><b>Table 2.</b> Technology stack and the rationale for each selection.</caption>
+  <thead><tr><th style="width:20%">Layer</th><th style="width:30%">Selection</th><th>Rationale under the offline, low-resource constraint</th></tr></thead>
+  <tbody>
+    <tr><td>Language and runtime</td><td>Python 3.12, desktop web view</td><td>One installable application that retains all data on the device.</td></tr>
+    <tr><td>Interface</td><td>React, precompiled to a single bundle</td><td>The panelled layout is retained while the cost of a runtime compiler is paid once at build time.</td></tr>
+    <tr><td>Three-dimensional view</td><td>Vendored Three.js</td><td>A copy held in the project renders with the network disabled, which a content delivery network cannot guarantee.</td></tr>
+    <tr><td>Storage</td><td>SQLite</td><td>A single standard-library file requiring no server, easily inspected, copied, or deleted by the user.</td></tr>
+    <tr><td>Base model</td><td>Open-weight model, 1 to 3 billion parameters</td><td>The largest class that responds at interactive speed on a mainstream laptop without a discrete graphics card.</td></tr>
+    <tr><td>Domain adaptation</td><td>QLoRA fine-tuning via Unsloth and LLaMA-Factory (RTX 3050, 6 GB)</td><td>Parameter-efficient fine-tuning on the project's own robot-API corpus yields a model (kodro-coder) that uses the platform's exact command set; performed once on the development machine.</td></tr>
+    <tr><td>Serving</td><td>GGUF export, served by Ollama (1B drafter, 3B quality)</td><td>Ollama installs as one small application and keeps a model resident; the exported model then runs on the user's machine with no graphics card and no network.</td></tr>
+    <tr><td>Fallback</td><td>Deterministic rule-based path</td><td>Returns rule-based code and checks when no model is present, keeping the platform fully usable.</td></tr>
+  </tbody>
+</table>
+<p>The designed robot is not cosmetic. Its specification is a single source of truth that the remainder of the system reads: the selected board, sensors, and motors set the mass, which scales battery drain, set the top speed, and determine which commands exist, so that a build without an ultrasonic sensor exposes no distance reading and the grounded assistant cannot propose one. Behaviour is then validated across several randomised seeds with varied friction, mass, and sensor noise (Tobin et al., 2017). The honest limit of the model is acknowledged: fine-tuning provides domain grounding and a reliable output format rather than frontier capability, and a small local model cannot match a cloud model, so the design relies on grounding and the mandatory simulation gate rather than on model capability. The system is developed as small, independently tested increments, each merged only after a continuous integration pipeline runs the full test suite, a type checker, and a linter, so that the codebase remains releasable at every stage. Refinement is performed by three local and measurable mechanisms, summarised in Table 3, none of which modifies the model.</p>
+<figure class="avoid"><img src="img/robot_lab.png" alt="The Robot Lab"><figcaption><b>Figure 1.</b> The Robot Lab. The user assembles a custom robot, and the build's mass, battery life, and supported commands update as components are selected; that specification then parameterises the simulation.</figcaption></figure>
+<table class="avoid">
+  <caption><b>Table 3.</b> System-level self-refinement mechanisms.</caption>
+  <thead><tr><th style="width:22%">Mechanism</th><th style="width:30%">Stored record</th><th>Reuse and measure</th></tr></thead>
+  <tbody>
+    <tr><td>Reflection retrieval (Shinn et al., 2023)</td><td>A short written reflection on each run's failure and success.</td><td>The most similar past reflections are retrieved into the next suggestion; reuse rate and effect on iterations are recorded.</td></tr>
+    <tr><td>Skill library (Wang et al., 2023)</td><td>Validated control routines as named, parameterised skills.</td><td>Skills are composed into later designs; the reuse rate is measured against a fixed floor.</td></tr>
+    <tr><td>Experience table</td><td>Past designs and their outcomes.</td><td>Sampled so that advice on a new build is anchored in outcomes on similar builds.</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">5.</span>Data and evaluation</h2>
+<p>The project uses no external datasets and no personal data. Its content is authored by hand as structured files: a set of starter robots and a set of validation scenarios, each defined as a goal with explicit success criteria. The only data produced at runtime are the user's designs and code, the per-run results, and the system's reflections, all retained in the local file and transmitted nowhere; that record is also the material of the refinement. The local model executes from weights already present on the device. The evaluation distinguishes three questions, set out with their methods and acceptance thresholds in Table 4.</p>
+<table class="avoid">
+  <caption><b>Table 4.</b> Evaluation questions, methods, and acceptance thresholds.</caption>
+  <thead><tr><th style="width:8%">No.</th><th style="width:23%">Question</th><th style="width:30%">Method</th><th>Primary measure and threshold</th></tr></thead>
+  <tbody>
+    <tr><td class="c">1</td><td>Usability</td><td>A panel of distinct simulated personas, each completing one session and reporting a rating and concrete defects, with named defects fixed between rounds.</td><td>Mean rating per round; an upward trend across rounds on a fixed build. Reported as a usability finding only.</td></tr>
+    <tr><td class="c">2</td><td>Efficacy</td><td>Within-subject study, about sixteen non-experts, each attempting two comparable held-out scenarios with and without grounded assistance, order counterbalanced.</td><td>Task success in simulation (at least sixteen of twenty randomised runs); paired test fixed before data collection.</td></tr>
+    <tr><td class="c">3</td><td>Self-refinement</td><td>Ablation across a related scenario sequence: full memory against reflection retrieval and skill library disabled.</td><td>At least a 25 percent reduction in iterations to a working design relative to the ablated arm.</td></tr>
+    <tr><td class="c">4</td><td>Assistant grounding</td><td>A fixed question set including off-specification and adversarial prompts, with answers checked against the specification.</td><td>Correct at least 85 percent of the time, invention below 5 percent; grounding exceeds the same model without the specification. The 5 percent invention rate is a release gate.</td></tr>
+  </tbody>
+</table>
+<p>The usability question has been evaluated repeatedly as the work has progressed. Table 5 records the measured trajectory. The first round was deliberately unflattering, and each subsequent round corrected the defects the personas identified before re-rating the same build, raising the mean from 5.86 to 7.36 across the rounds on the core product. The fifth round was a separate inspection of the newly added three-dimensional view, which accounts for its lower figure. These results indicate that the tool became learnable to operate; they do not demonstrate that any user learns, which only the efficacy study can establish. The efficacy study is reported as exploratory, since sixteen participants constitute a convenience sample, so a positive result is treated as a signal to confirm at scale rather than as proof.</p>
+<table class="avoid">
+  <caption><b>Table 5.</b> Measured usability trajectory across evaluation rounds.</caption>
+  <thead><tr><th class="c">Round</th><th class="c">Personas</th><th>Focus of the round</th><th class="c">Mean (/10)</th></tr></thead>
+  <tbody>
+    <tr><td class="c">1</td><td class="c">50</td><td>First contact with the build</td><td class="c">5.86</td></tr>
+    <tr><td class="c">2</td><td class="c">12</td><td>After the first round of fixes</td><td class="c">6.50</td></tr>
+    <tr><td class="c">3</td><td class="c">50</td><td>After integrating the learner model and teacher tools</td><td class="c">7.10</td></tr>
+    <tr><td class="c">4</td><td class="c">50</td><td>After adding grounded answers and the voice route</td><td class="c">7.36</td></tr>
+    <tr><td class="c">5</td><td class="c">8</td><td>Inspection of the new three-dimensional view</td><td class="c">6.40</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="n">6.</span>Ethics, project plan, and risks</h2>
+<p>No human participants have been involved to date; the personas are generated by software and are reported as such. The planned study falls under participant category 2, uses adult and older makers, provides a plain explanation, anonymises data at the point of collection, and is agreed with the supervisor under consent before it begins. One risk is specific to the technology and warrants explicit statement: the output is control code for a machine that the user may subsequently build, so a confident error could cause a physical robot to collide with a person or an obstacle. The design treats this as a safety requirement. Every suggestion is grounded in the build, the assistant declines and refers to the specification rather than guessing, and any generated program executes first within the sandboxed simulation and is checked against the scenario, so that an incorrect suggestion fails visibly on screen rather than on hardware. The mandatory simulation gate, not the model, stands between a generated program and the physical world.</p>
+<figure class="avoid"><img src="img/city_3d.png" alt="Validation in a 3D city world"><figcaption><b>Figure 2.</b> Validation in a realistic environment. The designed robot runs in a three-dimensional city street among traffic and pedestrians that move independently, so that its behaviour can be observed before any hardware is committed.</figcaption></figure>
+<p>The plan runs from this proposal to the dissertation, incorporating the demonstration video (CA2) and the write-up (CA3), with fortnightly supervisor meetings throughout. The critical path runs through ethics approval into the design study and then into the write-up, which is why approval is sought in June with recruitment lead time; the write-up begins during the study on the parts that do not depend on its results, with a buffer before the deadline. The principal risks and their contingencies are given in Table 6. The project is intended to satisfy the six BCS honours outcomes: it engages current problems (hallucination and grounding, honest offline refinement, and the simulation-to-reality gap), justifies its techniques against the literature, and is reported together with its weak early results and the corrections that followed rather than only its strongest figures. The originality is not a new algorithm; retrieval grounding, a sandboxed gate, an experience memory, a skill library, and domain randomisation are each established, and the offline constraint limits how far any one can be pressed. The contribution is the demonstration that these components combine into an honest design-and-validation platform that runs entirely on one machine, and a measured account of how far offline self-refinement extends when modification of weights is excluded. The constraint defines the contribution rather than diminishing it.</p>
+<table class="avoid">
+  <caption><b>Table 6.</b> Principal risks and contingencies.</caption>
+  <thead><tr><th style="width:27%">Risk</th><th style="width:46%">Contingency</th><th class="c">Likelihood</th><th class="c">Impact</th></tr></thead>
+  <tbody>
+    <tr><td>Generated control code is unsafe</td><td>Every program executes first in the sandboxed simulation against the scenario; grounding and the reviewer identify invented commands beforehand.</td><td class="c">Medium</td><td class="c">High</td></tr>
+    <tr><td>Local model too weak for some suggestions</td><td>Grounding ties suggestions to the build and the model declines rather than guesses; a stronger local model may be configured.</td><td class="c">Medium</td><td class="c">Medium</td></tr>
+    <tr><td>Ethics approval or recruitment delayed</td><td>Approval is sought in June with lead time; if it slips, the participant-free evaluations proceed and the write-up is not blocked.</td><td class="c">Medium</td><td class="c">Medium</td></tr>
+    <tr><td>Schedule overrun</td><td>The build is releasable at every stage, so an earlier version remains a valid deliverable.</td><td class="c">Medium</td><td class="c">High</td></tr>
+  </tbody>
+</table>
+
+<h2>References</h2>
+<div class="refs">
+  <p>Ahn, M., Brohan, A., Brown, N. et al. (2022) Do as I can, not as I say: grounding language in robotic affordances. <i>arXiv:2204.01691</i>.</p>
+  <p>Cemri, M., Pan, M.Z., Yang, S. et al. (2025) Why do multi-agent LLM systems fail? <i>arXiv:2503.13657</i>.</p>
+  <p>dos Santos, V.G., Khadraoui, I., Farhat, I. et al. (2026) ALRM: agentic LLM for robotic manipulation. <i>arXiv:2601.19510</i>.</p>
+  <p>Huang, L., Yu, W., Ma, W. et al. (2023) A survey on hallucination in large language models. <i>ACM Transactions on Information Systems</i> (arXiv:2311.05232).</p>
+  <p>Khati, D., Rodriguez-Cardenas, D., Pantzer, P. and Poshyvanyk, D. (2026) Detecting and correcting hallucinations in LLM-generated code via deterministic AST analysis. <i>arXiv:2601.19106</i>.</p>
+  <p>Lee, Y., Song, J.Y., Kim, D. et al. (2025) Hallucination by code generation LLMs: taxonomy, benchmarks, mitigation, and challenges. <i>arXiv:2504.20799</i>.</p>
+  <p>Lewis, P., Perez, E., Piktus, A. et al. (2020) Retrieval-augmented generation for knowledge-intensive NLP tasks. <i>Advances in Neural Information Processing Systems</i>, 33, pp. 9459 to 9474.</p>
+  <p>Liang, J., Huang, W., Xia, F. et al. (2023) Code as policies: language model programs for embodied control. <i>IEEE International Conference on Robotics and Automation (ICRA)</i>.</p>
+  <p>Papert, S. (1980) <i>Mindstorms: children, computers, and powerful ideas</i>. New York: Basic Books.</p>
+  <p>Reza, Z., Mazur, A., Dugdale, M.T. and Ray-Chaudhuri, R. (2025) Small models, big support: a local LLM framework for educator-centric content creation and assessment with RAG and CAG. <i>arXiv:2506.05925</i>.</p>
+  <p>Shinn, N., Cassano, F., Berman, E. et al. (2023) Reflexion: language agents with verbal reinforcement learning. <i>Advances in Neural Information Processing Systems</i>, 36 (arXiv:2303.11366).</p>
+  <p>Sun, T., Xu, J., Li, Y. et al. (2025) BitsAI-CR: automated code review via LLM in practice. <i>arXiv:2501.15134</i>.</p>
+  <p>Tao, Z., Lin, T.E., Chen, X. et al. (2024) A survey on self-evolution of large language models. <i>arXiv:2404.14387</i>.</p>
+  <p>Tobin, J., Fong, R., Ray, A. et al. (2017) Domain randomization for transferring deep neural networks from simulation to the real world. <i>IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)</i>, pp. 23 to 30.</p>
+  <p>Wang, G., Xie, Y., Jiang, Y. et al. (2023) Voyager: an open-ended embodied agent with large language models. <i>arXiv:2305.16291</i>.</p>
+  <p>Wang, W., Li, Y., Jiao, L. and Yuan, J. (2026) Ro-SLM: onboard small language models for robot task planning and operation code generation. <i>arXiv:2604.10929</i>.</p>
+  <p>Wu, R., Wang, X., Mei, J. et al. (2025) EvolveR: self-evolving LLM agents through an experience-driven lifecycle. <i>arXiv:2510.16079</i>.</p>
+</div>
+<p class="disc">Generative artificial intelligence assisted the development of the software and the drafting of this document, acknowledged in line with University guidance. All technical claims describe the working system, the evaluation figures are reported as measured, and the references were verified at the time of writing.</p>
+
+</body>
+</html>

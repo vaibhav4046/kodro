@@ -146,7 +146,7 @@ regenerate them.
 
 ### Option 1: Windows executable (no Python needed)
 
-Download the Kodro app (`RoboLearn-windows.exe`) from the
+Download the Kodro app (`Kodro-windows.exe`) from the
 [latest release](https://github.com/vaibhav4046/robolearn/releases/latest)
 and run it. It is a self contained windowed app (WebView2). If WebView2
 is unavailable, use the `robolearn-windows-tk.exe` fallback asset from

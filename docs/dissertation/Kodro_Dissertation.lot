@@ -1,0 +1,20 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Functional requirements and their tests of satisfaction.}}{10}{table.caption.9}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces The layered architecture and where each layer lives in the codebase.}}{12}{table.caption.10}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {6.1}{\ignorespaces The evaluation strategy and the status of each method. The last row is not yet run.}}{24}{table.caption.13}%
+\contentsline {table}{\numberline {6.2}{\ignorespaces Persona review trajectory across rounds. The figures are reported as measured by the analyst-run method, with the threats to validity stated below.}}{25}{table.caption.14}%
+\contentsline {table}{\numberline {6.3}{\ignorespaces Objective persona-task funnel, model \texttt {kodro-coder}, up to three correction turns. Each outcome is judged by the shipped interpreter and self-test, not by a rater. Mean turns to success was 1.0 (every success landed on the first attempt; no failing cell recovered across the correction turns). The figures are from a single evaluation run of a stochastic model.}}{26}{table.caption.15}%
+\contentsline {table}{\numberline {6.4}{\ignorespaces Task completion broken down by persona and by task.}}{26}{table.caption.16}%
+\contentsline {table}{\numberline {6.5}{\ignorespaces KodroBench v0.1 (five tasks, ten seeds per task). success@N is mean seeded task success; invention rate is the fraction of tasks whose program calls a symbol outside the build's fitted-command set; syntax errors and collisions are the per-task rates. Values are as recorded in the versioned results file.}}{30}{table.caption.17}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {A.1}{\ignorespaces Glossary of terms as used in this dissertation.}}{42}{table.caption.19}%
+\addvspace {10\p@ }
+\contentsfinish 
