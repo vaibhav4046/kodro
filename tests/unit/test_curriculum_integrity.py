@@ -62,9 +62,7 @@ def test_identical_requirements_are_cited_identically() -> None:
             if tail:
                 by_tail[tail.strip().lower()].add(ref)
     inconsistent = {k: v for k, v in by_tail.items() if len(v) > 1}
-    assert not inconsistent, (
-        f"The same requirement is cited with different wording: {inconsistent}"
-    )
+    assert not inconsistent, f"The same requirement is cited with different wording: {inconsistent}"
 
 
 def test_every_lesson_has_a_checkable_curriculum_reference() -> None:

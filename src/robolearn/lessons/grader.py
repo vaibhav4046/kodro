@@ -283,9 +283,7 @@ def _source_uses(source: str, construct: str) -> bool:
     node_types = _CONSTRUCT_NODE_TYPES.get(construct)
     if node_types is None:
         return False
-    return any(
-        isinstance(node, node_types) and _is_live(node, tree) for node in ast.walk(tree)
-    )
+    return any(isinstance(node, node_types) and _is_live(node, tree) for node in ast.walk(tree))
 
 
 def _has_recursion(tree: ast.AST) -> bool:
