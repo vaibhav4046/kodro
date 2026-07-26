@@ -158,11 +158,43 @@ const server = spawn(python, ['-m', 'http.server', String(PORT), '--bind', HOST,
 
 try {
   if (!(await serverReady())) throw new Error('local static server did not start');
+  // Repeat sampling. A single frame-rate reading on a shared laptop is noisy:
+  // the same tier measured 18.4 and 30.4 fps on this machine depending on what
+  // else was running, so quoting one run overstates how precise the figure is.
+  // --repeat=N takes N independent samples per tier and the summary below
+  // reports the spread, so a reader can see the variance instead of trusting a
+  // single number. Default stays 1 so existing invocations are unchanged.
+  const repeatArg = process.argv.find((a) => a.startsWith('--repeat='));
+  const repeat = Math.max(1, Math.min(10, Number((repeatArg || '').split('=')[1]) || 1));
   const runs = [];
-  for (const [index, quality] of ['low', 'high'].entries()) {
-    runs.push(await runTier(chrome, quality, 9417 + index));
+  let port = 9417;
+  for (let sample = 0; sample < repeat; sample++) {
+    for (const quality of ['low', 'high']) {
+      const run = await runTier(chrome, quality, port++);
+      run.sample = sample + 1;
+      runs.push(run);
+    }
   }
   const captured = runs.filter((r) => r.metrics).length;
+
+  // Per-tier spread across the samples, so the artefact states its own
+  // precision rather than leaving a reader to assume the single figure is
+  // repeatable.
+  const sampling = { samplesPerTier: repeat, perTier: {} };
+  for (const quality of ['low', 'high']) {
+    const fps = runs
+      .filter((r) => r.qualityRequested === quality && r.metrics)
+      .map((r) => r.metrics.measuredFps)
+      .sort((a, b) => a - b);
+    if (!fps.length) continue;
+    sampling.perTier[quality] = {
+      samples: fps.length,
+      measuredFpsMin: fps[0],
+      measuredFpsMax: fps[fps.length - 1],
+      measuredFpsMedian: fps[Math.floor((fps.length - 1) / 2)],
+      all: fps,
+    };
+  }
   const report = {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -180,6 +212,7 @@ try {
       highRefreshSubmissionReady: 'True only when p95 submission work is at or below 4.17 ms in this run.',
       guarantee: 'No universal FPS guarantee is made. Hardware, display refresh, browser scheduling, driver and scene all matter.',
     },
+    sampling,
     runs,
     verdict: captured === runs.length ? 'MEASURED' : captured ? 'PARTIAL' : 'UNAVAILABLE',
   };
@@ -189,6 +222,15 @@ try {
   for (const run of runs) {
     if (!run.metrics) console.log(`${run.qualityRequested.padEnd(5)} UNAVAILABLE`);
     else console.log(`${run.qualityRequested.padEnd(5)} ${run.metrics.measuredFps} fps observed, p95 frame ${run.metrics.p95FrameIntervalMs} ms, p95 submission ${run.metrics.p95RenderSubmissionMs} ms, 240 Hz work budget ${run.metrics.highRefreshSubmissionReady ? 'MET' : 'NOT MET'}`);
+  }
+  for (const [quality, spread] of Object.entries(sampling.perTier)) {
+    if (spread.samples > 1) {
+      console.log(
+        quality.padEnd(5)
+        + ` across ${spread.samples} samples: ${spread.measuredFpsMin} to `
+        + `${spread.measuredFpsMax} fps, median ${spread.measuredFpsMedian}`
+      );
+    }
   }
   console.log('verdict ' + report.verdict + '; wrote ' + OUT);
   if (report.verdict === 'UNAVAILABLE') process.exitCode = 1;
