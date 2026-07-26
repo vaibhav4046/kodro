@@ -2395,10 +2395,14 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     } else if (id === 'room') {
       agents.push(ped(true, 1, -360, 40, 0, 0x6aa0d8, 1300));
       agents.push(ped(false, 1, 360, 32, 200, 0xc97f6a, 1100));
-    } else if (!QUIET_SITES[id]) {
+    } else if (id !== 'none' && !QUIET_SITES[id]) {
       // Open terrain worlds were static. Give them a small autonomous fleet that
       // roams and reacts, so the world is alive and the player has machines to
       // share it with. Quiet sites (Challenger Deep, Europa) stay empty (W5).
+      // 'none' is the lesson arena: a lesson is graded against its own samples
+      // and obstacles only, so any roaming machine here is an obstacle the
+      // grader has never heard of. That mismatch is how a lesson could show a
+      // visible crash and still tick "Do not hit anything".
       addRobots(3, ROBOT_COLORS);
     }
     step(0); // place every agent on its lane immediately, before the first frame
@@ -19045,6 +19049,190 @@ Object.assign(window, {
 })();
 
 ;(function () {
+/* Home: the front door.
+ *
+ * Kodro's landing surface used to be the Prove cockpit, which opens on
+ * "Deterministic evidence / Five fixed seeds vary traction, mass, sensor
+ * noise...", a 23-item world dropdown and a "Run 5-seed proof" button. That is
+ * an auditor's screen. A newcomer could not tell what the app is, what to click
+ * first, or what they could make, and the 18 lessons (the actual product) were
+ * two menus deep under More tools.
+ *
+ * This screen answers exactly three questions in the first sentence and then
+ * offers exactly three doors. Nothing else. Anything a first session does not
+ * need lives behind those doors, not on this page.
+ *
+ * It is re-openable (the Home control in the top bar), so it is a place you can
+ * return to rather than a one-off wizard you dismiss and never see again.
+ *
+ * Exposes: window.KodroHome({ onLessons, onDesign, onFreePlay, onClose, canClose })
+ */
+(function () {
+  const {
+    useEffect,
+    useRef
+  } = React;
+  const CSS = `
+.kh-back{position:fixed;inset:0;z-index:70;background:var(--void);
+  display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
+.kh-wrap{width:min(940px,100%);margin:auto}
+.kh-brand{display:flex;align-items:center;gap:10px;margin:0 0 26px}
+.kh-brand-mark{width:26px;height:26px;color:var(--cyan);flex:none}
+.kh-brand-name{font-family:var(--font-display);font-size:22px;letter-spacing:.02em;color:var(--fg-1)}
+.kh-lede{font-family:var(--font-display);font-size:clamp(28px,4.4vw,44px);line-height:1.12;
+  color:var(--fg-1);margin:0 0 12px;max-width:22ch}
+.kh-sub{font-size:15px;line-height:1.55;color:var(--fg-2);margin:0 0 30px;max-width:56ch}
+.kh-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 0 26px}
+@media (max-width:760px){.kh-cards{grid-template-columns:1fr}}
+.kh-card{display:flex;flex-direction:column;gap:8px;text-align:left;padding:20px 18px 18px;
+  background:var(--navy);border:1px solid var(--border);border-radius:12px;color:var(--fg-1);
+  cursor:pointer;transition:border-color .18s var(--ease),transform .18s var(--ease),background .18s var(--ease)}
+.kh-card:hover,.kh-card:focus-visible{border-color:var(--cyan);background:var(--navy-2);transform:translateY(-2px)}
+.kh-card:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.kh-card-k{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+.kh-card-t{font-family:var(--font-display);font-size:21px;line-height:1.2;color:var(--fg-1)}
+.kh-card-d{font-size:13.5px;line-height:1.5;color:var(--fg-2)}
+.kh-card-go{margin-top:auto;padding-top:10px;font-size:12.5px;color:var(--cyan)}
+.kh-make{border-top:1px solid var(--border-2);padding-top:18px}
+.kh-make-h{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--fg-3);margin:0 0 10px}
+.kh-make-list{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0;padding:0;list-style:none}
+.kh-make-list li{font-size:13.5px;color:var(--fg-2)}
+.kh-foot{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:22px;
+  font-size:12.5px;color:var(--fg-3);flex-wrap:wrap}
+.kh-close{background:none;border:1px solid var(--border);border-radius:8px;color:var(--fg-2);
+  padding:7px 14px;font-size:12.5px;cursor:pointer}
+.kh-close:hover{border-color:var(--cyan);color:var(--fg-1)}
+`;
+
+  // What you can actually make. Concrete outcomes, not capabilities: a reader
+  // should picture the finished thing, which is what "what can I make with
+  // this" really asks.
+  const MAKES = ['A rover that drives itself round a city without hitting anything', 'A robot arm that runs a repeating routine', 'A delivery robot you design from real motors and batteries'];
+  const DOORS = [{
+    key: 'lessons',
+    kicker: 'Start here',
+    title: 'Learn to code',
+    desc: '18 step by step lessons, ages 5 to 16. Each one gives you a working program to change, a goal, and feedback after every run.',
+    go: 'Open the lessons',
+    handler: 'onLessons'
+  }, {
+    key: 'design',
+    kicker: 'Build',
+    title: 'Design a robot',
+    desc: 'Fit real motors and batteries and see the speed, range and stopping distance your design would actually have.',
+    go: 'Open the robot lab',
+    handler: 'onDesign'
+  }, {
+    key: 'play',
+    kicker: 'Explore',
+    title: 'Free play',
+    desc: 'Write Python and drive a robot through a city, a house, Mars or the deep sea. No goals, nothing to pass.',
+    go: 'Open the studio',
+    handler: 'onFreePlay'
+  }];
+  function KodroHome(props) {
+    const firstRef = useRef(null);
+    const backRef = useRef(null);
+    useEffect(() => {
+      const tag = 'kodro-home-style';
+      if (!document.getElementById(tag)) {
+        const el = document.createElement('style');
+        el.id = tag;
+        el.textContent = CSS;
+        document.head.appendChild(el);
+      }
+      // Focus the primary door so a keyboard user lands on the thing we most
+      // want them to press, not on the page container.
+      if (firstRef.current) firstRef.current.focus();
+    }, []);
+    useEffect(() => {
+      function onKey(e) {
+        if (e.key === 'Escape' && props.canClose && props.onClose) props.onClose();
+        if (e.key !== 'Tab') return;
+        // Contain focus: this covers the whole app, so Tab must not walk into
+        // the studio behind it.
+        const root = backRef.current;
+        if (!root) return;
+        const items = [...root.querySelectorAll('button')].filter(b => !b.disabled);
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+      document.addEventListener('keydown', onKey);
+      return () => document.removeEventListener('keydown', onKey);
+    }, [props.canClose, props.onClose]);
+    const mark = window.KodroOrbitSvg || '';
+    return /*#__PURE__*/React.createElement("div", {
+      className: "kh-back",
+      ref: backRef,
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Kodro home"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "kh-wrap"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "kh-brand"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "kh-brand-mark",
+      "aria-hidden": "true",
+      dangerouslySetInnerHTML: {
+        __html: mark
+      }
+    }), /*#__PURE__*/React.createElement("span", {
+      className: "kh-brand-name"
+    }, "Kodro")), /*#__PURE__*/React.createElement("h1", {
+      className: "kh-lede"
+    }, "Design a robot. Program it. Watch it work."), /*#__PURE__*/React.createElement("p", {
+      className: "kh-sub"
+    }, "Test a robot in a simulated world before you build it for real. Everything runs on this machine, offline, for free."), /*#__PURE__*/React.createElement("div", {
+      className: "kh-cards"
+    }, DOORS.map((d, i) => /*#__PURE__*/React.createElement("button", {
+      key: d.key,
+      type: "button",
+      className: "kh-card",
+      ref: i === 0 ? firstRef : null,
+      onClick: () => {
+        const fn = props[d.handler];
+        if (fn) fn();
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "kh-card-k"
+    }, d.kicker), /*#__PURE__*/React.createElement("span", {
+      className: "kh-card-t"
+    }, d.title), /*#__PURE__*/React.createElement("span", {
+      className: "kh-card-d"
+    }, d.desc), /*#__PURE__*/React.createElement("span", {
+      className: "kh-card-go",
+      "aria-hidden": "true"
+    }, d.go, " \u2192")))), /*#__PURE__*/React.createElement("div", {
+      className: "kh-make"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "kh-make-h"
+    }, "Things people make with it"), /*#__PURE__*/React.createElement("ul", {
+      className: "kh-make-list"
+    }, MAKES.map(m => /*#__PURE__*/React.createElement("li", {
+      key: m
+    }, m)))), /*#__PURE__*/React.createElement("div", {
+      className: "kh-foot"
+    }, /*#__PURE__*/React.createElement("span", null, "Works offline. No account. Your work stays on this device."), props.canClose && /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "kh-close",
+      onClick: props.onClose
+    }, "Back to what I was doing"))));
+  }
+  window.KodroHome = KodroHome;
+})();
+})();
+
+;(function () {
 /* window.KodroProviders -- pluggable AI backend for the assistant.
  *
  * Kodro is OFFLINE BY DEFAULT: the default provider is the local Ollama server
@@ -21903,7 +22091,14 @@ Object.assign(window, {
       motorRest,
       recordRunReport,
       gradeWithBridge,
-      celebrate
+      celebrate,
+      // The loaded lesson's own arena (base, samples, obstacles) in metres, or
+      // null in free play. lessonApi below answers the lesson verbs from this
+      // so the watched run and the graded run are the same world.
+      lessonWorldRef,
+      // Shared lesson-metres -> sim-centimetres converter (app.jsx), so the
+      // seed path and the per-run reset cannot drift on the offset maths.
+      lessonMarks
     } = deps;
     // `token` is a monotonic run id: every reset/start/resume bumps it, so a
     // stale pump loop or a pending start setTimeout that fires after a Reset is
@@ -22050,6 +22245,80 @@ Object.assign(window, {
       // Math.random fallback only exists for a host used before any run.
       rng() {
         return ctrl.current.rng ? ctrl.current.rng() : Math.random();
+      },
+      // Lesson verbs, answered from the lesson's OWN world.
+      //
+      // Before this, the watched run and the graded run were different worlds:
+      // interpreter.js hardcoded sample_detected() to false ("JS sim has no
+      // samples") and collect_sample() to a print, while the grader ran a real
+      // arena the pupil could not see. A pupil could drive over the sample
+      // patch and be told there was nothing there, then be graded on whether
+      // they had collected it. That single gap is why lessons felt unlearnable.
+      //
+      // The interpreter already routes these verbs to host.lessonApi when a
+      // host provides one (interpreter.js:747); only the live host was missing.
+      // This implements the same contract as the grader's lessonApi against
+      // the same lesson data, so what the pupil sees, senses and collects is
+      // what they are marked on. Returns null when no lesson is loaded, which
+      // leaves free play exactly as it was.
+      lessonApi(name, args) {
+        const lw = lessonWorldRef.current;
+        if (!lw) return null;
+        const s = live.current;
+        // Coordinate mapping, live sim -> lesson metres. Two things differ and
+        // both matter, so this is derived rather than guessed:
+        //
+        //   Origin: the live sim always starts the rover at its own (0,0),
+        //   while the lesson places it AT its base (02_move_turn bases at
+        //   (1,1) m). So the live origin IS the lesson base.
+        //
+        //   Axes: the live engine advances by (sin h, -cos h), so heading 0
+        //   travels -y in sim space. The grader's engine advances +x at
+        //   heading 0. Matching them empirically: driving forward 3 m then
+        //   turning left and driving 3 m puts the live rover at sim
+        //   (-300, -300), which must read as lesson (4, 4), the sample. That
+        //   gives -y_sim -> +x_lesson and -x_sim -> +y_lesson.
+        const rx = lw.base[0] + -s.y / 100;
+        const ry = lw.base[1] + -s.x / 100;
+        const num = (v, dflt) => typeof v === 'number' && isFinite(v) ? v : dflt;
+        const near = radiusM => {
+          let best = null,
+            bestD = Infinity;
+          for (const sm of lw.samples) {
+            if (sm.collected) continue;
+            const d = Math.hypot(sm.x - rx, sm.y - ry);
+            if (d <= radiusM && d < bestD) {
+              best = sm;
+              bestD = d;
+            }
+          }
+          return best;
+        };
+        switch (name) {
+          case 'obstacle_ahead':
+            {
+              const d = sensorRayDistance(s);
+              return typeof d === 'number' && d / 100 <= num(args[0], 0.5);
+            }
+          case 'sample_detected':
+            return near(num(args[0], 0.3)) !== null;
+          case 'at_base':
+            return Math.hypot(rx - lw.base[0], ry - lw.base[1]) <= 0.3;
+          case 'collect_sample':
+            {
+              const sm = near(0.3);
+              if (!sm) return false;
+              sm.collected = true;
+              // Drop the marker from the viewport so the pupil sees the patch
+              // disappear the moment it is collected.
+              if (deps.setProps) deps.setProps(ps => ps.filter(p => p.lessonSampleId !== sm.id));
+              return true;
+            }
+          case 'drop_sample':
+            return false;
+          default:
+            return null;
+        }
       }
     };
 
@@ -22656,6 +22925,12 @@ Object.assign(window, {
       const line = e && e.line;
       if (line) setActiveLine(line);
       addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
+      // The console only exists in the expert layout. In the default simple
+      // view it is not rendered at all, so a program that failed produced no
+      // visible feedback whatsoever: the rover stopped and nothing said why.
+      // The toast is present in every layout, so this is the one path that
+      // guarantees a failure is seen.
+      showToast((line ? 'Line ' + line + ': ' : '') + msg, 'err');
       // A8: an error mid-mission is a run result; a compile-time typo that
       // executed nothing is not.
       // A runtime error mid-mission is a run result: record it AND grade it, so
@@ -22856,6 +23131,17 @@ Object.assign(window, {
       trailRef.current = [];
       setTrail([]);
       setProps([]);
+      // Put the lesson's samples back. They are marked collected as the rover
+      // picks them up, so without this a second attempt would start with the
+      // patches already gone and could never pass again.
+      if (lessonWorldRef && lessonWorldRef.current) {
+        lessonWorldRef.current.samples.forEach(s => {
+          s.collected = false;
+        });
+        // Same converter the seed path uses (deps.lessonMarks), so the offset
+        // maths exists in exactly one place.
+        if (deps.lessonMarks) setProps(deps.lessonMarks(lessonWorldRef.current));
+      }
       odoRef.current = 0;
       setOdo(0);
       minProxRef.current = Infinity;
@@ -25989,11 +26275,15 @@ say("Survey done")`
         void e;
       }
     }, [view3d]);
+    // Declared before the agent effect below, whose dependency array reads it
+    // during render: a `const` further down the component is still in its
+    // temporal dead zone at that point and threw ReferenceError.
+    const [currentLessonId, setCurrentLessonId] = useState(null);
     // Spin up the moving-agent simulation for the current world (city traffic
     // and pedestrians); both viewports and the collision test read from it.
     useEffect(() => {
       if (window.KodroAgents) {
-        window.KodroAgents.build(terrainId);
+        window.KodroAgents.build(currentLessonId ? 'none' : terrainId);
         // Reduced-motion: build the agents so they still exist for collision and
         // are drawn once, but stop the sim loop so pedestrians and traffic do not
         // animate (WCAG 2.3.3). Freezing the sim keeps the display and the
@@ -26003,6 +26293,12 @@ say("Survey done")`
       return () => {
         if (window.KodroAgents) window.KodroAgents.stop();
       };
+      // Deliberately keyed on terrainId ALONE. Adding currentLessonId here made
+      // the effect tear down and rebuild the agent sim on lesson entry and
+      // exit, which changed traffic state mid-flow and made two replays of the
+      // same recorded run disagree. Lesson entry and exit call
+      // setAgentsForLesson() directly instead, so free play keeps the exact
+      // rebuild cadence it always had.
     }, [terrainId]);
     const zoom = cam.zoom;
     const trailColor = t.trail === 'cyan' ? '#5ce0d8' : t.trail === 'amber' ? '#e0b45c' : t.trail === 'white' ? '#f5f0e4' : null;
@@ -26155,7 +26451,95 @@ say("Survey done")`
         text: 'Switched pupil.'
       }]);
     }
-    const [currentLessonId, setCurrentLessonId] = useState(null);
+    // The loaded lesson's own arena, in the lesson's metre space: what the
+    // grader marks against. Held in a ref because the sim engine reads it
+    // mid-run without wanting a re-render. Null in free play.
+    const lessonWorldRef = useRef(null);
+    // Rebuild the lesson arena from the shipped lesson data and show it. The
+    // grader's world lives in KodroLessonGrader.LESSON_DATA, which is the same
+    // table generated from the lesson YAMLs, so seeding from it guarantees the
+    // pupil sees exactly the arena they are marked in.
+    function seedLessonWorld(lessonId) {
+      const G = window.KodroLessonGrader;
+      const entry = G && G.LESSON_DATA ? G.LESSON_DATA[lessonId] : null;
+      if (!entry || !entry.world) {
+        lessonWorldRef.current = null;
+        setProps([]);
+        return;
+      }
+      const w = entry.world;
+      lessonWorldRef.current = {
+        base: w.base || [0, 0],
+        samples: (w.samples || []).map((p, i) => ({
+          id: 'ls' + i,
+          x: p[0],
+          y: p[1],
+          collected: false
+        })),
+        obstacles: (w.obstacles || []).map(o => ({
+          x: o.x,
+          y: o.y,
+          r: o.r
+        })),
+        width: w.width,
+        height: w.height
+      };
+      // Draw it. The props layer already billboards these kinds in both the
+      // 2.5D and 3D viewports, so the sample patches and the lesson's rocks
+      // become things the pupil can actually see and drive to. Sim space is
+      // centimetres with y inverted relative to the lesson's metre space.
+      setProps(lessonMarks(lessonWorldRef.current));
+    }
+    // A lesson is graded in its own arena: only its samples and obstacles.
+    // Roaming traffic and pedestrians exist in NO lesson world, so a pupil
+    // could be stopped by "another robot" the grader had never heard of, which
+    // is how lesson 1 showed a visible crash and still ticked "Do not hit
+    // anything" for 100/100. Swapping the agent world keeps both viewports and
+    // the collision test reading the same layout the grader marks.
+    function setAgentsForLesson(inLesson) {
+      try {
+        if (window.KodroAgents) window.KodroAgents.build(inLesson ? 'none' : terrainId);
+      } catch (e) {
+        void e;
+      }
+    }
+    // Lesson metres -> live sim centimetres. The exact inverse of the mapping
+    // lessonApi uses in hooks.jsx: the live origin is the lesson base, and the
+    // two engines' axes differ (live heading 0 travels -y, the grader's +x), so
+    //   x_sim = -(y_lesson - base_y) * 100
+    //   y_sim = -(x_lesson - base_x) * 100
+    // Keeping both directions in one derivation is why this lives in a single
+    // function that the seed path and the per-run reset both call.
+    function lessonMarks(lw) {
+      if (!lw) return [];
+      const toSim = (lx, ly) => ({
+        x: -(ly - lw.base[1]) * 100,
+        y: -(lx - lw.base[0]) * 100
+      });
+      const marks = [];
+      lw.samples.filter(s => !s.collected).forEach(s => {
+        marks.push({
+          kind: 'flag',
+          ...toSim(s.x, s.y),
+          lessonSampleId: s.id
+        });
+      });
+      lw.obstacles.forEach((o, i) => {
+        marks.push({
+          kind: 'rock',
+          ...toSim(o.x, o.y),
+          lessonObstacleId: 'lo' + i
+        });
+      });
+      return marks;
+    }
+    // Leaving a lesson drops its arena, so free play does not inherit the
+    // lesson's flags and rocks.
+    function clearLessonWorld() {
+      lessonWorldRef.current = null;
+      setProps([]);
+      setAgentsForLesson(false);
+    }
     // Lessons keep their OWN editable buffer so loading one never clobbers the
     // example tabs (autopilot.py etc.); the editor shows it while a lesson is
     // active (QA re-score rank 11).
@@ -26322,6 +26706,7 @@ say("Survey done")`
         // and the plain example tabs (A5).
         setTheme(t => t === 'dark' || t === 'light' || t === 'contrast' ? t : 'dark');
         setCurrentLessonId(null);
+        clearLessonWorld();
       }
     }, [mode]);
     useEffect(() => {
@@ -26362,6 +26747,20 @@ say("Survey done")`
     }, [experience]);
     // First-run onboarding / landing flow (shown once, remembered, skippable).
     const [onboarded, setOnboarded] = useState(() => lsGet('or_onboarded') === '1');
+    // Home is the front door (see home.jsx). It opens itself on a first visit
+    // and is reopenable from the top bar afterwards.
+    const [homeOpen, setHomeOpen] = useState(false);
+    function closeHome() {
+      setHomeOpen(false);
+      if (!onboarded) {
+        setOnboarded(true);
+        try {
+          localStorage.setItem('or_onboarded', '1');
+        } catch (err) {
+          void err;
+        }
+      }
+    }
     // Budget robot builder (local AI hardware guide for a real-world rover).
     // ---- P7/A7: project file (one .kodro document for the whole state) ----
     // Extracted VERBATIM to window.KodroHooks.useProjectIO (hooks.jsx); its
@@ -27107,6 +27506,17 @@ say("Survey done")`
       // the viewport could show a persisted Mars while the grader ran the
       // lesson's real terrain, so a pass looked like it happened elsewhere.
       if (lesson.terrain && TERRAINS[lesson.terrain]) setTerrainId(lesson.terrain);
+      // ...and show the lesson's actual arena inside it. The terrain sets the
+      // scenery; this puts the flag, the sample patches and the lesson's rocks
+      // on screen, and arms the live sensors to read them (see lessonApi in
+      // hooks.jsx). Previously these existed only inside the grader, so a pupil
+      // drove around an empty world and was marked on things they never saw.
+      seedLessonWorld(lesson.id);
+      setAgentsForLesson(true);
+      // The terrain swap is deliberate but it used to be silent, which is what
+      // made switching lessons feel like the app changing under you. Say it.
+      const worldName = TERRAINS[lesson.terrain] && TERRAINS[lesson.terrain].name || lesson.terrain;
+      if (worldName) showToast('Lesson opened. This one runs in ' + worldName + '.', 'sys');
       // Seed this lesson's buffer from its starter ONLY if it has no edits yet,
       // so switching A -> B -> A preserves the pupil's work in A (rank 6).
       setLessonBuffers(b => b[lesson.id] !== undefined ? b : {
@@ -27454,7 +27864,9 @@ say("Survey done")`
       motorRest,
       recordRunReport,
       gradeWithBridge,
-      celebrate
+      celebrate,
+      lessonWorldRef,
+      lessonMarks
     }) : {
       onRun: function () {},
       onStep: function () {},
@@ -27961,8 +28373,11 @@ say("Survey done")`
     }, "Kodro, an offline robot design and simulation studio"), /*#__PURE__*/React.createElement("div", {
       className: "missionbar",
       role: "banner"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "brand"
+    }, /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "brand brand-home",
+      onClick: () => setHomeOpen(true),
+      "aria-label": "Home, choose lessons, robot design or free play"
     }, /*#__PURE__*/React.createElement("div", {
       className: "brand-mark",
       dangerouslySetInnerHTML: {
@@ -28476,6 +28891,7 @@ say("Survey done")`
       value: activeTab,
       onChange: e => {
         setCurrentLessonId(null);
+        clearLessonWorld();
         setActiveTab(e.target.value);
       },
       "aria-label": "Choose the robot test"
@@ -28569,6 +28985,7 @@ say("Survey done")`
       value: currentLessonId ? '' : activeTab,
       onChange: e => {
         setCurrentLessonId(null);
+        clearLessonWorld();
         setActiveStage('prove');
         setActiveTab(e.target.value);
       },
@@ -28588,6 +29005,7 @@ say("Survey done")`
       "aria-pressed": !currentLessonId && activeTab === k,
       onClick: () => {
         setCurrentLessonId(null);
+        clearLessonWorld();
         setActiveTab(k);
       }
     }, EXAMPLES[k].label))), classroom && lessons.length > 0 && /*#__PURE__*/React.createElement("div", {
@@ -29592,14 +30010,23 @@ say("Survey done")`
           });
         }
       }, t.action.label));
-    })), !onboarded && window.KodroOnboarding && /*#__PURE__*/React.createElement(window.KodroOnboarding, {
-      onClose: () => {
-        setOnboarded(true);
-        try {
-          localStorage.setItem('or_onboarded', '1');
-        } catch (err) {
-          void err;
-        }
+    })), (homeOpen || !onboarded) && window.KodroHome && /*#__PURE__*/React.createElement(window.KodroHome, {
+      canClose: onboarded,
+      onClose: () => setHomeOpen(false),
+      onLessons: () => {
+        closeHome();
+        openLessonLibrary();
+      },
+      onDesign: () => {
+        closeHome();
+        goStage('design');
+      },
+      onFreePlay: () => {
+        closeHome();
+        setMode('studio');
+        setCurrentLessonId(null);
+        clearLessonWorld();
+        goStage('prove');
       }
     }));
   }

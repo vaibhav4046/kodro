@@ -194,11 +194,15 @@
     // constant keeps Viewport3D's prop wiring inert without a UI path to it.
     const fpv = false;
     useEffect(() => { try { localStorage.setItem('or_view3d', view3d ? '1' : '0'); } catch (e) { void e; } }, [view3d]);
+    // Declared before the agent effect below, whose dependency array reads it
+    // during render: a `const` further down the component is still in its
+    // temporal dead zone at that point and threw ReferenceError.
+    const [currentLessonId, setCurrentLessonId] = useState(null);
     // Spin up the moving-agent simulation for the current world (city traffic
     // and pedestrians); both viewports and the collision test read from it.
     useEffect(() => {
       if (window.KodroAgents) {
-        window.KodroAgents.build(terrainId);
+        window.KodroAgents.build(currentLessonId ? 'none' : terrainId);
         // Reduced-motion: build the agents so they still exist for collision and
         // are drawn once, but stop the sim loop so pedestrians and traffic do not
         // animate (WCAG 2.3.3). Freezing the sim keeps the display and the
@@ -206,6 +210,12 @@
         if (PREFERS_REDUCED_MOTION()) window.KodroAgents.stop();
       }
       return () => { if (window.KodroAgents) window.KodroAgents.stop(); };
+      // Deliberately keyed on terrainId ALONE. Adding currentLessonId here made
+      // the effect tear down and rebuild the agent sim on lesson entry and
+      // exit, which changed traffic state mid-flow and made two replays of the
+      // same recorded run disagree. Lesson entry and exit call
+      // setAgentsForLesson() directly instead, so free play keeps the exact
+      // rebuild cadence it always had.
     }, [terrainId]);
     const zoom = cam.zoom;
     const trailColor = t.trail === 'cyan' ? '#5ce0d8' : t.trail === 'amber' ? '#e0b45c' : t.trail === 'white' ? '#f5f0e4' : null;
@@ -313,7 +323,68 @@
       setLessonVerdict(null);
       setConsoleLines(l => [...l, { type: 'sys', text: 'Switched pupil.' }]);
     }
-    const [currentLessonId, setCurrentLessonId] = useState(null);
+    // The loaded lesson's own arena, in the lesson's metre space: what the
+    // grader marks against. Held in a ref because the sim engine reads it
+    // mid-run without wanting a re-render. Null in free play.
+    const lessonWorldRef = useRef(null);
+    // Rebuild the lesson arena from the shipped lesson data and show it. The
+    // grader's world lives in KodroLessonGrader.LESSON_DATA, which is the same
+    // table generated from the lesson YAMLs, so seeding from it guarantees the
+    // pupil sees exactly the arena they are marked in.
+    function seedLessonWorld(lessonId) {
+      const G = window.KodroLessonGrader;
+      const entry = G && G.LESSON_DATA ? G.LESSON_DATA[lessonId] : null;
+      if (!entry || !entry.world) { lessonWorldRef.current = null; setProps([]); return; }
+      const w = entry.world;
+      lessonWorldRef.current = {
+        base: w.base || [0, 0],
+        samples: (w.samples || []).map((p, i) => ({ id: 'ls' + i, x: p[0], y: p[1], collected: false })),
+        obstacles: (w.obstacles || []).map((o) => ({ x: o.x, y: o.y, r: o.r })),
+        width: w.width, height: w.height,
+      };
+      // Draw it. The props layer already billboards these kinds in both the
+      // 2.5D and 3D viewports, so the sample patches and the lesson's rocks
+      // become things the pupil can actually see and drive to. Sim space is
+      // centimetres with y inverted relative to the lesson's metre space.
+      setProps(lessonMarks(lessonWorldRef.current));
+    }
+    // A lesson is graded in its own arena: only its samples and obstacles.
+    // Roaming traffic and pedestrians exist in NO lesson world, so a pupil
+    // could be stopped by "another robot" the grader had never heard of, which
+    // is how lesson 1 showed a visible crash and still ticked "Do not hit
+    // anything" for 100/100. Swapping the agent world keeps both viewports and
+    // the collision test reading the same layout the grader marks.
+    function setAgentsForLesson(inLesson) {
+      try {
+        if (window.KodroAgents) window.KodroAgents.build(inLesson ? 'none' : terrainId);
+      } catch (e) { void e; }
+    }
+    // Lesson metres -> live sim centimetres. The exact inverse of the mapping
+    // lessonApi uses in hooks.jsx: the live origin is the lesson base, and the
+    // two engines' axes differ (live heading 0 travels -y, the grader's +x), so
+    //   x_sim = -(y_lesson - base_y) * 100
+    //   y_sim = -(x_lesson - base_x) * 100
+    // Keeping both directions in one derivation is why this lives in a single
+    // function that the seed path and the per-run reset both call.
+    function lessonMarks(lw) {
+      if (!lw) return [];
+      const toSim = (lx, ly) => ({ x: -(ly - lw.base[1]) * 100, y: -(lx - lw.base[0]) * 100 });
+      const marks = [];
+      lw.samples.filter((s) => !s.collected).forEach((s) => {
+        marks.push({ kind: 'flag', ...toSim(s.x, s.y), lessonSampleId: s.id });
+      });
+      lw.obstacles.forEach((o, i) => {
+        marks.push({ kind: 'rock', ...toSim(o.x, o.y), lessonObstacleId: 'lo' + i });
+      });
+      return marks;
+    }
+    // Leaving a lesson drops its arena, so free play does not inherit the
+    // lesson's flags and rocks.
+    function clearLessonWorld() {
+      lessonWorldRef.current = null;
+      setProps([]);
+      setAgentsForLesson(false);
+    }
     // Lessons keep their OWN editable buffer so loading one never clobbers the
     // example tabs (autopilot.py etc.); the editor shows it while a lesson is
     // active (QA re-score rank 11).
@@ -430,7 +501,7 @@
         // classroom furniture, so the studio returns to the core theme set
         // and the plain example tabs (A5).
         setTheme(t => (t === 'dark' || t === 'light' || t === 'contrast') ? t : 'dark');
-        setCurrentLessonId(null);
+        setCurrentLessonId(null); clearLessonWorld();
       }
     }, [mode]);
     useEffect(() => {
@@ -457,6 +528,16 @@
     }, [experience]);
     // First-run onboarding / landing flow (shown once, remembered, skippable).
     const [onboarded, setOnboarded] = useState(() => lsGet('or_onboarded') === '1');
+    // Home is the front door (see home.jsx). It opens itself on a first visit
+    // and is reopenable from the top bar afterwards.
+    const [homeOpen, setHomeOpen] = useState(false);
+    function closeHome() {
+      setHomeOpen(false);
+      if (!onboarded) {
+        setOnboarded(true);
+        try { localStorage.setItem('or_onboarded', '1'); } catch (err) { void err; }
+      }
+    }
     // Budget robot builder (local AI hardware guide for a real-world rover).
     // ---- P7/A7: project file (one .kodro document for the whole state) ----
     // Extracted VERBATIM to window.KodroHooks.useProjectIO (hooks.jsx); its
@@ -979,6 +1060,17 @@
       // the viewport could show a persisted Mars while the grader ran the
       // lesson's real terrain, so a pass looked like it happened elsewhere.
       if (lesson.terrain && TERRAINS[lesson.terrain]) setTerrainId(lesson.terrain);
+      // ...and show the lesson's actual arena inside it. The terrain sets the
+      // scenery; this puts the flag, the sample patches and the lesson's rocks
+      // on screen, and arms the live sensors to read them (see lessonApi in
+      // hooks.jsx). Previously these existed only inside the grader, so a pupil
+      // drove around an empty world and was marked on things they never saw.
+      seedLessonWorld(lesson.id);
+      setAgentsForLesson(true);
+      // The terrain swap is deliberate but it used to be silent, which is what
+      // made switching lessons feel like the app changing under you. Say it.
+      const worldName = (TERRAINS[lesson.terrain] && TERRAINS[lesson.terrain].name) || lesson.terrain;
+      if (worldName) showToast('Lesson opened. This one runs in ' + worldName + '.', 'sys');
       // Seed this lesson's buffer from its starter ONLY if it has no edits yet,
       // so switching A -> B -> A preserves the pupil's work in A (rank 6).
       setLessonBuffers(b => b[lesson.id] !== undefined ? b : { ...b, [lesson.id]: lesson.starterCode || '' });
@@ -1183,6 +1275,7 @@
             setLessonBuffers, setPrograms, setWorldLoading,
             addConsole, showToast, sfx, motorSfx, motorRest, recordRunReport,
             gradeWithBridge, celebrate,
+            lessonWorldRef, lessonMarks,
           })
         : { onRun: function () {}, onStep: function () {}, onReset: function () {}, onTerrain: function () {}, runReplLine: function () {}, onCodeChange: function () {}, exportReportClick: function () {}, queueReplaySeed: function () {} };
 
@@ -1518,13 +1611,16 @@
         <h1 className="sr-only">Kodro, an offline robot design and simulation studio</h1>
         {/* ---- mission bar ---- */}
         <div className="missionbar" role="banner">
-          <div className="brand">
+          {/* The brand is the way home. Clicking a product's logo to get back to
+              the start is the one navigation every user already knows, and it
+              is what makes the front door somewhere you can return to. */}
+          <button type="button" className="brand brand-home" onClick={() => setHomeOpen(true)} aria-label="Home, choose lessons, robot design or free play">
             <div className="brand-mark" dangerouslySetInnerHTML={{ __html: ORBIT_SVG }}></div>
             <div className="brand-text">
               <div className="brand-name">Kodro</div>
               <div className="brand-sub">Test robot designs before you build them</div>
             </div>
-          </div>
+          </button>
           <div className="bar-divider"></div>
           <nav className="stage-nav" aria-label="Robot project stages">
             <button type="button" className={'stage-link' + (activeStage === 'design' ? ' active' : '')} aria-label={'1 Design, current robot ' + chipName} aria-current={activeStage === 'design' ? 'step' : undefined} onClick={() => goStage('design')}>
@@ -1755,7 +1851,7 @@
                   </label>
                   <label className="simple-setup-row">
                     <span><b>Test</b><small>What the robot will do</small></span>
-                    <select className="simple-setup-select" value={activeTab} onChange={e => { setCurrentLessonId(null); setActiveTab(e.target.value); }} aria-label="Choose the robot test">
+                    <select className="simple-setup-select" value={activeTab} onChange={e => { setCurrentLessonId(null); clearLessonWorld(); setActiveTab(e.target.value); }} aria-label="Choose the robot test">
                       {Object.keys(EXAMPLES).map(k => <option key={k} value={k}>{SIMPLE_PROGRAM_NAMES[k] || EXAMPLES[k].label}</option>)}
                     </select>
                   </label>
@@ -1847,14 +1943,14 @@
               <div className="panel-head">
                 <label className="simple-program-picker">
                   <span className="eyebrow">Program</span>
-                  <select className="lesson-select" value={currentLessonId ? '' : activeTab} onChange={e => { setCurrentLessonId(null); setActiveStage('prove'); setActiveTab(e.target.value); }} aria-label="Choose an example program">
+                  <select className="lesson-select" value={currentLessonId ? '' : activeTab} onChange={e => { setCurrentLessonId(null); clearLessonWorld(); setActiveStage('prove'); setActiveTab(e.target.value); }} aria-label="Choose an example program">
                     <option value="" disabled>Lesson program</option>
                     {Object.keys(EXAMPLES).map(k => <option key={k} value={k}>{EXAMPLES[k].label}</option>)}
                   </select>
                 </label>
                 <div className="tabs">
                   {Object.keys(EXAMPLES).map(k => (
-                    <button key={k} type="button" className={'tab' + (!currentLessonId && activeTab === k ? ' active' : '')} aria-pressed={!currentLessonId && activeTab === k} onClick={() => { setCurrentLessonId(null); setActiveTab(k); }}>{EXAMPLES[k].label}</button>
+                    <button key={k} type="button" className={'tab' + (!currentLessonId && activeTab === k ? ' active' : '')} aria-pressed={!currentLessonId && activeTab === k} onClick={() => { setCurrentLessonId(null); clearLessonWorld(); setActiveTab(k); }}>{EXAMPLES[k].label}</button>
                   ))}
                 </div>
                 {classroom && lessons.length > 0 && (
@@ -2413,11 +2509,18 @@
           })}
         </div>
 
-        {!onboarded && window.KodroOnboarding && (
-          <window.KodroOnboarding onClose={() => {
-            setOnboarded(true);
-            try { localStorage.setItem('or_onboarded', '1'); } catch (err) { void err; }
-          }} />
+        {/* The front door. Shown automatically on a first visit and reopenable
+            from the Home control, so it is somewhere you can go back to rather
+            than a wizard you dismiss once. It answers what this is, what to
+            press first, and what you could make, then offers three doors. */}
+        {(homeOpen || !onboarded) && window.KodroHome && (
+          <window.KodroHome
+            canClose={onboarded}
+            onClose={() => setHomeOpen(false)}
+            onLessons={() => { closeHome(); openLessonLibrary(); }}
+            onDesign={() => { closeHome(); goStage('design'); }}
+            onFreePlay={() => { closeHome(); setMode('studio'); setCurrentLessonId(null); clearLessonWorld(); goStage('prove'); }}
+          />
         )}
       </div>
     );

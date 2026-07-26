@@ -135,10 +135,14 @@
     } else if (id === 'room') {
       agents.push(ped(true, 1, -360, 40, 0, 0x6aa0d8, 1300));
       agents.push(ped(false, 1, 360, 32, 200, 0xc97f6a, 1100));
-    } else if (!QUIET_SITES[id]) {
+    } else if (id !== 'none' && !QUIET_SITES[id]) {
       // Open terrain worlds were static. Give them a small autonomous fleet that
       // roams and reacts, so the world is alive and the player has machines to
       // share it with. Quiet sites (Challenger Deep, Europa) stay empty (W5).
+      // 'none' is the lesson arena: a lesson is graded against its own samples
+      // and obstacles only, so any roaming machine here is an obstacle the
+      // grader has never heard of. That mismatch is how a lesson could show a
+      // visible crash and still tick "Do not hit anything".
       addRobots(3, ROBOT_COLORS);
     }
     step(0); // place every agent on its lane immediately, before the first frame

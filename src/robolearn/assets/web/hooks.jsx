@@ -834,6 +834,13 @@
       // cross-concern callbacks
       addConsole, showToast, sfx, motorSfx, motorRest, recordRunReport,
       gradeWithBridge, celebrate,
+      // The loaded lesson's own arena (base, samples, obstacles) in metres, or
+      // null in free play. lessonApi below answers the lesson verbs from this
+      // so the watched run and the graded run are the same world.
+      lessonWorldRef,
+      // Shared lesson-metres -> sim-centimetres converter (app.jsx), so the
+      // seed path and the per-run reset cannot drift on the offset maths.
+      lessonMarks,
     } = deps;
     // `token` is a monotonic run id: every reset/start/resume bumps it, so a
     // stale pump loop or a pending start setTimeout that fires after a Reset is
@@ -940,7 +947,75 @@
       // Math.random fallback only exists for a host used before any run.
       rng() {
         return ctrl.current.rng ? ctrl.current.rng() : Math.random();
-      }
+      },
+      // Lesson verbs, answered from the lesson's OWN world.
+      //
+      // Before this, the watched run and the graded run were different worlds:
+      // interpreter.js hardcoded sample_detected() to false ("JS sim has no
+      // samples") and collect_sample() to a print, while the grader ran a real
+      // arena the pupil could not see. A pupil could drive over the sample
+      // patch and be told there was nothing there, then be graded on whether
+      // they had collected it. That single gap is why lessons felt unlearnable.
+      //
+      // The interpreter already routes these verbs to host.lessonApi when a
+      // host provides one (interpreter.js:747); only the live host was missing.
+      // This implements the same contract as the grader's lessonApi against
+      // the same lesson data, so what the pupil sees, senses and collects is
+      // what they are marked on. Returns null when no lesson is loaded, which
+      // leaves free play exactly as it was.
+      lessonApi(name, args) {
+        const lw = lessonWorldRef.current;
+        if (!lw) return null;
+        const s = live.current;
+        // Coordinate mapping, live sim -> lesson metres. Two things differ and
+        // both matter, so this is derived rather than guessed:
+        //
+        //   Origin: the live sim always starts the rover at its own (0,0),
+        //   while the lesson places it AT its base (02_move_turn bases at
+        //   (1,1) m). So the live origin IS the lesson base.
+        //
+        //   Axes: the live engine advances by (sin h, -cos h), so heading 0
+        //   travels -y in sim space. The grader's engine advances +x at
+        //   heading 0. Matching them empirically: driving forward 3 m then
+        //   turning left and driving 3 m puts the live rover at sim
+        //   (-300, -300), which must read as lesson (4, 4), the sample. That
+        //   gives -y_sim -> +x_lesson and -x_sim -> +y_lesson.
+        const rx = lw.base[0] + (-s.y / 100);
+        const ry = lw.base[1] + (-s.x / 100);
+        const num = (v, dflt) => (typeof v === 'number' && isFinite(v) ? v : dflt);
+        const near = (radiusM) => {
+          let best = null, bestD = Infinity;
+          for (const sm of lw.samples) {
+            if (sm.collected) continue;
+            const d = Math.hypot(sm.x - rx, sm.y - ry);
+            if (d <= radiusM && d < bestD) { best = sm; bestD = d; }
+          }
+          return best;
+        };
+        switch (name) {
+          case 'obstacle_ahead': {
+            const d = sensorRayDistance(s);
+            return typeof d === 'number' && d / 100 <= num(args[0], 0.5);
+          }
+          case 'sample_detected':
+            return near(num(args[0], 0.3)) !== null;
+          case 'at_base':
+            return Math.hypot(rx - lw.base[0], ry - lw.base[1]) <= 0.3;
+          case 'collect_sample': {
+            const sm = near(0.3);
+            if (!sm) return false;
+            sm.collected = true;
+            // Drop the marker from the viewport so the pupil sees the patch
+            // disappear the moment it is collected.
+            if (deps.setProps) deps.setProps((ps) => ps.filter((p) => p.lessonSampleId !== sm.id));
+            return true;
+          }
+          case 'drop_sample':
+            return false;
+          default:
+            return null;
+        }
+      },
     };
 
     // ---------- animation primitives ----------
@@ -1406,6 +1481,12 @@
       const line = e && e.line;
       if (line) setActiveLine(line);
       addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
+      // The console only exists in the expert layout. In the default simple
+      // view it is not rendered at all, so a program that failed produced no
+      // visible feedback whatsoever: the rover stopped and nothing said why.
+      // The toast is present in every layout, so this is the one path that
+      // guarantees a failure is seen.
+      showToast((line ? 'Line ' + line + ': ' : '') + msg, 'err');
       // A8: an error mid-mission is a run result; a compile-time typo that
       // executed nothing is not.
       // A runtime error mid-mission is a run result: record it AND grade it, so
@@ -1573,6 +1654,15 @@
       live.current = startState();
       trailRef.current = []; setTrail([]);
       setProps([]);
+      // Put the lesson's samples back. They are marked collected as the rover
+      // picks them up, so without this a second attempt would start with the
+      // patches already gone and could never pass again.
+      if (lessonWorldRef && lessonWorldRef.current) {
+        lessonWorldRef.current.samples.forEach((s) => { s.collected = false; });
+        // Same converter the seed path uses (deps.lessonMarks), so the offset
+        // maths exists in exactly one place.
+        if (deps.lessonMarks) setProps(deps.lessonMarks(lessonWorldRef.current));
+      }
       odoRef.current = 0; setOdo(0);
       minProxRef.current = Infinity;
       cmdCountRef.current = 0;

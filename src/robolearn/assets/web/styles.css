@@ -145,6 +145,13 @@ body {
   .stage-link { padding-inline:7px; }
 }
 .brand { display:flex; align-items:center; gap:11px; }
+/* The brand doubles as the Home control, so it is a real button: reset the
+   button chrome, keep the layout identical, and give it a visible affordance
+   on hover and a proper focus ring for keyboard users. */
+.brand-home { background:none; border:0; padding:2px 6px 2px 2px; margin:-2px -6px -2px -2px;
+  border-radius:9px; cursor:pointer; text-align:left; font:inherit; color:inherit; }
+.brand-home:hover .brand-name { color:var(--cyan); }
+.brand-home:focus-visible { outline:2px solid var(--cyan); outline-offset:2px; }
 .brand-mark { width:30px; height:30px; color:var(--cyan); flex:none; }
 .brand-mark svg { width:100%; height:100%; display:block; }
 .brand-text { display:flex; flex-direction:column; line-height:1; }
