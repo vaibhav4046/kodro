@@ -1,8 +1,8 @@
 # Pupil API cheatsheet
 
 Every function you can call from your pupil code lives in the single module
-`robolearn.rover_api`. The full table lands in Task 2 of the build plan
-along with the implementation; the names and signatures below are final.
+`robolearn.rover_api`. All 24 are listed below, and a test keeps this page in
+step with the code, so nothing you can call is missing from here.
 
 ## Driving
 
@@ -12,6 +12,7 @@ along with the implementation; the names and signatures below are final.
 | `move_backward(distance)` | Drive backward by `distance` metres. |
 | `turn_left(angle_deg)` | Turn `angle_deg` degrees to the left. |
 | `turn_right(angle_deg)` | Turn `angle_deg` degrees to the right. |
+| `set_speed(percent)` | Set drive speed as a percentage, clamped to 0-100. |
 | `wait(seconds)` | Pause for `seconds` seconds of simulated time. |
 
 ## Sensing
@@ -25,6 +26,7 @@ along with the implementation; the names and signatures below are final.
 | `obstacle_ahead(threshold_m=0.5)` | `True` if something is in the way. |
 | `sample_detected(radius_m=0.3)` | `True` if a collectible sample is nearby. |
 | `at_base()` | `True` if the rover is on the base tile. |
+| `scan()` | Sweep the surroundings with a radar ping. Visual only; it returns nothing, so read the distance with `read_distance()`. |
 
 ## Acting
 
@@ -34,3 +36,14 @@ along with the implementation; the names and signatures below are final.
 | `drop_sample()` | Drops a held sample; returns `True` on success. |
 | `beep(times=1)` | Plays an audible cue. |
 | `log(message)` | Prints `message` to the simulator console. |
+| `say(message)` | Shows a short speech bubble above the rover. A friendlier `log`. |
+| `led(colour="cyan")` | Lights the rover's status LED. Visual cue only. |
+
+## Drawing and props
+
+| Function | What it does |
+| --- | --- |
+| `pen_down()` | Lower the trail pen so the rover draws its path as it drives. |
+| `pen_up()` | Lift the trail pen so the rover stops drawing. |
+| `place(kind="flag", x=None, y=None)` | Place a prop in the world: a flag, beacon, rock, tree, person or crate. Defaults to where the rover is standing. |
+| `clear_props()` | Remove every prop placed with `place`. |

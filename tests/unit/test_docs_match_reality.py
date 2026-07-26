@@ -53,3 +53,31 @@ def test_docs_do_not_name_a_release_asset_that_is_never_built() -> None:
         "These docs name a release asset the workflow does not produce "
         f"(it builds {sorted(built)}): {problems}"
     )
+
+
+def test_pupil_cheatsheet_documents_every_callable_command() -> None:
+    """The cheatsheet is the pupil's only command reference; it must be complete.
+
+    It listed 16 of the 24 names in ``rover_api.__all__``, omitting ``say``,
+    ``led``, ``set_speed``, ``scan``, ``pen_down``, ``pen_up``, ``place`` and
+    ``clear_props`` -- including two used in the project's own example
+    programs. A pupil reading the reference would conclude those commands do
+    not exist.
+    """
+    import robolearn.rover_api as rover_api
+
+    page = (ROOT / "docs" / "pupils" / "api-cheatsheet.md").read_text(encoding="utf-8")
+    missing = [name for name in sorted(rover_api.__all__) if f"`{name}(" not in page]
+    assert not missing, (
+        f"These commands are callable but absent from docs/pupils/api-cheatsheet.md: {missing}"
+    )
+
+
+def test_pupil_cheatsheet_does_not_promise_unfinished_work() -> None:
+    """No build-plan leftovers in a page pupils actually read."""
+    page = (ROOT / "docs" / "pupils" / "api-cheatsheet.md").read_text(encoding="utf-8")
+    for phrase in ("lands in Task", "build plan", "TODO", "coming soon"):
+        assert phrase not in page, (
+            f"api-cheatsheet.md still says {phrase!r}. The implementation exists; "
+            "the page should describe it rather than promise it."
+        )
