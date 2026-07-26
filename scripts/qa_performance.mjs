@@ -18,7 +18,13 @@ import { resolveChrome } from './lib/resolve-chrome.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
 const WEB = path.join(REPO, 'src', 'robolearn', 'assets', 'web');
-const OUT = path.join(REPO, 'docs', 'eval', 'performance_eval.json');
+// Software evidence keeps its historical name (the dissertation cites it);
+// a hardware run writes alongside it, never over it.
+const _GL_EARLY = (process.argv.find((a) => a.startsWith('--gl=')) || '--gl=software').slice(5);
+const OUT = path.join(
+  REPO, 'docs', 'eval',
+  _GL_EARLY === 'hardware' ? 'performance_eval_hardware.json' : 'performance_eval.json',
+);
 const TMP = path.join(REPO, 'tmp', 'performance-eval');
 const PORT = 8117;
 const HOST = '127.0.0.1';
@@ -80,14 +86,29 @@ async function devtoolsTarget(port) {
   throw new Error('Chrome DevTools endpoint did not start');
 }
 
+// --gl=hardware drops the SwiftShader forcing so Chrome uses the machine's
+// real GPU (via ANGLE/D3D11 on Windows). The two modes answer different
+// questions: software is the guaranteed floor on a machine with no working
+// GL, hardware is what a normal laptop actually experiences. They write to
+// SEPARATE artefacts because the dissertation cites the software file by
+// name and a hardware run must never overwrite that evidence.
+const GL_MODE = (process.argv.find((a) => a.startsWith('--gl=')) || '--gl=software').slice(5);
+if (GL_MODE !== 'software' && GL_MODE !== 'hardware') {
+  console.error(`unknown --gl mode '${GL_MODE}' (use software or hardware)`);
+  process.exit(2);
+}
+
 async function runTier(chrome, quality, port) {
-  const profile = path.join(TMP, 'profile-' + quality);
+  const profile = path.join(TMP, 'profile-' + GL_MODE + '-' + quality);
   rmSync(profile, { recursive: true, force: true });
   mkdirSync(profile, { recursive: true });
   const url = `http://${HOST}:${PORT}/cap.html?world=city&robot=rover&q=${quality}&view=3d`;
+  const glArgs = GL_MODE === 'software'
+    ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+    : [];
   const args = [
     '--headless=new', '--no-sandbox', '--disable-dev-shm-usage',
-    '--enable-webgl', '--ignore-gpu-blocklist', '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
+    '--enable-webgl', '--ignore-gpu-blocklist', ...glArgs,
     '--no-first-run', '--disable-extensions', '--disable-default-apps',
     '--disable-component-extensions-with-background-pages', '--disable-background-networking',
     '--run-all-compositor-stages-before-draw', `--remote-debugging-port=${port}`,
@@ -199,6 +220,7 @@ try {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
     method: 'headless Chrome requestAnimationFrame cadence plus in-render submission timing on the shipped Three.js scene',
+    glMode: GL_MODE,
     chrome,
     platform: { platform: process.platform, arch: process.arch, node: process.version },
     artifactHashes: {

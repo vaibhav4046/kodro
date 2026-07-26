@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-07-26T16:33:21.130Z",
+  "method": "headless Chrome requestAnimationFrame cadence plus in-render submission timing on the shipped Three.js scene",
+  "glMode": "hardware",
+  "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "platform": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "v24.12.0"
+  },
+  "artifactHashes": {
+    "bundleSha256": "7e658c34492763b1ccbba2c6b7d85ab66b020fb1d86e5e62c93835d660fe9545",
+    "harnessSha256": "50681bdc3764f89f48a6cbe5d4e662bd3c80baa2a79391651477a582ddab9261"
+  },
+  "target240HzFrameMs": 4.17,
+  "interpretation": {
+    "measuredFps": "Observed requestAnimationFrame cadence in this browser environment; bounded by its virtual display.",
+    "p95RenderSubmissionMs": "CPU-side render submission duration. It is not a GPU completion time or a promise of displayed FPS.",
+    "highRefreshSubmissionReady": "True only when p95 submission work is at or below 4.17 ms in this run.",
+    "guarantee": "No universal FPS guarantee is made. Hardware, display refresh, browser scheduling, driver and scene all matter."
+  },
+  "sampling": {
+    "samplesPerTier": 3,
+    "perTier": {
+      "low": {
+        "samples": 3,
+        "measuredFpsMin": 116.4,
+        "measuredFpsMax": 124,
+        "measuredFpsMedian": 122.3,
+        "all": [
+          116.4,
+          122.3,
+          124
+        ]
+      },
+      "high": {
+        "samples": 3,
+        "measuredFpsMin": 143.5,
+        "measuredFpsMax": 145.8,
+        "measuredFpsMedian": 145,
+        "all": [
+          143.5,
+          145,
+          145.8
+        ]
+      }
+    }
+  },
+  "runs": [
+    {
+      "qualityRequested": "low",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 3315,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 116.4,
+        "refreshEstimateHz": 144.9,
+        "p95FrameIntervalMs": 8.1,
+        "p95RenderSubmissionMs": 2.8,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": true,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "low",
+        "rendererClass": "hardware",
+        "downgraded": false
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9417/devtools/browser/0c923cfb-aea9-4640-a672-9ffd3317beea"
+      ],
+      "sample": 1
+    },
+    {
+      "qualityRequested": "high",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 2729,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 145.8,
+        "refreshEstimateHz": 144.9,
+        "p95FrameIntervalMs": 7.5,
+        "p95RenderSubmissionMs": 2.8,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": true,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "high",
+        "rendererClass": "hardware",
+        "downgraded": false
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9418/devtools/browser/8f953462-deea-45ed-8e1d-4276e0bf7e06"
+      ],
+      "sample": 1
+    },
+    {
+      "qualityRequested": "low",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 2808,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 122.3,
+        "refreshEstimateHz": 142.9,
+        "p95FrameIntervalMs": 8.3,
+        "p95RenderSubmissionMs": 2.6,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": true,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "low",
+        "rendererClass": "hardware",
+        "downgraded": false
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9419/devtools/browser/e2942ff8-4eaf-47ce-b027-23af07efae40"
+      ],
+      "sample": 2
+    },
+    {
+      "qualityRequested": "high",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 3202,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 143.5,
+        "refreshEstimateHz": 144.9,
+        "p95FrameIntervalMs": 7.5,
+        "p95RenderSubmissionMs": 3.5,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": true,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "high",
+        "rendererClass": "hardware",
+        "downgraded": false
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9420/devtools/browser/c20e2319-48a4-4b05-b215-0c31530db9ab"
+      ],
+      "sample": 2
+    },
+    {
+      "qualityRequested": "low",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 2724,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 124,
+        "refreshEstimateHz": 144.9,
+        "p95FrameIntervalMs": 7.9,
+        "p95RenderSubmissionMs": 3.1,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": true,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "low",
+        "rendererClass": "hardware",
+        "downgraded": false
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9421/devtools/browser/2d4904ff-fac2-4e25-9cec-6eeabcc07565"
+      ],
+      "sample": 3
+    },
+    {
+      "qualityRequested": "high",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 3099,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 145,
+        "refreshEstimateHz": 142.9,
+        "p95FrameIntervalMs": 7.5,
+        "p95RenderSubmissionMs": 2.7,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": true,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "high",
+        "rendererClass": "hardware",
+        "downgraded": false
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9422/devtools/browser/56786154-ae01-4e6c-a264-0850bed565b7"
+      ],
+      "sample": 3
+    }
+  ],
+  "verdict": "MEASURED"
+}

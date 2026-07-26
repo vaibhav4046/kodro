@@ -105,52 +105,52 @@
 \@writefile{lot}{\contentsline {table}{\numberline {6.1}{\ignorespaces The evaluation strategy and the status of each method. The last row is not yet run.}}{24}{table.caption.12}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6.2}Automated verification}{24}{section.6.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6.3}Measured renderer evidence}{26}{section.6.3}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {6.2}{\ignorespaces Renderer evidence from Windows headless Chrome using SwiftShader software rendering, reported as the median of three independent samples per tier with the observed range in brackets. The figures are an environment-specific negative result, not a hardware-GPU benchmark or a claim about displayed FPS. The spread is the point: an earlier single-sample reading of this same build gave 18.7 and 18.4 FPS while the host was under load, so a lone figure describes the machine's occupancy as much as the software.}}{26}{table.caption.13}\protected@file@percent }
-\newlabel{tab:renderer}{{6.2}{26}{Renderer evidence from Windows headless Chrome using SwiftShader software rendering, reported as the median of three independent samples per tier with the observed range in brackets. The figures are an environment-specific negative result, not a hardware-GPU benchmark or a claim about displayed FPS. The spread is the point: an earlier single-sample reading of this same build gave 18.7 and 18.4 FPS while the host was under load, so a lone figure describes the machine's occupancy as much as the software}{table.caption.13}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6.2}{\ignorespaces Renderer evidence from Windows headless Chrome, median of three samples per tier with the observed range in brackets. Hardware rows use the host's integrated Intel GPU through ANGLE; software rows force SwiftShader. On ordinary integrated graphics the render submission work meets the 4.17 ms budget a 240 Hz display would require in every sample; under software rasterisation it does not, and that floor is what the adaptive quality governor exists for. Neither row is a claim about displayed FPS, which the display and browser cap.}}{26}{table.caption.13}\protected@file@percent }
+\newlabel{tab:renderer}{{6.2}{26}{Renderer evidence from Windows headless Chrome, median of three samples per tier with the observed range in brackets. Hardware rows use the host's integrated Intel GPU through ANGLE; software rows force SwiftShader. On ordinary integrated graphics the render submission work meets the 4.17 ms budget a 240 Hz display would require in every sample; under software rasterisation it does not, and that floor is what the adaptive quality governor exists for. Neither row is a claim about displayed FPS, which the display and browser cap}{table.caption.13}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {6.4}Persona review (formative)}{26}{section.6.4}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {6.3}{\ignorespaces Persona review trajectory across rounds. The figures are reported as measured by the analyst-run method, with the threats to validity stated below.}}{26}{table.caption.14}\protected@file@percent }
-\newlabel{tab:persona}{{6.3}{26}{Persona review trajectory across rounds. The figures are reported as measured by the analyst-run method, with the threats to validity stated below}{table.caption.14}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {6.5}Objective persona-task evaluation}{27}{section.6.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6.5}Objective persona-task evaluation}{26}{section.6.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6.3}{\ignorespaces Persona review trajectory across rounds. The figures are reported as measured by the analyst-run method, with the threats to validity stated below.}}{27}{table.caption.14}\protected@file@percent }
+\newlabel{tab:persona}{{6.3}{27}{Persona review trajectory across rounds. The figures are reported as measured by the analyst-run method, with the threats to validity stated below}{table.caption.14}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {6.4}{\ignorespaces Objective persona-task funnel, local model \texttt  {qwen2.5-coder:3b}, base seed 4046, temperature zero and up to three correction turns. The shipped interpreter and self-test judge every row. Mean turns to success was 1.0.}}{27}{table.caption.15}\protected@file@percent }
 \newlabel{tab:objeval}{{6.4}{27}{Objective persona-task funnel, local model \texttt {qwen2.5-coder:3b}, base seed 4046, temperature zero and up to three correction turns. The shipped interpreter and self-test judge every row. Mean turns to success was 1.0}{table.caption.15}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {6.5}{\ignorespaces Task completion broken down by persona and by task.}}{27}{table.caption.16}\protected@file@percent }
 \newlabel{tab:objbreakdown}{{6.5}{27}{Task completion broken down by persona and by task}{table.caption.16}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {6.6}Adversarial code-verified persona panel}{28}{section.6.6}\protected@file@percent }
 \citation{hu2023}
-\@writefile{toc}{\contentsline {section}{\numberline {6.7}Measuring grounded code generation (KodroBench)}{29}{section.6.7}\protected@file@percent }
 \citation{tobin2017}
 \citation{chen2021}
-\@writefile{lot}{\contentsline {table}{\numberline {6.6}{\ignorespaces KodroBench v0.1 (five tasks, ten seeds per task). success@N is mean seeded task success. Invention rate is the fraction of tasks whose program calls a symbol outside the build's fitted-command set. Syntax errors and collisions are the per-task rates. Values are as recorded in the versioned results file.}}{30}{table.caption.17}\protected@file@percent }
-\newlabel{tab:kodrobench}{{6.6}{30}{KodroBench v0.1 (five tasks, ten seeds per task). success@N is mean seeded task success. Invention rate is the fraction of tasks whose program calls a symbol outside the build's fitted-command set. Syntax errors and collisions are the per-task rates. Values are as recorded in the versioned results file}{table.caption.17}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6.7}Measuring grounded code generation (KodroBench)}{30}{section.6.7}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6.6}{\ignorespaces KodroBench v0.1 (five tasks, ten seeds per task). success@N is mean seeded task success. Invention rate is the fraction of tasks whose program calls a symbol outside the build's fitted-command set. Syntax errors and collisions are the per-task rates. Values are as recorded in the versioned results file.}}{31}{table.caption.17}\protected@file@percent }
+\newlabel{tab:kodrobench}{{6.6}{31}{KodroBench v0.1 (five tasks, ten seeds per task). success@N is mean seeded task success. Invention rate is the fraction of tasks whose program calls a symbol outside the build's fitted-command set. Syntax errors and collisions are the per-task rates. Values are as recorded in the versioned results file}{table.caption.17}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {6.8}Threats to validity}{31}{section.6.8}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6.9}The planned human evaluation}{32}{section.6.9}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6.10}Instrumentation}{32}{section.6.10}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6.11}Summary of the evaluation}{32}{section.6.11}\protected@file@percent }
-\@writefile{toc}{\contentsline {chapter}{\numberline {7}Discussion and Limitations}{33}{chapter.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {7}Discussion and Limitations}{34}{chapter.7}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\@writefile{toc}{\contentsline {section}{\numberline {7.1}Motion is kinematic, not rigid body}{33}{section.7.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.2}The physics engine exists but is not on the hot path}{33}{section.7.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.3}Sensor command coverage is partial}{33}{section.7.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.4}Procedural geometry, with surface shading and a gated post pass}{34}{section.7.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.5}An arena-scale mismatch between the two engines}{34}{section.7.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.6}The measured-build simulation is the studio only}{34}{section.7.6}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.7}Memory exists, but improvement is not demonstrated}{35}{section.7.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.8}Build guidance is not purchasing or electrical advice}{35}{section.7.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.9}Frame rate is measured, not guaranteed}{35}{section.7.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.10}The small-model ceiling}{35}{section.7.10}\protected@file@percent }
-\@writefile{toc}{\contentsline {chapter}{\numberline {8}Professional Issues}{36}{chapter.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.1}Motion is kinematic, not rigid body}{34}{section.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.2}The physics engine exists but is not on the hot path}{34}{section.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.3}Sensor command coverage is partial}{34}{section.7.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.4}Procedural geometry, with surface shading and a gated post pass}{35}{section.7.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.5}An arena-scale mismatch between the two engines}{35}{section.7.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.6}The measured-build simulation is the studio only}{35}{section.7.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.7}Memory exists, but improvement is not demonstrated}{36}{section.7.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.8}Build guidance is not purchasing or electrical advice}{36}{section.7.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.9}Frame rate is measured, not guaranteed}{36}{section.7.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.10}The small-model ceiling}{36}{section.7.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {8}Professional Issues}{37}{chapter.8}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\@writefile{toc}{\contentsline {section}{\numberline {8.1}Ethics}{36}{section.8.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {8.2}BCS professional issues and project criteria}{36}{section.8.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{37}{chapter.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {8.1}Ethics}{37}{section.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {8.2}BCS professional issues and project criteria}{37}{section.8.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{38}{chapter.9}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\@writefile{toc}{\contentsline {section}{\numberline {9.1}Summary}{37}{section.9.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {9.2}Reflection}{37}{section.9.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {9.3}Future work}{37}{section.9.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {9.4}Closing statement}{38}{section.9.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.1}Summary}{38}{section.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.2}Reflection}{38}{section.9.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.3}Future work}{38}{section.9.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.4}Closing statement}{39}{section.9.4}\protected@file@percent }
 \bibcite{ahn2022}{{1}{2022}{{Ahn et al.}}{{}}}
 \bibcite{cemri2025}{{2}{2025}{{Cemri et al.}}{{}}}
 \bibcite{chen2021}{{3}{2021}{{Chen et al.}}{{}}}
@@ -174,12 +174,12 @@
 \bibcite{wang2026}{{21}{2026}{{Wang et al.}}{{}}}
 \bibcite{wu2025}{{22}{2025}{{Wu et al.}}{{}}}
 \bibcite{webots2026}{{23}{2026}{{Webots}}{{}}}
-\@writefile{toc}{\contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{41}{appendix.A}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{42}{appendix.A}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\@writefile{lot}{\contentsline {table}{\numberline {A.1}{\ignorespaces Glossary of terms as used in this dissertation.}}{41}{table.caption.19}\protected@file@percent }
-\@writefile{toc}{\contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{42}{appendix.B}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {A.1}{\ignorespaces Glossary of terms as used in this dissertation.}}{42}{table.caption.19}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{43}{appendix.B}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
 \ttl@finishall
-\gdef \@abspage@last{49}
+\gdef \@abspage@last{50}
