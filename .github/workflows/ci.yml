@@ -140,6 +140,29 @@ jobs:
       - name: Web contrast gate
         run: node scripts/qa_contrast.mjs
 
+      # Deterministic Node gates added after the original CI wiring. Each runs
+      # in milliseconds-to-seconds with no browser: parts-catalogue citations,
+      # memory-graph behaviour, GPU-tier classification, project storage
+      # honesty, construct liveness parity, and the cross-engine fuzz (which
+      # shells into the same Python this job already installed for pytest).
+      - name: Parts catalogue gate
+        run: node scripts/qa_parts.mjs
+
+      - name: Memory graph gate
+        run: node scripts/qa_memgraph.mjs
+
+      - name: GPU capability gate
+        run: node scripts/qa_gpucaps.mjs
+
+      - name: Project storage honesty gate
+        run: node scripts/qa_project_storage.mjs
+
+      - name: Construct liveness parity gate
+        run: node scripts/qa_construct_liveness.mjs
+
+      - name: Cross-engine fuzz gate
+        run: node scripts/qa_fuzz.mjs
+
       # Browser boot + privacy gate (qa_web): the ONLY browser-driven gate wired
       # into CI, and only on Linux. It builds the static web bundle and loads it
       # in headless Chrome to prove two things a green Python/Node CI otherwise

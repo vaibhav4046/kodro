@@ -489,6 +489,20 @@ console.log('\n== ENGINE PARITY SPOT-CHECKS (Python rover semantics) ==');
     r2.passed === false && r2.reasons.some((s) => s.indexOf('Recorded 1 collision(s)') === 0),
     JSON.stringify(r2.reasons));
 }
+{
+  // Touch, then back off: a rover the sweep stopped at the contact point must
+  // be able to reverse away, free and uncounted, exactly as motion_model.py's
+  // touch-not-trapped rule allows. The old segmentCircleHit collapsed every
+  // from-contact move to t=0, so the browser grade trapped the rover at the
+  // rock forever (counting a collision per attempt) while the desktop let it
+  // back off. Found by the cross-engine fuzz (scripts/qa_fuzz.mjs), which
+  // stays the broad net; this pins the minimal case with a name.
+  const r = grade('04_selection', 'move_forward(2.0)\nmove_backward(1.0)\n');
+  // One collision from the drive into the rock; the reverse is free.
+  check('a rover stopped at contact can back off freely (touch, not trapped)',
+    r.reasons.some((s) => s.indexOf('Recorded 1 collision(s)') === 0),
+    JSON.stringify(r.reasons));
+}
 
 console.log('\n== RESULT: ' + pass + ' passed, ' + fail + ' failed ==');
 if (fail) {

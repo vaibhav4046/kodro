@@ -106,11 +106,23 @@
     var dx = bx - ax, dy = by - ay;
     var fx = ax - cx, fy = ay - cy;
     var a = dx * dx + dy * dy;
+    var c = fx * fx + fy * fy - radius * radius;
     if (a <= 1e-12) {
-      return (fx * fx + fy * fy) <= radius * radius ? 0.0 : null;
+      // Degenerate (zero-length) move: contact only if already inside.
+      return c <= 0.0 ? 0.0 : null;
     }
     var b = 2.0 * (fx * dx + fy * dy);
-    var c = fx * fx + fy * fy - radius * radius;
+    if (c <= 0.0) {
+      // The segment STARTS on or inside the grown circle, which is exactly
+      // where a previous swept stop leaves the rover. The old max(0, t1)
+      // collapsed this to t=0 for EVERY direction, so a rover that had
+      // kissed a rock was trapped at the contact point forever in the
+      // browser grade while the desktop let it back off (motion_model.py
+      // fixed this on its side and this mirror was missed; the cross-engine
+      // fuzz found the divergence). Moving away or tangentially is free;
+      // only moving deeper in is an immediate contact.
+      return b < 0.0 ? 0.0 : null;
+    }
     var disc = b * b - 4.0 * a * c;
     if (disc < 0.0) return null;
     var sq = Math.sqrt(disc);
@@ -206,15 +218,23 @@
     var idealDy = distanceM * Math.sin(rad);
     var sx = rover.x, sy = rover.y;
     var tx = sx + idealDx, ty = sy + idealDy;
+    // Stop at the FIRST contact along the ORIGINAL segment: take the minimum
+    // t across all obstacles, then apply it once. The old loop shortened the
+    // target inside the loop while still scaling by the full ideal
+    // displacement, so with two obstacles on the path the later-listed one
+    // could overshoot the true nearer contact (the same order-dependence
+    // rover.py fixed on the Python side; this mirror had kept the old loop).
     var hitObstacle = false;
+    var firstT = null;
     for (var i = 0; i < world.obstacles.length; i++) {
       var o = world.obstacles[i];
       var t = segmentCircleHit(sx, sy, tx, ty, o.x, o.y, o.r + ROVER_RADIUS_M);
-      if (t !== null) {
-        tx = sx + idealDx * t;
-        ty = sy + idealDy * t;
-        hitObstacle = true;
-      }
+      if (t !== null && (firstT === null || t < firstT)) firstT = t;
+    }
+    if (firstT !== null) {
+      tx = sx + idealDx * firstT;
+      ty = sy + idealDy * firstT;
+      hitObstacle = true;
     }
     rover.x = Math.min(Math.max(tx, 0.0), world.width);
     rover.y = Math.min(Math.max(ty, 0.0), world.height);
