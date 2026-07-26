@@ -8,11 +8,11 @@
       "program": "A list of steps for the rover to do, one after another."
     },
     "id": "00_first_drive",
-    "intro": "Let's drive the rover!\nEach line tells the rover one thing to do.\nThe rover does them in order, from the top.\nMake the rover go forward to reach the flag.\n",
+    "intro": "Let's drive the rover!\nEach line tells the rover one thing to do.\nThe rover does them in order, from the top.\nRight now it only drives 1 metre, which is not far enough.\nChange the number, or add another line, to reach the flag.\n",
     "keyStage": "KS1",
     "maxLines": 6,
     "readingAge": 6,
-    "starterCode": "move_forward(2)\nmove_forward(2)\n",
+    "starterCode": "move_forward(1)\n",
     "terrain": "earth",
     "title": "Drive to the Flag"
   },
@@ -26,11 +26,11 @@
       "turn": "Spin the rover to face a new direction, measured in degrees."
     },
     "id": "00b_repeat_square",
-    "intro": "A square has four equal sides.\nInstead of writing the same steps four times, we use a loop.\n\"for side in range(4)\" repeats the lines below it four times.\nDrive forward, then turn, four times - and you draw a square!\n",
+    "intro": "A square has four equal sides.\nInstead of writing the same steps four times, we use a loop.\n\"for side in range(4):\" repeats the lines below it four times.\nBelow is ONE side. Wrap those two lines in a for loop\nso the rover repeats them and draws the whole square.\n",
     "keyStage": "KS2",
     "maxLines": 8,
     "readingAge": 9,
-    "starterCode": "for side in range(4):\n    move_forward(2)\n    turn_right(90)\n",
+    "starterCode": "move_forward(2)\nturn_right(90)\n",
     "terrain": "earth",
     "title": "Make a Square"
   },
@@ -44,11 +44,11 @@
       "sensor": "A part that lets the rover measure the world around it, like its eyes."
     },
     "id": "00c_look_first",
-    "intro": "A clever rover looks before it moves.\n\"obstacle_ahead()\" asks the sensor a yes/no question:\nis there a rock right in front of me?\nUse \"if\" to turn out of the way first, then drive on safely.\n",
+    "intro": "A clever rover looks before it moves.\n\"obstacle_ahead()\" asks the sensor a yes/no question:\nis there a rock right in front of me?\nPress Run first and watch the rover hit the rock.\nThen add \"if obstacle_ahead():\" and a turn ABOVE the move,\nso it looks before it drives.\n",
     "keyStage": "KS2",
     "maxLines": 8,
     "readingAge": 10,
-    "starterCode": "if obstacle_ahead():\n    turn_left(90)\n\nmove_forward(3)\n",
+    "starterCode": "move_forward(3)\n",
     "terrain": "mars",
     "title": "Look Before You Move"
   },
@@ -58,11 +58,11 @@
     ],
     "glossary": {},
     "id": "01_hello_rover",
-    "intro": "Welcome to Kodro. Your first job is to give the rover three\ninstructions in order: drive forward, beep, and write a short message to\nthe console. Read each line of code from top to bottom -- the rover\nperforms them one after another. This is called a \"sequence\".\n",
+    "intro": "Welcome to Kodro. Your first job is to give the rover three\ninstructions in order: drive forward, beep, and write a short message\nto the console. This is called a \"sequence\".\nThe rover does not drive far enough yet. Change the number in\nmove_forward so it travels at least 1.5 metres, then run it again.\n",
     "keyStage": "KS3",
     "maxLines": 8,
     "readingAge": null,
-    "starterCode": "move_forward(2)\nbeep(1)\nlog(\"hello rover\")\n",
+    "starterCode": "move_forward(1)\nbeep(1)\nlog(\"hello rover\")\n",
     "terrain": "earth",
     "title": "Hello, Rover!"
   },
@@ -86,11 +86,11 @@
     ],
     "glossary": {},
     "id": "03_sequence",
-    "intro": "Drive a U-shaped path: forward, turn, forward, turn, forward. Then collect\nthe sample at the far end. Every line of your program is one step in the\nsequence.\n",
+    "intro": "Drive a U-shaped path: forward, turn, forward, turn, forward. Then\ncollect the sample at the far end. Every line of your program is one\nstep in the sequence.\nThe last move stops short of the sample, so nothing is collected.\nWork out how far that last move needs to be.\n",
     "keyStage": "KS3",
     "maxLines": 10,
     "readingAge": null,
-    "starterCode": "move_forward(3)\nturn_left(90)\nmove_forward(2)\nturn_left(90)\nmove_forward(3)\ncollect_sample()\n",
+    "starterCode": "move_forward(3)\nturn_left(90)\nmove_forward(2)\nturn_left(90)\nmove_forward(1)\ncollect_sample()\n",
     "terrain": "earth",
     "title": "Sequence"
   },
@@ -180,7 +180,7 @@
     "keyStage": "KS4",
     "maxLines": 12,
     "readingAge": null,
-    "starterCode": "def spiral(step):\n    if step < 0.5:\n        return\n    move_forward(step)\n    turn_left(90)\n    spiral(step - 0.5)\n\nspiral(3.0)\n",
+    "starterCode": "def spiral(step):\n    if step < 0.5:\n        return\n    move_forward(step)\n    turn_left(90)\n    spiral(step - 0.5)\n\nspiral(1.0)\n",
     "terrain": "space",
     "title": "Recursion (KS4 stretch)"
   },

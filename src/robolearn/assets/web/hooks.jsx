@@ -1549,7 +1549,15 @@
           distanceCm: Math.round(odoRef.current),
           minProximityCm: isFinite(minProxRef.current) ? Math.round(minProxRef.current) : null,
         });
-        if (v) { addConsole(v.text, v.tone); doneVerdict = v.text; }
+        // In a lesson the grader's verdict is the one that counts and it is
+        // printed a moment later, so this free-play design coaching stays out
+        // of the console: a pupil whose starter fell short was reading
+        // "Mission complete and the design held up" immediately above
+        // "Not yet, 80/100". The report still carries it for the run history.
+        if (v) {
+          if (!currentLessonId) addConsole(v.text, v.tone);
+          doneVerdict = v.text;
+        }
       }
       // P7/A8: every completed run leaves a durable, structured report.
       recordRunReport('done', '', doneVerdict);

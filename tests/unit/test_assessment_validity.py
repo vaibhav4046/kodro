@@ -124,3 +124,29 @@ def test_lesson_declares_a_positive_criterion(lesson: Lesson) -> None:
         f"({sorted(keys)}). Add one the rover must earn, e.g. "
         f"min_distance_travelled, samples_collected or returns_to_base."
     )
+
+
+@pytest.mark.parametrize("lesson", load_library(), ids=lambda le: le.id)
+def test_starter_does_not_solve_its_own_lesson(lesson: Lesson) -> None:
+    """A starter must be a scaffold, not the answer.
+
+    Every one of these lessons once shipped a starter that already satisfied
+    its own success criteria: a pupil pressed Run once, scored 100/100, and
+    learned nothing. The starter is the worked beginning, so it must leave the
+    pupil exactly one thing to work out, and the grader's failure message tells
+    them which.
+
+    If you are adding a lesson and this fails, shorten the starter rather than
+    weakening the criteria.
+    """
+    result, graded = _run_and_grade(lesson, lesson.starter_code)
+    assert result.success, (
+        f"{lesson.id}: the starter does not even execute "
+        f"({result.error_kind}: {result.error_message}). A pupil's first Run "
+        "must produce a working program, just an incomplete one."
+    )
+    assert not graded.passed, (
+        f"{lesson.id}: the supplied starter already passes the lesson "
+        f"({graded.score}/100), so pressing Run once completes it without the "
+        "pupil doing anything. Make the starter one step short of the goal."
+    )

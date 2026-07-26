@@ -14,10 +14,10 @@ intro: |
   Let's drive the rover!
   Each line tells the rover one thing to do.
   The rover does them in order, from the top.
-  Make the rover go forward to reach the flag.
+  Right now it only drives 1 metre, which is not far enough.
+  Change the number, or add another line, to reach the flag.
 starter_code: |
-  move_forward(2)
-  move_forward(2)
+  move_forward(1)
 allowed_constructs: [function_call]
 max_lines: 6
 world:

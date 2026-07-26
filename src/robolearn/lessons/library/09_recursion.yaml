@@ -19,7 +19,7 @@ starter_code: |
       turn_left(90)
       spiral(step - 0.5)
 
-  spiral(3.0)
+  spiral(1.0)
 allowed_constructs: [function_def, function_call, if, comparison, recursion, return, arithmetic]
 max_lines: 12
 world:

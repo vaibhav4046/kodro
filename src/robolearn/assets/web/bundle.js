@@ -23008,8 +23008,13 @@ Object.assign(window, {
           distanceCm: Math.round(odoRef.current),
           minProximityCm: isFinite(minProxRef.current) ? Math.round(minProxRef.current) : null
         });
+        // In a lesson the grader's verdict is the one that counts and it is
+        // printed a moment later, so this free-play design coaching stays out
+        // of the console: a pupil whose starter fell short was reading
+        // "Mission complete and the design held up" immediately above
+        // "Not yet, 80/100". The report still carries it for the run history.
         if (v) {
-          addConsole(v.text, v.tone);
+          if (!currentLessonId) addConsole(v.text, v.tone);
           doneVerdict = v.text;
         }
       }
@@ -28275,7 +28280,10 @@ say("Survey done")`
       stalled: 'Robot stalled',
       error: 'Program stopped'
     };
-    const simpleOutcomeLabel = simpleLatestRun ? SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded' : '';
+    // In a lesson the headline is the lesson result, not the free-play outcome
+    // name: "Mission complete" above "Not yet" is the app disagreeing with
+    // itself about the run the pupil just watched.
+    const simpleOutcomeLabel = currentLessonId && lessonVerdict ? lessonVerdict.passed ? 'Lesson passed' : 'Not yet' : simpleLatestRun ? SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded' : '';
     const simpleRunActive = runState === 'running' || runState === 'paused';
     let simpleAssessment = null;
     try {
@@ -28295,6 +28303,19 @@ say("Survey done")`
       }
     } catch (e) {
       void e;
+    }
+    // In a lesson the lesson's own verdict is the truth, and it must replace
+    // the free-play coaching line rather than sit beside it. A pupil whose
+    // starter fell short was being shown "Mission complete and the design held
+    // up" directly above "Not yet, 80/100", which is the app contradicting
+    // itself about the run it just did. The reasons are what tells them what to
+    // change, so they are what gets said.
+    if (currentLessonId && lessonVerdict) {
+      // The label above already says "Lesson passed" or "Not yet", so this
+      // carries only the reasons; repeating the verdict read as "Not yet. Not
+      // yet. Travelled 1.0 m...".
+      const reasons = (lessonVerdict.reasons || []).filter(Boolean);
+      simpleLatestVerdict = reasons.length ? reasons.join(' ') : lessonVerdict.passed ? 'Every goal met.' : 'Check the lesson goals above.';
     }
     // Spoken summary of a settled run.
     //
@@ -28322,7 +28343,7 @@ say("Survey done")`
       // a screen reader reads "add sensing.. travelled 2.7 metres".
       const parts = [simpleOutcomeLabel, simpleLatestVerdict || r.detail || '', dist, batt, prox, where].map(p => String(p || '').trim().replace(/[.\s]+$/, '')).filter(Boolean);
       return parts.join('. ') + '.';
-    }, [runState, simpleLatestRun, simpleOutcomeLabel, simpleLatestVerdict]);
+    }, [runState, simpleLatestRun, simpleOutcomeLabel, simpleLatestVerdict, currentLessonId, lessonVerdict]);
     function downloadPrototypeBrief() {
       const esc = function (v) {
         return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) {

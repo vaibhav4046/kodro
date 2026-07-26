@@ -15,11 +15,10 @@ intro: |
   A clever rover looks before it moves.
   "obstacle_ahead()" asks the sensor a yes/no question:
   is there a rock right in front of me?
-  Use "if" to turn out of the way first, then drive on safely.
+  Press Run first and watch the rover hit the rock.
+  Then add "if obstacle_ahead():" and a turn ABOVE the move,
+  so it looks before it drives.
 starter_code: |
-  if obstacle_ahead():
-      turn_left(90)
-
   move_forward(3)
 allowed_constructs: [function_call, if]
 max_lines: 8

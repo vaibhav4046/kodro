@@ -9,11 +9,12 @@ prereqs: []
 terrain: earth
 intro: |
   Welcome to Kodro. Your first job is to give the rover three
-  instructions in order: drive forward, beep, and write a short message to
-  the console. Read each line of code from top to bottom -- the rover
-  performs them one after another. This is called a "sequence".
+  instructions in order: drive forward, beep, and write a short message
+  to the console. This is called a "sequence".
+  The rover does not drive far enough yet. Change the number in
+  move_forward so it travels at least 1.5 metres, then run it again.
 starter_code: |
-  move_forward(2)
+  move_forward(1)
   beep(1)
   log("hello rover")
 allowed_constructs: [function_call]

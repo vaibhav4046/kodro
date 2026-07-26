@@ -8,15 +8,17 @@ curriculum_refs:
 prereqs: [02_move_turn]
 terrain: earth
 intro: |
-  Drive a U-shaped path: forward, turn, forward, turn, forward. Then collect
-  the sample at the far end. Every line of your program is one step in the
-  sequence.
+  Drive a U-shaped path: forward, turn, forward, turn, forward. Then
+  collect the sample at the far end. Every line of your program is one
+  step in the sequence.
+  The last move stops short of the sample, so nothing is collected.
+  Work out how far that last move needs to be.
 starter_code: |
   move_forward(3)
   turn_left(90)
   move_forward(2)
   turn_left(90)
-  move_forward(3)
+  move_forward(1)
   collect_sample()
 allowed_constructs: [function_call]
 max_lines: 10

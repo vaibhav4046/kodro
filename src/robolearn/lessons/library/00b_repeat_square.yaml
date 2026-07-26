@@ -14,12 +14,12 @@ glossary:
 intro: |
   A square has four equal sides.
   Instead of writing the same steps four times, we use a loop.
-  "for side in range(4)" repeats the lines below it four times.
-  Drive forward, then turn, four times - and you draw a square!
+  "for side in range(4):" repeats the lines below it four times.
+  Below is ONE side. Wrap those two lines in a for loop
+  so the rover repeats them and draws the whole square.
 starter_code: |
-  for side in range(4):
-      move_forward(2)
-      turn_right(90)
+  move_forward(2)
+  turn_right(90)
 allowed_constructs: [function_call, for]
 max_lines: 8
 world:
