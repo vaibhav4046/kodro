@@ -1,8 +1,13 @@
 # Pupil API cheatsheet
 
-Every function you can call from your pupil code lives in the single module
-`robolearn.rover_api`. All 24 are listed below, and a test keeps this page in
-step with the code, so nothing you can call is missing from here.
+These are the 24 functions in the graded Python lesson API,
+`robolearn.rover_api`. The web editor can also show shorter fitted commands
+under its command strip.
+
+The current browser preview can show sensor values in different on-screen
+units from the graded Python API below. Check the unit shown beside each
+value. If the animation and the lesson result disagree, keep your code and
+tell your teacher.
 
 ## Driving
 
@@ -45,5 +50,5 @@ step with the code, so nothing you can call is missing from here.
 | --- | --- |
 | `pen_down()` | Lower the trail pen so the rover draws its path as it drives. |
 | `pen_up()` | Lift the trail pen so the rover stops drawing. |
-| `place(kind="flag", x=None, y=None)` | Place a prop in the world: a flag, beacon, rock, tree, person or crate. Defaults to where the rover is standing. |
+| `place(kind="flag", x=None, y=None)` | Place a visual prop in the world: a flag, beacon, rock, tree, person or crate. Props do not collide. Defaults to where the rover is standing. |
 | `clear_props()` | Remove every prop placed with `place`. |
