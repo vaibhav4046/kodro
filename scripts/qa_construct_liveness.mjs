@@ -69,7 +69,12 @@ const CASES = [
   ['def f():\n    pass\n', 'function_def', false],
   // --- live: must still count ---
   ['if obstacle_ahead():\n    turn_left(90)\n', 'if', true],
-  ['if True:\n    move_forward(1)\n', 'if', true],
+  ['if 2 < 3:\n    move_forward(1)\n', 'if', true],
+  // `if True:` is NOT selection. It always runs, so it asks no question and
+  // demonstrates nothing a lesson requiring `if` is teaching: a pupil could
+  // wrap a fixed route in it and be told they had learned to choose.
+  ['if True:\n    move_forward(1)\n', 'if', false],
+  // `while True:` with a break is an ordinary idiom, so it still counts.
   ['while True:\n    move_forward(1)\n', 'while', true],
   ['for i in range(4):\n    move_forward(1)\n', 'for', true],
   ['def f():\n    pass\n\nf()\n', 'function_def', true],
@@ -89,6 +94,12 @@ if (typeof sourceUses === 'function') {
   const cheat = 'if False:\n    pass\n\nmove_forward(3)\n';
   check('the dead-if cheat no longer satisfies the if criterion',
     sourceUses(cheat, 'if') === false, 'this is the exact 00c_look_first bypass');
+
+  // The other bypass the audits found: a fixed route wrapped in a constant
+  // condition, which satisfied every selection lesson.
+  const alwaysTrue = 'if True:\n    move_forward(3)\n';
+  check('a constant-true if does not satisfy the if criterion',
+    sourceUses(alwaysTrue, 'if') === false, 'if True: is not a decision');
 }
 
 // The Python side must agree case for case. Read as data rather than executed

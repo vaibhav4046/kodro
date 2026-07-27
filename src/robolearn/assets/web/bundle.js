@@ -16576,6 +16576,8 @@ Object.assign(window, {
         "samples_collected": 1
       }, {
         "no_collisions": true
+      }, {
+        "uses_construct": "while"
       }],
       "hints": {
         "onFailure": ["If the rover hits the wall, your while condition is too generous -- try > 1.0 not > 0.1.", "Drive in smaller increments so the loop can react before a collision."],
@@ -16642,6 +16644,8 @@ Object.assign(window, {
         "returns_to_base": true
       }, {
         "max_battery_used": 70
+      }, {
+        "max_steps": 40
       }],
       "hints": {
         "onFailure": ["If the rover overshoots, lower the per-step distance from 0.5 m to 0.2 m.", "Compare the total distance for at least two different sample orderings."],
@@ -17363,12 +17367,21 @@ Object.assign(window, {
   // with the Python grader or the two engines disagree on the same program.
   function isLive(n, program) {
     if (n.kind === 'if') {
+      // grader.py: an `if` on a literal is not selection. `if False:` never
+      // runs and `if True:` always does; neither asks a question, so neither
+      // demonstrates the concept a lesson requiring `if` is teaching. A pupil
+      // could wrap a fixed route in `if True:` and be told they had learned to
+      // choose. The condition has to depend on something.
       var branches = n.branches || [];
       for (var i = 0; i < branches.length; i++) {
-        if (!isConstantFalsy(branches[i].test)) return true;
+        var t = branches[i].test;
+        var literal = t && (t.k === 'bool' || t.k === 'num' || t.k === 'str' || t.k === 'none');
+        if (!literal && !isConstantFalsy(t)) return true;
       }
       return false;
     }
+    // `while True:` with a break is an ordinary idiom, so only a body that can
+    // never run is rejected.
     if (n.kind === 'while') return !isConstantFalsy(n.test);
     if (n.kind === 'for') return !isProvablyEmptyIterable(n.iter);
     if (n.kind === 'def') {

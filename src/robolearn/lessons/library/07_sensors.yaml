@@ -25,6 +25,7 @@ world:
 success_criteria:
   - samples_collected: 1
   - no_collisions: true
+  - uses_construct: while
 hints:
   on_failure:
     - "If the rover hits the wall, your while condition is too generous -- try > 1.0 not > 0.1."

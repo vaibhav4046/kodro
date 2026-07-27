@@ -54,6 +54,7 @@ success_criteria:
   - samples_collected: 3
   - returns_to_base: true
   - max_battery_used: 70.0
+  - max_steps: 40
 hints:
   on_failure:
     - "If the rover overshoots, lower the per-step distance from 0.5 m to 0.2 m."

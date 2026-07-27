@@ -255,12 +255,17 @@ def _is_live(node: ast.AST, tree: ast.AST) -> bool:
     deliberate-gaming cases; a condition that is merely false at runtime is
     still counted, and that is the honest limit of the check.
     """
-    if isinstance(node, ast.If | ast.While):
-        # Only a body that can NEVER run is rejected. `while True:` with a
-        # break is an ordinary idiom and `if True:` still executes its body,
-        # so neither is dead even though neither is elegant. Judging style
-        # here would fail honest pupils; judging deadness does not.
+    if isinstance(node, ast.While):
+        # `while True:` with a break is an ordinary idiom, so only a body that
+        # can never run is rejected here.
         return not _is_constant_falsy(node.test)
+    if isinstance(node, ast.If):
+        # An `if` on a literal is not selection. `if False:` never runs and
+        # `if True:` always does; neither asks a question, so neither
+        # demonstrates the concept a lesson requiring `if` is teaching. A pupil
+        # could write `if True:` around a fixed route and be told they had
+        # learned to choose. The condition has to depend on something.
+        return not isinstance(node.test, ast.Constant) and not _is_constant_falsy(node.test)
     if isinstance(node, ast.For):
         return not _is_provably_empty_iterable(node.iter)
     if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):

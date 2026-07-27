@@ -211,7 +211,11 @@ def test_source_uses_detects_for_loop() -> None:
 
 
 def test_source_uses_detects_if_statement() -> None:
-    assert _source_uses("if True: pass", "if") is True
+    # An `if` on a literal is not selection: it asks no question. This
+    # asserted the opposite and let `if True:` around a fixed route satisfy
+    # every lesson that teaches choosing.
+    assert _source_uses("if True: pass", "if") is False
+    assert _source_uses("if obstacle_ahead(): pass", "if") is True
 
 
 def test_source_uses_detects_function_def() -> None:
@@ -236,8 +240,8 @@ def test_source_uses_rejects_provably_dead_constructs() -> None:
     ``if False:`` satisfies "the source contains an If node" while guaranteeing
     the body never executes, which let a pupil pass a sensor-reading lesson
     without reading the sensor. Only provably dead constructs are rejected:
-    ``while True:`` is an ordinary idiom and ``if True:`` still runs its body,
-    so both still count.
+    ``while True:`` is an ordinary idiom so it still counts; ``if True:`` does
+    not, because a constant condition is not a decision.
     """
     assert _source_uses("if False:\n    pass", "if") is False
     assert _source_uses("while False:\n    pass", "while") is False

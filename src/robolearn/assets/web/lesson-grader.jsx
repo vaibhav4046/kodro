@@ -87,10 +87,10 @@
     "04_selection": {"world":{"base":[1,1],"samples":[[5,1]],"obstacles":[{"x":3,"y":1,"r":0.4}],"width":6,"height":6},"criteria":[{"samples_collected":1},{"no_collisions":true},{"uses_construct":"if"}],"hints":{"onFailure":["The if-statement runs only once. Repeat it (or use a loop) until the rover passes the rock.","Did you call collect_sample() once the rover reaches the patch?"],"onSuccess":[]}},
     "05_iteration": {"world":{"base":[1,5],"samples":[[3,6],[4.5,5.4],[6,6.4]],"obstacles":[{"x":8,"y":5.5,"r":0.3}],"width":10,"height":8},"criteria":[{"samples_collected":3},{"max_battery_used":60},{"no_collisions":true},{"uses_construct":"while"}],"hints":{"onFailure":["Your loop ended early -- have you logged sample_detected() to see when it fires?","Try moving in smaller steps (e.g. move_forward(0.5)) so the rover doesn't overshoot a sample."],"onSuccess":[]}},
     "06_functions": {"world":{"base":[3,3],"samples":[[5,3],[5,5],[3,5],[3,3]],"obstacles":[],"width":8,"height":8},"criteria":[{"samples_collected":4},{"max_battery_used":60},{"uses_construct":"function_def"}],"hints":{"onFailure":["Define hop() once at the top, then call it four times to walk a square.","Add collect_sample() inside hop() so each corner picks up its patch."],"onSuccess":[]}},
-    "07_sensors": {"world":{"base":[1,1],"samples":[[5,1]],"obstacles":[],"width":6,"height":6},"criteria":[{"samples_collected":1},{"no_collisions":true}],"hints":{"onFailure":["If the rover hits the wall, your while condition is too generous -- try > 1.0 not > 0.1.","Drive in smaller increments so the loop can react before a collision."],"onSuccess":[]}},
+    "07_sensors": {"world":{"base":[1,1],"samples":[[5,1]],"obstacles":[],"width":6,"height":6},"criteria":[{"samples_collected":1},{"no_collisions":true},{"uses_construct":"while"}],"hints":{"onFailure":["If the rover hits the wall, your while condition is too generous -- try > 1.0 not > 0.1.","Drive in smaller increments so the loop can react before a collision."],"onSuccess":[]}},
     "08_pathfinding": {"world":{"base":[1,5],"samples":[[9,5]],"obstacles":[{"x":5,"y":5,"r":0.4}],"width":10,"height":10},"criteria":[{"samples_collected":1},{"returns_to_base":true},{"no_collisions":true}],"hints":{"onFailure":["Did the rover get stuck? Add a log() call inside the loop to see which branch fires each iteration.","If the rover never reaches the sample, increase the distance in your else branch."],"onSuccess":[]}},
     "09_recursion": {"world":{"base":[5,5],"samples":[],"obstacles":[],"width":10,"height":10},"criteria":[{"min_distance_travelled":8},{"max_battery_used":80},{"no_collisions":true},{"uses_construct":"recursion"}],"hints":{"onFailure":["If the rover runs off the arena, your starting step is too big -- try spiral(2.0).","Don't forget the base case (the if step < 0.5: return) or the function recurses forever."],"onSuccess":[]}},
-    "10_optimisation": {"world":{"base":[1,1],"samples":[[2,6],[5,5],[7,2]],"obstacles":[],"width":10,"height":8},"criteria":[{"samples_collected":3},{"returns_to_base":true},{"max_battery_used":70}],"hints":{"onFailure":["If the rover overshoots, lower the per-step distance from 0.5 m to 0.2 m.","Compare the total distance for at least two different sample orderings."],"onSuccess":[]}},
+    "10_optimisation": {"world":{"base":[1,1],"samples":[[2,6],[5,5],[7,2]],"obstacles":[],"width":10,"height":8},"criteria":[{"samples_collected":3},{"returns_to_base":true},{"max_battery_used":70},{"max_steps":40}],"hints":{"onFailure":["If the rover overshoots, lower the per-step distance from 0.5 m to 0.2 m.","Compare the total distance for at least two different sample orderings."],"onSuccess":[]}},
     "11_decomposition": {"world":{"base":[1,1],"samples":[[4,1],[4,4]],"obstacles":[],"width":10,"height":10},"criteria":[{"samples_collected":2},{"no_collisions":true},{"uses_construct":"function_def"}],"hints":{"onFailure":["You collected the first sample but not the second -- call leg_two() as well.","Each helper should do exactly one leg of the route; then call them in order."],"onSuccess":[]}},
     "12_abstraction": {"world":{"base":[5,1],"samples":[],"obstacles":[{"x":5,"y":4,"r":0.6}],"width":10,"height":10},"criteria":[{"no_collisions":true},{"uses_construct":"if"},{"min_distance_travelled":3}],"hints":{"onFailure":["Check obstacle_ahead() BEFORE you move, then turn_left(90) when it is True.","Wrap the move in an if/else so the rover only drives forward when the way is clear."],"onSuccess":[]}},
     "13_nested_loops": {"world":{"base":[1,1],"samples":[[3,1],[5,1],[7,1],[3,3],[5,3],[7,3]],"obstacles":[],"width":10,"height":10},"criteria":[{"samples_collected":6},{"no_collisions":true},{"uses_construct":"for"}],"hints":{"onFailure":["You collected one row. Add an outer loop so the inner sweep repeats for each row.","After each row, turn and move to the next row before sweeping again."],"onSuccess":[]}},
@@ -573,12 +573,21 @@
   // with the Python grader or the two engines disagree on the same program.
   function isLive(n, program) {
     if (n.kind === 'if') {
+      // grader.py: an `if` on a literal is not selection. `if False:` never
+      // runs and `if True:` always does; neither asks a question, so neither
+      // demonstrates the concept a lesson requiring `if` is teaching. A pupil
+      // could wrap a fixed route in `if True:` and be told they had learned to
+      // choose. The condition has to depend on something.
       var branches = n.branches || [];
       for (var i = 0; i < branches.length; i++) {
-        if (!isConstantFalsy(branches[i].test)) return true;
+        var t = branches[i].test;
+        var literal = t && (t.k === 'bool' || t.k === 'num' || t.k === 'str' || t.k === 'none');
+        if (!literal && !isConstantFalsy(t)) return true;
       }
       return false;
     }
+    // `while True:` with a break is an ordinary idiom, so only a body that can
+    // never run is rejected.
     if (n.kind === 'while') return !isConstantFalsy(n.test);
     if (n.kind === 'for') return !isProvablyEmptyIterable(n.iter);
     if (n.kind === 'def') {
