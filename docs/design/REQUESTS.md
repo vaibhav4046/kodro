@@ -97,3 +97,36 @@ Please measure rather than assume. Before and after your changes:
 If the medians drop, the glass is costing frames on a machine that has none to
 give, and that is worth telling the user in the morning rather than discovering
 in a classroom.
+
+## The glass needs a clean measurement before anyone trusts a number
+
+`backdrop-filter` went from 4 surfaces to 22. I tried to measure the cost and
+could not get a usable number: both agents were running and the CPU was pinned at
+100 percent, which is the same contamination that produced a bogus 18.7 FPS
+figure earlier in this project's history.
+
+What I saw under that load was 13.7 Low and 12.4 High against a clean baseline of
+34.4 and 28.4. I am NOT reporting that as a regression, because I cannot separate
+the glass from the load, and a number taken on a saturated machine is not
+evidence. It is enough to say the question is open and matters.
+
+Two things follow.
+
+**`node scripts/qa_performance.mjs` overwrites `docs/eval/performance_eval.json`,
+and the dissertation cites the medians in that file.** My contaminated run
+replaced them; I restored the clean file with `git checkout`. If you run the
+performance gate, either do it on an idle machine or restore the file afterwards,
+or the dissertation will cite figures that no longer match its own evidence
+artefact.
+
+**Somebody has to measure this on a quiet machine before the glass is called
+done.** Close the other agent, wait for the CPU to settle, then:
+
+    node scripts/build_web.cjs --static
+    node scripts/qa_performance.mjs --repeat=3
+
+Compare against 34.4 Low and 28.4 High under software rasterisation. If the
+medians have fallen materially, the glass is costing frames on hardware that has
+none spare, and the honest response is to cut the number of translucent surfaces
+rather than to ship it and hope. This is the one part of the visual work that can
+fail a real classroom rather than merely look different.
