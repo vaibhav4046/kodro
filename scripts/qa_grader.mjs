@@ -474,6 +474,69 @@ console.log('\n== SOLVABILITY: every lesson ships an answer that passes HERE too
     solved === shipped.length, `${solved}/${shipped.length}`);
 }
 
+console.log('\n== FADED EXAMPLES: the step between a hint and the answer ==');
+{
+  // A completed worked example is read passively. A faded one still requires the
+  // pupil to make the choice the lesson is about, which is the form the
+  // worked-example literature finds actually transfers. So the fading has to
+  // remove the DECISION and keep the STRUCTURE, and this asserts it does both.
+  const appSrc = readFileSync(new URL('../src/robolearn/assets/web/app.jsx', import.meta.url), 'utf8');
+  const start = appSrc.indexOf('    function fadeSolution(code) {');
+  const endIdx = appSrc.indexOf('      return { text: out.join(', start);
+  const end = appSrc.indexOf('\n    }', endIdx) + '\n    }'.length;
+  check('fadeSolution is present in app.jsx', start >= 0 && endIdx > start, '');
+  const fade = new Function(appSrc.slice(start, end).trim() + '\nreturn fadeSolution;')();
+
+  const raw = JSON.parse(readFileSync(new URL('../src/robolearn/assets/web/lessons.json', import.meta.url), 'utf8'));
+  const shipped = Array.isArray(raw) ? raw : (raw.lessons || []);
+  const noBlanks = [], sameShape = [], lostComment = [], unchanged = [];
+  for (const l of shipped) {
+    const full = String(l.solutionCode || '').trimEnd();
+    if (!full) continue;
+    const r = fade(full);
+    // Every lesson must have something worth blanking, or the faded step is a
+    // second copy of the answer wearing a different label.
+    if (r.blanks === 0) noBlanks.push(l.id);
+    if (r.text === full) unchanged.push(l.id);
+    // Structure survives: same number of lines, same indentation on each.
+    const a = full.split('\n'), b = r.text.split('\n');
+    if (a.length !== b.length) sameShape.push(l.id);
+    else {
+      for (let i = 0; i < a.length; i++) {
+        const ia = (/^(\s*)/.exec(a[i]) || ['', ''])[1];
+        const ib = (/^(\s*)/.exec(b[i]) || ['', ''])[1];
+        if (ia !== ib) { sameShape.push(l.id); break; }
+      }
+    }
+    // A comment is scaffolding, not a decision. Blanking it removes the help.
+    for (const line of a) {
+      if (line.trim().startsWith('#') && r.text.indexOf(line) < 0) { lostComment.push(l.id); break; }
+    }
+  }
+  check('every shipped solution has something to blank', noBlanks.length === 0, noBlanks.join(', '));
+  check('the faded form is never identical to the answer', unchanged.length === 0, unchanged.join(', '));
+  check('fading preserves line count and indentation', sameShape.length === 0, sameShape.join(', '));
+  check('fading never blanks a comment', lostComment.length === 0, lostComment.join(', '));
+
+  // The specific behaviours, on a program written to exercise each branch.
+  const probe = fade([
+    '# a comment stays',
+    'move_forward(3)',
+    'if obstacle_ahead(1.0):',
+    '    turn_left(90)',
+    'for i in range(4):',
+    '    beep()',
+    'collect_sample()',
+  ].join('\n'));
+  check('a call argument is blanked', probe.text.indexOf('move_forward(____)') >= 0, probe.text);
+  check('an if condition is blanked', probe.text.indexOf('if ____:') >= 0, probe.text);
+  check('a for range is blanked but the loop variable kept',
+    probe.text.indexOf('for i in ____:') >= 0, probe.text);
+  check('a comment is untouched', probe.text.indexOf('# a comment stays') >= 0, probe.text);
+  check('a call with no argument is left alone',
+    probe.text.indexOf('collect_sample()') >= 0 && probe.text.indexOf('collect_sample(____)') < 0, probe.text);
+}
+
 console.log('\n== GRADING: known-bad submissions FAIL with grader.py reasons ==');
 {
   // 01_hello_rover bad: drives into the east wall. 5 m travelled = 5.5%

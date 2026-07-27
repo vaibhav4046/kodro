@@ -29088,7 +29088,15 @@ say("Survey done")`
     // Has the pupil asked to see the worked answer for the lesson they are on?
     // Per-lesson and deliberately not persisted: reopening a lesson tomorrow
     // should offer the problem again, not the answer.
-    const [solutionShown, setSolutionShown] = useState(false);
+    // 0 = nothing shown, 1 = the faded answer, 2 = the whole answer.
+    //
+    // The step between hints and the full reveal is not decoration. A completed
+    // worked example is read passively; a faded one, with the decisions removed
+    // and the structure left standing, is the form the worked-example research
+    // finds actually transfers, because the pupil still has to make the choice
+    // the lesson is about. Jumping straight from "I am stuck" to the finished
+    // program teaches copying.
+    const [solutionStage, setSolutionStage] = useState(0);
     // The editor's current source: a lesson's own buffer when one is loaded,
     // otherwise the active example tab. (Declared AFTER the state above to
     // avoid a temporal-dead-zone ReferenceError.)
@@ -29251,6 +29259,53 @@ say("Survey done")`
       narrationSeqRef.current += 1;
       setNarration(String(text) + '​'.repeat(narrationSeqRef.current % 2));
     }
+    // Blank the DECISIONS out of a worked answer, leaving the structure standing.
+    //
+    // A completed example is read passively. A faded one still requires the
+    // pupil to make the choice the lesson is about, which is the form the
+    // worked-example literature finds actually transfers. So the fading is not
+    // random: what gets removed is the number or the condition, the part the
+    // pupil had to work out, while the command names and the block structure
+    // stay so the shape of the answer is still legible.
+    //
+    // Deliberately conservative. If nothing is safely blankable it returns the
+    // program unchanged with blanks: 0, and the caller offers the full reveal
+    // instead of a faded step that would be identical to it.
+    function fadeSolution(code) {
+      const lines = String(code || '').split('\n');
+      let blanks = 0;
+      const out = lines.map(line => {
+        // Never touch a comment, a blank line, or a bare structural keyword:
+        // removing those takes away the scaffold rather than the decision.
+        const body = line.trim();
+        if (!body || body.startsWith('#')) return line;
+        // The argument of a call: move_forward(3) -> move_forward(____)
+        const call = /^(\s*)([a-z_][a-z0-9_]*)\((.+)\)(\s*)$/i.exec(line);
+        if (call && call[3].trim() && !/^\s*$/.test(call[3])) {
+          blanks += 1;
+          return call[1] + call[2] + '(____)' + call[4];
+        }
+        // The condition of an if or a while: if obstacle_ahead(1.0): -> if ____:
+        const cond = /^(\s*)(if|elif|while)\s+(.+):(\s*)$/.exec(line);
+        if (cond) {
+          blanks += 1;
+          return cond[1] + cond[2] + ' ____:' + cond[4];
+        }
+        // The range of a for loop, keeping the loop variable, which is a name
+        // the pupil chose rather than a decision the lesson is testing.
+        const forLoop = /^(\s*)for\s+([a-z_][a-z0-9_]*)\s+in\s+(.+):(\s*)$/i.exec(line);
+        if (forLoop) {
+          blanks += 1;
+          return forLoop[1] + 'for ' + forLoop[2] + ' in ____:' + forLoop[4];
+        }
+        return line;
+      });
+      return {
+        text: out.join('\n'),
+        blanks: blanks
+      };
+    }
+
     // Describe the arena on request. Running a program to find out what is in
     // the world is fine when you can see it and useless when you cannot, so the
     // layout is readable BEFORE the first run. Built from the same lesson world
@@ -30176,7 +30231,7 @@ say("Survey done")`
         void err;
       }
       setExtraHints(0);
-      setSolutionShown(false);
+      setSolutionStage(0);
       // Render the rover on the SAME world it is graded against. Without this
       // the viewport could show a persisted Mars while the grader ran the
       // lesson's real terrain, so a pass looked like it happened elsewhere.
@@ -31952,27 +32007,37 @@ say("Survey done")`
       }, KI('bulb'), " ", liveVerdict.hint.message), revealedHints.map((h, i) => /*#__PURE__*/React.createElement("p", {
         key: 'xh' + i,
         className: "lesson-hint"
-      }, KI('bulb'), " ", h)), !moreHintsLeft && lesson.solutionCode && !solutionShown && /*#__PURE__*/React.createElement("button", {
+      }, KI('bulb'), " ", h)), !moreHintsLeft && lesson.solutionCode && solutionStage === 0 && /*#__PURE__*/React.createElement("button", {
         className: "btn-mini lesson-solution-ask",
-        onClick: () => setSolutionShown(true)
-      }, "Still stuck? Show me one way to do it"), solutionShown && lesson.solutionCode && /*#__PURE__*/React.createElement("div", {
-        className: "lesson-solution"
-      }, /*#__PURE__*/React.createElement("p", {
-        className: "lesson-solution-note"
-      }, "One way to solve it. There are others. Read it, then try to write it yourself."), /*#__PURE__*/React.createElement("pre", {
-        className: "lesson-solution-code"
-      }, /*#__PURE__*/React.createElement("code", null, lesson.solutionCode.trimEnd())), /*#__PURE__*/React.createElement("div", {
-        className: "lesson-solution-actions"
-      }, /*#__PURE__*/React.createElement("button", {
-        className: "btn-mini",
-        onClick: () => {
-          applyProgramText(lesson.solutionCode);
-          showToast('The worked answer is in the editor. Run it and watch what each line does.', 'sys');
-        }
-      }, "Put it in the editor"), /*#__PURE__*/React.createElement("button", {
-        className: "btn-mini",
-        onClick: () => setSolutionShown(false)
-      }, "Hide it again"))), (moreHintsLeft || lessonFailed || nextLesson) && /*#__PURE__*/React.createElement("div", {
+        onClick: () => setSolutionStage(1)
+      }, "Still stuck? Show me how it is built"), solutionStage > 0 && lesson.solutionCode && (() => {
+        const full = lesson.solutionCode.trimEnd();
+        const faded = solutionStage === 1 ? fadeSolution(full) : null;
+        return /*#__PURE__*/React.createElement("div", {
+          className: "lesson-solution"
+        }, /*#__PURE__*/React.createElement("p", {
+          className: "lesson-solution-note"
+        }, solutionStage === 1 ? 'The shape of one answer, with the decisions taken out. Work out what belongs in each blank, then check.' : 'One way to solve it. There are others. Read it, then try to write it yourself.'), /*#__PURE__*/React.createElement("pre", {
+          className: "lesson-solution-code"
+        }, /*#__PURE__*/React.createElement("code", null, solutionStage === 1 ? faded.text : full)), /*#__PURE__*/React.createElement("div", {
+          className: "lesson-solution-actions"
+        }, solutionStage === 1 && faded.blanks > 0 && /*#__PURE__*/React.createElement("button", {
+          className: "btn-mini",
+          onClick: () => setSolutionStage(2)
+        }, "Show the ", faded.blanks, " missing ", faded.blanks === 1 ? 'part' : 'parts'), solutionStage === 1 && faded.blanks === 0 && /*#__PURE__*/React.createElement("button", {
+          className: "btn-mini",
+          onClick: () => setSolutionStage(2)
+        }, "Show the whole answer"), solutionStage === 2 && /*#__PURE__*/React.createElement("button", {
+          className: "btn-mini",
+          onClick: () => {
+            applyProgramText(lesson.solutionCode);
+            showToast('The worked answer is in the editor. Run it and watch what each line does.', 'sys');
+          }
+        }, "Put it in the editor"), /*#__PURE__*/React.createElement("button", {
+          className: "btn-mini",
+          onClick: () => setSolutionStage(0)
+        }, "Hide it again")));
+      })(), (moreHintsLeft || lessonFailed || nextLesson) && /*#__PURE__*/React.createElement("div", {
         className: "lesson-actions"
       }, moreHintsLeft && /*#__PURE__*/React.createElement("button", {
         className: "btn-mini lesson-hint-more",
