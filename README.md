@@ -1,23 +1,30 @@
-# Kodro: Offline Robot Design, Deterministic Proof, and Build Planning
+# Kodro
+
+Kodro is an offline robot coding and kinematic simulation app for pupils
+aged 5 to 16, teachers, and beginners. Write or adapt a program, then
+watch a robot try it in a visual test world.
+
+**Run it now:** [open the live app](https://vaibhav4046.github.io/robolearn/).
+From a cloned repository, one command starts the local browser version:
+`python scripts/demo.py`.
+
+Three examples you can make:
+
+- a wheeled rover that follows a route and avoids obstacles
+- a self-driving car design tested in Riverside City
+- an indoor personal robot tested around furniture in the Living Room
+
+Kodro supports learning and early design comparison. It does not certify
+a physical robot, electrical safety, mechanical fit, or safe deployment.
 
 [![CI](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml)
 [![Deploy Pages](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
-**Design a robot. Test its program under disclosed simulation limits. Carry the evidence into a provisional build plan.**
-
-**Try it now, zero install: [vaibhav4046.github.io/robolearn](https://vaibhav4046.github.io/robolearn/)**. The browser build runs entirely client side and works offline after the first load. The full desktop app adds the local Python engine, lesson grading, and multi pupil progress.
-
-Kodro is a self-contained desktop and static web studio. You assemble or
-import a robot specification, write its behaviour in code, blocks or plain
-language, and test it in a disclosed kinematic simulation. Deterministic
-code owns capability checks, seeded metrics and PASS or FAIL verdicts. The
-optional local model can draft and explain, but it cannot change a verdict.
-The default path requires no account, paid service or cloud connection.
-
-Kodro is for a capable non expert adult who wants to design and test robot
-behaviour without a lab, a kit, or a cloud subscription.
+The hosted app runs in the browser and can work offline after its first
+load. The desktop app uses the same interface with the local Python engine.
+Core design, coding, simulation, and lesson paths need no account or AI.
 
 > This repository accompanies an MSc research project (COMP702, University
 > of Liverpool). The specification and design proposal is in
@@ -44,7 +51,6 @@ set honest expectations up front:
   optionally connect a free-tier key (Groq, or OpenRouter's free
   models) for a stronger model; that key stays in your browser, is sent
   only to the provider you pick, and is never required.
-- **Not a childrens coding toy.** It assumes a capable non expert adult.
 
 ## The three-stage loop
 
@@ -84,19 +90,19 @@ classroom efficacy or a guaranteed frame rate.
 
 ## Features
 
-What actually ships in this repository, verified against the test suite:
+What currently ships in this repository:
 
-- **Robot Lab.** Build a custom robot from real parts and let Kodro
+- **Robot Lab.** Build a custom robot from example hobby parts and let Kodro
   derive its physical envelope and recommend a world for it.
 - **Three ways to program, all offline.** A Python subset interpreter,
   a blocks editor that emits the same Python, and an optional local AI
   assistant (Ollama on `localhost`, a small 3 to 4B open model) with a
   deterministic rule based fallback when Ollama is absent.
-- **Realistic worlds.** A City with looping one way traffic and
+- **Visual test worlds.** A City with looping one way traffic and
   pedestrians that brake for your robot, a furnished Room, and
   planetary terrains. Built in code with Three.js (core only), an
   environment map, shadows and tone mapping.
-- **Natural motion.** Per type motion feel so a car throws its weight
+- **Type-specific visual motion.** Per type motion feel so a car throws its weight
   around, a heavy rover stays measured, a humanoid stays upright, and
   a fixed arm does not pitch as it works.
 - **Local experience memory.** Reflections and saved skills can inform
@@ -109,9 +115,12 @@ What actually ships in this repository, verified against the test suite:
   Audio API or the standard library. No audio files, no network.
 - **Curriculum lessons.** Eighteen bundled lessons mapped to the UK
   DfE / BCS computing programme of study, from KS1 through KS4
-  stretch, each with success criteria and offline hints.
+  stretch, with stated goals and offline hints. Each lesson is graded on
+  the run you watch, in the lesson's own world. The independent audit that
+  found the earlier visible-world and grading mismatches is kept as a dated
+  record in [`AUDIT_CODEX.md`](AUDIT_CODEX.md).
 - **Offline by default.** No account, paid service or mandatory network
-  call is required for Design, Prove, lessons or deterministic checking.
+  call is required for Design, Test, lessons or deterministic checking.
   Local Ollama is optional, and cloud models are an explicit
   bring-your-own-key connected mode.
 
@@ -150,8 +159,9 @@ Download the Kodro app (`Kodro-windows.exe`) from the
 [latest release](https://github.com/vaibhav4046/robolearn/releases/latest)
 and run it. It is a self contained windowed app (WebView2). If WebView2
 is unavailable, use the `robolearn-windows-tk.exe` fallback asset from
-the same release. Everything works immediately except the optional AI
-assistant, which needs a local model (next section).
+the same release. Core design, coding, kinematic simulation, and lessons
+do not require AI. Companion needs a local model or an explicitly selected
+cloud provider.
 
 ### Option 2: From source (Windows, macOS, Linux)
 
@@ -166,10 +176,10 @@ python -m robolearn.web   # modern web UI in a native window (pywebview)
 
 ### Optional: the local AI assistant (Ollama)
 
-The Vibe, Review and Ask panels use a local model through
+The Companion and Review program tools can use a local model through
 [Ollama](https://ollama.com/download). Without it the app still works
-fully; those panels fall back to a deterministic rule engine. To enable
-the assistant:
+for core design, coding, simulation, and lessons; those tools fall back
+to a deterministic rule engine. To enable the assistant:
 
 1. Install Ollama for your OS from <https://ollama.com/download> and
    start it (it serves on `localhost:11434`).
@@ -180,10 +190,10 @@ the assistant:
    # or: ollama pull gemma3:4b
    ```
 
-3. Start Kodro. It auto detects whatever model Ollama has and shows it
-   in the Vibe panel; you can switch models there. Nothing ever leaves
-   your machine: the only network peer the app will talk to is
-   `localhost:11434`.
+3. Start Kodro. It detects available Ollama models and shows them in
+   Companion. Requests to local Ollama stay on `localhost:11434`. If you
+   deliberately choose Groq or OpenRouter, the prompt is sent to that
+   provider instead.
 
 **Using the hosted web build with Ollama.** The desktop app needs none of
 this. The browser build at
@@ -239,7 +249,7 @@ and watch it drive; press **Step** to advance one event at a time.
 | --- | --- | --- |
 | Web UI | Vendored React and Three.js r137, pre compiled to `bundle.js` | `src/robolearn/assets/web/` |
 | Interpreter | Python subset, compiles to a generator of motion and sensor events | `src/robolearn/assets/web/interpreter.js` |
-| Worlds and motion | City, Room and terrains, type aware robots, natural motion tick | `Viewport3D.jsx`, `terrains.jsx`, `agents.jsx` |
+| Worlds and motion | City, Room and terrains, type aware robots, type-specific visual motion tick | `Viewport3D.jsx`, `terrains.jsx`, `agents.jsx` |
 | Robot Lab and memory | Parts catalogue, world recommendation, self refinement | `RobotLab.jsx`, `memory.jsx` |
 | Python engine | Metres world, pymunk and pygame-ce physics, public rover API | `src/robolearn/engine/`, `rover_api.py` |
 
@@ -267,17 +277,13 @@ python -m pytest                  # Python engine test suite
   bundle in headless Chrome: six rendered flows, 33 behavior assertions,
   six responsive layouts and 12 modal surfaces. `qa_worlds.mjs` adds 61
   world, robot, quality, site and weather identity checks.
-- **Python matrix.** 1,087 tests pass with zero skips and 88.21 percent
-  branch-aware coverage on the candidate Windows verification host,
-  above the 85 percent repository gate.
+- **Python matrix.** The 26 July 2026 audit run passed 1,204 tests with one
+  Tcl-environment skip and 87.80 percent branch-aware coverage, above the
+  85 percent repository gate.
 - **Deterministic Prove.** Four contracts pass 20 of 20 seeded runs,
   reproduce byte-identically and reject the deliberately broken controller.
 - **Python engine and CLI: 950+ tests passing**, coverage gated at
   `--cov-fail-under=85` on every push.
-
-The honest marker assessment of the project to date is a strong A. An A
-star band depends on the empirical teacher and user study, which only a
-real run can produce; see [`HUMAN_TODO.md`](HUMAN_TODO.md).
 
 ## KodroBench: measuring grounded code
 
