@@ -76,6 +76,8 @@ Visual regression notes:
 - Added a four-block scheme of work covering all 18 shipped lessons.
 - Presented the seven source-labelled KS4 stretch lessons as extension or
   bridge material rather than core KS3.
+- Corrected the README to state the exact library weighting: 1 KS1, 2 KS2,
+  8 KS3 and 7 KS4 stretch lessons.
 - Added four printable block worksheets with tasks, planning space and
   vocabulary.
 - Added a one-page first-lesson card.
@@ -114,6 +116,7 @@ See `REQUESTS_FOR_CLAUDE.md`:
 1. Replace the engine-owned `ORBIT_SVG` with the routed K.
 2. Pause the live render loop and expose `body.kodro-sim-idle` while glass
    surfaces float over the viewport.
+3. State the exact lesson weighting in the unowned `docs/index.md`.
 
 ## Final gate status
 

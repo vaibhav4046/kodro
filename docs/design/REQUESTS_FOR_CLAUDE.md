@@ -40,3 +40,14 @@ icon versions.
 The mission toolbar can use blur without the class because it is in its own
 layout row and does not overlap the canvas. World controls and HUD surfaces are
 always opaque.
+
+## 3. State the lesson weighting on the documentation home page
+
+- File: `docs/index.md`
+- Exact change: replace any unqualified claim that the 18 lessons cover KS1 to
+  KS4 with: `18 lessons span KS1 to KS4 and are weighted to KS3 and KS4: 1 is
+  tagged KS1, 2 are KS2, 8 are KS3 and 7 are KS4 stretch.`
+- Why: the statement that every stage is represented is true but can imply
+  balanced coverage. The count comes directly from the 18 lesson YAML files.
+  The owned README has been corrected, but `docs/index.md` is outside the
+  design-track ownership list.

@@ -154,8 +154,9 @@ What currently ships in this repository:
   speech, pass, fail, crash) is synthesised at runtime with the Web
   Audio API or the standard library. No audio files, no network.
 - **Curriculum lessons.** Eighteen bundled lessons mapped to the UK
-  DfE / BCS computing programme of study, from KS1 through KS4
-  stretch, with stated goals and offline hints. Each lesson is graded on
+  DfE / BCS computing programme of study, spanning KS1 through KS4
+  and weighted to KS3 and KS4: 1 lesson is tagged KS1, 2 are KS2, 8 are
+  KS3 and 7 are KS4 stretch. Each has stated goals and offline hints. Each lesson is graded on
   the run you watch, in the lesson's own world. The independent audit that
   found the earlier visible-world and grading mismatches is kept as a dated
   record in [`AUDIT_CODEX.md`](AUDIT_CODEX.md).
