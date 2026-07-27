@@ -31,6 +31,18 @@ world:
   obstacles: []
   width: 10.0
   height: 10.0
+solution_code: |
+  def leg_one():
+      move_forward(3)
+      collect_sample()
+
+  def leg_two():
+      turn_left(90)
+      move_forward(3)
+      collect_sample()
+
+  leg_one()
+  leg_two()
 success_criteria:
   - samples_collected: 2
   - no_collisions: true

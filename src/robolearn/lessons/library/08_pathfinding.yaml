@@ -8,27 +8,32 @@ curriculum_refs:
 prereqs: [06_functions, 04_selection]
 terrain: mars
 intro: |
-  There is a rock in the way. Combine selection (if / else) and iteration
-  (while) to drive around it, collect every sample, and return to base.
+  A rock sits between the base and the sample.
+  The starter program already gets there. It keeps driving while it cannot
+  see the sample, and when the sensor says something is in the way it calls
+  dodge() to step around it.
+  Then it stops, and the mission is not finished until the rover is home.
+  Turn it around and write the same loop again for the journey back.
+  You do not need to write dodge() a second time. That is what a function is for.
 starter_code: |
-  # Drive east, dodge the rock, fetch the sample, then return.
-  for _ in range(4):
-      move_forward(1)
-  turn_right(90)
-  move_forward(1)
-  turn_left(90)
-  move_forward(2)
-  turn_left(90)
-  move_forward(1)
-  turn_right(90)
-  for _ in range(3):
-      move_forward(1)
+  def dodge():
+      turn_left(90)
+      move_forward(1.5)
+      turn_right(90)
+      move_forward(2)
+      turn_right(90)
+      move_forward(1.5)
+      turn_left(90)
+
+  while not sample_detected():
+      if obstacle_ahead(1.0):
+          dodge()
+      else:
+          move_forward(0.5)
+
   collect_sample()
-  turn_left(180)
-  for _ in range(8):
-      move_forward(1)
 allowed_constructs: [while, for, if, function_def, function_call, comparison]
-max_lines: 22
+max_lines: 30
 world:
   base: [1.0, 5.0]
   samples:
@@ -37,11 +42,42 @@ world:
     - {x: 5.0, y: 5.0, r: 0.4}
   width: 10.0
   height: 10.0
+solution_code: |
+  def dodge():
+      turn_left(90)
+      move_forward(1.5)
+      turn_right(90)
+      move_forward(2)
+      turn_right(90)
+      move_forward(1.5)
+      turn_left(90)
+
+  while not sample_detected():
+      if obstacle_ahead(1.0):
+          dodge()
+      else:
+          move_forward(0.5)
+
+  collect_sample()
+
+  turn_left(180)
+
+  while not at_base():
+      if obstacle_ahead(1.0):
+          dodge()
+      else:
+          move_forward(0.5)
 success_criteria:
   - samples_collected: 1
   - returns_to_base: true
   - no_collisions: true
+  # The lesson names iteration, selection and decomposition and, until now,
+  # checked none of them: a hard-coded list of moves scored 100 out of 100. The
+  # taught solution demonstrates all three, so all three are marked.
+  - uses_construct: while
+  - uses_construct: if
+  - uses_construct: function_def
 hints:
   on_failure:
-    - "Did the rover get stuck? Add a log() call inside the loop to see which branch fires each iteration."
-    - "If the rover never reaches the sample, increase the distance in your else branch."
+    - "The rover collects the sample and stops there. Turn it round with turn_left(180), then write the same while loop again using at_base() instead of sample_detected()."
+    - "Call dodge() on the way home as well. It works in both directions, which is the whole point of putting it in a function."

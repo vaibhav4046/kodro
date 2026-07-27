@@ -27,6 +27,14 @@ world:
   obstacles: []
   width: 10.0
   height: 10.0
+solution_code: |
+  def hop(distance):
+      move_forward(distance)
+      collect_sample()
+
+  hop(2)
+  hop(3)
+  hop(2)
 success_criteria:
   - samples_collected: 3
   - no_collisions: true

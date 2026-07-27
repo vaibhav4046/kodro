@@ -274,12 +274,22 @@
             xMin: -(lw.height - lw.base[1]) * 100, xMax: lw.base[1] * 100,
             yMin: -(lw.width - lw.base[0]) * 100, yMax: lw.base[0] * 100,
           },
-          obstacles: lw.obstacles.map((o) => ({
+          obstacles: lw.obstacles.map((o, i) => ({
             // Lesson metres -> sim centimetres, the same axis mapping the
             // sensors and the marker placement use.
             x: -(o.y - lw.base[1]) * 100,
             y: -(o.x - lw.base[0]) * 100,
             r: o.r * 100,
+            // `v` (shape variant 0..1) and `rot` are NOT optional decoration.
+            // Viewport3D's mkRock does `rotation.set(v * 3, rot || 0, v * 2)`
+            // and `scale.set(1 + v * 0.18, ...)`, so a lesson obstacle without
+            // them produced a NaN model matrix: the rock the lesson is about
+            // had an undefined transform in the DEFAULT 3D view.
+            //
+            // Derived from the index, not random(), so the same lesson draws
+            // the same boulder on every run and replays stay reproducible.
+            v: ((i * 0.37 + 0.23) % 1),
+            rot: ((i * 1.13 + 0.41) % (Math.PI * 2)),
           })),
         };
       }
@@ -492,6 +502,10 @@
     // pupil has revealed from the lesson's hint bank (progressive help).
     const [lessonAttempts, setLessonAttempts] = useState(0);
     const [extraHints, setExtraHints] = useState(0);
+    // Has the pupil asked to see the worked answer for the lesson they are on?
+    // Per-lesson and deliberately not persisted: reopening a lesson tomorrow
+    // should offer the problem again, not the answer.
+    const [solutionShown, setSolutionShown] = useState(false);
     // The editor's current source: a lesson's own buffer when one is loaded,
     // otherwise the active example tab. (Declared AFTER the state above to
     // avoid a temporal-dead-zone ReferenceError.)
@@ -1128,6 +1142,7 @@
         : null);
       setLessonAttempts(priorResult && !priorResult.passed ? (priorResult.attempts || 0) : 0);
       setExtraHints(0);
+      setSolutionShown(false);
       // Render the rover on the SAME world it is graded against. Without this
       // the viewport could show a persisted Mars while the grader ran the
       // lesson's real terrain, so a pass looked like it happened elsewhere.
@@ -2224,6 +2239,39 @@
                     {revealedHints.map((h, i) => (
                       <p key={'xh' + i} className="lesson-hint">{KI('bulb')} {h}</p>
                     ))}
+                    {/* The end of the road for a stuck pupil. Every lesson ships
+                        one worked answer, proven to score 100 in both graders
+                        (tests/unit/test_lesson_solutions.py and the solvability
+                        block in scripts/qa_grader.mjs), so this is never a wrong
+                        answer presented as right.
+
+                        It only appears once the hint bank is exhausted, and it
+                        stays folded until asked for, so it is a way out rather
+                        than a shortcut. Reading a worked example is how people
+                        learn to program; being stuck with no way forward is how
+                        they stop. */}
+                    {!moreHintsLeft && lesson.solutionCode && !solutionShown && (
+                      <button className="btn-mini lesson-solution-ask"
+                        onClick={() => setSolutionShown(true)}>
+                        Still stuck? Show me one way to do it
+                      </button>
+                    )}
+                    {solutionShown && lesson.solutionCode && (
+                      <div className="lesson-solution">
+                        <p className="lesson-solution-note">
+                          One way to solve it. There are others. Read it, then try to
+                          write it yourself.
+                        </p>
+                        <pre className="lesson-solution-code"><code>{lesson.solutionCode.trimEnd()}</code></pre>
+                        <div className="lesson-solution-actions">
+                          <button className="btn-mini" onClick={() => {
+                            applyProgramText(lesson.solutionCode);
+                            showToast('The worked answer is in the editor. Run it and watch what each line does.', 'sys');
+                          }}>Put it in the editor</button>
+                          <button className="btn-mini" onClick={() => setSolutionShown(false)}>Hide it again</button>
+                        </div>
+                      </div>
+                    )}
                     {(moreHintsLeft || lessonFailed || nextLesson) && (
                       <div className="lesson-actions">
                         {moreHintsLeft && (

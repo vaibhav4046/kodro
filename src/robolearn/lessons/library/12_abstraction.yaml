@@ -25,6 +25,13 @@ world:
   obstacles: [{x: 5.0, y: 4.0, r: 0.6}]
   width: 10.0
   height: 10.0
+solution_code: |
+  while read_battery() > 40:
+      # look further than one step, so there is room to turn
+      if obstacle_ahead(1.5):
+          turn_left(90)
+      else:
+          move_forward(1)
 success_criteria:
   - no_collisions: true
   - uses_construct: if

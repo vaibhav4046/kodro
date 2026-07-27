@@ -2410,3 +2410,24 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
    buttons reuse .ctrl, so this only widens them to the demo's roomier hit area
    without touching the shared hover / focus-visible / disabled treatment. */
 .demo-modal .ctrl { height:auto; min-height:40px; padding:0 20px; }
+
+/* --- worked solution, revealed after the hints run out ------------------- */
+/* Visually distinct from a hint: this is the answer, not a nudge, so it gets a
+   panel rather than a bullet. Uses existing tokens only, so the contrast gate
+   and every classroom theme stay green. */
+.lesson-solution {
+  margin-top: 10px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+.lesson-solution-note {
+  margin: 0 0 8px; font-size: var(--text-sm); color: var(--text-dim);
+}
+.lesson-solution-code {
+  margin: 0; padding: 10px 12px; overflow-x: auto;
+  background: var(--void); border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: var(--text-sm);
+  color: var(--text); line-height: 1.5; white-space: pre;
+}
+.lesson-solution-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.lesson-solution-ask { margin-top: 8px; }

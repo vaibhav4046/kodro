@@ -32,6 +32,16 @@ world:
   obstacles: []
   width: 8.0
   height: 8.0
+solution_code: |
+  def hop():
+      move_forward(2)
+      collect_sample()
+      turn_left(90)
+
+  hop()
+  hop()
+  hop()
+  hop()
 success_criteria:
   - samples_collected: 4
   - max_battery_used: 60.0

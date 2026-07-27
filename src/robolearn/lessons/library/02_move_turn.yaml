@@ -22,6 +22,11 @@ world:
   obstacles: []
   width: 6.0
   height: 6.0
+solution_code: |
+  move_forward(3)
+  turn_left(90)
+  move_forward(3)
+  collect_sample()
 success_criteria:
   - samples_collected: 1
   - max_battery_used: 15.0

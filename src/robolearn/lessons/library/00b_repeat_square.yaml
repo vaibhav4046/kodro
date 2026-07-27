@@ -33,6 +33,10 @@ world:
   obstacles: []
   width: 8.0
   height: 8.0
+solution_code: |
+  for side in range(4):
+      move_forward(2)
+      turn_right(90)
 success_criteria:
   - min_distance_travelled: 6.0
   - uses_construct: for

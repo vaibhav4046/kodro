@@ -1562,6 +1562,12 @@ class BridgeAPI:
             "concepts": list(lesson.ct_concepts),
             "intro": lesson.intro,
             "starterCode": lesson.starter_code,
+            # The worked answer. Shipped to the client because a pupil who has
+            # used every hint and is still stuck needs a way forward that is not
+            # "give up"; tests/unit/test_lesson_solutions.py proves each one
+            # actually passes, so this is never a wrong answer presented as
+            # right. The UI reveals it only after the hint bank is exhausted.
+            "solutionCode": lesson.solution_code,
             "terrain": lesson.terrain.value
             if hasattr(lesson.terrain, "value")
             else str(lesson.terrain),

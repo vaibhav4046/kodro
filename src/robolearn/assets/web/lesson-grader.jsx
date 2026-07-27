@@ -88,7 +88,7 @@
     "05_iteration": {"world":{"base":[1,5],"samples":[[3,6],[4.5,5.4],[6,6.4]],"obstacles":[{"x":8,"y":5.5,"r":0.3}],"width":10,"height":8},"criteria":[{"samples_collected":3},{"max_battery_used":60},{"no_collisions":true},{"uses_construct":"while"}],"hints":{"onFailure":["Your loop ended early -- have you logged sample_detected() to see when it fires?","Try moving in smaller steps (e.g. move_forward(0.5)) so the rover doesn't overshoot a sample."],"onSuccess":[]}},
     "06_functions": {"world":{"base":[3,3],"samples":[[5,3],[5,5],[3,5],[3,3]],"obstacles":[],"width":8,"height":8},"criteria":[{"samples_collected":4},{"max_battery_used":60},{"uses_construct":"function_def"}],"hints":{"onFailure":["Define hop() once at the top, then call it four times to walk a square.","Add collect_sample() inside hop() so each corner picks up its patch."],"onSuccess":[]}},
     "07_sensors": {"world":{"base":[1,1],"samples":[[5,1]],"obstacles":[],"width":6,"height":6},"criteria":[{"samples_collected":1},{"no_collisions":true},{"uses_construct":"while"}],"hints":{"onFailure":["If the rover hits the wall, your while condition is too generous -- try > 1.0 not > 0.1.","Drive in smaller increments so the loop can react before a collision."],"onSuccess":[]}},
-    "08_pathfinding": {"world":{"base":[1,5],"samples":[[9,5]],"obstacles":[{"x":5,"y":5,"r":0.4}],"width":10,"height":10},"criteria":[{"samples_collected":1},{"returns_to_base":true},{"no_collisions":true}],"hints":{"onFailure":["Did the rover get stuck? Add a log() call inside the loop to see which branch fires each iteration.","If the rover never reaches the sample, increase the distance in your else branch."],"onSuccess":[]}},
+    "08_pathfinding": {"world":{"base":[1,5],"samples":[[9,5]],"obstacles":[{"x":5,"y":5,"r":0.4}],"width":10,"height":10},"criteria":[{"samples_collected":1},{"returns_to_base":true},{"no_collisions":true},{"uses_construct":"while"},{"uses_construct":"if"},{"uses_construct":"function_def"}],"hints":{"onFailure":["The rover collects the sample and stops there. Turn it round with turn_left(180), then write the same while loop again using at_base() instead of sample_detected().","Call dodge() on the way home as well. It works in both directions, which is the whole point of putting it in a function."],"onSuccess":[]}},
     "09_recursion": {"world":{"base":[5,5],"samples":[],"obstacles":[],"width":10,"height":10},"criteria":[{"min_distance_travelled":8},{"max_battery_used":80},{"no_collisions":true},{"uses_construct":"recursion"}],"hints":{"onFailure":["If the rover runs off the arena, your starting step is too big -- try spiral(2.0).","Don't forget the base case (the if step < 0.5: return) or the function recurses forever."],"onSuccess":[]}},
     "10_optimisation": {"world":{"base":[1,1],"samples":[[2,6],[5,5],[7,2]],"obstacles":[],"width":10,"height":8},"criteria":[{"samples_collected":3},{"returns_to_base":true},{"max_battery_used":70},{"max_steps":40}],"hints":{"onFailure":["If the rover overshoots, lower the per-step distance from 0.5 m to 0.2 m.","Compare the total distance for at least two different sample orderings."],"onSuccess":[]}},
     "11_decomposition": {"world":{"base":[1,1],"samples":[[4,1],[4,4]],"obstacles":[],"width":10,"height":10},"criteria":[{"samples_collected":2},{"no_collisions":true},{"uses_construct":"function_def"}],"hints":{"onFailure":["You collected the first sample but not the second -- call leg_two() as well.","Each helper should do exactly one leg of the route; then call them in order."],"onSuccess":[]}},
@@ -97,6 +97,87 @@
     "14_counting": {"world":{"base":[1,1],"samples":[[3,1],[5,1],[7,1]],"obstacles":[],"width":10,"height":10},"criteria":[{"samples_collected":3},{"no_collisions":true},{"uses_construct":"while"}],"hints":{"onFailure":["You collected one sample. Put the move/collect/count lines inside a `while count < 3:` loop.","Remember to add 1 to count inside the loop, or it will never reach 3 and will loop forever."],"onSuccess":[]}},
     "15_parameters": {"world":{"base":[1,1],"samples":[[3,1],[6,1],[8,1]],"obstacles":[],"width":10,"height":10},"criteria":[{"samples_collected":3},{"no_collisions":true},{"uses_construct":"function_def"}],"hints":{"onFailure":["The samples are at different gaps, so a fixed 2m hop can't reach them all -- add a `distance` parameter.","Define `def hop(distance):` then call hop(2), hop(3), hop(2) to step between the samples."],"onSuccess":[]}},
   };
+
+  // --- lessons authored on this device (Lesson Studio) ---------------------
+  //
+  // A SEPARATE table, deliberately. LESSON_DATA above is generated from the
+  // YAML library and a CI gate (scripts/qa_grader.mjs) asserts it still matches
+  // a fresh extraction byte for byte; writing a user's lesson into it would
+  // break that gate and, worse, would make the shipped curriculum depend on
+  // whatever happens to be in one person's browser.
+  //
+  // Built-ins win the lookup, so an authored lesson can never shadow a shipped
+  // one even if it somehow claims its id. Everything downstream -- the criterion
+  // dispatch, the failure strings, the scoring, the hint choice -- reads the
+  // entry this function returns and cannot tell the two apart. That is the
+  // whole point: an authored lesson is graded by exactly the same code as
+  // lesson 01, or it is not worth shipping.
+  var AUTHORED_DATA = {};
+  var HAS = Object.prototype.hasOwnProperty;
+
+  function lessonEntry(id) {
+    if (!id) return null;
+    if (HAS.call(LESSON_DATA, id)) return LESSON_DATA[id];
+    if (HAS.call(AUTHORED_DATA, id)) return AUTHORED_DATA[id];
+    return null;
+  }
+
+  // Normalise and admit one authored lesson. Returns {ok, errors} and never
+  // throws: this runs on data that came out of a file a stranger sent, so a
+  // malformed lesson has to be a refusal with a reason, not an exception that
+  // takes the page down.
+  //
+  // The normalisation is load-bearing rather than tidiness. firstHint()
+  // dereferences entry.hints.onFailure with no guard, and makeWorld() /
+  // returnsToBase() dereference entry.world.base the same way, so an entry
+  // missing either key does not degrade: it throws mid-grade and the pupil gets
+  // no verdict at all.
+  function registerAuthored(id, entry) {
+    var errors = [];
+    if (typeof id !== 'string' || !id) errors.push('lesson id must be a non-empty string');
+    if (HAS.call(LESSON_DATA, id)) errors.push('id "' + id + '" belongs to a built-in lesson');
+    if (!entry || typeof entry !== 'object') errors.push('lesson entry must be an object');
+    var world = entry && entry.world;
+    if (!world || typeof world !== 'object') errors.push('lesson has no world');
+    else {
+      if (!Array.isArray(world.base) || world.base.length !== 2
+        || !isFinite(world.base[0]) || !isFinite(world.base[1])) errors.push('world.base must be [x, y] in metres');
+      if (!(Number(world.width) > 0) || !(Number(world.height) > 0)) errors.push('world needs a positive width and height');
+    }
+    var criteria = entry && entry.criteria;
+    // An empty criteria list is not "no rules", it is "everything passes":
+    // the check loop runs zero times, reasons stays empty and the score is a
+    // full 100. A lesson that cannot be failed cannot be learned from.
+    if (!Array.isArray(criteria) || criteria.length === 0) errors.push('lesson needs at least one goal');
+    if (errors.length) return { ok: false, errors: errors };
+    AUTHORED_DATA[id] = {
+      world: {
+        base: [Number(world.base[0]), Number(world.base[1])],
+        samples: Array.isArray(world.samples) ? world.samples.map(function (s) { return [Number(s[0]), Number(s[1])]; }) : [],
+        obstacles: Array.isArray(world.obstacles) ? world.obstacles.map(function (o) {
+          return { x: Number(o.x), y: Number(o.y), r: Number(o.r) };
+        }) : [],
+        width: Number(world.width),
+        height: Number(world.height),
+      },
+      criteria: criteria.slice(),
+      hints: {
+        onFailure: (entry.hints && Array.isArray(entry.hints.onFailure)) ? entry.hints.onFailure.slice() : [],
+        onSuccess: (entry.hints && Array.isArray(entry.hints.onSuccess)) ? entry.hints.onSuccess.slice() : [],
+      },
+    };
+    return { ok: true, errors: [] };
+  }
+
+  function unregisterAuthored(id) {
+    if (!HAS.call(AUTHORED_DATA, id)) return false;
+    delete AUTHORED_DATA[id];
+    return true;
+  }
+
+  function authoredIds() {
+    return Object.keys(AUTHORED_DATA);
+  }
 
   // --- geometry (ports of engine/motion_model.py + engine/sensors.py) ------
 
@@ -787,7 +868,7 @@
   // Synchronous core; grade() wraps it in a Promise for the bridge.
   function gradeSync(lesson, source) {
     var id = lesson && (lesson.id || lesson.lessonId);
-    var entry = id ? LESSON_DATA[id] : null;
+    var entry = lessonEntry(id);
     if (!entry) {
       return { ok: false, reason: 'unknown lesson: ' + id };
     }
@@ -844,7 +925,7 @@
     // mirrors gradeSync's run.error branch exactly, so the two entry points
     // report a crash with the same words.
     gradeFromAggregates: function (lessonId, source, agg, error) {
-      var entry = LESSON_DATA[lessonId];
+      var entry = lessonEntry(lessonId);
       if (!entry) return { ok: false, reason: 'unknown lesson: ' + lessonId };
       var src = source || '';
       if (error) {
@@ -875,5 +956,13 @@
     describeCriterion: describeCriterion,
     criterionFailedIn: criterionFailedIn,
     LESSON_DATA: LESSON_DATA,
+    // The lookup every caller should use. LESSON_DATA stays exported because
+    // the QA gates compare it against the YAML library, but app code that wants
+    // "the entry for this lesson id" must go through getEntry or authored
+    // lessons are invisible to it.
+    getEntry: lessonEntry,
+    registerAuthored: registerAuthored,
+    unregisterAuthored: unregisterAuthored,
+    authoredIds: authoredIds,
   };
 })();

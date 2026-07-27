@@ -29,6 +29,16 @@ world:
   obstacles: []
   width: 10.0
   height: 10.0
+solution_code: |
+  for row in range(2):
+      for col in range(3):
+          move_forward(2)
+          collect_sample()
+      # turn around at the end of the row and line up with the next one
+      move_forward(2)
+      turn_left(90)
+      move_forward(2)
+      turn_left(90)
 success_criteria:
   - samples_collected: 6
   - no_collisions: true

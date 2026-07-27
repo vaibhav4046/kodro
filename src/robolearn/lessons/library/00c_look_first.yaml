@@ -40,6 +40,10 @@ world:
     - {x: 1.8, y: 1.0, r: 0.4}
   width: 6.0
   height: 6.0
+solution_code: |
+  if obstacle_ahead():
+      turn_left(90)
+  move_forward(3)
 success_criteria:
   - min_distance_travelled: 2.5
   - uses_construct: if

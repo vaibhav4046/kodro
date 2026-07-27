@@ -22,6 +22,10 @@ world:
   obstacles: []
   width: 6.0
   height: 6.0
+solution_code: |
+  while read_distance() > 1.0:
+      move_forward(0.5)
+  collect_sample()
 success_criteria:
   - samples_collected: 1
   - no_collisions: true

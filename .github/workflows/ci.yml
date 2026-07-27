@@ -160,6 +160,13 @@ jobs:
       - name: Construct liveness parity gate
         run: node scripts/qa_construct_liveness.mjs
 
+      # Authored lessons come from outside the project: a file someone sent, a
+      # mistyped number, a full disk. Every one of those has to end in a refusal
+      # with a reason, and an authored lesson must grade through exactly the same
+      # dispatch as a shipped one.
+      - name: Lesson Studio document + store gate
+        run: node scripts/qa_lesson_studio.mjs
+
       - name: Cross-engine fuzz gate
         run: node scripts/qa_fuzz.mjs
 

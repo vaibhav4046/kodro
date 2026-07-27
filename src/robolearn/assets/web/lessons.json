@@ -12,6 +12,7 @@
     "keyStage": "KS1",
     "maxLines": 6,
     "readingAge": 6,
+    "solutionCode": "move_forward(1)\nmove_forward(1)\nmove_forward(1)\n",
     "starterCode": "move_forward(1)\n",
     "terrain": "earth",
     "title": "Drive to the Flag"
@@ -30,6 +31,7 @@
     "keyStage": "KS2",
     "maxLines": 8,
     "readingAge": 9,
+    "solutionCode": "for side in range(4):\n    move_forward(2)\n    turn_right(90)\n",
     "starterCode": "move_forward(2)\nturn_right(90)\n",
     "terrain": "earth",
     "title": "Make a Square"
@@ -48,6 +50,7 @@
     "keyStage": "KS2",
     "maxLines": 8,
     "readingAge": 10,
+    "solutionCode": "if obstacle_ahead():\n    turn_left(90)\nmove_forward(3)\n",
     "starterCode": "move_forward(3)\n",
     "terrain": "mars",
     "title": "Look Before You Move"
@@ -62,6 +65,7 @@
     "keyStage": "KS3",
     "maxLines": 8,
     "readingAge": null,
+    "solutionCode": "move_forward(2)\nbeep(1)\nlog(\"hello rover\")\n",
     "starterCode": "move_forward(1)\nbeep(1)\nlog(\"hello rover\")\n",
     "terrain": "earth",
     "title": "Hello, Rover!"
@@ -76,6 +80,7 @@
     "keyStage": "KS3",
     "maxLines": 8,
     "readingAge": null,
+    "solutionCode": "move_forward(3)\nturn_left(90)\nmove_forward(3)\ncollect_sample()\n",
     "starterCode": "move_forward(3)\nturn_left(90)\nmove_forward(3)\n",
     "terrain": "earth",
     "title": "Move and turn"
@@ -90,6 +95,7 @@
     "keyStage": "KS3",
     "maxLines": 10,
     "readingAge": null,
+    "solutionCode": "move_forward(3)\nturn_left(90)\nmove_forward(2)\nturn_left(90)\nmove_forward(3)\ncollect_sample()\n",
     "starterCode": "move_forward(3)\nturn_left(90)\nmove_forward(2)\nturn_left(90)\nmove_forward(1)\ncollect_sample()\n",
     "terrain": "earth",
     "title": "Sequence"
@@ -104,6 +110,7 @@
     "keyStage": "KS3",
     "maxLines": 10,
     "readingAge": null,
+    "solutionCode": "if obstacle_ahead(2.0):\n    turn_left(90)\n    move_forward(1)\n    turn_right(90)\n    move_forward(4)\n    turn_right(90)\n    move_forward(1)\n    collect_sample()\n",
     "starterCode": "if obstacle_ahead(2.0):\n    turn_left(90)\n    move_forward(1)\n    turn_right(90)\n    move_forward(4)\n    turn_right(90)\n    move_forward(1)\n",
     "terrain": "mars",
     "title": "Selection (if / else)"
@@ -119,6 +126,7 @@
     "keyStage": "KS3",
     "maxLines": 12,
     "readingAge": null,
+    "solutionCode": "turn_left(30)\nwhile not sample_detected():\n    move_forward(0.2)\ncollect_sample()\nturn_right(45)\nwhile not sample_detected():\n    move_forward(0.2)\ncollect_sample()\nturn_left(40)\nwhile not sample_detected():\n    move_forward(0.2)\ncollect_sample()\n",
     "starterCode": "for _ in range(8):\n    if obstacle_ahead():\n        break\n    move_forward(1)\n    if sample_detected(0.6):\n        collect_sample()\n",
     "terrain": "mars",
     "title": "Iteration with while-loops"
@@ -134,6 +142,7 @@
     "keyStage": "KS3",
     "maxLines": 14,
     "readingAge": null,
+    "solutionCode": "def hop():\n    move_forward(2)\n    collect_sample()\n    turn_left(90)\n\nhop()\nhop()\nhop()\nhop()\n",
     "starterCode": "def hop():\n    move_forward(2)\n    turn_left(90)\n\nhop()\nhop()\nhop()\nhop()\n",
     "terrain": "mars",
     "title": "Functions"
@@ -149,6 +158,7 @@
     "keyStage": "KS3",
     "maxLines": 10,
     "readingAge": null,
+    "solutionCode": "while read_distance() > 1.0:\n    move_forward(0.5)\ncollect_sample()\n",
     "starterCode": "while read_distance() > 1.0:\n    move_forward(0.5)\n",
     "terrain": "underwater",
     "title": "Reading sensors"
@@ -161,11 +171,12 @@
     ],
     "glossary": {},
     "id": "08_pathfinding",
-    "intro": "There is a rock in the way. Combine selection (if / else) and iteration\n(while) to drive around it, collect every sample, and return to base.\n",
+    "intro": "A rock sits between the base and the sample.\nThe starter program already gets there. It keeps driving while it cannot\nsee the sample, and when the sensor says something is in the way it calls\ndodge() to step around it.\nThen it stops, and the mission is not finished until the rover is home.\nTurn it around and write the same loop again for the journey back.\nYou do not need to write dodge() a second time. That is what a function is for.\n",
     "keyStage": "KS3",
-    "maxLines": 22,
+    "maxLines": 30,
     "readingAge": null,
-    "starterCode": "# Drive east, dodge the rock, fetch the sample, then return.\nfor _ in range(4):\n    move_forward(1)\nturn_right(90)\nmove_forward(1)\nturn_left(90)\nmove_forward(2)\nturn_left(90)\nmove_forward(1)\nturn_right(90)\nfor _ in range(3):\n    move_forward(1)\ncollect_sample()\nturn_left(180)\nfor _ in range(8):\n    move_forward(1)\n",
+    "solutionCode": "def dodge():\n    turn_left(90)\n    move_forward(1.5)\n    turn_right(90)\n    move_forward(2)\n    turn_right(90)\n    move_forward(1.5)\n    turn_left(90)\n\nwhile not sample_detected():\n    if obstacle_ahead(1.0):\n        dodge()\n    else:\n        move_forward(0.5)\n\ncollect_sample()\n\nturn_left(180)\n\nwhile not at_base():\n    if obstacle_ahead(1.0):\n        dodge()\n    else:\n        move_forward(0.5)\n",
+    "starterCode": "def dodge():\n    turn_left(90)\n    move_forward(1.5)\n    turn_right(90)\n    move_forward(2)\n    turn_right(90)\n    move_forward(1.5)\n    turn_left(90)\n\nwhile not sample_detected():\n    if obstacle_ahead(1.0):\n        dodge()\n    else:\n        move_forward(0.5)\n\ncollect_sample()\n",
     "terrain": "mars",
     "title": "Pathfinding basics"
   },
@@ -180,6 +191,7 @@
     "keyStage": "KS4",
     "maxLines": 12,
     "readingAge": null,
+    "solutionCode": "def spiral(step):\n    if step < 0.5:\n        return\n    move_forward(step)\n    turn_left(90)\n    spiral(step - 0.5)\n\npen_down()\nspiral(3.0)\n",
     "starterCode": "def spiral(step):\n    if step < 0.5:\n        return\n    move_forward(step)\n    turn_left(90)\n    spiral(step - 0.5)\n\nspiral(1.0)\n",
     "terrain": "space",
     "title": "Recursion (KS4 stretch)"
@@ -195,6 +207,7 @@
     "keyStage": "KS4",
     "maxLines": 22,
     "readingAge": null,
+    "solutionCode": "# Order 3-2-1 costs 22 m of driving, but 1-3-2 costs 28 m, so drive 3-2-1.\nfor _ in range(6):\n    move_forward(1)\nturn_left(90)\nmove_forward(1)\ncollect_sample()\nfor _ in range(3):\n    move_forward(1)\nturn_left(90)\nfor _ in range(2):\n    move_forward(1)\ncollect_sample()\nfor _ in range(3):\n    move_forward(1)\nturn_right(90)\nmove_forward(1)\ncollect_sample()\nturn_left(90)\nmove_forward(1)\nturn_left(90)\nfor _ in range(5):\n    move_forward(1)\n",
     "starterCode": "# First pass: walk to each sample, collect it, head home.\n# Sample 1 at (2, 6): turn north, go 5, collect.\nturn_left(90)\nfor _ in range(5):\n    move_forward(1)\nturn_right(90)\nmove_forward(1)\ncollect_sample()\n# Sample 2 at (5, 5): south + east a bit.\nturn_right(90)\nmove_forward(1)\nturn_left(90)\nfor _ in range(3):\n    move_forward(1)\ncollect_sample()\n# Sample 3 at (7, 2): south then east.\nturn_right(90)\nfor _ in range(3):\n    move_forward(1)\nturn_left(90)\nfor _ in range(2):\n    move_forward(1)\ncollect_sample()\n# Return to base.\nturn_left(180)\nfor _ in range(10):\n    move_forward(1)\n",
     "terrain": "mars",
     "title": "Optimisation (KS4 stretch)"
@@ -210,6 +223,7 @@
     "keyStage": "KS4",
     "maxLines": 16,
     "readingAge": null,
+    "solutionCode": "def leg_one():\n    move_forward(3)\n    collect_sample()\n\ndef leg_two():\n    turn_left(90)\n    move_forward(3)\n    collect_sample()\n\nleg_one()\nleg_two()\n",
     "starterCode": "def leg_one():\n    move_forward(3)\n    collect_sample()\n\ndef leg_two():\n    turn_left(90)\n    move_forward(3)\n    collect_sample()\n\nleg_one()\n# TODO: call leg_two() so the rover reaches the second sample too\n",
     "terrain": "mars",
     "title": "Decomposition (KS4 stretch)"
@@ -225,6 +239,7 @@
     "keyStage": "KS4",
     "maxLines": 14,
     "readingAge": null,
+    "solutionCode": "while read_battery() > 40:\n    # look further than one step, so there is room to turn\n    if obstacle_ahead(1.5):\n        turn_left(90)\n    else:\n        move_forward(1)\n",
     "starterCode": "# This drives straight and will crash. Add a sensor check to avoid it.\nwhile read_battery() > 40:\n    move_forward(1)\n",
     "terrain": "underwater",
     "title": "Abstraction (KS4 stretch)"
@@ -239,6 +254,7 @@
     "keyStage": "KS4",
     "maxLines": 16,
     "readingAge": null,
+    "solutionCode": "for row in range(2):\n    for col in range(3):\n        move_forward(2)\n        collect_sample()\n    # turn around at the end of the row and line up with the next one\n    move_forward(2)\n    turn_left(90)\n    move_forward(2)\n    turn_left(90)\n",
     "starterCode": "# This sweeps ONE row. Wrap it in a second loop to cover every row.\nfor col in range(3):\n    move_forward(2)\n    collect_sample()\n",
     "terrain": "space",
     "title": "Nested loops (KS4 stretch)"
@@ -253,6 +269,7 @@
     "keyStage": "KS4",
     "maxLines": 16,
     "readingAge": null,
+    "solutionCode": "count = 0\nwhile count < 3:\n    move_forward(2)\n    collect_sample()\n    count = count + 1\n",
     "starterCode": "# A counter variable, but no loop yet.\ncount = 0\nmove_forward(2)\ncollect_sample()\ncount = count + 1\n# TODO: wrap the move/collect/count in a while loop until count == 3\n",
     "terrain": "earth",
     "title": "Counting with a variable (KS4 stretch)"
@@ -267,6 +284,7 @@
     "keyStage": "KS4",
     "maxLines": 16,
     "readingAge": null,
+    "solutionCode": "def hop(distance):\n    move_forward(distance)\n    collect_sample()\n\nhop(2)\nhop(3)\nhop(2)\n",
     "starterCode": "# hop always moves 2m. Add a `distance` parameter and pass different values.\ndef hop():\n    move_forward(2)\n    collect_sample()\n\nhop()\n",
     "terrain": "mars",
     "title": "Functions with parameters (KS4 stretch)"

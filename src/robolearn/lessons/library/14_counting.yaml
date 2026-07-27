@@ -27,6 +27,12 @@ world:
   obstacles: []
   width: 10.0
   height: 10.0
+solution_code: |
+  count = 0
+  while count < 3:
+      move_forward(2)
+      collect_sample()
+      count = count + 1
 success_criteria:
   - samples_collected: 3
   - no_collisions: true

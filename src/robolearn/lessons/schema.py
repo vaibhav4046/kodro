@@ -154,6 +154,14 @@ class Lesson(BaseModel):
     #: Optional plain-English glossary {term: definition} shown to younger
     #: learners so jargon (lidar, loop, sensor) is always explained in-context.
     glossary: dict[str, str] = Field(default_factory=dict)
+    #: One worked solution, revealed only after every hint has been used. It
+    #: exists for two reasons. A pupil who is stuck with no way forward stops
+    #: being a learner and becomes a person staring at a wall; and a lesson whose
+    #: own solution does not score 100 is a lesson nobody can finish, which is a
+    #: defect no amount of reading the criteria will reveal.
+    #: tests/unit/test_lesson_solutions.py runs every one of these through both
+    #: graders and fails if any does not pass.
+    solution_code: str | None = Field(default=None, min_length=1)
 
     @field_validator("terrain", mode="before")
     @classmethod

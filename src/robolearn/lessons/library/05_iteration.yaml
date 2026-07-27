@@ -30,6 +30,19 @@ world:
     - {x: 8.0, y: 5.5, r: 0.3}
   width: 10.0
   height: 8.0
+solution_code: |
+  turn_left(30)
+  while not sample_detected():
+      move_forward(0.2)
+  collect_sample()
+  turn_right(45)
+  while not sample_detected():
+      move_forward(0.2)
+  collect_sample()
+  turn_left(40)
+  while not sample_detected():
+      move_forward(0.2)
+  collect_sample()
 success_criteria:
   - samples_collected: 3
   - max_battery_used: 60.0

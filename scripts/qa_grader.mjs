@@ -350,8 +350,22 @@ console.log('\n== GRADING: known-good solutions PASS ==');
     'move_forward(2)',
   ].join('\n');
   const r = grade('08_pathfinding', src);
-  check('08_pathfinding around-the-rock round trip passes (returns_to_base)',
-    r.passed === true, JSON.stringify(r.reasons));
+  // The GEOMETRY of this route is still correct: it collects the sample, avoids
+  // the rock and comes home, so the three world criteria all pass. It is kept
+  // for exactly that reason, as the pin on returns_to_base.
+  //
+  // What it no longer does is satisfy the lesson. 08 names iteration, selection
+  // and decomposition; this route decomposes but never loops and never branches,
+  // so it now fails on those two by name. A route that dodges a rock it cannot
+  // sense is a route the pupil computed by hand, which is not pathfinding.
+  check('08_pathfinding hand-computed route still solves the world',
+    ['Collected', 'return to base', 'collision'].every((frag) =>
+      !r.reasons.some((x) => x.indexOf(frag) >= 0)), JSON.stringify(r.reasons));
+  check('08_pathfinding hand-computed route fails iteration and selection',
+    r.passed === false
+    && r.reasons.some((x) => x.indexOf("required 'while'") >= 0)
+    && r.reasons.some((x) => x.indexOf("required 'if'") >= 0),
+    JSON.stringify(r.reasons));
 }
 {
   // 09_recursion: the shipped starter (a recursive spiral) must pass, proving
@@ -370,6 +384,94 @@ console.log('\n== GRADING: known-good solutions PASS ==');
   check('09_recursion spiral starter passes (recursion detected)', r.passed === true, JSON.stringify(r.reasons));
   check('sourceUses flags recursion / rejects its absence',
     G.sourceUses(src, 'recursion') === true && G.sourceUses('def f():\n    pass\nf()', 'recursion') === false, '');
+}
+{
+  // 08_pathfinding names iteration, selection AND decomposition, and until now
+  // checked none of them: a hard-coded list of moves scored 100/100. The taught
+  // solution is a sensor-driven while loop, an if that calls a dodge() function,
+  // and the same loop reused for the journey home.
+  const DODGE = [
+    'def dodge():',
+    '    turn_left(90)',
+    '    move_forward(1.5)',
+    '    turn_right(90)',
+    '    move_forward(2)',
+    '    turn_right(90)',
+    '    move_forward(1.5)',
+    '    turn_left(90)',
+    '',
+  ].join('\n');
+  const OUT = [
+    'while not sample_detected():',
+    '    if obstacle_ahead(1.0):',
+    '        dodge()',
+    '    else:',
+    '        move_forward(0.5)',
+    '',
+    'collect_sample()',
+    '',
+  ].join('\n');
+  const HOME = [
+    'turn_left(180)',
+    '',
+    'while not at_base():',
+    '    if obstacle_ahead(1.0):',
+    '        dodge()',
+    '    else:',
+    '        move_forward(0.5)',
+    '',
+  ].join('\n');
+  const starter = grade('08_pathfinding', DODGE + OUT);
+  check('08_pathfinding starter fails ONLY on the return journey',
+    starter.passed === false && starter.reasons.length === 1
+    && starter.reasons[0] === 'Rover did not return to base.',
+    JSON.stringify(starter.reasons));
+  const solved = grade('08_pathfinding', DODGE + OUT + HOME);
+  check('08_pathfinding taught solution passes 100/100',
+    solved.passed === true && solved.score === 100, JSON.stringify(solved.reasons));
+  // The bypass this lesson used to allow: a fixed route with no loop, no branch
+  // and no function. It must now fail the three construct criteria by name.
+  const hardCoded = [
+    'for _ in range(4):', '    move_forward(1)', 'turn_right(90)', 'move_forward(1)',
+    'turn_left(90)', 'move_forward(2)', 'turn_left(90)', 'move_forward(1)',
+    'turn_right(90)', 'for _ in range(3):', '    move_forward(1)', 'collect_sample()',
+    'turn_left(180)', 'for _ in range(8):', '    move_forward(1)',
+  ].join('\n');
+  const fixed = grade('08_pathfinding', hardCoded);
+  check('08_pathfinding rejects a hard-coded route on all three constructs',
+    fixed.passed === false
+    && ['while', 'if', 'function_def'].every((c) =>
+      fixed.reasons.some((x) => x.indexOf("required '" + c + "'") >= 0)),
+    JSON.stringify(fixed.reasons));
+}
+
+console.log('\n== SOLVABILITY: every lesson ships an answer that passes HERE too ==');
+{
+  // The browser half of tests/unit/test_lesson_solutions.py. That gate proves
+  // each shipped solution scores 100 in the PYTHON engine; this one proves the
+  // same source scores 100 in the engine the browser actually marks with.
+  //
+  // Both are needed. A solution that passes in one and fails in the other is
+  // precisely the divergence this release was spent removing, and it would be
+  // invisible to either gate alone. It is also the worst possible bug for a
+  // pupil: they would be shown an answer, type it in, and be marked wrong.
+  const raw = JSON.parse(readFileSync(new URL('../src/robolearn/assets/web/lessons.json', import.meta.url), 'utf8'));
+  const shipped = Array.isArray(raw) ? raw : (raw.lessons || []);
+  check('every lesson ships a worked solution',
+    shipped.length > 0 && shipped.every((l) => typeof l.solutionCode === 'string' && l.solutionCode.trim()),
+    shipped.filter((l) => !l.solutionCode).map((l) => l.id).join(', ') || '');
+  let solved = 0;
+  const broken = [];
+  for (const l of shipped) {
+    if (!l.solutionCode) continue;
+    const r = grade(l.id, l.solutionCode);
+    if (r.passed === true && r.score === 100) solved++;
+    else broken.push(l.id + ': ' + JSON.stringify(r.reasons));
+  }
+  check(`all ${shipped.length} shipped solutions pass in the browser grader`,
+    broken.length === 0, broken.join(' | '));
+  check('the browser agrees with the Python gate on every lesson',
+    solved === shipped.length, `${solved}/${shipped.length}`);
 }
 
 console.log('\n== GRADING: known-bad submissions FAIL with grader.py reasons ==');

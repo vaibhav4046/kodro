@@ -28,6 +28,10 @@ world:
   obstacles: []
   width: 6.0
   height: 6.0
+solution_code: |
+  move_forward(1)
+  move_forward(1)
+  move_forward(1)
 success_criteria:
   - min_distance_travelled: 3.0
   - no_collisions: true

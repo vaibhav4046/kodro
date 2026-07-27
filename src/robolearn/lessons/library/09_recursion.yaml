@@ -28,6 +28,16 @@ world:
   obstacles: []
   width: 10.0
   height: 10.0
+solution_code: |
+  def spiral(step):
+      if step < 0.5:
+          return
+      move_forward(step)
+      turn_left(90)
+      spiral(step - 0.5)
+
+  pen_down()
+  spiral(3.0)
 success_criteria:
   - min_distance_travelled: 8.0
   - max_battery_used: 80.0
