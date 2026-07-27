@@ -117,4 +117,29 @@ See `REQUESTS_FOR_CLAUDE.md`:
 
 ## Final gate status
 
-Pending the required unit, static, paint, layout and modal runs.
+Final source-state results:
+
+```text
+wrote bundle.js (1339567 bytes) from 43 sources
+PASS contrast + responsive: 61 passed, 0 failed (over 10 themes)
+QA_WEB: 5/5 checks passed
+focused JSX and accessibility assertions: 10 passed
+static site: 48 files
+service worker cache: kodro-shell-a03d0790c02f
+UI PAINT: 6/6 flows clean
+UI LAYOUT: 6/6 assertions pass, including 320 px and classroom 320 px
+UI MODALS: 13/13 surfaces render
+```
+
+The exact focused pytest command ran all 10 requested tests successfully but
+then failed the repository-wide 85 percent coverage threshold because two
+small test files cover 2.84 percent of the full Python package. Running the
+same two files with the coverage plugin disabled produced `10 passed`. Using
+`--no-cov` alone exposes a `pytest-cov` controller bug on the repository's
+`no_cover` marker, so the successful focused command was:
+
+```text
+python -m pytest tests/unit/test_web_jsx_valid.py tests/unit/test_a11y.py -q -p no:cov -o addopts=
+```
+
+The full-suite coverage gate was not changed or softened.
