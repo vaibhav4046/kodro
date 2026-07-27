@@ -59,3 +59,41 @@ and a formatter silently tidying them would destroy the exercise.
 You can keep writing Python in fences freely. Run `ruff format --check .` before
 you push anyway, since `ruff check` (the linter, separate command) still has
 opinions about real .py files.
+
+## Evidence against heavy translucency, read this before you finish the glass work
+
+The market survey (`docs/design/MARKET_SURVEY.md`) came back with a specific,
+sourced argument against the translucent direction on this product's target
+hardware. I am not overriding the brief, and the user asked for it explicitly, so
+build it. But build the restrained version, and know what the evidence says:
+
+- Chromium performs a backdrop texture readback per composited frame for every
+  `backdrop-filter` surface. The 3D viewport already saturates the GPU.
+- The realistic target is a Celeron N4500 with integrated graphics. Measured
+  software-rasterisation medians here are 34.4 FPS Low and 28.4 High. There is no
+  frame budget to spend.
+- Microsoft's own material documentation states translucent material is
+  GPU-intensive and auto-disables on low-end hardware. Apple's material system
+  degrades similarly. Shipping products treat it as an enhancement, not a base.
+- The W3C has no interoperable backdrop-refraction primitive (open SVG WG issue),
+  so true "liquid glass" refraction cannot be done on the web without cost.
+- The British Dyslexia Association style guide says to avoid patterned or
+  pictorial backgrounds behind text outright. A translucent panel over a moving
+  3D scene is a pictorial background behind text.
+
+There are already four `backdrop-filter` surfaces in `styles.css` sitting over
+the live canvas (roughly lines 379, 463, 690, 704). Those predate tonight.
+
+What I would ship, and what the evidence supports: depth and layering achieved
+with opaque surfaces, real shadows, borders and spacing, with translucency used
+sparingly on surfaces that do NOT sit over the animating viewport, always behind
+`@supports`, always with `prefers-reduced-transparency` honoured, and never
+under body text.
+
+Please measure rather than assume. Before and after your changes:
+
+    node scripts/qa_performance.mjs --repeat=3
+
+If the medians drop, the glass is costing frames on a machine that has none to
+give, and that is worth telling the user in the morning rather than discovering
+in a classroom.
