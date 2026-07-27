@@ -1,6 +1,6 @@
 # Kodro: handoff for Keith Dures
 
-Prepared 27 July 2026. Everything below was measured at commit `466d2c4`.
+Prepared 27 July 2026. Everything below was measured at commit `b33e5b8`.
 
 ## What this is
 
@@ -24,17 +24,37 @@ named command. Nothing is estimated.
 
 | What | Result | Command |
 |---|---|---|
-| Python test matrix | 1,223 pass, 1 skip, 87.80% branch coverage against an 85% gate | `pytest tests/` |
+| Python test matrix | 1,296 pass, 87.80% branch coverage against an 85% gate | `pytest tests/` |
 | Interpreter harness | 180 of 180 | `node scripts/qa_interpreter.mjs` |
-| Grader parity (browser vs Python) | 38 of 38 | `node scripts/qa_grader.mjs` |
+| Grader parity and solvability | 45 of 45 | `node scripts/qa_grader.mjs` |
+| Lesson Studio document and store | 56 of 56 | `node scripts/qa_lesson_studio.mjs` |
 | Construct liveness | 27 of 27 | `node scripts/qa_construct_liveness.mjs` |
-| Browser behaviour, real bundle in headless Chrome | 33 of 33 | `node scripts/qa_ui.mjs --suite=behaviour` |
+| Browser behaviour, real bundle in headless Chrome | 34 of 34 | `node scripts/qa_ui.mjs --suite=behaviour` |
+| Browser paint / layout / modals | 6 of 6, 6 of 6, 13 of 13 | `node scripts/qa_ui.mjs --suite=paint` etc |
+| World sweep | 61 of 61 | `node scripts/qa_worlds.mjs` |
 | Web boot and privacy | 5 of 5 | `node scripts/qa_web.mjs` |
-| Renderer, three samples per tier | median 145.8 FPS on the integrated GPU, 37.6 FPS under forced software rasterisation | `node scripts/qa_performance.mjs` |
 
 The 18 lessons map to named DfE programme of study statements and BCS
 computational thinking concepts. Each lesson states its success criteria on
 screen before the pupil runs anything.
+
+Two things worth looking at specifically, because they are the parts I would
+defend hardest:
+
+**Every lesson is provably finishable.** Each one ships a worked answer, shown
+to a pupil only after the hints run out. Those answers are not editorial. An
+automated gate runs all eighteen through *both* marking engines on every change
+and requires 100 out of 100, inside the constructs that lesson has taught and
+inside its own line budget. A lesson whose own answer fails does not ship. That
+gate is also the only thing that would ever tell us a lesson had become
+impossible, and writing it found eight cases where the harness itself was wrong.
+
+**Anyone can write a lesson.** More Tools, then "Make a lesson". You draw the
+arena by clicking, choose what counts as finished, and write the starter and one
+answer. You cannot save until your own answer passes, checked by the same marker
+the pupils face. A saved lesson sits in the library marked "Made here" and is
+graded by the identical code as the built-in eighteen. It exports to one file
+you can send to a colleague. No server, no account.
 
 ### Not ready, and these are the honest gaps
 
@@ -51,19 +71,12 @@ screen before the pupil runs anything.
    so on screen and the teacher guide says so too. I would rather disclose it
    than quietly unify the two and risk breaking the pupil record.
 
-3. **One lesson does not check the concept it teaches.** `08_pathfinding`
-   teaches selection but is marked only on reaching the samples without
-   collisions. I could add a `uses_construct: if` criterion in a minute, but I
-   could not write a solution that passes it, and shipping a criterion I cannot
-   demonstrate would be exactly the kind of unproven claim I spent this week
-   removing. It is documented rather than papered over.
-
-4. **The simulation is not validated against a physical robot.** It uses a
+3. **The simulation is not validated against a physical robot.** It uses a
    kinematic model with published battery and motion constants. It has never
    been checked against a real rover. The app states this where it reports
    results.
 
-5. **Accessibility has been checked by automated tools and by me, not by a
+4. **Accessibility has been checked by automated tools and by me, not by a
    disabled user.** Contrast, keyboard paths and reduced motion all pass
    automated checks. That is not the same as being usable.
 
@@ -94,6 +107,13 @@ survived and all twenty seven are now closed. Among them:
 
 The full list is in the commit message for `466d2c4`.
 
+Since then, two more things landed. Every lesson now ships a worked answer that
+is machine-checked in both engines, which also closed the last lesson that did
+not check the concept it teaches (`08_pathfinding` named iteration, selection
+and decomposition and checked none of them; a hard-coded route scored 100). And
+the Lesson Studio, so the curriculum is no longer only whatever we decided
+months ago.
+
 ## What I would like from you
 
 1. Sit with the first three lessons as though you were a pupil. Do not read the
@@ -106,7 +126,8 @@ The full list is in the commit message for `466d2c4`.
 
 ## Twenty second version
 
-Open the link. You get three doors: learn to code, design a robot, or free
-play. Pick the first. Lesson one gives you a working program, a goal, and a
-robot that drives when you press Run. Change the number, press Run, watch what
-happens, read what it says you still need to do.
+Open the link. You get four doors: learn to code, design a robot, free play, or
+make a lesson. Pick the first. Lesson one gives you a working program, a goal,
+and a robot that drives when you press Run. Change the number, press Run, watch
+what happens, read what it says you still need to do. If you get stuck, the
+hints appear, and after those the answer does.
