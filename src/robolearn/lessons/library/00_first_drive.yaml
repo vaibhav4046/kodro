@@ -15,14 +15,16 @@ intro: |
   Each line tells the rover one thing to do.
   The rover does them in order, from the top.
   Right now it only drives 1 metre, which is not far enough.
-  Change the number, or add another line, to reach the flag.
+  The flag is 3 metres straight ahead.
+  Change the number, or add another line, to reach it.
 starter_code: |
   move_forward(1)
 allowed_constructs: [function_call]
 max_lines: 6
 world:
   base: [1.0, 1.0]
-  samples: []
+  samples:
+    - [4.0, 1.0]
   obstacles: []
   width: 6.0
   height: 6.0
@@ -31,5 +33,5 @@ success_criteria:
   - no_collisions: true
 hints:
   on_failure:
-    - "Use move_forward to drive the rover ahead. Try move_forward(2)."
+    - "The rover has to travel at least 3 metres. Try move_forward(3)."
     - "You can use move_forward more than once to go further."

@@ -50,4 +50,4 @@ the units shown beside each value below.
 | `pen_down()` | Lower the trail pen so the rover draws its path as it drives. |
 | `pen_up()` | Lift the trail pen so the rover stops drawing. |
 | `place(kind="flag", x=None, y=None)` | Place a visual prop in the world: a flag, beacon, rock, tree, person or crate. Props do not collide. Defaults to where the rover is standing. |
-| `clear_props()` | Remove every prop placed with `place`. |
+| `clear_props()` | Remove every prop you placed with `place`. A lesson's own flags stay. |

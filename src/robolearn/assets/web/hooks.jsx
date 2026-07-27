@@ -870,6 +870,17 @@
     // verdict is computed from this run, not from a second hidden one, so
     // a crash on screen has to reach the grade.
     const runCollisionsRef = useRef(0);
+    // Degrees turned during the watched run. Feeds the GRADING battery ledger
+    // below; the live battery is deliberately design- and terrain-dependent
+    // (that is the whole point of the design surface), but the lesson battery
+    // limits were calibrated against the reference model, so grading a pupil's
+    // Python against their chassis choice would fail lessons for a reason the
+    // lesson never mentions.
+    const gradeTurnDegRef = useRef(0);
+    // Commands as the CRITERION means them: every traced verb, including the
+    // sensor reads and lesson actions the grader counts in `events`. The
+    // separate cmdCountRef stays the diagnostics figure it already was.
+    const gradeStepsRef = useRef(0);
 
     const sync = () => { setRover({ ...live.current }); try { window.KODRO_ROVER = { x: live.current.x, y: live.current.y }; } catch (e) { void e; } };
     const pushTrailPoint = () => {
@@ -907,6 +918,47 @@
       const pose = window.KodroMotion.sensorPose(st.x, st.y, st.heading, sp.fwdCm, sp.leftCm, sp.yawDeg);
       return Math.min(sp.rangeCm, rayDistance(pose.x, pose.y, pose.heading));
     }
+    // The lesson's own lidar, in lesson metres: a port of lesson-grader.jsx's
+    // lidarDistance (itself a port of engine/sensors.py). It measures from the
+    // rover CENTRE against the lesson's raw obstacle radii and the arena
+    // rectangle. The free-play ray above measures from the fitted sensor's
+    // pose and inflates every obstacle by the rover radius, so the two answered
+    // `obstacle_ahead()` differently by up to a whole rover width: the pupil's
+    // `if` took one branch on screen and the other in the mark.
+    function lessonLidarM(s, lw) {
+      const rx = lw.base[0] + (-s.y / 100);
+      const ry = lw.base[1] + (-s.x / 100);
+      // Live heading -> lesson heading. Live advances (sin h, -cos h) in sim
+      // space and the axes are mirrored into lesson space, so theta = -h.
+      const rad = (-s.heading) * Math.PI / 180;
+      const dx = Math.cos(rad), dy = Math.sin(rad);
+      const eps = 1e-12;
+      let best = 50;  // LIDAR_MAX_RANGE_M
+      if (Math.abs(dx) > eps) {
+        for (const wx of [0, lw.width]) {
+          const t = (wx - rx) / dx;
+          if (t >= 0 && t < best) { const yy = ry + t * dy; if (yy >= -eps && yy <= lw.height + eps) best = t; }
+        }
+      }
+      if (Math.abs(dy) > eps) {
+        for (const wy of [0, lw.height]) {
+          const t = (wy - ry) / dy;
+          if (t >= 0 && t < best) { const xx = rx + t * dx; if (xx >= -eps && xx <= lw.width + eps) best = t; }
+        }
+      }
+      for (const o of lw.obstacles) {
+        const ox = rx - o.x, oy = ry - o.y;
+        const b = ox * dx + oy * dy;
+        const c = ox * ox + oy * oy - o.r * o.r;
+        const disc = b * b - c;
+        if (disc < 0) continue;
+        const sq = Math.sqrt(disc);
+        const t1 = -b - sq, t2 = -b + sq;
+        const t = t1 >= 0 ? t1 : (t2 >= 0 ? t2 : null);
+        if (t !== null && t < best) best = t;
+      }
+      return best;
+    }
     const host = {
       sensor(name, args) {
         const s = live.current;
@@ -919,10 +971,23 @@
           const g = window.KodroCommands.check(rb, name);
           if (!g.ok) throw new Error(g.reason);
         }
+        gradeStepsRef.current++;  // the grader traces every sensor read
         switch (name) {
           case 'distance': {
             const d = Math.round(sensorRayDistance(s));
             setSensorDist(d); return d;
+          }
+          // read_distance(): METRES, and measured the way the grader measures
+          // it -- from the rover's centre, against the lesson's own obstacles
+          // and arena walls. The design dialect's distance() above is a
+          // centimetre reading from the fitted sensor's pose, which is a
+          // different question with a different answer.
+          case 'distance_m': {
+            const lw = lessonWorldRef && lessonWorldRef.current;
+            if (!lw) { const d = sensorRayDistance(s); setSensorDist(Math.round(d)); return d / 100; }
+            const m = lessonLidarM(s, lw);
+            setSensorDist(Math.round(Math.min(m, 50) * 100));
+            return m;
           }
           case 'heading': return Math.round(((s.heading % 360) + 360) % 360);
           case 'battery': return Math.round(s.battery);
@@ -996,11 +1061,12 @@
           }
           return best;
         };
+        gradeStepsRef.current++;  // the grader traces every lesson verb
         switch (name) {
-          case 'obstacle_ahead': {
-            const d = sensorRayDistance(s);
-            return typeof d === 'number' && d / 100 <= num(args[0], 0.5);
-          }
+          case 'obstacle_ahead':
+            // Measured the grader's way (see lessonLidarM), so the branch the
+            // pupil watches is the branch they are marked on.
+            return lessonLidarM(s, lw) <= num(args[0], 0.5);
           case 'sample_detected':
             return near(num(args[0], 0.3)) !== null;
           case 'at_base':
@@ -1146,7 +1212,7 @@
             if (v) { addConsole(v.text, v.tone); stallVerdict = v.text; }
           }
           recordRunReport('stalled', 'underpowered drive', stallVerdict);
-          gradeOnce();  // a stalled lesson attempt still earns a verdict + hint
+          gradeOnce('RuntimeError: the drive stalled and could not move the robot on this ground');
           haltProgram('error');
           return false;
         }
@@ -1263,7 +1329,7 @@
           if (v) { addConsole(v.text, v.tone); flatVerdict = v.text; }
         }
         recordRunReport('flat', 'battery', flatVerdict);
-        gradeOnce();  // a battery-flat lesson attempt still earns a verdict + hint
+        gradeOnce('RuntimeError: the battery ran flat before the program finished');
         haltProgram('error');
         return false;
       }
@@ -1341,6 +1407,7 @@
       // The arc covered real ground: odometer and battery are charged for the
       // distance actually driven (move drain model) plus the steering cost.
       const arcTravelled = Math.abs(s.heading - h0) * Math.PI / 180 * TURN_R;
+      gradeTurnDegRef.current += Math.abs(s.heading - h0);
       odoRef.current += arcTravelled; setOdo(odoRef.current);
       if (crashed) {
         s.moving = false; sync();
@@ -1391,7 +1458,7 @@
         // Everything except a bookkeeping 'step' is a real command the program
         // executed; the count feeds the post-run verdict so an empty program
         // cannot claim "the design held up" (bugs D5).
-        if (ev.type !== 'step') cmdCountRef.current++;
+        if (ev.type !== 'step') { cmdCountRef.current++; gradeStepsRef.current++; }
         if (ev.line) setActiveLine(ev.line);
         switch (ev.type) {
           case 'step': await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
@@ -1447,7 +1514,11 @@
             await delay(stepMode ? 0 : 160 / speedMulRef.current);
             break;
           }
-          case 'clear_props': setProps([]); break;
+          // "Remove every prop placed with place()" -- pupil-placed props only.
+          // The props layer is also where a lesson's sample flags are drawn, and
+          // wiping those made the goals vanish from the screen while they stayed
+          // live in the grade.
+          case 'clear_props': setProps(p => p.filter(x => x.lessonSampleId || x.lessonBase)); break;
           case 'scan': {
             // scan() reports an ultrasonic range, so gate it on the same part
             // distance() needs. A no-ultrasonic build refuses here for BOTH the
@@ -1501,7 +1572,7 @@
       // a lesson attempt that threw gets the same verdict + hint a crash does.
       // A compile-time typo that executed nothing (cmdCount 0) is neither. REPL
       // one-liners never reach here -- they returned above via haltProgram('idle').
-      if (cmdCountRef.current > 0) { recordRunReport('error', msg, ''); gradeOnce(); }
+      if (cmdCountRef.current > 0) { recordRunReport('error', msg, ''); gradeOnce((line ? 'Line ' + line + ': ' : '') + msg); }
       haltProgram('error');
     }
     // Grade a lesson attempt at most once per run. Called from the clean-finish
@@ -1511,7 +1582,10 @@
     // the "is a lesson loaded?" gate to gradeWithBridge (app.jsx), which no-ops
     // when currentLessonId is null -- so free-play (non-lesson) runs stay
     // ungraded exactly as before.
-    function gradeOnce() {
+    // `err`, when passed, is the run's own failure (a runtime error, a stall, a
+    // flat battery). Without it a program that drove far enough and THEN threw
+    // was scored on the distance it had already banked and passed at 100/100.
+    function gradeOnce(err) {
       if (gradedRef.current) return;
       if (replRef.current) return;
       gradedRef.current = true;
@@ -1528,25 +1602,53 @@
       // The browser grader is the only one that can score supplied aggregates;
       // under pywebview the Python engine still re-runs the source, so that
       // path keeps its old behaviour rather than silently changing engines.
-      const lessonId = currentLessonId;
+      // Read the lesson from the ref, not the render closure: opening another
+      // lesson while a run is in flight changed `currentLessonId` under this
+      // function, so the finished run's verdict was filed under the lesson the
+      // pupil had just switched TO.
+      const lessonId = (deps.currentLessonIdRef && deps.currentLessonIdRef.current) || currentLessonId;
       const G = window.KodroLessonGrader;
       const lw = lessonWorldRef && lessonWorldRef.current;
-      const canGradeWatched = lessonId && lw && G && typeof G.gradeFromAggregates === 'function'
-        && !(window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable());
-      if (!canGradeWatched) { gradeWithBridge(code); return; }
+      const onDesktop = !!(window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable());
+      const canGradeWatched = lessonId && lw && G && typeof G.gradeFromAggregates === 'function' && !onDesktop;
+      if (!canGradeWatched) {
+        // The desktop edition keeps the Python engine authoritative, because
+        // that is where the pupil record, the adaptive hint ranking and the
+        // learner model live. It re-executes the source, so its verdict is
+        // about a second run, not the one on screen. Say so rather than let
+        // the panel imply otherwise.
+        if (lessonId && onDesktop) {
+          addConsole('This mark comes from re-running your program in the desktop Python engine, not from the run you just watched.', 'sys');
+        }
+        gradeWithBridge(code);
+        return;
+      }
       const s = live.current;
       // Live sim centimetres -> lesson metres, the same mapping lessonApi uses.
       const finalX = lw.base[0] + (-s.y / 100);
       const finalY = lw.base[1] + (-s.x / 100);
+      // Battery for GRADING, from the reference model the lesson limits were
+      // set against: distance and turning at the published rates, plus the
+      // per-collision charge. The live `s.battery` is scaled by the pupil's
+      // build mass and the world's traction and gravity, which is correct for
+      // the design surface and wrong for a lesson threshold.
+      const KMg = window.KodroMotion || {};
+      const Mg = KMg.MODEL || {};
+      const perM = (Mg.drainPctPerCm !== undefined ? Mg.drainPctPerCm : 0.011) * 100;
+      const perDeg = Mg.drainPctPerDeg !== undefined ? Mg.drainPctPerDeg : 0.004;
+      const perHit = Mg.drainPctPerCollision !== undefined ? Mg.drainPctPerCollision : 1;
+      const gradeBattery = (odoRef.current / 100) * perM
+        + gradeTurnDegRef.current * perDeg
+        + runCollisionsRef.current * perHit;
       const verdict = G.gradeFromAggregates(lessonId, code, {
         samplesCollected: lw.samples.filter((sm) => sm.collected).length,
         collisions: runCollisionsRef.current,
         distanceTravelledM: odoRef.current / 100,
-        batteryUsedPct: Math.max(0, 100 - s.battery),
-        stepCount: cmdCountRef.current,
+        batteryUsedPct: Math.min(100, gradeBattery),
+        stepCount: gradeStepsRef.current,
         finalX: finalX,
         finalY: finalY,
-      });
+      }, err || null);
       // Hand the finished verdict to the same path a bridge grade takes, so
       // the panel, the record, the pupil store, the cue and the hints are all
       // applied identically.
@@ -1717,6 +1819,8 @@
       odoRef.current = 0; setOdo(0);
       minProxRef.current = Infinity;
       cmdCountRef.current = 0;
+      gradeStepsRef.current = 0;
+      gradeTurnDegRef.current = 0;
       // Clear the measured-speed anchor so a later step-through (which reads
       // wallMs before a fresh run sets this) cannot inherit a prior run's start
       // time and report a wildly inflated elapsed-wall figure.

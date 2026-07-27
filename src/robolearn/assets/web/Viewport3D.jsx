@@ -23,7 +23,7 @@
     room: 0xe9ddc8, city: 0xb3c2cc, earth: 0xb6cdba, mars: 0xc08050, underwater: 0x0a2a38, space: 0x05060d,
   };
 
-  function Viewport3D({ terrain, rover, fpv, robotType, quality, focusKey, onFail }) {
+  function Viewport3D({ terrain, rover, fpv, robotType, quality, focusKey, onFail, props }) {
     const mountRef = useRef(null);
     const stateRef = useRef({ x: 0, y: 0, heading: 0 });
     const fpvRef = useRef(!!fpv);
@@ -2086,7 +2086,7 @@
       };
       // Expose the live renderer + sun so the in-place quality effect can adjust
       // pixel ratio and shadows without a remount. Set after the scene is built.
-      glRef.current = { renderer, sun, indoor };
+      glRef.current = { renderer, sun, indoor, scene, THREE };
       tick();
 
       return () => {
@@ -2136,7 +2136,85 @@
       // siteId is a dep: a mission-site switch on the SAME base world (earth ->
       // sahara) must tear down and rebuild the scene, or the site's obstacle
       // field and palette silently never appear (world-coherence BUG-1).
-    }, [terrain && terrain.id, terrain && terrain.siteId, robotType]);
+      //
+      // terrain.obstacles is a dep for the same reason one level down: entering
+      // or leaving a lesson swaps the collidable set WITHOUT changing the world
+      // id, so the scene kept drawing the free-play scenery while the physics
+      // used the lesson's -- the rover crashed into invisible trees on a plane
+      // that looked empty. `terrain` is a useMemo, so this reference changes
+      // exactly when the collidable set does.
+    }, [terrain && terrain.id, terrain && terrain.siteId, terrain && terrain.obstacles, robotType]);
+
+    // Lesson goal markers. The props layer carries the lesson's sample flags
+    // (app.jsx lessonMarks); the 3D viewport is the DEFAULT view and never
+    // received them, so the arena the pupil is marked in was drawn only in the
+    // flat 2D view most people never open. Kept in its own group so it can be
+    // rebuilt on every props change without touching the scene build.
+    const marksRef = useRef(null);
+    useEffect(() => {
+      const g = glRef.current;
+      if (!g || !g.scene || !g.THREE) return undefined;
+      const THREE = g.THREE;
+      const group = new THREE.Group();
+      g.scene.add(group);
+      marksRef.current = group;
+      const flags = (props || []).filter((p) => p && p.kind === 'flag');
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.6 });
+      const clothMat = new THREE.MeshStandardMaterial({
+        color: 0xffc83d, emissive: 0x6b4a00, emissiveIntensity: 0.55,
+        roughness: 0.5, side: THREE.DoubleSide,
+      });
+      const discMat = new THREE.MeshStandardMaterial({
+        color: 0xffc83d, emissive: 0x6b4a00, emissiveIntensity: 0.4,
+        transparent: true, opacity: 0.35,
+      });
+      const poleGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.2, 8);
+      const clothGeo = new THREE.PlaneGeometry(1.0, 0.62);
+      const discGeo = new THREE.CircleGeometry(0.9, 24);
+      for (const f of flags) {
+        const px = f.x * SCALE, pz = -f.y * SCALE;
+        const pole = new THREE.Mesh(poleGeo, poleMat);
+        pole.position.set(px, 1.1, pz);
+        pole.castShadow = true;
+        group.add(pole);
+        const cloth = new THREE.Mesh(clothGeo, clothMat);
+        cloth.position.set(px + 0.5, 1.85, pz);
+        group.add(cloth);
+        // A ring on the ground so the target is findable from the low chase
+        // camera, where a thin pole disappears against the horizon.
+        const disc = new THREE.Mesh(discGeo, discMat);
+        disc.rotation.x = -Math.PI / 2;
+        disc.position.set(px, 0.03, pz);
+        group.add(disc);
+      }
+      // The base pad. Lessons that ask the rover to come home were marking a
+      // spot with nothing drawn on it.
+      const baseMark = (props || []).find((p) => p && p.lessonBase);
+      if (baseMark) {
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(1.0, 1.4, 32),
+          new THREE.MeshStandardMaterial({
+            color: 0x32cd32, emissive: 0x0d3a0d, emissiveIntensity: 0.5,
+            transparent: true, opacity: 0.55, side: THREE.DoubleSide,
+          }),
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.set(baseMark.x * SCALE, 0.02, -baseMark.y * SCALE);
+        group.add(ring);
+      }
+      return () => {
+        g.scene.remove(group);
+        // This effect re-runs every time a sample is collected, so anything it
+        // allocated has to be released or each pickup leaks a mesh's worth of
+        // GPU memory for the rest of the session.
+        group.traverse((o) => {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) o.material.dispose();
+        });
+        [poleGeo, clothGeo, discGeo, poleMat, clothMat, discMat].forEach((o) => o.dispose());
+        marksRef.current = null;
+      };
+    }, [props]);
 
     // Move keyboard focus to the canvas when the user explicitly opens the 3D
     // view (focusKey bumps on that click only). focusKey starts at 0 so the

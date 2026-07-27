@@ -8342,7 +8342,8 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     robotType,
     quality,
     focusKey,
-    onFail
+    onFail,
+    props
   }) {
     const mountRef = useRef(null);
     const stateRef = useRef({
@@ -11834,7 +11835,9 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       glRef.current = {
         renderer,
         sun,
-        indoor
+        indoor,
+        scene,
+        THREE
       };
       tick();
       return () => {
@@ -11912,7 +11915,96 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       // siteId is a dep: a mission-site switch on the SAME base world (earth ->
       // sahara) must tear down and rebuild the scene, or the site's obstacle
       // field and palette silently never appear (world-coherence BUG-1).
-    }, [terrain && terrain.id, terrain && terrain.siteId, robotType]);
+      //
+      // terrain.obstacles is a dep for the same reason one level down: entering
+      // or leaving a lesson swaps the collidable set WITHOUT changing the world
+      // id, so the scene kept drawing the free-play scenery while the physics
+      // used the lesson's -- the rover crashed into invisible trees on a plane
+      // that looked empty. `terrain` is a useMemo, so this reference changes
+      // exactly when the collidable set does.
+    }, [terrain && terrain.id, terrain && terrain.siteId, terrain && terrain.obstacles, robotType]);
+
+    // Lesson goal markers. The props layer carries the lesson's sample flags
+    // (app.jsx lessonMarks); the 3D viewport is the DEFAULT view and never
+    // received them, so the arena the pupil is marked in was drawn only in the
+    // flat 2D view most people never open. Kept in its own group so it can be
+    // rebuilt on every props change without touching the scene build.
+    const marksRef = useRef(null);
+    useEffect(() => {
+      const g = glRef.current;
+      if (!g || !g.scene || !g.THREE) return undefined;
+      const THREE = g.THREE;
+      const group = new THREE.Group();
+      g.scene.add(group);
+      marksRef.current = group;
+      const flags = (props || []).filter(p => p && p.kind === 'flag');
+      const poleMat = new THREE.MeshStandardMaterial({
+        color: 0xf1f5f9,
+        roughness: 0.6
+      });
+      const clothMat = new THREE.MeshStandardMaterial({
+        color: 0xffc83d,
+        emissive: 0x6b4a00,
+        emissiveIntensity: 0.55,
+        roughness: 0.5,
+        side: THREE.DoubleSide
+      });
+      const discMat = new THREE.MeshStandardMaterial({
+        color: 0xffc83d,
+        emissive: 0x6b4a00,
+        emissiveIntensity: 0.4,
+        transparent: true,
+        opacity: 0.35
+      });
+      const poleGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.2, 8);
+      const clothGeo = new THREE.PlaneGeometry(1.0, 0.62);
+      const discGeo = new THREE.CircleGeometry(0.9, 24);
+      for (const f of flags) {
+        const px = f.x * SCALE,
+          pz = -f.y * SCALE;
+        const pole = new THREE.Mesh(poleGeo, poleMat);
+        pole.position.set(px, 1.1, pz);
+        pole.castShadow = true;
+        group.add(pole);
+        const cloth = new THREE.Mesh(clothGeo, clothMat);
+        cloth.position.set(px + 0.5, 1.85, pz);
+        group.add(cloth);
+        // A ring on the ground so the target is findable from the low chase
+        // camera, where a thin pole disappears against the horizon.
+        const disc = new THREE.Mesh(discGeo, discMat);
+        disc.rotation.x = -Math.PI / 2;
+        disc.position.set(px, 0.03, pz);
+        group.add(disc);
+      }
+      // The base pad. Lessons that ask the rover to come home were marking a
+      // spot with nothing drawn on it.
+      const baseMark = (props || []).find(p => p && p.lessonBase);
+      if (baseMark) {
+        const ring = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.4, 32), new THREE.MeshStandardMaterial({
+          color: 0x32cd32,
+          emissive: 0x0d3a0d,
+          emissiveIntensity: 0.5,
+          transparent: true,
+          opacity: 0.55,
+          side: THREE.DoubleSide
+        }));
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.set(baseMark.x * SCALE, 0.02, -baseMark.y * SCALE);
+        group.add(ring);
+      }
+      return () => {
+        g.scene.remove(group);
+        // This effect re-runs every time a sample is collected, so anything it
+        // allocated has to be released or each pickup leaks a mesh's worth of
+        // GPU memory for the rest of the session.
+        group.traverse(o => {
+          if (o.geometry) o.geometry.dispose();
+          if (o.material) o.material.dispose();
+        });
+        [poleGeo, clothGeo, discGeo, poleMat, clothMat, discMat].forEach(o => o.dispose());
+        marksRef.current = null;
+      };
+    }, [props]);
 
     // Move keyboard focus to the canvas when the user explicitly opens the 3D
     // view (focusKey bumps on that click only). focusKey starts at 0 so the
@@ -16376,7 +16468,7 @@ Object.assign(window, {
     "00_first_drive": {
       "world": {
         "base": [1, 1],
-        "samples": [],
+        "samples": [[4, 1]],
         "obstacles": [],
         "width": 6,
         "height": 6
@@ -16387,7 +16479,7 @@ Object.assign(window, {
         "no_collisions": true
       }],
       "hints": {
-        "onFailure": ["Use move_forward to drive the rover ahead. Try move_forward(2).", "You can use move_forward more than once to go further."],
+        "onFailure": ["The rover has to travel at least 3 metres. Try move_forward(3).", "You can use move_forward more than once to go further."],
         "onSuccess": []
       }
     },
@@ -16444,6 +16536,8 @@ Object.assign(window, {
         "height": 6
       },
       "criteria": [{
+        "calls_in_order": ["move_forward", "beep", "log"]
+      }, {
         "min_distance_travelled": 1.5
       }, {
         "max_battery_used": 5
@@ -16471,7 +16565,7 @@ Object.assign(window, {
         "no_collisions": true
       }],
       "hints": {
-        "onFailure": ["After your first move_forward the rover is east of the base. You need to turn left and drive again to reach (4, 4).", "Remember to call collect_sample() once the rover sits on top of the patch."],
+        "onFailure": ["Remember to call collect_sample() once the rover sits on top of the patch.", "After your first move_forward the rover is east of the base. You need to turn left and drive again to reach (4, 4)."],
         "onSuccess": []
       }
     },
@@ -16515,7 +16609,7 @@ Object.assign(window, {
         "uses_construct": "if"
       }],
       "hints": {
-        "onFailure": ["The if-statement runs only once. Repeat it (or use a loop) until the rover passes the rock.", "Did you call collect_sample() once the rover reaches the patch?"],
+        "onFailure": ["The rover finishes on the patch but never picks it up. Add collect_sample() as the last line.", "obstacle_ahead(2.0) asks whether anything is within 2 metres ahead. Try printing it with log() to see when it is True."],
         "onSuccess": []
       }
     },
@@ -17042,6 +17136,7 @@ Object.assign(window, {
       sensor: function (name) {
         var v;
         switch (name) {
+          case 'distance_m': // the lesson dialect's metre-unit alias
           case 'distance':
             // read_distance(): metres, inf past 50 m
             v = lidarDistance(rover, world);
@@ -17333,6 +17428,17 @@ Object.assign(window, {
   };
 
   // grader.py _is_constant_falsy: a literal test that can never be truthy.
+  // Does this expression contain anything that can differ between two runs?
+  // A tree of pure literals (`1 > 0`, `2 + 2 == 4`) answers the same every
+  // time, so branching on it is not a decision. Mirrors grader.py
+  // _has_variable_leaf.
+  function hasVariableLeaf(t) {
+    var found = false;
+    walkNode(t, function (o) {
+      if (o && (o.k === 'name' || o.k === 'call' || o.k === 'attr' || o.k === 'index')) found = true;
+    });
+    return found;
+  }
   function isConstantFalsy(t) {
     if (!t) return false;
     if (t.k === 'bool' || t.k === 'num' || t.k === 'str') return !t.v;
@@ -17366,6 +17472,33 @@ Object.assign(window, {
   // Only PROVABLY dead code is rejected: `while True:` is an ordinary idiom
   // and `if True:` still runs its body, so both still count. Must stay in step
   // with the Python grader or the two engines disagree on the same program.
+  // grader.py _calls_in_order: are all of `names` called, in this relative
+  // order, somewhere in the source? Static like sourceUses, and for the same
+  // reason. Other calls may appear between them.
+  function callsInOrder(source, names) {
+    if (!source || !source.trim() || !window.RoverLang) return false;
+    var program;
+    try {
+      program = window.RoverLang.compile(source).program;
+    } catch (e) {
+      void e;
+      return false;
+    }
+    var seen = [];
+    walkList(program, function (o) {
+      if (o && o.k === 'call' && o.callee && o.callee.k === 'name') {
+        seen.push([o.line === undefined ? 0 : o.line, o.callee.v]);
+      }
+    });
+    seen.sort(function (a, b) {
+      return a[0] - b[0];
+    });
+    var i = 0;
+    for (var j = 0; j < seen.length; j++) {
+      if (i < names.length && seen[j][1] === names[i]) i++;
+    }
+    return i === names.length;
+  }
   function isLive(n, program) {
     if (n.kind === 'if') {
       // grader.py: an `if` on a literal is not selection. `if False:` never
@@ -17373,11 +17506,15 @@ Object.assign(window, {
       // demonstrates the concept a lesson requiring `if` is teaching. A pupil
       // could wrap a fixed route in `if True:` and be told they had learned to
       // choose. The condition has to depend on something.
+      // A bare-literal check was not enough: `if 1 > 0:` is not a literal node,
+      // it is a comparison of two literals, and it satisfied every selection
+      // lesson without reading a single sensor. A test is selection only if
+      // something in it can vary at runtime, i.e. it contains a name or a call.
       var branches = n.branches || [];
       for (var i = 0; i < branches.length; i++) {
         var t = branches[i].test;
-        var literal = t && (t.k === 'bool' || t.k === 'num' || t.k === 'str' || t.k === 'none');
-        if (!literal && !isConstantFalsy(t)) return true;
+        if (!t || isConstantFalsy(t)) continue;
+        if (hasVariableLeaf(t)) return true;
       }
       return false;
     }
@@ -17465,6 +17602,11 @@ Object.assign(window, {
     if (criterion.uses_construct !== undefined && !sourceUses(source, criterion.uses_construct)) {
       return "Code did not use the required '" + criterion.uses_construct + "' construct.";
     }
+    if (criterion.calls_in_order && !callsInOrder(source, criterion.calls_in_order)) {
+      return 'The program does not call ' + criterion.calls_in_order.map(function (n) {
+        return n + '()';
+      }).join(', ') + ', in that order.';
+    }
     if (criterion.returns_to_base === true && !returnsToBase(agg, entry)) {
       return 'Rover did not return to base.';
     }
@@ -17497,6 +17639,9 @@ Object.assign(window, {
     if (c.no_collisions === true) return 'Do not hit anything';
     if (c.max_battery_used !== undefined) return 'Use at most ' + c.max_battery_used + '% battery';
     if (c.uses_construct !== undefined) return 'Use ' + (CONSTRUCT_LABEL[c.uses_construct] || "'" + c.uses_construct + "'");
+    if (c.calls_in_order) return 'Call ' + c.calls_in_order.map(function (n) {
+      return n + '()';
+    }).join(', then ');
     if (c.returns_to_base === true) return 'Return to base';
     if (c.max_steps !== undefined) return 'Use at most ' + c.max_steps + ' commands';
     if (c.min_distance_travelled !== undefined) return 'Travel at least ' + c.min_distance_travelled + ' m';
@@ -17505,7 +17650,7 @@ Object.assign(window, {
   function criterionFailedIn(c, reasons) {
     if (!c || !reasons || !reasons.length) return false;
     var re = null;
-    if (c.samples_collected !== undefined) re = /^Collected \d+ of \d+ samples\./;else if (c.no_collisions === true) re = /collision/;else if (c.max_battery_used !== undefined) re = /^Battery used /;else if (c.uses_construct !== undefined) re = new RegExp("did not use the required '" + c.uses_construct + "'");else if (c.returns_to_base === true) re = /did not return to base/;else if (c.max_steps !== undefined) re = /API calls \(limit/;else if (c.min_distance_travelled !== undefined) re = /^Travelled [\s\S]*minimum/;
+    if (c.samples_collected !== undefined) re = /^Collected \d+ of \d+ samples\./;else if (c.no_collisions === true) re = /collision/;else if (c.max_battery_used !== undefined) re = /^Battery used /;else if (c.uses_construct !== undefined) re = new RegExp("did not use the required '" + c.uses_construct + "'");else if (c.calls_in_order) re = /^The program does not call /;else if (c.returns_to_base === true) re = /did not return to base/;else if (c.max_steps !== undefined) re = /API calls \(limit/;else if (c.min_distance_travelled !== undefined) re = /^Travelled [\s\S]*minimum/;
     if (!re) return false;
     for (var i = 0; i < reasons.length; i++) {
       if (re.test(String(reasons[i]))) return true;
@@ -17524,6 +17669,10 @@ Object.assign(window, {
     };
   }
   function formatError(err) {
+    // The watched-run path hands a ready-made pupil-facing string (the same
+    // text the console and the toast already showed); the headless path hands
+    // the interpreter's error object.
+    if (typeof err === 'string') return err;
     return err.kind + ': ' + err.message + (err.line != null ? ' (line ' + err.line + ')' : '');
   }
 
@@ -17596,13 +17745,34 @@ Object.assign(window, {
     // `agg` uses the same field names computeAggregates produces. Criterion
     // dispatch, the pupil-facing messages, scoring and hint selection all stay
     // in the functions gradeSync uses, so the two entry points cannot drift.
-    gradeFromAggregates: function (lessonId, source, agg) {
+    // `error`, when set, is the run's own failure (a runtime error, a stall, a
+    // flat battery). A halted run must not be scored on the aggregates it
+    // reached before it died: a program that crashed after driving far enough
+    // otherwise satisfied every distance criterion and passed at 100. This
+    // mirrors gradeSync's run.error branch exactly, so the two entry points
+    // report a crash with the same words.
+    gradeFromAggregates: function (lessonId, source, agg, error) {
       var entry = LESSON_DATA[lessonId];
       if (!entry) return {
         ok: false,
         reason: 'unknown lesson: ' + lessonId
       };
       var src = source || '';
+      if (error) {
+        return {
+          ok: true,
+          lessonId: lessonId,
+          graded: true,
+          passed: false,
+          score: 0,
+          reasons: [formatError(error)],
+          hint: firstHint(entry, false),
+          events: [],
+          achievements: [],
+          recommended: null,
+          gradedFrom: 'watched-run'
+        };
+      }
       var reasons = [];
       for (var i = 0; i < entry.criteria.length; i++) {
         var reason = checkCriterion(entry.criteria[i], agg, entry, src);
@@ -19126,7 +19296,9 @@ Object.assign(window, {
     useRef
   } = React;
   const CSS = `
-.kh-back{position:fixed;inset:0;z-index:70;background:var(--void);
+.kh-back{position:fixed;inset:0;z-index:4300;background:var(--void);/* Above every app surface. At 70 the front door sat UNDER the toolbars,
+   the toast layer and the demo backdrop (80-4200), so the first thing a new
+   user sees could be painted over by the app it is introducing. */
   display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
 .kh-wrap{width:min(940px,100%);margin:auto}
 .kh-brand{display:flex;align-items:center;gap:10px;margin:0 0 26px}
@@ -20764,8 +20936,18 @@ Object.assign(window, {
   // body of collision radius R in an arena of half-extent WALL? Returns a
   // {type[, o]} hit descriptor or null. Moved VERBATIM from useSimEngine with
   // R / WALL / terrain lifted to parameters.
+  // A lesson arena is a RECTANGLE at an offset, not the symmetric free-play
+  // box: 05_iteration is 10 x 8 metres with the base at (1, 5). Without this
+  // the watched run had no walls where the lesson has them, so a rover could
+  // drive out of the arena the pupil was being marked in and `no_collisions`
+  // could never fail on a boundary the grader does enforce.
+  function boundsHit(x, y, R, WALL, terrain) {
+    const b = terrain && terrain.bounds;
+    if (!b) return Math.abs(x) > WALL - R || Math.abs(y) > WALL - R;
+    return x < b.xMin + R || x > b.xMax - R || y < b.yMin + R || y > b.yMax - R;
+  }
   function collisionAt(x, y, R, WALL, terrain) {
-    if (Math.abs(x) > WALL - R || Math.abs(y) > WALL - R) return {
+    if (boundsHit(x, y, R, WALL, terrain)) return {
       type: 'wall'
     };
     for (const o of terrain.obstacles) {
@@ -20797,12 +20979,17 @@ Object.assign(window, {
     const dx = Math.sin(a),
       dy = -Math.cos(a);
     let best = Infinity;
-    // walls (square at +/-(WALL-R))
-    const lim = WALL - R;
-    if (dx > 1e-6) best = Math.min(best, (lim - x) / dx);
-    if (dx < -1e-6) best = Math.min(best, (-lim - x) / dx);
-    if (dy > 1e-6) best = Math.min(best, (lim - y) / dy);
-    if (dy < -1e-6) best = Math.min(best, (-lim - y) / dy);
+    // walls: the symmetric free-play box at +/-(WALL-R), or the lesson's own
+    // rectangle when one is loaded (see boundsHit).
+    const b = terrain && terrain.bounds;
+    const xHi = b ? b.xMax - R : WALL - R,
+      xLo = b ? b.xMin + R : -(WALL - R);
+    const yHi = b ? b.yMax - R : WALL - R,
+      yLo = b ? b.yMin + R : -(WALL - R);
+    if (dx > 1e-6) best = Math.min(best, (xHi - x) / dx);
+    if (dx < -1e-6) best = Math.min(best, (xLo - x) / dx);
+    if (dy > 1e-6) best = Math.min(best, (yHi - y) / dy);
+    if (dy < -1e-6) best = Math.min(best, (yLo - y) / dy);
     // obstacles (ray-circle)
     for (const o of terrain.obstacles) {
       const ox = o.x - x,
@@ -22188,6 +22375,17 @@ Object.assign(window, {
     // verdict is computed from this run, not from a second hidden one, so
     // a crash on screen has to reach the grade.
     const runCollisionsRef = useRef(0);
+    // Degrees turned during the watched run. Feeds the GRADING battery ledger
+    // below; the live battery is deliberately design- and terrain-dependent
+    // (that is the whole point of the design surface), but the lesson battery
+    // limits were calibrated against the reference model, so grading a pupil's
+    // Python against their chassis choice would fail lessons for a reason the
+    // lesson never mentions.
+    const gradeTurnDegRef = useRef(0);
+    // Commands as the CRITERION means them: every traced verb, including the
+    // sensor reads and lesson actions the grader counts in `events`. The
+    // separate cmdCountRef stays the diagnostics figure it already was.
+    const gradeStepsRef = useRef(0);
     const sync = () => {
       setRover({
         ...live.current
@@ -22243,6 +22441,56 @@ Object.assign(window, {
       const pose = window.KodroMotion.sensorPose(st.x, st.y, st.heading, sp.fwdCm, sp.leftCm, sp.yawDeg);
       return Math.min(sp.rangeCm, rayDistance(pose.x, pose.y, pose.heading));
     }
+    // The lesson's own lidar, in lesson metres: a port of lesson-grader.jsx's
+    // lidarDistance (itself a port of engine/sensors.py). It measures from the
+    // rover CENTRE against the lesson's raw obstacle radii and the arena
+    // rectangle. The free-play ray above measures from the fitted sensor's
+    // pose and inflates every obstacle by the rover radius, so the two answered
+    // `obstacle_ahead()` differently by up to a whole rover width: the pupil's
+    // `if` took one branch on screen and the other in the mark.
+    function lessonLidarM(s, lw) {
+      const rx = lw.base[0] + -s.y / 100;
+      const ry = lw.base[1] + -s.x / 100;
+      // Live heading -> lesson heading. Live advances (sin h, -cos h) in sim
+      // space and the axes are mirrored into lesson space, so theta = -h.
+      const rad = -s.heading * Math.PI / 180;
+      const dx = Math.cos(rad),
+        dy = Math.sin(rad);
+      const eps = 1e-12;
+      let best = 50; // LIDAR_MAX_RANGE_M
+      if (Math.abs(dx) > eps) {
+        for (const wx of [0, lw.width]) {
+          const t = (wx - rx) / dx;
+          if (t >= 0 && t < best) {
+            const yy = ry + t * dy;
+            if (yy >= -eps && yy <= lw.height + eps) best = t;
+          }
+        }
+      }
+      if (Math.abs(dy) > eps) {
+        for (const wy of [0, lw.height]) {
+          const t = (wy - ry) / dy;
+          if (t >= 0 && t < best) {
+            const xx = rx + t * dx;
+            if (xx >= -eps && xx <= lw.width + eps) best = t;
+          }
+        }
+      }
+      for (const o of lw.obstacles) {
+        const ox = rx - o.x,
+          oy = ry - o.y;
+        const b = ox * dx + oy * dy;
+        const c = ox * ox + oy * oy - o.r * o.r;
+        const disc = b * b - c;
+        if (disc < 0) continue;
+        const sq = Math.sqrt(disc);
+        const t1 = -b - sq,
+          t2 = -b + sq;
+        const t = t1 >= 0 ? t1 : t2 >= 0 ? t2 : null;
+        if (t !== null && t < best) best = t;
+      }
+      return best;
+    }
     const host = {
       sensor(name, args) {
         const s = live.current;
@@ -22255,12 +22503,30 @@ Object.assign(window, {
           const g = window.KodroCommands.check(rb, name);
           if (!g.ok) throw new Error(g.reason);
         }
+        gradeStepsRef.current++; // the grader traces every sensor read
         switch (name) {
           case 'distance':
             {
               const d = Math.round(sensorRayDistance(s));
               setSensorDist(d);
               return d;
+            }
+          // read_distance(): METRES, and measured the way the grader measures
+          // it -- from the rover's centre, against the lesson's own obstacles
+          // and arena walls. The design dialect's distance() above is a
+          // centimetre reading from the fitted sensor's pose, which is a
+          // different question with a different answer.
+          case 'distance_m':
+            {
+              const lw = lessonWorldRef && lessonWorldRef.current;
+              if (!lw) {
+                const d = sensorRayDistance(s);
+                setSensorDist(Math.round(d));
+                return d / 100;
+              }
+              const m = lessonLidarM(s, lw);
+              setSensorDist(Math.round(Math.min(m, 50) * 100));
+              return m;
             }
           case 'heading':
             return Math.round((s.heading % 360 + 360) % 360);
@@ -22351,12 +22617,12 @@ Object.assign(window, {
           }
           return best;
         };
+        gradeStepsRef.current++; // the grader traces every lesson verb
         switch (name) {
           case 'obstacle_ahead':
-            {
-              const d = sensorRayDistance(s);
-              return typeof d === 'number' && d / 100 <= num(args[0], 0.5);
-            }
+            // Measured the grader's way (see lessonLidarM), so the branch the
+            // pupil watches is the branch they are marked on.
+            return lessonLidarM(s, lw) <= num(args[0], 0.5);
           case 'sample_detected':
             return near(num(args[0], 0.3)) !== null;
           case 'at_base':
@@ -22535,7 +22801,7 @@ Object.assign(window, {
             }
           }
           recordRunReport('stalled', 'underpowered drive', stallVerdict);
-          gradeOnce(); // a stalled lesson attempt still earns a verdict + hint
+          gradeOnce('RuntimeError: the drive stalled and could not move the robot on this ground');
           haltProgram('error');
           return false;
         }
@@ -22680,7 +22946,7 @@ Object.assign(window, {
           }
         }
         recordRunReport('flat', 'battery', flatVerdict);
-        gradeOnce(); // a battery-flat lesson attempt still earns a verdict + hint
+        gradeOnce('RuntimeError: the battery ran flat before the program finished');
         haltProgram('error');
         return false;
       }
@@ -22779,6 +23045,7 @@ Object.assign(window, {
       // The arc covered real ground: odometer and battery are charged for the
       // distance actually driven (move drain model) plus the steering cost.
       const arcTravelled = Math.abs(s.heading - h0) * Math.PI / 180 * TURN_R;
+      gradeTurnDegRef.current += Math.abs(s.heading - h0);
       odoRef.current += arcTravelled;
       setOdo(odoRef.current);
       if (crashed) {
@@ -22837,7 +23104,10 @@ Object.assign(window, {
         // Everything except a bookkeeping 'step' is a real command the program
         // executed; the count feeds the post-run verdict so an empty program
         // cannot claim "the design held up" (bugs D5).
-        if (ev.type !== 'step') cmdCountRef.current++;
+        if (ev.type !== 'step') {
+          cmdCountRef.current++;
+          gradeStepsRef.current++;
+        }
         if (ev.line) setActiveLine(ev.line);
         switch (ev.type) {
           case 'step':
@@ -22935,8 +23205,12 @@ Object.assign(window, {
               await delay(stepMode ? 0 : 160 / speedMulRef.current);
               break;
             }
+          // "Remove every prop placed with place()" -- pupil-placed props only.
+          // The props layer is also where a lesson's sample flags are drawn, and
+          // wiping those made the goals vanish from the screen while they stayed
+          // live in the grade.
           case 'clear_props':
-            setProps([]);
+            setProps(p => p.filter(x => x.lessonSampleId || x.lessonBase));
             break;
           case 'scan':
             {
@@ -23000,7 +23274,7 @@ Object.assign(window, {
       // one-liners never reach here -- they returned above via haltProgram('idle').
       if (cmdCountRef.current > 0) {
         recordRunReport('error', msg, '');
-        gradeOnce();
+        gradeOnce((line ? 'Line ' + line + ': ' : '') + msg);
       }
       haltProgram('error');
     }
@@ -23011,7 +23285,10 @@ Object.assign(window, {
     // the "is a lesson loaded?" gate to gradeWithBridge (app.jsx), which no-ops
     // when currentLessonId is null -- so free-play (non-lesson) runs stay
     // ungraded exactly as before.
-    function gradeOnce() {
+    // `err`, when passed, is the run's own failure (a runtime error, a stall, a
+    // flat battery). Without it a program that drove far enough and THEN threw
+    // was scored on the distance it had already banked and passed at 100/100.
+    function gradeOnce(err) {
       if (gradedRef.current) return;
       if (replRef.current) return;
       gradedRef.current = true;
@@ -23028,11 +23305,24 @@ Object.assign(window, {
       // The browser grader is the only one that can score supplied aggregates;
       // under pywebview the Python engine still re-runs the source, so that
       // path keeps its old behaviour rather than silently changing engines.
-      const lessonId = currentLessonId;
+      // Read the lesson from the ref, not the render closure: opening another
+      // lesson while a run is in flight changed `currentLessonId` under this
+      // function, so the finished run's verdict was filed under the lesson the
+      // pupil had just switched TO.
+      const lessonId = deps.currentLessonIdRef && deps.currentLessonIdRef.current || currentLessonId;
       const G = window.KodroLessonGrader;
       const lw = lessonWorldRef && lessonWorldRef.current;
-      const canGradeWatched = lessonId && lw && G && typeof G.gradeFromAggregates === 'function' && !(window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable());
+      const onDesktop = !!(window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable());
+      const canGradeWatched = lessonId && lw && G && typeof G.gradeFromAggregates === 'function' && !onDesktop;
       if (!canGradeWatched) {
+        // The desktop edition keeps the Python engine authoritative, because
+        // that is where the pupil record, the adaptive hint ranking and the
+        // learner model live. It re-executes the source, so its verdict is
+        // about a second run, not the one on screen. Say so rather than let
+        // the panel imply otherwise.
+        if (lessonId && onDesktop) {
+          addConsole('This mark comes from re-running your program in the desktop Python engine, not from the run you just watched.', 'sys');
+        }
         gradeWithBridge(code);
         return;
       }
@@ -23040,15 +23330,26 @@ Object.assign(window, {
       // Live sim centimetres -> lesson metres, the same mapping lessonApi uses.
       const finalX = lw.base[0] + -s.y / 100;
       const finalY = lw.base[1] + -s.x / 100;
+      // Battery for GRADING, from the reference model the lesson limits were
+      // set against: distance and turning at the published rates, plus the
+      // per-collision charge. The live `s.battery` is scaled by the pupil's
+      // build mass and the world's traction and gravity, which is correct for
+      // the design surface and wrong for a lesson threshold.
+      const KMg = window.KodroMotion || {};
+      const Mg = KMg.MODEL || {};
+      const perM = (Mg.drainPctPerCm !== undefined ? Mg.drainPctPerCm : 0.011) * 100;
+      const perDeg = Mg.drainPctPerDeg !== undefined ? Mg.drainPctPerDeg : 0.004;
+      const perHit = Mg.drainPctPerCollision !== undefined ? Mg.drainPctPerCollision : 1;
+      const gradeBattery = odoRef.current / 100 * perM + gradeTurnDegRef.current * perDeg + runCollisionsRef.current * perHit;
       const verdict = G.gradeFromAggregates(lessonId, code, {
         samplesCollected: lw.samples.filter(sm => sm.collected).length,
         collisions: runCollisionsRef.current,
         distanceTravelledM: odoRef.current / 100,
-        batteryUsedPct: Math.max(0, 100 - s.battery),
-        stepCount: cmdCountRef.current,
+        batteryUsedPct: Math.min(100, gradeBattery),
+        stepCount: gradeStepsRef.current,
         finalX: finalX,
         finalY: finalY
-      });
+      }, err || null);
       // Hand the finished verdict to the same path a bridge grade takes, so
       // the panel, the record, the pupil store, the cue and the hints are all
       // applied identically.
@@ -23249,6 +23550,8 @@ Object.assign(window, {
       setOdo(0);
       minProxRef.current = Infinity;
       cmdCountRef.current = 0;
+      gradeStepsRef.current = 0;
+      gradeTurnDegRef.current = 0;
       // Clear the measured-speed anchor so a later step-through (which reads
       // wallMs before a fresh run sets this) cannot inherit a prior run's start
       // time and report a wildly inflated elapsed-wall figure.
@@ -26475,6 +26778,16 @@ say("Survey done")`
         const lw = lessonWorldRef.current;
         return {
           ...withTod,
+          // The arena is also a different SHAPE: a lesson world is a rectangle
+          // (05_iteration is 10 x 8 m) with the base at an offset, not the
+          // symmetric free-play box. sim-physics honours `bounds` when present,
+          // so the walls the pupil hits are the walls the grader marks.
+          bounds: {
+            xMin: -(lw.height - lw.base[1]) * 100,
+            xMax: lw.base[1] * 100,
+            yMin: -(lw.width - lw.base[0]) * 100,
+            yMax: lw.base[0] * 100
+          },
           obstacles: lw.obstacles.map(o => ({
             // Lesson metres -> sim centimetres, the same axis mapping the
             // sensors and the marker placement use.
@@ -26630,7 +26943,12 @@ say("Survey done")`
     // the collision test reading the same layout the grader marks.
     function setAgentsForLesson(inLesson) {
       try {
-        if (window.KodroAgents) window.KodroAgents.build(inLesson ? 'none' : terrainId);
+        if (!window.KodroAgents) return;
+        window.KodroAgents.build(inLesson ? 'none' : terrainId);
+        // Rebuilding restarts the animation loop, so the reduced-motion guard
+        // the terrain effect applies has to be repeated here or leaving a
+        // lesson silently resumed moving traffic for a user who asked for none.
+        if (PREFERS_REDUCED_MOTION()) window.KodroAgents.stop();
       } catch (e) {
         void e;
       }
@@ -26649,6 +26967,15 @@ say("Survey done")`
         y: -(lx - lw.base[0]) * 100
       });
       const marks = [];
+      // The base. Four lessons are marked on returning to it or on at_base(),
+      // and no lesson drew it, so the pupil was asked to come back to a place
+      // with nothing there. It always lands on the rover's start, because the
+      // live origin IS the lesson base.
+      marks.push({
+        kind: 'beacon',
+        ...toSim(lw.base[0], lw.base[1]),
+        lessonBase: true
+      });
       lw.samples.filter(s => !s.collected).forEach(s => {
         marks.push({
           kind: 'flag',
@@ -26656,13 +26983,10 @@ say("Survey done")`
           lessonSampleId: s.id
         });
       });
-      lw.obstacles.forEach((o, i) => {
-        marks.push({
-          kind: 'rock',
-          ...toSim(o.x, o.y),
-          lessonObstacleId: 'lo' + i
-        });
-      });
+      // Only the samples. The lesson's obstacles go into terrain.obstacles
+      // above, and BOTH viewports already draw that list at its true collision
+      // radius; adding a decorative rock prop on top drew every boulder twice,
+      // the second one at a fixed size that did not match what it blocks.
       return marks;
     }
     // Leaving a lesson drops its arena, so free play does not inherit the
@@ -26879,7 +27203,10 @@ say("Survey done")`
       }
     }, [experience]);
     // First-run onboarding / landing flow (shown once, remembered, skippable).
-    const [onboarded, setOnboarded] = useState(() => lsGet('or_onboarded') === '1');
+    // NOTE the key. The front door used to read `or_onboarded`, the OLD welcome
+    // wizard's flag, so every returning user -- which is everyone who had ever
+    // opened a previous build -- never saw the new landing screen at all.
+    const [onboarded, setOnboarded] = useState(() => lsGet('kodro_home_seen') === '1');
     // Home is the front door (see home.jsx). It opens itself on a first visit
     // and is reopenable from the top bar afterwards.
     const [homeOpen, setHomeOpen] = useState(false);
@@ -26887,8 +27214,10 @@ say("Survey done")`
       setHomeOpen(false);
       if (!onboarded) {
         setOnboarded(true);
+        // Home's own key, not the old wizard's: writing `or_onboarded` here
+        // would resurrect a flag that belongs to a screen no longer shipped.
         try {
-          localStorage.setItem('or_onboarded', '1');
+          localStorage.setItem('kodro_home_seen', '1');
         } catch (err) {
           void err;
         }
@@ -27629,6 +27958,14 @@ say("Survey done")`
     }, []);
     function loadLesson(lesson) {
       if (!lesson) return;
+      // Stop anything still driving. Opening a lesson reseeds lessonWorldRef and
+      // swaps the terrain under a run in flight, so the rover finished its
+      // programme in a world that no longer matched the code that started it.
+      try {
+        if (onResetRef.current) onResetRef.current();
+      } catch (e) {
+        void e;
+      }
       setActiveStage('prove');
       setLessonHubOpen(false);
       setCurrentLessonId(lesson.id);
@@ -27642,7 +27979,8 @@ say("Survey done")`
         passed: !!priorResult.passed,
         score: priorResult.score,
         reasons: priorResult.reasons || [],
-        hint: priorResult.hint || null
+        hint: priorResult.hint || null,
+        codeHash: priorResult.codeHash || null
       } : null);
       setLessonAttempts(priorResult && !priorResult.passed ? priorResult.attempts || 0 : 0);
       setExtraHints(0);
@@ -27759,11 +28097,17 @@ say("Survey done")`
           return;
         }
         // Persist the verdict in a panel that survives Reset (QA #3).
+        // The same fingerprint rule the proof report uses: a verdict is a claim
+        // about a SPECIFIC program, so record which one earned it. Without this a
+        // pass restored from an earlier session sat above code the pupil had
+        // since rewritten, and said 'Complete' about a program never run.
+        const verdictHash = window.KodroScenario && window.KodroScenario.codeHash ? window.KodroScenario.codeHash(source) : null;
         setLessonVerdict({
           passed: !!r.passed,
           score: r.score,
           reasons: r.reasons || [],
-          hint: r.hint || null
+          hint: r.hint || null,
+          codeHash: verdictHash
         });
         setLessonResults(prev => ({
           ...prev,
@@ -27772,6 +28116,7 @@ say("Survey done")`
             score: Number.isFinite(Number(r.score)) ? Number(r.score) : 0,
             attempts: (prev[lessonId] && prev[lessonId].attempts || 0) + 1,
             updatedAt: Date.now(),
+            codeHash: verdictHash,
             // The reasons and the hint are the part a pupil actually needs:
             // they say what to change. Only the score was kept, so switching
             // to another lesson and back left the number with no explanation.
@@ -28033,7 +28378,8 @@ say("Survey done")`
       gradeWithBridge,
       celebrate,
       lessonWorldRef,
-      lessonMarks
+      lessonMarks,
+      currentLessonIdRef
     }) : {
       onRun: function () {},
       onStep: function () {},
@@ -28137,7 +28483,7 @@ say("Survey done")`
     const evidenceDrawerActive = simpleExperience && evidenceOpen && narrowViewport;
     const evidenceDrawerRef = useRef(false);
     evidenceDrawerRef.current = evidenceDrawerActive;
-    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
+    anyOverlayOpenRef.current = !!(homeOpen || !onboarded || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
     const fpvRef = useRef(fpv);
     fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
@@ -28435,6 +28781,13 @@ say("Survey done")`
       gauntlet: 'Complete an obstacle course',
       survey: 'Survey and mark the site'
     };
+    // A lesson verdict describes ONE program. If the editor no longer holds
+    // that program, the verdict is history, not a result: showing "Complete
+    // 100/100" above code that has since been rewritten is the same
+    // stale-claim bug the proof report already guards against with a hash.
+    // Verdicts written before this rule have no hash and are treated as stale.
+    const lessonVerdictStale = !!(lessonVerdict && window.KodroScenario && window.KodroScenario.codeHash && lessonVerdict.codeHash !== window.KodroScenario.codeHash(code));
+    const liveVerdict = lessonVerdictStale ? null : lessonVerdict;
     const SIMPLE_OUTCOME_NAMES = {
       done: 'Test completed',
       crash: 'Collision detected',
@@ -28445,7 +28798,7 @@ say("Survey done")`
     // In a lesson the headline is the lesson result, not the free-play outcome
     // name: "Mission complete" above "Not yet" is the app disagreeing with
     // itself about the run the pupil just watched.
-    const simpleOutcomeLabel = currentLessonId && lessonVerdict ? lessonVerdict.passed ? 'Lesson passed' : 'Not yet' : simpleLatestRun ? SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded' : '';
+    const simpleOutcomeLabel = currentLessonId && liveVerdict ? liveVerdict.passed ? 'Lesson passed' : 'Not yet' : simpleLatestRun ? SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded' : '';
     const simpleRunActive = runState === 'running' || runState === 'paused';
     let simpleAssessment = null;
     try {
@@ -28472,12 +28825,12 @@ say("Survey done")`
     // up" directly above "Not yet, 80/100", which is the app contradicting
     // itself about the run it just did. The reasons are what tells them what to
     // change, so they are what gets said.
-    if (currentLessonId && lessonVerdict) {
+    if (currentLessonId && liveVerdict) {
       // The label above already says "Lesson passed" or "Not yet", so this
       // carries only the reasons; repeating the verdict read as "Not yet. Not
       // yet. Travelled 1.0 m...".
-      const reasons = (lessonVerdict.reasons || []).filter(Boolean);
-      simpleLatestVerdict = reasons.length ? reasons.join(' ') : lessonVerdict.passed ? 'Every goal met.' : 'Check the lesson goals above.';
+      const reasons = (liveVerdict.reasons || []).filter(Boolean);
+      simpleLatestVerdict = reasons.length ? reasons.join(' ') : liveVerdict.passed ? 'Every goal met.' : 'Check the lesson goals above.';
     }
     // Spoken summary of a settled run.
     //
@@ -28505,7 +28858,7 @@ say("Survey done")`
       // a screen reader reads "add sensing.. travelled 2.7 metres".
       const parts = [simpleOutcomeLabel, simpleLatestVerdict || r.detail || '', dist, batt, prox, where].map(p => String(p || '').trim().replace(/[.\s]+$/, '')).filter(Boolean);
       return parts.join('. ') + '.';
-    }, [runState, simpleLatestRun, simpleOutcomeLabel, simpleLatestVerdict, currentLessonId, lessonVerdict]);
+    }, [runState, simpleLatestRun, simpleOutcomeLabel, simpleLatestVerdict, currentLessonId, liveVerdict]);
     function downloadPrototypeBrief() {
       const esc = function (v) {
         return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) {
@@ -29081,7 +29434,7 @@ say("Survey done")`
       value: k
     }, SIMPLE_PROGRAM_NAMES[k] || EXAMPLES[k].label))))), /*#__PURE__*/React.createElement("section", {
       className: 'simple-proof' + (planProveReport && planProveReport.aggregate ? planProveReport.aggregate.passed ? ' proof-pass' : ' proof-fail' : ''),
-      "aria-label": "Deterministic proof"
+      "aria-label": "Test results"
     }, /*#__PURE__*/React.createElement("div", {
       className: "simple-proof-head"
     }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Repeat the test 5 times"), /*#__PURE__*/React.createElement("small", null, "Runs the same program five times, each with slightly different grip, weight, sensor accuracy, obstacle placement and battery, to see whether it still works.")), planProveReport && planProveReport.aggregate ? /*#__PURE__*/React.createElement("strong", null, planProveReport.aggregate.passed ? 'PASS' : 'FAIL') : /*#__PURE__*/React.createElement("strong", null, "NOT RUN")), planProveReport && planProveReport.aggregate ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
@@ -29092,7 +29445,7 @@ say("Survey done")`
       className: "simple-proof-error"
     }, /*#__PURE__*/React.createElement("b", null, "The proof could not run."), " ", liveProveError, " Fix the program with Edit program, then try again.") : /*#__PURE__*/React.createElement("p", null, "No multi-seed evidence has been recorded for this session."), /*#__PURE__*/React.createElement("p", {
       className: "simple-proof-boundary"
-    }, "Kinematic simulation evidence only. It does not validate or certify physical performance or safety."), /*#__PURE__*/React.createElement("div", {
+    }, "This is a simulation. It cannot promise a real robot will behave the same way."), /*#__PURE__*/React.createElement("div", {
       className: "simple-proof-actions"
     }, /*#__PURE__*/React.createElement("button", {
       type: "button",
@@ -29314,11 +29667,11 @@ say("Survey done")`
       const ldata = G && G.LESSON_DATA && G.LESSON_DATA[lesson.id] || null;
       const goals = ldata && ldata.criteria || [];
       const hintBank = ldata && ldata.hints && ldata.hints.onFailure || [];
-      const lessonFailed = !!(lessonVerdict && !lessonVerdict.passed);
-      const hintsShownByVerdict = lessonFailed && lessonVerdict.hint && lessonVerdict.hint.message ? 1 : 0;
+      const lessonFailed = !!(liveVerdict && !liveVerdict.passed);
+      const hintsShownByVerdict = lessonFailed && liveVerdict.hint && liveVerdict.hint.message ? 1 : 0;
       const revealedHints = hintBank.slice(hintsShownByVerdict, hintsShownByVerdict + extraHints);
       const moreHintsLeft = hintsShownByVerdict + extraHints < hintBank.length;
-      const nextLesson = lessonVerdict && lessonVerdict.passed ? lessons[lessons.findIndex(l => l.id === lesson.id) + 1] || null : null;
+      const nextLesson = liveVerdict && liveVerdict.passed ? lessons[lessons.findIndex(l => l.id === lesson.id) + 1] || null : null;
       return /*#__PURE__*/React.createElement("section", {
         className: "lesson-card",
         "aria-label": "Current lesson"
@@ -29332,17 +29685,20 @@ say("Survey done")`
       }, lesson.id, " \xB7 ", lesson.title), lesson.readingAge ? /*#__PURE__*/React.createElement("span", {
         className: "lesson-age",
         title: "Reading age"
-      }, "Age ", lesson.readingAge, "+") : null, lessonVerdict && /*#__PURE__*/React.createElement("span", {
-        className: 'lesson-verdict ' + (lessonVerdict.passed ? 'pass' : 'fail')
+      }, "Age ", lesson.readingAge, "+") : null, liveVerdict && /*#__PURE__*/React.createElement("span", {
+        className: 'lesson-verdict ' + (liveVerdict.passed ? 'pass' : 'fail')
       }, /*#__PURE__*/React.createElement("span", {
         "aria-hidden": "true"
-      }, lessonVerdict.passed ? '✓' : '✗'), " ", lessonVerdict.passed ? 'Complete' : 'Not yet', " \xB7 ", lessonVerdict.score, "/100")), lesson.intro ? /*#__PURE__*/React.createElement("p", {
+      }, liveVerdict.passed ? '✓' : '✗'), " ", liveVerdict.passed ? 'Complete' : 'Not yet', " \xB7 ", liveVerdict.score, "/100"), lessonVerdictStale && /*#__PURE__*/React.createElement("span", {
+        className: "lesson-verdict stale",
+        title: "Run again to mark the program you have now"
+      }, "Not run for this version")), lesson.intro ? /*#__PURE__*/React.createElement("p", {
         className: "lesson-intro"
       }, lesson.intro.trim()) : null, goals.length > 0 && /*#__PURE__*/React.createElement("ul", {
         className: "lesson-goals",
         "aria-label": "Lesson goals"
       }, goals.map((c, i) => {
-        const st = !lessonVerdict ? 'todo' : G.criterionFailedIn(c, lessonVerdict.reasons) ? 'fail' : 'done';
+        const st = !liveVerdict ? 'todo' : G.criterionFailedIn(c, liveVerdict.reasons) ? 'fail' : 'done';
         return /*#__PURE__*/React.createElement("li", {
           key: i,
           className: 'goal ' + st
@@ -29355,13 +29711,13 @@ say("Survey done")`
       }, Object.keys(lesson.glossary).map(term => /*#__PURE__*/React.createElement("div", {
         key: term,
         className: "gloss-item"
-      }, /*#__PURE__*/React.createElement("dt", null, term), /*#__PURE__*/React.createElement("dd", null, lesson.glossary[term])))), lessonVerdict && !lessonVerdict.passed && lessonVerdict.reasons.length > 0 && /*#__PURE__*/React.createElement("ul", {
+      }, /*#__PURE__*/React.createElement("dt", null, term), /*#__PURE__*/React.createElement("dd", null, lesson.glossary[term])))), liveVerdict && !liveVerdict.passed && liveVerdict.reasons.length > 0 && /*#__PURE__*/React.createElement("ul", {
         className: "lesson-reasons"
-      }, lessonVerdict.reasons.map((r, i) => /*#__PURE__*/React.createElement("li", {
+      }, liveVerdict.reasons.map((r, i) => /*#__PURE__*/React.createElement("li", {
         key: i
-      }, r))), lessonVerdict && lessonVerdict.hint && lessonVerdict.hint.message && /*#__PURE__*/React.createElement("p", {
+      }, r))), liveVerdict && liveVerdict.hint && liveVerdict.hint.message && /*#__PURE__*/React.createElement("p", {
         className: "lesson-hint"
-      }, KI('bulb'), " ", lessonVerdict.hint.message), revealedHints.map((h, i) => /*#__PURE__*/React.createElement("p", {
+      }, KI('bulb'), " ", liveVerdict.hint.message), revealedHints.map((h, i) => /*#__PURE__*/React.createElement("p", {
         key: 'xh' + i,
         className: "lesson-hint"
       }, KI('bulb'), " ", h)), (moreHintsLeft || lessonFailed || nextLesson) && /*#__PURE__*/React.createElement("div", {
@@ -29369,10 +29725,10 @@ say("Survey done")`
       }, moreHintsLeft && /*#__PURE__*/React.createElement("button", {
         className: "btn-mini lesson-hint-more",
         onClick: () => setExtraHints(x => x + 1)
-      }, hintsShownByVerdict + extraHints === 0 ? 'Need a hint?' : 'Need another hint?'), lessonFailed && lessonVerdict.reasons.length > 0 && /*#__PURE__*/React.createElement("button", {
+      }, hintsShownByVerdict + extraHints === 0 ? 'Need a hint?' : 'Need another hint?'), lessonFailed && liveVerdict.reasons.length > 0 && /*#__PURE__*/React.createElement("button", {
         className: "btn-mini lesson-ask-why",
         onClick: () => {
-          setAskQuery('In the lesson "' + lesson.title + '": ' + lessonVerdict.reasons[0] + ' Why did this happen and what should I try?');
+          setAskQuery('In the lesson "' + lesson.title + '": ' + liveVerdict.reasons[0] + ' Why did this happen and what should I try?');
           setAskOpen(true);
         }
       }, "Ask why this failed"), nextLesson && /*#__PURE__*/React.createElement("button", {
@@ -29740,6 +30096,7 @@ say("Survey done")`
       fpv: fpv,
       robotType: robotSpec && robotSpec.type,
       quality: quality,
+      props: props,
       focusKey: focus3dKey,
       onFail: () => {
         setView3d(false);
@@ -30204,11 +30561,14 @@ say("Survey done")`
         goStage('design');
       },
       onFreePlay: () => {
+        // The card says "Write Python ... no goals, nothing to pass", so it
+        // has to land on the code, not on the pass/fail evidence panel.
         closeHome();
         setMode('studio');
         setCurrentLessonId(null);
         clearLessonWorld();
         goStage('prove');
+        setSimpleCodeOpen(true);
       }
     }));
   }

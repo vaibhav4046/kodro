@@ -44,9 +44,15 @@ view. In Classroom mode, Settings also contains `Export progress report`.
 
 ## What a lesson result means
 
-A lesson is graded on the run you just watched. The lesson's samples and
-obstacles are the ones on screen, the sensors read them, and a collision you
-see is counted, so the verdict and the animation describe the same run.
+In the browser (the hosted site and any copy of `site/`), a lesson is graded on
+the run you just watched. The lesson's samples and obstacles are the ones on
+screen, the sensors read them, and a collision you see is counted, so the
+verdict and the animation describe the same run.
+
+The installed desktop app is the exception, and says so on screen: there the
+Python engine re-runs the program to grade it, because that is where the pupil
+record and the adaptive hints live. The criteria and the wording are identical;
+the run being measured is a second one.
 
 Scores are practice feedback rather than assessment evidence: they say whether
 a program met the lesson's stated goals, not what a pupil understands.

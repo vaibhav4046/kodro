@@ -1025,6 +1025,9 @@ select.terrain-btn:hover {
 .lesson-verdict { margin-left:auto; font-family:var(--font-mono); font-size:var(--text-sm); font-weight:600; }
 .lesson-verdict.pass { color:var(--success); }
 .lesson-verdict.fail { color:var(--warning); }
+/* A mark that belongs to a program the editor no longer holds. Stated, not
+   hidden: silence would read as "never attempted". */
+.lesson-verdict.stale { color:var(--text-dim); font-weight:500; }
 /* The verdict already renders an in-text glyph (aria-hidden) beside the word as
    the non-colour pass/fail cue, so no forced-colors ::before injection is needed
    here (it would render the glyph twice). */

@@ -20,7 +20,9 @@
   const { useEffect, useRef } = React;
 
   const CSS = `
-.kh-back{position:fixed;inset:0;z-index:70;background:var(--void);
+.kh-back{position:fixed;inset:0;z-index:4300;background:var(--void);/* Above every app surface. At 70 the front door sat UNDER the toolbars,
+   the toast layer and the demo backdrop (80-4200), so the first thing a new
+   user sees could be painted over by the app it is introducing. */
   display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
 .kh-wrap{width:min(940px,100%);margin:auto}
 .kh-brand{display:flex;align-items:center;gap:10px;margin:0 0 26px}

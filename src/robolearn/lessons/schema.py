@@ -90,6 +90,11 @@ class SuccessCriterion(BaseModel):
     returns_to_base: bool | None = None
     max_steps: int | None = Field(default=None, ge=0)
     min_distance_travelled: float | None = Field(default=None, ge=0.0)
+    # The named functions must be called, in this relative order. A lesson
+    # that teaches a sequence has to be able to check that sequence: without
+    # this, 01_hello_rover told the pupil to call three functions in order and
+    # then passed a program with two of them deleted.
+    calls_in_order: list[str] | None = None
 
     @model_validator(mode="after")
     def _at_least_one_field(self) -> SuccessCriterion:
@@ -103,6 +108,7 @@ class SuccessCriterion(BaseModel):
                 "returns_to_base",
                 "max_steps",
                 "min_distance_travelled",
+                "calls_in_order",
             )
         ):
             raise ValueError("a success criterion must set at least one field")

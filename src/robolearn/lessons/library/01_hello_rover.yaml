@@ -26,6 +26,10 @@ world:
   width: 6.0
   height: 6.0
 success_criteria:
+  # The lesson's whole subject is the ORDER of three instructions, and its hint
+  # already told the pupil so. Without this criterion the program passed with
+  # beep and log deleted, which is the opposite of what it teaches.
+  - calls_in_order: [move_forward, beep, log]
   - min_distance_travelled: 1.5
   - max_battery_used: 5.0
   - no_collisions: true

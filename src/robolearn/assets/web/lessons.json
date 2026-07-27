@@ -8,7 +8,7 @@
       "program": "A list of steps for the rover to do, one after another."
     },
     "id": "00_first_drive",
-    "intro": "Let's drive the rover!\nEach line tells the rover one thing to do.\nThe rover does them in order, from the top.\nRight now it only drives 1 metre, which is not far enough.\nChange the number, or add another line, to reach the flag.\n",
+    "intro": "Let's drive the rover!\nEach line tells the rover one thing to do.\nThe rover does them in order, from the top.\nRight now it only drives 1 metre, which is not far enough.\nThe flag is 3 metres straight ahead.\nChange the number, or add another line, to reach it.\n",
     "keyStage": "KS1",
     "maxLines": 6,
     "readingAge": 6,
@@ -100,11 +100,11 @@
     ],
     "glossary": {},
     "id": "04_selection",
-    "intro": "Some rocks block the rover's path. Use an if-else statement and the\nobstacle_ahead() sensor to choose between driving forward and turning\nout of the way.\n",
+    "intro": "A rock sits between the rover and the sample patch.\nThe starter program already asks the sensor whether something is in the\nway, and drives round it when the answer is yes.\nRun it and watch: the rover ends up right on the patch, but comes home\nempty. Add the one line that picks the sample up.\n",
     "keyStage": "KS3",
     "maxLines": 10,
     "readingAge": null,
-    "starterCode": "if obstacle_ahead():\n    turn_right(45)\nelse:\n    move_forward(2)\n",
+    "starterCode": "if obstacle_ahead(2.0):\n    turn_left(90)\n    move_forward(1)\n    turn_right(90)\n    move_forward(4)\n    turn_right(90)\n    move_forward(1)\n",
     "terrain": "mars",
     "title": "Selection (if / else)"
   },

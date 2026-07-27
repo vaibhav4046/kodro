@@ -28,5 +28,5 @@ success_criteria:
   - no_collisions: true
 hints:
   on_failure:
-    - "After your first move_forward the rover is east of the base. You need to turn left and drive again to reach (4, 4)."
     - "Remember to call collect_sample() once the rover sits on top of the patch."
+    - "After your first move_forward the rover is east of the base. You need to turn left and drive again to reach (4, 4)."

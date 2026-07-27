@@ -165,7 +165,8 @@ function parseYamlSubset(text) {
 }
 
 const CRIT_FIELDS = ['samples_collected', 'max_battery_used', 'no_collisions',
-  'uses_construct', 'returns_to_base', 'max_steps', 'min_distance_travelled'];
+  'uses_construct', 'returns_to_base', 'max_steps', 'min_distance_travelled',
+  'calls_in_order'];
 
 function extractLessonData() {
   const libUrl = new URL('../src/robolearn/lessons/library/', import.meta.url);
@@ -379,10 +380,22 @@ console.log('\n== GRADING: known-bad submissions FAIL with grader.py reasons =='
   check('01_hello_rover wall-crash fails', r.ok === true && r.passed === false, JSON.stringify(r));
   check('01_hello_rover crash reasons match grader.py text',
     deepEq(r.reasons, [
+      'The program does not call move_forward(), beep(), log(), in that order.',
       'Battery used 6.5% (limit 5.0%).',
       'Recorded 1 collision(s); none were expected.',
     ], '') === null, JSON.stringify(r.reasons));
-  check('01_hello_rover crash scores 60 (two failed criteria)', r.score === 60, r.score + '/100');
+  check('01_hello_rover crash scores 40 (three failed criteria)', r.score === 40, r.score + '/100');
+  // The criterion the lesson is ABOUT. Deleting the two taught lines used to
+  // pass at 100/100, because nothing checked the sequence the intro describes.
+  const seqOnly = grade('01_hello_rover', 'move_forward(2)\n');
+  check('01_hello_rover cannot be passed by deleting beep and log',
+    seqOnly.passed === false && seqOnly.reasons.some((x) => x.indexOf('does not call move_forward()') >= 0),
+    JSON.stringify(seqOnly.reasons));
+  const seqFull = grade('01_hello_rover', 'move_forward(2)\nbeep(1)\nlog("hello rover")\n');
+  check('01_hello_rover taught sequence passes', seqFull.passed === true, JSON.stringify(seqFull.reasons));
+  const seqWrong = grade('01_hello_rover', 'beep(1)\nmove_forward(2)\nlog("hello rover")\n');
+  check('01_hello_rover rejects the taught calls in the wrong order',
+    seqWrong.passed === false, JSON.stringify(seqWrong.reasons));
   check('01_hello_rover crash surfaces the first on_failure hint',
     !!r.hint && r.hint.ruleName === 'lesson_on_failure'
     && r.hint.message === 'Check that you call all three functions, in this exact order: move_forward, beep, log.',

@@ -78,13 +78,13 @@
   // --- per-lesson grading data (generated from lessons/library/*.yaml) -----
   // Regenerate with: node scripts/qa_grader.mjs --emit
   var LESSON_DATA = {
-    "00_first_drive": {"world":{"base":[1,1],"samples":[],"obstacles":[],"width":6,"height":6},"criteria":[{"min_distance_travelled":3},{"no_collisions":true}],"hints":{"onFailure":["Use move_forward to drive the rover ahead. Try move_forward(2).","You can use move_forward more than once to go further."],"onSuccess":[]}},
+    "00_first_drive": {"world":{"base":[1,1],"samples":[[4,1]],"obstacles":[],"width":6,"height":6},"criteria":[{"min_distance_travelled":3},{"no_collisions":true}],"hints":{"onFailure":["The rover has to travel at least 3 metres. Try move_forward(3).","You can use move_forward more than once to go further."],"onSuccess":[]}},
     "00b_repeat_square": {"world":{"base":[3,3],"samples":[],"obstacles":[],"width":8,"height":8},"criteria":[{"min_distance_travelled":6},{"uses_construct":"for"},{"no_collisions":true}],"hints":{"onFailure":["Use a loop: 'for side in range(4):' then indent the steps to repeat.","Inside the loop, move_forward and then turn_right(90) to make each corner."],"onSuccess":[]}},
     "00c_look_first": {"world":{"base":[1,1],"samples":[],"obstacles":[{"x":1.8,"y":1,"r":0.4}],"width":6,"height":6},"criteria":[{"min_distance_travelled":2.5},{"uses_construct":"if"},{"no_collisions":true}],"hints":{"onFailure":["Ask the sensor first: 'if obstacle_ahead():' then turn out of the way.","After the if, drive forward. Keep the move_forward OUTSIDE the if so it always runs."],"onSuccess":[]}},
-    "01_hello_rover": {"world":{"base":[1,1],"samples":[],"obstacles":[],"width":6,"height":6},"criteria":[{"min_distance_travelled":1.5},{"max_battery_used":5},{"no_collisions":true}],"hints":{"onFailure":["Check that you call all three functions, in this exact order: move_forward, beep, log.","Make sure each function name is spelled correctly and ends with parentheses."],"onSuccess":[]}},
-    "02_move_turn": {"world":{"base":[1,1],"samples":[[4,4]],"obstacles":[],"width":6,"height":6},"criteria":[{"samples_collected":1},{"max_battery_used":15},{"no_collisions":true}],"hints":{"onFailure":["After your first move_forward the rover is east of the base. You need to turn left and drive again to reach (4, 4).","Remember to call collect_sample() once the rover sits on top of the patch."],"onSuccess":[]}},
+    "01_hello_rover": {"world":{"base":[1,1],"samples":[],"obstacles":[],"width":6,"height":6},"criteria":[{"calls_in_order":["move_forward","beep","log"]},{"min_distance_travelled":1.5},{"max_battery_used":5},{"no_collisions":true}],"hints":{"onFailure":["Check that you call all three functions, in this exact order: move_forward, beep, log.","Make sure each function name is spelled correctly and ends with parentheses."],"onSuccess":[]}},
+    "02_move_turn": {"world":{"base":[1,1],"samples":[[4,4]],"obstacles":[],"width":6,"height":6},"criteria":[{"samples_collected":1},{"max_battery_used":15},{"no_collisions":true}],"hints":{"onFailure":["Remember to call collect_sample() once the rover sits on top of the patch.","After your first move_forward the rover is east of the base. You need to turn left and drive again to reach (4, 4)."],"onSuccess":[]}},
     "03_sequence": {"world":{"base":[1,1],"samples":[[1,3]],"obstacles":[],"width":6,"height":6},"criteria":[{"samples_collected":1},{"max_battery_used":25},{"no_collisions":true}],"hints":{"onFailure":["Each move_forward distance should match the gap between corners. Sketch the path on paper first.","If the rover stops before the sample, increase the last move_forward distance by one metre."],"onSuccess":[]}},
-    "04_selection": {"world":{"base":[1,1],"samples":[[5,1]],"obstacles":[{"x":3,"y":1,"r":0.4}],"width":6,"height":6},"criteria":[{"samples_collected":1},{"no_collisions":true},{"uses_construct":"if"}],"hints":{"onFailure":["The if-statement runs only once. Repeat it (or use a loop) until the rover passes the rock.","Did you call collect_sample() once the rover reaches the patch?"],"onSuccess":[]}},
+    "04_selection": {"world":{"base":[1,1],"samples":[[5,1]],"obstacles":[{"x":3,"y":1,"r":0.4}],"width":6,"height":6},"criteria":[{"samples_collected":1},{"no_collisions":true},{"uses_construct":"if"}],"hints":{"onFailure":["The rover finishes on the patch but never picks it up. Add collect_sample() as the last line.","obstacle_ahead(2.0) asks whether anything is within 2 metres ahead. Try printing it with log() to see when it is True."],"onSuccess":[]}},
     "05_iteration": {"world":{"base":[1,5],"samples":[[3,6],[4.5,5.4],[6,6.4]],"obstacles":[{"x":8,"y":5.5,"r":0.3}],"width":10,"height":8},"criteria":[{"samples_collected":3},{"max_battery_used":60},{"no_collisions":true},{"uses_construct":"while"}],"hints":{"onFailure":["Your loop ended early -- have you logged sample_detected() to see when it fires?","Try moving in smaller steps (e.g. move_forward(0.5)) so the rover doesn't overshoot a sample."],"onSuccess":[]}},
     "06_functions": {"world":{"base":[3,3],"samples":[[5,3],[5,5],[3,5],[3,3]],"obstacles":[],"width":8,"height":8},"criteria":[{"samples_collected":4},{"max_battery_used":60},{"uses_construct":"function_def"}],"hints":{"onFailure":["Define hop() once at the top, then call it four times to walk a square.","Add collect_sample() inside hop() so each corner picks up its patch."],"onSuccess":[]}},
     "07_sensors": {"world":{"base":[1,1],"samples":[[5,1]],"obstacles":[],"width":6,"height":6},"criteria":[{"samples_collected":1},{"no_collisions":true},{"uses_construct":"while"}],"hints":{"onFailure":["If the rover hits the wall, your while condition is too generous -- try > 1.0 not > 0.1.","Drive in smaller increments so the loop can react before a collision."],"onSuccess":[]}},
@@ -345,6 +345,7 @@
       sensor: function (name) {
         var v;
         switch (name) {
+          case 'distance_m':        // the lesson dialect's metre-unit alias
           case 'distance':          // read_distance(): metres, inf past 50 m
             v = lidarDistance(rover, world);
             trace('read_distance', [], v, 'sensor_read');
@@ -541,6 +542,18 @@
   };
 
   // grader.py _is_constant_falsy: a literal test that can never be truthy.
+  // Does this expression contain anything that can differ between two runs?
+  // A tree of pure literals (`1 > 0`, `2 + 2 == 4`) answers the same every
+  // time, so branching on it is not a decision. Mirrors grader.py
+  // _has_variable_leaf.
+  function hasVariableLeaf(t) {
+    var found = false;
+    walkNode(t, function (o) {
+      if (o && (o.k === 'name' || o.k === 'call' || o.k === 'attr' || o.k === 'index')) found = true;
+    });
+    return found;
+  }
+
   function isConstantFalsy(t) {
     if (!t) return false;
     if (t.k === 'bool' || t.k === 'num' || t.k === 'str') return !t.v;
@@ -571,6 +584,27 @@
   // Only PROVABLY dead code is rejected: `while True:` is an ordinary idiom
   // and `if True:` still runs its body, so both still count. Must stay in step
   // with the Python grader or the two engines disagree on the same program.
+  // grader.py _calls_in_order: are all of `names` called, in this relative
+  // order, somewhere in the source? Static like sourceUses, and for the same
+  // reason. Other calls may appear between them.
+  function callsInOrder(source, names) {
+    if (!source || !source.trim() || !window.RoverLang) return false;
+    var program;
+    try { program = window.RoverLang.compile(source).program; } catch (e) { void e; return false; }
+    var seen = [];
+    walkList(program, function (o) {
+      if (o && o.k === 'call' && o.callee && o.callee.k === 'name') {
+        seen.push([o.line === undefined ? 0 : o.line, o.callee.v]);
+      }
+    });
+    seen.sort(function (a, b) { return a[0] - b[0]; });
+    var i = 0;
+    for (var j = 0; j < seen.length; j++) {
+      if (i < names.length && seen[j][1] === names[i]) i++;
+    }
+    return i === names.length;
+  }
+
   function isLive(n, program) {
     if (n.kind === 'if') {
       // grader.py: an `if` on a literal is not selection. `if False:` never
@@ -578,11 +612,15 @@
       // demonstrates the concept a lesson requiring `if` is teaching. A pupil
       // could wrap a fixed route in `if True:` and be told they had learned to
       // choose. The condition has to depend on something.
+      // A bare-literal check was not enough: `if 1 > 0:` is not a literal node,
+      // it is a comparison of two literals, and it satisfied every selection
+      // lesson without reading a single sensor. A test is selection only if
+      // something in it can vary at runtime, i.e. it contains a name or a call.
       var branches = n.branches || [];
       for (var i = 0; i < branches.length; i++) {
         var t = branches[i].test;
-        var literal = t && (t.k === 'bool' || t.k === 'num' || t.k === 'str' || t.k === 'none');
-        if (!literal && !isConstantFalsy(t)) return true;
+        if (!t || isConstantFalsy(t)) continue;
+        if (hasVariableLeaf(t)) return true;
       }
       return false;
     }
@@ -672,6 +710,11 @@
     if (criterion.uses_construct !== undefined && !sourceUses(source, criterion.uses_construct)) {
       return "Code did not use the required '" + criterion.uses_construct + "' construct.";
     }
+    if (criterion.calls_in_order && !callsInOrder(source, criterion.calls_in_order)) {
+      return 'The program does not call '
+        + criterion.calls_in_order.map(function (n) { return n + '()'; }).join(', ')
+        + ', in that order.';
+    }
     if (criterion.returns_to_base === true && !returnsToBase(agg, entry)) {
       return 'Rover did not return to base.';
     }
@@ -703,6 +746,7 @@
     if (c.no_collisions === true) return 'Do not hit anything';
     if (c.max_battery_used !== undefined) return 'Use at most ' + c.max_battery_used + '% battery';
     if (c.uses_construct !== undefined) return 'Use ' + (CONSTRUCT_LABEL[c.uses_construct] || "'" + c.uses_construct + "'");
+    if (c.calls_in_order) return 'Call ' + c.calls_in_order.map(function (n) { return n + '()'; }).join(', then ');
     if (c.returns_to_base === true) return 'Return to base';
     if (c.max_steps !== undefined) return 'Use at most ' + c.max_steps + ' commands';
     if (c.min_distance_travelled !== undefined) return 'Travel at least ' + c.min_distance_travelled + ' m';
@@ -715,6 +759,7 @@
     else if (c.no_collisions === true) re = /collision/;
     else if (c.max_battery_used !== undefined) re = /^Battery used /;
     else if (c.uses_construct !== undefined) re = new RegExp("did not use the required '" + c.uses_construct + "'");
+    else if (c.calls_in_order) re = /^The program does not call /;
     else if (c.returns_to_base === true) re = /did not return to base/;
     else if (c.max_steps !== undefined) re = /API calls \(limit/;
     else if (c.min_distance_travelled !== undefined) re = /^Travelled [\s\S]*minimum/;
@@ -732,6 +777,10 @@
   }
 
   function formatError(err) {
+    // The watched-run path hands a ready-made pupil-facing string (the same
+    // text the console and the toast already showed); the headless path hands
+    // the interpreter's error object.
+    if (typeof err === 'string') return err;
     return err.kind + ': ' + err.message + (err.line != null ? ' (line ' + err.line + ')' : '');
   }
 
@@ -788,10 +837,25 @@
     // `agg` uses the same field names computeAggregates produces. Criterion
     // dispatch, the pupil-facing messages, scoring and hint selection all stay
     // in the functions gradeSync uses, so the two entry points cannot drift.
-    gradeFromAggregates: function (lessonId, source, agg) {
+    // `error`, when set, is the run's own failure (a runtime error, a stall, a
+    // flat battery). A halted run must not be scored on the aggregates it
+    // reached before it died: a program that crashed after driving far enough
+    // otherwise satisfied every distance criterion and passed at 100. This
+    // mirrors gradeSync's run.error branch exactly, so the two entry points
+    // report a crash with the same words.
+    gradeFromAggregates: function (lessonId, source, agg, error) {
       var entry = LESSON_DATA[lessonId];
       if (!entry) return { ok: false, reason: 'unknown lesson: ' + lessonId };
       var src = source || '';
+      if (error) {
+        return {
+          ok: true, lessonId: lessonId, graded: true, passed: false, score: 0,
+          reasons: [formatError(error)],
+          hint: firstHint(entry, false),
+          events: [], achievements: [], recommended: null,
+          gradedFrom: 'watched-run',
+        };
+      }
       var reasons = [];
       for (var i = 0; i < entry.criteria.length; i++) {
         var reason = checkCriterion(entry.criteria[i], agg, entry, src);

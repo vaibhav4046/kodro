@@ -152,6 +152,9 @@ def _check_criterion(
         )
     if criterion.uses_construct is not None and not _source_uses(source, criterion.uses_construct):
         return f"Code did not use the required '{criterion.uses_construct}' construct."
+    if criterion.calls_in_order and not _calls_in_order(source, criterion.calls_in_order):
+        names = ", ".join(f"{n}()" for n in criterion.calls_in_order)
+        return f"The program does not call {names}, in that order."
     if criterion.returns_to_base is True and not _returns_to_base(aggregates, lesson):
         return "Rover did not return to base."
     if criterion.max_steps is not None and aggregates.step_count > criterion.max_steps:
@@ -239,6 +242,44 @@ def _is_provably_empty_iterable(node: ast.AST) -> bool:
     return False
 
 
+def _calls_in_order(source: str, names: list[str]) -> bool:
+    """Are all of ``names`` called, in this relative order, somewhere in source?
+
+    Static, like ``uses_construct``: the executor detaches its trace hooks, so
+    the call sequence is read from the parse tree in source order rather than
+    from a runtime trace. Other calls may appear between them. A lesson whose
+    whole subject is "these steps, in this order" needs to be able to say so;
+    checking distance alone let a pupil delete two thirds of the taught program
+    and still score 100.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return False
+    called: list[tuple[int, int, str]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            called.append((node.lineno, node.col_offset, node.func.id))
+    index = 0
+    for _lineno, _col, name in sorted(called):
+        if index < len(names) and name == names[index]:
+            index += 1
+    return index == len(names)
+
+
+def _has_variable_leaf(node: ast.AST) -> bool:
+    """Does this expression contain anything that can differ between two runs?
+
+    A tree of pure literals (``1 > 0``, ``2 + 2 == 4``) answers the same every
+    time, so branching on it is not a decision. Mirrors lesson-grader.jsx
+    hasVariableLeaf.
+    """
+    for child in ast.walk(node):
+        if isinstance(child, ast.Name | ast.Call | ast.Attribute | ast.Subscript):
+            return True
+    return False
+
+
 def _is_live(node: ast.AST, tree: ast.AST) -> bool:
     """Reject constructs that provably cannot do the work the lesson asks for.
 
@@ -265,7 +306,12 @@ def _is_live(node: ast.AST, tree: ast.AST) -> bool:
         # demonstrates the concept a lesson requiring `if` is teaching. A pupil
         # could write `if True:` around a fixed route and be told they had
         # learned to choose. The condition has to depend on something.
-        return not isinstance(node.test, ast.Constant) and not _is_constant_falsy(node.test)
+        #
+        # Rejecting only bare literals was not enough: `if 1 > 0:` is a Compare
+        # of two Constants, not a Constant, and it satisfied every selection
+        # lesson without reading a sensor. The test must contain something that
+        # can vary between runs.
+        return _has_variable_leaf(node.test) and not _is_constant_falsy(node.test)
     if isinstance(node, ast.For):
         return not _is_provably_empty_iterable(node.iter)
     if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):

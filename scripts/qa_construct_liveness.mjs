@@ -69,7 +69,13 @@ const CASES = [
   ['def f():\n    pass\n', 'function_def', false],
   // --- live: must still count ---
   ['if obstacle_ahead():\n    turn_left(90)\n', 'if', true],
-  ['if 2 < 3:\n    move_forward(1)\n', 'if', true],
+  ['if read_battery() > 20:\n    move_forward(1)\n', 'if', true],
+  // A comparison of two literals is not a decision either: `if 1 > 0:` is a
+  // Compare node rather than a Constant, so a bare-literal check let it
+  // through and it satisfied every selection lesson with no sensor read at
+  // all. The test has to contain something that can vary between runs.
+  ['if 2 < 3:\n    move_forward(1)\n', 'if', false],
+  ['if 1 > 0:\n    move_forward(1)\n', 'if', false],
   // `if True:` is NOT selection. It always runs, so it asks no question and
   // demonstrates nothing a lesson requiring `if` is teaching: a pupil could
   // wrap a fixed route in it and be told they had learned to choose.
@@ -100,6 +106,11 @@ if (typeof sourceUses === 'function') {
   const alwaysTrue = 'if True:\n    move_forward(3)\n';
   check('a constant-true if does not satisfy the if criterion',
     sourceUses(alwaysTrue, 'if') === false, 'if True: is not a decision');
+
+  // The same bypass, one step less obvious.
+  const literalCmp = 'if 1 > 0:\n    move_forward(3)\n';
+  check('a literal comparison does not satisfy the if criterion',
+    sourceUses(literalCmp, 'if') === false, 'if 1 > 0: asks no question');
 }
 
 // The Python side must agree case for case. Read as data rather than executed
@@ -121,6 +132,7 @@ for (const [pyMarker, jsMarker, what] of [
   ['_is_constant_falsy', 'isConstantFalsy', 'constant-falsy test'],
   ['_is_provably_empty_iterable', 'isProvablyEmptyIterable', 'empty-iterable test'],
   ['_is_live', 'isLive', 'liveness entry point'],
+  ['_has_variable_leaf', 'hasVariableLeaf', 'variable-leaf test'],
 ]) {
   check(`both engines implement the ${what}`,
     pySrc.includes(pyMarker) && jsSrc.includes(jsMarker));

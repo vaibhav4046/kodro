@@ -59,7 +59,12 @@
     // Gated by the fitted Line follower part (KodroCommands), like distance().
     on_line: 'on_line',
     // Python pupil-API sensor names (lessons use these) -> design sensors.
-    read_distance: 'distance', read_heading: 'heading', read_battery: 'battery',
+    // read_distance() is the PYTHON pupil API and returns METRES; the design
+    // dialect's distance() returns centimetres. Both used to route to the same
+    // 'distance' sensor, so `if read_distance() < 1.0:` was comparing a
+    // centimetre reading against a metre threshold and never fired -- lesson 07
+    // could not be solved the way it is taught. They are separate sensors now.
+    read_distance: 'distance_m', read_heading: 'heading', read_battery: 'battery',
     read_colour: 'ground'
   });
   // obstacle_ahead() threshold matches the Python engine's default of 0.5 m

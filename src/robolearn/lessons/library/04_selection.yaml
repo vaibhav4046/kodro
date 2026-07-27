@@ -8,14 +8,19 @@ curriculum_refs:
 prereqs: [03_sequence]
 terrain: mars
 intro: |
-  Some rocks block the rover's path. Use an if-else statement and the
-  obstacle_ahead() sensor to choose between driving forward and turning
-  out of the way.
+  A rock sits between the rover and the sample patch.
+  The starter program already asks the sensor whether something is in the
+  way, and drives round it when the answer is yes.
+  Run it and watch: the rover ends up right on the patch, but comes home
+  empty. Add the one line that picks the sample up.
 starter_code: |
-  if obstacle_ahead():
-      turn_right(45)
-  else:
-      move_forward(2)
+  if obstacle_ahead(2.0):
+      turn_left(90)
+      move_forward(1)
+      turn_right(90)
+      move_forward(4)
+      turn_right(90)
+      move_forward(1)
 allowed_constructs: [function_call, if, comparison]
 max_lines: 10
 world:
@@ -32,5 +37,5 @@ success_criteria:
   - uses_construct: if
 hints:
   on_failure:
-    - "The if-statement runs only once. Repeat it (or use a loop) until the rover passes the rock."
-    - "Did you call collect_sample() once the rover reaches the patch?"
+    - "The rover finishes on the patch but never picks it up. Add collect_sample() as the last line."
+    - "obstacle_ahead(2.0) asks whether anything is within 2 metres ahead. Try printing it with log() to see when it is True."

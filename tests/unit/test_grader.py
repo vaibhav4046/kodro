@@ -215,6 +215,12 @@ def test_source_uses_detects_if_statement() -> None:
     # asserted the opposite and let `if True:` around a fixed route satisfy
     # every lesson that teaches choosing.
     assert _source_uses("if True: pass", "if") is False
+    # ...and neither is a comparison of two literals. `if 1 > 0:` is a Compare
+    # node, not a Constant, so a bare-literal check let it through and it
+    # satisfied every selection lesson with no sensor read at all.
+    assert _source_uses("if 1 > 0: pass", "if") is False
+    assert _source_uses("if 2 < 3: pass", "if") is False
+    assert _source_uses("if read_battery() > 20: pass", "if") is True
     assert _source_uses("if obstacle_ahead(): pass", "if") is True
 
 

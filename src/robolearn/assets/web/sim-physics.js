@@ -31,8 +31,19 @@
   // body of collision radius R in an arena of half-extent WALL? Returns a
   // {type[, o]} hit descriptor or null. Moved VERBATIM from useSimEngine with
   // R / WALL / terrain lifted to parameters.
+  // A lesson arena is a RECTANGLE at an offset, not the symmetric free-play
+  // box: 05_iteration is 10 x 8 metres with the base at (1, 5). Without this
+  // the watched run had no walls where the lesson has them, so a rover could
+  // drive out of the arena the pupil was being marked in and `no_collisions`
+  // could never fail on a boundary the grader does enforce.
+  function boundsHit(x, y, R, WALL, terrain) {
+    const b = terrain && terrain.bounds;
+    if (!b) return Math.abs(x) > WALL - R || Math.abs(y) > WALL - R;
+    return x < b.xMin + R || x > b.xMax - R || y < b.yMin + R || y > b.yMax - R;
+  }
+
   function collisionAt(x, y, R, WALL, terrain) {
-    if (Math.abs(x) > WALL - R || Math.abs(y) > WALL - R) return { type: 'wall' };
+    if (boundsHit(x, y, R, WALL, terrain)) return { type: 'wall' };
     for (const o of terrain.obstacles) {
       if (Math.hypot(o.x - x, o.y - y) < o.r + R) return { type: 'obstacle', o };
     }
@@ -55,12 +66,15 @@
     const a = headingDeg * Math.PI / 180;
     const dx = Math.sin(a), dy = -Math.cos(a);
     let best = Infinity;
-    // walls (square at +/-(WALL-R))
-    const lim = WALL - R;
-    if (dx > 1e-6) best = Math.min(best, (lim - x) / dx);
-    if (dx < -1e-6) best = Math.min(best, (-lim - x) / dx);
-    if (dy > 1e-6) best = Math.min(best, (lim - y) / dy);
-    if (dy < -1e-6) best = Math.min(best, (-lim - y) / dy);
+    // walls: the symmetric free-play box at +/-(WALL-R), or the lesson's own
+    // rectangle when one is loaded (see boundsHit).
+    const b = terrain && terrain.bounds;
+    const xHi = b ? b.xMax - R : WALL - R, xLo = b ? b.xMin + R : -(WALL - R);
+    const yHi = b ? b.yMax - R : WALL - R, yLo = b ? b.yMin + R : -(WALL - R);
+    if (dx > 1e-6) best = Math.min(best, (xHi - x) / dx);
+    if (dx < -1e-6) best = Math.min(best, (xLo - x) / dx);
+    if (dy > 1e-6) best = Math.min(best, (yHi - y) / dy);
+    if (dy < -1e-6) best = Math.min(best, (yLo - y) / dy);
     // obstacles (ray-circle)
     for (const o of terrain.obstacles) {
       const ox = o.x - x, oy = o.y - y;

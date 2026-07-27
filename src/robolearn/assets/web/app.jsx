@@ -266,6 +266,14 @@
         const lw = lessonWorldRef.current;
         return {
           ...withTod,
+          // The arena is also a different SHAPE: a lesson world is a rectangle
+          // (05_iteration is 10 x 8 m) with the base at an offset, not the
+          // symmetric free-play box. sim-physics honours `bounds` when present,
+          // so the walls the pupil hits are the walls the grader marks.
+          bounds: {
+            xMin: -(lw.height - lw.base[1]) * 100, xMax: lw.base[1] * 100,
+            yMin: -(lw.width - lw.base[0]) * 100, yMax: lw.base[0] * 100,
+          },
           obstacles: lw.obstacles.map((o) => ({
             // Lesson metres -> sim centimetres, the same axis mapping the
             // sensors and the marker placement use.
@@ -385,7 +393,12 @@
     // the collision test reading the same layout the grader marks.
     function setAgentsForLesson(inLesson) {
       try {
-        if (window.KodroAgents) window.KodroAgents.build(inLesson ? 'none' : terrainId);
+        if (!window.KodroAgents) return;
+        window.KodroAgents.build(inLesson ? 'none' : terrainId);
+        // Rebuilding restarts the animation loop, so the reduced-motion guard
+        // the terrain effect applies has to be repeated here or leaving a
+        // lesson silently resumed moving traffic for a user who asked for none.
+        if (PREFERS_REDUCED_MOTION()) window.KodroAgents.stop();
       } catch (e) { void e; }
     }
     // Lesson metres -> live sim centimetres. The exact inverse of the mapping
@@ -399,12 +412,18 @@
       if (!lw) return [];
       const toSim = (lx, ly) => ({ x: -(ly - lw.base[1]) * 100, y: -(lx - lw.base[0]) * 100 });
       const marks = [];
+      // The base. Four lessons are marked on returning to it or on at_base(),
+      // and no lesson drew it, so the pupil was asked to come back to a place
+      // with nothing there. It always lands on the rover's start, because the
+      // live origin IS the lesson base.
+      marks.push({ kind: 'beacon', ...toSim(lw.base[0], lw.base[1]), lessonBase: true });
       lw.samples.filter((s) => !s.collected).forEach((s) => {
         marks.push({ kind: 'flag', ...toSim(s.x, s.y), lessonSampleId: s.id });
       });
-      lw.obstacles.forEach((o, i) => {
-        marks.push({ kind: 'rock', ...toSim(o.x, o.y), lessonObstacleId: 'lo' + i });
-      });
+      // Only the samples. The lesson's obstacles go into terrain.obstacles
+      // above, and BOTH viewports already draw that list at its true collision
+      // radius; adding a decorative rock prop on top drew every boulder twice,
+      // the second one at a fixed size that did not match what it blocks.
       return marks;
     }
     // Leaving a lesson drops its arena, so free play does not inherit the
@@ -557,7 +576,10 @@
       }
     }, [experience]);
     // First-run onboarding / landing flow (shown once, remembered, skippable).
-    const [onboarded, setOnboarded] = useState(() => lsGet('or_onboarded') === '1');
+    // NOTE the key. The front door used to read `or_onboarded`, the OLD welcome
+    // wizard's flag, so every returning user -- which is everyone who had ever
+    // opened a previous build -- never saw the new landing screen at all.
+    const [onboarded, setOnboarded] = useState(() => lsGet('kodro_home_seen') === '1');
     // Home is the front door (see home.jsx). It opens itself on a first visit
     // and is reopenable from the top bar afterwards.
     const [homeOpen, setHomeOpen] = useState(false);
@@ -565,7 +587,9 @@
       setHomeOpen(false);
       if (!onboarded) {
         setOnboarded(true);
-        try { localStorage.setItem('or_onboarded', '1'); } catch (err) { void err; }
+        // Home's own key, not the old wizard's: writing `or_onboarded` here
+        // would resurrect a flag that belongs to a screen no longer shipped.
+        try { localStorage.setItem('kodro_home_seen', '1'); } catch (err) { void err; }
       }
     }
     // Budget robot builder (local AI hardware guide for a real-world rover).
@@ -1080,6 +1104,10 @@
     }, []);
     function loadLesson(lesson) {
       if (!lesson) return;
+      // Stop anything still driving. Opening a lesson reseeds lessonWorldRef and
+      // swaps the terrain under a run in flight, so the rover finished its
+      // programme in a world that no longer matched the code that started it.
+      try { if (onResetRef.current) onResetRef.current(); } catch (e) { void e; }
       setActiveStage('prove');
       setLessonHubOpen(false);
       setCurrentLessonId(lesson.id);
@@ -1095,6 +1123,7 @@
           score: priorResult.score,
           reasons: priorResult.reasons || [],
           hint: priorResult.hint || null,
+          codeHash: priorResult.codeHash || null,
         }
         : null);
       setLessonAttempts(priorResult && !priorResult.passed ? (priorResult.attempts || 0) : 0);
@@ -1190,7 +1219,13 @@
         }
         if (r.ok === false) { setConsoleLines(l => [...l, { type: 'err', text: 'Grader: ' + (r.reason || 'unknown error') }]); return; }
         // Persist the verdict in a panel that survives Reset (QA #3).
-        setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null });
+        // The same fingerprint rule the proof report uses: a verdict is a claim
+        // about a SPECIFIC program, so record which one earned it. Without this a
+        // pass restored from an earlier session sat above code the pupil had
+        // since rewritten, and said 'Complete' about a program never run.
+        const verdictHash = (window.KodroScenario && window.KodroScenario.codeHash)
+          ? window.KodroScenario.codeHash(source) : null;
+        setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null, codeHash: verdictHash });
         setLessonResults(prev => ({
           ...prev,
           [lessonId]: {
@@ -1198,6 +1233,7 @@
             score: Number.isFinite(Number(r.score)) ? Number(r.score) : 0,
             attempts: ((prev[lessonId] && prev[lessonId].attempts) || 0) + 1,
             updatedAt: Date.now(),
+            codeHash: verdictHash,
             // The reasons and the hint are the part a pupil actually needs:
             // they say what to change. Only the score was kept, so switching
             // to another lesson and back left the number with no explanation.
@@ -1340,7 +1376,7 @@
             setLessonBuffers, setPrograms, setWorldLoading,
             addConsole, showToast, sfx, motorSfx, motorRest, recordRunReport,
             gradeWithBridge, celebrate,
-            lessonWorldRef, lessonMarks,
+            lessonWorldRef, lessonMarks, currentLessonIdRef,
           })
         : { onRun: function () {}, onStep: function () {}, onReset: function () {}, onTerrain: function () {}, runReplLine: function () {}, onCodeChange: function () {}, exportReportClick: function () {}, queueReplaySeed: function () {} };
 
@@ -1421,7 +1457,7 @@
     const evidenceDrawerActive = simpleExperience && evidenceOpen && narrowViewport;
     const evidenceDrawerRef = useRef(false);
     evidenceDrawerRef.current = evidenceDrawerActive;
-    anyOverlayOpenRef.current = !!(swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
+    anyOverlayOpenRef.current = !!(homeOpen || !onboarded || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
     const fpvRef = useRef(fpv); fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
     const WORLDS_KB = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
@@ -1602,12 +1638,21 @@
       avoid: 'Sense and avoid hazards', encore: 'Perform a movement routine', searchlight: 'Search the area',
       gauntlet: 'Complete an obstacle course', survey: 'Survey and mark the site',
     };
+    // A lesson verdict describes ONE program. If the editor no longer holds
+    // that program, the verdict is history, not a result: showing "Complete
+    // 100/100" above code that has since been rewritten is the same
+    // stale-claim bug the proof report already guards against with a hash.
+    // Verdicts written before this rule have no hash and are treated as stale.
+    const lessonVerdictStale = !!(lessonVerdict && window.KodroScenario && window.KodroScenario.codeHash
+      && lessonVerdict.codeHash !== window.KodroScenario.codeHash(code));
+    const liveVerdict = lessonVerdictStale ? null : lessonVerdict;
+
     const SIMPLE_OUTCOME_NAMES = { done: 'Test completed', crash: 'Collision detected', flat: 'Battery depleted', stalled: 'Robot stalled', error: 'Program stopped' };
     // In a lesson the headline is the lesson result, not the free-play outcome
     // name: "Mission complete" above "Not yet" is the app disagreeing with
     // itself about the run the pupil just watched.
-    const simpleOutcomeLabel = currentLessonId && lessonVerdict
-      ? (lessonVerdict.passed ? 'Lesson passed' : 'Not yet')
+    const simpleOutcomeLabel = currentLessonId && liveVerdict
+      ? (liveVerdict.passed ? 'Lesson passed' : 'Not yet')
       : (simpleLatestRun ? (SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded') : '');
     const simpleRunActive = runState === 'running' || runState === 'paused';
     let simpleAssessment = null;
@@ -1631,14 +1676,14 @@
     // up" directly above "Not yet, 80/100", which is the app contradicting
     // itself about the run it just did. The reasons are what tells them what to
     // change, so they are what gets said.
-    if (currentLessonId && lessonVerdict) {
+    if (currentLessonId && liveVerdict) {
       // The label above already says "Lesson passed" or "Not yet", so this
       // carries only the reasons; repeating the verdict read as "Not yet. Not
       // yet. Travelled 1.0 m...".
-      const reasons = (lessonVerdict.reasons || []).filter(Boolean);
+      const reasons = (liveVerdict.reasons || []).filter(Boolean);
       simpleLatestVerdict = reasons.length
         ? reasons.join(' ')
-        : (lessonVerdict.passed ? 'Every goal met.' : 'Check the lesson goals above.');
+        : (liveVerdict.passed ? 'Every goal met.' : 'Check the lesson goals above.');
     }
     // Spoken summary of a settled run.
     //
@@ -1668,7 +1713,7 @@
         .map((p) => String(p || '').trim().replace(/[.\s]+$/, ''))
         .filter(Boolean);
       return parts.join('. ') + '.';
-    }, [runState, simpleLatestRun, simpleOutcomeLabel, simpleLatestVerdict, currentLessonId, lessonVerdict]);
+    }, [runState, simpleLatestRun, simpleOutcomeLabel, simpleLatestVerdict, currentLessonId, liveVerdict]);
     function downloadPrototypeBrief() {
       const esc = function (v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]; }); };
       const runs = browserRuns.slice(0, 12);
@@ -1941,7 +1986,7 @@
                   </label>
                 </div>
 
-                <section className={'simple-proof' + (planProveReport && planProveReport.aggregate ? (planProveReport.aggregate.passed ? ' proof-pass' : ' proof-fail') : '')} aria-label="Deterministic proof">
+                <section className={'simple-proof' + (planProveReport && planProveReport.aggregate ? (planProveReport.aggregate.passed ? ' proof-pass' : ' proof-fail') : '')} aria-label="Test results">
                   <div className="simple-proof-head">
                     <span>
                       <b>Repeat the test 5 times</b>
@@ -1965,7 +2010,7 @@
                   ) : liveProveError ? (
                     <p className="simple-proof-error"><b>The proof could not run.</b> {liveProveError} Fix the program with Edit program, then try again.</p>
                   ) : <p>No multi-seed evidence has been recorded for this session.</p>}
-                  <p className="simple-proof-boundary">Kinematic simulation evidence only. It does not validate or certify physical performance or safety.</p>
+                  <p className="simple-proof-boundary">This is a simulation. It cannot promise a real robot will behave the same way.</p>
                   <div className="simple-proof-actions">
                     <button type="button" className="ctrl ctrl-run" onClick={runValidation}>Run 5 variations</button>
                     {planProveReport && planProveReport.manifest && <button type="button" onClick={downloadProveManifest}>Download manifest</button>}
@@ -2121,11 +2166,11 @@
                 const ldata = (G && G.LESSON_DATA && G.LESSON_DATA[lesson.id]) || null;
                 const goals = (ldata && ldata.criteria) || [];
                 const hintBank = (ldata && ldata.hints && ldata.hints.onFailure) || [];
-                const lessonFailed = !!(lessonVerdict && !lessonVerdict.passed);
-                const hintsShownByVerdict = (lessonFailed && lessonVerdict.hint && lessonVerdict.hint.message) ? 1 : 0;
+                const lessonFailed = !!(liveVerdict && !liveVerdict.passed);
+                const hintsShownByVerdict = (lessonFailed && liveVerdict.hint && liveVerdict.hint.message) ? 1 : 0;
                 const revealedHints = hintBank.slice(hintsShownByVerdict, hintsShownByVerdict + extraHints);
                 const moreHintsLeft = hintsShownByVerdict + extraHints < hintBank.length;
-                const nextLesson = (lessonVerdict && lessonVerdict.passed)
+                const nextLesson = (liveVerdict && liveVerdict.passed)
                   ? lessons[lessons.findIndex(l => l.id === lesson.id) + 1] || null
                   : null;
                 return (
@@ -2134,9 +2179,14 @@
                       <span className="lesson-badge" title={lesson.keyStage}>{AGE_FOR[lesson.keyStage] || lesson.keyStage}</span>
                       <span className="lesson-title">{lesson.id} · {lesson.title}</span>
                       {lesson.readingAge ? <span className="lesson-age" title="Reading age">Age {lesson.readingAge}+</span> : null}
-                      {lessonVerdict && (
-                        <span className={'lesson-verdict ' + (lessonVerdict.passed ? 'pass' : 'fail')}>
-                          <span aria-hidden="true">{lessonVerdict.passed ? '✓' : '✗'}</span> {lessonVerdict.passed ? 'Complete' : 'Not yet'} · {lessonVerdict.score}/100
+                      {liveVerdict && (
+                        <span className={'lesson-verdict ' + (liveVerdict.passed ? 'pass' : 'fail')}>
+                          <span aria-hidden="true">{liveVerdict.passed ? '✓' : '✗'}</span> {liveVerdict.passed ? 'Complete' : 'Not yet'} · {liveVerdict.score}/100
+                        </span>
+                      )}
+                      {lessonVerdictStale && (
+                        <span className="lesson-verdict stale" title="Run again to mark the program you have now">
+                          Not run for this version
                         </span>
                       )}
                     </div>
@@ -2144,7 +2194,7 @@
                     {goals.length > 0 && (
                       <ul className="lesson-goals" aria-label="Lesson goals">
                         {goals.map((c, i) => {
-                          const st = !lessonVerdict ? 'todo' : (G.criterionFailedIn(c, lessonVerdict.reasons) ? 'fail' : 'done');
+                          const st = !liveVerdict ? 'todo' : (G.criterionFailedIn(c, liveVerdict.reasons) ? 'fail' : 'done');
                           return (
                             <li key={i} className={'goal ' + st}>
                               <span className="goal-mark" aria-hidden="true">{st === 'done' ? '✓' : st === 'fail' ? '✗' : ''}</span>
@@ -2163,13 +2213,13 @@
                         ))}
                       </dl>
                     )}
-                    {lessonVerdict && !lessonVerdict.passed && lessonVerdict.reasons.length > 0 && (
+                    {liveVerdict && !liveVerdict.passed && liveVerdict.reasons.length > 0 && (
                       <ul className="lesson-reasons">
-                        {lessonVerdict.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                        {liveVerdict.reasons.map((r, i) => <li key={i}>{r}</li>)}
                       </ul>
                     )}
-                    {lessonVerdict && lessonVerdict.hint && lessonVerdict.hint.message && (
-                      <p className="lesson-hint">{KI('bulb')} {lessonVerdict.hint.message}</p>
+                    {liveVerdict && liveVerdict.hint && liveVerdict.hint.message && (
+                      <p className="lesson-hint">{KI('bulb')} {liveVerdict.hint.message}</p>
                     )}
                     {revealedHints.map((h, i) => (
                       <p key={'xh' + i} className="lesson-hint">{KI('bulb')} {h}</p>
@@ -2181,10 +2231,10 @@
                             {hintsShownByVerdict + extraHints === 0 ? 'Need a hint?' : 'Need another hint?'}
                           </button>
                         )}
-                        {lessonFailed && lessonVerdict.reasons.length > 0 && (
+                        {lessonFailed && liveVerdict.reasons.length > 0 && (
                           <button className="btn-mini lesson-ask-why"
                             onClick={() => {
-                              setAskQuery('In the lesson "' + lesson.title + '": ' + lessonVerdict.reasons[0] + ' Why did this happen and what should I try?');
+                              setAskQuery('In the lesson "' + lesson.title + '": ' + liveVerdict.reasons[0] + ' Why did this happen and what should I try?');
                               setAskOpen(true);
                             }}>Ask why this failed</button>
                         )}
@@ -2364,7 +2414,7 @@
               </div>
             </div>
             {view3d
-              ? <window.Viewport3D key={'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + '-' + ((terrain && terrain.tod) || 'noon') + '-' + ((terrain && terrain.weather) || 'clear') + (quality === 'cinematic' ? '-cine' : '-std') + '-gl' + glEpoch} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the flat view.', 'sys'); }} />
+              ? <window.Viewport3D key={'vp3d-' + (terrain && (terrain.siteId || terrain.id)) + '-' + (robotSpec && robotSpec.type) + '-' + ((terrain && terrain.tod) || 'noon') + '-' + ((terrain && terrain.weather) || 'clear') + (quality === 'cinematic' ? '-cine' : '-std') + '-gl' + glEpoch} terrain={terrain} rover={rover} fpv={fpv} robotType={robotSpec && robotSpec.type} quality={quality} props={props} focusKey={focus3dKey} onFail={() => { setView3d(false); addConsole('3D is unavailable on this machine — switched to the flat view.', 'sys'); }} />
               : <window.Viewport terrain={terrain} rover={rover} trail={trail} props={props} photoUrl={photoUrl} sensorDist={sensorDist} say={say} crashKey={crashKey} zoom={zoom} showGrid={t.grid} showFx={t.ambientFx} trailColor={trailColor} tilt={cam.tilt} yaw={cam.yaw} onTilt={v => setCam({ tilt: v, yaw: v === 0 ? 0 : -8, zoom: 1 })} />}
             {worldLoading && (
               <div className="world-loading" role="status" aria-live="polite" aria-label={'Loading ' + worldLoading.name}>
@@ -2603,7 +2653,12 @@
             onClose={() => setHomeOpen(false)}
             onLessons={() => { closeHome(); openLessonLibrary(); }}
             onDesign={() => { closeHome(); goStage('design'); }}
-            onFreePlay={() => { closeHome(); setMode('studio'); setCurrentLessonId(null); clearLessonWorld(); goStage('prove'); }}
+            onFreePlay={() => {
+              // The card says "Write Python ... no goals, nothing to pass", so it
+              // has to land on the code, not on the pass/fail evidence panel.
+              closeHome(); setMode('studio'); setCurrentLessonId(null); clearLessonWorld();
+              goStage('prove'); setSimpleCodeOpen(true);
+            }}
           />
         )}
       </div>
