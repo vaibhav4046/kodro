@@ -26,7 +26,7 @@ the units shown beside each value below.
 | `read_distance()` | Distance to the nearest obstacle ahead, in metres. |
 | `read_colour()` | The `(red, green, blue)` colour beneath the rover. |
 | `read_heading()` | Current heading in degrees (0 = east). |
-| `read_battery()` | Battery percentage, 0–100. |
+| `read_battery()` | Battery percentage, 0 to 100. |
 | `obstacle_ahead(threshold_m=0.5)` | `True` if something is in the way. |
 | `sample_detected(radius_m=0.3)` | `True` if a collectible sample is nearby. |
 | `at_base()` | `True` if the rover is on the base tile. |
@@ -51,3 +51,32 @@ the units shown beside each value below.
 | `pen_up()` | Lift the trail pen so the rover stops drawing. |
 | `place(kind="flag", x=None, y=None)` | Place a visual prop in the world: a flag, beacon, rock, tree, person or crate. Props do not collide. Defaults to where the rover is standing. |
 | `clear_props()` | Remove every prop you placed with `place`. A lesson's own flags stay. |
+
+## Plan before you run
+
+For a short route, make a table with one row per instruction:
+
+| Line | Position after the line | Heading after the line |
+| ---: | --- | --- |
+| 1 | | |
+| 2 | | |
+| 3 | | |
+
+For a loop, answer these three questions:
+
+1. What must be true for the loop to start?
+2. What changes on every pass?
+3. What makes the loop stop?
+
+For an `if`, write the true action and the false action before coding.
+
+## Debug one thing at a time
+
+1. Read the first unmet lesson goal.
+2. Find the line that controls that goal.
+3. Change only that line.
+4. Predict the effect.
+5. Press **Run** and compare the result with the prediction.
+
+Check spelling, brackets, quotation marks and indentation before changing the
+route itself.

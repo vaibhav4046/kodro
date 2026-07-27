@@ -4,8 +4,11 @@ Prepared 27 July 2026. Everything below was measured at commit `b33e5b8`.
 
 ## What this is
 
-Kodro is an offline robot design and simulation studio for UK Computing,
-Key Stage 1 to Key Stage 4. A pupil designs a robot from real parts, writes
+Kodro is an offline robot design and simulation studio for UK Computing. The 18
+lessons span Key Stage 1 to Key Stage 4 but are weighted to the top of that
+range: 1 at KS1, 2 at KS2, 8 at KS3, 7 at KS4. "KS1 to KS4" is true and
+misleading on its own, so the honest description is upper KS2 through KS4 with a
+KS1 taster. A pupil designs a robot from real parts, writes
 Python to drive it, watches it run in a 3D world, and gets marked on that run.
 It runs in a browser with no install, no account, no server and no API calls.
 

@@ -21,3 +21,22 @@ simulation is already saturating. Measured software-rasterisation medians are
 34.4 FPS Low and 28.4 High, so there is no headroom to spend. If you add glass,
 keep it off the animating viewport and check
 `node scripts/qa_performance.mjs --repeat=3` before and after.
+
+**We share one working tree, not two clones.** Your commits and mine land in the
+same local repository on the same machine, so `git pull --rebase` has nothing to
+fetch and the bundle conflict I warned about will not happen the way I described.
+The real risk is simpler and worse: we can overwrite each other's UNCOMMITTED
+edits in a file we both have open. The ownership split above is the whole
+defence. Commit often so the other track sees your work; never open a file the
+other track owns.
+
+**Honesty fix needed in `README.md` and `docs/index.md`.** Both say the lessons
+cover "Key Stage 1 to Key Stage 4". Counted from the YAML library, the split is
+1 at KS1, 2 at KS2, 8 at KS3, 7 at KS4. That claim is true in the sense that one
+lesson exists at each stage, and misleading to a teacher who reads it as balanced
+coverage, which is exactly the class of claim this project has spent the week
+removing. Please reword to something like "18 lessons spanning KS1 to KS4,
+weighted to KS3 and KS4" and state the split. I have already corrected
+`docs/HANDOFF_KEITH.md`. Verify the numbers yourself with:
+
+    python -c "import sys; sys.path.insert(0,'src'); from robolearn.lessons.schema import load_library; from collections import Counter; print(Counter(l.key_stage for l in load_library()))"

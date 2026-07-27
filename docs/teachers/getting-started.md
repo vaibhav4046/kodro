@@ -20,15 +20,15 @@ Choose one route:
 
 ## What pupils see first
 
-The current onboarding has three steps:
+The front page has four clear routes:
 
-1. Select `Start building`.
-2. Describe a robot or choose Rover, Self-driving car, Personal robot,
-   Robotic arm, or Custom build.
-3. Review the `Recommended world`, then select `Enter studio`.
+1. **Learn to code** opens the 18 guided lessons.
+2. **Design a robot** opens Robot Lab and its real hobby parts.
+3. **Free play** opens the coding studio without a lesson goal.
+4. **Make a lesson** opens Lesson Studio for teacher-authored work.
 
-The hosted page does not ask for a pupil name, age band, key stage, or
-terrain during onboarding.
+For a first class, choose **Learn to code**. The front page does not ask for a
+pupil name, age band, key stage or terrain.
 
 ## Prepare a 45-minute lesson
 
@@ -107,6 +107,13 @@ a cloud provider, prompts are sent to that provider.
 
 ## Related pages
 
+- [Five-minute first lesson card](first-lesson-card.md)
+- [Scheme of work](scheme-of-work.md)
+- [Printable Block A worksheet](worksheet-block-a-first-programs.md)
+- [Printable Block B worksheet](worksheet-block-b-routes-decisions.md)
+- [Printable Block C worksheet](worksheet-block-c-control-sensing.md)
+- [Printable Block D worksheet](worksheet-block-d-general-solutions.md)
+- [Teacher answer key](answer-key.md)
 - [Curriculum mapping](curriculum-mapping.md)
 - [Classroom setup](classroom-setup.md)
 - [Known limitations](../known-limitations.md)
