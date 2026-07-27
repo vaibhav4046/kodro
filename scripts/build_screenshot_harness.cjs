@@ -220,7 +220,7 @@ const CAP = `<!DOCTYPE html>
           }));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay'), seedlesson: q.get('seedlesson') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay'), seedlesson: q.get('seedlesson'), describe: q.get('describe') };
     })();
   </script>
   <div id="root"></div>
@@ -478,6 +478,42 @@ const CAP = `<!DOCTYPE html>
           if (!lessonDone && lessonTries >= 40) finishLesson(false);
         }, 350);
         tryPick();
+      }
+      if (!C.onb && C.describe) {
+        // Read the arena out loud. The button lives behind the run bar's More
+        // toggle, and the lesson has to be open first or there is no arena to
+        // describe, so this waits for the lesson card the same way the lesson
+        // driver waits for its option.
+        var describeDone = false;
+        var tryDescribe = function () {
+          if (describeDone) return;
+          if (!document.querySelector('.lesson-card')) return;
+          var moreBtn = null;
+          var all = [].slice.call(document.querySelectorAll('button'));
+          for (var i = 0; i < all.length; i++) {
+            if ((all[i].textContent || '').trim() === 'More' && all[i].className.indexOf('run-more-toggle') >= 0) { moreBtn = all[i]; break; }
+          }
+          if (moreBtn && !document.querySelector('.run-secondary.is-open')) moreBtn.click();
+          var d = document.querySelector('[aria-label="Describe the scene out loud"]');
+          if (!d) return;
+          d.click();
+          describeDone = true;
+        };
+        var describeObs = null;
+        try {
+          describeObs = new MutationObserver(tryDescribe);
+          describeObs.observe(document.body, { childList: true, subtree: true });
+        } catch (e) { void e; }
+        var describeTries = 0;
+        var describeTimer = setInterval(function () {
+          describeTries += 1;
+          tryDescribe();
+          if (describeDone || describeTries >= 40) {
+            clearInterval(describeTimer);
+            if (describeObs) describeObs.disconnect();
+            if (!describeDone) must(false, 'describe=1 (Describe control never became clickable)');
+          }
+        }, 350);
       }
       if (!C.onb && C.blockstest) {
         // Behaviour driver for the UI harness (gated behind blockstest=1 so it

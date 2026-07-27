@@ -1,14 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Kodro">
-  <!-- Same grammar as the in-app brand mark: a faint orbit, a strong 270deg
-       trajectory arc sweeping clockwise from east to north, and the robot
-       node sitting at the end of the arc. Core + inner ring anchor the
-       centre. All content is inside the 204px maskable safe zone. -->
-  <rect width="512" height="512" rx="104" fill="#08090f"/>
-  <g fill="none" stroke="#5ce0d8">
-    <circle cx="256" cy="256" r="150" stroke-width="14" opacity="0.25"/>
-    <circle cx="256" cy="256" r="88" stroke-width="16" opacity="0.8"/>
-    <path d="M406 256A150 150 0 1 1 256 106" stroke-width="24" stroke-linecap="round" opacity="0.95"/>
-  </g>
-  <circle cx="256" cy="256" r="36" fill="#5ce0d8"/>
-  <circle cx="256" cy="106" r="27" fill="#5ce0d8"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Kodro</title>
+  <desc id="desc">A routed letter K with a bright decision node.</desc>
+  <rect width="512" height="512" rx="112" fill="#09111d"/>
+  <path d="M154 92v328M158 256 374 96M160 256c76 0 108 112 222 164"
+        fill="none" stroke="#62ddd0" stroke-width="54" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="160" cy="256" r="34" fill="#ffd166"/>
+  <circle cx="374" cy="96" r="17" fill="#f7f2e8"/>
+  <circle cx="382" cy="420" r="17" fill="#f7f2e8"/>
 </svg>

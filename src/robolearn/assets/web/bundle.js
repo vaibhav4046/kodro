@@ -1854,322 +1854,321 @@
 
 ;(function () {
 function _extends() { return _extends = Object.assign ? Object.assign.bind() : function (n) { for (var e = 1; e < arguments.length; e++) { var t = arguments[e]; for (var r in t) ({}).hasOwnProperty.call(t, r) && (n[r] = t[r]); } return n; }, _extends.apply(null, arguments); }
-/* Kodro procedural icon set (PERFECTION_PLAN P7/A2).
+/* Kodro icon family.
  *
- * One sprite module of monochrome, currentColor SVG icons in the same visual
- * language as the brand mark (ORBIT_SVG) and the run-control glyphs in
- * app.jsx: 24x24 viewBox, 1.7px rounded strokes, no fills except small solid
- * nodes. These replace every emoji-as-icon in the chrome (mission bar, editor
- * toolbar, modal titles, robot tiles, view toggle), because an emoji icon
- * system reads as a toy and renders differently on every OS. Zero assets,
- * zero fonts: each icon is a handful of primitives, built offline.
- *
- *   window.KodroIcons.el('lab')            -> React <svg> element
- *   window.KodroIcons.el('lab', 'my-cls')  -> with an extra class
- *   window.KodroIcons.has('lab')           -> registry check
- *
- * Icons render at text size via the .ki class (styles.css); surfaces that
- * need a larger mark (robot tiles, the onboarding badge) size .ki locally.
+ * Every glyph uses the same 24 by 24 grid, 1.75 px rounded stroke, 2 px
+ * optical margin and 2 px rectangular corner radius. Small solid circles are
+ * route or sensor nodes, borrowed from the Kodro mark. The icons are
+ * currentColor, dependency-free and remain legible at the 16 px UI size.
  */
 (function () {
   const S = {
     fill: 'none',
     stroke: 'currentColor',
-    strokeWidth: 1.7,
+    strokeWidth: 1.75,
     strokeLinecap: 'round',
     strokeLinejoin: 'round'
   };
-
-  // Each entry is a function returning the icon's inner primitives, so the
-  // shared <svg> wrapper below stays in one place.
   const PATHS = {
-    // -- tools / chrome -------------------------------------------------------
-    lab: () => /*#__PURE__*/React.createElement("path", {
-      d: "M20.7 6.8a5 5 0 0 1-6.4 4.6L7 18.7a2.05 2.05 0 0 1-2.9-2.9l7.3-7.3a5 5 0 0 1 5.8-6.2L14.6 4.9l.6 2.6 2.6.6 2.6-2.6a5 5 0 0 1 .3 1.3z"
-    }),
+    lab: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M20.2 5.2a4.7 4.7 0 0 1-6.1 5.9l-7.5 7.5a2 2 0 1 1-2.8-2.8l7.5-7.5a4.7 4.7 0 0 1 5.9-6.1l-2.8 2.8.7 2.8 2.8.7 2.3-3.3z"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "5.3",
+      cy: "17.1",
+      r: "1",
+      fill: "currentColor",
+      stroke: "none"
+    })),
     memory: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M12 3 3.5 7.8 12 12.6l8.5-4.8L12 3z"
+      d: "m12 3 9 4.8-9 4.8-9-4.8L12 3z"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M3.5 12.2 12 17l8.5-4.8"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M3.5 16.4 12 21.2l8.5-4.8"
+      d: "m3 12 9 4.8 9-4.8M3 16.2 12 21l9-4.8"
     })),
     build: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M12 2.8 4.2 7.2v9.6l7.8 4.4 7.8-4.4V7.2L12 2.8z"
+      d: "m12 2.8 8 4.5v9.4l-8 4.5-8-4.5V7.3l8-4.5z"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M4.2 7.2 12 11.6l7.8-4.4"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M12 11.6v9.6"
+      d: "m4 7.3 8 4.5 8-4.5M12 11.8v9.4"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "11.8",
+      r: "1.3",
+      fill: "currentColor",
+      stroke: "none"
     })),
     gear: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
       cx: "12",
       cy: "12",
-      r: "3.1"
+      r: "3.4"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "8.5"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M12 2.6v2.9M12 18.5v2.9M2.6 12h2.9M18.5 12h2.9M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"
+      d: "M12 2v2.2M12 19.8V22M2 12h2.2M19.8 12H22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M19.1 4.9l-1.6 1.6M6.5 17.5l-1.6 1.6"
     })),
     vibe: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M11 3.5l1.7 4.8 4.8 1.7-4.8 1.7L11 16.5l-1.7-4.8L4.5 10l4.8-1.7L11 3.5z"
+      d: "m10.5 2.8 1.8 5.1 5.1 1.8-5.1 1.8-1.8 5.1-1.8-5.1-5.1-1.8 5.1-1.8 1.8-5.1z"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M18.3 14.6l.9 2.4 2.4.9-2.4.9-.9 2.4-.9-2.4-2.4-.9 2.4-.9.9-2.4z"
+      d: "m18.2 15.1.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"
     })),
     blocks: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
-      x: "3.6",
-      y: "3.6",
-      width: "7",
-      height: "7",
-      rx: "1.2"
+      x: "3",
+      y: "3",
+      width: "7.5",
+      height: "7.5",
+      rx: "2"
     }), /*#__PURE__*/React.createElement("rect", {
-      x: "13.4",
-      y: "3.6",
-      width: "7",
-      height: "7",
-      rx: "1.2"
+      x: "13.5",
+      y: "3",
+      width: "7.5",
+      height: "7.5",
+      rx: "2"
     }), /*#__PURE__*/React.createElement("rect", {
-      x: "3.6",
-      y: "13.4",
-      width: "7",
-      height: "7",
-      rx: "1.2"
+      x: "3",
+      y: "13.5",
+      width: "7.5",
+      height: "7.5",
+      rx: "2"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M16.9 13.6v6.6M13.6 16.9h6.6"
+      d: "M17.25 13.5V21M13.5 17.25H21"
     })),
-    review: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
-      cx: "10.5",
-      cy: "10.5",
-      r: "5.8"
+    review: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M6 3h9l3 3v15H6V3zM15 3v3h3"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M15 15l6 6"
+      d: "m9 13 2 2 4-4"
     })),
     target: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
       cx: "12",
       cy: "12",
-      r: "8.4"
+      r: "9"
     }), /*#__PURE__*/React.createElement("circle", {
       cx: "12",
       cy: "12",
-      r: "4.4"
+      r: "5"
     }), /*#__PURE__*/React.createElement("circle", {
       cx: "12",
       cy: "12",
-      r: "1.1",
+      r: "1.5",
       fill: "currentColor",
       stroke: "none"
     })),
     gauge: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M4.2 16.8a8.6 8.6 0 1 1 15.6 0"
+      d: "M3.5 17a9 9 0 1 1 17 0"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M12 16.2l3.6-5.2"
+      d: "m12 16.5 4-6"
     }), /*#__PURE__*/React.createElement("circle", {
       cx: "12",
-      cy: "16.6",
-      r: "1.2",
+      cy: "16.5",
+      r: "1.5",
       fill: "currentColor",
       stroke: "none"
     })),
-    demo: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
-      cx: "12",
-      cy: "12",
-      r: "8.8"
+    demo: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
+      x: "2.8",
+      y: "4",
+      width: "18.4",
+      height: "16",
+      rx: "2"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M10.2 8.6v6.8l5.6-3.4z",
+      d: "m10 8 6 4-6 4V8z",
       fill: "currentColor",
       stroke: "none"
     })),
     ask: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M4 6a2.4 2.4 0 0 1 2.4-2.4h11.2A2.4 2.4 0 0 1 20 6v7.4a2.4 2.4 0 0 1-2.4 2.4h-5.8L7.5 19.9v-4.1H6.4A2.4 2.4 0 0 1 4 13.4V6z"
+      d: "M4 4h16v12H9l-5 4V4z"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M10.3 7.9a1.9 1.9 0 1 1 2.6 2.3c-.7.4-.9.8-.9 1.6"
+      d: "M9.5 8.4a2.6 2.6 0 1 1 3.5 2.4c-.7.3-1 .8-1 1.5"
     }), /*#__PURE__*/React.createElement("circle", {
       cx: "12",
-      cy: "13.6",
-      r: "0.9",
+      cy: "14.5",
+      r: "1",
       fill: "currentColor",
       stroke: "none"
     })),
     swarm: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
-      cx: "6.4",
-      cy: "7",
-      r: "2.1"
+      cx: "6",
+      cy: "6",
+      r: "2.5"
     }), /*#__PURE__*/React.createElement("circle", {
-      cx: "17.6",
-      cy: "7",
-      r: "2.1"
+      cx: "18",
+      cy: "6",
+      r: "2.5"
     }), /*#__PURE__*/React.createElement("circle", {
       cx: "12",
-      cy: "16.8",
-      r: "2.1"
+      cy: "18",
+      r: "2.5"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M8.5 7h7M7.4 8.9l3.5 6M16.6 8.9l-3.5 6"
+      d: "M8.5 6h7M7.2 8.2l3.6 7.6M16.8 8.2l-3.6 7.6"
     })),
     eye: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M2.6 12S6.2 5.8 12 5.8 21.4 12 21.4 12 17.8 18.2 12 18.2 2.6 12 2.6 12z"
+      d: "M2.5 12S6.2 6 12 6s9.5 6 9.5 6-3.7 6-9.5 6-9.5-6-9.5-6z"
     }), /*#__PURE__*/React.createElement("circle", {
       cx: "12",
       cy: "12",
-      r: "2.7"
+      r: "3"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "12",
+      cy: "12",
+      r: "1.2",
+      fill: "currentColor",
+      stroke: "none"
     })),
-    orbit: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
-      cx: "12",
-      cy: "12",
-      r: "8.4",
-      opacity: "0.5"
+    orbit: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M6 3v18M6 12l12-9M6 12c5 0 6.5 6 12 9"
     }), /*#__PURE__*/React.createElement("circle", {
-      cx: "12",
+      cx: "6",
       cy: "12",
-      r: "4.4",
-      opacity: "0.85"
-    }), /*#__PURE__*/React.createElement("circle", {
-      cx: "12",
-      cy: "12",
-      r: "1.9",
+      r: "1.7",
       fill: "currentColor",
       stroke: "none"
     }), /*#__PURE__*/React.createElement("circle", {
-      cx: "12",
-      cy: "3.6",
-      r: "1.7",
+      cx: "18",
+      cy: "3",
+      r: "1.2",
+      fill: "currentColor",
+      stroke: "none"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "18",
+      cy: "21",
+      r: "1.2",
       fill: "currentColor",
       stroke: "none"
     })),
     camera: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
-      x: "3.2",
-      y: "7",
-      width: "17.6",
-      height: "12.6",
+      x: "2.8",
+      y: "6.5",
+      width: "18.4",
+      height: "14",
       rx: "2"
     }), /*#__PURE__*/React.createElement("circle", {
       cx: "12",
-      cy: "13.2",
-      r: "3.4"
+      cy: "13.5",
+      r: "3.8"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M8.4 7l1.5-2.6h4.2L15.6 7"
+      d: "m8 6.5 1.5-3h5l1.5 3"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "18",
+      cy: "9.5",
+      r: "1",
+      fill: "currentColor",
+      stroke: "none"
     })),
     report: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M6.2 3h7.6l4 4v14H6.2V3z"
+      d: "M6 3h9l3 3v15H6V3zM15 3v3h3"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M13.8 3v4h4"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M9 12.4h6M9 16.2h6"
+      d: "M9 11h6M9 15h6M9 19h4"
     })),
-    // save / open: the project-file download and load-from-disk glyphs. The
-    // Save/Open buttons that consume these live in app.jsx (saveProjectClick /
-    // openProjectClick); they currently render without an icon. Kept registered
-    // so that wiring is a one-line KI('save')/KI('open') on the app.jsx side.
     save: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M12 3.2v10.2M8.2 9.6l3.8 3.8 3.8-3.8"
+      d: "M12 3v11M8 10l4 4 4-4"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M4.2 15v3.6a2.2 2.2 0 0 0 2.2 2.2h11.2a2.2 2.2 0 0 0 2.2-2.2V15"
+      d: "M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"
     })),
     open: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M3.4 8.4V6.2A1.8 1.8 0 0 1 5.2 4.4h4l2 2.2h7.6a1.8 1.8 0 0 1 1.8 1.8v1.4"
+      d: "M3 9V6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M2.8 9.8h18.4l-1.8 8.4a1.8 1.8 0 0 1-1.8 1.4H6.4a1.8 1.8 0 0 1-1.8-1.4L2.8 9.8z"
+      d: "M3 9h18l-2 10a2 2 0 0 1-2 1.5H7A2 2 0 0 1 5 19L3 9z"
     })),
     bulb: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M12 3a6 6 0 0 1 3.6 10.8c-.7.6-1.1 1.3-1.1 2.2h-5c0-.9-.4-1.6-1.1-2.2A6 6 0 0 1 12 3z"
+      d: "M12 3a6.5 6.5 0 0 1 4 11.6c-.8.6-1.2 1.4-1.2 2.4H9.2c0-1-.4-1.8-1.2-2.4A6.5 6.5 0 0 1 12 3z"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M9.6 19h4.8M10.4 21.4h3.2"
+      d: "M9.5 20h5M10.5 22h3"
     })),
-    // -- robot archetypes -----------------------------------------------------
     rover: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
-      x: "3.4",
-      y: "9.6",
-      width: "17.2",
-      height: "5.6",
-      rx: "1.4"
+      x: "3",
+      y: "9",
+      width: "18",
+      height: "7",
+      rx: "2"
     }), /*#__PURE__*/React.createElement("circle", {
-      cx: "7.6",
-      cy: "17.6",
-      r: "2.2"
+      cx: "7.5",
+      cy: "18.5",
+      r: "2.5"
     }), /*#__PURE__*/React.createElement("circle", {
-      cx: "16.4",
-      cy: "17.6",
-      r: "2.2"
+      cx: "16.5",
+      cy: "18.5",
+      r: "2.5"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M8.4 9.6V6.4h3.2v3.2"
+      d: "M8 9V6h4v3M10 6V3"
     }), /*#__PURE__*/React.createElement("circle", {
       cx: "10",
-      cy: "4.8",
-      r: "1",
+      cy: "3",
+      r: "1.2",
       fill: "currentColor",
       stroke: "none"
     })),
     car: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M4 16.2v-2.6l1.3-4A2 2 0 0 1 7.2 8.2h9.6a2 2 0 0 1 1.9 1.4l1.3 4v2.6"
+      d: "M3 16v-3l2-5h14l2 5v3M3 13h18"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "7",
+      cy: "18",
+      r: "2.5"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "17",
+      cy: "18",
+      r: "2.5"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M4 13.6h16"
-    }), /*#__PURE__*/React.createElement("circle", {
-      cx: "7.6",
-      cy: "17.4",
-      r: "1.9"
-    }), /*#__PURE__*/React.createElement("circle", {
-      cx: "16.4",
-      cy: "17.4",
-      r: "1.9"
+      d: "m7 8 1.5-3h7L17 8"
     })),
     home: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
-      x: "5",
-      y: "7.2",
-      width: "14",
-      height: "11",
-      rx: "2.4"
-    }), /*#__PURE__*/React.createElement("circle", {
-      cx: "9.6",
-      cy: "12.4",
-      r: "1.2",
-      fill: "currentColor",
-      stroke: "none"
-    }), /*#__PURE__*/React.createElement("circle", {
-      cx: "14.4",
-      cy: "12.4",
-      r: "1.2",
-      fill: "currentColor",
-      stroke: "none"
+      x: "4",
+      y: "7",
+      width: "16",
+      height: "12",
+      rx: "2"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M12 7.2V4.2M9.8 15.4h4.4"
+      d: "M12 7V3"
     }), /*#__PURE__*/React.createElement("circle", {
       cx: "12",
-      cy: "3.2",
-      r: "1",
+      cy: "3",
+      r: "1.2",
       fill: "currentColor",
       stroke: "none"
-    })),
-    arm: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M4.6 20.4h8.8M9 20.4v-3.6"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M9 16.8l3.4-7.2"
     }), /*#__PURE__*/React.createElement("circle", {
-      cx: "12.6",
-      cy: "9.2",
-      r: "1.5"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M14 9.7l4.4 2.1"
-    }), /*#__PURE__*/React.createElement("path", {
-      d: "M18.4 11.8l2.4-1.4M18.4 11.8l1 2.6"
-    })),
-    custom: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M4.6 6.4h14.8M4.6 12h14.8M4.6 17.6h14.8"
-    }), /*#__PURE__*/React.createElement("circle", {
-      cx: "9.4",
-      cy: "6.4",
-      r: "1.9",
-      fill: "var(--void,#08090f)"
+      cx: "9",
+      cy: "12",
+      r: "1.2",
+      fill: "currentColor",
+      stroke: "none"
     }), /*#__PURE__*/React.createElement("circle", {
       cx: "15",
       cy: "12",
-      r: "1.9",
-      fill: "var(--void,#08090f)"
+      r: "1.2",
+      fill: "currentColor",
+      stroke: "none"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "M9.5 16h5"
+    })),
+    arm: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M3 21h10M8 21v-4l4-8"
     }), /*#__PURE__*/React.createElement("circle", {
-      cx: "7.4",
-      cy: "17.6",
-      r: "1.9",
-      fill: "var(--void,#08090f)"
+      cx: "12.5",
+      cy: "8",
+      r: "2"
+    }), /*#__PURE__*/React.createElement("path", {
+      d: "m14.2 9 5 2.5M19.2 11.5 22 10M19.2 11.5l1 3"
+    })),
+    custom: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
+      d: "M3 6h18M3 12h18M3 18h18"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "8",
+      cy: "6",
+      r: "2",
+      fill: "var(--void,#09111d)"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "16",
+      cy: "12",
+      r: "2",
+      fill: "var(--void,#09111d)"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "10",
+      cy: "18",
+      r: "2",
+      fill: "var(--void,#09111d)"
     })),
     shield: () => /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("path", {
-      d: "M12 3.4l6.6 2.5v5.2c0 4.1-2.7 7.3-6.6 9.5-3.9-2.2-6.6-5.4-6.6-9.5V5.9L12 3.4z"
+      d: "m12 3 7 2.7v5.6c0 4.3-2.9 7.6-7 9.7-4.1-2.1-7-5.4-7-9.7V5.7L12 3z"
     }), /*#__PURE__*/React.createElement("path", {
-      d: "M9.2 12.1l2 2 3.6-4"
+      d: "m8.5 12 2.2 2.2 4.8-5"
     }))
   };
   function el(name, cls) {
@@ -16383,6 +16382,269 @@ Object.assign(window, {
 })();
 
 ;(function () {
+/* ============================================================================
+   KODRO - saying what went wrong in words a child can act on.
+
+   A six year old on the first lesson who types `move_forward(3` was being shown
+
+       syntax: Expected ")". (line 1)
+
+   and a pupil who typed `move_foward(2)` was shown
+
+       runtime: Name "move_foward" is not defined. (line 1)
+
+   Both are accurate. Neither tells a child what to do, and the second one is
+   the crueller of the two: the pupil has made a one letter typo and the app
+   knows exactly which command they meant, and says nothing.
+
+   Every lesson already declares a `reading_age`, so the product knew the pupil
+   was six and reported an interpreter's internal vocabulary anyway.
+
+   WHY THIS IS A HAND WRITTEN TABLE, not a model. Leinonen et al. (UKICER 2024,
+   106 participants, six programs, three message conditions) found hand written
+   expert explanations beat both GPT-4 generated explanations and the standard
+   compiler message on time to fix and on satisfaction, and that GPT-4 beat the
+   plain compiler message in only one of six tasks. A lookup table is the
+   evidenced design here, not a compromise forced by the offline constraint.
+
+   It is also a small surface on purpose. The sandbox bans imports, f-strings,
+   dictionaries and input(), so the set of things a pupil can actually hit is
+   finite and enumerable, which is why this file can be complete rather than
+   best effort.
+
+   HONESTY RULE: an explanation must never assert something the app has not
+   checked. Where the cause is genuinely ambiguous the wording says so ("this
+   usually means") rather than inventing a specific diagnosis, and the original
+   message is always still available, because a teacher looking over a shoulder
+   needs the real text.
+
+   Exposes window.KodroPupilErrors.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  //: Every name a pupil is allowed to call, so a misspelling can be matched
+  //: against what they probably meant. Kept here rather than imported from the
+  //: interpreter because this list is the PUPIL's vocabulary (the documented
+  //: API in docs/pupils/api-cheatsheet.md), not the interpreter's full set of
+  //: internal builtins, and suggesting an internal name would be worse than
+  //: suggesting nothing.
+  var PUPIL_API = ['move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'wait', 'read_distance', 'read_colour', 'read_heading', 'read_battery', 'obstacle_ahead', 'sample_detected', 'at_base', 'scan', 'collect_sample', 'drop_sample', 'beep', 'log', 'say', 'led', 'pen_down', 'pen_up', 'place', 'clear_props', 'range', 'len', 'int', 'float', 'str', 'abs', 'round', 'min', 'max', 'print', 'True', 'False', 'None', 'and', 'or', 'not', 'if', 'else', 'elif', 'for', 'while', 'def', 'return', 'break', 'continue', 'in'];
+
+  // Levenshtein distance, iterative two-row. Small strings only, so the simple
+  // implementation is the right one.
+  function distance(a, b) {
+    a = String(a);
+    b = String(b);
+    if (a === b) return 0;
+    var prev = [],
+      cur = [],
+      i,
+      j;
+    for (j = 0; j <= b.length; j++) prev[j] = j;
+    for (i = 1; i <= a.length; i++) {
+      cur[0] = i;
+      for (j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1));
+      }
+      for (j = 0; j <= b.length; j++) prev[j] = cur[j];
+    }
+    return prev[b.length];
+  }
+
+  // The closest pupil-API name, or null when nothing is close enough to be
+  // worth suggesting. The threshold scales with length so `led` does not get
+  // "corrected" to `len`, and a long wrong word is allowed more slack.
+  function nearestCommand(name) {
+    var word = String(name || '');
+    if (word.length < 3) return null;
+    var limit = word.length <= 4 ? 1 : word.length <= 8 ? 2 : 3;
+    var best = null,
+      bestD = Infinity;
+    for (var i = 0; i < PUPIL_API.length; i++) {
+      var d = distance(word.toLowerCase(), PUPIL_API[i].toLowerCase());
+      if (d < bestD) {
+        bestD = d;
+        best = PUPIL_API[i];
+      }
+    }
+    if (bestD > limit) return null;
+    if (best === word) return null;
+    return best;
+  }
+
+  //: Under this reading age the wording avoids clauses and jargon entirely.
+  //: Lessons declare reading_age; when a lesson does not, the neutral wording
+  //: is used, which is written to be readable either way.
+  var YOUNG = 9;
+
+  // The table. Each entry: a matcher against the interpreter's own message, and
+  // a builder returning {text, hint}. `hint` is the actionable half and is
+  // allowed to be empty when there is nothing honest to suggest.
+  var RULES = [{
+    // `move_forward(3`  -- by far the most common first-week error.
+    test: /Expected "\)"/i,
+    build: function () {
+      return {
+        text: 'A bracket is missing.',
+        hint: 'Every ( needs a ) to close it. Check the end of this line.'
+      };
+    }
+  }, {
+    test: /Unexpected token "\)"/i,
+    build: function () {
+      return {
+        text: 'There is one ) too many here.',
+        hint: 'Count the brackets: each ( needs exactly one ).'
+      };
+    }
+  }, {
+    // `if True` with no colon. The interpreter names the keyword, so the
+    // explanation can too, which makes it specific rather than generic.
+    test: /expected ":" at the end of this "([a-z]+)" line/i,
+    build: function (m) {
+      var kw = m[1];
+      return {
+        text: 'This ' + kw + ' line needs a colon at the end.',
+        hint: 'Type a : after the ' + kw + ' line, then indent the lines that belong to it.'
+      };
+    }
+  }, {
+    test: /Unexpected end of expression/i,
+    build: function () {
+      return {
+        text: 'This line stops before it is finished.',
+        hint: 'Something is missing after the last symbol on the line.'
+      };
+    }
+  }, {
+    // The big one. The pupil almost always meant a real command.
+    test: /Name "([A-Za-z_][A-Za-z0-9_]*)" is not defined/i,
+    build: function (m, opts) {
+      var name = m[1];
+      var near = nearestCommand(name);
+      if (near) {
+        return {
+          text: 'Kodro does not know a command called ' + name + '.',
+          hint: 'Did you mean ' + near + '?'
+        };
+      }
+      // No close match. Do NOT guess: say plainly what happened and where to
+      // look. Claiming a specific cause here would be inventing one.
+      return {
+        text: 'Kodro does not know a command called ' + name + '.',
+        hint: opts && opts.readingAge && opts.readingAge < YOUNG ? 'Check the spelling, or look at the list of commands.' : 'Check the spelling, or open the command list to see what is available.'
+      };
+    }
+  }, {
+    test: /is not a function|is not callable/i,
+    build: function () {
+      return {
+        text: 'That name is not something you can call with brackets.',
+        hint: 'Only commands take brackets, like move_forward(2).'
+      };
+    }
+  }, {
+    test: /division by zero/i,
+    build: function () {
+      return {
+        text: 'Something was divided by zero, which has no answer.',
+        hint: 'Check the number you are dividing by is never 0.'
+      };
+    }
+  }, {
+    test: /loop ran too long|too many steps|MAX_STEPS/i,
+    build: function () {
+      return {
+        text: 'The program was still going after a very long time, so it was stopped.',
+        hint: 'A loop is probably never finishing. Check that something inside it changes what the loop is waiting for.'
+      };
+    }
+  }, {
+    test: /indent/i,
+    build: function () {
+      return {
+        text: 'The spaces at the start of this line do not line up.',
+        hint: 'Lines inside an if or a loop all need the same indent, usually four spaces.'
+      };
+    }
+  }, {
+    test: /method calls .* not supported|\.[a-z]+\(\) is not supported/i,
+    build: function () {
+      return {
+        text: 'That way of calling something is not available in Kodro.',
+        hint: 'Kodro runs a small part of Python. Use the commands from the command list.'
+      };
+    }
+  }, {
+    test: /the drive stalled/i,
+    build: function () {
+      return {
+        text: 'The motors could not move the robot on this ground.',
+        hint: 'The robot may be too heavy for its motors, or the ground too rough. Try the Design stage.'
+      };
+    }
+  }, {
+    test: /battery ran flat/i,
+    build: function () {
+      return {
+        text: 'The battery ran out before the program finished.',
+        hint: 'Drive a shorter route, or fit a bigger battery in the Design stage.'
+      };
+    }
+  }];
+
+  /**
+   * Turn an interpreter message into something a pupil can act on.
+   *
+   * Returns {text, hint, original, matched}. `matched` is false when nothing in
+   * the table applied, in which case `text` is the original message unchanged:
+   * showing the real error is always better than showing a vague invention.
+   *
+   * @param {string} message the interpreter's own message
+   * @param {{readingAge?: number}} [opts]
+   */
+  function explain(message, opts) {
+    var raw = String(message == null ? '' : message);
+    // Strip a leading "kind: " prefix if the caller has already formatted one,
+    // so the table matches whether or not the message has been decorated.
+    var body = raw.replace(/^(syntax|runtime|name|type|value|zero)\s*:\s*/i, '');
+    for (var i = 0; i < RULES.length; i++) {
+      var m = RULES[i].test.exec(body);
+      if (m) {
+        var built = RULES[i].build(m, opts || {});
+        return {
+          matched: true,
+          text: built.text,
+          hint: built.hint || '',
+          original: raw
+        };
+      }
+    }
+    return {
+      matched: false,
+      text: raw,
+      hint: '',
+      original: raw
+    };
+  }
+
+  /** One line, for a console or a toast: the explanation plus its hint. */
+  function explainLine(message, opts) {
+    var r = explain(message, opts);
+    return r.hint ? r.text + ' ' + r.hint : r.text;
+  }
+  window.KodroPupilErrors = {
+    explain: explain,
+    explainLine: explainLine,
+    nearestCommand: nearestCommand,
+    PUPIL_API: PUPIL_API,
+    RULE_COUNT: RULES.length
+  };
+})();
+})();
+
+;(function () {
 /*
  * Browser lesson grader - the JS twin of robolearn/lessons/grader.py plus the
  * slice of the Python engine a graded run needs (WebBackend slice 2).
@@ -18460,6 +18722,132 @@ Object.assign(window, {
   function nowMs() {
     return window.KODRO_NOW ? window.KODRO_NOW() : Date.now();
   }
+
+  // --- lesson packs ------------------------------------------------------
+  //
+  // One lesson per file is right for sharing a single idea and wrong for
+  // sharing a term of work. A teacher who has built six lessons for a half term
+  // should send one file, not six, and the colleague who receives it should get
+  // all six or a clear account of which ones were refused and why.
+  //
+  // A pack is deliberately just a list of the same documents, with the same
+  // validator applied to each. There is no pack-specific lesson format, so a
+  // lesson cannot be valid inside a pack and invalid outside it.
+  var PACK_VERSION = 1;
+  //: A pack has to stay inside the same 256 KB ceiling as everything else the
+  //: app reads from disk, so the cap is on the FILE, and the per-lesson count is
+  //: capped separately so one pack cannot fill the whole device library.
+  var MAX_PACK_LESSONS = 40;
+  function packSerialize(name, docs) {
+    return JSON.stringify({
+      kodroPack: PACK_VERSION,
+      name: String(name || 'Kodro lessons'),
+      savedAt: nowMs(),
+      lessons: docs
+    }, null, 2) + '\n';
+  }
+  function packFileName(name) {
+    return slug(name || 'kodro-lessons') + '.kodropack';
+  }
+
+  // Read a pack file. Returns {ok, name, accepted:[doc], rejected:[{title,errors}],
+  // warnings}. A pack with some bad lessons is NOT rejected wholesale: the good
+  // ones are offered and the bad ones are named, because throwing away five
+  // working lessons over one broken one helps nobody.
+  function packParse(text) {
+    if (typeof text !== 'string') return {
+      ok: false,
+      errors: ['Nothing to read.'],
+      accepted: [],
+      rejected: [],
+      warnings: []
+    };
+    if (text.length > MAX_TEXT) return {
+      ok: false,
+      errors: ['That file is larger than 256 KB.'],
+      accepted: [],
+      rejected: [],
+      warnings: []
+    };
+    var raw;
+    try {
+      raw = JSON.parse(text);
+    } catch (e) {
+      return {
+        ok: false,
+        errors: ['That file is not readable (it is not valid JSON).'],
+        accepted: [],
+        rejected: [],
+        warnings: []
+      };
+    }
+    if (!raw || raw.kodroPack !== PACK_VERSION) {
+      return {
+        ok: false,
+        accepted: [],
+        rejected: [],
+        warnings: [],
+        errors: [raw && raw.kodroLesson ? 'That is a single lesson, not a pack. Use "Open a lesson file" instead.' : 'That file is not a Kodro lesson pack.']
+      };
+    }
+    if (!Array.isArray(raw.lessons) || raw.lessons.length === 0) {
+      return {
+        ok: false,
+        errors: ['That pack contains no lessons.'],
+        accepted: [],
+        rejected: [],
+        warnings: []
+      };
+    }
+    var accepted = [],
+      rejected = [],
+      warnings = [];
+    for (var i = 0; i < raw.lessons.length; i++) {
+      if (accepted.length >= MAX_PACK_LESSONS) {
+        warnings.push('The pack held more than ' + MAX_PACK_LESSONS + ' lessons; the rest were not read.');
+        break;
+      }
+      // Route every lesson through the SAME parser a single file uses, so an
+      // unknown field is dropped and reported here exactly as it would be there.
+      var one = parse(JSON.stringify(raw.lessons[i]));
+      if (one.ok) {
+        accepted.push(one.doc);
+        one.warnings.forEach(function (w) {
+          warnings.push(w);
+        });
+      } else rejected.push({
+        title: raw.lessons[i] && raw.lessons[i].title || 'lesson ' + (i + 1),
+        errors: one.errors
+      });
+    }
+    return {
+      ok: accepted.length > 0,
+      name: String(raw.name || 'Kodro lessons'),
+      accepted: accepted,
+      rejected: rejected,
+      warnings: warnings,
+      errors: accepted.length ? [] : ['None of the lessons in that pack could be read.']
+    };
+  }
+
+  // Save every accepted lesson from a pack. Returns a per-lesson outcome rather
+  // than one boolean, because "it half worked" is the likely case (a name
+  // collision, a full device) and the teacher needs to know which ones landed.
+  function packInstall(docs) {
+    var saved = [],
+      failed = [];
+    for (var i = 0; i < docs.length; i++) {
+      var r = save(docs[i]);
+      if (r.ok) saved.push(docs[i].title);else failed.push({
+        title: docs[i].title,
+        errors: r.errors
+      });
+    }
+    return {
+      saved: saved,
+      failed: failed
+    };
+  }
   window.KodroLessonStore = {
     VERSION: VERSION,
     STORAGE_KEY: STORAGE_KEY,
@@ -18480,7 +18868,13 @@ Object.assign(window, {
     fileName: fileName,
     parse: parse,
     blank: blank,
-    makeId: makeId
+    makeId: makeId,
+    PACK_VERSION: PACK_VERSION,
+    MAX_PACK_LESSONS: MAX_PACK_LESSONS,
+    packSerialize: packSerialize,
+    packFileName: packFileName,
+    packParse: packParse,
+    packInstall: packInstall
   };
 })();
 })();
@@ -19357,13 +19751,10 @@ Object.assign(window, {
  * the Robot Lab would. Mounting and persistence ("seen it already") are owned
  * by App; this module only renders the flow and calls onClose() when done.
  *
- * Visual language is unified with the studio (styles.css :root): the Orbital
- * Rover token system - void/navy surfaces, paper text, cyan = go, mars/brass
- * accents, Cormorant display + Inter Tight body + JetBrains Mono labels. The
- * landing leads with a large serif headline against a mono eyebrow, an orbital
- * brand motif on a starfield, and a capability strip - an intentional editorial
- * split, not a centred template. Atmosphere is CSS-only and GPU-friendly, and
- * the whole motion path is gated behind prefers-reduced-motion.
+ * Visual language is unified with the studio: layered navy surfaces, warm
+ * paper text, teal actions and the routed K mark. The landing leads with a
+ * large serif headline, a mono eyebrow and a capability strip. Atmosphere is
+ * CSS-only and the whole motion path is gated behind reduced motion.
  *
  * Exposes: window.KodroOnboarding({ onClose })
  */
@@ -19373,36 +19764,33 @@ Object.assign(window, {
     useEffect
   } = React;
 
-  // Brand mark: the same orbit + trajectory + robot-node mark used in the navbar
-  // (ORBIT_SVG), inlined so onboarding has no dependency on app.jsx.
+  // Brand mark: a route becomes the letter K. The joint is the program's
+  // decision point and the two small end nodes are destinations.
   const MARK = /*#__PURE__*/React.createElement("svg", {
     viewBox: "0 0 64 64",
     fill: "none",
     xmlns: "http://www.w3.org/2000/svg",
     "aria-hidden": "true"
-  }, /*#__PURE__*/React.createElement("circle", {
-    cx: "32",
-    cy: "32",
-    r: "21",
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M18 8v48M19 32 49 9M20 32c11 0 15 17 31 24",
     stroke: "currentColor",
-    strokeWidth: "2.4",
-    opacity: "0.2"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M15 44 A21 21 0 1 1 44 15",
-    stroke: "currentColor",
-    strokeWidth: "3.6",
+    strokeWidth: "6",
     strokeLinecap: "round",
-    opacity: "0.9"
+    strokeLinejoin: "round"
   }), /*#__PURE__*/React.createElement("circle", {
-    cx: "15",
-    cy: "44",
-    r: "2.6",
-    fill: "currentColor",
-    opacity: "0.45"
+    className: "konb-mark-node",
+    cx: "20",
+    cy: "32",
+    r: "4.8"
   }), /*#__PURE__*/React.createElement("circle", {
-    cx: "44",
-    cy: "15",
-    r: "6.4",
+    cx: "49",
+    cy: "9",
+    r: "2.4",
+    fill: "currentColor"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "51",
+    cy: "56",
+    r: "2.4",
     fill: "currentColor"
   }));
 
@@ -19453,6 +19841,7 @@ Object.assign(window, {
   .konb-wordmark{ display:flex; align-items:center; gap:11px; }
   .konb-wordmark .wm-mark{ width:30px; height:30px; color:var(--cyan); flex:none; }
   .konb-wordmark .wm-mark svg{ width:100%; height:100%; display:block; }
+  .konb-mark-node{ fill:var(--brass); stroke:var(--navy); stroke-width:2; }
   .konb-wordmark .wm-name{ font-family:var(--font-display); font-size:23px; font-weight:600; letter-spacing:.01em; line-height:1; }
   .konb-wordmark .wm-sub{ font-family:var(--font-mono); font-size:8.5px; letter-spacing:.26em; text-transform:uppercase; color:var(--fg-3); margin-top:3px; }
   .konb-skip{ background:none; border:1px solid var(--border); color:var(--fg-2);
@@ -19510,6 +19899,7 @@ Object.assign(window, {
     box-shadow:0 24px 60px -22px rgba(0,0,0,.7), inset 0 1px 0 rgba(245,240,228,.05);
   }
   .konb-core svg{ width:54%; height:54%; }
+  .konb-core .konb-mark-node{ stroke:var(--navy); }
 
   /* ============ Steps + actions ============ */
   .konb-steps{ display:flex; gap:7px; align-items:center; margin:34px 0 0; }
@@ -19956,23 +20346,13 @@ Object.assign(window, {
 })();
 
 ;(function () {
-/* Home: the front door.
+/* Kodro home.
  *
- * Kodro's landing surface used to be the Prove cockpit, which opens on
- * "Deterministic evidence / Five fixed seeds vary traction, mass, sensor
- * noise...", a 23-item world dropdown and a "Run 5-seed proof" button. That is
- * an auditor's screen. A newcomer could not tell what the app is, what to click
- * first, or what they could make, and the 18 lessons (the actual product) were
- * two menus deep under More tools.
+ * The front door answers what Kodro is, what to do first and what stays on the
+ * device. It remains re-openable from the brand control in the studio.
  *
- * This screen answers exactly three questions in the first sentence and then
- * offers exactly three doors. Nothing else. Anything a first session does not
- * need lives behind those doors, not on this page.
- *
- * It is re-openable (the Home control in the top bar), so it is a place you can
- * return to rather than a one-off wizard you dismiss and never see again.
- *
- * Exposes: window.KodroHome({ onLessons, onDesign, onFreePlay, onClose, canClose })
+ * Exposes:
+ * window.KodroHome({ onLessons, onDesign, onFreePlay, onAuthor, onClose, canClose })
  */
 (function () {
   const {
@@ -19980,73 +20360,204 @@ Object.assign(window, {
     useRef
   } = React;
   const CSS = `
-.kh-back{position:fixed;inset:0;z-index:4300;background:var(--void);/* Above every app surface. At 70 the front door sat UNDER the toolbars,
-   the toast layer and the demo backdrop (80-4200), so the first thing a new
-   user sees could be painted over by the app it is introducing. */
-  display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
-.kh-wrap{width:min(940px,100%);margin:auto}
-.kh-brand{display:flex;align-items:center;gap:10px;margin:0 0 26px}
-.kh-brand-mark{width:26px;height:26px;color:var(--cyan);flex:none}
-.kh-brand-name{font-family:var(--font-display);font-size:22px;letter-spacing:.02em;color:var(--fg-1)}
-.kh-lede{font-family:var(--font-display);font-size:clamp(28px,4.4vw,44px);line-height:1.12;
-  color:var(--fg-1);margin:0 0 12px;max-width:22ch}
-.kh-sub{font-size:15px;line-height:1.55;color:var(--fg-2);margin:0 0 30px;max-width:56ch}
-.kh-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 0 26px}
-@media (max-width:760px){.kh-cards{grid-template-columns:1fr}}
-.kh-card{display:flex;flex-direction:column;gap:8px;text-align:left;padding:20px 18px 18px;
-  background:var(--navy);border:1px solid var(--border);border-radius:12px;color:var(--fg-1);
-  cursor:pointer;transition:border-color .18s var(--ease),transform .18s var(--ease),background .18s var(--ease)}
-.kh-card:hover,.kh-card:focus-visible{border-color:var(--cyan);background:var(--navy-2);transform:translateY(-2px)}
-.kh-card:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
-.kh-card-k{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
-.kh-card-t{font-family:var(--font-display);font-size:21px;line-height:1.2;color:var(--fg-1)}
-.kh-card-d{font-size:13.5px;line-height:1.5;color:var(--fg-2)}
-.kh-card-go{margin-top:auto;padding-top:10px;font-size:12.5px;color:var(--cyan)}
-.kh-make{border-top:1px solid var(--border-2);padding-top:18px}
-.kh-make-h{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--fg-3);margin:0 0 10px}
-.kh-make-list{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0;padding:0;list-style:none}
-.kh-make-list li{font-size:13.5px;color:var(--fg-2)}
-.kh-foot{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:22px;
-  font-size:12.5px;color:var(--fg-3);flex-wrap:wrap}
-.kh-close{background:none;border:1px solid var(--border);border-radius:8px;color:var(--fg-2);
-  padding:7px 14px;font-size:12.5px;cursor:pointer}
-.kh-close:hover{border-color:var(--cyan);color:var(--fg-1)}
+.kh-back{
+  position:fixed; inset:0; z-index:4300; overflow:auto;
+  color:var(--fg-1); background:
+    radial-gradient(circle at 84% 8%,color-mix(in srgb,var(--cyan) 13%,transparent),transparent 32%),
+    radial-gradient(circle at 10% 88%,color-mix(in srgb,var(--brass) 8%,transparent),transparent 34%),
+    var(--void);
+}
+.kh-back::before{
+  content:''; position:fixed; inset:0; pointer-events:none; opacity:.34;
+  background-image:
+    linear-gradient(color-mix(in srgb,var(--fg-1) 5%,transparent) 1px,transparent 1px),
+    linear-gradient(90deg,color-mix(in srgb,var(--fg-1) 5%,transparent) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:linear-gradient(120deg,#000,transparent 68%);
+}
+.kh-wrap{
+  position:relative; width:min(1120px,100%); min-height:100%;
+  margin:auto; padding:clamp(22px,4vw,48px);
+  display:flex; flex-direction:column; justify-content:center;
+}
+.kh-top{
+  display:flex; align-items:center; justify-content:space-between; gap:20px;
+  margin-bottom:clamp(34px,6vh,68px);
+}
+.kh-brand{display:flex;align-items:center;gap:13px}
+.kh-brand-mark{width:42px;height:42px;color:var(--cyan);flex:none}
+.kh-brand-mark svg{display:block;width:100%;height:100%}
+.kh-brand-mark .kh-mark-node{fill:var(--brass);stroke:var(--void);stroke-width:2}
+.kh-brand-name{font:650 27px/1 var(--font-display);letter-spacing:-.02em;color:var(--fg-1)}
+.kh-brand-tag{margin-top:3px;color:var(--fg-3);font:600 var(--text-xs)/1.2 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
+.kh-promises{display:flex;align-items:center;gap:8px 18px;list-style:none;margin:0;padding:0;flex-wrap:wrap;justify-content:flex-end}
+.kh-promises li{
+  position:relative;padding-left:14px;color:var(--fg-2);
+  font:600 var(--text-sm)/1.35 var(--font-mono);letter-spacing:.03em;
+}
+.kh-promises li::before{
+  content:'';position:absolute;left:0;top:.42em;width:6px;height:6px;border-radius:50%;background:var(--cyan);
+}
+.kh-hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(260px,.85fr);gap:clamp(34px,7vw,86px);align-items:center}
+.kh-copy{min-width:0}
+.kh-eyebrow{
+  display:flex;align-items:center;gap:10px;margin:0 0 15px;
+  color:var(--cyan);font:700 var(--text-sm)/1 var(--font-mono);letter-spacing:.13em;text-transform:uppercase;
+}
+.kh-eyebrow::before{content:'';width:30px;height:2px;background:currentColor}
+.kh-lede{
+  max-width:15ch;margin:0;color:var(--fg-1);
+  font:650 clamp(44px,7.2vw,82px)/.97 var(--font-display);letter-spacing:-.035em;
+}
+.kh-lede em{font-style:normal;color:var(--cyan)}
+.kh-sub{max-width:54ch;margin:22px 0 0;color:var(--fg-2);font-size:clamp(15px,1.7vw,18px);line-height:1.6}
+.kh-sub strong{color:var(--fg-1)}
+.kh-route{
+  position:relative;aspect-ratio:1;border:1px solid var(--border);
+  border-radius:38% 62% 58% 42% / 45% 36% 64% 55%;
+  display:grid;place-items:center;background:
+    radial-gradient(circle at 36% 32%,color-mix(in srgb,var(--cyan) 13%,var(--navy-2)),var(--navy) 64%);
+  box-shadow:var(--shadow-modal);overflow:hidden;
+}
+.kh-route::before,.kh-route::after{content:'';position:absolute;border:1px solid var(--border);border-radius:50%}
+.kh-route::before{inset:12%}
+.kh-route::after{inset:27%;border-style:dashed}
+.kh-route-mark{position:relative;z-index:1;width:54%;height:54%;color:var(--cyan)}
+.kh-route-mark .kh-mark-node{fill:var(--brass);stroke:var(--navy);stroke-width:2}
+.kh-route-note{
+  position:absolute;left:12%;right:12%;bottom:9%;z-index:2;text-align:center;
+  color:var(--fg-2);font:600 var(--text-xs)/1.4 var(--font-mono);letter-spacing:.05em;text-transform:uppercase;
+}
+.kh-choice-head{display:flex;align-items:end;justify-content:space-between;gap:16px;margin:clamp(40px,7vh,72px) 0 14px}
+.kh-choice-head h2{margin:0;color:var(--fg-1);font:650 clamp(22px,3vw,30px)/1.1 var(--font-display)}
+.kh-choice-head p{margin:0;color:var(--fg-3);font-size:var(--text-md)}
+.kh-cards{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
+.kh-card{
+  --door:var(--cyan);appearance:none;position:relative;grid-column:span 3;
+  min-width:0;min-height:220px;padding:20px;overflow:hidden;
+  display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;
+  border:1px solid var(--border);border-radius:var(--radius-xl);
+  color:var(--fg-1);background:linear-gradient(155deg,color-mix(in srgb,var(--door) 7%,var(--navy-2)),var(--navy));
+  box-shadow:var(--shadow-card);cursor:pointer;
+  transition:transform 160ms var(--ease),border-color 160ms var(--ease),box-shadow 160ms var(--ease);
+}
+.kh-card::after{
+  content:'';position:absolute;width:110px;height:110px;right:-42px;top:-46px;border-radius:50%;
+  border:18px solid color-mix(in srgb,var(--door) 10%,transparent);pointer-events:none;
+}
+.kh-card:hover,.kh-card:focus-visible{transform:translateY(-3px);border-color:var(--door);box-shadow:var(--shadow-menu)}
+.kh-card:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
+.kh-card-primary{grid-column:span 4;--door:var(--cyan)}
+.kh-card-design{--door:var(--brass)}
+.kh-card-play{--door:var(--mars)}
+.kh-card-author{grid-column:span 2;--door:var(--success)}
+.kh-card-top{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.kh-card-icon{
+  width:42px;height:42px;display:grid;place-items:center;border-radius:50%;
+  color:var(--door);background:color-mix(in srgb,var(--door) 10%,var(--void));border:1px solid color-mix(in srgb,var(--door) 34%,var(--border));
+}
+.kh-card-icon .ki{width:21px;height:21px;vertical-align:0}
+.kh-card-k{color:var(--fg-3);font:700 var(--text-xs)/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase}
+.kh-card-t{font:650 23px/1.1 var(--font-display);color:var(--fg-1)}
+.kh-card-d{color:var(--fg-2);font-size:var(--text-lg);line-height:1.5}
+.kh-card-go{margin-top:auto;color:var(--door);font:700 var(--text-sm)/1.3 var(--font-mono)}
+.kh-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:18px;
+  margin-top:20px;color:var(--fg-3);font-size:var(--text-md);
+}
+.kh-close{
+  appearance:none;min-height:38px;padding:7px 13px;border:1px solid var(--border);border-radius:var(--radius-md);
+  color:var(--fg-2);background:var(--navy);font:600 var(--text-md)/1.2 var(--font-body);cursor:pointer;
+}
+.kh-close:hover{color:var(--fg-1);border-color:var(--fg-3)}
+@media (max-width:900px){
+  .kh-hero{grid-template-columns:1fr}.kh-route{display:none}
+  .kh-card,.kh-card-primary{grid-column:span 6}.kh-card-author{grid-column:span 12;min-height:170px}
+}
+@media (max-width:600px){
+  .kh-wrap{justify-content:flex-start}.kh-top{align-items:flex-start;margin-bottom:34px}
+  .kh-promises{display:none}.kh-lede{font-size:clamp(40px,14vw,58px)}
+  .kh-choice-head{align-items:flex-start;flex-direction:column;margin-top:38px}
+  .kh-card,.kh-card-primary,.kh-card-author{grid-column:1 / -1;min-height:190px}
+  .kh-foot{align-items:flex-start;flex-direction:column}
+  .kh-close{width:100%}
+}
+@media (max-width:360px){
+  .kh-wrap{padding:18px}.kh-brand-tag{display:none}.kh-card{padding:17px}
+}
+@media (prefers-reduced-motion:reduce){
+  .kh-card{transition:none}.kh-card:hover,.kh-card:focus-visible{transform:none}
+}
 `;
-
-  // What you can actually make. Concrete outcomes, not capabilities: a reader
-  // should picture the finished thing, which is what "what can I make with
-  // this" really asks.
-  const MAKES = ['A rover that drives itself round a city without hitting anything', 'A robot arm that runs a repeating routine', 'A delivery robot you design from real motors and batteries'];
   const DOORS = [{
     key: 'lessons',
     kicker: 'Start here',
     title: 'Learn to code',
-    desc: '18 step by step lessons, ages 5 to 16. Each one gives you a working program to change, a goal, and feedback after every run.',
+    desc: 'Follow 18 guided lessons with a working program, a clear goal and feedback after every run.',
     go: 'Open the lessons',
+    icon: 'report',
+    className: 'kh-card-primary',
     handler: 'onLessons'
   }, {
     key: 'design',
     kicker: 'Build',
     title: 'Design a robot',
-    desc: 'Fit real motors and batteries and see the speed, range and stopping distance your design would actually have.',
-    go: 'Open the robot lab',
+    desc: 'Choose real hobby parts and compare the speed, range and stopping distance of your design.',
+    go: 'Open Robot Lab',
+    icon: 'rover',
+    className: 'kh-card-design',
     handler: 'onDesign'
   }, {
     key: 'play',
     kicker: 'Explore',
     title: 'Free play',
-    desc: 'Write Python and drive a robot through a city, a house, Mars or the deep sea. No goals, nothing to pass.',
+    desc: 'Write Python and drive through a city, a room, Mars, deep water or space with nothing to pass.',
     go: 'Open the studio',
+    icon: 'orbit',
+    className: 'kh-card-play',
     handler: 'onFreePlay'
   }, {
     key: 'author',
     kicker: 'Teach',
     title: 'Make a lesson',
-    desc: 'Draw an arena, say what counts as finished, and set it for your class. Save it to a file and send it to anyone.',
-    go: 'Open the Lesson Studio',
+    desc: 'Draw an arena, set the goal and save one lesson file to share.',
+    go: 'Open Lesson Studio',
+    icon: 'blocks',
+    className: 'kh-card-author',
     handler: 'onAuthor'
   }];
+  function BrandMark({
+    className
+  }) {
+    return /*#__PURE__*/React.createElement("svg", {
+      className: className || '',
+      viewBox: "0 0 64 64",
+      fill: "none",
+      "aria-hidden": "true",
+      focusable: "false"
+    }, /*#__PURE__*/React.createElement("path", {
+      d: "M18 8v48M19 32 49 9M20 32c11 0 15 17 31 24",
+      stroke: "currentColor",
+      strokeWidth: "6",
+      strokeLinecap: "round",
+      strokeLinejoin: "round"
+    }), /*#__PURE__*/React.createElement("circle", {
+      className: "kh-mark-node",
+      cx: "20",
+      cy: "32",
+      r: "4.8"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "49",
+      cy: "9",
+      r: "2.4",
+      fill: "currentColor"
+    }), /*#__PURE__*/React.createElement("circle", {
+      cx: "51",
+      cy: "56",
+      r: "2.4",
+      fill: "currentColor"
+    }));
+  }
   function KodroHome(props) {
     const firstRef = useRef(null);
     const backRef = useRef(null);
@@ -20058,16 +20569,12 @@ Object.assign(window, {
         el.textContent = CSS;
         document.head.appendChild(el);
       }
-      // Focus the primary door so a keyboard user lands on the thing we most
-      // want them to press, not on the page container.
       if (firstRef.current) firstRef.current.focus();
     }, []);
     useEffect(() => {
       function onKey(e) {
         if (e.key === 'Escape' && props.canClose && props.onClose) props.onClose();
         if (e.key !== 'Tab') return;
-        // Contain focus: this covers the whole app, so Tab must not walk into
-        // the studio behind it.
         const root = backRef.current;
         if (!root) return;
         const items = [...root.querySelectorAll('button')].filter(b => !b.disabled);
@@ -20085,7 +20592,7 @@ Object.assign(window, {
       document.addEventListener('keydown', onKey);
       return () => document.removeEventListener('keydown', onKey);
     }, [props.canClose, props.onClose]);
-    const mark = window.KodroOrbitSvg || '';
+    const icon = name => window.KodroIcons ? window.KodroIcons.el(name) : null;
     return /*#__PURE__*/React.createElement("div", {
       className: "kh-back",
       ref: backRef,
@@ -20094,51 +20601,69 @@ Object.assign(window, {
       "aria-label": "Kodro home"
     }, /*#__PURE__*/React.createElement("div", {
       className: "kh-wrap"
+    }, /*#__PURE__*/React.createElement("header", {
+      className: "kh-top"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "kh-brand"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "kh-brand-mark",
-      "aria-hidden": "true",
-      dangerouslySetInnerHTML: {
-        __html: mark
-      }
-    }), /*#__PURE__*/React.createElement("span", {
+      className: "kh-brand",
+      "aria-label": "Kodro"
+    }, /*#__PURE__*/React.createElement(BrandMark, {
+      className: "kh-brand-mark"
+    }), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
       className: "kh-brand-name"
-    }, "Kodro")), /*#__PURE__*/React.createElement("h1", {
-      className: "kh-lede"
-    }, "Design a robot. Program it. Watch it work."), /*#__PURE__*/React.createElement("p", {
+    }, "Kodro"), /*#__PURE__*/React.createElement("div", {
+      className: "kh-brand-tag"
+    }, "Robot design and coding"))), /*#__PURE__*/React.createElement("ul", {
+      className: "kh-promises",
+      "aria-label": "Privacy and access"
+    }, /*#__PURE__*/React.createElement("li", null, "Works offline"), /*#__PURE__*/React.createElement("li", null, "No account"), /*#__PURE__*/React.createElement("li", null, "Work stays here"))), /*#__PURE__*/React.createElement("main", null, /*#__PURE__*/React.createElement("section", {
+      className: "kh-hero",
+      "aria-labelledby": "kh-title"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "kh-copy"
+    }, /*#__PURE__*/React.createElement("p", {
+      className: "kh-eyebrow"
+    }, "Make code move"), /*#__PURE__*/React.createElement("h1", {
+      className: "kh-lede",
+      id: "kh-title"
+    }, "Design a robot. ", /*#__PURE__*/React.createElement("em", null, "Program it."), " Watch it work."), /*#__PURE__*/React.createElement("p", {
       className: "kh-sub"
-    }, "Test a robot in a simulated world before you build it for real. Everything runs on this machine, offline, for free."), /*#__PURE__*/React.createElement("div", {
+    }, "Build from real hobby parts, write Python and test the result in a simulated world.", /*#__PURE__*/React.createElement("strong", null, " Everything runs on this machine, for free."))), /*#__PURE__*/React.createElement("div", {
+      className: "kh-route",
+      "aria-hidden": "true"
+    }, /*#__PURE__*/React.createElement(BrandMark, {
+      className: "kh-route-mark"
+    }), /*#__PURE__*/React.createElement("span", {
+      className: "kh-route-note"
+    }, "Your idea becomes a route"))), /*#__PURE__*/React.createElement("div", {
+      className: "kh-choice-head"
+    }, /*#__PURE__*/React.createElement("h2", null, "What would you like to do?"), /*#__PURE__*/React.createElement("p", null, "New to Kodro? Choose Learn to code.")), /*#__PURE__*/React.createElement("div", {
       className: "kh-cards"
-    }, DOORS.map((d, i) => /*#__PURE__*/React.createElement("button", {
-      key: d.key,
+    }, DOORS.map((door, index) => /*#__PURE__*/React.createElement("button", {
+      key: door.key,
       type: "button",
-      className: "kh-card",
-      ref: i === 0 ? firstRef : null,
+      className: 'kh-card ' + door.className,
+      ref: index === 0 ? firstRef : null,
       onClick: () => {
-        const fn = props[d.handler];
+        const fn = props[door.handler];
         if (fn) fn();
       }
     }, /*#__PURE__*/React.createElement("span", {
+      className: "kh-card-top"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "kh-card-icon",
+      "aria-hidden": "true"
+    }, icon(door.icon)), /*#__PURE__*/React.createElement("span", {
       className: "kh-card-k"
-    }, d.kicker), /*#__PURE__*/React.createElement("span", {
+    }, door.kicker)), /*#__PURE__*/React.createElement("span", {
       className: "kh-card-t"
-    }, d.title), /*#__PURE__*/React.createElement("span", {
+    }, door.title), /*#__PURE__*/React.createElement("span", {
       className: "kh-card-d"
-    }, d.desc), /*#__PURE__*/React.createElement("span", {
+    }, door.desc), /*#__PURE__*/React.createElement("span", {
       className: "kh-card-go",
       "aria-hidden": "true"
-    }, d.go, " \u2192")))), /*#__PURE__*/React.createElement("div", {
-      className: "kh-make"
-    }, /*#__PURE__*/React.createElement("p", {
-      className: "kh-make-h"
-    }, "Things people make with it"), /*#__PURE__*/React.createElement("ul", {
-      className: "kh-make-list"
-    }, MAKES.map(m => /*#__PURE__*/React.createElement("li", {
-      key: m
-    }, m)))), /*#__PURE__*/React.createElement("div", {
+    }, door.go, " \u2192"))))), /*#__PURE__*/React.createElement("footer", {
       className: "kh-foot"
-    }, /*#__PURE__*/React.createElement("span", null, "Works offline. No account. Your work stays on this device."), props.canClose && /*#__PURE__*/React.createElement("button", {
+    }, /*#__PURE__*/React.createElement("span", null, "Kodro supports learning and early design comparison. It does not certify a physical robot."), props.canClose && /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: "kh-close",
       onClick: props.onClose
@@ -20849,7 +21374,11 @@ Object.assign(window, {
     }, 'Save to a file'), e('button', {
       className: 'btn-mini',
       onClick: props.onImport
-    }, 'Open a lesson file'), props.onDelete && Store.get(doc.id) && e('button', {
+    }, 'Open a lesson file'), props.onExportPack && Store.list().length > 1 && e('button', {
+      className: 'btn-mini',
+      onClick: props.onExportPack,
+      title: 'Save every lesson you have made as one file'
+    }, 'Save all ' + Store.list().length + ' to one file'), props.onDelete && Store.get(doc.id) && e('button', {
       className: 'btn-mini',
       onClick: function () {
         props.onDelete(doc.id);
@@ -23735,6 +24264,17 @@ Object.assign(window, {
       recordRunReport,
       gradeWithBridge,
       celebrate,
+      // Speaks a short line into the page's polite live region (app.jsx), so a
+      // pupil using a screen reader learns what the rover actually did. The
+      // viewport is a canvas and is therefore silent to assistive technology:
+      // without this, a blind pupil can write the program and has no way to
+      // find out what happened when they ran it.
+      //
+      // Deliberately driven from the SAME places the grade is: the collision
+      // counter, the sample collection, the halt paths. Narration built from a
+      // second source could tell the pupil one thing while the mark said
+      // another, which is the exact class of defect this release removed.
+      narrate,
       // The loaded lesson's own arena (base, samples, obstacles) in metres, or
       // null in free play. lessonApi below answers the lesson verbs from this
       // so the watched run and the graded run are the same world.
@@ -24033,8 +24573,12 @@ Object.assign(window, {
           case 'collect_sample':
             {
               const sm = near(0.3);
-              if (!sm) return false;
+              if (!sm) {
+                say('There was nothing here to pick up.');
+                return false;
+              }
               sm.collected = true;
+              say('Picked up a sample. ' + lw.samples.filter(x => !x.collected).length + ' left.');
               // Drop the marker from the viewport so the pupil sees the patch
               // disappear the moment it is collected.
               if (deps.setProps) deps.setProps(ps => ps.filter(p => p.lessonSampleId !== sm.id));
@@ -24102,12 +24646,25 @@ Object.assign(window, {
     // Shared crash reporting for a collision that halts a move OR a car's
     // arc turn: crash key (viewport jolt), voiced crash cue (R6), console
     // line, toast, memory reflection and the design-coach verdict.
+    // Say something into the live region, if the host supplied one. Guarded so
+    // the QA harnesses and the scenario validator, which build this engine with
+    // a partial deps object, are unaffected.
+    const say = text => {
+      try {
+        if (narrate) narrate(text);
+      } catch (e) {
+        void e;
+      }
+    };
     function reportCollision(crashed, robotBuild) {
       const s = live.current;
       // Count it for the watched-run grade. The lesson verdict is computed
       // from what the pupil saw, so a collision they watched has to be a
       // collision the grade knows about.
       runCollisionsRef.current += 1;
+      // Narrate from the counter, not from a separate hook, so what a pupil
+      // hears and what they are marked on are the same event.
+      say(crashed.type === 'wall' ? 'The robot hit the edge of the area.' : 'The robot hit ' + (crashed.type === 'pedestrian' ? 'a person' : crashed.type === 'vehicle' ? 'a vehicle' : crashed.type === 'robot' ? 'another robot' : 'a rock') + '.');
       setCrashKey(k => k + 1);
       const what = crashed.type === 'wall' ? 'arena boundary' : crashed.type === 'pedestrian' ? 'a pedestrian' : crashed.type === 'robot' ? 'another robot' : crashed.type === 'vehicle' ? 'a vehicle' : terrain.obstacleLabel.toLowerCase();
       sfx('crash', crashed.type);
@@ -24662,19 +25219,40 @@ Object.assign(window, {
       }
       const line = e && e.line;
       if (line) setActiveLine(line);
-      addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
+      // Say it in words the pupil can act on, keeping the interpreter's own
+      // text underneath. A six year old shown `Expected ")".` learns nothing;
+      // shown "A bracket is missing" they fix it. The original stays because a
+      // teacher looking over a shoulder needs the real message, and because an
+      // explanation the table did not recognise must not be invented.
+      const PE = window.KodroPupilErrors;
+      const readingAge = deps.currentLessonIdRef && deps.currentLessonIdRef.current && window.KODRO_READING_AGE || null;
+      const friendly = PE ? PE.explain(msg, {
+        readingAge: readingAge
+      }) : {
+        matched: false,
+        text: msg,
+        hint: ''
+      };
+      addConsole((line ? 'Line ' + line + ': ' : '') + friendly.text, 'err');
+      if (friendly.hint) addConsole(friendly.hint, 'sys');
+      if (friendly.matched) addConsole('(' + msg + ')', 'sys');
       // The console only exists in the expert layout. In the default simple
       // view it is not rendered at all, so a program that failed produced no
       // visible feedback whatsoever: the rover stopped and nothing said why.
       // The toast is present in every layout, so this is the one path that
       // guarantees a failure is seen.
-      showToast((line ? 'Line ' + line + ': ' : '') + msg, 'err');
+      showToast((line ? 'Line ' + line + ': ' : '') + (PE ? PE.explainLine(msg, {
+        readingAge: readingAge
+      }) : msg), 'err');
       // A8: an error mid-mission is a run result; a compile-time typo that
       // executed nothing is not.
       // A runtime error mid-mission is a run result: record it AND grade it, so
       // a lesson attempt that threw gets the same verdict + hint a crash does.
       // A compile-time typo that executed nothing (cmdCount 0) is neither. REPL
       // one-liners never reach here -- they returned above via haltProgram('idle').
+      say('The program stopped with an error. ' + (line ? 'Line ' + line + '. ' : '') + (PE ? PE.explainLine(msg, {
+        readingAge: readingAge
+      }) : msg));
       if (cmdCountRef.current > 0) {
         recordRunReport('error', msg, '');
         gradeOnce((line ? 'Line ' + line + ': ' : '') + msg);
@@ -24768,6 +25346,13 @@ Object.assign(window, {
         replRef.current = false;
         return;
       } // terminal line: stay quiet
+      // NOT narrated here. app.jsx already announces the finished run into its
+      // own polite region (runAnnouncement: outcome, verdict, distance, battery,
+      // proximity), and two polite regions firing at the same instant means a
+      // screen reader reads one over the other. This narration channel covers
+      // the moments DURING a run that the end-of-run summary cannot: the
+      // collision as it happens, the sample as it is picked up, the error at the
+      // line it was raised on.
       // SI3: record the run's measured facts (distance over wall time) so the
       // verification report's empirical block can cross-check the derived
       // top speed against something that actually happened.
@@ -28649,6 +29234,42 @@ say("Survey done")`
     // Extracted VERBATIM to window.KodroHooks.useProjectIO (hooks.jsx); its
     // external inputs are setSettingsOpen (save/open launch from the settings
     // popover and close it), showToast and addConsole.
+    // In-run narration for assistive technology. The viewport is a canvas, so a
+    // screen reader is told nothing while the rover drives: a pupil who cannot
+    // see it can write a program and never learn what it did.
+    //
+    // This channel carries the moments DURING a run (a collision as it happens,
+    // a sample as it is picked up, an error at its line). The end-of-run summary
+    // has its own region (runAnnouncement) and the two never fire together.
+    const [narration, setNarration] = useState('');
+    const narrationSeqRef = useRef(0);
+    function narrate(text) {
+      if (!text) return;
+      // A screen reader only re-reads a live region when its content CHANGES.
+      // Two identical events in a row (hitting the same wall twice) would be
+      // silent the second time, so each line carries an invisible counter.
+      narrationSeqRef.current += 1;
+      setNarration(String(text) + '​'.repeat(narrationSeqRef.current % 2));
+    }
+    // Describe the arena on request. Running a program to find out what is in
+    // the world is fine when you can see it and useless when you cannot, so the
+    // layout is readable BEFORE the first run. Built from the same lesson world
+    // the grader marks, in the pupil's own coordinates.
+    function describeScene() {
+      const lw = lessonWorldRef.current;
+      if (!lw) {
+        narrate('Free play in ' + (terrain.name || terrain.id) + '. No lesson goals. The robot starts in the middle facing east.');
+        return;
+      }
+      const at = (x, y) => x + ' across and ' + y + ' up';
+      const left = lw.samples.filter(sm => !sm.collected);
+      const parts = ['The area is ' + lw.width + ' by ' + lw.height + ' metres.'];
+      parts.push('The robot starts at ' + at(lw.base[0], lw.base[1]) + ', facing east.');
+      if (!left.length) parts.push('There are no flags to collect.');else parts.push(left.length + (left.length === 1 ? ' flag, at ' : ' flags, at ') + left.map(sm => at(sm.x, sm.y)).join(', and ') + '.');
+      if (!lw.obstacles.length) parts.push('There are no rocks.');else parts.push(lw.obstacles.length + (lw.obstacles.length === 1 ? ' rock, at ' : ' rocks, at ') + lw.obstacles.map(o => at(o.x, o.y)).join(', and ') + '.');
+      narrate(parts.join(' '));
+    }
+
     // Lesson Studio. `studioDoc` is null when closed; opening with a document
     // edits it, opening with a blank starts a new one.
     const [studioDoc, setStudioDoc] = useState(null);
@@ -28679,6 +29300,34 @@ say("Survey done")`
     function importLessonClick() {
       if (lessonFileRef.current) lessonFileRef.current.click();
     }
+    // Every lesson made on this device, as one file. A teacher who has built a
+    // half term of work should send one attachment, not six.
+    function exportPack() {
+      const S = window.KodroLessonStore;
+      if (!S) return;
+      const docs = S.list();
+      if (!docs.length) {
+        showToast('There are no lessons of your own to save yet.', 'err');
+        return;
+      }
+      try {
+        const name = 'Kodro lessons';
+        const blob = new Blob([S.packSerialize(name, docs)], {
+          type: 'application/json'
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = S.packFileName(name);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        showToast('Saved ' + docs.length + ' lesson' + (docs.length === 1 ? '' : 's') + ' to ' + S.packFileName(name) + '.', 'ok');
+      } catch (err) {
+        showToast('Could not save the pack: ' + (err && err.message ? err.message : 'unknown error'), 'err');
+      }
+    }
     function onLessonFilePicked(ev) {
       const S = window.KodroLessonStore;
       const f = ev.target.files && ev.target.files[0];
@@ -28690,7 +29339,34 @@ say("Survey done")`
       }
       const rd = new FileReader();
       rd.onload = () => {
-        const parsed = S.parse(String(rd.result || ''));
+        const text = String(rd.result || '');
+        // One control, either kind of file. A teacher should not have to know
+        // whether the thing a colleague sent holds one lesson or ten, and the
+        // two formats are distinguishable by their own version stamps.
+        let looksLikePack = false;
+        try {
+          looksLikePack = JSON.parse(text).kodroPack !== undefined;
+        } catch (err) {
+          void err;
+        }
+        if (looksLikePack) {
+          const pack = S.packParse(text);
+          pack.warnings.forEach(w => addConsole(w, 'sys'));
+          if (!pack.ok) {
+            showToast(pack.errors.join(' '), 'err');
+            return;
+          }
+          const res = S.packInstall(pack.accepted);
+          refreshAuthored();
+          // Report per lesson. "Imported 6 lessons" when two of them failed is
+          // the kind of half-truth that costs a teacher a lesson slot.
+          res.failed.forEach(f => addConsole('Could not save "' + f.title + '": ' + f.errors.join(' '), 'err'));
+          pack.rejected.forEach(r => addConsole('Skipped "' + r.title + '": ' + r.errors.join(' '), 'err'));
+          const skipped = res.failed.length + pack.rejected.length;
+          showToast('Added ' + res.saved.length + ' lesson' + (res.saved.length === 1 ? '' : 's') + ' from "' + pack.name + '"' + (skipped ? '. ' + skipped + ' could not be added, see the console.' : '.'), skipped ? 'err' : 'ok');
+          return;
+        }
+        const parsed = S.parse(text);
         if (!parsed.ok) {
           showToast(parsed.errors.join(' '), 'err');
           return;
@@ -29490,6 +30166,15 @@ say("Survey done")`
         codeHash: priorResult.codeHash || null
       } : null);
       setLessonAttempts(priorResult && !priorResult.passed ? priorResult.attempts || 0 : 0);
+      // Every lesson declares who it is written for. The error explanations
+      // read that so a six year old and a fifteen year old are not handed the
+      // same sentence, which is the whole reason reading_age exists in the
+      // schema and was, until now, only used to print an age badge.
+      try {
+        window.KODRO_READING_AGE = lesson.readingAge || null;
+      } catch (err) {
+        void err;
+      }
       setExtraHints(0);
       setSolutionShown(false);
       // Render the rover on the SAME world it is graded against. Without this
@@ -29887,7 +30572,8 @@ say("Survey done")`
       celebrate,
       lessonWorldRef,
       lessonMarks,
-      currentLessonIdRef
+      currentLessonIdRef,
+      narrate
     }) : {
       onRun: function () {},
       onStep: function () {},
@@ -30498,6 +31184,13 @@ say("Survey done")`
       }
     }, I.reset, "Reset"), /*#__PURE__*/React.createElement("button", {
       className: "ctrl",
+      onClick: () => {
+        setRunToolsOpen(false);
+        describeScene();
+      },
+      "aria-label": "Describe the scene out loud"
+    }, I.report, "Describe"), /*#__PURE__*/React.createElement("button", {
+      className: "ctrl",
       title: "Validate this program across 5 randomised seeds",
       onClick: () => {
         setRunToolsOpen(false);
@@ -30659,7 +31352,7 @@ say("Survey done")`
     }), /*#__PURE__*/React.createElement("input", {
       ref: lessonFileRef,
       type: "file",
-      accept: ".kodrolesson,.json,application/json",
+      accept: ".kodrolesson,.kodropack,.json,application/json",
       style: {
         display: 'none'
       },
@@ -30906,6 +31599,11 @@ say("Survey done")`
       "aria-live": "polite",
       "aria-atomic": "true"
     }, runAnnouncement), /*#__PURE__*/React.createElement("div", {
+      className: "sr-only",
+      role: "status",
+      "aria-live": "polite",
+      "aria-atomic": "true"
+    }, narration), /*#__PURE__*/React.createElement("div", {
       className: "panel",
       style: {
         gridColumn: 1
@@ -32136,6 +32834,7 @@ say("Survey done")`
         addConsole('Saved your lesson: ' + doc.title, 'sys');
       },
       onExport: exportLesson,
+      onExportPack: exportPack,
       onImport: importLessonClick,
       onDelete: id => {
         const S = window.KodroLessonStore;

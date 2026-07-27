@@ -834,6 +834,17 @@
       // cross-concern callbacks
       addConsole, showToast, sfx, motorSfx, motorRest, recordRunReport,
       gradeWithBridge, celebrate,
+      // Speaks a short line into the page's polite live region (app.jsx), so a
+      // pupil using a screen reader learns what the rover actually did. The
+      // viewport is a canvas and is therefore silent to assistive technology:
+      // without this, a blind pupil can write the program and has no way to
+      // find out what happened when they ran it.
+      //
+      // Deliberately driven from the SAME places the grade is: the collision
+      // counter, the sample collection, the halt paths. Narration built from a
+      // second source could tell the pupil one thing while the mark said
+      // another, which is the exact class of defect this release removed.
+      narrate,
       // The loaded lesson's own arena (base, samples, obstacles) in metres, or
       // null in free play. lessonApi below answers the lesson verbs from this
       // so the watched run and the graded run are the same world.
@@ -1073,8 +1084,10 @@
             return Math.hypot(rx - lw.base[0], ry - lw.base[1]) <= 0.3;
           case 'collect_sample': {
             const sm = near(0.3);
-            if (!sm) return false;
+            if (!sm) { say('There was nothing here to pick up.'); return false; }
             sm.collected = true;
+            say('Picked up a sample. '
+              + lw.samples.filter((x) => !x.collected).length + ' left.');
             // Drop the marker from the viewport so the pupil sees the patch
             // disappear the moment it is collected.
             if (deps.setProps) deps.setProps((ps) => ps.filter((p) => p.lessonSampleId !== sm.id));
@@ -1131,12 +1144,24 @@
     // Shared crash reporting for a collision that halts a move OR a car's
     // arc turn: crash key (viewport jolt), voiced crash cue (R6), console
     // line, toast, memory reflection and the design-coach verdict.
+    // Say something into the live region, if the host supplied one. Guarded so
+    // the QA harnesses and the scenario validator, which build this engine with
+    // a partial deps object, are unaffected.
+    const say = (text) => { try { if (narrate) narrate(text); } catch (e) { void e; } };
+
     function reportCollision(crashed, robotBuild) {
       const s = live.current;
       // Count it for the watched-run grade. The lesson verdict is computed
       // from what the pupil saw, so a collision they watched has to be a
       // collision the grade knows about.
       runCollisionsRef.current += 1;
+      // Narrate from the counter, not from a separate hook, so what a pupil
+      // hears and what they are marked on are the same event.
+      say(crashed.type === 'wall'
+        ? 'The robot hit the edge of the area.'
+        : 'The robot hit ' + (crashed.type === 'pedestrian' ? 'a person'
+          : crashed.type === 'vehicle' ? 'a vehicle'
+          : crashed.type === 'robot' ? 'another robot' : 'a rock') + '.');
       setCrashKey(k => k + 1);
       const what = crashed.type === 'wall' ? 'arena boundary'
         : crashed.type === 'pedestrian' ? 'a pedestrian'
@@ -1559,19 +1584,31 @@
       }
       const line = e && e.line;
       if (line) setActiveLine(line);
-      addConsole((line ? 'Line ' + line + ': ' : '') + msg, 'err');
+      // Say it in words the pupil can act on, keeping the interpreter's own
+      // text underneath. A six year old shown `Expected ")".` learns nothing;
+      // shown "A bracket is missing" they fix it. The original stays because a
+      // teacher looking over a shoulder needs the real message, and because an
+      // explanation the table did not recognise must not be invented.
+      const PE = window.KodroPupilErrors;
+      const readingAge = (deps.currentLessonIdRef && deps.currentLessonIdRef.current && window.KODRO_READING_AGE) || null;
+      const friendly = PE ? PE.explain(msg, { readingAge: readingAge }) : { matched: false, text: msg, hint: '' };
+      addConsole((line ? 'Line ' + line + ': ' : '') + friendly.text, 'err');
+      if (friendly.hint) addConsole(friendly.hint, 'sys');
+      if (friendly.matched) addConsole('(' + msg + ')', 'sys');
       // The console only exists in the expert layout. In the default simple
       // view it is not rendered at all, so a program that failed produced no
       // visible feedback whatsoever: the rover stopped and nothing said why.
       // The toast is present in every layout, so this is the one path that
       // guarantees a failure is seen.
-      showToast((line ? 'Line ' + line + ': ' : '') + msg, 'err');
+      showToast((line ? 'Line ' + line + ': ' : '') + (PE ? PE.explainLine(msg, { readingAge: readingAge }) : msg), 'err');
       // A8: an error mid-mission is a run result; a compile-time typo that
       // executed nothing is not.
       // A runtime error mid-mission is a run result: record it AND grade it, so
       // a lesson attempt that threw gets the same verdict + hint a crash does.
       // A compile-time typo that executed nothing (cmdCount 0) is neither. REPL
       // one-liners never reach here -- they returned above via haltProgram('idle').
+      say('The program stopped with an error. ' + (line ? 'Line ' + line + '. ' : '')
+        + (PE ? PE.explainLine(msg, { readingAge: readingAge }) : msg));
       if (cmdCountRef.current > 0) { recordRunReport('error', msg, ''); gradeOnce((line ? 'Line ' + line + ': ' : '') + msg); }
       haltProgram('error');
     }
@@ -1660,6 +1697,13 @@
       live.current.moving = false; sync();
       setRunState('done');
       if (replRef.current) { replRef.current = false; return; }  // terminal line: stay quiet
+      // NOT narrated here. app.jsx already announces the finished run into its
+      // own polite region (runAnnouncement: outcome, verdict, distance, battery,
+      // proximity), and two polite regions firing at the same instant means a
+      // screen reader reads one over the other. This narration channel covers
+      // the moments DURING a run that the end-of-run summary cannot: the
+      // collision as it happens, the sample as it is picked up, the error at the
+      // line it was raised on.
       // SI3: record the run's measured facts (distance over wall time) so the
       // verification report's empirical block can cross-check the derived
       // top speed against something that actually happened.

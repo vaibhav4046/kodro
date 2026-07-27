@@ -616,6 +616,47 @@
     // Extracted VERBATIM to window.KodroHooks.useProjectIO (hooks.jsx); its
     // external inputs are setSettingsOpen (save/open launch from the settings
     // popover and close it), showToast and addConsole.
+    // In-run narration for assistive technology. The viewport is a canvas, so a
+    // screen reader is told nothing while the rover drives: a pupil who cannot
+    // see it can write a program and never learn what it did.
+    //
+    // This channel carries the moments DURING a run (a collision as it happens,
+    // a sample as it is picked up, an error at its line). The end-of-run summary
+    // has its own region (runAnnouncement) and the two never fire together.
+    const [narration, setNarration] = useState('');
+    const narrationSeqRef = useRef(0);
+    function narrate(text) {
+      if (!text) return;
+      // A screen reader only re-reads a live region when its content CHANGES.
+      // Two identical events in a row (hitting the same wall twice) would be
+      // silent the second time, so each line carries an invisible counter.
+      narrationSeqRef.current += 1;
+      setNarration(String(text) + '​'.repeat(narrationSeqRef.current % 2));
+    }
+    // Describe the arena on request. Running a program to find out what is in
+    // the world is fine when you can see it and useless when you cannot, so the
+    // layout is readable BEFORE the first run. Built from the same lesson world
+    // the grader marks, in the pupil's own coordinates.
+    function describeScene() {
+      const lw = lessonWorldRef.current;
+      if (!lw) {
+        narrate('Free play in ' + (terrain.name || terrain.id)
+          + '. No lesson goals. The robot starts in the middle facing east.');
+        return;
+      }
+      const at = (x, y) => x + ' across and ' + y + ' up';
+      const left = lw.samples.filter((sm) => !sm.collected);
+      const parts = ['The area is ' + lw.width + ' by ' + lw.height + ' metres.'];
+      parts.push('The robot starts at ' + at(lw.base[0], lw.base[1]) + ', facing east.');
+      if (!left.length) parts.push('There are no flags to collect.');
+      else parts.push(left.length + (left.length === 1 ? ' flag, at ' : ' flags, at ')
+        + left.map((sm) => at(sm.x, sm.y)).join(', and ') + '.');
+      if (!lw.obstacles.length) parts.push('There are no rocks.');
+      else parts.push(lw.obstacles.length + (lw.obstacles.length === 1 ? ' rock, at ' : ' rocks, at ')
+        + lw.obstacles.map((o) => at(o.x, o.y)).join(', and ') + '.');
+      narrate(parts.join(' '));
+    }
+
     // Lesson Studio. `studioDoc` is null when closed; opening with a document
     // edits it, opening with a blank starts a new one.
     const [studioDoc, setStudioDoc] = useState(null);
@@ -641,6 +682,27 @@
     function importLessonClick() {
       if (lessonFileRef.current) lessonFileRef.current.click();
     }
+    // Every lesson made on this device, as one file. A teacher who has built a
+    // half term of work should send one attachment, not six.
+    function exportPack() {
+      const S = window.KodroLessonStore;
+      if (!S) return;
+      const docs = S.list();
+      if (!docs.length) { showToast('There are no lessons of your own to save yet.', 'err'); return; }
+      try {
+        const name = 'Kodro lessons';
+        const blob = new Blob([S.packSerialize(name, docs)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = S.packFileName(name);
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        showToast('Saved ' + docs.length + ' lesson' + (docs.length === 1 ? '' : 's')
+          + ' to ' + S.packFileName(name) + '.', 'ok');
+      } catch (err) {
+        showToast('Could not save the pack: ' + (err && err.message ? err.message : 'unknown error'), 'err');
+      }
+    }
     function onLessonFilePicked(ev) {
       const S = window.KodroLessonStore;
       const f = ev.target.files && ev.target.files[0];
@@ -649,7 +711,30 @@
       if (f.size > 262144) { showToast('That file is larger than 256 KB, so it is not a lesson.', 'err'); return; }
       const rd = new FileReader();
       rd.onload = () => {
-        const parsed = S.parse(String(rd.result || ''));
+        const text = String(rd.result || '');
+        // One control, either kind of file. A teacher should not have to know
+        // whether the thing a colleague sent holds one lesson or ten, and the
+        // two formats are distinguishable by their own version stamps.
+        let looksLikePack = false;
+        try { looksLikePack = JSON.parse(text).kodroPack !== undefined; } catch (err) { void err; }
+        if (looksLikePack) {
+          const pack = S.packParse(text);
+          pack.warnings.forEach(w => addConsole(w, 'sys'));
+          if (!pack.ok) { showToast(pack.errors.join(' '), 'err'); return; }
+          const res = S.packInstall(pack.accepted);
+          refreshAuthored();
+          // Report per lesson. "Imported 6 lessons" when two of them failed is
+          // the kind of half-truth that costs a teacher a lesson slot.
+          res.failed.forEach(f => addConsole('Could not save "' + f.title + '": ' + f.errors.join(' '), 'err'));
+          pack.rejected.forEach(r => addConsole('Skipped "' + r.title + '": ' + r.errors.join(' '), 'err'));
+          const skipped = res.failed.length + pack.rejected.length;
+          showToast('Added ' + res.saved.length + ' lesson' + (res.saved.length === 1 ? '' : 's')
+            + ' from "' + pack.name + '"'
+            + (skipped ? '. ' + skipped + ' could not be added, see the console.' : '.'),
+            skipped ? 'err' : 'ok');
+          return;
+        }
+        const parsed = S.parse(text);
         if (!parsed.ok) { showToast(parsed.errors.join(' '), 'err'); return; }
         parsed.warnings.forEach(w => addConsole(w, 'sys'));
         // Open it in the Studio rather than saving it silently: a lesson from
@@ -1216,6 +1301,11 @@
         }
         : null);
       setLessonAttempts(priorResult && !priorResult.passed ? (priorResult.attempts || 0) : 0);
+      // Every lesson declares who it is written for. The error explanations
+      // read that so a six year old and a fifteen year old are not handed the
+      // same sentence, which is the whole reason reading_age exists in the
+      // schema and was, until now, only used to print an age badge.
+      try { window.KODRO_READING_AGE = lesson.readingAge || null; } catch (err) { void err; }
       setExtraHints(0);
       setSolutionShown(false);
       // Render the rover on the SAME world it is graded against. Without this
@@ -1466,7 +1556,7 @@
             setLessonBuffers, setPrograms, setWorldLoading,
             addConsole, showToast, sfx, motorSfx, motorRest, recordRunReport,
             gradeWithBridge, celebrate,
-            lessonWorldRef, lessonMarks, currentLessonIdRef,
+            lessonWorldRef, lessonMarks, currentLessonIdRef, narrate,
           })
         : { onRun: function () {}, onStep: function () {}, onReset: function () {}, onTerrain: function () {}, runReplLine: function () {}, onCodeChange: function () {}, exportReportClick: function () {}, queueReplaySeed: function () {} };
 
@@ -1866,6 +1956,14 @@
             <div className={'run-secondary' + (runToolsOpen ? ' is-open' : '')} role={simpleExperience ? 'group' : undefined} aria-label={simpleExperience ? 'More run tools' : undefined}>
             <button className="ctrl" onClick={() => { setRunToolsOpen(false); onStep(); }} disabled={runState === 'running'}>{I.step}Step</button>
             <button className="ctrl ctrl-stop" onClick={() => { setRunToolsOpen(false); onReset(); }}>{I.reset}Reset</button>
+            {/* Reading the world out loud. Sighted pupils learn the layout by
+                looking at it; the canvas tells a screen reader nothing at all,
+                so without this the only way to find out where the flag is would
+                be to run a program and infer it from the result. Built from the
+                lesson world the grader marks, so it cannot describe a different
+                arena from the one being scored. */}
+            <button className="ctrl" onClick={() => { setRunToolsOpen(false); describeScene(); }}
+              aria-label="Describe the scene out loud">{I.report}Describe</button>
             {/* Validate lives in the main run bar, next to Run, because it is a
                 run-family action (it drives the program across 5 seeds) and a
                 real user reported they could not find it when it was buried as
@@ -1906,7 +2004,7 @@
           </div>
           <button className="icon-btn btn-vibe companion-btn" title={aiInfo.available ? 'Open Companion (' + aiInfo.model + ')' : 'Open Companion. Direct robot and world actions work without a model.'} aria-label="Open Kodro Companion" onClick={() => setVibeOpen(true)}>{KI('vibe')}<span className="icon-btn-label">Companion</span><span className={'companion-dot' + (aiInfo.available ? ' ready' : '')} aria-hidden="true"></span></button>
           <input ref={projectFileRef} type="file" accept=".kodro,.json,application/json" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} onChange={onProjectFilePicked} />
-          <input ref={lessonFileRef} type="file" accept=".kodrolesson,.json,application/json" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} onChange={onLessonFilePicked} />
+          <input ref={lessonFileRef} type="file" accept=".kodrolesson,.kodropack,.json,application/json" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} onChange={onLessonFilePicked} />
           <div className="settings-wrap">
             <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings for theme, sound and readable text" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => { setMoreToolsOpen(false); setSettingsOpen(o => !o); }}>{KI('gear')}<span className="icon-btn-label">Settings</span></button>
             {settingsOpen && (
@@ -2042,6 +2140,10 @@
               .sr-only is clip-based, not display:none, so it stays in the
               accessibility tree while taking no visual space. */}
           <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{runAnnouncement}</div>
+          {/* In-run narration. Separate from runAnnouncement above because that
+              one describes a FINISHED run and this one describes a run in
+              progress; they are never populated at the same moment. */}
+          <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{narration}</div>
           {/* left column: editor + console */}
           <div className="panel" style={{ gridColumn: 1 }}>
             {showSimpleCockpit && (
@@ -2819,6 +2921,7 @@
               addConsole('Saved your lesson: ' + doc.title, 'sys');
             }}
             onExport={exportLesson}
+            onExportPack={exportPack}
             onImport={importLessonClick}
             onDelete={(id) => {
               const S = window.KodroLessonStore;

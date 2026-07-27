@@ -487,6 +487,92 @@
     return (window.KODRO_NOW ? window.KODRO_NOW() : Date.now());
   }
 
+  // --- lesson packs ------------------------------------------------------
+  //
+  // One lesson per file is right for sharing a single idea and wrong for
+  // sharing a term of work. A teacher who has built six lessons for a half term
+  // should send one file, not six, and the colleague who receives it should get
+  // all six or a clear account of which ones were refused and why.
+  //
+  // A pack is deliberately just a list of the same documents, with the same
+  // validator applied to each. There is no pack-specific lesson format, so a
+  // lesson cannot be valid inside a pack and invalid outside it.
+  var PACK_VERSION = 1;
+  //: A pack has to stay inside the same 256 KB ceiling as everything else the
+  //: app reads from disk, so the cap is on the FILE, and the per-lesson count is
+  //: capped separately so one pack cannot fill the whole device library.
+  var MAX_PACK_LESSONS = 40;
+
+  function packSerialize(name, docs) {
+    return JSON.stringify({
+      kodroPack: PACK_VERSION,
+      name: String(name || 'Kodro lessons'),
+      savedAt: nowMs(),
+      lessons: docs,
+    }, null, 2) + '\n';
+  }
+
+  function packFileName(name) {
+    return slug(name || 'kodro-lessons') + '.kodropack';
+  }
+
+  // Read a pack file. Returns {ok, name, accepted:[doc], rejected:[{title,errors}],
+  // warnings}. A pack with some bad lessons is NOT rejected wholesale: the good
+  // ones are offered and the bad ones are named, because throwing away five
+  // working lessons over one broken one helps nobody.
+  function packParse(text) {
+    if (typeof text !== 'string') return { ok: false, errors: ['Nothing to read.'], accepted: [], rejected: [], warnings: [] };
+    if (text.length > MAX_TEXT) return { ok: false, errors: ['That file is larger than 256 KB.'], accepted: [], rejected: [], warnings: [] };
+    var raw;
+    try {
+      raw = JSON.parse(text);
+    } catch (e) {
+      return { ok: false, errors: ['That file is not readable (it is not valid JSON).'], accepted: [], rejected: [], warnings: [] };
+    }
+    if (!raw || raw.kodroPack !== PACK_VERSION) {
+      return {
+        ok: false, accepted: [], rejected: [], warnings: [],
+        errors: [raw && raw.kodroLesson
+          ? 'That is a single lesson, not a pack. Use "Open a lesson file" instead.'
+          : 'That file is not a Kodro lesson pack.'],
+      };
+    }
+    if (!Array.isArray(raw.lessons) || raw.lessons.length === 0) {
+      return { ok: false, errors: ['That pack contains no lessons.'], accepted: [], rejected: [], warnings: [] };
+    }
+    var accepted = [], rejected = [], warnings = [];
+    for (var i = 0; i < raw.lessons.length; i++) {
+      if (accepted.length >= MAX_PACK_LESSONS) {
+        warnings.push('The pack held more than ' + MAX_PACK_LESSONS + ' lessons; the rest were not read.');
+        break;
+      }
+      // Route every lesson through the SAME parser a single file uses, so an
+      // unknown field is dropped and reported here exactly as it would be there.
+      var one = parse(JSON.stringify(raw.lessons[i]));
+      if (one.ok) { accepted.push(one.doc); one.warnings.forEach(function (w) { warnings.push(w); }); }
+      else rejected.push({ title: (raw.lessons[i] && raw.lessons[i].title) || 'lesson ' + (i + 1), errors: one.errors });
+    }
+    return {
+      ok: accepted.length > 0,
+      name: String(raw.name || 'Kodro lessons'),
+      accepted: accepted, rejected: rejected, warnings: warnings,
+      errors: accepted.length ? [] : ['None of the lessons in that pack could be read.'],
+    };
+  }
+
+  // Save every accepted lesson from a pack. Returns a per-lesson outcome rather
+  // than one boolean, because "it half worked" is the likely case (a name
+  // collision, a full device) and the teacher needs to know which ones landed.
+  function packInstall(docs) {
+    var saved = [], failed = [];
+    for (var i = 0; i < docs.length; i++) {
+      var r = save(docs[i]);
+      if (r.ok) saved.push(docs[i].title);
+      else failed.push({ title: docs[i].title, errors: r.errors });
+    }
+    return { saved: saved, failed: failed };
+  }
+
   window.KodroLessonStore = {
     VERSION: VERSION,
     STORAGE_KEY: STORAGE_KEY,
@@ -508,5 +594,11 @@
     parse: parse,
     blank: blank,
     makeId: makeId,
+    PACK_VERSION: PACK_VERSION,
+    MAX_PACK_LESSONS: MAX_PACK_LESSONS,
+    packSerialize: packSerialize,
+    packFileName: packFileName,
+    packParse: packParse,
+    packInstall: packInstall,
   };
 })();

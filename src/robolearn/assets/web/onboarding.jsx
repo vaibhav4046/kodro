@@ -9,27 +9,24 @@
  * the Robot Lab would. Mounting and persistence ("seen it already") are owned
  * by App; this module only renders the flow and calls onClose() when done.
  *
- * Visual language is unified with the studio (styles.css :root): the Orbital
- * Rover token system - void/navy surfaces, paper text, cyan = go, mars/brass
- * accents, Cormorant display + Inter Tight body + JetBrains Mono labels. The
- * landing leads with a large serif headline against a mono eyebrow, an orbital
- * brand motif on a starfield, and a capability strip - an intentional editorial
- * split, not a centred template. Atmosphere is CSS-only and GPU-friendly, and
- * the whole motion path is gated behind prefers-reduced-motion.
+ * Visual language is unified with the studio: layered navy surfaces, warm
+ * paper text, teal actions and the routed K mark. The landing leads with a
+ * large serif headline, a mono eyebrow and a capability strip. Atmosphere is
+ * CSS-only and the whole motion path is gated behind reduced motion.
  *
  * Exposes: window.KodroOnboarding({ onClose })
  */
 (function () {
   const { useState, useEffect } = React;
 
-  // Brand mark: the same orbit + trajectory + robot-node mark used in the navbar
-  // (ORBIT_SVG), inlined so onboarding has no dependency on app.jsx.
+  // Brand mark: a route becomes the letter K. The joint is the program's
+  // decision point and the two small end nodes are destinations.
   const MARK = (
     <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="32" cy="32" r="21" stroke="currentColor" strokeWidth="2.4" opacity="0.2" />
-      <path d="M15 44 A21 21 0 1 1 44 15" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" opacity="0.9" />
-      <circle cx="15" cy="44" r="2.6" fill="currentColor" opacity="0.45" />
-      <circle cx="44" cy="15" r="6.4" fill="currentColor" />
+      <path d="M18 8v48M19 32 49 9M20 32c11 0 15 17 31 24" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle className="konb-mark-node" cx="20" cy="32" r="4.8" />
+      <circle cx="49" cy="9" r="2.4" fill="currentColor" />
+      <circle cx="51" cy="56" r="2.4" fill="currentColor" />
     </svg>
   );
 
@@ -81,6 +78,7 @@
   .konb-wordmark{ display:flex; align-items:center; gap:11px; }
   .konb-wordmark .wm-mark{ width:30px; height:30px; color:var(--cyan); flex:none; }
   .konb-wordmark .wm-mark svg{ width:100%; height:100%; display:block; }
+  .konb-mark-node{ fill:var(--brass); stroke:var(--navy); stroke-width:2; }
   .konb-wordmark .wm-name{ font-family:var(--font-display); font-size:23px; font-weight:600; letter-spacing:.01em; line-height:1; }
   .konb-wordmark .wm-sub{ font-family:var(--font-mono); font-size:8.5px; letter-spacing:.26em; text-transform:uppercase; color:var(--fg-3); margin-top:3px; }
   .konb-skip{ background:none; border:1px solid var(--border); color:var(--fg-2);
@@ -138,6 +136,7 @@
     box-shadow:0 24px 60px -22px rgba(0,0,0,.7), inset 0 1px 0 rgba(245,240,228,.05);
   }
   .konb-core svg{ width:54%; height:54%; }
+  .konb-core .konb-mark-node{ stroke:var(--navy); }
 
   /* ============ Steps + actions ============ */
   .konb-steps{ display:flex; gap:7px; align-items:center; margin:34px 0 0; }

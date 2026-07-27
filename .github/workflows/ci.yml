@@ -167,6 +167,14 @@ jobs:
       - name: Lesson Studio document + store gate
         run: node scripts/qa_lesson_studio.mjs
 
+      # An error message a child cannot act on is a dead end. This drives real
+      # programs through the real interpreter and asserts the explanation is
+      # actionable, that an unrecognised error passes through unchanged rather
+      # than being invented, and that a suggested spelling names a command that
+      # actually exists.
+      - name: Pupil-facing error explanations gate
+        run: node scripts/qa_pupil_errors.mjs
+
       - name: Cross-engine fuzz gate
         run: node scripts/qa_fuzz.mjs
 

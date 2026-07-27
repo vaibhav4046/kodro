@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Kodro one-colour mark</title>
+  <desc id="desc">A routed letter K with a circular decision node.</desc>
+  <g fill="none" stroke="#000" stroke-width="54" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M154 92v328M158 256 374 96M160 256c76 0 108 112 222 164"/>
+  </g>
+  <circle cx="160" cy="256" r="34" fill="#000"/>
+  <circle cx="374" cy="96" r="17" fill="#000"/>
+  <circle cx="382" cy="420" r="17" fill="#000"/>
+</svg>

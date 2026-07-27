@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Kodro maskable icon</title>
+  <desc id="desc">A routed letter K with a bright decision node.</desc>
+  <rect width="512" height="512" fill="#09111d"/>
+  <path d="M168 116v280M172 256 354 120M174 256c64 0 92 94 188 140"
+        fill="none" stroke="#62ddd0" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="174" cy="256" r="31" fill="#ffd166"/>
+  <circle cx="354" cy="120" r="15" fill="#f7f2e8"/>
+  <circle cx="362" cy="396" r="15" fill="#f7f2e8"/>
+</svg>

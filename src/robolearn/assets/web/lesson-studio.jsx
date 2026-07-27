@@ -445,6 +445,10 @@
             onClick: function () { if (props.onExport) props.onExport(doc); },
           }, 'Save to a file'),
           e('button', { className: 'btn-mini', onClick: props.onImport }, 'Open a lesson file'),
+          props.onExportPack && Store.list().length > 1 && e('button', {
+            className: 'btn-mini', onClick: props.onExportPack,
+            title: 'Save every lesson you have made as one file',
+          }, 'Save all ' + Store.list().length + ' to one file'),
           props.onDelete && Store.get(doc.id) && e('button', {
             className: 'btn-mini', onClick: function () { props.onDelete(doc.id); },
           }, 'Delete this lesson'))));

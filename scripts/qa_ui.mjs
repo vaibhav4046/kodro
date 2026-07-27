@@ -959,6 +959,41 @@ function checkLessonsEntry(chrome) {
   return { pass: false, reason: `lessons entry incomplete (button: ${hasButton}, picker: ${hasPicker}, library: ${hasLibrary}, mission: ${hasMission})` };
 }
 
+// SCREEN READER NARRATION — the 3D viewport is a canvas, so assistive
+// technology is told nothing at all while the rover drives. A pupil who cannot
+// see it could write a program and never learn what happened when they ran it,
+// nor where the flag was to begin with.
+//
+// Two things are asserted. The arena can be read out BEFORE running, from the
+// same lesson world the grader marks, so a blind pupil is not reduced to
+// inferring the layout from failed attempts. And the description is accurate:
+// 04_selection's world is 6 by 6, base at (1,1), one flag at (5,1), one rock at
+// (3,1), so those exact numbers must appear.
+function checkNarration(chrome) {
+  const url = `${BASE}?world=mars&robot=rover&q=low&mode=classroom&experience=expert&lesson=04_selection&describe=1`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_narration', url, { vtime: 14000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 140)}` };
+  // A polite live region carrying the description.
+  const regions = [...dom.matchAll(/<div class="sr-only" role="status" aria-live="polite" aria-atomic="true">([\s\S]*?)<\/div>/g)]
+    .map((m) => m[1].replace(/<[^>]+>/g, '').replace(/​/g, '').trim())
+    .filter(Boolean);
+  const spoken = regions.join(' | ');
+  const hasRegion = regions.length > 0;
+  const size = /6 by 6 metres/.test(spoken);
+  const start = /starts at 1 across and 1 up/.test(spoken);
+  const flag = /1 flag, at 5 across and 1 up/.test(spoken);
+  const rock = /1 rock, at 3 across and 1 up/.test(spoken);
+  if (hasRegion && size && start && flag && rock) {
+    return { pass: true, reason: 'the arena is described out loud before any run, and matches the world the grader marks' };
+  }
+  return {
+    pass: false,
+    reason: `narration incomplete (region: ${hasRegion}, size: ${size}, start: ${start}, flag: ${flag}, rock: ${rock}) spoken="${spoken.slice(0, 180)}"`,
+  };
+}
+
 // AUTHORED LESSON (Lesson Studio) — a lesson made on this device must be a
 // first-class lesson, not a second-class copy. This drives the whole path: a
 // saved document is hydrated at start-up, registered with the grader, merged
@@ -1454,6 +1489,11 @@ function cleanup() {
   const replay = checkReplay(chrome);
   behaviour.push(replay.pass);
   console.log(`${replay.pass ? 'PASS' : 'FAIL'}  ${'run-replay'.padEnd(20)} ${replay.reason}`);
+  gap();
+
+  const narration = checkNarration(chrome);
+  behaviour.push(narration.pass);
+  console.log(`${narration.pass ? 'PASS' : 'FAIL'}  ${'narration'.padEnd(20)} ${narration.reason}`);
   gap();
 
   const authored = checkAuthoredLesson(chrome);

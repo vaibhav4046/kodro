@@ -1,15 +1,19 @@
 {
   "name": "Kodro Robot Design Studio",
   "short_name": "Kodro",
-  "description": "Offline robot design and simulation studio. Build a robot, program it, and test it in a physics world.",
+  "description": "Offline robot design and simulation studio. Design a robot, program it, and watch it work.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#08090f",
-  "theme_color": "#08090f",
-  "categories": ["education", "productivity", "developer"],
+  "background_color": "#09111d",
+  "theme_color": "#09111d",
+  "categories": ["education", "productivity"],
   "icons": [
-    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "brand-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "brand-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "brand-icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "brand-icon-monochrome.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "monochrome" }
   ]
 }

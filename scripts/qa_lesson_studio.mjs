@@ -258,6 +258,60 @@ check('the grader exposes the authored-lesson seam',
   check('removing something absent reports false', S7.remove('authored:nope-00000000') === false);
 }
 
+// --- lesson packs ---------------------------------------------------------
+//
+// One lesson per file is right for one idea and wrong for a term of work. The
+// pack is deliberately just a list of the SAME documents, so a lesson cannot be
+// valid inside a pack and invalid outside it, and a half-broken pack must give
+// up its good lessons rather than being refused whole.
+{
+  const { S: SP } = boot();
+  const a = SP.blank(101);
+  const b = SP.blank(102);
+  b.title = 'Second lesson';
+  b.id = SP.makeId(b.title, 102);
+  const text = SP.packSerialize('Autumn term', [a, b]);
+
+  const parsed = SP.packParse(text);
+  check('a pack round-trips', parsed.ok === true, JSON.stringify(parsed.errors));
+  check('the pack keeps its name', parsed.name === 'Autumn term', parsed.name);
+  check('every lesson in the pack is accepted', parsed.accepted.length === 2, String(parsed.accepted.length));
+  check('the pack filename is derived from its name',
+    /\.kodropack$/.test(SP.packFileName('Autumn term')), SP.packFileName('Autumn term'));
+
+  const installed = SP.packInstall(parsed.accepted);
+  check('installing a pack saves every lesson', installed.saved.length === 2, JSON.stringify(installed.failed));
+  check('the installed lessons are in the library', SP.list().length === 2, String(SP.list().length));
+
+  // A single lesson handed to the pack reader, and vice versa, must be told
+  // which one it is rather than failing with a generic parse error.
+  const single = SP.packParse(SP.serialize(SP.blank(103)));
+  check('a single lesson opened as a pack says so',
+    single.ok === false && single.errors.some((e) => /single lesson, not a pack/.test(e)),
+    JSON.stringify(single.errors));
+  check('a pack opened as a single lesson is refused',
+    SP.parse(text).ok === false, '');
+
+  // The important one: a pack carrying one broken lesson must still yield the
+  // good ones, and must name what it dropped.
+  const mixed = JSON.parse(text);
+  mixed.lessons.push({ kodroLesson: 1, id: 'authored:broken-00000000', title: 'Broken one', criteria: [] });
+  const partial = SP.packParse(JSON.stringify(mixed));
+  check('a pack with one bad lesson still yields the good ones',
+    partial.ok === true && partial.accepted.length === 2, String(partial.accepted.length));
+  check('the bad lesson is named, not silently dropped',
+    partial.rejected.length === 1 && partial.rejected[0].title === 'Broken one'
+    && partial.rejected[0].errors.length > 0,
+    JSON.stringify(partial.rejected));
+
+  check('an empty pack is refused',
+    SP.packParse(JSON.stringify({ kodroPack: 1, name: 'x', lessons: [] })).ok === false, '');
+  check('a wrong pack version is refused',
+    SP.packParse(JSON.stringify({ kodroPack: 99, lessons: [a] })).ok === false, '');
+  check('a non-JSON pack is refused with a readable reason',
+    SP.packParse('nope').errors.some((e) => /not readable/.test(e)), '');
+}
+
 // --- the criterion vocabulary cannot drift --------------------------------
 {
   // The Studio offers exactly the criteria the grader implements. If someone

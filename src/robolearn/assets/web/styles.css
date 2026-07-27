@@ -1,11 +1,11 @@
 /* ============================================================================
-   KODRO - styles
-   Built on the Orbital Quill token system, retuned as a mission-control IDE.
+   KODRO
+   A classroom making studio: deep ink, warm paper, route teal and signal gold.
    ========================================================================== */
 @import url('vendor/fonts.css');
 
 :root {
-  --void:#08090f; --navy:#0f1220; --navy-2:#161a2d; --navy-3:#1f2440;
+  --void:#07111b; --navy:#0c1825; --navy-2:#122234; --navy-3:#1a3044;
   --ink:#050610; --ink-2:#2b2e3d; --ink-3:#6a6d80;
   --paper:#f5f0e4; --paper-2:#ece6d5; --moon:#fbfaf5;
   --cyan:#5ce0d8; --cyan-2:#3bc0b8; --cyan-deep:#1a6f6a;
@@ -39,6 +39,22 @@
      and badges, md cards and panels, lg modals and feature panels, xl the large
      hero and demo surfaces. */
   --radius-sm:4px; --radius-md:6px; --radius-lg:10px; --radius-xl:16px;
+
+  /* Shared spatial and motion rhythm for new identity surfaces. */
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
+  --space-5:24px; --space-6:32px; --space-7:48px;
+  --duration-fast:120ms; --duration-normal:180ms; --duration-slow:320ms;
+
+  /* Liquid material. Solid values are always declared first on consumers.
+     The translucent values are enhancements inside the supports block at the
+     end of this file, never the only background a surface has. */
+  --glass-solid:var(--navy-2);
+  --glass-fill:color-mix(in srgb,var(--navy-2) 92%,transparent);
+  --glass-fill-soft:color-mix(in srgb,var(--navy) 88%,transparent);
+  --glass-line:color-mix(in srgb,var(--fg-1) 18%,transparent);
+  --glass-highlight:inset 0 1px 0 color-mix(in srgb,var(--fg-1) 10%,transparent);
+  --glass-blur:16px;
+  --glass-saturate:125%;
 
   /* Type scale. Every font-size reads from one of these tokens so type has a
      single source of truth, the way radius/shadow already do. Values snap to
@@ -2501,4 +2517,102 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .lesson-made-here {
   font-size: var(--text-sm); padding: 1px 7px; border-radius: 999px;
   border: 1px solid var(--line); color: var(--text-dim); white-space: nowrap;
+}
+
+/* ============================================================================
+   KODRO LIQUID MATERIAL
+
+   The solid declarations are the baseline and the no-support fallback.
+   Canvas overlays are intentionally excluded. The live 3D view already owns
+   the frame budget, so terrain controls, HUD chips and loading masks remain
+   opaque even when backdrop-filter exists.
+   ========================================================================== */
+.missionbar,
+.modal,
+.settings-pop,
+.more-tools-pop,
+.editor-tools-menu,
+.app[data-experience="simple"] .run-secondary,
+.rl-advanced-menu {
+  background:var(--glass-solid);
+  border-color:var(--glass-line);
+  box-shadow:var(--glass-highlight),var(--shadow-menu);
+}
+.missionbar {
+  background:linear-gradient(180deg,var(--navy-2),var(--navy));
+  box-shadow:inset 0 -1px 0 var(--border),0 8px 30px -24px rgba(0,0,0,.8);
+}
+.modal-backdrop {
+  background:color-mix(in srgb,var(--void) 82%,transparent);
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+}
+.terrain-switch,
+.hud-bl,
+.view-mode-pill,
+.orbit-hint,
+.world-loading {
+  -webkit-backdrop-filter:none;
+  backdrop-filter:none;
+}
+.terrain-switch,
+.hud-bl,
+.view-mode-pill,
+.orbit-hint { background:rgba(7,17,27,.94); }
+
+@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+  /* The toolbar does not overlap the live canvas, so it can always use the
+     liquid material. */
+  .missionbar {
+    background:var(--glass-fill-soft);
+    -webkit-backdrop-filter:blur(12px) saturate(var(--glass-saturate));
+    backdrop-filter:blur(12px) saturate(var(--glass-saturate));
+  }
+
+  /* These surfaces may overlap WebGL. The engine track adds
+     .kodro-sim-idle only while its animation loop is paused. Until then they
+     keep the solid baseline above. */
+  body.kodro-sim-idle .modal,
+  body.kodro-sim-idle .settings-pop,
+  body.kodro-sim-idle .more-tools-pop,
+  body.kodro-sim-idle .editor-tools-menu,
+  body.kodro-sim-idle .app[data-experience="simple"] .run-secondary,
+  body.kodro-sim-idle .rl-advanced-menu,
+  body.kodro-sim-idle .app[data-experience="simple"][data-evidence="open"] .tele-panel {
+    background:var(--glass-fill);
+    -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  }
+}
+
+/* Required solid fallback for locked-down and older school browsers. */
+@supports not (backdrop-filter:blur(1px)) {
+  .missionbar,
+  .modal,
+  .settings-pop,
+  .more-tools-pop,
+  .editor-tools-menu,
+  .app[data-experience="simple"] .run-secondary,
+  .rl-advanced-menu,
+  .app[data-experience="simple"][data-evidence="open"] .tele-panel {
+    background:var(--glass-solid);
+    -webkit-backdrop-filter:none;
+    backdrop-filter:none;
+  }
+}
+
+@media (prefers-reduced-transparency:reduce) {
+  .missionbar,
+  .modal,
+  .settings-pop,
+  .more-tools-pop,
+  .editor-tools-menu,
+  .app[data-experience="simple"] .run-secondary,
+  .rl-advanced-menu,
+  .app[data-experience="simple"][data-evidence="open"] .tele-panel {
+    background:var(--glass-solid) !important;
+    -webkit-backdrop-filter:none !important;
+    backdrop-filter:none !important;
+  }
+  .modal-backdrop { background:var(--void); }
 }
