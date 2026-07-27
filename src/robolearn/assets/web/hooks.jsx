@@ -866,6 +866,10 @@
     // whichever fires first wins, so a run can never be double-graded. Reset on
     // every fresh start in resetRover().
     const gradedRef = useRef(false);
+    // Collisions counted during the run the pupil watched. The lesson
+    // verdict is computed from this run, not from a second hidden one, so
+    // a crash on screen has to reach the grade.
+    const runCollisionsRef = useRef(0);
 
     const sync = () => { setRover({ ...live.current }); try { window.KODRO_ROVER = { x: live.current.x, y: live.current.y }; } catch (e) { void e; } };
     const pushTrailPoint = () => {
@@ -1063,6 +1067,10 @@
     // line, toast, memory reflection and the design-coach verdict.
     function reportCollision(crashed, robotBuild) {
       const s = live.current;
+      // Count it for the watched-run grade. The lesson verdict is computed
+      // from what the pupil saw, so a collision they watched has to be a
+      // collision the grade knows about.
+      runCollisionsRef.current += 1;
       setCrashKey(k => k + 1);
       const what = crashed.type === 'wall' ? 'arena boundary'
         : crashed.type === 'pedestrian' ? 'a pedestrian'
@@ -1507,7 +1515,42 @@
       if (gradedRef.current) return;
       if (replRef.current) return;
       gradedRef.current = true;
-      gradeWithBridge(code);
+      // Grade the run the pupil just watched.
+      //
+      // This used to hand the SOURCE to the grader, which executed it again in
+      // its own engine and reported on that second, invisible run. The two
+      // could disagree about anything: a pupil watched the rover stop against
+      // an obstacle and was told there were no collisions, because the hidden
+      // run never hit it. Everything the criteria need is measured while the
+      // studio animates, so the measured facts are graded directly and there
+      // is only one run to explain.
+      //
+      // The browser grader is the only one that can score supplied aggregates;
+      // under pywebview the Python engine still re-runs the source, so that
+      // path keeps its old behaviour rather than silently changing engines.
+      const lessonId = currentLessonId;
+      const G = window.KodroLessonGrader;
+      const lw = lessonWorldRef && lessonWorldRef.current;
+      const canGradeWatched = lessonId && lw && G && typeof G.gradeFromAggregates === 'function'
+        && !(window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable());
+      if (!canGradeWatched) { gradeWithBridge(code); return; }
+      const s = live.current;
+      // Live sim centimetres -> lesson metres, the same mapping lessonApi uses.
+      const finalX = lw.base[0] + (-s.y / 100);
+      const finalY = lw.base[1] + (-s.x / 100);
+      const verdict = G.gradeFromAggregates(lessonId, code, {
+        samplesCollected: lw.samples.filter((sm) => sm.collected).length,
+        collisions: runCollisionsRef.current,
+        distanceTravelledM: odoRef.current / 100,
+        batteryUsedPct: Math.max(0, 100 - s.battery),
+        stepCount: cmdCountRef.current,
+        finalX: finalX,
+        finalY: finalY,
+      });
+      // Hand the finished verdict to the same path a bridge grade takes, so
+      // the panel, the record, the pupil store, the cue and the hints are all
+      // applied identically.
+      gradeWithBridge(code, verdict);
     }
     function finishProgram() {
       ctrl.current.running = false;
@@ -1685,6 +1728,7 @@
       genRef.current = null;
       replRef.current = false;  // a Reset always exits terminal mode (bugs D2)
       gradedRef.current = false;  // a fresh run may grade again (once)
+      runCollisionsRef.current = 0;
       ctrl.current.abortTimer = setTimeout(() => { ctrl.current.abort = false; ctrl.current.abortTimer = null; }, 30);
       if (clearConsole) setConsoleLines([{ type: 'sys', text: 'Reset. Rover at origin.' }]);
     }

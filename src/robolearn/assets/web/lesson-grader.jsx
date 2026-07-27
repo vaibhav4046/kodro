@@ -767,6 +767,37 @@
       return new Promise(function (resolve) { resolve(gradeSync(lesson, source)); });
     },
     gradeSync: gradeSync,
+    // Grade a run that ALREADY HAPPENED, from its measured aggregates.
+    //
+    // gradeSync re-executes the source in this module's own engine, so the
+    // verdict described a second, invisible run: a pupil could watch the rover
+    // stop against something and still be told there were no collisions,
+    // because the hidden run never hit it. The studio measures the same facts
+    // while it animates, so it can hand them here instead and the pupil is
+    // marked on the run they actually watched.
+    //
+    // `agg` uses the same field names computeAggregates produces. Criterion
+    // dispatch, the pupil-facing messages, scoring and hint selection all stay
+    // in the functions gradeSync uses, so the two entry points cannot drift.
+    gradeFromAggregates: function (lessonId, source, agg) {
+      var entry = LESSON_DATA[lessonId];
+      if (!entry) return { ok: false, reason: 'unknown lesson: ' + lessonId };
+      var src = source || '';
+      var reasons = [];
+      for (var i = 0; i < entry.criteria.length; i++) {
+        var reason = checkCriterion(entry.criteria[i], agg, entry, src);
+        if (reason !== null) reasons.push(reason);
+      }
+      var passed = reasons.length === 0;
+      return {
+        ok: true, lessonId: lessonId, graded: true, passed: passed,
+        score: Math.max(0, 100 - SCORE_PENALTY_PER_FAILURE * reasons.length),
+        reasons: reasons,
+        hint: firstHint(entry, passed),
+        events: [], achievements: [], recommended: null,
+        gradedFrom: 'watched-run',
+      };
+    },
     sourceUses: sourceUses,
     describeCriterion: describeCriterion,
     criterionFailedIn: criterionFailedIn,

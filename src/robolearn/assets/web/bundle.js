@@ -17570,6 +17570,45 @@ Object.assign(window, {
       });
     },
     gradeSync: gradeSync,
+    // Grade a run that ALREADY HAPPENED, from its measured aggregates.
+    //
+    // gradeSync re-executes the source in this module's own engine, so the
+    // verdict described a second, invisible run: a pupil could watch the rover
+    // stop against something and still be told there were no collisions,
+    // because the hidden run never hit it. The studio measures the same facts
+    // while it animates, so it can hand them here instead and the pupil is
+    // marked on the run they actually watched.
+    //
+    // `agg` uses the same field names computeAggregates produces. Criterion
+    // dispatch, the pupil-facing messages, scoring and hint selection all stay
+    // in the functions gradeSync uses, so the two entry points cannot drift.
+    gradeFromAggregates: function (lessonId, source, agg) {
+      var entry = LESSON_DATA[lessonId];
+      if (!entry) return {
+        ok: false,
+        reason: 'unknown lesson: ' + lessonId
+      };
+      var src = source || '';
+      var reasons = [];
+      for (var i = 0; i < entry.criteria.length; i++) {
+        var reason = checkCriterion(entry.criteria[i], agg, entry, src);
+        if (reason !== null) reasons.push(reason);
+      }
+      var passed = reasons.length === 0;
+      return {
+        ok: true,
+        lessonId: lessonId,
+        graded: true,
+        passed: passed,
+        score: Math.max(0, 100 - SCORE_PENALTY_PER_FAILURE * reasons.length),
+        reasons: reasons,
+        hint: firstHint(entry, passed),
+        events: [],
+        achievements: [],
+        recommended: null,
+        gradedFrom: 'watched-run'
+      };
+    },
     sourceUses: sourceUses,
     describeCriterion: describeCriterion,
     criterionFailedIn: criterionFailedIn,
@@ -22131,6 +22170,10 @@ Object.assign(window, {
     // whichever fires first wins, so a run can never be double-graded. Reset on
     // every fresh start in resetRover().
     const gradedRef = useRef(false);
+    // Collisions counted during the run the pupil watched. The lesson
+    // verdict is computed from this run, not from a second hidden one, so
+    // a crash on screen has to reach the grade.
+    const runCollisionsRef = useRef(0);
     const sync = () => {
       setRover({
         ...live.current
@@ -22378,6 +22421,10 @@ Object.assign(window, {
     // line, toast, memory reflection and the design-coach verdict.
     function reportCollision(crashed, robotBuild) {
       const s = live.current;
+      // Count it for the watched-run grade. The lesson verdict is computed
+      // from what the pupil saw, so a collision they watched has to be a
+      // collision the grade knows about.
+      runCollisionsRef.current += 1;
       setCrashKey(k => k + 1);
       const what = crashed.type === 'wall' ? 'arena boundary' : crashed.type === 'pedestrian' ? 'a pedestrian' : crashed.type === 'robot' ? 'another robot' : crashed.type === 'vehicle' ? 'a vehicle' : terrain.obstacleLabel.toLowerCase();
       sfx('crash', crashed.type);
@@ -22954,7 +23001,44 @@ Object.assign(window, {
       if (gradedRef.current) return;
       if (replRef.current) return;
       gradedRef.current = true;
-      gradeWithBridge(code);
+      // Grade the run the pupil just watched.
+      //
+      // This used to hand the SOURCE to the grader, which executed it again in
+      // its own engine and reported on that second, invisible run. The two
+      // could disagree about anything: a pupil watched the rover stop against
+      // an obstacle and was told there were no collisions, because the hidden
+      // run never hit it. Everything the criteria need is measured while the
+      // studio animates, so the measured facts are graded directly and there
+      // is only one run to explain.
+      //
+      // The browser grader is the only one that can score supplied aggregates;
+      // under pywebview the Python engine still re-runs the source, so that
+      // path keeps its old behaviour rather than silently changing engines.
+      const lessonId = currentLessonId;
+      const G = window.KodroLessonGrader;
+      const lw = lessonWorldRef && lessonWorldRef.current;
+      const canGradeWatched = lessonId && lw && G && typeof G.gradeFromAggregates === 'function' && !(window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable());
+      if (!canGradeWatched) {
+        gradeWithBridge(code);
+        return;
+      }
+      const s = live.current;
+      // Live sim centimetres -> lesson metres, the same mapping lessonApi uses.
+      const finalX = lw.base[0] + -s.y / 100;
+      const finalY = lw.base[1] + -s.x / 100;
+      const verdict = G.gradeFromAggregates(lessonId, code, {
+        samplesCollected: lw.samples.filter(sm => sm.collected).length,
+        collisions: runCollisionsRef.current,
+        distanceTravelledM: odoRef.current / 100,
+        batteryUsedPct: Math.max(0, 100 - s.battery),
+        stepCount: cmdCountRef.current,
+        finalX: finalX,
+        finalY: finalY
+      });
+      // Hand the finished verdict to the same path a bridge grade takes, so
+      // the panel, the record, the pupil store, the cue and the hints are all
+      // applied identically.
+      gradeWithBridge(code, verdict);
     }
     function finishProgram() {
       ctrl.current.running = false;
@@ -23162,6 +23246,7 @@ Object.assign(window, {
       genRef.current = null;
       replRef.current = false; // a Reset always exits terminal mode (bugs D2)
       gradedRef.current = false; // a fresh run may grade again (once)
+      runCollisionsRef.current = 0;
       ctrl.current.abortTimer = setTimeout(() => {
         ctrl.current.abort = false;
         ctrl.current.abortTimer = null;
@@ -26355,10 +26440,38 @@ say("Survey done")`
       window.addEventListener('kodro-customworld', on);
       return () => window.removeEventListener('kodro-customworld', on);
     }, []);
+    // Declared before the terrain memo below, which reads both in its body and
+    // its dependency array during render: a const further down is still in its
+    // temporal dead zone at that point.
+    const lessonWorldRef = useRef(null);
+    // Bumped whenever the lesson arena is seeded or cleared. The terrain memo
+    // reads the ref, and a ref mutation alone does not re-run a memo.
+    const [lessonTick, setLessonTick] = useState(0);
     const terrain = useMemo(() => {
       const baseTerrain = window.resolveSite ? window.resolveSite(terrainId) : TERRAINS[terrainId];
-      return window.KodroWorldFX && window.KodroWorldFX.applyTod ? window.KodroWorldFX.applyTod(baseTerrain, tod, weather) : baseTerrain;
-    }, [terrainId, tod, weather, customTick]);
+      const withTod = window.KodroWorldFX && window.KodroWorldFX.applyTod ? window.KodroWorldFX.applyTod(baseTerrain, tod, weather) : baseTerrain;
+      // Inside a lesson the arena is the lesson's own: its obstacles, and only
+      // its obstacles. The terrain's scattered rocks belong to free play and
+      // the grader has never heard of them, while the lesson's rock was drawn
+      // as a prop, and props do not collide. So a pupil could drive straight
+      // through the boulder the whole lesson is about, and be blocked by scenery
+      // nobody was marking. The collision test reads terrain.obstacles, so
+      // replacing that list is what makes the lesson's world the real one.
+      if (currentLessonId && lessonWorldRef.current) {
+        const lw = lessonWorldRef.current;
+        return {
+          ...withTod,
+          obstacles: lw.obstacles.map(o => ({
+            // Lesson metres -> sim centimetres, the same axis mapping the
+            // sensors and the marker placement use.
+            x: -(o.y - lw.base[1]) * 100,
+            y: -(o.x - lw.base[0]) * 100,
+            r: o.r * 100
+          }))
+        };
+      }
+      return withTod;
+    }, [terrainId, tod, weather, customTick, currentLessonId, lessonTick]);
 
     // live rover state (authoritative for sensors/animation)
     const startState = () => ({
@@ -26459,7 +26572,6 @@ say("Survey done")`
     // The loaded lesson's own arena, in the lesson's metre space: what the
     // grader marks against. Held in a ref because the sim engine reads it
     // mid-run without wanting a re-render. Null in free play.
-    const lessonWorldRef = useRef(null);
     // Rebuild the lesson arena from the shipped lesson data and show it. The
     // grader's world lives in KodroLessonGrader.LESSON_DATA, which is the same
     // table generated from the lesson YAMLs, so seeding from it guarantees the
@@ -26494,6 +26606,7 @@ say("Survey done")`
       // become things the pupil can actually see and drive to. Sim space is
       // centimetres with y inverted relative to the lesson's metre space.
       setProps(lessonMarks(lessonWorldRef.current));
+      setLessonTick(n => n + 1);
     }
     // A lesson is graded in its own arena: only its samples and obstacles.
     // Roaming traffic and pedestrians exist in NO lesson world, so a pupil
@@ -26543,6 +26656,7 @@ say("Survey done")`
     function clearLessonWorld() {
       lessonWorldRef.current = null;
       setProps([]);
+      setLessonTick(n => n + 1);
       setAgentsForLesson(false);
     }
     // Lessons keep their OWN editable buffer so loading one never clobbers the
@@ -27536,7 +27650,15 @@ say("Survey done")`
         text: (lesson.intro || '').trim()
       }]);
     }
-    async function gradeWithBridge(source) {
+    // `precomputed` is a verdict for the run the pupil just watched, produced
+    // by the studio from what it measured while animating. When present the
+    // grader is NOT asked to execute the source again: re-running it produced a
+    // second, invisible run that could disagree with the visible one, so a
+    // pupil could watch the rover stop against an obstacle and still be told
+    // there were no collisions. Everything after this point (the verdict panel,
+    // the per-lesson record, the pupil store, sounds, hints, console lines) is
+    // shared, so a verdict behaves identically whichever produced it.
+    async function gradeWithBridge(source, precomputed) {
       // Submit works in BOTH modes: the bridge routes to the Python engine
       // under pywebview and to the JS lesson grader (lesson-grader.jsx) in
       // the static browser build, so the classroom register is live on the
@@ -27550,7 +27672,7 @@ say("Survey done")`
       // filed under (or displayed as) the new pupil's record.
       const pupilAtSubmit = lessonResultsPupilRef.current;
       try {
-        const r = await window.RoboLearn.submitAttempt(lessonId, source, null);
+        const r = precomputed || (await window.RoboLearn.submitAttempt(lessonId, source, null));
         if (!r) return;
         if (lessonResultsPupilRef.current !== pupilAtSubmit) {
           // File the late result under the pupil who EARNED it (matching the
