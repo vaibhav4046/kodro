@@ -533,44 +533,44 @@ Chapter 1.
 Chapter 2.
 [5
 
-] [6]
+] [6] [7]
 Chapter 3.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10> on input line 258.
+(Font)              <10> on input line 262.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <7> on input line 258.
+(Font)              <7> on input line 262.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <5> on input line 258.
+(Font)              <5> on input line 262.
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
-[7
+[8
 
-] [8] [9]
+] [9] [10]
 Chapter 4.
 
-Underfull \hbox (badness 10000) in paragraph at lines 317--318
+Underfull \hbox (badness 10000) in paragraph at lines 321--322
 []|\T1/lmtt/m/n/10 motion-model.js\T1/lmr/m/n/10 ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 318--319
+Underfull \hbox (badness 10000) in paragraph at lines 322--323
 []|\T1/lmtt/m/n/10 specschema.js\T1/lmr/m/n/10 , \T1/lmtt/m/n/10 realism.jsx\T1
 /lmr/m/n/10 ,
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 319--319
+Underfull \hbox (badness 10000) in paragraph at lines 323--323
 []|\T1/lmr/m/n/10 Worlds, named mis-sion
  []
 
 
-Underfull \hbox (badness 2941) in paragraph at lines 319--319
+Underfull \hbox (badness 2941) in paragraph at lines 323--323
 \T1/lmr/m/n/10 sites, the natural-motion
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 319--320
+Underfull \hbox (badness 10000) in paragraph at lines 323--324
 []|\T1/lmtt/m/n/10 Viewport3D.jsx\T1/lmr/m/n/10 , \T1/lmtt/m/n/10 terrains.jsx\
 T1/lmr/m/n/10 ,
  []
@@ -580,98 +580,105 @@ LaTeX Warning: `h' float specifier changed to `ht'.
 
 File: img/simple_design.png Graphic file (type bmp)
 <img/simple_design.png>
-[10
+[11
 
-] [11]
+] [12]
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <9> on input line 343.
+(Font)              <9> on input line 347.
 
-Underfull \hbox (badness 10000) in paragraph at lines 348--348
+Underfull \hbox (badness 10000) in paragraph at lines 352--352
 []|\T1/lmr/m/n/9 Active build, pro-gram,
  []
 
 
-Underfull \hbox (badness 7540) in paragraph at lines 348--349
+Underfull \hbox (badness 7540) in paragraph at lines 352--353
 []|\T1/lmr/m/n/9 Seeded man-i-fest, PASS
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 348--349
+Underfull \hbox (badness 10000) in paragraph at lines 352--353
 \T1/lmr/m/n/9 and simulation-boundary
  []
 
-[12] [13] [14]
+[13] [14] [15]
 File: img/simple_studio.png Graphic file (type bmp)
 <img/simple_studio.png>
- [15] [16]
+ [16] [17]
 Chapter 5.
-[17
+[18
 
-] [18] [19]
+] [19] [20]
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <9> not available
-(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 445.
- [20] [21] [22]
+(Font)              Font shape `T1/lmtt/b/n' tried instead on input line 449.
+ [21] [22] [23]
 Chapter 6.
 
-Underfull \hbox (badness 10000) in paragraph at lines 510--510
+Underfull \hbox (badness 10000) in paragraph at lines 514--514
 []|\T1/lmr/m/n/10 Observed ca-dence and render-
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 512--512
+Underfull \hbox (badness 10000) in paragraph at lines 516--516
 []|\T1/lmr/m/n/10 KodroBench ground-ing
  []
 
-[23
+[24
 
-] [24] [25] [26] [27] [28] [29] [30] [31]
+] [25] [26] [27] [28] [29] [30] [31] [32]
 Chapter 7.
-[32
+[33
 
-] [33] [34]
+] [34] [35]
 Chapter 8.
-[35
+[36
 
 ]
 Chapter 9.
-[36
+[37
 
-] [37]
-Underfull \hbox (badness 1199) in paragraph at lines 778--779
+] [38]
+Underfull \hbox (badness 4353) in paragraph at lines 760--761
+[]\T1/lmr/m/n/10.95 Trinket (2026) \T1/lmr/m/it/10.95 Trin-ket shut-down an-nou
+nce-ment\T1/lmr/m/n/10.95 . Avail-able at: []$\T1/lmtt/m/n/10.95 https : / / tr
+inket . io /
+ []
+
+
+Underfull \hbox (badness 1199) in paragraph at lines 784--785
 []\T1/lmr/m/n/10.95 Open Roberta (2026) \T1/lmr/m/it/10.95 Open Roberta Lab\T1/
 lmr/m/n/10.95 . Fraun-hofer IAIS. Avail-able at: []$\T1/lmtt/m/n/10.95 https : 
 / / lab .
  []
 
-[38
+[39
 
 ]
-Underfull \hbox (badness 10000) in paragraph at lines 792--793
+Underfull \hbox (badness 10000) in paragraph at lines 798--799
 \T1/lmtt/m/n/10.95 com / stemlabs / cs / cs-[]level-[]1-[]vexcode-[]vr-[]blocks
  / introduction-[]and-[]fundamentals /
  []
 
-[39]
+[40]
 Appendix A.
 
-Underfull \hbox (badness 10000) in paragraph at lines 830--830
+Underfull \hbox (badness 10000) in paragraph at lines 836--836
 []|\T1/lmr/m/n/10 Shared mo-tion
  []
 
 
-Underfull \hbox (badness 1838) in paragraph at lines 830--831
+Underfull \hbox (badness 1838) in paragraph at lines 836--837
 []|\T1/lmr/m/n/10 The sin-gle set of closed-form equa-tions and con-stants, mir
 -rored in
  []
 
-[40
+[41
 
 ]
 Appendix B.
-[41
+[42
 
 ] (Kodro_Dissertation.aux)
 Package rerunfilecheck Info: File `Kodro_Dissertation.out' has not changed.
 (rerunfilecheck)             Checksum: 3528413289A0BC82AAE85E546520B3F2;18006.
  )
-Output written on Kodro_Dissertation.xdv (49 pages, 352784 bytes).
+Output written on Kodro_Dissertation.xdv (50 pages, 356596 bytes).
