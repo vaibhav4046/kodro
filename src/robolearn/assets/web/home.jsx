@@ -57,7 +57,7 @@
 .kh-eyebrow::before{content:'';width:30px;height:2px;background:currentColor}
 .kh-lede{
   max-width:15ch;margin:0;color:var(--fg-1);
-  font:650 clamp(44px,7.2vw,82px)/.97 var(--font-display);letter-spacing:-.035em;
+  font:650 clamp(44px,7.2vw,82px)/.97 var(--font-display);letter-spacing:-.035em;overflow-wrap:break-word;
 }
 .kh-lede em{font-style:normal;color:var(--cyan)}
 .kh-sub{max-width:54ch;margin:22px 0 0;color:var(--fg-2);font-size:clamp(15px,1.7vw,18px);line-height:1.6}
@@ -126,7 +126,7 @@
 }
 @media (max-width:600px){
   .kh-wrap{justify-content:flex-start}.kh-top{align-items:flex-start;margin-bottom:34px}
-  .kh-promises{display:none}.kh-lede{font-size:clamp(40px,14vw,58px)}
+  .kh-promises{display:none}.kh-lede{max-width:100%;font-size:clamp(38px,11vw,52px)}
   .kh-choice-head{align-items:flex-start;flex-direction:column;margin-top:38px}
   .kh-card,.kh-card-primary,.kh-card-author{grid-column:1 / -1;min-height:190px}
   .kh-foot{align-items:flex-start;flex-direction:column}
