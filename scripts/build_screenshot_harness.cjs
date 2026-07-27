@@ -507,6 +507,14 @@ const CAP = `<!DOCTYPE html>
             setTimeout(function () { clickAriaStartsWith('Lessons'); }, 250);
             return true;
           },
+          lessonstudio: function () {
+            if (document.querySelector('[aria-label="Lesson Studio"]')) return true;
+            if (!document.querySelector('.more-tools-pop')) clickAriaStartsWith('More tools');
+            // 'Make a lesson' does not prefix-collide with any other aria-label
+            // in the tree; clickAriaStartsWith takes the first DOM-order match.
+            setTimeout(function () { clickAriaStartsWith('Make a lesson'); }, 250);
+            return true;
+          },
           memory: function () {
             if (document.querySelector('[aria-label="Memory and skills"]')) return true;
             if (!document.querySelector('.more-tools-pop')) clickAriaStartsWith('More tools');

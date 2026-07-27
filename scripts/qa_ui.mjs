@@ -221,6 +221,7 @@ const MODALS = [
   { name: 'build',      marker: /aria-label="Build a real robot"[^>]*role="dialog"|role="dialog"[^>]*aria-label="Build a real robot"/, note: 'Build a real robot modal' },
   { name: 'help',       marker: /aria-label="Keyboard shortcuts"[^>]*role="dialog"|role="dialog"[^>]*aria-label="Keyboard shortcuts"/, note: 'Keyboard shortcuts modal' },
   { name: 'settings',   marker: /class="settings-pop"/,              note: 'Settings popover' },
+  { name: 'lessonstudio', marker: /aria-label="Lesson Studio"[^>]*role="dialog"|role="dialog"[^>]*aria-label="Lesson Studio"/, note: 'Lesson Studio (author your own lesson) modal' },
 ];
 
 // Validate has no modal — it drives a 5-seed run and prints a "Validation:"
@@ -958,6 +959,46 @@ function checkLessonsEntry(chrome) {
   return { pass: false, reason: `lessons entry incomplete (button: ${hasButton}, picker: ${hasPicker}, library: ${hasLibrary}, mission: ${hasMission})` };
 }
 
+// AUTHORED LESSON (Lesson Studio) — a lesson made on this device must be a
+// first-class lesson, not a second-class copy. This drives the whole path: a
+// saved document is hydrated at start-up, registered with the grader, merged
+// into the lesson list, opened through the REAL classroom picker, and must then
+// seed ITS arena (one rock, on mars) rather than the free-play field.
+//
+// The specific failure this guards against: two tables, nothing enforcing both.
+// A lesson row that reaches the UI without a grader entry opens fine, shows its
+// intro, and then reports "unknown lesson" the moment the pupil presses Run.
+function checkAuthoredLesson(chrome) {
+  const id = 'authored:qa-crater-hop-0000abcd';
+  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&seedlesson=1&lesson=${encodeURIComponent(id)}`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_authored_lesson', url, { vtime: 14000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 140)}` };
+  // The lesson opened, by its title rather than its internal id.
+  const opened = /QA crater hop/.test(dom);
+  // It is marked as authored, so nobody mistakes it for shipped curriculum.
+  const badged = /class="lesson-made-here"/.test(dom);
+  // Its own goals are rendered from ITS criteria, through the same
+  // describeCriterion the built-ins use.
+  const ownGoals = /Collect 1 sample/.test(dom) && /Do not hit anything/.test(dom);
+  // The arena is the authored one: exactly the single rock it declares, not the
+  // free-play obstacle field (which is 20+ on every world).
+  const m = /data-obstacles="(\d+)"/.exec(dom);
+  const obstacles = m ? Number(m[1]) : -1;
+  // And the world switched to the one the lesson names.
+  const onMars = /data-active-world="mars"/.test(dom);
+  // The internal id must NOT be shown to the pupil.
+  const idHidden = !/authored:qa-crater-hop-0000abcd\s*·/.test(dom);
+  if (opened && badged && ownGoals && obstacles === 1 && onMars && idHidden) {
+    return { pass: true, reason: 'a lesson authored on this device opens by title, is badged, renders its own goals, and seeds its own arena (1 rock on mars)' };
+  }
+  return {
+    pass: false,
+    reason: `authored lesson incomplete (opened: ${opened}, badge: ${badged}, goals: ${ownGoals}, obstacles: ${obstacles} (want 1), mars: ${onMars}, id hidden: ${idHidden})`,
+  };
+}
+
 // CUSTOM WORLD (OPP-6) — a runtime world built from seed + density + traction.
 // Density must genuinely change the obstacle field: the sparse and dense
 // configs are compared through the data-obstacles stamp on the app root.
@@ -1413,6 +1454,11 @@ function cleanup() {
   const replay = checkReplay(chrome);
   behaviour.push(replay.pass);
   console.log(`${replay.pass ? 'PASS' : 'FAIL'}  ${'run-replay'.padEnd(20)} ${replay.reason}`);
+  gap();
+
+  const authored = checkAuthoredLesson(chrome);
+  behaviour.push(authored.pass);
+  console.log(`${authored.pass ? 'PASS' : 'FAIL'}  ${'authored-lesson'.padEnd(20)} ${authored.reason}`);
   gap();
 
   const customWorld = checkCustomWorld(chrome);

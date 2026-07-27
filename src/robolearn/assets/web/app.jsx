@@ -379,7 +379,12 @@
     // pupil sees exactly the arena they are marked in.
     function seedLessonWorld(lessonId) {
       const G = window.KodroLessonGrader;
-      const entry = G && G.LESSON_DATA ? G.LESSON_DATA[lessonId] : null;
+      // getEntry, not LESSON_DATA: the generated table holds only the shipped
+      // 18, and an authored lesson would seed an empty arena and then be
+      // ungradable. The fallback keeps this working against an older grader
+      // during a partial rebuild.
+      const entry = (G && G.getEntry) ? G.getEntry(lessonId)
+        : (G && G.LESSON_DATA ? G.LESSON_DATA[lessonId] : null);
       if (!entry || !entry.world) { lessonWorldRef.current = null; setProps([]); return; }
       const w = entry.world;
       lessonWorldRef.current = {
@@ -611,6 +616,52 @@
     // Extracted VERBATIM to window.KodroHooks.useProjectIO (hooks.jsx); its
     // external inputs are setSettingsOpen (save/open launch from the settings
     // popover and close it), showToast and addConsole.
+    // Lesson Studio. `studioDoc` is null when closed; opening with a document
+    // edits it, opening with a blank starts a new one.
+    const [studioDoc, setStudioDoc] = useState(null);
+    const lessonFileRef = useRef(null);
+    // One lesson out, one lesson in. Same idiom as the .kodro project file
+    // (hooks.jsx useProjectIO): a Blob and an anchor out, a hidden file input
+    // and a FileReader back. No server, no account, nothing leaves the device.
+    function exportLesson(doc) {
+      const S = window.KodroLessonStore;
+      if (!S) return;
+      try {
+        const blob = new Blob([S.serialize(doc)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = S.fileName(doc);
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        showToast('Saved ' + S.fileName(doc) + '. Send that file to anyone with Kodro.', 'ok');
+      } catch (err) {
+        showToast('Could not save the lesson file: ' + (err && err.message ? err.message : 'unknown error'), 'err');
+      }
+    }
+    function importLessonClick() {
+      if (lessonFileRef.current) lessonFileRef.current.click();
+    }
+    function onLessonFilePicked(ev) {
+      const S = window.KodroLessonStore;
+      const f = ev.target.files && ev.target.files[0];
+      ev.target.value = '';
+      if (!f || !S) return;
+      if (f.size > 262144) { showToast('That file is larger than 256 KB, so it is not a lesson.', 'err'); return; }
+      const rd = new FileReader();
+      rd.onload = () => {
+        const parsed = S.parse(String(rd.result || ''));
+        if (!parsed.ok) { showToast(parsed.errors.join(' '), 'err'); return; }
+        parsed.warnings.forEach(w => addConsole(w, 'sys'));
+        // Open it in the Studio rather than saving it silently: a lesson from
+        // someone else is something you should look at before handing it to a
+        // class, and the Check button is right there.
+        setStudioDoc(parsed.doc);
+        showToast('Opened "' + parsed.doc.title + '". Check it works, then save it.', 'ok');
+      };
+      rd.onerror = () => showToast('Could not read that file.', 'err');
+      rd.readAsText(f);
+    }
+
     const { projectFileRef, saveProjectClick, openProjectClick, onProjectFilePicked } = (window.KodroHooks && window.KodroHooks.useProjectIO)
       ? window.KodroHooks.useProjectIO({ setSettingsOpen, showToast, addConsole })
       : { projectFileRef: { current: null }, saveProjectClick: function () {}, openProjectClick: function () {}, onProjectFilePicked: function () {} };
@@ -1114,8 +1165,32 @@
       // the isAvailable() gate. (Submit also works in both modes now: the
       // bridge routes it to the JS lesson grader when pywebview is absent.)
       if (!window.RoboLearn) return;
-      window.RoboLearn.listLessons().then(ls => { if (Array.isArray(ls)) setLessons(ls); });
+      window.RoboLearn.listLessons().then(ls => { if (Array.isArray(ls)) setLessons(mergeAuthored(ls)); });
     }, []);
+    // Built-in lessons first, then whatever was made on this device. Hydrate
+    // BEFORE merging: a row whose grader entry was refused must not appear in
+    // the library, because it would open, seed nothing and then report
+    // "unknown lesson" when the pupil pressed Run.
+    function mergeAuthored(builtIns) {
+      const S = window.KodroLessonStore;
+      if (!S) return builtIns;
+      let live = [];
+      try {
+        const h = S.hydrate();
+        live = h.registered || [];
+        if (h.rejected && h.rejected.length) {
+          setConsoleLines(l => [...l, { type: 'err', text: h.rejected.length
+            + ' saved lesson(s) could not be loaded: ' + h.rejected.map(r => r.id + ' (' + r.errors.join('; ') + ')').join(', ') }]);
+        }
+      } catch (err) { void err; }
+      const rows = S.list().filter(d => live.indexOf(d.id) >= 0).map(d => S.toRow(d));
+      return builtIns.concat(rows);
+    }
+    // Re-read the on-device library after the Studio saves or deletes.
+    function refreshAuthored() {
+      if (!window.RoboLearn) return;
+      window.RoboLearn.listLessons().then(ls => { if (Array.isArray(ls)) setLessons(mergeAuthored(ls)); });
+    }
     function loadLesson(lesson) {
       if (!lesson) return;
       // Stop anything still driving. Opening a lesson reseeds lessonWorldRef and
@@ -1472,7 +1547,7 @@
     const evidenceDrawerActive = simpleExperience && evidenceOpen && narrowViewport;
     const evidenceDrawerRef = useRef(false);
     evidenceDrawerRef.current = evidenceDrawerActive;
-    anyOverlayOpenRef.current = !!(homeOpen || !onboarded || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
+    anyOverlayOpenRef.current = !!(studioDoc || homeOpen || !onboarded || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
     const fpvRef = useRef(fpv); fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
     const WORLDS_KB = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
@@ -1484,6 +1559,7 @@
         setVibeOpen(false); setBlocksOpen(false); setBuildOpen(false);
         setShowHelp(false); setRealismOpen(false); setDemoOpen(false);
         setLessonHubOpen(false);
+        setStudioDoc(null);
         setSettingsOpen(false);
         setMoreToolsOpen(false);
         setRunToolsOpen(false);
@@ -1538,7 +1614,7 @@
     // assistive tech that focus is confined to the dialog, so honour it: when one
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
-    const anyModalOpen = swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
+    const anyModalOpen = !!studioDoc || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
     useEffect(() => {
       if (!anyModalOpen) return undefined;
       const modal = Array.prototype.slice.call(document.querySelectorAll('.modal[aria-modal="true"]')).pop();
@@ -1816,6 +1892,7 @@
               <div className="more-tools-pop" role="menu" aria-label="More tools">
                 <span className="more-tools-heading">Learn and review</span>
                 <button className="set-row set-btn" role="menuitem" aria-label="Lessons, browse guided robotics missions" onClick={openLessonLibrary}><span>{KI('report')}Lessons</span><span className="set-val">&rarr;</span></button>
+                <button className="set-row set-btn" role="menuitem" aria-label="Make a lesson, write your own for this class" onClick={() => { setMoreToolsOpen(false); setStudioDoc(window.KodroLessonStore ? window.KodroLessonStore.blank(Date.now()) : null); }}><span>{KI('report')}Make a lesson</span><span className="set-val">&rarr;</span></button>
                 <button className="set-row set-btn" role="menuitem" aria-label="Teacher progress dashboard" onClick={() => { setMoreToolsOpen(false); if (!classroom) setMode('classroom'); openTeacher(); }}><span>{KI('gauge')}Teacher progress</span><span className="set-val">&rarr;</span></button>
                 <button className="set-row set-btn" role="menuitem" title={aiInfo.available ? 'A second AI agent reviews your code' : 'A second AI agent reviews your code (needs a local model or a cloud key)'} onClick={() => { setMoreToolsOpen(false); runReview(); }}><span>{KI('review')}Review program</span><span className="set-val">&rarr;</span></button>
                 <span className="more-tools-heading">Create and inspect</span>
@@ -1829,6 +1906,7 @@
           </div>
           <button className="icon-btn btn-vibe companion-btn" title={aiInfo.available ? 'Open Companion (' + aiInfo.model + ')' : 'Open Companion. Direct robot and world actions work without a model.'} aria-label="Open Kodro Companion" onClick={() => setVibeOpen(true)}>{KI('vibe')}<span className="icon-btn-label">Companion</span><span className={'companion-dot' + (aiInfo.available ? ' ready' : '')} aria-hidden="true"></span></button>
           <input ref={projectFileRef} type="file" accept=".kodro,.json,application/json" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} onChange={onProjectFilePicked} />
+          <input ref={lessonFileRef} type="file" accept=".kodrolesson,.json,application/json" style={{ display: 'none' }} aria-hidden="true" tabIndex={-1} onChange={onLessonFilePicked} />
           <div className="settings-wrap">
             <button ref={settingsBtnRef} className="icon-btn" title="Settings" aria-label="Settings for theme, sound and readable text" aria-haspopup="dialog" aria-expanded={settingsOpen} onClick={() => { setMoreToolsOpen(false); setSettingsOpen(o => !o); }}>{KI('gear')}<span className="icon-btn-label">Settings</span></button>
             {settingsOpen && (
@@ -2107,8 +2185,13 @@
                       onChange={e => loadLesson(lessons.find(l => l.id === e.target.value))}
                     >
                       <option value="" disabled>Pick a lesson…</option>
+                      {/* Same rule as the lesson card: a built-in shows its
+                          curriculum number, an authored one shows that it was
+                          made here rather than an internal slug and a hash. */}
                       {lessons.map(l => (
-                        <option key={l.id} value={l.id}>{l.id} · {l.title} [{AGE_FOR[l.keyStage] || l.keyStage}]</option>
+                        <option key={l.id} value={l.id}>
+                          {l.authored ? '' : l.id + ' · '}{l.title}{l.authored ? ' (made here)' : ''} [{AGE_FOR[l.keyStage] || l.keyStage}]
+                        </option>
                       ))}
                     </select>
                     <button type="button" className="btn-mini lesson-browse" onClick={() => setLessonHubOpen(true)}>Browse</button>
@@ -2178,7 +2261,8 @@
                 // own per-lesson data (criteria + the full hint bank), so the
                 // card promises exactly what the grader will check.
                 const G = window.KodroLessonGrader;
-                const ldata = (G && G.LESSON_DATA && G.LESSON_DATA[lesson.id]) || null;
+                const ldata = ((G && G.getEntry && G.getEntry(lesson.id))
+                  || (G && G.LESSON_DATA && G.LESSON_DATA[lesson.id])) || null;
                 const goals = (ldata && ldata.criteria) || [];
                 const hintBank = (ldata && ldata.hints && ldata.hints.onFailure) || [];
                 const lessonFailed = !!(liveVerdict && !liveVerdict.passed);
@@ -2192,7 +2276,16 @@
                   <section className="lesson-card" aria-label="Current lesson">
                     <div className="lesson-card-head">
                       <span className="lesson-badge" title={lesson.keyStage}>{AGE_FOR[lesson.keyStage] || lesson.keyStage}</span>
-                      <span className="lesson-title">{lesson.id} · {lesson.title}</span>
+                      {/* Built-in lessons show their curriculum number, which is
+                          how a teacher refers to them. An authored lesson's id is an
+                          internal slug with a hash on the end; showing it to a pupil
+                          is noise. They get a "Made here" badge instead, which is the
+                          thing that actually matters about them. */}
+                      <span className="lesson-title">
+                        {lesson.authored ? null : <span className="lesson-num">{lesson.id} · </span>}
+                        {lesson.title}
+                      </span>
+                      {lesson.authored ? <span className="lesson-made-here" title="Someone made this lesson on this device">Made here</span> : null}
                       {lesson.readingAge ? <span className="lesson-age" title="Reading age">Age {lesson.readingAge}+</span> : null}
                       {liveVerdict && (
                         <span className={'lesson-verdict ' + (liveVerdict.passed ? 'pass' : 'fail')}>
@@ -2701,11 +2794,45 @@
             onClose={() => setHomeOpen(false)}
             onLessons={() => { closeHome(); openLessonLibrary(); }}
             onDesign={() => { closeHome(); goStage('design'); }}
+            onAuthor={() => {
+              closeHome();
+              setStudioDoc(window.KodroLessonStore ? window.KodroLessonStore.blank(Date.now()) : null);
+            }}
             onFreePlay={() => {
               // The card says "Write Python ... no goals, nothing to pass", so it
               // has to land on the code, not on the pass/fail evidence panel.
               closeHome(); setMode('studio'); setCurrentLessonId(null); clearLessonWorld();
               goStage('prove'); setSimpleCodeOpen(true);
+            }}
+          />
+        )}
+
+        {/* Lesson Studio. Mounted last so it sits above every other surface,
+            and registered in the three overlay lists above so Escape closes it
+            and the global hotkeys do not fire underneath it. */}
+        {studioDoc && window.KodroLessonStudio && (
+          <window.KodroLessonStudio
+            doc={studioDoc}
+            onClose={() => setStudioDoc(null)}
+            onSaved={(doc) => {
+              refreshAuthored();
+              addConsole('Saved your lesson: ' + doc.title, 'sys');
+            }}
+            onExport={exportLesson}
+            onImport={importLessonClick}
+            onDelete={(id) => {
+              const S = window.KodroLessonStore;
+              if (!S) return;
+              if (S.remove(id)) {
+                // Leaving the deleted lesson open would let the pupil keep
+                // working in an arena that no longer exists.
+                if (currentLessonIdRef.current === id) { setCurrentLessonId(null); clearLessonWorld(); }
+                refreshAuthored();
+                setStudioDoc(null);
+                showToast('Lesson deleted.', 'sys');
+              } else {
+                showToast('That lesson was not saved on this device.', 'err');
+              }
             }}
           />
         )}

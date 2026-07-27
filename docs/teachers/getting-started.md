@@ -57,6 +57,44 @@ the run being measured is a second one.
 Scores are practice feedback rather than assessment evidence: they say whether
 a program met the lesson's stated goals, not what a pupil understands.
 
+## When a pupil is stuck
+
+Every lesson has a bank of hints, revealed one at a time when the pupil asks.
+Once those run out, a "Still stuck? Show me one way to do it" button appears and
+shows one worked answer, folded until they ask for it, with a button that puts
+it in the editor so they can run it line by line.
+
+The answers are not written loosely. Every one of them is run through both
+marking engines by an automated test on every change, and has to score 100 out
+of 100, stay inside the constructs that lesson has taught, and fit the line
+budget the pupil is given. A lesson whose own answer does not pass will not
+ship. That check is also how we know each lesson is finishable at all.
+
+Reading a worked example is a normal way to learn to program. Being stuck with
+no way forward is how people stop.
+
+## Making your own lessons
+
+More Tools, then "Make a lesson", opens the Lesson Studio. You draw the arena by
+clicking (move the start, add flags, add rocks), choose what counts as finished,
+and write the starter program and one answer that works.
+
+You cannot save a lesson until your own answer passes it. The Check button runs
+that answer through the same marker your pupils will face and shows exactly what
+failed. This is the same standard the eighteen built-in lessons are held to, and
+it exists because a lesson nobody can finish sends a child round in circles.
+
+A saved lesson sits in the lesson library beside the built-in ones, marked
+"Made here" so nobody confuses it with the shipped curriculum. It is graded by
+the identical code: the same goals, the same wording, the same scores.
+
+"Save to a file" writes a `.kodrolesson` file you can email to a colleague or
+put on a shared drive. They open it with "Open a lesson file". Nothing goes
+through a server and no account is involved.
+
+Lessons you make are stored in the browser on that device, like everything else.
+Export anything you want to keep.
+
 ## Storage and AI
 
 Lesson practice and teacher progress are saved in the current browser on

@@ -88,6 +88,14 @@
       go: 'Open the studio',
       handler: 'onFreePlay',
     },
+    {
+      key: 'author',
+      kicker: 'Teach',
+      title: 'Make a lesson',
+      desc: 'Draw an arena, say what counts as finished, and set it for your class. Save it to a file and send it to anyone.',
+      go: 'Open the Lesson Studio',
+      handler: 'onAuthor',
+    },
   ];
 
   function KodroHome(props) {

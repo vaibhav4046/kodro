@@ -2431,3 +2431,74 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 }
 .lesson-solution-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .lesson-solution-ask { margin-top: 8px; }
+
+/* --- Lesson Studio ------------------------------------------------------- */
+/* Two columns on a desktop: the arena you draw on, and everything you type.
+   Collapses to one column below 900px so the layout gate's 320/375/420 widths
+   have no horizontal overflow. Existing tokens only, so every classroom theme
+   and the contrast gate stay green. */
+.lesson-studio-modal { width: min(1120px, 96vw); max-height: 92vh; overflow-y: auto; }
+.ls-lede { margin: 0 0 14px; color: var(--text-dim); font-size: var(--text-sm); max-width: 70ch; }
+.ls-grid { display: grid; grid-template-columns: minmax(340px, 380px) 1fr; gap: 22px; align-items: start; }
+@media (max-width: 900px) { .ls-grid { grid-template-columns: 1fr; } }
+
+.ls-map-pane h3, .ls-form-pane h3 {
+  margin: 0 0 8px; font-size: var(--text-sm); text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-dim);
+}
+.ls-form-pane section { margin-bottom: 20px; }
+.ls-tools { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.ls-tool-on { background: var(--cyan); color: var(--void); }
+.ls-tool-hint { margin: 0 0 8px; font-size: var(--text-sm); color: var(--text-dim); }
+
+.ls-map {
+  width: 100%; height: auto; max-width: 360px; display: block;
+  border: 1px solid var(--line); border-radius: var(--radius-md); cursor: crosshair;
+  background: var(--void);
+}
+.ls-map-floor { fill: var(--surface-2); }
+.ls-map-grid { stroke: var(--line); stroke-width: 0.5; opacity: 0.5; }
+.ls-map-rock { fill: var(--text-dim); opacity: 0.85; }
+.ls-map-flag { fill: var(--warning); }
+.ls-map-base { fill: var(--success); }
+.ls-map-label { fill: var(--void); font-family: var(--font-mono); font-size: 9px; font-weight: 700; }
+
+.ls-size { display: flex; gap: 10px; align-items: flex-end; margin-top: 10px; flex-wrap: wrap; }
+.ls-size label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm); color: var(--text-dim); }
+.ls-size input { width: 74px; }
+
+.ls-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: var(--text-sm); color: var(--text-dim); }
+.ls-field input, .ls-field select, .ls-field textarea { width: 100%; }
+.ls-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.ls-row .ls-field { flex: 1 1 140px; }
+.ls-code { font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre; }
+.ls-note { margin: 4px 0 0; font-size: var(--text-sm); color: var(--text-dim); }
+
+.ls-goal {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  padding: 8px 10px; margin-bottom: 8px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2);
+}
+.ls-goal input[type="number"] { width: 88px; }
+.ls-goal-hint { flex-basis: 100%; margin: 2px 0 0; font-size: var(--text-sm); color: var(--text-dim); }
+.ls-unit { font-size: var(--text-sm); color: var(--text-dim); }
+.ls-hint-row { display: flex; gap: 8px; margin-bottom: 6px; }
+.ls-hint-row input { flex: 1; }
+
+.ls-check { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.ls-check-out { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: var(--text-sm); }
+.ls-check-out.ok { background: var(--surface-2); color: var(--success); }
+.ls-check-out.bad { background: var(--surface-2); color: var(--warning); }
+.ls-check-out ul { margin: 6px 0 0; padding-left: 18px; }
+.ls-msg { margin: 10px 0 0; font-size: var(--text-sm); }
+.ls-msg-ok { color: var(--success); }
+.ls-msg-err { color: var(--warning); }
+.ls-msg-warn { color: var(--text-dim); }
+.ls-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.lesson-num { color: var(--text-dim); font-family: var(--font-mono); }
+/* A lesson written on this device, not part of the shipped curriculum. Said
+   plainly so a pupil and a teacher both know which is which. */
+.lesson-made-here {
+  font-size: var(--text-sm); padding: 1px 7px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--text-dim); white-space: nowrap;
+}

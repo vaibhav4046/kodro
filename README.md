@@ -119,6 +119,20 @@ What currently ships in this repository:
   the run you watch, in the lesson's own world. The independent audit that
   found the earlier visible-world and grading mismatches is kept as a dated
   record in [`AUDIT_CODEX.md`](AUDIT_CODEX.md).
+- **Every lesson is provably finishable.** Each ships one worked answer,
+  shown to a pupil only after the hints run out. Those answers are not
+  editorial: an automated gate runs all eighteen through *both* marking
+  engines on every change and requires 100 out of 100, inside the constructs
+  that lesson has taught and inside its own line budget
+  (`tests/unit/test_lesson_solutions.py`, plus the solvability block in
+  `scripts/qa_grader.mjs`). A lesson whose own answer fails does not ship.
+- **Lesson Studio: write your own.** Draw an arena by clicking, choose what
+  counts as finished, write the starter and one answer, and set it for a
+  class. Authored lessons are graded by the *identical* criterion dispatch
+  as the bundled ones, appear in the library marked "Made here", and export
+  to a single `.kodrolesson` file you can send to anyone. You cannot save a
+  lesson until your own answer passes it, which is the same bar the built-in
+  eighteen are held to.
 - **Offline by default.** No account, paid service or mandatory network
   call is required for Design, Test, lessons or deterministic checking.
   Local Ollama is optional, and cloud models are an explicit
