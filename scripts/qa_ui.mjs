@@ -829,6 +829,11 @@ function checkClassroomMode(chrome) {
 // Prove → Build path, and Build must be useful in the hosted browser rather
 // than ending at a desktop-only notice. Drive the real Build stage and require
 // both its state marker and the locally generated prototype-brief content.
+// The middle stage is labelled "Test", not "Prove": the audits found that
+// "Prove" reads as a claim of physical proof to a newcomer, on a screen that
+// simultaneously discloses the simulation cannot certify physical
+// performance. The assertion below still checks the three-stage nav exists;
+// only the locator text moved with the product.
 function checkStageJourney(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&open=build`;
   const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_stage_journey', url, { vtime: 9000 });
@@ -837,14 +842,14 @@ function checkStageJourney(chrome) {
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
   const nav = /aria-label="Robot project stages"/.test(dom)
     && /aria-label="1 Design, current robot/.test(dom)
-    && /aria-label="2 Prove in /.test(dom)
+    && /aria-label="2 Test in /.test(dom)
     && /aria-label="3 Build a prototype pack"/.test(dom);
   const stage = /data-stage="build"/.test(dom);
   const useful = /Download prototype brief/.test(dom)
     && /Concept bill of materials/.test(dom)
     && /Verify before purchasing/.test(dom);
   if (nav && stage && useful) {
-    return { pass: true, reason: 'Design → Prove → Build navigation works and hosted Build renders a local prototype brief with an explicit evidence boundary' };
+    return { pass: true, reason: 'Design → Test → Build navigation works and hosted Build renders a local prototype brief with an explicit evidence boundary' };
   }
   return { pass: false, reason: `stage journey incomplete (nav: ${nav}, active Build: ${stage}, useful browser pack: ${useful})` };
 }

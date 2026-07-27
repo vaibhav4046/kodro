@@ -1684,8 +1684,8 @@
             <button type="button" className={'stage-link' + (activeStage === 'design' ? ' active' : '')} aria-label={'1 Design, current robot ' + chipName} aria-current={activeStage === 'design' ? 'step' : undefined} onClick={() => goStage('design')}>
               <span className="stage-count">1</span><span><b>Design</b><small>{chipName}</small></span>
             </button>
-            <button type="button" className={'stage-link' + (activeStage === 'prove' ? ' active' : '')} aria-label={'2 Prove in ' + (terrain.name || 'the current scenario')} aria-current={activeStage === 'prove' ? 'step' : undefined} onClick={() => goStage('prove')}>
-              <span className="stage-count">2</span><span><b>Prove</b><small>{terrain.name || 'Scenario'}</small></span>
+            <button type="button" className={'stage-link' + (activeStage === 'prove' ? ' active' : '')} aria-label={'2 Test in ' + (terrain.name || 'the current scenario')} aria-current={activeStage === 'prove' ? 'step' : undefined} onClick={() => goStage('prove')}>
+              <span className="stage-count">2</span><span><b>Test</b><small>{terrain.name || 'Scenario'}</small></span>
             </button>
             <button type="button" className={'stage-link' + (activeStage === 'build' ? ' active' : '')} aria-label="3 Build a prototype pack" aria-current={activeStage === 'build' ? 'step' : undefined} onClick={() => goStage('build')}>
               <span className="stage-count">3</span><span><b>Build</b><small>Prototype pack</small></span>
@@ -1721,7 +1721,7 @@
             <span className={'status-dot ' + runState} aria-hidden="true"></span>
             <span>{statusLabel}</span>
           </div>
-          <button type="button" className={'icon-btn evidence-toggle' + (evidenceOpen ? ' active' : '')} title={evidenceOpen ? 'Hide evidence' : 'Show evidence'} aria-label={evidenceOpen ? 'Hide evidence' : 'Show evidence'} aria-expanded={evidenceOpen} aria-controls="kodro-evidence-panel" onClick={() => setEvidenceOpen(v => !v)}>{KI('report')}<span className="icon-btn-label">Evidence</span></button>
+          <button type="button" className={'icon-btn evidence-toggle' + (evidenceOpen ? ' active' : '')} title={evidenceOpen ? 'Hide results' : 'Show results'} aria-label={evidenceOpen ? 'Hide the results panel' : 'Show the results panel'} aria-expanded={evidenceOpen} aria-controls="kodro-evidence-panel" onClick={() => setEvidenceOpen(v => !v)}>{KI('report')}<span className="icon-btn-label">Results</span></button>
           <div className="bar-divider"></div>
           <div className="more-tools-wrap">
             <button ref={moreToolsBtnRef} className="icon-btn more-tools-trigger" title="More tools" aria-label="More tools" aria-haspopup="menu" aria-expanded={moreToolsOpen} onClick={() => { setSettingsOpen(false); setMoreToolsOpen(o => !o); }}>{KI('blocks')}<span className="icon-btn-label">More Tools</span></button>
@@ -1882,8 +1882,7 @@
             {showSimpleCockpit && (
               <section className="simple-cockpit" aria-label="Robot test plan">
                 <header className="simple-cockpit-head">
-                  <span className="simple-step">Step 2 of 3</span>
-                  <h2>Prove your robot</h2>
+                  <h2>Test your robot</h2>
                   <p>Choose one test, run it in the world, then use the result to improve the design.</p>
                 </header>
 
@@ -1918,8 +1917,8 @@
                 <section className={'simple-proof' + (planProveReport && planProveReport.aggregate ? (planProveReport.aggregate.passed ? ' proof-pass' : ' proof-fail') : '')} aria-label="Deterministic proof">
                   <div className="simple-proof-head">
                     <span>
-                      <b>Deterministic evidence</b>
-                      <small>Five fixed seeds vary traction, mass, sensor noise, obstacle position, start delay and battery.</small>
+                      <b>Repeat the test 5 times</b>
+                      <small>Runs the same program five times, each with slightly different grip, weight, sensor accuracy, obstacle placement and battery, to see whether it still works.</small>
                     </span>
                     {planProveReport && planProveReport.aggregate
                       ? <strong>{planProveReport.aggregate.passed ? 'PASS' : 'FAIL'}</strong>
@@ -1941,7 +1940,7 @@
                   ) : <p>No multi-seed evidence has been recorded for this session.</p>}
                   <p className="simple-proof-boundary">Kinematic simulation evidence only. It does not validate or certify physical performance or safety.</p>
                   <div className="simple-proof-actions">
-                    <button type="button" className="ctrl ctrl-run" onClick={runValidation}>Run 5-seed proof</button>
+                    <button type="button" className="ctrl ctrl-run" onClick={runValidation}>Run 5 variations</button>
                     {planProveReport && planProveReport.manifest && <button type="button" onClick={downloadProveManifest}>Download manifest</button>}
                     {planProveReport && <button type="button" onClick={() => setRealismOpen(true)}>Inspect limits</button>}
                   </div>

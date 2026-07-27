@@ -28548,12 +28548,12 @@ say("Survey done")`
     }, "1"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Design"), /*#__PURE__*/React.createElement("small", null, chipName))), /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: 'stage-link' + (activeStage === 'prove' ? ' active' : ''),
-      "aria-label": '2 Prove in ' + (terrain.name || 'the current scenario'),
+      "aria-label": '2 Test in ' + (terrain.name || 'the current scenario'),
       "aria-current": activeStage === 'prove' ? 'step' : undefined,
       onClick: () => goStage('prove')
     }, /*#__PURE__*/React.createElement("span", {
       className: "stage-count"
-    }, "2"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Prove"), /*#__PURE__*/React.createElement("small", null, terrain.name || 'Scenario'))), /*#__PURE__*/React.createElement("button", {
+    }, "2"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Test"), /*#__PURE__*/React.createElement("small", null, terrain.name || 'Scenario'))), /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: 'stage-link' + (activeStage === 'build' ? ' active' : ''),
       "aria-label": "3 Build a prototype pack",
@@ -28614,14 +28614,14 @@ say("Survey done")`
     }), /*#__PURE__*/React.createElement("span", null, statusLabel)), /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: 'icon-btn evidence-toggle' + (evidenceOpen ? ' active' : ''),
-      title: evidenceOpen ? 'Hide evidence' : 'Show evidence',
-      "aria-label": evidenceOpen ? 'Hide evidence' : 'Show evidence',
+      title: evidenceOpen ? 'Hide results' : 'Show results',
+      "aria-label": evidenceOpen ? 'Hide the results panel' : 'Show the results panel',
       "aria-expanded": evidenceOpen,
       "aria-controls": "kodro-evidence-panel",
       onClick: () => setEvidenceOpen(v => !v)
     }, KI('report'), /*#__PURE__*/React.createElement("span", {
       className: "icon-btn-label"
-    }, "Evidence")), /*#__PURE__*/React.createElement("div", {
+    }, "Results")), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "more-tools-wrap"
@@ -28993,9 +28993,7 @@ say("Survey done")`
       "aria-label": "Robot test plan"
     }, /*#__PURE__*/React.createElement("header", {
       className: "simple-cockpit-head"
-    }, /*#__PURE__*/React.createElement("span", {
-      className: "simple-step"
-    }, "Step 2 of 3"), /*#__PURE__*/React.createElement("h2", null, "Prove your robot"), /*#__PURE__*/React.createElement("p", null, "Choose one test, run it in the world, then use the result to improve the design.")), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("h2", null, "Test your robot"), /*#__PURE__*/React.createElement("p", null, "Choose one test, run it in the world, then use the result to improve the design.")), /*#__PURE__*/React.createElement("div", {
       className: "simple-setup",
       "aria-label": "Current test setup"
     }, /*#__PURE__*/React.createElement("div", {
@@ -29046,7 +29044,7 @@ say("Survey done")`
       "aria-label": "Deterministic proof"
     }, /*#__PURE__*/React.createElement("div", {
       className: "simple-proof-head"
-    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Deterministic evidence"), /*#__PURE__*/React.createElement("small", null, "Five fixed seeds vary traction, mass, sensor noise, obstacle position, start delay and battery.")), planProveReport && planProveReport.aggregate ? /*#__PURE__*/React.createElement("strong", null, planProveReport.aggregate.passed ? 'PASS' : 'FAIL') : /*#__PURE__*/React.createElement("strong", null, "NOT RUN")), planProveReport && planProveReport.aggregate ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Repeat the test 5 times"), /*#__PURE__*/React.createElement("small", null, "Runs the same program five times, each with slightly different grip, weight, sensor accuracy, obstacle placement and battery, to see whether it still works.")), planProveReport && planProveReport.aggregate ? /*#__PURE__*/React.createElement("strong", null, planProveReport.aggregate.passed ? 'PASS' : 'FAIL') : /*#__PURE__*/React.createElement("strong", null, "NOT RUN")), planProveReport && planProveReport.aggregate ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       className: "simple-proof-metrics"
     }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.successCount, "/", planProveReport.aggregate.seeds), " goals reached"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.meanCollisions), " mean collisions"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, planProveReport.aggregate.meanBattery, "%"), " mean battery used")), /*#__PURE__*/React.createElement("p", {
       className: "simple-proof-regression"
@@ -29060,7 +29058,7 @@ say("Survey done")`
       type: "button",
       className: "ctrl ctrl-run",
       onClick: runValidation
-    }, "Run 5-seed proof"), planProveReport && planProveReport.manifest && /*#__PURE__*/React.createElement("button", {
+    }, "Run 5 variations"), planProveReport && planProveReport.manifest && /*#__PURE__*/React.createElement("button", {
       type: "button",
       onClick: downloadProveManifest
     }, "Download manifest"), planProveReport && /*#__PURE__*/React.createElement("button", {
