@@ -185,6 +185,26 @@ const CAP = `<!DOCTYPE html>
             source: 'set_speed(90)\\nmove_forward(1 + random())'
           }]));
         }
+        if (q.get('seedlesson')) {
+          // One authored lesson, so the behaviour gate can prove a lesson made
+          // on this device opens, seeds ITS arena, and is marked by the same
+          // grader as a shipped one. Deliberately on mars with one flag and one
+          // rock, so both the arena swap and the obstacle swap are observable.
+          localStorage.setItem('kodro_lessons_v1', JSON.stringify({
+            v: 1, lessons: [{
+              kodroLesson: 1, savedAt: 1,
+              id: 'authored:qa-crater-hop-0000abcd',
+              title: 'QA crater hop', keyStage: 'KS2', concepts: ['sequence'],
+              terrain: 'mars', intro: 'Drive to the flag and pick up the sample.',
+              starterCode: 'move_forward(1)\\n',
+              solutionCode: 'move_forward(3)\\ncollect_sample()\\n',
+              readingAge: null, glossary: {}, maxLines: 40,
+              world: { base: [1, 1], samples: [[4, 1]], obstacles: [{ x: 6, y: 3, r: 0.5 }], width: 8, height: 8 },
+              criteria: [{ samples_collected: 1 }, { no_collisions: true }],
+              hints: { onFailure: ['Drive forward, then collect_sample().'], onSuccess: [] }
+            }]
+          }));
+        }
         if (q.get('seedpupils')) {
           // Deterministic on-device class register (pupil-store.js key) so the
           // Teacher dashboard renders a real row + non-zero concept cells: one
@@ -200,7 +220,7 @@ const CAP = `<!DOCTYPE html>
           }));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay'), seedlesson: q.get('seedlesson') };
     })();
   </script>
   <div id="root"></div>
@@ -405,25 +425,59 @@ const CAP = `<!DOCTYPE html>
           var sel = document.getElementById('lesson-select');
           if (!sel) return false;
           try {
+            // The option must EXIST before we claim success. Setting a <select>
+            // to a value it has no option for silently leaves it empty, the
+            // change event then fires with '', loadLesson gets undefined and
+            // does nothing -- and the retry loop stops, because we said we were
+            // done. Authored lessons are merged in after the async lesson fetch
+            // resolves, so that race is real.
+            var found = false;
+            for (var oi = 0; oi < sel.options.length; oi++) {
+              if (sel.options[oi].value === C.lesson) { found = true; break; }
+            }
+            if (!found) return false;
             var setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
             setter.call(sel, C.lesson);
             sel.dispatchEvent(new Event('change', { bubbles: true }));
-            return true;
+            return sel.value === C.lesson;
           } catch (e) { return false; }
         };
-        // Quiet retry loop: the lessons list arrives over a REAL network fetch,
-        // which virtual time races ahead of, so a fixed-delay must() fired
-        // noise before the picker could exist. Keep trying silently; only the
-        // very last attempt self-checks loudly.
+        // Watch the DOM, not the clock. Chrome runs these captures with
+        // --virtual-time-budget, which advances time without waiting for
+        // network, while the lessons list arrives over a REAL fetch. A retry
+        // loop counted in timer ticks therefore burns through its attempts in
+        // virtual milliseconds while the fetch takes real ones, so the same
+        // commit could be green on one machine and red on CI.
+        //
+        // React renders the merged list exactly once and that render is a
+        // mutation, so picking on mutation happens when the option is really
+        // there. The timer is only a backstop for a list that already exists
+        // before the observer attaches.
+        var lessonDone = false;
+        var lessonObserver = null;
+        var lessonTimer = null;
         var lessonTries = 0;
-        var lessonTimer = setInterval(function () {
+        var finishLesson = function (ok) {
+          if (lessonDone) return;
+          lessonDone = true;
+          if (lessonObserver) lessonObserver.disconnect();
+          if (lessonTimer) clearInterval(lessonTimer);
+          if (!ok) must(false, 'lesson=' + C.lesson + ' (option never appeared in #lesson-select; needs mode=classroom)');
+        };
+        var tryPick = function () {
+          if (lessonDone) return;
+          if (pickLesson()) finishLesson(true);
+        };
+        try {
+          lessonObserver = new MutationObserver(tryPick);
+          lessonObserver.observe(document.body, { childList: true, subtree: true });
+        } catch (e) { void e; }
+        lessonTimer = setInterval(function () {
           lessonTries += 1;
-          if (document.querySelector('.lesson-card') || pickLesson()) { clearInterval(lessonTimer); return; }
-          if (lessonTries >= 10) {
-            clearInterval(lessonTimer);
-            must(false, 'lesson=' + C.lesson + ' (#lesson-select present; needs mode=classroom)');
-          }
-        }, 700);
+          tryPick();
+          if (!lessonDone && lessonTries >= 40) finishLesson(false);
+        }, 350);
+        tryPick();
       }
       if (!C.onb && C.blockstest) {
         // Behaviour driver for the UI harness (gated behind blockstest=1 so it
