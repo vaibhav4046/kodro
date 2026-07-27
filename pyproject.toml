@@ -134,6 +134,17 @@ convention = "google"
 line-ending = "lf"
 quote-style = "double"
 indent-style = "space"
+# Ruff is the PYTHON formatter here. Recent versions also format Python inside
+# markdown code fences, which broke CI the moment that graduated out of preview:
+# the dependency is pinned only as ruff>=0.6.0, so a tool release changed the
+# build without a line of this project changing.
+#
+# Excluding markdown is the right answer rather than a workaround. The teacher
+# worksheets under docs/ contain example programs that are deliberately
+# incomplete, half-written or wrong, because that is what a worksheet is for.
+# Auto-formatting them would silently "fix" the very examples a pupil is meant
+# to find the fault in. Python source is still formatted everywhere it lives.
+exclude = ["*.md"]
 
 # ---------- mypy -----------------------------------------------------------
 

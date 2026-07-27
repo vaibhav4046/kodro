@@ -4,11 +4,35 @@ Kodro is an offline robot coding and kinematic simulation app for pupils
 aged 5 to 16, teachers, and beginners. Write or adapt a program, then
 watch a robot try it in a visual test world.
 
-**Run it now:** [open the live app](https://vaibhav4046.github.io/robolearn/).
+**[Open Kodro in your browser](https://vaibhav4046.github.io/robolearn/)**
+
+![Kodro front door with four routes into learning, design, free play and lesson authoring](docs/design/kodro-home.png)
+
+## Choose your route
+
+| I want to... | Start with |
+| --- | --- |
+| learn Python step by step | **Learn to code**, then open **Drive to the Flag** |
+| choose motors, batteries and sensors | **Design a robot** |
+| experiment without a score | **Free play** |
+| draw an arena and set a class task | **Make a lesson** |
+
+### Try the first lesson
+
+1. Open the live app and choose **Learn to code**.
+2. Open **Drive to the Flag**.
+3. Predict where `move_forward(1)` will stop.
+4. Change the distance, press **Run**, then read the goal feedback.
+
+No account is required. Core design, coding, simulation and lesson paths run
+without AI.
+
 From a cloned repository, one command starts the local browser version:
 `python scripts/demo.py`.
 
-Three examples you can make:
+## What you can make
+
+Three examples:
 
 - a wheeled rover that follows a route and avoids obstacles
 - a self-driving car design tested in Riverside City
@@ -17,10 +41,21 @@ Three examples you can make:
 Kodro supports learning and early design comparison. It does not certify
 a physical robot, electrical safety, mechanical fit, or safe deployment.
 
-[![CI](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml)
-[![Deploy Pages](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+## At a glance
+
+- **For pupils:** guided lessons, visible goals, offline hints and a worked
+  answer after the hints run out.
+- **For teachers:** a scheme of work, printable worksheets, a first-lesson
+  card, an answer key and a lesson authoring studio.
+- **For makers:** a robot parts catalogue, Python editor, visual worlds and
+  provisional build evidence.
+- **For privacy:** no account and no mandatory network call for the core paths.
+
+[Teacher first-lesson card](docs/teachers/first-lesson-card.md) |
+[Scheme of work](docs/teachers/scheme-of-work.md) |
+[Pupil API cheatsheet](docs/pupils/api-cheatsheet.md)
+
+## Project status
 
 The hosted app runs in the browser and can work offline after its first
 load. The desktop app uses the same interface with the local Python engine.
@@ -30,6 +65,11 @@ Core design, coding, simulation, and lesson paths need no account or AI.
 > of Liverpool). The specification and design proposal is in
 > [`docs/ca1/`](docs/ca1/) and the dissertation in
 > [`docs/dissertation/`](docs/dissertation/).
+
+[![CI](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml)
+[![Deploy Pages](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
 ## What Kodro is NOT
 
@@ -148,9 +188,9 @@ Design, Prove and Build stages.
 
 ![Kodro Design, Prove and Build loop](docs/launch/kodro-loop.gif)
 
-## Screenshots
+## More screenshots
 
-The first run landing, with the brand mark and the positioning:
+The earlier first-run landing:
 
 ![Kodro onboarding landing](docs/img/onboarding_landing.png)
 
@@ -354,6 +394,14 @@ For the boundaries of what Kodro does and does not do, read:
 - [`docs/known-limitations.md`](docs/known-limitations.md)
 - [`docs/roadmap.md`](docs/roadmap.md)
 - [`docs/implementation-status.md`](docs/implementation-status.md)
+
+Teacher and pupil material:
+
+- [First lesson card](docs/teachers/first-lesson-card.md)
+- [Scheme of work](docs/teachers/scheme-of-work.md)
+- [Printable worksheets](docs/teachers/worksheet-block-a-first-programs.md)
+- [Teacher answer key](docs/teachers/answer-key.md)
+- [Pupil API cheatsheet](docs/pupils/api-cheatsheet.md)
 
 ## Acknowledgements
 

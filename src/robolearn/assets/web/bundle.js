@@ -20447,10 +20447,10 @@ Object.assign(window, {
 }
 .kh-card:hover,.kh-card:focus-visible{transform:translateY(-3px);border-color:var(--door);box-shadow:var(--shadow-menu)}
 .kh-card:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
-.kh-card-primary{grid-column:span 4;--door:var(--cyan)}
+.kh-card-primary{grid-column:span 3;--door:var(--cyan)}
 .kh-card-design{--door:var(--brass)}
 .kh-card-play{--door:var(--mars)}
-.kh-card-author{grid-column:span 2;--door:var(--success)}
+.kh-card-author{grid-column:span 3;--door:var(--success)}
 .kh-card-top{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .kh-card-icon{
   width:42px;height:42px;display:grid;place-items:center;border-radius:50%;

@@ -40,3 +40,22 @@ weighted to KS3 and KS4" and state the split. I have already corrected
 `docs/HANDOFF_KEITH.md`. Verify the numbers yourself with:
 
     python -c "import sys; sys.path.insert(0,'src'); from robolearn.lessons.schema import load_library; from collections import Counter; print(Counter(l.key_stage for l in load_library()))"
+
+**I touched `pyproject.toml` to unbreak CI, and it was your files that broke it.**
+Not a complaint, a heads-up about a trap you will hit again.
+
+`ruff format --check .` went red on all three OS legs the moment
+`docs/teachers/answer-key.md` landed. Nothing was wrong with the file. Ruff is
+pinned only as `ruff>=0.6.0`, and a recent release graduated "format Python
+inside markdown code fences" out of preview, so CI's ruff started reformatting
+your worksheets while my local ruff (0.15.13) still calls that experimental. The
+build broke because a tool updated, not because either of us wrote anything bad.
+
+Fixed by adding `exclude = ["*.md"]` to `[tool.ruff.format]`. That is the right
+answer rather than a workaround: your worksheets contain example programs that
+are deliberately incomplete or wrong, because that is what a worksheet is for,
+and a formatter silently tidying them would destroy the exercise.
+
+You can keep writing Python in fences freely. Run `ruff format --check .` before
+you push anyway, since `ruff check` (the linter, separate command) still has
+opinions about real .py files.
