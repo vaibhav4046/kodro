@@ -2389,7 +2389,7 @@
               <button type="button" className="tele-toggle" aria-expanded={!teleCollapsed} aria-label={teleCollapsed ? 'Expand telemetry panel' : 'Collapse telemetry panel'} onClick={() => setTeleCollapsed(c => !c)}>{teleCollapsed ? '▸' : '▾'}</button>
               <button type="button" className="tele-close" aria-label="Close the evidence panel" onClick={() => setEvidenceOpen(false)}>✕</button>
             </div>
-            <window.Telemetry rover={rover} terrain={terrain} sensorDist={sensorDist} odometer={odo} robot={robotSpec} runState={runState} view3d={view3d} />
+            <window.Telemetry rover={rover} terrain={terrain} sensorDist={sensorDist} odometer={odo} robot={robotSpec} runState={runState} view3d={view3d} expert={!simpleExperience} />
           </div>
         </main>
 

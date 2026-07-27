@@ -49,7 +49,7 @@
     );
   }
 
-  function Telemetry({ rover, terrain, sensorDist, odometer, robot, runState, view3d }) {
+  function Telemetry({ rover, terrain, sensorDist, odometer, robot, runState, view3d, expert }) {
     const [performanceReport, setPerformanceReport] = React.useState(() => window.KodroPerformance || null);
     React.useEffect(() => {
       const receivePerformance = (event) => setPerformanceReport(event.detail || window.KodroPerformance || null);
@@ -160,20 +160,30 @@
                   <span className="g-label">Observed cadence</span>
                   <span className="g-val">{performanceReport.measuredFps}<span className="g-unit">fps</span></span>
                 </div>
-                <div className="gauge">
-                  <span className="g-label">P95 submission</span>
-                  <span className="g-val">{performanceReport.p95RenderSubmissionMs}<span className="g-unit">ms</span></span>
-                </div>
-                <div className="gauge">
-                  <span className="g-label">240 Hz work budget</span>
-                  <span className="g-val" style={{ fontSize: 12, color: performanceReport.highRefreshSubmissionReady ? 'var(--success)' : 'var(--warning)', paddingTop: 4 }}>
-                    {performanceReport.highRefreshSubmissionReady ? 'MET HERE' : 'NOT MET HERE'}
-                  </span>
-                </div>
-                <div className="gauge">
-                  <span className="g-label">Effective quality</span>
-                  <span className="g-val" style={{ fontSize: 12, paddingTop: 4 }}>{String(performanceReport.quality || 'unknown').toUpperCase()}</span>
-                </div>
+                {/* Render-submission timing, the 240 Hz budget verdict and the
+                    internal quality tier are engineering diagnostics about the
+                    browser, not results about the pupil's robot. On the default
+                    surface "240 Hz work budget: NOT MET HERE" reads as the robot
+                    having failed something, so they are kept for Expert. The
+                    honest frame-rate figure above stays for everyone. */}
+                {expert && (
+                  <>
+                    <div className="gauge">
+                      <span className="g-label">P95 submission</span>
+                      <span className="g-val">{performanceReport.p95RenderSubmissionMs}<span className="g-unit">ms</span></span>
+                    </div>
+                    <div className="gauge">
+                      <span className="g-label">240 Hz work budget</span>
+                      <span className="g-val" style={{ fontSize: 12, color: performanceReport.highRefreshSubmissionReady ? 'var(--success)' : 'var(--warning)', paddingTop: 4 }}>
+                        {performanceReport.highRefreshSubmissionReady ? 'MET HERE' : 'NOT MET HERE'}
+                      </span>
+                    </div>
+                    <div className="gauge">
+                      <span className="g-label">Effective quality</span>
+                      <span className="g-val" style={{ fontSize: 12, paddingTop: 4 }}>{String(performanceReport.quality || 'unknown').toUpperCase()}</span>
+                    </div>
+                  </>
+                )}
               </div>
               <p className="renderer-boundary">A 120-frame sample on this browser. Displayed FPS remains bounded by the display, browser, GPU, scene and device.</p>
             </>

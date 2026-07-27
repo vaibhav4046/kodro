@@ -12302,7 +12302,8 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     odometer,
     robot,
     runState,
-    view3d
+    view3d,
+    expert
   }) {
     const [performanceReport, setPerformanceReport] = React.useState(() => window.KodroPerformance || null);
     React.useEffect(() => {
@@ -12488,7 +12489,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
       className: "g-val"
     }, performanceReport.measuredFps, /*#__PURE__*/React.createElement("span", {
       className: "g-unit"
-    }, "fps"))), /*#__PURE__*/React.createElement("div", {
+    }, "fps"))), expert && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       className: "gauge"
     }, /*#__PURE__*/React.createElement("span", {
       className: "g-label"
@@ -12517,7 +12518,7 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
         fontSize: 12,
         paddingTop: 4
       }
-    }, String(performanceReport.quality || 'unknown').toUpperCase()))), /*#__PURE__*/React.createElement("p", {
+    }, String(performanceReport.quality || 'unknown').toUpperCase())))), /*#__PURE__*/React.createElement("p", {
       className: "renderer-boundary"
     }, "A 120-frame sample on this browser. Displayed FPS remains bounded by the display, browser, GPU, scene and device.")) : /*#__PURE__*/React.createElement("p", {
       className: "renderer-boundary"
@@ -29839,7 +29840,8 @@ say("Survey done")`
       odometer: odo,
       robot: robotSpec,
       runState: runState,
-      view3d: view3d
+      view3d: view3d,
+      expert: !simpleExperience
     }))), /*#__PURE__*/React.createElement(window.TweaksPanel, {
       title: "Tweaks"
     }, /*#__PURE__*/React.createElement(window.TweakSection, {
