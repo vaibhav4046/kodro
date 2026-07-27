@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-26T19:41:02.990Z",
+  "generatedAt": "2026-07-27T21:12:08.573Z",
   "method": "headless Chrome requestAnimationFrame cadence plus in-render submission timing on the shipped Three.js scene",
   "glMode": "hardware",
   "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -10,7 +10,7 @@
     "node": "v24.12.0"
   },
   "artifactHashes": {
-    "bundleSha256": "399e7d3097e7a1a1bd1f0e4393da1acae9108c4d3d5eca2c1f4e96c9ea90d3ac",
+    "bundleSha256": "23201a399741e6245918d5a168e50d9c823ac3aafb0b8e5d24b18208056c0076",
     "harnessSha256": "50681bdc3764f89f48a6cbe5d4e662bd3c80baa2a79391651477a582ddab9261"
   },
   "target240HzFrameMs": 4.17,
@@ -25,24 +25,24 @@
     "perTier": {
       "low": {
         "samples": 3,
-        "measuredFpsMin": 144.1,
-        "measuredFpsMax": 146.1,
-        "measuredFpsMedian": 145.8,
+        "measuredFpsMin": 116.8,
+        "measuredFpsMax": 144.9,
+        "measuredFpsMedian": 144.5,
         "all": [
-          144.1,
-          145.8,
-          146.1
+          116.8,
+          144.5,
+          144.9
         ]
       },
       "high": {
         "samples": 3,
-        "measuredFpsMin": 126.3,
-        "measuredFpsMax": 145.8,
-        "measuredFpsMedian": 145,
+        "measuredFpsMin": 127,
+        "measuredFpsMax": 143.3,
+        "measuredFpsMedian": 128.2,
         "all": [
-          126.3,
-          145,
-          145.8
+          127,
+          128.2,
+          143.3
         ]
       }
     }
@@ -53,14 +53,14 @@
       "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
       "processStatus": 0,
       "timedOut": false,
-      "elapsedMs": 4230,
+      "elapsedMs": 2822,
       "metrics": {
         "schemaVersion": 1,
         "sampleFrames": 120,
-        "measuredFps": 146.1,
+        "measuredFps": 144.5,
         "refreshEstimateHz": 144.9,
-        "p95FrameIntervalMs": 7.7,
-        "p95RenderSubmissionMs": 3.3,
+        "p95FrameIntervalMs": 7.4,
+        "p95RenderSubmissionMs": 1.8,
         "target240HzFrameMs": 4.17,
         "highRefreshSubmissionReady": true,
         "actual240FpsGuaranteed": false,
@@ -71,7 +71,7 @@
       },
       "error": null,
       "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9417/devtools/browser/15100ede-f295-4b61-83b4-0ea708d2830f"
+        "DevTools listening on ws://127.0.0.1:9417/devtools/browser/c4b72b16-1896-4ebc-95dc-cd38678e91f7"
       ],
       "sample": 1
     },
@@ -80,106 +80,106 @@
       "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
       "processStatus": 0,
       "timedOut": false,
-      "elapsedMs": 3523,
+      "elapsedMs": 2913,
       "metrics": {
         "schemaVersion": 1,
         "sampleFrames": 120,
-        "measuredFps": 145,
+        "measuredFps": 127,
+        "refreshEstimateHz": 144.9,
+        "p95FrameIntervalMs": 8.5,
+        "p95RenderSubmissionMs": 3.1,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": true,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "high",
+        "rendererClass": "hardware",
+        "downgraded": false
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9418/devtools/browser/4e102798-aa3d-41ff-8021-17cf35f21561"
+      ],
+      "sample": 1
+    },
+    {
+      "qualityRequested": "low",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 2387,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 144.9,
         "refreshEstimateHz": 144.9,
         "p95FrameIntervalMs": 7.5,
+        "p95RenderSubmissionMs": 1.9,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": true,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "low",
+        "rendererClass": "hardware",
+        "downgraded": false
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9419/devtools/browser/cf3aea27-c765-4335-b11b-104fa8a516fa"
+      ],
+      "sample": 2
+    },
+    {
+      "qualityRequested": "high",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 2602,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 143.3,
+        "refreshEstimateHz": 144.9,
+        "p95FrameIntervalMs": 7.5,
+        "p95RenderSubmissionMs": 2.4,
+        "target240HzFrameMs": 4.17,
+        "highRefreshSubmissionReady": true,
+        "actual240FpsGuaranteed": false,
+        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
+        "quality": "high",
+        "rendererClass": "hardware",
+        "downgraded": false
+      },
+      "error": null,
+      "stderrTail": [
+        "DevTools listening on ws://127.0.0.1:9420/devtools/browser/85aa7a9c-65a3-4a7a-87b2-a68dbb3356c8"
+      ],
+      "sample": 2
+    },
+    {
+      "qualityRequested": "low",
+      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
+      "processStatus": 0,
+      "timedOut": false,
+      "elapsedMs": 2624,
+      "metrics": {
+        "schemaVersion": 1,
+        "sampleFrames": 120,
+        "measuredFps": 116.8,
+        "refreshEstimateHz": 142.9,
+        "p95FrameIntervalMs": 8.1,
         "p95RenderSubmissionMs": 2.5,
         "target240HzFrameMs": 4.17,
         "highRefreshSubmissionReady": true,
         "actual240FpsGuaranteed": false,
         "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
-        "quality": "high",
-        "rendererClass": "hardware",
-        "downgraded": false
-      },
-      "error": null,
-      "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9418/devtools/browser/c746f85b-5e2c-4006-ba40-e929cdc45f92"
-      ],
-      "sample": 1
-    },
-    {
-      "qualityRequested": "low",
-      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
-      "processStatus": 0,
-      "timedOut": false,
-      "elapsedMs": 3769,
-      "metrics": {
-        "schemaVersion": 1,
-        "sampleFrames": 120,
-        "measuredFps": 145.8,
-        "refreshEstimateHz": 142.9,
-        "p95FrameIntervalMs": 7.6,
-        "p95RenderSubmissionMs": 3.3,
-        "target240HzFrameMs": 4.17,
-        "highRefreshSubmissionReady": true,
-        "actual240FpsGuaranteed": false,
-        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
         "quality": "low",
         "rendererClass": "hardware",
         "downgraded": false
       },
       "error": null,
       "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9419/devtools/browser/344078a0-390b-451c-bcf8-66ea92034cf2"
-      ],
-      "sample": 2
-    },
-    {
-      "qualityRequested": "high",
-      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
-      "processStatus": 0,
-      "timedOut": false,
-      "elapsedMs": 3485,
-      "metrics": {
-        "schemaVersion": 1,
-        "sampleFrames": 120,
-        "measuredFps": 145.8,
-        "refreshEstimateHz": 144.9,
-        "p95FrameIntervalMs": 7.5,
-        "p95RenderSubmissionMs": 3.5,
-        "target240HzFrameMs": 4.17,
-        "highRefreshSubmissionReady": true,
-        "actual240FpsGuaranteed": false,
-        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
-        "quality": "high",
-        "rendererClass": "hardware",
-        "downgraded": false
-      },
-      "error": null,
-      "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9420/devtools/browser/c65d9ed5-65d2-4bbf-bf00-7e6b8fb89dbb"
-      ],
-      "sample": 2
-    },
-    {
-      "qualityRequested": "low",
-      "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
-      "processStatus": 0,
-      "timedOut": false,
-      "elapsedMs": 8613,
-      "metrics": {
-        "schemaVersion": 1,
-        "sampleFrames": 120,
-        "measuredFps": 144.1,
-        "refreshEstimateHz": 144.9,
-        "p95FrameIntervalMs": 7.8,
-        "p95RenderSubmissionMs": 3.8,
-        "target240HzFrameMs": 4.17,
-        "highRefreshSubmissionReady": true,
-        "actual240FpsGuaranteed": false,
-        "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
-        "quality": "low",
-        "rendererClass": "hardware",
-        "downgraded": false
-      },
-      "error": null,
-      "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9421/devtools/browser/47686e0c-87d7-4b5d-ab48-c64bff244bd0"
+        "DevTools listening on ws://127.0.0.1:9421/devtools/browser/88add480-fed5-41ae-b0f2-e7943b013ad2"
       ],
       "sample": 3
     },
@@ -188,13 +188,13 @@
       "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
       "processStatus": 0,
       "timedOut": false,
-      "elapsedMs": 2991,
+      "elapsedMs": 2864,
       "metrics": {
         "schemaVersion": 1,
         "sampleFrames": 120,
-        "measuredFps": 126.3,
-        "refreshEstimateHz": 142.9,
-        "p95FrameIntervalMs": 8.2,
+        "measuredFps": 128.2,
+        "refreshEstimateHz": 144.9,
+        "p95FrameIntervalMs": 7.8,
         "p95RenderSubmissionMs": 2.9,
         "target240HzFrameMs": 4.17,
         "highRefreshSubmissionReady": true,
@@ -206,7 +206,7 @@
       },
       "error": null,
       "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9422/devtools/browser/3e8d38cf-d305-4c98-8d33-37013400877b"
+        "DevTools listening on ws://127.0.0.1:9422/devtools/browser/81d14c21-3e01-42c8-9224-d8672adf60d6"
       ],
       "sample": 3
     }
