@@ -1083,8 +1083,21 @@
       setActiveStage('prove');
       setLessonHubOpen(false);
       setCurrentLessonId(lesson.id);
-      setLessonVerdict(null);
-      setLessonAttempts(0);
+      // Restore this lesson's own last verdict rather than clearing it. A pupil
+      // who looked at another lesson and came back lost the explanation of what
+      // to fix, while the top status bar still showed the OTHER lesson's
+      // outcome, so the page described two lessons at once. Each lesson now
+      // shows its own result, or nothing if it has never been run.
+      const priorResult = lessonResults[lesson.id];
+      setLessonVerdict(priorResult
+        ? {
+          passed: !!priorResult.passed,
+          score: priorResult.score,
+          reasons: priorResult.reasons || [],
+          hint: priorResult.hint || null,
+        }
+        : null);
+      setLessonAttempts(priorResult && !priorResult.passed ? (priorResult.attempts || 0) : 0);
       setExtraHints(0);
       // Render the rover on the SAME world it is graded against. Without this
       // the viewport could show a persisted Mars while the grader ran the
@@ -1104,11 +1117,20 @@
       // Seed this lesson's buffer from its starter ONLY if it has no edits yet,
       // so switching A -> B -> A preserves the pupil's work in A (rank 6).
       setLessonBuffers(b => b[lesson.id] !== undefined ? b : { ...b, [lesson.id]: lesson.starterCode || '' });
-      setConsoleLines(l => [
-        ...l,
-        { type: 'sys', text: '─── ' + lesson.id + ' · ' + lesson.title + ' [' + lesson.keyStage + '] ───' },
+      // Start the console on THIS lesson. It used to append, so by lesson five
+      // a pupil was scrolling past four earlier lessons' introductions, runs,
+      // collisions and verdicts to find the feedback for the one in front of
+      // them, including contradictions from lessons they had already left.
+      // Every run is still kept in the Runs panel, which is where history
+      // belongs.
+      setConsoleLines([
+        { type: 'sys', text: '─── ' + lesson.title + ' [' + (AGE_FOR[lesson.keyStage] || lesson.keyStage) + '] ───' },
         { type: 'out', text: (lesson.intro || '').trim() },
       ]);
+      // A run status belongs to the run that produced it. Carrying the previous
+      // lesson's "Complete" or "Halted" into a lesson that has not been run
+      // made the new lesson look already finished.
+      setRunState('idle');
     }
     // `precomputed` is a verdict for the run the pupil just watched, produced
     // by the studio from what it measured while animating. When present the
@@ -1176,6 +1198,11 @@
             score: Number.isFinite(Number(r.score)) ? Number(r.score) : 0,
             attempts: ((prev[lessonId] && prev[lessonId].attempts) || 0) + 1,
             updatedAt: Date.now(),
+            // The reasons and the hint are the part a pupil actually needs:
+            // they say what to change. Only the score was kept, so switching
+            // to another lesson and back left the number with no explanation.
+            reasons: Array.isArray(r.reasons) ? r.reasons : [],
+            hint: r.hint || null,
           },
         }));
         // Browser mode has no Python store, so keep an on-device class register
