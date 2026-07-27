@@ -84,6 +84,9 @@ const STUDIO = `<!DOCTYPE html>
   <script>
     try {
       localStorage.setItem('or_onboarded', '1');
+      // The front door's own flag (home.jsx), which replaced or_onboarded.
+      // Without it every dissertation still photographs the landing screen.
+      localStorage.setItem('kodro_home_seen', '1');
       localStorage.setItem('or_terrain', 'city');
     } catch (e) { void e; }
   </script>
@@ -148,8 +151,8 @@ const CAP = `<!DOCTYPE html>
       var q = new URLSearchParams(location.search);
       var onb = q.get('onb');
       try {
-        if (onb) localStorage.removeItem('or_onboarded');
-        else localStorage.setItem('or_onboarded', '1');
+        if (onb) { localStorage.removeItem('or_onboarded'); localStorage.removeItem('kodro_home_seen'); }
+        else { localStorage.setItem('or_onboarded', '1'); localStorage.setItem('kodro_home_seen', '1'); }
         var w = q.get('world'); if (w) localStorage.setItem('or_terrain', w);
         var tb = q.get('tab'); if (tb) localStorage.setItem('or_tab', tb);
         var qq = q.get('q'); if (qq) localStorage.setItem('kodro_quality', qq);

@@ -170,7 +170,12 @@ const FLOWS = [
   { name: 'world-warehouse',  url: 'world=warehouse&robot=rover&q=high&run=1' },
   { name: 'arm-firstrun',     url: 'world=room&robot=arm&run=1' },
   { name: 'blocks-panel',     url: 'world=earth&robot=rover&panel=blocks' },
-  { name: 'onboarding',       url: 'onb=1' },
+  // The front door (home.jsx) is deliberately sparse: a dark page, a line of
+  // text and three cards. It paints correctly at ~73KB, well under the floor
+  // calibrated for the full studio, so it carries its own floor. Without one
+  // the only way to pass would be to lower the studio floor too, which is
+  // what actually catches a blank bundle.
+  { name: 'onboarding',       url: 'onb=1', minBytes: 55_000 },
 ];
 
 // A deliberately broken program: an undefined name. The interpreter raises and
@@ -1174,8 +1179,9 @@ function runFlow(chrome, flow, timeoutMs = SPAWN_TIMEOUT_MS) {
   let bytes = 0;
   if (existsSync(shotWin)) { try { bytes = statSync(shotWin).size; } catch { bytes = 0; } }
   if (bytes === 0) return { pass: false, reason: 'no screenshot written (page never painted)', bytes: 0 };
-  if (bytes < MIN_PNG_BYTES) {
-    return { pass: false, reason: `blank/tiny render (${bytes}B < ${MIN_PNG_BYTES}B)`, bytes };
+  const floor = flow.minBytes || MIN_PNG_BYTES;
+  if (bytes < floor) {
+    return { pass: false, reason: `blank/tiny render (${bytes}B < ${floor}B)`, bytes };
   }
 
   // (b) console-error check
