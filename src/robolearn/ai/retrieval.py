@@ -64,7 +64,6 @@ _STOP: frozenset[str] = frozenset(
         "be",
         "as",
         "at",
-        "if",
         "then",
         "so",
     ]
@@ -144,7 +143,13 @@ def build_corpus(lessons: list[Lesson]) -> list[Passage]:
     return docs
 
 
-def search(query: str, docs: list[Passage], *, k: int = 3) -> list[Passage]:
+def search(
+    query: str,
+    docs: list[Passage],
+    *,
+    k: int = 3,
+    preferred_source_prefix: str | None = None,
+) -> list[Passage]:
     """Return the ``k`` passages most relevant to ``query``, best first.
 
     Scoring is inverse-document-frequency weighted term overlap, so a word
@@ -167,6 +172,8 @@ def search(query: str, docs: list[Passage], *, k: int = 3) -> list[Passage]:
         if not hit:
             continue
         score = sum(math.log((n + 1) / (df[t])) for t in hit)
+        if preferred_source_prefix and doc.source.startswith(preferred_source_prefix):
+            score += 100.0
         scored.append(Passage(source=doc.source, text=doc.text, score=round(score, 4)))
     scored.sort(key=lambda p: p.score, reverse=True)
     return scored[:k]
@@ -189,6 +196,7 @@ def grounded_answer(
     client: OllamaClient | None = None,
     model: str = DEFAULT_MODEL,
     min_score: float = 0.5,
+    preferred_lesson_id: str | None = None,
 ) -> dict[str, object]:
     """Answer ``query`` strictly from retrieved lesson passages.
 
@@ -201,7 +209,16 @@ def grounded_answer(
     Raises:
         OllamaError: propagated from the client on transport failure.
     """
-    passages = [p for p in search(query, build_corpus(lessons), k=3) if p.score >= min_score]
+    passages = [
+        p
+        for p in search(
+            query,
+            build_corpus(lessons),
+            k=3,
+            preferred_source_prefix=(f"{preferred_lesson_id} " if preferred_lesson_id else None),
+        )
+        if p.score >= min_score
+    ]
     sources = [{"source": p.source, "text": p.text} for p in passages]
     if not passages:
         return {

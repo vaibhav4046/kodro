@@ -23,6 +23,7 @@ both improve correctness over a single pass.
 
 from __future__ import annotations
 
+import ast
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -109,10 +110,33 @@ def review_program(
     issues, proposed = _parse_review(raw)
     result = CritiqueResult(final_code=source or "", issues=issues, model=model)
     changed = bool(proposed.strip()) and proposed.strip() != (source or "").strip()
-    if changed and (validate is None or validate(proposed) is None):
+    validation_ok = changed and (validate is None or validate(proposed) is None)
+    same_structure = validation_ok and _same_executable_structure(source or "", proposed)
+    if same_structure:
         result.final_code = proposed
         result.revised = True
+    elif validation_ok:
+        result.issues = [
+            "Kodro kept your program because the proposed rewrite changed executable behaviour.",
+            *result.issues,
+        ][:3]
     return result
+
+
+def _same_executable_structure(original: str, proposed: str) -> bool:
+    """Return whether a review changes no executable Python semantics.
+
+    Model-written formatting and comments are safe to offer. A different AST
+    is not: a runnable rewrite can still add movement, invert a branch, or
+    introduce recursion. The deterministic runtime remains the syntax/sandbox
+    gate; this comparison enforces the review promise to keep behaviour.
+    """
+    try:
+        before = ast.parse(original)
+        after = ast.parse(proposed)
+    except SyntaxError:
+        return False
+    return ast.dump(before, include_attributes=False) == ast.dump(after, include_attributes=False)
 
 
 def _parse_review(raw: str) -> tuple[list[str], str]:
