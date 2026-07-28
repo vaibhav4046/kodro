@@ -307,8 +307,9 @@
       return arr
         .filter(m => m && typeof m.text === 'string' && (m.role === 'user' || m.role === 'ai'))
         .map(m => ({
-          role: m.role, kind: (m.kind === 'code' || m.kind === 'action') ? m.kind : 'text', text: m.text,
+          role: m.role, kind: (m.kind === 'code' || m.kind === 'action' || m.kind === 'evidence') ? m.kind : 'text', text: m.text,
           model: m.model, validated: m.validated, validationError: m.validationError,
+          summary: m.summary,
         }));
     } catch (_e) { return []; }
   }
@@ -354,8 +355,11 @@
     // Lets the user cancel an in-flight generation by closing the panel; the
     // poll loop checks this and bails quietly instead of showing an error.
     const vibeCancelRef = useRef(false);
-    async function vibeSend() {
-      const text = vibePrompt.trim();
+    async function vibeSend(overrideText) {
+      // Buttons pass a click event to their handler, while the Companion's
+      // quick actions pass a prompt string. Only a real string overrides the
+      // textarea, so a click event can never become "[object Object]" in chat.
+      const text = (typeof overrideText === 'string' ? overrideText : vibePrompt).trim();
       if (vibeBusy || !text) return;
       const next = [...vibeMsgs, { role: 'user', kind: 'text', text }];
       setVibeMsgs(next); setVibePrompt(''); setVibeBusy(true); setVibeError(null); setVibeLive(''); vibeCancelRef.current = false;
@@ -364,8 +368,31 @@
       // the model sees is the new robot. Works even when no AI model is present.
       let actionMsg = null;
       try { actionMsg = opts.dispatchWorldAction ? opts.dispatchWorldAction(text) : null; } catch (_e) { actionMsg = null; }
-      if (actionMsg && actionMsg.message) {
-        setVibeMsgs(m => [...m, { role: 'ai', kind: 'action', text: actionMsg.message }]);
+      if (actionMsg) {
+        const replies = [];
+        if (actionMsg.message) {
+          replies.push({ role: 'ai', kind: actionMsg.kind || 'action', text: actionMsg.message });
+        }
+        // An on-device repair uses the same preview card as model-written code:
+        // the current program is untouched until the user chooses Apply, and
+        // Discard removes only this proposal. This makes every edit selective.
+        if (actionMsg.draft) {
+          replies.push({
+            role: 'ai', kind: 'code', text: actionMsg.draft,
+            model: actionMsg.model || 'Kodro on-device',
+            validated: actionMsg.validated !== false,
+            validationError: actionMsg.validationError || null,
+            summary: actionMsg.summary || null,
+          });
+        }
+        if (replies.length) setVibeMsgs(m => [...m, ...replies]);
+        // Deterministic help is a complete answer. Do not follow it with a
+        // model request that can fail and paint "AI unavailable" under a task
+        // Kodro has already completed successfully.
+        if (actionMsg.handled !== false) {
+          setVibeBusy(false);
+          return;
+        }
       }
       // OPP-7: bounded model tool call, tried ONLY when the deterministic
       // intent parse found no action. One whitelisted tool (set_world); the

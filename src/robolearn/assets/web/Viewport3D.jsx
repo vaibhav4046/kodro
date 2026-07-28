@@ -1872,6 +1872,25 @@
           raf = window.requestAnimationFrame(tick);
           return;
         }
+        // Covered by a modal, a popover or the evidence drawer: the canvas is
+        // not visible, so rendering it is pure cost on a machine that has none
+        // to spare. app.jsx owns the class (see simIdle there).
+        //
+        // This is safe to skip because the SIMULATION does not live here. The
+        // run advances on setTimeout in hooks.jsx, deliberately, so that logic
+        // keeps moving when the tab is backgrounded; this loop only draws the
+        // rover toward a state something else computed. Pausing it cannot
+        // change a distance, a collision count or a grade.
+        //
+        // It is also what lets the translucent surfaces exist at all: styles.css
+        // only enables backdrop blur under body.kodro-sim-idle, so a blurred
+        // panel and a live WebGL canvas never compete for the same frame.
+        if (typeof document !== 'undefined' && document.body
+          && document.body.classList.contains('kodro-sim-idle')) {
+          last = (window.performance && window.performance.now) ? window.performance.now() : last;
+          raf = window.requestAnimationFrame(tick);
+          return;
+        }
         const now = (window.performance && window.performance.now) ? window.performance.now() : last + 16;
         const dt = now - last; last = now;
         if (!downgraded && ++frames > 12) {

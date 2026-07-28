@@ -11570,6 +11570,24 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
           raf = window.requestAnimationFrame(tick);
           return;
         }
+        // Covered by a modal, a popover or the evidence drawer: the canvas is
+        // not visible, so rendering it is pure cost on a machine that has none
+        // to spare. app.jsx owns the class (see simIdle there).
+        //
+        // This is safe to skip because the SIMULATION does not live here. The
+        // run advances on setTimeout in hooks.jsx, deliberately, so that logic
+        // keeps moving when the tab is backgrounded; this loop only draws the
+        // rover toward a state something else computed. Pausing it cannot
+        // change a distance, a collision count or a grade.
+        //
+        // It is also what lets the translucent surfaces exist at all: styles.css
+        // only enables backdrop blur under body.kodro-sim-idle, so a blurred
+        // panel and a live WebGL canvas never compete for the same frame.
+        if (typeof document !== 'undefined' && document.body && document.body.classList.contains('kodro-sim-idle')) {
+          last = window.performance && window.performance.now ? window.performance.now() : last;
+          raf = window.requestAnimationFrame(tick);
+          return;
+        }
         const now = window.performance && window.performance.now ? window.performance.now() : last + 16;
         const dt = now - last;
         last = now;
@@ -18330,14 +18348,28 @@ Object.assign(window, {
         var s = samples[i];
         if (!Array.isArray(s) || s.length !== 2 || !inside(Number(s[0]), Number(s[1]))) {
           push('Sample ' + (i + 1) + ' is outside the arena.');
+          continue;
+        }
+        for (var si = 0; si < i; si++) {
+          var earlier = samples[si];
+          if (Array.isArray(earlier) && Math.hypot(Number(s[0]) - Number(earlier[0]), Number(s[1]) - Number(earlier[1])) < 0.2) {
+            push('Sample ' + (i + 1) + ' is on top of sample ' + (si + 1) + '. Move one so pupils can tell them apart.');
+          }
         }
       }
       if (samples.length > 12) push('A lesson can have at most 12 samples.');
       var obstacles = Array.isArray(w.obstacles) ? w.obstacles : [];
       for (var j = 0; j < obstacles.length; j++) {
         var o = obstacles[j] || {};
-        if (!inside(Number(o.x), Number(o.y))) push('Rock ' + (j + 1) + ' is outside the arena.');
-        if (!(Number(o.r) > 0 && Number(o.r) <= 3)) push('Rock ' + (j + 1) + ' needs a radius between 0 and 3 metres.');
+        var ox = Number(o.x),
+          oy = Number(o.y),
+          orad = Number(o.r);
+        if (!inside(ox, oy)) push('Rock ' + (j + 1) + ' is outside the arena.');
+        if (!(orad > 0 && orad <= 3)) {
+          push('Rock ' + (j + 1) + ' needs a radius between 0 and 3 metres.');
+        } else if (inside(ox, oy) && (ox - orad < 0 || ox + orad > width || oy - orad < 0 || oy + orad > height)) {
+          push('Rock ' + (j + 1) + ' crosses the arena wall. Move it inward or make it smaller.');
+        }
       }
       if (obstacles.length > 24) push('A lesson can have at most 24 rocks.');
       // A rock sitting on the start point means the rover begins inside an
@@ -18349,6 +18381,20 @@ Object.assign(window, {
           if (d < Number(ob.r) + 0.35) push('Rock ' + (k + 1) + ' is on top of the base, so the rover would start inside it.');
         }
       }
+      // A sample inside a rock is visible but unreachable: collision stops the
+      // rover before collect_sample() can get close enough. Refuse the arena
+      // instead of letting a correct pupil program fail forever.
+      for (var smi = 0; smi < samples.length; smi++) {
+        var sample = samples[smi];
+        if (!Array.isArray(sample)) continue;
+        for (var obi = 0; obi < obstacles.length; obi++) {
+          var rock = obstacles[obi] || {};
+          var gap = Math.hypot(Number(sample[0]) - Number(rock.x), Number(sample[1]) - Number(rock.y));
+          if (isFiniteNum(gap) && gap < Number(rock.r) + 0.2) {
+            push('Sample ' + (smi + 1) + ' is inside rock ' + (obi + 1) + ', so the rover cannot collect it.');
+          }
+        }
+      }
     }
 
     // --- criteria ---
@@ -18357,6 +18403,7 @@ Object.assign(window, {
       push('The lesson needs at least one goal, or every program passes it.');
     } else {
       if (criteria.length > 8) push('A lesson can have at most 8 goals.');
+      var seenCriteria = {};
       for (var c = 0; c < criteria.length; c++) {
         var cr = criteria[c];
         if (!cr || typeof cr !== 'object') {
@@ -18373,6 +18420,8 @@ Object.assign(window, {
           push('Goal ' + (c + 1) + ' uses an unknown rule "' + key + '".');
           continue;
         }
+        if (seenCriteria[key]) warnings.push('Goal ' + (c + 1) + ' repeats "' + key + '". Keep one value so the pupil sees one clear rule.');
+        seenCriteria[key] = true;
         var val = cr[key];
         if (key === 'uses_construct' && CONSTRUCTS.indexOf(val) < 0) {
           push('Goal ' + (c + 1) + ' asks for an unknown construct "' + String(val) + '".');
@@ -20758,14 +20807,14 @@ Object.assign(window, {
     hint: 'For lessons about sequence. Other calls may appear in between.'
   }, {
     key: 'max_battery_used',
-    label: 'Use at most',
+    label: 'Limit battery use to',
     kind: 'num',
     dflt: 30,
     unit: '% battery',
     hint: 'Rewards a shorter route.'
   }, {
     key: 'max_steps',
-    label: 'Use at most',
+    label: 'Limit program to',
     kind: 'int',
     dflt: 40,
     unit: 'commands',
@@ -20814,8 +20863,15 @@ Object.assign(window, {
     var msgState = React.useState(null);
     var msg = msgState[0],
       setMsg = msgState[1];
+    // The selected marker is edited numerically below the map. Clicking is
+    // fast; the inspector makes the exact position and radius visible and
+    // editable instead of forcing a teacher to repeatedly undo and re-place.
+    var selectedState = React.useState(null);
+    var selected = selectedState[0],
+      setSelected = selectedState[1];
     var w = doc.world;
     var scale = MAP_PX / Math.max(w.width, w.height);
+    var liveValidation = Store.validate(doc);
 
     // Any edit invalidates the last check: a lesson proved solvable before you
     // moved the rock is not proved solvable now.
@@ -20856,6 +20912,11 @@ Object.assign(window, {
         cx: mx * scale,
         cy: (w.height - my) * scale
       };
+    }
+    function selectFromKey(ev, value) {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      setSelected(value);
     }
 
     // Run the author's own worked answer through the grader a pupil will face.
@@ -20904,34 +20965,34 @@ Object.assign(window, {
         });
         return;
       }
+      var starterResult = null;
+      var s = Grader.registerAuthored(probeId, Store.toEntry(doc));
+      if (s.ok) {
+        starterResult = Grader.gradeSync({
+          id: probeId,
+          terrain: doc.terrain
+        }, doc.starterCode || '');
+        Grader.unregisterAuthored(probeId);
+      }
       setChecked({
         ok: r.passed === true,
         stage: 'grade',
         score: r.score,
         reasons: r.reasons || [],
-        starterPasses: null
+        events: r.events || [],
+        starterPasses: !!(starterResult && starterResult.passed),
+        starterScore: starterResult ? starterResult.score : null,
+        starterReasons: starterResult ? starterResult.reasons || [] : [],
+        warnings: v.warnings || []
       });
-      // A starter that already passes makes the lesson a button press. Worth
-      // saying, but not worth blocking: some KS1 lessons are deliberately
-      // "press Run and watch".
-      if (r.passed) {
-        var s = Grader.registerAuthored(probeId, Store.toEntry(doc));
-        if (s.ok) {
-          var sr = Grader.gradeSync({
-            id: probeId,
-            terrain: doc.terrain
-          }, doc.starterCode || '');
-          Grader.unregisterAuthored(probeId);
-          if (sr && sr.passed) {
-            setMsg({
-              tone: 'warn',
-              text: 'Careful: the starter program already passes, so there is nothing for the pupil to work out.'
-            });
-          }
-        }
+      if (r.passed && starterResult && starterResult.passed) {
+        setMsg({
+          tone: 'warn',
+          text: 'Careful: the starter program already passes, so there is nothing for the pupil to work out.'
+        });
       }
     }
-    function doSave() {
+    function doSave(openAfter) {
       var r = Store.save(doc);
       if (!r.ok) {
         setMsg({
@@ -20945,8 +21006,18 @@ Object.assign(window, {
         text: 'Saved. It is in the lesson library now, marked as made here.'
       });
       if (props.onSaved) props.onSaved(doc);
+      if (openAfter && props.onOpen) props.onOpen(doc);
     }
     var canSave = !!(checked && checked.ok);
+    var arenaIssues = liveValidation.errors.filter(function (x) {
+      return /(arena|sample|rock|base|world)/i.test(x);
+    });
+    var goalIssues = liveValidation.errors.filter(function (x) {
+      return /goal/i.test(x);
+    });
+    var arenaReady = arenaIssues.length === 0;
+    var goalsReady = doc.criteria.length > 0 && goalIssues.length === 0;
+    var programsReady = !!(doc.starterCode && doc.starterCode.trim() && doc.solutionCode && doc.solutionCode.trim());
 
     // --- goals ---
     function setGoal(i, key) {
@@ -21055,7 +21126,23 @@ Object.assign(window, {
       'aria-label': 'Close the Lesson Studio'
     }, 'Close')), e('p', {
       className: 'ls-lede'
-    }, 'Draw the arena, say what counts as finished, and write one answer that works. ', 'You cannot save until your own answer passes, because a lesson nobody can finish is worse than no lesson.'), e('div', {
+    }, 'Draw the arena, say what counts as finished, and write one answer that works. ', 'You cannot save until your own answer passes, because a lesson nobody can finish is worse than no lesson.'), e('ol', {
+      className: 'ls-pipeline',
+      'aria-label': 'Lesson authoring stages'
+    }, [['1', 'Arena', arenaReady], ['2', 'Goals', goalsReady], ['3', 'Programs', programsReady], ['4', 'Check and try', canSave]].map(function (step) {
+      return e('li', {
+        key: step[0],
+        className: step[2] ? 'is-done' : ''
+      }, e('span', null, step[0]), e('b', null, step[1]), e('small', null, step[2] ? 'Ready' : 'Needs attention'));
+    })), e('div', {
+      className: 'ls-live-check ' + (liveValidation.ok ? 'ok' : 'bad'),
+      role: 'status',
+      'aria-live': 'polite'
+    }, e('b', null, liveValidation.ok ? 'Live checks: the lesson form is valid.' : 'Live checks: ' + liveValidation.errors.length + ' thing' + (liveValidation.errors.length === 1 ? '' : 's') + ' to fix.'), !liveValidation.ok && e('ul', null, liveValidation.errors.slice(0, 4).map(function (err, i) {
+      return e('li', {
+        key: 'live' + i
+      }, err);
+    })), liveValidation.warnings.length > 0 && e('p', null, liveValidation.warnings.join(' '))), e('div', {
       className: 'ls-grid'
     },
     // ---- left: the map ----
@@ -21125,17 +21212,59 @@ Object.assign(window, {
       });
     }), (w.obstacles || []).map(function (o, i) {
       var p = px(o.x, o.y);
-      return e('circle', {
+      var isSelected = selected && selected.kind === 'rock' && selected.index === i;
+      return e('g', {
         key: 'ob' + i,
+        role: 'button',
+        tabIndex: 0,
+        className: isSelected ? 'ls-map-selected' : '',
+        'aria-label': 'Rock ' + (i + 1) + ' at ' + o.x + ', ' + o.y + ' metres. Select to edit.',
+        onClick: function (ev) {
+          ev.stopPropagation();
+          setSelected({
+            kind: 'rock',
+            index: i
+          });
+        },
+        onKeyDown: function (ev) {
+          selectFromKey(ev, {
+            kind: 'rock',
+            index: i
+          });
+        }
+      }, e('circle', {
         cx: p.cx,
         cy: p.cy,
         r: Math.max(4, o.r * scale),
         className: 'ls-map-rock'
-      });
+      }), e('text', {
+        x: p.cx,
+        y: p.cy + 3,
+        className: 'ls-map-label',
+        textAnchor: 'middle'
+      }, 'R' + String(i + 1)));
     }), (w.samples || []).map(function (s, i) {
       var p = px(s[0], s[1]);
+      var isSelected = selected && selected.kind === 'sample' && selected.index === i;
       return e('g', {
-        key: 'sm' + i
+        key: 'sm' + i,
+        role: 'button',
+        tabIndex: 0,
+        className: isSelected ? 'ls-map-selected' : '',
+        'aria-label': 'Flag ' + (i + 1) + ' at ' + s[0] + ', ' + s[1] + ' metres. Select to edit.',
+        onClick: function (ev) {
+          ev.stopPropagation();
+          setSelected({
+            kind: 'sample',
+            index: i
+          });
+        },
+        onKeyDown: function (ev) {
+          selectFromKey(ev, {
+            kind: 'sample',
+            index: i
+          });
+        }
       }, e('circle', {
         cx: p.cx,
         cy: p.cy,
@@ -21149,7 +21278,25 @@ Object.assign(window, {
       }, String(i + 1)));
     }), function () {
       var p = px(w.base[0], w.base[1]);
-      return e('g', null, e('circle', {
+      return e('g', {
+        role: 'button',
+        tabIndex: 0,
+        className: selected && selected.kind === 'base' ? 'ls-map-selected' : '',
+        'aria-label': 'Start at ' + w.base[0] + ', ' + w.base[1] + ' metres. Select to edit.',
+        onClick: function (ev) {
+          ev.stopPropagation();
+          setSelected({
+            kind: 'base',
+            index: 0
+          });
+        },
+        onKeyDown: function (ev) {
+          selectFromKey(ev, {
+            kind: 'base',
+            index: 0
+          });
+        }
+      }, e('circle', {
         cx: p.cx,
         cy: p.cy,
         r: 9,
@@ -21160,7 +21307,98 @@ Object.assign(window, {
         className: 'ls-map-label',
         textAnchor: 'middle'
       }, 'S'));
-    }()), e('div', {
+    }()), selected && function () {
+      var item = selected.kind === 'base' ? {
+        x: w.base[0],
+        y: w.base[1]
+      } : selected.kind === 'sample' && w.samples[selected.index] ? {
+        x: w.samples[selected.index][0],
+        y: w.samples[selected.index][1]
+      } : selected.kind === 'rock' && w.obstacles[selected.index] ? w.obstacles[selected.index] : null;
+      if (!item) return null;
+      function setPoint(axis, value) {
+        var n = snap(num(value, item[axis]));
+        if (selected.kind === 'base') {
+          var base = w.base.slice();
+          base[axis === 'x' ? 0 : 1] = n;
+          patchWorld({
+            base: base
+          });
+        } else if (selected.kind === 'sample') {
+          var samples = w.samples.map(function (s, i) {
+            if (i !== selected.index) return s;
+            var next = s.slice();
+            next[axis === 'x' ? 0 : 1] = n;
+            return next;
+          });
+          patchWorld({
+            samples: samples
+          });
+        } else {
+          patchWorld({
+            obstacles: w.obstacles.map(function (o, i) {
+              return i === selected.index ? Object.assign({}, o, {
+                [axis]: n
+              }) : o;
+            })
+          });
+        }
+      }
+      function removeSelected() {
+        if (selected.kind === 'sample') patchWorld({
+          samples: w.samples.filter(function (_, i) {
+            return i !== selected.index;
+          })
+        });
+        if (selected.kind === 'rock') patchWorld({
+          obstacles: w.obstacles.filter(function (_, i) {
+            return i !== selected.index;
+          })
+        });
+        setSelected(null);
+      }
+      var name = selected.kind === 'base' ? 'Start' : selected.kind === 'sample' ? 'Flag ' + (selected.index + 1) : 'Rock ' + (selected.index + 1);
+      return e('div', {
+        className: 'ls-inspector',
+        'aria-label': name + ' details'
+      }, e('b', null, name), e('label', null, 'X', e('input', {
+        type: 'number',
+        min: 0,
+        max: w.width,
+        step: 0.5,
+        value: item.x,
+        onChange: function (ev) {
+          setPoint('x', ev.target.value);
+        }
+      })), e('label', null, 'Y', e('input', {
+        type: 'number',
+        min: 0,
+        max: w.height,
+        step: 0.5,
+        value: item.y,
+        onChange: function (ev) {
+          setPoint('y', ev.target.value);
+        }
+      })), selected.kind === 'rock' && e('label', null, 'Radius', e('input', {
+        type: 'number',
+        min: 0.1,
+        max: 3,
+        step: 0.1,
+        value: item.r,
+        onChange: function (ev) {
+          patchWorld({
+            obstacles: w.obstacles.map(function (o, i) {
+              return i === selected.index ? Object.assign({}, o, {
+                r: num(ev.target.value, 0.5)
+              }) : o;
+            })
+          });
+        }
+      })), selected.kind !== 'base' && e('button', {
+        className: 'btn-mini',
+        onClick: removeSelected
+      }, 'Remove'));
+    }(), e('div', {
       className: 'ls-size'
     }, e('label', null, 'Width', e('input', {
       type: 'number',
@@ -21351,7 +21589,17 @@ Object.assign(window, {
     }, 'Check my lesson works'), checked && e('div', {
       className: 'ls-check-out ' + (checked.ok ? 'ok' : 'bad'),
       role: 'status'
-    }, checked.ok ? e('p', null, 'Your answer passes this lesson, ' + checked.score + ' out of 100. It is ready to save.') : e('div', null, e('p', null, checked.stage === 'form' ? 'This lesson is not ready yet:' : 'Your own answer does not pass this lesson yet:'), e('ul', null, (checked.reasons || []).map(function (r, i) {
+    }, checked.ok ? e('div', null, e('p', null, 'Your worked answer passes this lesson, ' + checked.score + ' out of 100.'), e('div', {
+      className: 'ls-check-metrics'
+    }, e('span', null, e('b', null, String((checked.events || []).filter(function (x) {
+      return x.kind === 'call';
+    }).length)), ' API calls'), e('span', null, e('b', null, String((checked.events || []).filter(function (x) {
+      return x.kind === 'collision';
+    }).length)), ' collisions'), e('span', null, e('b', null, String(checked.starterScore == null ? 'Not run' : checked.starterScore)), ' starter score')), e('p', {
+      className: checked.starterPasses ? 'ls-starter-warn' : 'ls-starter-ok'
+    }, checked.starterPasses ? 'The pupil starter already passes. Change it if the pupil should have something to solve.' : 'The pupil starter does not pass yet, so the lesson contains a real task.'), checked.warnings && checked.warnings.length > 0 ? e('p', {
+      className: 'ls-starter-warn'
+    }, checked.warnings.join(' ')) : null) : e('div', null, e('p', null, checked.stage === 'form' ? 'This lesson is not ready yet:' : 'Your own answer does not pass this lesson yet:'), e('ul', null, (checked.reasons || []).map(function (r, i) {
       return e('li', {
         key: 'r' + i
       }, r);
@@ -21363,9 +21611,18 @@ Object.assign(window, {
     }, e('button', {
       className: 'ctrl ctrl-run',
       disabled: !canSave,
-      onClick: doSave,
+      onClick: function () {
+        doSave(false);
+      },
       title: canSave ? '' : 'Check your lesson works first'
-    }, 'Save to my lessons'), e('button', {
+    }, 'Save to my lessons'), props.onOpen && e('button', {
+      className: 'ctrl ctrl-run',
+      disabled: !canSave,
+      onClick: function () {
+        doSave(true);
+      },
+      title: canSave ? 'Save, close the Studio and open the lesson exactly as a pupil sees it' : 'Check your lesson works first'
+    }, 'Save and try as a pupil'), e('button', {
       className: 'btn-mini',
       disabled: !canSave,
       onClick: function () {
@@ -22700,30 +22957,25 @@ Object.assign(window, {
 
   // Natural-language -> world / site id, with a human label for the reply.
   // Base worlds: city, room, earth, mars, underwater, space. The rest are sites.
-  var WORLDS = [{
-    re: /\bmars\b|\bmartian\b|\bred planet\b/,
-    id: 'mars',
-    label: 'Mars'
-  }, {
+  var WORLDS = [
+  // Specific sites come before their base worlds. "Olympus Mons on Mars"
+  // must open Olympus, not stop at the first generic Mars match.
+  {
     re: /\bolympus\b/,
     id: 'olympus',
     label: 'Olympus Mons, Mars'
   }, {
-    re: /\bunderwater\b|\bocean\b|\bsea ?floor\b|\bunder the sea\b|\bseabed\b/,
-    id: 'underwater',
-    label: 'the ocean floor'
-  }, {
-    re: /\breef\b|\bcoral\b/,
-    id: 'reef',
-    label: 'a coral reef'
-  }, {
-    re: /\bmariana\b|\bdeep ?sea\b|\babyss\b/,
+    re: /\bmariana\b|\bchallenger deep\b|\babyss\b/,
     id: 'mariana',
     label: 'the Mariana Trench'
   }, {
-    re: /\bmoon\b|\blunar\b|\btycho\b/,
-    id: 'space',
-    label: 'the Moon'
+    re: /\breef\b|\bcoral\b|\bgreat barrier\b/,
+    id: 'reef',
+    label: 'the Great Barrier Reef'
+  }, {
+    re: /\btycho\b|\bmoon\b|\blunar\b/,
+    id: 'tycho',
+    label: 'Tycho Crater on the Moon'
   }, {
     re: /\beuropa\b/,
     id: 'europa',
@@ -22781,9 +23033,55 @@ Object.assign(window, {
     id: 'nepal',
     label: 'Nepal'
   }, {
+    re: /\bmars\b|\bmartian\b|\bred planet\b/,
+    id: 'mars',
+    label: 'Mars'
+  }, {
+    re: /\bunderwater\b|\bocean\b|\bsea ?floor\b|\bunder the sea\b|\bseabed\b/,
+    id: 'underwater',
+    label: 'the ocean floor'
+  }, {
+    re: /\bspace\b|\borbit\b/,
+    id: 'space',
+    label: 'space'
+  }, {
     re: /\bearth\b|\bgrass\b|\bfield\b/,
     id: 'earth',
     label: 'Earth'
+  }];
+  var TIMES = [{
+    re: /\bdawn\b|\bsunrise\b|\bearly morning\b/,
+    id: 'dawn',
+    label: 'dawn'
+  }, {
+    re: /\bdusk\b|\bsunset\b|\bevening\b/,
+    id: 'dusk',
+    label: 'dusk'
+  }, {
+    re: /\bnight\b|\bnight-time\b|\bnighttime\b|\bdark\b/,
+    id: 'night',
+    label: 'night'
+  }, {
+    re: /\bnoon\b|\bmidday\b|\bdaylight\b|\bday time\b|\bdaytime\b/,
+    id: 'noon',
+    label: 'noon'
+  }];
+  var WEATHERS = [{
+    re: /\bdust storm\b|\bsandstorm\b|\bstorm\b/,
+    id: 'storm',
+    label: 'a dust storm'
+  }, {
+    re: /\brain\b|\braining\b|\brainy\b|\bwet weather\b/,
+    id: 'rain',
+    label: 'rain'
+  }, {
+    re: /\bsnow\b|\bsnowing\b|\bsnowy\b/,
+    id: 'snow',
+    label: 'snow'
+  }, {
+    re: /\bclear\b|\bclear weather\b|\bno weather\b|\bdry weather\b/,
+    id: 'clear',
+    label: 'clear weather'
   }];
 
   // A message that clearly asks a question is never treated as a command.
@@ -22794,11 +23092,23 @@ Object.assign(window, {
   // "make THE rover spin" (a coding request about the existing robot).
   var BUILD_CMD_RE = /\b(build|make|create|design|assemble|construct|spawn|give me|i want|i need|let'?s build)\b[^.?!]*?\b(a|an|another|new|some|\d+)\b[^.?!]*?\b(rover|robot|car|vehicle|arm|manipulator|drone|bot|crawler|buggy|machine)\b/i;
   var MOVE_VERB = /\b(go to|take me to|take us to|switch to|move to|drive to|send (me|it|us) to|put (me|it|us) (on|in)|set the world to|explore|deploy (on|in|to)|visit|travel to)\b/i;
+  var ENV_VERB = /\b(set|switch|change|make|turn|use|add|show|give me|i want)\b/i;
+  var DIAGNOSE_RE = /\b(why|explain|diagnose|what happened|what went wrong|reason)\b[^.?!]*\b(crash|collision|collide|fail|failed|failure|stuck|stall|stalled|stop|stopped|battery|run|test|movement|move)\b|\b(explain|diagnose)\s+(the\s+)?(last\s+)?(run|test|result|collision|failure)\b/i;
+  var REPAIR_RE = /\b(fix|repair|prevent|avoid|solve|stop)\b[^.?!]*\b(crash|collision|colliding|failure|failing|obstacle|hazard)\b|\b(make|keep)\b[^.?!]*\b(safer|safe)\b/i;
   function findWorld(t) {
     for (var i = 0; i < WORLDS.length; i++) {
       if (WORLDS[i].re.test(t)) return {
         id: WORLDS[i].id,
         label: WORLDS[i].label
+      };
+    }
+    return null;
+  }
+  function findPreset(rows, text) {
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].re.test(text)) return {
+        id: rows[i].id,
+        label: rows[i].label
       };
     }
     return null;
@@ -22821,10 +23131,29 @@ Object.assign(window, {
     // -> put it on Mars). A bare place phrase ("on/to/in <place>") also counts.
     var explicitMove = !!named && (MOVE_VERB.test(t) || /\b(on|to|in)\s+(the\s+)?[a-z]/.test(t));
     var world = !isQuestion && named && (explicitMove || build) ? named : null;
+
+    // Weather and time changes are deterministic app controls, not model
+    // guesses. A bare mention such as "does rain affect grip?" remains a
+    // question; an explicit "make it rain" becomes an action.
+    var time = findPreset(TIMES, t);
+    var weather = findPreset(WEATHERS, t);
+    var environment = !isQuestion && ENV_VERB.test(t) && (time || weather) ? {
+      time: time,
+      weather: weather
+    } : null;
+    var diagnose = DIAGNOSE_RE.test(t);
+    var repair = !isQuestion && REPAIR_RE.test(t);
+    var speed = null;
+    var speedMatch = t.match(/\b(?:set|change|limit|make)\b[^.?!]*\bspeed\b[^0-9]{0,12}(\d{1,3})\s*%?/i);
+    if (!isQuestion && speedMatch) speed = Math.max(0, Math.min(100, parseInt(speedMatch[1], 10)));else if (!isQuestion && /\b(slow down|slower|reduce speed)\b/i.test(t)) speed = 30;else if (!isQuestion && /\b(speed up|faster|increase speed)\b/i.test(t)) speed = 70;
     return {
       build: build,
       world: world,
-      isCommand: build || !!world
+      environment: environment,
+      diagnose: diagnose,
+      repair: repair,
+      speed: speed,
+      isCommand: build || !!world || !!environment || diagnose || repair || speed !== null
     };
   }
   window.KodroChatIntent = {
@@ -23441,11 +23770,12 @@ Object.assign(window, {
       if (!Array.isArray(arr)) return [];
       return arr.filter(m => m && typeof m.text === 'string' && (m.role === 'user' || m.role === 'ai')).map(m => ({
         role: m.role,
-        kind: m.kind === 'code' || m.kind === 'action' ? m.kind : 'text',
+        kind: m.kind === 'code' || m.kind === 'action' || m.kind === 'evidence' ? m.kind : 'text',
         text: m.text,
         model: m.model,
         validated: m.validated,
-        validationError: m.validationError
+        validationError: m.validationError,
+        summary: m.summary
       }));
     } catch (_e) {
       return [];
@@ -23504,8 +23834,11 @@ Object.assign(window, {
     // Lets the user cancel an in-flight generation by closing the panel; the
     // poll loop checks this and bails quietly instead of showing an error.
     const vibeCancelRef = useRef(false);
-    async function vibeSend() {
-      const text = vibePrompt.trim();
+    async function vibeSend(overrideText) {
+      // Buttons pass a click event to their handler, while the Companion's
+      // quick actions pass a prompt string. Only a real string overrides the
+      // textarea, so a click event can never become "[object Object]" in chat.
+      const text = (typeof overrideText === 'string' ? overrideText : vibePrompt).trim();
       if (vibeBusy || !text) return;
       const next = [...vibeMsgs, {
         role: 'user',
@@ -23527,12 +23860,37 @@ Object.assign(window, {
       } catch (_e) {
         actionMsg = null;
       }
-      if (actionMsg && actionMsg.message) {
-        setVibeMsgs(m => [...m, {
-          role: 'ai',
-          kind: 'action',
-          text: actionMsg.message
-        }]);
+      if (actionMsg) {
+        const replies = [];
+        if (actionMsg.message) {
+          replies.push({
+            role: 'ai',
+            kind: actionMsg.kind || 'action',
+            text: actionMsg.message
+          });
+        }
+        // An on-device repair uses the same preview card as model-written code:
+        // the current program is untouched until the user chooses Apply, and
+        // Discard removes only this proposal. This makes every edit selective.
+        if (actionMsg.draft) {
+          replies.push({
+            role: 'ai',
+            kind: 'code',
+            text: actionMsg.draft,
+            model: actionMsg.model || 'Kodro on-device',
+            validated: actionMsg.validated !== false,
+            validationError: actionMsg.validationError || null,
+            summary: actionMsg.summary || null
+          });
+        }
+        if (replies.length) setVibeMsgs(m => [...m, ...replies]);
+        // Deterministic help is a complete answer. Do not follow it with a
+        // model request that can fail and paint "AI unavailable" under a task
+        // Kodro has already completed successfully.
+        if (actionMsg.handled !== false) {
+          setVibeBusy(false);
+          return;
+        }
       }
       // OPP-7: bounded model tool call, tried ONLY when the deterministic
       // intent parse found no action. One whitelisted tool (set_world); the
@@ -26756,11 +27114,21 @@ say("Survey done")`
     ambientFx: true,
     trail: 'terrain'
   };
+
+  // The product mark, rendered by the persistent mission bar. Kept in step with
+  // the home screen, the onboarding, the favicons and the icon family: the old
+  // orbit lived only here after the identity work, which left the app showing
+  // one mark in its toolbar and a different one everywhere else.
+  //
+  // Deliberately single colour. It inherits the active theme through
+  // currentColor, so it stays legible across all ten themes without a per-theme
+  // override; the full-colour version with the gold decision node is used at the
+  // larger sizes where the second colour is actually readable.
   const ORBIT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-    <circle cx="32" cy="32" r="21" stroke="currentColor" stroke-width="2.4" opacity="0.2"></circle>
-    <path d="M15 44 A21 21 0 1 1 44 15" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" opacity="0.9"></path>
-    <circle cx="15" cy="44" r="2.6" fill="currentColor" opacity="0.45"></circle>
-    <circle cx="44" cy="15" r="6.4" fill="currentColor"></circle>
+    <path d="M18 8v48M19 32 49 9M20 32c11 0 15 17 31 24" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="20" cy="32" r="4.8" fill="currentColor"></circle>
+    <circle cx="49" cy="9" r="2.4" fill="currentColor"></circle>
+    <circle cx="51" cy="56" r="2.4" fill="currentColor"></circle>
   </svg>`;
   if (typeof window !== 'undefined') {
     window.KodroExamples = EXAMPLES;
@@ -28012,6 +28380,7 @@ say("Survey done")`
     vibeSend,
     vibeClear,
     vibeContext,
+    projectContext,
     onExplain,
     onReview
   }) {
@@ -28026,6 +28395,12 @@ say("Survey done")`
     }, "Learned from past runs", vibeContext.world ? ' · ' + vibeContext.world : ''), /*#__PURE__*/React.createElement("span", {
       className: "vibe-ctx-text"
     }, vibeContext.reflection)) : null;
+    const projectChip = projectContext ? /*#__PURE__*/React.createElement("div", {
+      className: "companion-project",
+      "aria-label": "Current Companion context"
+    }, /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Robot"), projectContext.robot || 'Robot'), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "World"), projectContext.world || 'World'), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Program"), projectContext.program || 'Current program'), /*#__PURE__*/React.createElement("span", {
+      className: 'companion-project-result' + (projectContext.outcome ? ' has-result' : '')
+    }, /*#__PURE__*/React.createElement("b", null, "Last result"), projectContext.outcome || 'Not run for this setup')) : null;
     return /*#__PURE__*/React.createElement("div", {
       className: "modal-backdrop",
       onClick: () => !vibeBusy && setVibeOpen(false)
@@ -28073,9 +28448,7 @@ say("Survey done")`
     }, "Explain a lesson"), /*#__PURE__*/React.createElement("button", {
       className: "btn-mini",
       onClick: onReview
-    }, "Check my program")), /*#__PURE__*/React.createElement(ProviderPicker, {
-      onChange: refreshAiStatus
-    }), /*#__PURE__*/React.createElement("div", {
+    }, "Check my program")), /*#__PURE__*/React.createElement("div", {
       className: "vibe-body"
     }, aiInfo.available ? providerIsLocal(aiInfo.source) ? /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
@@ -28083,7 +28456,13 @@ say("Survey done")`
       className: "vibe-status"
     }, "Cloud model: ", /*#__PURE__*/React.createElement("b", null, aiInfo.model), " \xB7 via ", providerName(aiInfo.source), ", your prompt is sent to ", providerName(aiInfo.source), ".") : /*#__PURE__*/React.createElement("p", {
       className: "vibe-status"
-    }, aiInfo.hint || 'No AI is connected.', " You can still say ", /*#__PURE__*/React.createElement("i", null, "\"build a mars rover\""), " or ", /*#__PURE__*/React.createElement("i", null, "\"go to the ocean\""), " and Kodro will do it \u2014 only writing code needs an AI. Both options are free: the Ollama app on this computer, or a free Groq or OpenRouter key above."), ctxChip, aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("b", null, "On-device help is ready."), " I can explain the last run, change the robot, world, time and weather, adjust speed, and prepare a collision-avoidance draft without a model. Connect an optional model only for open-ended program writing."), /*#__PURE__*/React.createElement("details", {
+      className: "companion-provider"
+    }, /*#__PURE__*/React.createElement("summary", null, "Optional generative model ", aiInfo.available ? 'connected' : 'not connected'), /*#__PURE__*/React.createElement(ProviderPicker, {
+      onChange: refreshAiStatus
+    }), !aiInfo.available && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-status"
+    }, aiInfo.hint || 'No generative model is connected.')), projectChip, ctxChip, aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'center',
@@ -28116,10 +28495,30 @@ say("Survey done")`
       onClick: () => pickModel(''),
       title: "Return to automatic model selection"
     }, "Auto")), /*#__PURE__*/React.createElement("div", {
+      className: "companion-quick",
+      role: "group",
+      "aria-label": "Common Companion requests"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: vibeBusy,
+      onClick: () => vibeSend('Explain the last run')
+    }, "Explain last run"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: vibeBusy,
+      onClick: () => vibeSend('Fix the collision and make it safer')
+    }, "Fix a collision"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: vibeBusy,
+      onClick: () => vibeSend('Slow the robot down')
+    }, "Slow it down"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: vibeBusy,
+      onClick: () => vibeSend('Change the time to night')
+    }, "Make it night")), /*#__PURE__*/React.createElement("div", {
       className: "vibe-thread",
       role: "log",
       "aria-live": "polite",
-      "aria-label": "AI conversation"
+      "aria-label": "Companion conversation"
     }, vibeMsgs.length === 0 && /*#__PURE__*/React.createElement(EmptyState, {
       icon: "vibe",
       title: "Describe the robot or behaviour you need",
@@ -28130,7 +28529,9 @@ say("Survey done")`
     }, m.validated === false && /*#__PURE__*/React.createElement("p", {
       className: "vibe-error",
       role: "alert"
-    }, "This saved draft did not pass Kodro's self-test: ", m.validationError || 'unknown error', ". It cannot be applied."), /*#__PURE__*/React.createElement("pre", {
+    }, "This saved draft did not pass Kodro's self-test: ", m.validationError || 'unknown error', ". It cannot be applied."), m.summary && /*#__PURE__*/React.createElement("p", {
+      className: "vibe-code-summary"
+    }, /*#__PURE__*/React.createElement("b", null, "Proposed edit:"), " ", m.summary), /*#__PURE__*/React.createElement("pre", {
       className: "vibe-code"
     }, m.text), /*#__PURE__*/React.createElement("div", {
       className: "vibe-code-actions"
@@ -28152,7 +28553,12 @@ say("Survey done")`
       role: "status"
     }, /*#__PURE__*/React.createElement("span", {
       className: "vibe-action-badge"
-    }, "Done"), /*#__PURE__*/React.createElement("span", null, m.text)) : /*#__PURE__*/React.createElement("div", {
+    }, "Done"), /*#__PURE__*/React.createElement("span", null, m.text)) : m.kind === 'evidence' ? /*#__PURE__*/React.createElement("div", {
+      key: i,
+      className: "vibe-msg ai evidence"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "vibe-evidence-badge"
+    }, "Based on this project"), /*#__PURE__*/React.createElement("span", null, m.text)) : /*#__PURE__*/React.createElement("div", {
       key: i,
       className: 'vibe-msg ' + m.role
     }, /*#__PURE__*/React.createElement("span", null, m.text))), vibeBusy && /*#__PURE__*/React.createElement("div", {
@@ -28169,7 +28575,7 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("textarea", {
       className: "vibe-input",
       rows: 2,
-      placeholder: "Say what the rover should do. The AI may ask you a question back",
+      placeholder: "Ask what happened, change the world, or describe what the robot should do",
       value: vibePrompt,
       onChange: e => setVibePrompt(e.target.value),
       onKeyDown: e => {
@@ -28186,9 +28592,9 @@ say("Survey done")`
       onClick: vibeSend
     }, "Send")), /*#__PURE__*/React.createElement("span", {
       className: "vibe-hint"
-    }, "Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time."), !aiInfo.available && /*#__PURE__*/React.createElement("ol", {
+    }, "Proposed edits are previews. Choose Apply or Discard for each one. Nothing runs until you press Run. The conversation stays on this device."), !aiInfo.available && /*#__PURE__*/React.createElement("ol", {
       className: "vibe-steps"
-    }, /*#__PURE__*/React.createElement("li", null, "Writing code needs an AI, and every option here is free. The most private one runs on ", /*#__PURE__*/React.createElement("b", null, "this computer"), ": install the Ollama app from ollama.com (no account needed)"), /*#__PURE__*/React.createElement("li", null, "Then run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro and code writing lights up. Or pick Groq or OpenRouter above and paste a free key from their site")))));
+    }, /*#__PURE__*/React.createElement("li", null, "Open-ended code generation is optional. The built-in diagnosis and controls above work now."), /*#__PURE__*/React.createElement("li", null, "For private generative help on ", /*#__PURE__*/React.createElement("b", null, "this computer"), ", install the Ollama app from ollama.com (no account needed)"), /*#__PURE__*/React.createElement("li", null, "Then run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro and code writing lights up. Or pick Groq or OpenRouter above and paste a free key from their site")))));
   }
 
   // ---- Blocks (visual block editor) ----
@@ -30026,10 +30432,14 @@ say("Survey done")`
       addConsole('Self-test: ' + t.summary, t.ok && !t.hitWall ? 'ok' : 'err');
     }
     function vibeApply(code, model) {
-      setVibeOpen(false);
       addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
-      typewriteCode(code);
+      applyProgramText(code);
       selfTestReport(code);
+      setVibeMsgs(m => [...m, {
+        role: 'ai',
+        kind: 'action',
+        text: 'Applied this draft to the editor. Nothing has run yet. Review it, then press Run when you are ready.'
+      }]);
     }
 
     // Short human description of a freshly built robot for the chat's action line.
@@ -30039,6 +30449,48 @@ say("Survey done")`
       let s = 'a ' + (spec.type || 'robot');
       if (n) s += ' with ' + n + ' sensor' + (n === 1 ? '' : 's');
       return s;
+    }
+    function companionDraftCheck(source) {
+      try {
+        if (window.RoverLang && window.RoverLang.compile) window.RoverLang.compile(source);
+        return {
+          ok: true,
+          error: null
+        };
+      } catch (err) {
+        return {
+          ok: false,
+          error: err && err.message || String(err)
+        };
+      }
+    }
+    function programWithSpeed(source, target) {
+      const speedLine = 'set_speed(' + target + ')';
+      const src = String(source || '').trim();
+      if (!src) return speedLine + '\n';
+      if (/\bset_speed\s*\([^)]*\)/.test(src)) {
+        return src.replace(/\bset_speed\s*\([^)]*\)/, speedLine) + '\n';
+      }
+      return speedLine + '\n' + src + '\n';
+    }
+    function saferCollisionProgram(targetSpeed) {
+      return ['# Companion draft: move in small steps and check clearance each time', 'set_speed(' + targetSpeed + ')', 'for step in range(20):', '    if distance() < 80:', '        stop()', '        turn_right(45)', '    else:', '        move_forward(0.5)', ''].join('\n');
+    }
+    function explainLatestRun() {
+      const report = simpleLatestRun || browserRuns[0] || null;
+      if (!report && currentLessonId && lessonVerdict) {
+        const reasons = (lessonVerdict.reasons || []).join(' ');
+        return 'The lesson result is ' + (lessonVerdict.passed ? 'complete' : 'not complete') + ' at ' + lessonVerdict.score + ' out of 100. ' + (reasons || 'Every checked goal passed.') + ' This explanation comes from the recorded simulated trace.';
+      }
+      if (!report) {
+        return 'There is no recorded run for this design yet, so I will not guess. Close the Companion, press Run this test, then ask me to explain the result.';
+      }
+      const distance = report.distanceCm != null ? (report.distanceCm / 100).toFixed(1) + ' metres' : 'an unrecorded distance';
+      const battery = report.batteryUsedPct != null ? report.batteryUsedPct + ' percent battery' : 'an unrecorded amount of battery';
+      const outcome = SIMPLE_OUTCOME_NAMES[report.outcome] || 'Test recorded';
+      let next = 'Compare the result with the goal, change one thing, and run the same test again.';
+      if (report.outcome === 'crash') next = 'The safest next step is to reduce speed and check distance before every short movement.';else if (report.outcome === 'flat') next = 'Shorten the route, reduce repeated movement, or choose a larger battery in Design.';else if (report.outcome === 'stalled') next = 'The drive does not have enough force for this mass and surface. Reduce mass or increase drive torque in Design.';else if (report.outcome === 'error') next = 'Open the program and fix the first reported code error before testing again.';
+      return outcome + '. ' + (report.detail || 'The run ended without a more specific note.') + ' It travelled ' + distance + ' and used ' + battery + '. ' + next + ' This diagnosis describes the simulation trace, not a guarantee about a physical robot.';
     }
 
     // Chat that acts on the world: when a Vibe message is a clear command to
@@ -30060,8 +30512,78 @@ say("Survey done")`
         onTerrain(intent.world.id); // explicit world wins over buildFromText's type-coarse auto-switch
         parts.push('Moved to ' + intent.world.label + '.');
       }
+      if (intent.environment) {
+        let targetTerrain = terrain;
+        try {
+          if (intent.world && window.resolveSite) targetTerrain = window.resolveSite(intent.world.id);
+        } catch (err) {
+          void err;
+        }
+        const baseWorld = targetTerrain && targetTerrain.id || terrainId;
+        if (intent.environment.time) {
+          if (baseWorld === 'room') {
+            parts.push('The indoor test bay has fixed lighting, so time of day was not changed.');
+          } else {
+            setTod(intent.environment.time.id);
+            parts.push('Set the time to ' + intent.environment.time.label + '.');
+          }
+        }
+        if (intent.environment.weather) {
+          const w = intent.environment.weather;
+          const supported = w.id === 'clear' || w.id === 'storm' && baseWorld === 'mars' || (w.id === 'rain' || w.id === 'snow') && (baseWorld === 'earth' || baseWorld === 'city');
+          if (supported) {
+            setWeather(w.id);
+            parts.push('Set the weather to ' + w.label + '.');
+          } else {
+            parts.push(w.label.replace(/^./, c => c.toUpperCase()) + ' is not modelled in this world, so the weather was not changed.');
+          }
+        }
+      }
+      if (intent.diagnose) {
+        return {
+          handled: true,
+          kind: 'evidence',
+          message: explainLatestRun()
+        };
+      }
+      if (intent.repair) {
+        const canSense = !window.KodroCommands || window.KodroCommands.check(robotSpec, 'distance').ok;
+        if (!canSense) {
+          return {
+            handled: true,
+            kind: 'evidence',
+            message: 'I cannot add honest obstacle avoidance because this robot has no distance sensor. Open Design and fit a distance sensor first. I did not change the program.'
+          };
+        }
+        const draft = saferCollisionProgram(intent.speed !== null ? intent.speed : 30);
+        const checked = companionDraftCheck(draft);
+        return {
+          handled: true,
+          kind: 'evidence',
+          message: 'I prepared a safer alternative that slows down, checks 80 centimetres ahead, and moves in half-metre steps. Your current program is unchanged until you choose Apply.',
+          draft: draft,
+          summary: 'Replaces the current program with a sensor-checked low-speed patrol.',
+          validated: checked.ok,
+          validationError: checked.error
+        };
+      }
+      if (intent.speed !== null) {
+        const speedDraft = programWithSpeed(code, intent.speed);
+        const speedChecked = companionDraftCheck(speedDraft);
+        return {
+          handled: true,
+          kind: 'evidence',
+          message: 'I prepared a ' + intent.speed + ' percent speed change. Your current program is unchanged until you choose Apply.',
+          draft: speedDraft,
+          summary: 'Changes the first set_speed() call, or adds one before the existing program.',
+          validated: speedChecked.ok,
+          validationError: speedChecked.error
+        };
+      }
       if (!parts.length) return null;
       return {
+        handled: true,
+        kind: 'action',
         message: parts.join(' ')
       };
     }
@@ -30874,6 +31396,29 @@ say("Survey done")`
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
     const anyModalOpen = !!studioDoc || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
+    // Is a surface covering the live viewport?
+    //
+    // Two things hang off this, and they point the same way. The 3D loop stops
+    // drawing a canvas nobody can see, which is free performance on the weak
+    // integrated GPUs this has to run on. And styles.css only enables backdrop
+    // blur on the covering surfaces while it is true, so a translucent panel is
+    // never composited over an animating WebGL scene: the browser would have to
+    // read the backdrop texture back every frame, on the exact hardware that
+    // cannot afford it.
+    //
+    // Deliberately NOT gated on runState. A run continues underneath, because
+    // the simulation advances on its own timer rather than on the render loop,
+    // so a pupil who opens Settings mid-run loses nothing but the picture.
+    const simIdle = !!(anyModalOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive || homeOpen || !onboarded || studioDoc);
+    useEffect(() => {
+      if (typeof document === 'undefined' || !document.body) return undefined;
+      document.body.classList.toggle('kodro-sim-idle', simIdle);
+      // Removed on unmount too: a stale class would leave the viewport frozen
+      // with no surface on screen to explain why.
+      return () => {
+        document.body.classList.remove('kodro-sim-idle');
+      };
+    }, [simIdle]);
     useEffect(() => {
       if (!anyModalOpen) return undefined;
       const modal = Array.prototype.slice.call(document.querySelectorAll('.modal[aria-modal="true"]')).pop();
@@ -31057,6 +31602,12 @@ say("Survey done")`
     } catch (e) {
       void e;
     }
+    const designStageState = simpleAssessment && simpleAssessment.overall === 'fail' ? 'attention' : 'done';
+    const testStageState = simpleRunActive ? 'active' : simpleLatestRun ? 'done' : 'next';
+    const buildStageState = browserRunCount > 0 ? 'ready' : 'waiting';
+    const designStageLabel = designStageState === 'attention' ? 'needs a design fix' : 'design ready';
+    const testStageLabel = testStageState === 'done' ? 'current test saved' : testStageState === 'active' ? 'test running' : 'run this setup next';
+    const buildStageLabel = buildStageState === 'ready' ? 'prototype brief ready' : 'available after a saved run';
     // Stored prose can outlive a product correction. Recompute the current
     // coaching sentence from the immutable structured measurements so copy and
     // safety disclosures migrate immediately after an update.
@@ -31179,32 +31730,35 @@ say("Survey done")`
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("nav", {
       className: "stage-nav",
-      "aria-label": "Robot project stages"
+      "aria-label": "Robot project stages, from design to test to prototype"
     }, /*#__PURE__*/React.createElement("button", {
       type: "button",
+      "data-state": designStageState,
       className: 'stage-link' + (activeStage === 'design' ? ' active' : ''),
-      "aria-label": '1 Design, current robot ' + chipName,
+      "aria-label": '1 Design, ' + chipName + ', ' + designStageLabel,
       "aria-current": activeStage === 'design' ? 'step' : undefined,
       onClick: () => goStage('design')
     }, /*#__PURE__*/React.createElement("span", {
       className: "stage-count"
-    }, "1"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Design"), /*#__PURE__*/React.createElement("small", null, chipName))), /*#__PURE__*/React.createElement("button", {
+    }, "1"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Design"), /*#__PURE__*/React.createElement("small", null, designStageLabel))), /*#__PURE__*/React.createElement("button", {
       type: "button",
+      "data-state": testStageState,
       className: 'stage-link' + (activeStage === 'prove' ? ' active' : ''),
-      "aria-label": '2 Test in ' + (terrain.name || 'the current scenario'),
+      "aria-label": '2 Test in ' + (terrain.name || 'the current scenario') + ', ' + testStageLabel,
       "aria-current": activeStage === 'prove' ? 'step' : undefined,
       onClick: () => goStage('prove')
     }, /*#__PURE__*/React.createElement("span", {
       className: "stage-count"
-    }, "2"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Test"), /*#__PURE__*/React.createElement("small", null, terrain.name || 'Scenario'))), /*#__PURE__*/React.createElement("button", {
+    }, "2"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Test"), /*#__PURE__*/React.createElement("small", null, testStageLabel))), /*#__PURE__*/React.createElement("button", {
       type: "button",
+      "data-state": buildStageState,
       className: 'stage-link' + (activeStage === 'build' ? ' active' : ''),
-      "aria-label": "3 Build a prototype pack",
+      "aria-label": '3 Build a prototype pack, ' + buildStageLabel,
       "aria-current": activeStage === 'build' ? 'step' : undefined,
       onClick: () => goStage('build')
     }, /*#__PURE__*/React.createElement("span", {
       className: "stage-count"
-    }, "3"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Build"), /*#__PURE__*/React.createElement("small", null, "Prototype pack")))), /*#__PURE__*/React.createElement("div", {
+    }, "3"), /*#__PURE__*/React.createElement("span", null, /*#__PURE__*/React.createElement("b", null, "Build"), /*#__PURE__*/React.createElement("small", null, buildStageLabel)))), /*#__PURE__*/React.createElement("div", {
       className: "bar-divider"
     }), /*#__PURE__*/React.createElement("div", {
       className: "run-controls"
@@ -31778,11 +32332,32 @@ say("Survey done")`
     }, "View all runs"), /*#__PURE__*/React.createElement("button", {
       type: "button",
       onClick: () => setEvidenceOpen(true)
-    }, "Open evidence"))), /*#__PURE__*/React.createElement("button", {
+    }, "Open evidence"))), /*#__PURE__*/React.createElement("section", {
+      className: 'simple-handoff' + (simpleLatestRun ? ' is-ready' : ''),
+      "aria-label": "Next project step"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "Design to test to build"), /*#__PURE__*/React.createElement("b", null, simpleLatestRun ? 'This test is connected to the active design.' : 'Run this exact setup before moving to a prototype.'), /*#__PURE__*/React.createElement("p", null, simpleLatestRun ? 'Choose one change, run the same test again, or carry this saved evidence into the prototype brief.' : 'Kodro will tie the result to this robot, world and program so later stages do not lose their context.')), /*#__PURE__*/React.createElement("div", {
+      className: "simple-handoff-actions"
+    }, simpleLatestRun ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => goStage('design')
+    }, "Improve design"), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      onClick: () => setSimpleCodeOpen(true)
+    }, "Edit program"), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "ctrl ctrl-run",
+      onClick: () => goStage('build')
+    }, "Prepare prototype brief")) : /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "ctrl ctrl-run",
+      onClick: onRun
+    }, "Run this setup"))), /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: "simple-companion-action",
       onClick: () => setVibeOpen(true)
-    }, /*#__PURE__*/React.createElement("span", null, KI('vibe'), /*#__PURE__*/React.createElement("b", null, "Build it with Companion")), /*#__PURE__*/React.createElement("small", null, aiInfo.available ? 'Local AI is ready to change the robot or program with you.' : 'Direct robot and world commands work offline without a model.'))), !showSimpleCockpit && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("span", null, KI('vibe'), /*#__PURE__*/React.createElement("b", null, "Build it with Companion")), /*#__PURE__*/React.createElement("small", null, aiInfo.available ? 'A model is connected for open-ended help, and core project controls work on-device.' : 'Explain failures, change the environment and preview safer code on-device.'))), !showSimpleCockpit && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       className: "editor-panel",
       style: {
         display: 'flex',
@@ -32741,6 +33316,12 @@ say("Survey done")`
       vibeSend: vibeSend,
       vibeClear: vibeClear,
       vibeContext: window.KodroMemory && window.KodroMemory.lessonFor ? window.KodroMemory.lessonFor(terrain.id) : null,
+      projectContext: {
+        robot: chipName,
+        world: terrain.name || terrain.id,
+        program: currentLessonId ? (lessons.find(l => l.id === currentLessonId) || {}).title || 'Lesson program' : SIMPLE_PROGRAM_NAMES[activeTab] || EXAMPLES[activeTab].label,
+        outcome: simpleLatestRun ? SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded' : null
+      },
       onExplain: () => {
         setVibeOpen(false);
         setAskData(null);
@@ -32800,8 +33381,8 @@ say("Survey done")`
       className: "eyebrow"
     }, "Active design"), /*#__PURE__*/React.createElement("h2", null, chipName), /*#__PURE__*/React.createElement("p", null, "Kodro can prepare a concept bill of materials and simulation record here in the free browser app. It will not invent live prices, electrical compatibility or a safe wiring plan.")), /*#__PURE__*/React.createElement("button", {
       className: "ctrl ctrl-run",
-      onClick: downloadPrototypeBrief
-    }, "Download prototype brief")), /*#__PURE__*/React.createElement("div", {
+      onClick: browserRunCount > 0 ? downloadPrototypeBrief : () => goStage('prove')
+    }, browserRunCount > 0 ? 'Download prototype brief' : 'Run a test first')), /*#__PURE__*/React.createElement("div", {
       className: "build-readiness",
       "aria-label": "Prototype brief readiness"
     }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserBuildParts.length), /*#__PURE__*/React.createElement("span", null, "design requirements captured")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserRunCount), /*#__PURE__*/React.createElement("span", null, "runs recorded for this exact design")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "4"), /*#__PURE__*/React.createElement("span", null, "checks required before power-on"))), /*#__PURE__*/React.createElement("div", {
@@ -32829,8 +33410,8 @@ say("Survey done")`
     }, "Evidence boundary"), /*#__PURE__*/React.createElement("div", {
       className: "build-evidence-row is-known"
     }, /*#__PURE__*/React.createElement("b", null, "Verified by Kodro"), /*#__PURE__*/React.createElement("span", null, "Selected controller and capabilities, command availability, saved run outcomes and the simulator's disclosed first-order calculations.")), /*#__PURE__*/React.createElement("div", {
-      className: "build-evidence-row is-suggested"
-    }, /*#__PURE__*/React.createElement("b", null, "Ready to export"), /*#__PURE__*/React.createElement("span", null, "A local HTML brief containing this concept, recent run evidence, uncertainty and a safe prototype sequence.")), /*#__PURE__*/React.createElement("div", {
+      className: 'build-evidence-row ' + (browserRunCount > 0 ? 'is-suggested' : 'is-unverified')
+    }, /*#__PURE__*/React.createElement("b", null, browserRunCount > 0 ? 'Ready to export' : 'Waiting for test evidence'), /*#__PURE__*/React.createElement("span", null, browserRunCount > 0 ? 'A local HTML brief containing this concept, recent run evidence, uncertainty and a safe prototype sequence.' : 'Run this exact design at least once so the brief contains a real simulated outcome rather than an empty claim.')), /*#__PURE__*/React.createElement("div", {
       className: "build-evidence-row is-unverified"
     }, /*#__PURE__*/React.createElement("b", null, "Verify before purchasing"), /*#__PURE__*/React.createElement("span", null, "Motor driver current, battery chemistry and protection, voltage and logic compatibility, wiring, mechanical fit, price, stock and supplier quality.")), /*#__PURE__*/React.createElement("div", {
       className: "browser-build-actions"
@@ -32897,6 +33478,14 @@ say("Survey done")`
       onSaved: doc => {
         refreshAuthored();
         addConsole('Saved your lesson: ' + doc.title, 'sys');
+      },
+      onOpen: doc => {
+        const S = window.KodroLessonStore;
+        if (!S) return;
+        refreshAuthored();
+        setStudioDoc(null);
+        loadLesson(S.toRow(doc));
+        showToast('Lesson saved. You are now seeing it as a pupil.', 'ok');
       },
       onExport: exportLesson,
       onExportPack: exportPack,

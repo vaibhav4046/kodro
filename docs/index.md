@@ -35,7 +35,8 @@ current scope and source-backed roadmap.
 - A tiny, readable [pupil-facing API](pupils/api-cheatsheet.md): `move_forward`,
   `turn_left`, `read_distance`, `collect_sample` and more.
 - Eighteen bundled lessons mapped to the UK DfE / BCS computing programme of
-  study, from KS1 through KS4 stretch.
+  study. The 18 lessons span KS1 to KS4 and are weighted to KS3 and KS4:
+  1 is tagged KS1, 2 are KS2, 8 are KS3 and 7 are KS4 stretch.
 - A self-improving memory layer that adapts difficulty per pupil.
 - A teacher dashboard with class-wide strengths and weaknesses.
 - A time-travel debugger that replays any submission frame by frame.

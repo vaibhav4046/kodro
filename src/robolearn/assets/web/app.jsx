@@ -1212,10 +1212,13 @@
     }
 
     function vibeApply(code, model) {
-      setVibeOpen(false);
       addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
-      typewriteCode(code);
+      applyProgramText(code);
       selfTestReport(code);
+      setVibeMsgs(m => [...m, {
+        role: 'ai', kind: 'action',
+        text: 'Applied this draft to the editor. Nothing has run yet. Review it, then press Run when you are ready.',
+      }]);
     }
 
     // Short human description of a freshly built robot for the chat's action line.
@@ -1225,6 +1228,63 @@
       let s = 'a ' + (spec.type || 'robot');
       if (n) s += ' with ' + n + ' sensor' + (n === 1 ? '' : 's');
       return s;
+    }
+
+    function companionDraftCheck(source) {
+      try {
+        if (window.RoverLang && window.RoverLang.compile) window.RoverLang.compile(source);
+        return { ok: true, error: null };
+      } catch (err) {
+        return { ok: false, error: (err && err.message) || String(err) };
+      }
+    }
+
+    function programWithSpeed(source, target) {
+      const speedLine = 'set_speed(' + target + ')';
+      const src = String(source || '').trim();
+      if (!src) return speedLine + '\n';
+      if (/\bset_speed\s*\([^)]*\)/.test(src)) {
+        return src.replace(/\bset_speed\s*\([^)]*\)/, speedLine) + '\n';
+      }
+      return speedLine + '\n' + src + '\n';
+    }
+
+    function saferCollisionProgram(targetSpeed) {
+      return [
+        '# Companion draft: move in small steps and check clearance each time',
+        'set_speed(' + targetSpeed + ')',
+        'for step in range(20):',
+        '    if distance() < 80:',
+        '        stop()',
+        '        turn_right(45)',
+        '    else:',
+        '        move_forward(0.5)',
+        '',
+      ].join('\n');
+    }
+
+    function explainLatestRun() {
+      const report = simpleLatestRun || browserRuns[0] || null;
+      if (!report && currentLessonId && lessonVerdict) {
+        const reasons = (lessonVerdict.reasons || []).join(' ');
+        return 'The lesson result is ' + (lessonVerdict.passed ? 'complete' : 'not complete') + ' at '
+          + lessonVerdict.score + ' out of 100. ' + (reasons || 'Every checked goal passed.')
+          + ' This explanation comes from the recorded simulated trace.';
+      }
+      if (!report) {
+        return 'There is no recorded run for this design yet, so I will not guess. Close the Companion, press Run this test, then ask me to explain the result.';
+      }
+      const distance = report.distanceCm != null ? (report.distanceCm / 100).toFixed(1) + ' metres' : 'an unrecorded distance';
+      const battery = report.batteryUsedPct != null ? report.batteryUsedPct + ' percent battery' : 'an unrecorded amount of battery';
+      const outcome = SIMPLE_OUTCOME_NAMES[report.outcome] || 'Test recorded';
+      let next = 'Compare the result with the goal, change one thing, and run the same test again.';
+      if (report.outcome === 'crash') next = 'The safest next step is to reduce speed and check distance before every short movement.';
+      else if (report.outcome === 'flat') next = 'Shorten the route, reduce repeated movement, or choose a larger battery in Design.';
+      else if (report.outcome === 'stalled') next = 'The drive does not have enough force for this mass and surface. Reduce mass or increase drive torque in Design.';
+      else if (report.outcome === 'error') next = 'Open the program and fix the first reported code error before testing again.';
+      return outcome + '. ' + (report.detail || 'The run ended without a more specific note.') + ' It travelled '
+        + distance + ' and used ' + battery + '. ' + next
+        + ' This diagnosis describes the simulation trace, not a guarantee about a physical robot.';
     }
 
     // Chat that acts on the world: when a Vibe message is a clear command to
@@ -1247,8 +1307,71 @@
         onTerrain(intent.world.id); // explicit world wins over buildFromText's type-coarse auto-switch
         parts.push('Moved to ' + intent.world.label + '.');
       }
+      if (intent.environment) {
+        let targetTerrain = terrain;
+        try {
+          if (intent.world && window.resolveSite) targetTerrain = window.resolveSite(intent.world.id);
+        } catch (err) { void err; }
+        const baseWorld = (targetTerrain && targetTerrain.id) || terrainId;
+        if (intent.environment.time) {
+          if (baseWorld === 'room') {
+            parts.push('The indoor test bay has fixed lighting, so time of day was not changed.');
+          } else {
+            setTod(intent.environment.time.id);
+            parts.push('Set the time to ' + intent.environment.time.label + '.');
+          }
+        }
+        if (intent.environment.weather) {
+          const w = intent.environment.weather;
+          const supported = w.id === 'clear'
+            || (w.id === 'storm' && baseWorld === 'mars')
+            || ((w.id === 'rain' || w.id === 'snow') && (baseWorld === 'earth' || baseWorld === 'city'));
+          if (supported) {
+            setWeather(w.id);
+            parts.push('Set the weather to ' + w.label + '.');
+          } else {
+            parts.push(w.label.replace(/^./, c => c.toUpperCase()) + ' is not modelled in this world, so the weather was not changed.');
+          }
+        }
+      }
+      if (intent.diagnose) {
+        return { handled: true, kind: 'evidence', message: explainLatestRun() };
+      }
+      if (intent.repair) {
+        const canSense = !window.KodroCommands || window.KodroCommands.check(robotSpec, 'distance').ok;
+        if (!canSense) {
+          return {
+            handled: true, kind: 'evidence',
+            message: 'I cannot add honest obstacle avoidance because this robot has no distance sensor. Open Design and fit a distance sensor first. I did not change the program.',
+          };
+        }
+        const draft = saferCollisionProgram(intent.speed !== null ? intent.speed : 30);
+        const checked = companionDraftCheck(draft);
+        return {
+          handled: true,
+          kind: 'evidence',
+          message: 'I prepared a safer alternative that slows down, checks 80 centimetres ahead, and moves in half-metre steps. Your current program is unchanged until you choose Apply.',
+          draft: draft,
+          summary: 'Replaces the current program with a sensor-checked low-speed patrol.',
+          validated: checked.ok,
+          validationError: checked.error,
+        };
+      }
+      if (intent.speed !== null) {
+        const speedDraft = programWithSpeed(code, intent.speed);
+        const speedChecked = companionDraftCheck(speedDraft);
+        return {
+          handled: true,
+          kind: 'evidence',
+          message: 'I prepared a ' + intent.speed + ' percent speed change. Your current program is unchanged until you choose Apply.',
+          draft: speedDraft,
+          summary: 'Changes the first set_speed() call, or adds one before the existing program.',
+          validated: speedChecked.ok,
+          validationError: speedChecked.error,
+        };
+      }
       if (!parts.length) return null;
-      return { message: parts.join(' ') };
+      return { handled: true, kind: 'action', message: parts.join(' ') };
     }
 
     // runReview / applyReview moved to window.KodroHooks.useReview (hooks.jsx).
@@ -1757,6 +1880,28 @@
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
     const anyModalOpen = !!studioDoc || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
+    // Is a surface covering the live viewport?
+    //
+    // Two things hang off this, and they point the same way. The 3D loop stops
+    // drawing a canvas nobody can see, which is free performance on the weak
+    // integrated GPUs this has to run on. And styles.css only enables backdrop
+    // blur on the covering surfaces while it is true, so a translucent panel is
+    // never composited over an animating WebGL scene: the browser would have to
+    // read the backdrop texture back every frame, on the exact hardware that
+    // cannot afford it.
+    //
+    // Deliberately NOT gated on runState. A run continues underneath, because
+    // the simulation advances on its own timer rather than on the render loop,
+    // so a pupil who opens Settings mid-run loses nothing but the picture.
+    const simIdle = !!(anyModalOpen || settingsOpen || moreToolsOpen || runToolsOpen
+      || evidenceDrawerActive || homeOpen || !onboarded || studioDoc);
+    useEffect(() => {
+      if (typeof document === 'undefined' || !document.body) return undefined;
+      document.body.classList.toggle('kodro-sim-idle', simIdle);
+      // Removed on unmount too: a stale class would leave the viewport frozen
+      // with no surface on screen to explain why.
+      return () => { document.body.classList.remove('kodro-sim-idle'); };
+    }, [simIdle]);
     useEffect(() => {
       if (!anyModalOpen) return undefined;
       const modal = Array.prototype.slice.call(document.querySelectorAll('.modal[aria-modal="true"]')).pop();
@@ -1893,6 +2038,12 @@
       const derived = window.getKodroRobot ? window.getKodroRobot() : {};
       if (window.KodroDiagnostics) simpleAssessment = window.KodroDiagnostics.assess(robotSpec, derived, terrain);
     } catch (e) { void e; }
+    const designStageState = simpleAssessment && simpleAssessment.overall === 'fail' ? 'attention' : 'done';
+    const testStageState = simpleRunActive ? 'active' : (simpleLatestRun ? 'done' : 'next');
+    const buildStageState = browserRunCount > 0 ? 'ready' : 'waiting';
+    const designStageLabel = designStageState === 'attention' ? 'needs a design fix' : 'design ready';
+    const testStageLabel = testStageState === 'done' ? 'current test saved' : testStageState === 'active' ? 'test running' : 'run this setup next';
+    const buildStageLabel = buildStageState === 'ready' ? 'prototype brief ready' : 'available after a saved run';
     // Stored prose can outlive a product correction. Recompute the current
     // coaching sentence from the immutable structured measurements so copy and
     // safety disclosures migrate immediately after an update.
@@ -1985,15 +2136,15 @@
             </div>
           </button>
           <div className="bar-divider"></div>
-          <nav className="stage-nav" aria-label="Robot project stages">
-            <button type="button" className={'stage-link' + (activeStage === 'design' ? ' active' : '')} aria-label={'1 Design, current robot ' + chipName} aria-current={activeStage === 'design' ? 'step' : undefined} onClick={() => goStage('design')}>
-              <span className="stage-count">1</span><span><b>Design</b><small>{chipName}</small></span>
+          <nav className="stage-nav" aria-label="Robot project stages, from design to test to prototype">
+            <button type="button" data-state={designStageState} className={'stage-link' + (activeStage === 'design' ? ' active' : '')} aria-label={'1 Design, ' + chipName + ', ' + designStageLabel} aria-current={activeStage === 'design' ? 'step' : undefined} onClick={() => goStage('design')}>
+              <span className="stage-count">1</span><span><b>Design</b><small>{designStageLabel}</small></span>
             </button>
-            <button type="button" className={'stage-link' + (activeStage === 'prove' ? ' active' : '')} aria-label={'2 Test in ' + (terrain.name || 'the current scenario')} aria-current={activeStage === 'prove' ? 'step' : undefined} onClick={() => goStage('prove')}>
-              <span className="stage-count">2</span><span><b>Test</b><small>{terrain.name || 'Scenario'}</small></span>
+            <button type="button" data-state={testStageState} className={'stage-link' + (activeStage === 'prove' ? ' active' : '')} aria-label={'2 Test in ' + (terrain.name || 'the current scenario') + ', ' + testStageLabel} aria-current={activeStage === 'prove' ? 'step' : undefined} onClick={() => goStage('prove')}>
+              <span className="stage-count">2</span><span><b>Test</b><small>{testStageLabel}</small></span>
             </button>
-            <button type="button" className={'stage-link' + (activeStage === 'build' ? ' active' : '')} aria-label="3 Build a prototype pack" aria-current={activeStage === 'build' ? 'step' : undefined} onClick={() => goStage('build')}>
-              <span className="stage-count">3</span><span><b>Build</b><small>Prototype pack</small></span>
+            <button type="button" data-state={buildStageState} className={'stage-link' + (activeStage === 'build' ? ' active' : '')} aria-label={'3 Build a prototype pack, ' + buildStageLabel} aria-current={activeStage === 'build' ? 'step' : undefined} onClick={() => goStage('build')}>
+              <span className="stage-count">3</span><span><b>Build</b><small>{buildStageLabel}</small></span>
             </button>
           </nav>
           <div className="bar-divider"></div>
@@ -2307,9 +2458,27 @@
                     <button type="button" onClick={() => setEvidenceOpen(true)}>Open evidence</button>
                   </div>
                 </section>}
+                <section className={'simple-handoff' + (simpleLatestRun ? ' is-ready' : '')} aria-label="Next project step">
+                  <div>
+                    <span className="eyebrow">Design to test to build</span>
+                    <b>{simpleLatestRun ? 'This test is connected to the active design.' : 'Run this exact setup before moving to a prototype.'}</b>
+                    <p>{simpleLatestRun
+                      ? 'Choose one change, run the same test again, or carry this saved evidence into the prototype brief.'
+                      : 'Kodro will tie the result to this robot, world and program so later stages do not lose their context.'}</p>
+                  </div>
+                  <div className="simple-handoff-actions">
+                    {simpleLatestRun
+                      ? <React.Fragment>
+                        <button type="button" onClick={() => goStage('design')}>Improve design</button>
+                        <button type="button" onClick={() => setSimpleCodeOpen(true)}>Edit program</button>
+                        <button type="button" className="ctrl ctrl-run" onClick={() => goStage('build')}>Prepare prototype brief</button>
+                      </React.Fragment>
+                      : <button type="button" className="ctrl ctrl-run" onClick={onRun}>Run this setup</button>}
+                  </div>
+                </section>
                 <button type="button" className="simple-companion-action" onClick={() => setVibeOpen(true)}>
                   <span>{KI('vibe')}<b>Build it with Companion</b></span>
-                  <small>{aiInfo.available ? 'Local AI is ready to change the robot or program with you.' : 'Direct robot and world commands work offline without a model.'}</small>
+                  <small>{aiInfo.available ? 'A model is connected for open-ended help, and core project controls work on-device.' : 'Explain failures, change the environment and preview safer code on-device.'}</small>
                 </button>
               </section>
             )}
@@ -2876,7 +3045,7 @@
 
         {realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, { onClose: () => setRealismOpen(false), terrain: terrain, code: code })}
         {demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, { onClose: () => setDemoOpen(false) })}
-        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} onExplain={() => { setVibeOpen(false); setAskData(null); setAskOpen(true); }} onReview={() => { setVibeOpen(false); runReview(); }} />}
+        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} projectContext={{ robot: chipName, world: terrain.name || terrain.id, program: currentLessonId ? ((lessons.find(l => l.id === currentLessonId) || {}).title || 'Lesson program') : (SIMPLE_PROGRAM_NAMES[activeTab] || EXAMPLES[activeTab].label), outcome: simpleLatestRun ? (SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded') : null }} onExplain={() => { setVibeOpen(false); setAskData(null); setAskOpen(true); }} onReview={() => { setVibeOpen(false); runReview(); }} />}
 
         {blocksOpen && <window.KodroPanels.BlocksModal setBlocksOpen={setBlocksOpen} BLOCK_DEFS={BLOCK_DEFS} robotSpec={robotSpec} addBlock={addBlock} endBlock={endBlock} blockIndent={blockIndent} setBlockIndent={setBlockIndent} blocks={blocks} setBlocks={setBlocks} moveBlock={moveBlock} canMoveBlock={canMoveBlock} removeBlock={removeBlock} insertBlocksCode={insertBlocksCode} classroom={classroom} />}
 
@@ -2900,7 +3069,9 @@
                       <h2>{chipName}</h2>
                       <p>Kodro can prepare a concept bill of materials and simulation record here in the free browser app. It will not invent live prices, electrical compatibility or a safe wiring plan.</p>
                     </div>
-                    <button className="ctrl ctrl-run" onClick={downloadPrototypeBrief}>Download prototype brief</button>
+                      <button className="ctrl ctrl-run" onClick={browserRunCount > 0 ? downloadPrototypeBrief : () => goStage('prove')}>
+                        {browserRunCount > 0 ? 'Download prototype brief' : 'Run a test first'}
+                      </button>
                   </div>
                   <div className="build-readiness" aria-label="Prototype brief readiness">
                     <div><strong>{browserBuildParts.length}</strong><span>design requirements captured</span></div>
@@ -2919,7 +3090,7 @@
                     <section className="build-boundary">
                       <div className="eyebrow">Evidence boundary</div>
                       <div className="build-evidence-row is-known"><b>Verified by Kodro</b><span>Selected controller and capabilities, command availability, saved run outcomes and the simulator's disclosed first-order calculations.</span></div>
-                      <div className="build-evidence-row is-suggested"><b>Ready to export</b><span>A local HTML brief containing this concept, recent run evidence, uncertainty and a safe prototype sequence.</span></div>
+                      <div className={'build-evidence-row ' + (browserRunCount > 0 ? 'is-suggested' : 'is-unverified')}><b>{browserRunCount > 0 ? 'Ready to export' : 'Waiting for test evidence'}</b><span>{browserRunCount > 0 ? 'A local HTML brief containing this concept, recent run evidence, uncertainty and a safe prototype sequence.' : 'Run this exact design at least once so the brief contains a real simulated outcome rather than an empty claim.'}</span></div>
                       <div className="build-evidence-row is-unverified"><b>Verify before purchasing</b><span>Motor driver current, battery chemistry and protection, voltage and logic compatibility, wiring, mechanical fit, price, stock and supplier quality.</span></div>
                       <div className="browser-build-actions">
                         <button className="btn-mini" onClick={() => goStage('design')}>Back to Design</button>
@@ -2986,6 +3157,14 @@
             onSaved={(doc) => {
               refreshAuthored();
               addConsole('Saved your lesson: ' + doc.title, 'sys');
+            }}
+            onOpen={(doc) => {
+              const S = window.KodroLessonStore;
+              if (!S) return;
+              refreshAuthored();
+              setStudioDoc(null);
+              loadLesson(S.toRow(doc));
+              showToast('Lesson saved. You are now seeing it as a pupil.', 'ok');
             }}
             onExport={exportLesson}
             onExportPack={exportPack}

@@ -85,7 +85,9 @@ win.RoboLearn = {
 
 // Load the facade against the shared shim (same pattern as qa_interpreter.mjs).
 new Function('window', 'fetch', 'localStorage', web('ai-web.jsx'))(win, mockFetch, lsStub);
+new Function('window', web('chat-intent.js'))(win);
 const AI = win.KodroAI;
+const Intent = win.KodroChatIntent;
 
 // --- tiny assert harness (mirrors qa_interpreter.mjs) ---------------------
 let pass = 0, fail = 0;
@@ -279,6 +281,42 @@ console.log('\n== BOUNDED TOOL CALL (OPP-7) ==');
   check('the pending review label can name a hosted provider',
     /function pendingReviewLabel\(\)[\s\S]{0,600}providerName\(/.test(panels),
     'pendingReviewLabel must be able to name the provider it is sending to');
+}
+
+console.log('\n== ON-DEVICE COMPANION INTENTS ==');
+{
+  const olympus = Intent.parse('Take me to Olympus Mons on Mars');
+  check('specific Olympus site wins over the generic Mars match',
+    olympus.world && olympus.world.id === 'olympus', JSON.stringify(olympus));
+
+  const moon = Intent.parse('Go to the Moon');
+  check('Moon opens the shipped Tycho site rather than generic space',
+    moon.world && moon.world.id === 'tycho', JSON.stringify(moon));
+
+  const question = Intent.parse('Does rain affect grip on Mars?');
+  check('a weather question never changes the world or weather',
+    !question.world && !question.environment, JSON.stringify(question));
+
+  const diagnose = Intent.parse('Why did the last test crash?');
+  check('a failure question routes to deterministic run diagnosis',
+    diagnose.diagnose && diagnose.isCommand, JSON.stringify(diagnose));
+
+  const repair = Intent.parse('Fix the collision and make it safer');
+  check('a collision repair request routes to a previewable on-device draft',
+    repair.repair && repair.isCommand, JSON.stringify(repair));
+
+  const environment = Intent.parse('Change the time to night and add rain');
+  check('time and weather controls are parsed together',
+    environment.environment && environment.environment.time.id === 'night'
+    && environment.environment.weather.id === 'rain', JSON.stringify(environment));
+
+  const speed = Intent.parse('Set the speed to 42 percent');
+  check('an explicit speed percentage is preserved',
+    speed.speed === 42, JSON.stringify(speed));
+
+  const clamped = Intent.parse('Set the speed to 900 percent');
+  check('speed requests are clamped to the real 0 to 100 control',
+    clamped.speed === 100, JSON.stringify(clamped));
 }
 
 console.log('\n== RESULT: ' + pass + ' passed, ' + fail + ' failed ==');

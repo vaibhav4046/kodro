@@ -173,14 +173,27 @@
         var s = samples[i];
         if (!Array.isArray(s) || s.length !== 2 || !inside(Number(s[0]), Number(s[1]))) {
           push('Sample ' + (i + 1) + ' is outside the arena.');
+          continue;
+        }
+        for (var si = 0; si < i; si++) {
+          var earlier = samples[si];
+          if (Array.isArray(earlier)
+            && Math.hypot(Number(s[0]) - Number(earlier[0]), Number(s[1]) - Number(earlier[1])) < 0.2) {
+            push('Sample ' + (i + 1) + ' is on top of sample ' + (si + 1) + '. Move one so pupils can tell them apart.');
+          }
         }
       }
       if (samples.length > 12) push('A lesson can have at most 12 samples.');
       var obstacles = Array.isArray(w.obstacles) ? w.obstacles : [];
       for (var j = 0; j < obstacles.length; j++) {
         var o = obstacles[j] || {};
-        if (!inside(Number(o.x), Number(o.y))) push('Rock ' + (j + 1) + ' is outside the arena.');
-        if (!(Number(o.r) > 0 && Number(o.r) <= 3)) push('Rock ' + (j + 1) + ' needs a radius between 0 and 3 metres.');
+        var ox = Number(o.x), oy = Number(o.y), orad = Number(o.r);
+        if (!inside(ox, oy)) push('Rock ' + (j + 1) + ' is outside the arena.');
+        if (!(orad > 0 && orad <= 3)) {
+          push('Rock ' + (j + 1) + ' needs a radius between 0 and 3 metres.');
+        } else if (inside(ox, oy) && (ox - orad < 0 || ox + orad > width || oy - orad < 0 || oy + orad > height)) {
+          push('Rock ' + (j + 1) + ' crosses the arena wall. Move it inward or make it smaller.');
+        }
       }
       if (obstacles.length > 24) push('A lesson can have at most 24 rocks.');
       // A rock sitting on the start point means the rover begins inside an
@@ -192,6 +205,20 @@
           if (d < Number(ob.r) + 0.35) push('Rock ' + (k + 1) + ' is on top of the base, so the rover would start inside it.');
         }
       }
+      // A sample inside a rock is visible but unreachable: collision stops the
+      // rover before collect_sample() can get close enough. Refuse the arena
+      // instead of letting a correct pupil program fail forever.
+      for (var smi = 0; smi < samples.length; smi++) {
+        var sample = samples[smi];
+        if (!Array.isArray(sample)) continue;
+        for (var obi = 0; obi < obstacles.length; obi++) {
+          var rock = obstacles[obi] || {};
+          var gap = Math.hypot(Number(sample[0]) - Number(rock.x), Number(sample[1]) - Number(rock.y));
+          if (isFiniteNum(gap) && gap < Number(rock.r) + 0.2) {
+            push('Sample ' + (smi + 1) + ' is inside rock ' + (obi + 1) + ', so the rover cannot collect it.');
+          }
+        }
+      }
     }
 
     // --- criteria ---
@@ -200,6 +227,7 @@
       push('The lesson needs at least one goal, or every program passes it.');
     } else {
       if (criteria.length > 8) push('A lesson can have at most 8 goals.');
+      var seenCriteria = {};
       for (var c = 0; c < criteria.length; c++) {
         var cr = criteria[c];
         if (!cr || typeof cr !== 'object') { push('Goal ' + (c + 1) + ' is not valid.'); continue; }
@@ -207,6 +235,8 @@
         if (keys.length !== 1) { push('Goal ' + (c + 1) + ' must set exactly one thing.'); continue; }
         var key = keys[0];
         if (CRITERION_KEYS.indexOf(key) < 0) { push('Goal ' + (c + 1) + ' uses an unknown rule "' + key + '".'); continue; }
+        if (seenCriteria[key]) warnings.push('Goal ' + (c + 1) + ' repeats "' + key + '". Keep one value so the pupil sees one clear rule.');
+        seenCriteria[key] = true;
         var val = cr[key];
         if (key === 'uses_construct' && CONSTRUCTS.indexOf(val) < 0) {
           push('Goal ' + (c + 1) + ' asks for an unknown construct "' + String(val) + '".');

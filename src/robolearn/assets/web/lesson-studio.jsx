@@ -45,8 +45,8 @@
     { key: 'min_distance_travelled', label: 'Travel at least', kind: 'num', dflt: 3, unit: 'metres', hint: 'Useful when there is nothing to collect.' },
     { key: 'uses_construct', label: 'Use a', kind: 'construct', dflt: 'if', unit: '', hint: 'Forces the pupil to solve it the way you are teaching, not by guessing a route.' },
     { key: 'calls_in_order', label: 'Call these in order', kind: 'list', dflt: ['move_forward'], unit: '', hint: 'For lessons about sequence. Other calls may appear in between.' },
-    { key: 'max_battery_used', label: 'Use at most', kind: 'num', dflt: 30, unit: '% battery', hint: 'Rewards a shorter route.' },
-    { key: 'max_steps', label: 'Use at most', kind: 'int', dflt: 40, unit: 'commands', hint: 'Rewards a loop over a long list of moves.' },
+    { key: 'max_battery_used', label: 'Limit battery use to', kind: 'num', dflt: 30, unit: '% battery', hint: 'Rewards a shorter route.' },
+    { key: 'max_steps', label: 'Limit program to', kind: 'int', dflt: 40, unit: 'commands', hint: 'Rewards a loop over a long list of moves.' },
   ];
 
   var CONSTRUCT_LABEL = {
@@ -83,9 +83,15 @@
     var checked = checkState[0], setChecked = checkState[1];
     var msgState = React.useState(null);
     var msg = msgState[0], setMsg = msgState[1];
+    // The selected marker is edited numerically below the map. Clicking is
+    // fast; the inspector makes the exact position and radius visible and
+    // editable instead of forcing a teacher to repeatedly undo and re-place.
+    var selectedState = React.useState(null);
+    var selected = selectedState[0], setSelected = selectedState[1];
 
     var w = doc.world;
     var scale = MAP_PX / Math.max(w.width, w.height);
+    var liveValidation = Store.validate(doc);
 
     // Any edit invalidates the last check: a lesson proved solvable before you
     // moved the rock is not proved solvable now.
@@ -116,6 +122,12 @@
       return { cx: mx * scale, cy: (w.height - my) * scale };
     }
 
+    function selectFromKey(ev, value) {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      ev.preventDefault();
+      setSelected(value);
+    }
+
     // Run the author's own worked answer through the grader a pupil will face.
     // This is the gate on Save.
     function runCheck() {
@@ -143,29 +155,29 @@
         setChecked({ ok: false, stage: 'grade', reasons: [r.reason || 'The grader could not run this lesson.'] });
         return;
       }
+      var starterResult = null;
+      var s = Grader.registerAuthored(probeId, Store.toEntry(doc));
+      if (s.ok) {
+        starterResult = Grader.gradeSync({ id: probeId, terrain: doc.terrain }, doc.starterCode || '');
+        Grader.unregisterAuthored(probeId);
+      }
       setChecked({
         ok: r.passed === true,
         stage: 'grade',
         score: r.score,
         reasons: r.reasons || [],
-        starterPasses: null,
+        events: r.events || [],
+        starterPasses: !!(starterResult && starterResult.passed),
+        starterScore: starterResult ? starterResult.score : null,
+        starterReasons: starterResult ? (starterResult.reasons || []) : [],
+        warnings: v.warnings || [],
       });
-      // A starter that already passes makes the lesson a button press. Worth
-      // saying, but not worth blocking: some KS1 lessons are deliberately
-      // "press Run and watch".
-      if (r.passed) {
-        var s = Grader.registerAuthored(probeId, Store.toEntry(doc));
-        if (s.ok) {
-          var sr = Grader.gradeSync({ id: probeId, terrain: doc.terrain }, doc.starterCode || '');
-          Grader.unregisterAuthored(probeId);
-          if (sr && sr.passed) {
-            setMsg({ tone: 'warn', text: 'Careful: the starter program already passes, so there is nothing for the pupil to work out.' });
-          }
-        }
+      if (r.passed && starterResult && starterResult.passed) {
+        setMsg({ tone: 'warn', text: 'Careful: the starter program already passes, so there is nothing for the pupil to work out.' });
       }
     }
 
-    function doSave() {
+    function doSave(openAfter) {
       var r = Store.save(doc);
       if (!r.ok) {
         setMsg({ tone: 'err', text: r.errors.join(' ') });
@@ -173,9 +185,15 @@
       }
       setMsg({ tone: 'ok', text: 'Saved. It is in the lesson library now, marked as made here.' });
       if (props.onSaved) props.onSaved(doc);
+      if (openAfter && props.onOpen) props.onOpen(doc);
     }
 
     var canSave = !!(checked && checked.ok);
+    var arenaIssues = liveValidation.errors.filter(function (x) { return /(arena|sample|rock|base|world)/i.test(x); });
+    var goalIssues = liveValidation.errors.filter(function (x) { return /goal/i.test(x); });
+    var arenaReady = arenaIssues.length === 0;
+    var goalsReady = doc.criteria.length > 0 && goalIssues.length === 0;
+    var programsReady = !!(doc.starterCode && doc.starterCode.trim() && doc.solutionCode && doc.solutionCode.trim());
 
     // --- goals ---
     function setGoal(i, key) {
@@ -253,6 +271,27 @@
         e('p', { className: 'ls-lede' },
           'Draw the arena, say what counts as finished, and write one answer that works. ',
           'You cannot save until your own answer passes, because a lesson nobody can finish is worse than no lesson.'),
+        e('ol', { className: 'ls-pipeline', 'aria-label': 'Lesson authoring stages' },
+          [
+            ['1', 'Arena', arenaReady],
+            ['2', 'Goals', goalsReady],
+            ['3', 'Programs', programsReady],
+            ['4', 'Check and try', canSave],
+          ].map(function (step) {
+            return e('li', { key: step[0], className: step[2] ? 'is-done' : '' },
+              e('span', null, step[0]), e('b', null, step[1]), e('small', null, step[2] ? 'Ready' : 'Needs attention'));
+          })),
+        e('div', {
+          className: 'ls-live-check ' + (liveValidation.ok ? 'ok' : 'bad'),
+          role: 'status', 'aria-live': 'polite',
+        },
+          e('b', null, liveValidation.ok
+            ? 'Live checks: the lesson form is valid.'
+            : 'Live checks: ' + liveValidation.errors.length + ' thing' + (liveValidation.errors.length === 1 ? '' : 's') + ' to fix.'),
+          !liveValidation.ok && e('ul', null, liveValidation.errors.slice(0, 4).map(function (err, i) {
+            return e('li', { key: 'live' + i }, err);
+          })),
+          liveValidation.warnings.length > 0 && e('p', null, liveValidation.warnings.join(' '))),
 
         e('div', { className: 'ls-grid' },
 
@@ -293,23 +332,94 @@
               }),
               (w.obstacles || []).map(function (o, i) {
                 var p = px(o.x, o.y);
-                return e('circle', {
-                  key: 'ob' + i, cx: p.cx, cy: p.cy, r: Math.max(4, o.r * scale),
-                  className: 'ls-map-rock',
-                });
+                var isSelected = selected && selected.kind === 'rock' && selected.index === i;
+                return e('g', {
+                  key: 'ob' + i, role: 'button', tabIndex: 0,
+                  className: isSelected ? 'ls-map-selected' : '',
+                  'aria-label': 'Rock ' + (i + 1) + ' at ' + o.x + ', ' + o.y + ' metres. Select to edit.',
+                  onClick: function (ev) { ev.stopPropagation(); setSelected({ kind: 'rock', index: i }); },
+                  onKeyDown: function (ev) { selectFromKey(ev, { kind: 'rock', index: i }); },
+                },
+                  e('circle', { cx: p.cx, cy: p.cy, r: Math.max(4, o.r * scale), className: 'ls-map-rock' }),
+                  e('text', { x: p.cx, y: p.cy + 3, className: 'ls-map-label', textAnchor: 'middle' }, 'R' + String(i + 1)));
               }),
               (w.samples || []).map(function (s, i) {
                 var p = px(s[0], s[1]);
-                return e('g', { key: 'sm' + i },
+                var isSelected = selected && selected.kind === 'sample' && selected.index === i;
+                return e('g', {
+                  key: 'sm' + i, role: 'button', tabIndex: 0,
+                  className: isSelected ? 'ls-map-selected' : '',
+                  'aria-label': 'Flag ' + (i + 1) + ' at ' + s[0] + ', ' + s[1] + ' metres. Select to edit.',
+                  onClick: function (ev) { ev.stopPropagation(); setSelected({ kind: 'sample', index: i }); },
+                  onKeyDown: function (ev) { selectFromKey(ev, { kind: 'sample', index: i }); },
+                },
                   e('circle', { cx: p.cx, cy: p.cy, r: 6, className: 'ls-map-flag' }),
                   e('text', { x: p.cx, y: p.cy - 9, className: 'ls-map-label', textAnchor: 'middle' }, String(i + 1)));
               }),
               (function () {
                 var p = px(w.base[0], w.base[1]);
-                return e('g', null,
+                return e('g', {
+                  role: 'button', tabIndex: 0,
+                  className: selected && selected.kind === 'base' ? 'ls-map-selected' : '',
+                  'aria-label': 'Start at ' + w.base[0] + ', ' + w.base[1] + ' metres. Select to edit.',
+                  onClick: function (ev) { ev.stopPropagation(); setSelected({ kind: 'base', index: 0 }); },
+                  onKeyDown: function (ev) { selectFromKey(ev, { kind: 'base', index: 0 }); },
+                },
                   e('circle', { cx: p.cx, cy: p.cy, r: 9, className: 'ls-map-base' }),
                   e('text', { x: p.cx, y: p.cy + 4, className: 'ls-map-label', textAnchor: 'middle' }, 'S'));
               })()),
+            selected && (function () {
+              var item = selected.kind === 'base' ? { x: w.base[0], y: w.base[1] }
+                : selected.kind === 'sample' && w.samples[selected.index]
+                  ? { x: w.samples[selected.index][0], y: w.samples[selected.index][1] }
+                  : selected.kind === 'rock' && w.obstacles[selected.index]
+                    ? w.obstacles[selected.index] : null;
+              if (!item) return null;
+              function setPoint(axis, value) {
+                var n = snap(num(value, item[axis]));
+                if (selected.kind === 'base') {
+                  var base = w.base.slice();
+                  base[axis === 'x' ? 0 : 1] = n;
+                  patchWorld({ base: base });
+                } else if (selected.kind === 'sample') {
+                  var samples = w.samples.map(function (s, i) {
+                    if (i !== selected.index) return s;
+                    var next = s.slice();
+                    next[axis === 'x' ? 0 : 1] = n;
+                    return next;
+                  });
+                  patchWorld({ samples: samples });
+                } else {
+                  patchWorld({ obstacles: w.obstacles.map(function (o, i) {
+                    return i === selected.index ? Object.assign({}, o, { [axis]: n }) : o;
+                  }) });
+                }
+              }
+              function removeSelected() {
+                if (selected.kind === 'sample') patchWorld({ samples: w.samples.filter(function (_, i) { return i !== selected.index; }) });
+                if (selected.kind === 'rock') patchWorld({ obstacles: w.obstacles.filter(function (_, i) { return i !== selected.index; }) });
+                setSelected(null);
+              }
+              var name = selected.kind === 'base' ? 'Start'
+                : selected.kind === 'sample' ? 'Flag ' + (selected.index + 1)
+                  : 'Rock ' + (selected.index + 1);
+              return e('div', { className: 'ls-inspector', 'aria-label': name + ' details' },
+                e('b', null, name),
+                e('label', null, 'X',
+                  e('input', { type: 'number', min: 0, max: w.width, step: 0.5, value: item.x, onChange: function (ev) { setPoint('x', ev.target.value); } })),
+                e('label', null, 'Y',
+                  e('input', { type: 'number', min: 0, max: w.height, step: 0.5, value: item.y, onChange: function (ev) { setPoint('y', ev.target.value); } })),
+                selected.kind === 'rock' && e('label', null, 'Radius',
+                  e('input', {
+                    type: 'number', min: 0.1, max: 3, step: 0.1, value: item.r,
+                    onChange: function (ev) {
+                      patchWorld({ obstacles: w.obstacles.map(function (o, i) {
+                        return i === selected.index ? Object.assign({}, o, { r: num(ev.target.value, 0.5) }) : o;
+                      }) });
+                    },
+                  })),
+                selected.kind !== 'base' && e('button', { className: 'btn-mini', onClick: removeSelected }, 'Remove'));
+            })(),
             e('div', { className: 'ls-size' },
               e('label', null, 'Width',
                 e('input', {
@@ -425,7 +535,18 @@
             role: 'status',
           },
             checked.ok
-              ? e('p', null, 'Your answer passes this lesson, ' + checked.score + ' out of 100. It is ready to save.')
+              ? e('div', null,
+                e('p', null, 'Your worked answer passes this lesson, ' + checked.score + ' out of 100.'),
+                e('div', { className: 'ls-check-metrics' },
+                  e('span', null, e('b', null, String((checked.events || []).filter(function (x) { return x.kind === 'call'; }).length)), ' API calls'),
+                  e('span', null, e('b', null, String((checked.events || []).filter(function (x) { return x.kind === 'collision'; }).length)), ' collisions'),
+                  e('span', null, e('b', null, String(checked.starterScore == null ? 'Not run' : checked.starterScore)), ' starter score')),
+                e('p', { className: checked.starterPasses ? 'ls-starter-warn' : 'ls-starter-ok' },
+                  checked.starterPasses
+                    ? 'The pupil starter already passes. Change it if the pupil should have something to solve.'
+                    : 'The pupil starter does not pass yet, so the lesson contains a real task.'),
+                checked.warnings && checked.warnings.length > 0
+                  ? e('p', { className: 'ls-starter-warn' }, checked.warnings.join(' ')) : null)
               : e('div', null,
                 e('p', null, checked.stage === 'form'
                   ? 'This lesson is not ready yet:'
@@ -437,9 +558,14 @@
 
         e('div', { className: 'ls-actions' },
           e('button', {
-            className: 'ctrl ctrl-run', disabled: !canSave, onClick: doSave,
+            className: 'ctrl ctrl-run', disabled: !canSave, onClick: function () { doSave(false); },
             title: canSave ? '' : 'Check your lesson works first',
           }, 'Save to my lessons'),
+          props.onOpen && e('button', {
+            className: 'ctrl ctrl-run', disabled: !canSave,
+            onClick: function () { doSave(true); },
+            title: canSave ? 'Save, close the Studio and open the lesson exactly as a pupil sees it' : 'Check your lesson works first',
+          }, 'Save and try as a pupil'),
           e('button', {
             className: 'btn-mini', disabled: !canSave,
             onClick: function () { if (props.onExport) props.onExport(doc); },

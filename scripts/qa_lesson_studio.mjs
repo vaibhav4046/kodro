@@ -143,6 +143,9 @@ check('the grader exposes the authored-lesson seam',
     ['base outside the arena', (() => { const d = base(); d.world.base = [99, 99]; return d; })(), /base is outside/],
     ['rock with no radius', (() => { const d = base(); d.world.obstacles = [{ x: 2, y: 2, r: 0 }]; return d; })(), /radius between/],
     ['rock on the base', (() => { const d = base(); d.world.obstacles = [{ x: 1, y: 1, r: 0.5 }]; return d; })(), /on top of the base/],
+    ['rock crossing a wall', (() => { const d = base(); d.world.obstacles = [{ x: 0.2, y: 5, r: 0.5 }]; return d; })(), /crosses the arena wall/],
+    ['sample inside a rock', (() => { const d = base(); d.world.obstacles = [{ x: 4, y: 1, r: 0.5 }]; return d; })(), /cannot collect it/],
+    ['two samples on top of each other', (() => { const d = base(); d.world.samples = [[4, 1], [4, 1]]; d.criteria = [{ samples_collected: 2 }]; return d; })(), /on top of sample/],
     ['arena too small', (() => { const d = base(); d.world.width = 0.5; return d; })(), /width must be between/],
     ['more samples wanted than placed', (() => { const d = base(); d.criteria = [{ samples_collected: 5 }]; return d; })(), /only has 1/],
   ];
@@ -159,6 +162,13 @@ check('the grader exposes the authored-lesson seam',
   check('warns (not refuses) when a lesson has no hints',
     vh.ok === true && vh.warnings.some((w) => /nothing to fall back on/.test(w)),
     JSON.stringify(vh.warnings));
+
+  const repeatedGoal = base();
+  repeatedGoal.criteria = [{ no_collisions: true }, { no_collisions: true }];
+  const vg = S.validate(repeatedGoal);
+  check('warns when the same goal is repeated',
+    vg.ok === true && vg.warnings.some((w) => /repeats/.test(w)),
+    JSON.stringify(vg.warnings));
 }
 
 // --- file in, file out ----------------------------------------------------
@@ -325,6 +335,21 @@ check('the grader exposes the authored-lesson seam',
   const missingPy = S.CRITERION_KEYS.filter((k) => pySrc.indexOf('criterion.' + k) < 0);
   check('every criterion the Studio offers is implemented by the Python grader',
     missingPy.length === 0, missingPy.join(', '));
+}
+
+// --- authoring UI contracts -----------------------------------------------
+// Static contracts keep the precision editor and pupil-preview path from being
+// accidentally removed while the data model continues to pass headless tests.
+{
+  const studioUi = readFileSync(path.join(WEB, 'lesson-studio.jsx'), 'utf8');
+  check('the Studio exposes four connected authoring stages',
+    /ls-pipeline/.test(studioUi) && /Check and try/.test(studioUi));
+  check('map markers can be selected and edited precisely',
+    /ls-inspector/.test(studioUi) && /Select to edit/.test(studioUi));
+  check('a checked lesson can be saved and opened as a pupil',
+    /Save and try as a pupil/.test(studioUi) && /props\.onOpen/.test(studioUi));
+  check('goal options have distinct accessible labels',
+    /Limit battery use to/.test(studioUi) && /Limit program to/.test(studioUi));
 }
 
 if (fails.length) {

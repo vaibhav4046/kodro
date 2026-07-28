@@ -856,11 +856,20 @@ say("Survey done")`
   // SVG markup string. Both are static data with no component dependencies.
   const TWEAK_DEFAULTS = { zoom: 1, tilt: 46, grid: true, ambientFx: true, trail: 'terrain' };
 
+  // The product mark, rendered by the persistent mission bar. Kept in step with
+  // the home screen, the onboarding, the favicons and the icon family: the old
+  // orbit lived only here after the identity work, which left the app showing
+  // one mark in its toolbar and a different one everywhere else.
+  //
+  // Deliberately single colour. It inherits the active theme through
+  // currentColor, so it stays legible across all ten themes without a per-theme
+  // override; the full-colour version with the gold decision node is used at the
+  // larger sizes where the second colour is actually readable.
   const ORBIT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-    <circle cx="32" cy="32" r="21" stroke="currentColor" stroke-width="2.4" opacity="0.2"></circle>
-    <path d="M15 44 A21 21 0 1 1 44 15" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" opacity="0.9"></path>
-    <circle cx="15" cy="44" r="2.6" fill="currentColor" opacity="0.45"></circle>
-    <circle cx="44" cy="15" r="6.4" fill="currentColor"></circle>
+    <path d="M18 8v48M19 32 49 9M20 32c11 0 15 17 31 24" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+    <circle cx="20" cy="32" r="4.8" fill="currentColor"></circle>
+    <circle cx="49" cy="9" r="2.4" fill="currentColor"></circle>
+    <circle cx="51" cy="56" r="2.4" fill="currentColor"></circle>
   </svg>`;
 
   if (typeof window !== 'undefined') {

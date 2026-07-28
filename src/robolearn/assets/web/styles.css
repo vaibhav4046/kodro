@@ -193,8 +193,12 @@ body {
 .stage-link {
   appearance:none; border:0; border-radius:var(--radius-sm); background:transparent;
   color:var(--fg-2); min-height:38px; padding:5px 10px; cursor:pointer;
-  display:flex; align-items:center; gap:8px; text-align:left;
+  display:flex; align-items:center; gap:8px; text-align:left; position:relative;
   transition:background 150ms var(--ease),color 150ms var(--ease);
+}
+.stage-link + .stage-link::before {
+  content:""; position:absolute; left:-3px; top:50%; width:4px; height:1px;
+  background:var(--border); pointer-events:none;
 }
 .stage-link:hover { color:var(--fg-1); background:var(--navy-3); }
 .stage-link.active { color:var(--fg-1); background:var(--navy-3); box-shadow:inset 0 -2px 0 var(--cyan); }
@@ -206,6 +210,12 @@ body {
   border:1px solid var(--border); border-radius:50%; color:var(--fg-3);
   font:600 var(--text-2xs)/1 var(--font-mono);
 }
+.stage-link.active .stage-count { color:var(--void); background:var(--cyan); border-color:var(--cyan); }
+.stage-link[data-state="done"] .stage-count,
+.stage-link[data-state="ready"] .stage-count { color:var(--success); border-color:color-mix(in srgb,var(--success) 68%,var(--border)); }
+.stage-link[data-state="attention"] .stage-count { color:var(--warning); border-color:color-mix(in srgb,var(--warning) 70%,var(--border)); }
+.stage-link[data-state="waiting"] { color:var(--fg-3); }
+.stage-link[data-state="active"] .stage-count { color:var(--cyan); border-color:var(--cyan); }
 .stage-link.active .stage-count { color:var(--void); background:var(--cyan); border-color:var(--cyan); }
 
 .companion-btn { position:relative; }
@@ -1043,7 +1053,7 @@ select.terrain-btn:hover {
 .lesson-verdict.fail { color:var(--warning); }
 /* A mark that belongs to a program the editor no longer holds. Stated, not
    hidden: silence would read as "never attempted". */
-.lesson-verdict.stale { color:var(--text-dim); font-weight:500; }
+.lesson-verdict.stale { color:var(--fg-3); font-weight:500; }
 /* The verdict already renders an in-text glyph (aria-hidden) beside the word as
    the non-colour pass/fail cue, so no forced-colors ::before injection is needed
    here (it would render the glyph twice). */
@@ -1335,6 +1345,31 @@ kbd {
 .companion-modes .btn-mini.active { color:var(--void); background:var(--cyan); border-color:var(--cyan); }
 .vibe-body { display:flex; flex-direction:column; gap:10px; }
 .vibe-status { font-size:var(--text-md); color:var(--fg-2); margin:0; }
+.companion-provider {
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  background:var(--navy-2); overflow:hidden;
+}
+.companion-provider > summary {
+  min-height:38px; padding:8px 11px; cursor:pointer; color:var(--fg-2);
+  font-size:var(--text-sm); font-weight:600;
+}
+.companion-provider[open] > summary { border-bottom:1px solid var(--border); }
+.companion-provider .vibe-provider,
+.companion-provider > .vibe-status { margin:8px 10px; }
+.companion-project {
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px;
+}
+.companion-project > span {
+  min-width:0; padding:8px 10px; border:1px solid var(--border);
+  border-radius:var(--radius-sm); background:var(--navy-2); color:var(--fg-2);
+  font-size:var(--text-sm); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.companion-project b {
+  display:block; color:var(--fg-3); font-size:var(--text-2xs);
+  letter-spacing:.08em; text-transform:uppercase;
+}
+.companion-project-result.has-result { border-color:color-mix(in srgb,var(--cyan) 42%,var(--border)); }
+.companion-quick { display:flex; flex-wrap:wrap; gap:6px; }
 .vibe-input {
   width:100%; resize:vertical; min-height:64px;
   font-family:var(--font-body); font-size:var(--text-xl); line-height:1.5; color:var(--fg-1);
@@ -1519,6 +1554,19 @@ kbd {
 /* Action line: the chat actually built a robot or switched world */
 .vibe-msg.ai.action { max-width:100%; display:flex; align-items:center; gap:8px; background:color-mix(in oklab, var(--cyan) 14%, var(--navy-2)); border:1px solid color-mix(in oklab, var(--cyan) 40%, transparent); border-radius:var(--radius-md); padding:8px 11px; }
 .vibe-action-badge { flex:none; font-size:var(--text-sm); font-weight:700; color:var(--void); background:var(--cyan); border-radius:999px; padding:2px 8px; }
+.vibe-msg.ai.evidence {
+  max-width:100%; display:flex; flex-direction:column; gap:6px;
+  background:var(--navy-2); border:1px solid var(--border);
+  border-left:3px solid var(--cyan); border-radius:var(--radius-md); padding:10px 12px;
+}
+.vibe-evidence-badge {
+  align-self:flex-start; color:var(--cyan); font-size:var(--text-2xs);
+  font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+}
+.vibe-code-summary {
+  margin:0 0 6px; padding:8px 10px; color:var(--fg-2); background:var(--navy-2);
+  border:1px solid var(--border); border-radius:var(--radius-sm); font-size:var(--text-sm);
+}
 .vibe-code {
   font-family:var(--font-mono); font-size:var(--text-md); line-height:1.55; color:var(--fg-1);
   background:var(--void); border:1px solid var(--border); border-radius:var(--radius-md) var(--radius-md) 0 0;
@@ -1530,6 +1578,9 @@ kbd {
 }
 .vibe-inputrow { display:flex; gap:8px; align-items:flex-end; }
 .vibe-inputrow .vibe-input { flex:1; }
+@media (max-width:760px) {
+  .companion-project { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
 
 /* Live terminal row under the console (a real REPL). */
 .repl-row {
@@ -2242,6 +2293,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .simple-setup,
 .simple-readiness,
 .simple-primary-actions,
+.simple-handoff,
 .simple-companion-action,
 .simple-result { flex:none; }
 .simple-step {
@@ -2312,6 +2364,22 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .simple-primary-actions .ctrl { min-height:46px; justify-content:center; }
 .simple-run { font-size:var(--text-xl); }
 .simple-edit { color:var(--fg-2); }
+.simple-handoff {
+  display:grid; gap:10px; padding:14px 15px; border:1px solid var(--border);
+  border-radius:14px; background:color-mix(in srgb,var(--void) 34%,transparent);
+}
+.simple-handoff.is-ready { border-color:color-mix(in srgb,var(--success) 38%,var(--border)); }
+.simple-handoff > div:first-child { display:grid; gap:5px; }
+.simple-handoff b { color:var(--fg-1); font-size:var(--text-lg); }
+.simple-handoff p { margin:0; color:var(--fg-2); font-size:var(--text-sm); line-height:1.45; }
+.simple-handoff-actions { display:flex; flex-wrap:wrap; gap:7px; }
+.simple-handoff-actions button {
+  appearance:none; min-height:36px; padding:6px 10px; border:1px solid var(--border);
+  border-radius:8px; color:var(--fg-2); background:var(--navy-3); cursor:pointer;
+  font:600 var(--text-sm)/1 var(--font-body);
+}
+.simple-handoff-actions button:hover { color:var(--fg-1); border-color:var(--fg-3); }
+.simple-handoff-actions .ctrl-run { color:var(--void); background:var(--cyan); border-color:var(--cyan); }
 .simple-companion-action {
   appearance:none; width:100%; padding:13px 14px; display:grid; gap:5px; text-align:left; cursor:pointer;
   border:1px solid color-mix(in srgb,var(--cyan) 32%,var(--border)); border-radius:14px;
@@ -2433,17 +2501,17 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
    and every classroom theme stay green. */
 .lesson-solution {
   margin-top: 10px; padding: 12px 14px;
-  border: 1px solid var(--line); border-radius: var(--radius-md);
-  background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--navy-2);
 }
 .lesson-solution-note {
-  margin: 0 0 8px; font-size: var(--text-sm); color: var(--text-dim);
+  margin: 0 0 8px; font-size: var(--text-sm); color: var(--fg-3);
 }
 .lesson-solution-code {
   margin: 0; padding: 10px 12px; overflow-x: auto;
   background: var(--void); border-radius: var(--radius-sm);
   font-family: var(--font-mono); font-size: var(--text-sm);
-  color: var(--text); line-height: 1.5; white-space: pre;
+  color: var(--fg-1); line-height: 1.5; white-space: pre;
 }
 .lesson-solution-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .lesson-solution-ask { margin-top: 8px; }
@@ -2454,69 +2522,120 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
    have no horizontal overflow. Existing tokens only, so every classroom theme
    and the contrast gate stay green. */
 .lesson-studio-modal { width: min(1120px, 96vw); max-height: 92vh; overflow-y: auto; }
-.ls-lede { margin: 0 0 14px; color: var(--text-dim); font-size: var(--text-sm); max-width: 70ch; }
+.ls-lede { margin: 0 0 14px; color: var(--fg-3); font-size: var(--text-sm); max-width: 70ch; }
+.ls-pipeline {
+  list-style:none; margin:0 0 14px; padding:0; display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px;
+}
+.ls-pipeline li {
+  position:relative; min-width:0; display:grid; grid-template-columns:auto 1fr;
+  gap:2px 7px; align-items:center; padding:9px 10px;
+  border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--navy-2);
+}
+.ls-pipeline li + li::before {
+  content:""; position:absolute; left:-7px; top:50%; width:7px; height:1px; background:var(--border);
+}
+.ls-pipeline li > span {
+  grid-row:1/3; width:22px; height:22px; display:grid; place-items:center;
+  border:1px solid var(--border); border-radius:50%; color:var(--fg-3); font:700 var(--text-xs)/1 var(--font-mono);
+}
+.ls-pipeline b { min-width:0; color:var(--fg-1); font-size:var(--text-sm); }
+.ls-pipeline small { color:var(--fg-3); font-size:var(--text-2xs); }
+.ls-pipeline li.is-done > span { color:var(--void); background:var(--success); border-color:var(--success); }
+.ls-live-check {
+  margin:0 0 16px; padding:10px 12px; border:1px solid var(--border);
+  border-left:3px solid var(--warning); border-radius:var(--radius-sm);
+  background:var(--navy-2); color:var(--fg-2); font-size:var(--text-sm);
+}
+.ls-live-check.ok { border-left-color:var(--success); }
+.ls-live-check b { color:var(--fg-1); }
+.ls-live-check ul { margin:6px 0 0; padding-left:18px; }
+.ls-live-check p { margin:6px 0 0; color:var(--warning); }
 .ls-grid { display: grid; grid-template-columns: minmax(340px, 380px) 1fr; gap: 22px; align-items: start; }
 @media (max-width: 900px) { .ls-grid { grid-template-columns: 1fr; } }
 
 .ls-map-pane h3, .ls-form-pane h3 {
   margin: 0 0 8px; font-size: var(--text-sm); text-transform: uppercase;
-  letter-spacing: 0.08em; color: var(--text-dim);
+  letter-spacing: 0.08em; color: var(--fg-3);
 }
 .ls-form-pane section { margin-bottom: 20px; }
 .ls-tools { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
 .ls-tool-on { background: var(--cyan); color: var(--void); }
-.ls-tool-hint { margin: 0 0 8px; font-size: var(--text-sm); color: var(--text-dim); }
+.ls-tool-hint { margin: 0 0 8px; font-size: var(--text-sm); color: var(--fg-3); }
 
 .ls-map {
   width: 100%; height: auto; max-width: 360px; display: block;
-  border: 1px solid var(--line); border-radius: var(--radius-md); cursor: crosshair;
+  border: 1px solid var(--border); border-radius: var(--radius-md); cursor: crosshair;
   background: var(--void);
 }
-.ls-map-floor { fill: var(--surface-2); }
-.ls-map-grid { stroke: var(--line); stroke-width: 0.5; opacity: 0.5; }
-.ls-map-rock { fill: var(--text-dim); opacity: 0.85; }
+.ls-map-floor { fill: var(--navy-2); }
+.ls-map-grid { stroke: var(--border); stroke-width: 0.5; opacity: 0.5; }
+.ls-map-rock { fill: var(--fg-3); opacity: 0.85; }
 .ls-map-flag { fill: var(--warning); }
 .ls-map-base { fill: var(--success); }
 .ls-map-label { fill: var(--void); font-family: var(--font-mono); font-size: 9px; font-weight: 700; }
+.ls-map [role="button"] { cursor:pointer; outline:none; }
+.ls-map [role="button"]:focus-visible .ls-map-rock,
+.ls-map [role="button"]:focus-visible .ls-map-flag,
+.ls-map [role="button"]:focus-visible .ls-map-base,
+.ls-map-selected .ls-map-rock,
+.ls-map-selected .ls-map-flag,
+.ls-map-selected .ls-map-base { stroke:var(--cyan); stroke-width:3px; }
+.ls-inspector {
+  display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap; margin-top:9px;
+  padding:9px 10px; border:1px solid var(--cyan-deep); border-radius:var(--radius-sm); background:var(--navy-2);
+}
+.ls-inspector > b { align-self:center; min-width:66px; color:var(--fg-1); font-size:var(--text-sm); }
+.ls-inspector label { display:grid; gap:3px; color:var(--fg-3); font-size:var(--text-2xs); }
+.ls-inspector input { width:72px; }
 
 .ls-size { display: flex; gap: 10px; align-items: flex-end; margin-top: 10px; flex-wrap: wrap; }
-.ls-size label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm); color: var(--text-dim); }
+.ls-size label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm); color: var(--fg-3); }
 .ls-size input { width: 74px; }
 
-.ls-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: var(--text-sm); color: var(--text-dim); }
+.ls-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: var(--text-sm); color: var(--fg-3); }
 .ls-field input, .ls-field select, .ls-field textarea { width: 100%; }
 .ls-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .ls-row .ls-field { flex: 1 1 140px; }
 .ls-code { font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre; }
-.ls-note { margin: 4px 0 0; font-size: var(--text-sm); color: var(--text-dim); }
+.ls-note { margin: 4px 0 0; font-size: var(--text-sm); color: var(--fg-3); }
 
 .ls-goal {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
   padding: 8px 10px; margin-bottom: 8px;
-  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--navy-2);
 }
 .ls-goal input[type="number"] { width: 88px; }
-.ls-goal-hint { flex-basis: 100%; margin: 2px 0 0; font-size: var(--text-sm); color: var(--text-dim); }
-.ls-unit { font-size: var(--text-sm); color: var(--text-dim); }
+.ls-goal-hint { flex-basis: 100%; margin: 2px 0 0; font-size: var(--text-sm); color: var(--fg-3); }
+.ls-unit { font-size: var(--text-sm); color: var(--fg-3); }
 .ls-hint-row { display: flex; gap: 8px; margin-bottom: 6px; }
 .ls-hint-row input { flex: 1; }
 
-.ls-check { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.ls-check { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
 .ls-check-out { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); font-size: var(--text-sm); }
-.ls-check-out.ok { background: var(--surface-2); color: var(--success); }
-.ls-check-out.bad { background: var(--surface-2); color: var(--warning); }
+.ls-check-out.ok { background: var(--navy-2); color: var(--success); }
+.ls-check-out.bad { background: var(--navy-2); color: var(--warning); }
 .ls-check-out ul { margin: 6px 0 0; padding-left: 18px; }
+.ls-check-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin-top:8px; }
+.ls-check-metrics span { padding:7px 8px; border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--fg-2); }
+.ls-check-metrics b { display:block; color:var(--fg-1); font-family:var(--font-mono); }
+.ls-starter-ok { color:var(--success); }
+.ls-starter-warn { color:var(--warning); }
 .ls-msg { margin: 10px 0 0; font-size: var(--text-sm); }
 .ls-msg-ok { color: var(--success); }
 .ls-msg-err { color: var(--warning); }
-.ls-msg-warn { color: var(--text-dim); }
+.ls-msg-warn { color: var(--fg-3); }
 .ls-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-.lesson-num { color: var(--text-dim); font-family: var(--font-mono); }
+.lesson-num { color: var(--fg-3); font-family: var(--font-mono); }
 /* A lesson written on this device, not part of the shipped curriculum. Said
    plainly so a pupil and a teacher both know which is which. */
 .lesson-made-here {
   font-size: var(--text-sm); padding: 1px 7px; border-radius: 999px;
-  border: 1px solid var(--line); color: var(--text-dim); white-space: nowrap;
+  border: 1px solid var(--border); color: var(--fg-3); white-space: nowrap;
+}
+@media (max-width:700px) {
+  .ls-pipeline { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ls-check-metrics { grid-template-columns:1fr; }
 }
 
 /* ============================================================================

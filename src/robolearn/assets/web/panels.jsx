@@ -827,7 +827,7 @@
     );
   }
 
-  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, refreshAiStatus, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeClear, vibeContext, onExplain, onReview }) {
+  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, refreshAiStatus, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeClear, vibeContext, projectContext, onExplain, onReview }) {
     // The reflection the assistant is fed from past runs in this world,
     // rendered as a VISIBLE chip instead of an invisible prompt injection
     // (product-coherence D7: the memory loop must be seen to be believed).
@@ -835,6 +835,16 @@
       <div className="vibe-ctx" title="Learned from your past runs in this world; the AI is reminded of it when it writes code for you">
         <span className="vibe-ctx-tag">Learned from past runs{vibeContext.world ? ' · ' + vibeContext.world : ''}</span>
         <span className="vibe-ctx-text">{vibeContext.reflection}</span>
+      </div>
+    ) : null;
+    const projectChip = projectContext ? (
+      <div className="companion-project" aria-label="Current Companion context">
+        <span><b>Robot</b>{projectContext.robot || 'Robot'}</span>
+        <span><b>World</b>{projectContext.world || 'World'}</span>
+        <span><b>Program</b>{projectContext.program || 'Current program'}</span>
+        <span className={'companion-project-result' + (projectContext.outcome ? ' has-result' : '')}>
+          <b>Last result</b>{projectContext.outcome || 'Not run for this setup'}
+        </span>
       </div>
     ) : null;
     return (
@@ -858,13 +868,18 @@
             <button className="btn-mini" onClick={onExplain}>Explain a lesson</button>
             <button className="btn-mini" onClick={onReview}>Check my program</button>
           </div>
-          <ProviderPicker onChange={refreshAiStatus} />
-          <div className="vibe-body">
+           <div className="vibe-body">
               {aiInfo.available
                 ? (providerIsLocal(aiInfo.source)
                     ? <p className="vibe-status">Local model: <b>{aiInfo.model}</b> · runs entirely on this machine, nothing leaves it.</p>
                     : <p className="vibe-status">Cloud model: <b>{aiInfo.model}</b> · via {providerName(aiInfo.source)}, your prompt is sent to {providerName(aiInfo.source)}.</p>)
-                : <p className="vibe-status">{aiInfo.hint || 'No AI is connected.'} You can still say <i>"build a mars rover"</i> or <i>"go to the ocean"</i> and Kodro will do it — only writing code needs an AI. Both options are free: the Ollama app on this computer, or a free Groq or OpenRouter key above.</p>}
+                : <p className="vibe-status"><b>On-device help is ready.</b> I can explain the last run, change the robot, world, time and weather, adjust speed, and prepare a collision-avoidance draft without a model. Connect an optional model only for open-ended program writing.</p>}
+              <details className="companion-provider">
+                <summary>Optional generative model {aiInfo.available ? 'connected' : 'not connected'}</summary>
+                <ProviderPicker onChange={refreshAiStatus} />
+                {!aiInfo.available && <p className="vibe-status">{aiInfo.hint || 'No generative model is connected.'}</p>}
+              </details>
+              {projectChip}
               {ctxChip}
               {aiInfo.available && aiInfo.models && aiInfo.models.length > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 10px', flexWrap: 'wrap' }}>
@@ -876,7 +891,13 @@
                   {aiInfo.override && <button className="btn-mini" onClick={() => pickModel('')} title="Return to automatic model selection">Auto</button>}
                 </div>
               )}
-              <div className="vibe-thread" role="log" aria-live="polite" aria-label="AI conversation">
+              <div className="companion-quick" role="group" aria-label="Common Companion requests">
+                <button className="btn-mini" disabled={vibeBusy} onClick={() => vibeSend('Explain the last run')}>Explain last run</button>
+                <button className="btn-mini" disabled={vibeBusy} onClick={() => vibeSend('Fix the collision and make it safer')}>Fix a collision</button>
+                <button className="btn-mini" disabled={vibeBusy} onClick={() => vibeSend('Slow the robot down')}>Slow it down</button>
+                <button className="btn-mini" disabled={vibeBusy} onClick={() => vibeSend('Change the time to night')}>Make it night</button>
+              </div>
+              <div className="vibe-thread" role="log" aria-live="polite" aria-label="Companion conversation">
                 {vibeMsgs.length === 0 && (
                   <EmptyState
                     icon="vibe"
@@ -889,6 +910,7 @@
                     {m.validated === false && (
                       <p className="vibe-error" role="alert">This saved draft did not pass Kodro's self-test: {m.validationError || 'unknown error'}. It cannot be applied.</p>
                     )}
+                    {m.summary && <p className="vibe-code-summary"><b>Proposed edit:</b> {m.summary}</p>}
                     <pre className="vibe-code">{m.text}</pre>
                     <div className="vibe-code-actions">
                       {m.validated !== false && <button className="ctrl ctrl-run" onClick={() => vibeApply(m.text, m.model)}>✓ Apply to editor</button>}
@@ -903,6 +925,8 @@
                   </div>
                 ) : m.kind === 'action' ? (
                   <div key={i} className="vibe-msg ai action" role="status"><span className="vibe-action-badge">Done</span><span>{m.text}</span></div>
+                ) : m.kind === 'evidence' ? (
+                  <div key={i} className="vibe-msg ai evidence"><span className="vibe-evidence-badge">Based on this project</span><span>{m.text}</span></div>
                 ) : (
                   <div key={i} className={'vibe-msg ' + m.role}><span>{m.text}</span></div>
                 ))}
@@ -921,7 +945,7 @@
                 <textarea
                   className="vibe-input"
                   rows={2}
-                  placeholder='Say what the rover should do. The AI may ask you a question back'
+                  placeholder='Ask what happened, change the world, or describe what the robot should do'
                   value={vibePrompt}
                   onChange={e => setVibePrompt(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); vibeSend(); } }}
@@ -930,10 +954,11 @@
                 />
                 <button className="ctrl ctrl-run" disabled={vibeBusy || !vibePrompt.trim()} onClick={vibeSend}>Send</button>
               </div>
-              <span className="vibe-hint">Apply types the code into the editor. Nothing runs until you press Run. This conversation is saved on this device, so it continues where you left off next time.</span>
+              <span className="vibe-hint">Proposed edits are previews. Choose Apply or Discard for each one. Nothing runs until you press Run. The conversation stays on this device.</span>
               {!aiInfo.available && (
                 <ol className="vibe-steps">
-                  <li>Writing code needs an AI, and every option here is free. The most private one runs on <b>this computer</b>: install the Ollama app from ollama.com (no account needed)</li>
+                  <li>Open-ended code generation is optional. The built-in diagnosis and controls above work now.</li>
+                  <li>For private generative help on <b>this computer</b>, install the Ollama app from ollama.com (no account needed)</li>
                   <li>Then run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
                   <li>Reopen Kodro and code writing lights up. Or pick Groq or OpenRouter above and paste a free key from their site</li>
                 </ol>
