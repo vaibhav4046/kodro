@@ -1,0 +1,43 @@
+id: 04a_fix_the_condition
+title: Fix the Backwards Test
+key_stage: KS3
+ct_concepts: [selection, debugging]
+curriculum_refs:
+  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 subject content: design and develop modular programs; understand simple Boolean logic and some of its uses in circuits and programming."
+  - "BCS 'Computational Thinking - A Guide for Teachers' (Csizmadia et al., 2015): evaluation and debugging as core practices."
+prereqs: [04_selection]
+terrain: earth
+glossary:
+  boolean: "A value that is either True or False. Sensor questions like obstacle_ahead() answer with a boolean."
+intro: |
+  This program was meant to be careful: check for a rock,
+  and turn away if one is there. But the test is BACKWARDS,
+  so the rover turns only when the path is clear, and drives
+  straight into the rock when it is not.
+  Run it, read the if line closely, and fix the condition.
+starter_code: |
+  if not obstacle_ahead():
+      turn_left(90)
+  move_forward(2)
+allowed_constructs: [function_call, if, comparison]
+max_lines: 8
+world:
+  base: [1.0, 1.0]
+  samples:
+    - [1.0, 3.0]
+  obstacles:
+    - {x: 1.8, y: 1.0, r: 0.4}
+  width: 6.0
+  height: 6.0
+solution_code: |
+  if obstacle_ahead():
+      turn_left(90)
+  move_forward(2)
+success_criteria:
+  - uses_construct: if
+  - min_distance_travelled: 2.0
+  - no_collisions: true
+hints:
+  on_failure:
+    - "Read the condition out loud: 'if NOT obstacle ahead, turn'. That is the opposite of careful driving."
+    - "Remove the word 'not'. The rover should turn WHEN an obstacle is ahead."

@@ -34,6 +34,7 @@ CTConcept = Literal[
     "abstraction",
     "recursion",
     "algorithmic_efficiency",
+    "debugging",
 ]
 
 #: Syntactic constructs a lesson may declare in ``allowed_constructs``.

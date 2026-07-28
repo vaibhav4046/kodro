@@ -60,6 +60,7 @@
     sequence: 'Sequence', selection: 'Selection (if / else)', iteration: 'Loops and iteration',
     functions: 'Functions', decomposition: 'Decomposition', abstraction: 'Abstraction',
     recursion: 'Recursion', algorithmic_efficiency: 'Algorithmic efficiency',
+    debugging: 'Debugging (find and fix errors)',
   };
 
   function num(v, dflt) {

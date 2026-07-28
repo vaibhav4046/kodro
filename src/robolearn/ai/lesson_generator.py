@@ -40,7 +40,7 @@ You MUST reply with a single JSON object and nothing else. The schema:
   "key_stage": "KS3" or "KS4",
   "ct_concepts": ["sequence"|"selection"|"iteration"|"functions"|
                   "decomposition"|"abstraction"|"recursion"|
-                  "algorithmic_efficiency"],  // at least one
+                  "algorithmic_efficiency"|"debugging"],  // at least one
   "curriculum_refs": ["free text reference"],
   "prereqs": [],
   "terrain": "earth"|"mars"|"underwater"|"space",
@@ -166,6 +166,9 @@ _CONCEPT_SYNONYMS: dict[str, str] = {
     "procedure": "functions",
     "sequencing": "sequence",
     "recursive": "recursion",
+    "debug": "debugging",
+    "error_correction": "debugging",
+    "troubleshooting": "debugging",
 }
 _VALID_CONCEPTS: frozenset[str] = frozenset(
     {
@@ -177,6 +180,7 @@ _VALID_CONCEPTS: frozenset[str] = frozenset(
         "abstraction",
         "recursion",
         "algorithmic_efficiency",
+        "debugging",
     }
 )
 

@@ -17154,6 +17154,30 @@ Object.assign(window, {
         "onSuccess": []
       }
     },
+    "00d_fix_the_turn": {
+      "world": {
+        "base": [1, 1],
+        "samples": [[2, 3]],
+        "obstacles": [{
+          "x": 3,
+          "y": 1,
+          "r": 0.4
+        }],
+        "width": 6,
+        "height": 6
+      },
+      "criteria": [{
+        "calls_in_order": ["move_forward", "turn_left", "move_forward"]
+      }, {
+        "min_distance_travelled": 3
+      }, {
+        "no_collisions": true
+      }],
+      "hints": {
+        "onFailure": ["Watch the run: the rover turns right, towards the wall. Which way should it turn to reach the flag?", "Change turn_right(90) to turn_left(90). Everything else is already correct."],
+        "onSuccess": []
+      }
+    },
     "01_hello_rover": {
       "world": {
         "base": [1, 1],
@@ -17237,6 +17261,30 @@ Object.assign(window, {
       }],
       "hints": {
         "onFailure": ["The rover finishes on the patch but never picks it up. Add collect_sample() as the last line.", "obstacle_ahead(2.0) asks whether anything is within 2 metres ahead. Try printing it with log() to see when it is True."],
+        "onSuccess": []
+      }
+    },
+    "04a_fix_the_condition": {
+      "world": {
+        "base": [1, 1],
+        "samples": [[1, 3]],
+        "obstacles": [{
+          "x": 1.8,
+          "y": 1,
+          "r": 0.4
+        }],
+        "width": 6,
+        "height": 6
+      },
+      "criteria": [{
+        "uses_construct": "if"
+      }, {
+        "min_distance_travelled": 2
+      }, {
+        "no_collisions": true
+      }],
+      "hints": {
+        "onFailure": ["Read the condition out loud: 'if NOT obstacle ahead, turn'. That is the opposite of careful driving.", "Remove the word 'not'. The rover should turn WHEN an obstacle is ahead."],
         "onSuccess": []
       }
     },
@@ -18642,7 +18690,7 @@ Object.assign(window, {
   //: offered rather than offered with a caveat.
   var TERRAINS = ['earth', 'mars', 'underwater', 'space'];
   var KEY_STAGES = ['KS1', 'KS2', 'KS3', 'KS4'];
-  var CT_CONCEPTS = ['sequence', 'selection', 'iteration', 'functions', 'decomposition', 'abstraction', 'recursion', 'algorithmic_efficiency'];
+  var CT_CONCEPTS = ['sequence', 'selection', 'iteration', 'functions', 'decomposition', 'abstraction', 'recursion', 'algorithmic_efficiency', 'debugging'];
   //: The criterion keys lesson-grader.jsx's checkCriterion understands. Kept
   //: as data so the Studio form, the validator and the grader cannot drift:
   //: adding a criterion means adding it here and in both graders, and
@@ -21256,7 +21304,8 @@ Object.assign(window, {
     decomposition: 'Decomposition',
     abstraction: 'Abstraction',
     recursion: 'Recursion',
-    algorithmic_efficiency: 'Algorithmic efficiency'
+    algorithmic_efficiency: 'Algorithmic efficiency',
+    debugging: 'Debugging (find and fix errors)'
   };
   function num(v, dflt) {
     var n = parseFloat(v);

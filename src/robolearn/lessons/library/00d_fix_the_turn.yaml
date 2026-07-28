@@ -1,0 +1,43 @@
+id: 00d_fix_the_turn
+title: Fix the Broken Program
+key_stage: KS2
+reading_age: 7
+ct_concepts: [sequence, debugging]
+curriculum_refs:
+  - "DfE 'Computing programmes of study: Key Stages 1 and 2' (DfE-00171-2013), KS2: use logical reasoning to explain how some simple algorithms work and to detect and correct errors in algorithms and programs."
+prereqs: [00a_turn_the_corner]
+terrain: earth
+glossary:
+  bug: "A mistake in a program that makes it do the wrong thing. Finding and fixing bugs is called debugging."
+intro: |
+  Another engineer wrote this program, but it has a bug.
+  The rover should go around the rock to the flag,
+  but it turns the WRONG way and crashes.
+  Press Run and watch where it goes wrong.
+  Then fix ONE word and run it again.
+starter_code: |
+  move_forward(1)
+  turn_right(90)
+  move_forward(2)
+allowed_constructs: [function_call]
+max_lines: 6
+world:
+  base: [1.0, 1.0]
+  samples:
+    - [2.0, 3.0]
+  obstacles:
+    - {x: 3.0, y: 1.0, r: 0.4}
+  width: 6.0
+  height: 6.0
+solution_code: |
+  move_forward(1)
+  turn_left(90)
+  move_forward(2)
+success_criteria:
+  - calls_in_order: [move_forward, turn_left, move_forward]
+  - min_distance_travelled: 3.0
+  - no_collisions: true
+hints:
+  on_failure:
+    - "Watch the run: the rover turns right, towards the wall. Which way should it turn to reach the flag?"
+    - "Change turn_right(90) to turn_left(90). Everything else is already correct."

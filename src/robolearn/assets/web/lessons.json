@@ -103,6 +103,27 @@
   },
   {
     "concepts": [
+      "sequence",
+      "debugging"
+    ],
+    "glossary": {
+      "bug": "A mistake in a program that makes it do the wrong thing. Finding and fixing bugs is called debugging."
+    },
+    "id": "00d_fix_the_turn",
+    "intro": "Another engineer wrote this program, but it has a bug.\nThe rover should go around the rock to the flag,\nbut it turns the WRONG way and crashes.\nPress Run and watch where it goes wrong.\nThen fix ONE word and run it again.\n",
+    "keyStage": "KS2",
+    "maxLines": 6,
+    "prereqs": [
+      "00a_turn_the_corner"
+    ],
+    "readingAge": 7,
+    "solutionCode": "move_forward(1)\nturn_left(90)\nmove_forward(2)\n",
+    "starterCode": "move_forward(1)\nturn_right(90)\nmove_forward(2)\n",
+    "terrain": "earth",
+    "title": "Fix the Broken Program"
+  },
+  {
+    "concepts": [
       "sequence"
     ],
     "glossary": {},
@@ -170,6 +191,27 @@
     "starterCode": "if obstacle_ahead(2.0):\n    turn_left(90)\n    move_forward(1)\n    turn_right(90)\n    move_forward(4)\n    turn_right(90)\n    move_forward(1)\n",
     "terrain": "mars",
     "title": "Selection (if / else)"
+  },
+  {
+    "concepts": [
+      "selection",
+      "debugging"
+    ],
+    "glossary": {
+      "boolean": "A value that is either True or False. Sensor questions like obstacle_ahead() answer with a boolean."
+    },
+    "id": "04a_fix_the_condition",
+    "intro": "This program was meant to be careful: check for a rock,\nand turn away if one is there. But the test is BACKWARDS,\nso the rover turns only when the path is clear, and drives\nstraight into the rock when it is not.\nRun it, read the if line closely, and fix the condition.\n",
+    "keyStage": "KS3",
+    "maxLines": 8,
+    "prereqs": [
+      "04_selection"
+    ],
+    "readingAge": null,
+    "solutionCode": "if obstacle_ahead():\n    turn_left(90)\nmove_forward(2)\n",
+    "starterCode": "if not obstacle_ahead():\n    turn_left(90)\nmove_forward(2)\n",
+    "terrain": "earth",
+    "title": "Fix the Backwards Test"
   },
   {
     "concepts": [

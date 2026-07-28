@@ -57,7 +57,7 @@
   var KEY_STAGES = ['KS1', 'KS2', 'KS3', 'KS4'];
   var CT_CONCEPTS = [
     'sequence', 'selection', 'iteration', 'functions', 'decomposition',
-    'abstraction', 'recursion', 'algorithmic_efficiency',
+    'abstraction', 'recursion', 'algorithmic_efficiency', 'debugging',
   ];
   //: The criterion keys lesson-grader.jsx's checkCriterion understands. Kept
   //: as data so the Studio form, the validator and the grader cannot drift:
