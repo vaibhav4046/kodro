@@ -1576,6 +1576,7 @@ class BridgeAPI:
             "title": lesson.title,
             "keyStage": lesson.key_stage,
             "concepts": list(lesson.ct_concepts),
+            "prereqs": list(lesson.prereqs),
             "intro": lesson.intro,
             "starterCode": lesson.starter_code,
             # The worked answer. Shipped to the client because a pupil who has

@@ -314,6 +314,29 @@ def _is_live(node: ast.AST, tree: ast.AST) -> bool:
         return _has_variable_leaf(node.test) and not _is_constant_falsy(node.test)
     if isinstance(node, ast.For):
         return not _is_provably_empty_iterable(node.iter)
+    if isinstance(node, ast.Assign | ast.AugAssign):
+        # A variable nobody reads is not "using variables", it is a dead store.
+        # `x = 2` followed by nothing satisfies the node-presence test while
+        # demonstrating none of what a variables lesson teaches: that a named
+        # value can be defined once and used elsewhere. The same rule as a
+        # function nobody calls, for the same reason.
+        targets = []
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Name):
+                    targets.append(t.id)
+        elif isinstance(node.target, ast.Name):
+            targets.append(node.target.id)
+        if not targets:
+            return True  # tuple/subscript targets: beyond this rule's remit
+        for other in ast.walk(tree):
+            if (
+                isinstance(other, ast.Name)
+                and isinstance(other.ctx, ast.Load)
+                and other.id in targets
+            ):
+                return True
+        return False
     if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
         # A definition nobody ever names is not modular design, it is dead
         # code. Any mention of the name outside the definition counts, so a

@@ -55,6 +55,10 @@
   //: offered rather than offered with a caveat.
   var TERRAINS = ['earth', 'mars', 'underwater', 'space'];
   var KEY_STAGES = ['KS1', 'KS2', 'KS3', 'KS4'];
+  var CT_CONCEPTS = [
+    'sequence', 'selection', 'iteration', 'functions', 'decomposition',
+    'abstraction', 'recursion', 'algorithmic_efficiency',
+  ];
   //: The criterion keys lesson-grader.jsx's checkCriterion understands. Kept
   //: as data so the Studio form, the validator and the grader cannot drift:
   //: adding a criterion means adding it here and in both graders, and
@@ -64,7 +68,7 @@
     'samples_collected', 'no_collisions', 'max_battery_used', 'uses_construct',
     'calls_in_order', 'returns_to_base', 'max_steps', 'min_distance_travelled',
   ];
-  var CONSTRUCTS = ['if', 'while', 'for', 'function_def', 'function_call', 'comparison', 'recursion'];
+  var CONSTRUCTS = ['if', 'while', 'for', 'function_def', 'function_call', 'comparison', 'recursion', 'assignment'];
   var ID_RE = /^authored:[a-z0-9][a-z0-9-]{0,47}$/;
 
   // The injectable storage seam every other store in this codebase uses, so the
@@ -140,6 +144,11 @@
     if (typeof doc.title !== 'string' || !doc.title.trim()) push('The lesson needs a title.');
     else if (doc.title.length > MAX_TITLE) push('The title is longer than ' + MAX_TITLE + ' characters.');
     if (KEY_STAGES.indexOf(doc.keyStage) < 0) push('Key stage must be one of ' + KEY_STAGES.join(', ') + '.');
+    if (!Array.isArray(doc.concepts) || doc.concepts.length === 0) {
+      push('Choose the main computing concept this lesson teaches.');
+    } else if (doc.concepts.some(function (c) { return CT_CONCEPTS.indexOf(c) < 0; })) {
+      push('Computing concepts must be one of ' + CT_CONCEPTS.join(', ') + '.');
+    }
     if (TERRAINS.indexOf(doc.terrain) < 0) {
       push('World must be one of ' + TERRAINS.join(', ') + '. The city and indoor worlds draw their own scenery, so an arena placed there would have obstacles the pupil cannot see.');
     }
@@ -316,6 +325,7 @@
       title: doc.title,
       keyStage: doc.keyStage,
       concepts: (doc.concepts || []).slice(),
+      prereqs: (doc.prereqs || []).slice(),
       intro: doc.intro,
       starterCode: doc.starterCode,
       solutionCode: doc.solutionCode || null,
@@ -463,7 +473,7 @@
     } catch (e) {
       return { ok: false, errors: ['That file is not readable as a lesson (it is not valid JSON).'], warnings: [] };
     }
-    var KEEP = ['kodroLesson', 'savedAt', 'id', 'title', 'keyStage', 'concepts', 'terrain',
+    var KEEP = ['kodroLesson', 'savedAt', 'id', 'title', 'keyStage', 'concepts', 'prereqs', 'terrain',
       'intro', 'starterCode', 'solutionCode', 'readingAge', 'glossary', 'maxLines',
       'world', 'criteria', 'hints'];
     var doc = {}, dropped = [];
@@ -489,6 +499,7 @@
       title: title,
       keyStage: 'KS2',
       concepts: ['sequence'],
+      prereqs: [],
       terrain: 'earth',
       intro: 'Drive the rover to the flag and pick up the sample.',
       starterCode: 'move_forward(1)\n',
@@ -609,6 +620,7 @@
     MAX_LESSONS: MAX_LESSONS,
     TERRAINS: TERRAINS,
     KEY_STAGES: KEY_STAGES,
+    CT_CONCEPTS: CT_CONCEPTS,
     CRITERION_KEYS: CRITERION_KEYS,
     CONSTRUCTS: CONSTRUCTS,
     validate: validate,

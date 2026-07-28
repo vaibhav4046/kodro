@@ -221,6 +221,11 @@ def test_source_uses_detects_if_statement() -> None:
     assert _source_uses("if 1 > 0: pass", "if") is False
     assert _source_uses("if 2 < 3: pass", "if") is False
     assert _source_uses("if read_battery() > 20: pass", "if") is True
+    # A variable nobody reads is a dead store, not "using variables". The
+    # assigned name must be read somewhere for the assignment to count.
+    assert _source_uses("x = 2", "assignment") is False
+    assert _source_uses("x = 2\nmove_forward(x)", "assignment") is True
+    assert _source_uses("x = 1\nx += 2\nmove_forward(x)", "assignment") is True
     assert _source_uses("if obstacle_ahead(): pass", "if") is True
 
 

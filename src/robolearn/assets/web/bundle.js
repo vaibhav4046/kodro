@@ -17275,6 +17275,48 @@ Object.assign(window, {
         "onFailure": ["The samples are at different gaps, so a fixed 2m hop can't reach them all -- add a `distance` parameter.", "Define `def hop(distance):` then call hop(2), hop(3), hop(2) to step between the samples."],
         "onSuccess": []
       }
+    },
+    "16_variables": {
+      "world": {
+        "base": [1, 1],
+        "samples": [[3, 1], [3, 3]],
+        "obstacles": [],
+        "width": 6,
+        "height": 6
+      },
+      "criteria": [{
+        "samples_collected": 2
+      }, {
+        "no_collisions": true
+      }, {
+        "uses_construct": "assignment"
+      }],
+      "hints": {
+        "onFailure": ["Both flags are 2 metres away. Change step = 1 to step = 2, in one place only.", "Notice you did NOT have to change the move_forward lines. The name step carries the new value to both of them."],
+        "onSuccess": []
+      }
+    },
+    "17_lists": {
+      "world": {
+        "base": [1, 1],
+        "samples": [[3, 1], [4, 1], [7, 1]],
+        "obstacles": [],
+        "width": 9,
+        "height": 4
+      },
+      "criteria": [{
+        "samples_collected": 3
+      }, {
+        "no_collisions": true
+      }, {
+        "uses_construct": "for"
+      }, {
+        "uses_construct": "assignment"
+      }],
+      "hints": {
+        "onFailure": ["Walk it on paper: starting at 1 across, which three hops land exactly on 3, 4 and 7? Fix the list to match.", "Only the list changes. If you found yourself editing the loop, the data was the right place to look."],
+        "onSuccess": []
+      }
     }
   };
 
@@ -18035,6 +18077,18 @@ Object.assign(window, {
     // never run is rejected.
     if (n.kind === 'while') return !isConstantFalsy(n.test);
     if (n.kind === 'for') return !isProvablyEmptyIterable(n.iter);
+    if (n.kind === 'assign' || n.kind === 'augassign') {
+      // Mirror of grader.py: a variable nobody reads is a dead store, not a
+      // demonstration of variables. The assigned name must appear as a READ
+      // somewhere else in the program.
+      var assigned = typeof n.target === 'string' ? n.target : null;
+      if (!assigned) return true;
+      var readElsewhere = false;
+      walkList(program, function (o) {
+        if (o && o.k === 'name' && o.v === assigned) readElsewhere = true;
+      });
+      return readElsewhere;
+    }
     if (n.kind === 'def') {
       // A definition nobody ever names is dead code, not modular design.
       var named = false;
@@ -18380,13 +18434,14 @@ Object.assign(window, {
   //: offered rather than offered with a caveat.
   var TERRAINS = ['earth', 'mars', 'underwater', 'space'];
   var KEY_STAGES = ['KS1', 'KS2', 'KS3', 'KS4'];
+  var CT_CONCEPTS = ['sequence', 'selection', 'iteration', 'functions', 'decomposition', 'abstraction', 'recursion', 'algorithmic_efficiency'];
   //: The criterion keys lesson-grader.jsx's checkCriterion understands. Kept
   //: as data so the Studio form, the validator and the grader cannot drift:
   //: adding a criterion means adding it here and in both graders, and
   //: tests/unit/test_lesson_document.py pins this list against the pydantic
   //: SuccessCriterion model.
   var CRITERION_KEYS = ['samples_collected', 'no_collisions', 'max_battery_used', 'uses_construct', 'calls_in_order', 'returns_to_base', 'max_steps', 'min_distance_travelled'];
-  var CONSTRUCTS = ['if', 'while', 'for', 'function_def', 'function_call', 'comparison', 'recursion'];
+  var CONSTRUCTS = ['if', 'while', 'for', 'function_def', 'function_call', 'comparison', 'recursion', 'assignment'];
   var ID_RE = /^authored:[a-z0-9][a-z0-9-]{0,47}$/;
 
   // The injectable storage seam every other store in this codebase uses, so the
@@ -18457,6 +18512,13 @@ Object.assign(window, {
     }
     if (typeof doc.title !== 'string' || !doc.title.trim()) push('The lesson needs a title.');else if (doc.title.length > MAX_TITLE) push('The title is longer than ' + MAX_TITLE + ' characters.');
     if (KEY_STAGES.indexOf(doc.keyStage) < 0) push('Key stage must be one of ' + KEY_STAGES.join(', ') + '.');
+    if (!Array.isArray(doc.concepts) || doc.concepts.length === 0) {
+      push('Choose the main computing concept this lesson teaches.');
+    } else if (doc.concepts.some(function (c) {
+      return CT_CONCEPTS.indexOf(c) < 0;
+    })) {
+      push('Computing concepts must be one of ' + CT_CONCEPTS.join(', ') + '.');
+    }
     if (TERRAINS.indexOf(doc.terrain) < 0) {
       push('World must be one of ' + TERRAINS.join(', ') + '. The city and indoor worlds draw their own scenery, so an arena placed there would have obstacles the pupil cannot see.');
     }
@@ -18654,6 +18716,7 @@ Object.assign(window, {
       title: doc.title,
       keyStage: doc.keyStage,
       concepts: (doc.concepts || []).slice(),
+      prereqs: (doc.prereqs || []).slice(),
       intro: doc.intro,
       starterCode: doc.starterCode,
       solutionCode: doc.solutionCode || null,
@@ -18845,7 +18908,7 @@ Object.assign(window, {
         warnings: []
       };
     }
-    var KEEP = ['kodroLesson', 'savedAt', 'id', 'title', 'keyStage', 'concepts', 'terrain', 'intro', 'starterCode', 'solutionCode', 'readingAge', 'glossary', 'maxLines', 'world', 'criteria', 'hints'];
+    var KEEP = ['kodroLesson', 'savedAt', 'id', 'title', 'keyStage', 'concepts', 'prereqs', 'terrain', 'intro', 'starterCode', 'solutionCode', 'readingAge', 'glossary', 'maxLines', 'world', 'criteria', 'hints'];
     var doc = {},
       dropped = [];
     Object.keys(raw || {}).forEach(function (k) {
@@ -18879,6 +18942,7 @@ Object.assign(window, {
       title: title,
       keyStage: 'KS2',
       concepts: ['sequence'],
+      prereqs: [],
       terrain: 'earth',
       intro: 'Drive the rover to the flag and pick up the sample.',
       starterCode: 'move_forward(1)\n',
@@ -19042,6 +19106,7 @@ Object.assign(window, {
     MAX_LESSONS: MAX_LESSONS,
     TERRAINS: TERRAINS,
     KEY_STAGES: KEY_STAGES,
+    CT_CONCEPTS: CT_CONCEPTS,
     CRITERION_KEYS: CRITERION_KEYS,
     CONSTRUCTS: CONSTRUCTS,
     validate: validate,
@@ -20966,13 +21031,24 @@ Object.assign(window, {
     function_def: 'a function',
     function_call: 'a function call',
     comparison: 'a comparison',
-    recursion: 'recursion'
+    recursion: 'recursion',
+    assignment: 'a variable'
   };
   var WORLD_LABEL = {
     earth: 'Earth',
     mars: 'Mars',
     underwater: 'Underwater',
     space: 'Space'
+  };
+  var CONCEPT_LABEL = {
+    sequence: 'Sequence',
+    selection: 'Selection (if / else)',
+    iteration: 'Loops and iteration',
+    functions: 'Functions',
+    decomposition: 'Decomposition',
+    abstraction: 'Abstraction',
+    recursion: 'Recursion',
+    algorithmic_efficiency: 'Algorithmic efficiency'
   };
   function num(v, dflt) {
     var n = parseFloat(v);
@@ -21626,6 +21702,20 @@ Object.assign(window, {
         key: t,
         value: t
       }, WORLD_LABEL[t] || t);
+    }))), e('label', {
+      className: 'ls-field'
+    }, 'Main concept', e('select', {
+      value: doc.concepts && doc.concepts[0] || 'sequence',
+      onChange: function (ev) {
+        patch(Object.assign({}, doc, {
+          concepts: [ev.target.value]
+        }));
+      }
+    }, Store.CT_CONCEPTS.map(function (c) {
+      return e('option', {
+        key: c,
+        value: c
+      }, CONCEPT_LABEL[c] || c);
     })))), e('label', {
       className: 'ls-field'
     }, 'What the pupil should do', e('textarea', {
@@ -29662,6 +29752,24 @@ say("Survey done")`
         return {};
       }
     });
+    function lessonPrereqState(lesson, alsoPassedId) {
+      const prereqs = lesson && lesson.prereqs || [];
+      const unmet = prereqs.filter(id => id !== alsoPassedId && !(lessonResults[id] && lessonResults[id].passed));
+      return {
+        ready: unmet.length === 0,
+        unmet,
+        labels: unmet.map(id => (lessons.find(l => l.id === id) || {}).title || id)
+      };
+    }
+    function recommendedLesson() {
+      const unfinished = lessons.filter(l => !(lessonResults[l.id] && lessonResults[l.id].passed));
+      return unfinished.find(l => lessonPrereqState(l).ready) || unfinished[0] || lessons[0] || null;
+    }
+    function nextConnectedLesson(currentId) {
+      const unfinished = lessons.filter(l => l.id !== currentId && !(lessonResults[l.id] && lessonResults[l.id].passed));
+      const direct = unfinished.find(l => (l.prereqs || []).indexOf(currentId) >= 0 && lessonPrereqState(l, currentId).ready);
+      return direct || unfinished.find(l => lessonPrereqState(l, currentId).ready) || null;
+    }
     const lessonResultsPupilRef = useRef(null);
     useEffect(() => {
       if (!activePupilId) return;
@@ -32924,7 +33032,7 @@ say("Survey done")`
       const hintsShownByVerdict = lessonFailed && liveVerdict.hint && liveVerdict.hint.message ? 1 : 0;
       const revealedHints = hintBank.slice(hintsShownByVerdict, hintsShownByVerdict + extraHints);
       const moreHintsLeft = hintsShownByVerdict + extraHints < hintBank.length;
-      const nextLesson = liveVerdict && liveVerdict.passed ? lessons[lessons.findIndex(l => l.id === lesson.id) + 1] || null : null;
+      const nextLesson = liveVerdict && liveVerdict.passed ? nextConnectedLesson(lesson.id) : null;
       return /*#__PURE__*/React.createElement("section", {
         className: "lesson-card",
         "aria-label": "Current lesson"
@@ -33621,7 +33729,8 @@ say("Survey done")`
     }, lessons.length === 0 && /*#__PURE__*/React.createElement("p", {
       className: "lesson-hub-loading"
     }, "Loading the offline lesson library\u2026"), simpleExperience && !lessonBrowseAll && lessons.length > 0 ? (() => {
-      const lesson = lessons.find(l => !(lessonResults[l.id] && lessonResults[l.id].passed)) || lessons[0];
+      const lesson = recommendedLesson();
+      if (!lesson) return null;
       const result = lessonResults[lesson.id];
       return /*#__PURE__*/React.createElement("section", {
         className: "lesson-recommended",
@@ -33661,19 +33770,20 @@ say("Survey done")`
       }, stageLessons.map((lesson, index) => {
         const result = lessonResults[lesson.id];
         const isCurrent = currentLessonId === lesson.id;
+        const prereq = lessonPrereqState(lesson);
         return /*#__PURE__*/React.createElement("button", {
           type: "button",
           key: lesson.id,
-          className: 'lesson-tile' + (isCurrent ? ' current' : '') + (result && result.passed ? ' complete' : ''),
-          "aria-label": (result && result.passed ? 'Completed lesson: ' : result ? 'Continue lesson: ' : 'Open lesson: ') + lesson.title + (result ? ', ' + (result.passed ? 'passed' : 'not passed yet') + ', latest score ' + result.score + ' out of 100, ' + result.attempts + (result.attempts === 1 ? ' attempt' : ' attempts') : ''),
+          className: 'lesson-tile' + (isCurrent ? ' current' : '') + (result && result.passed ? ' complete' : '') + (!prereq.ready ? ' has-prereq' : ''),
+          "aria-label": (result && result.passed ? 'Completed lesson: ' : result ? 'Continue lesson: ' : 'Open lesson: ') + lesson.title + (!prereq.ready ? ', suggested after ' + prereq.labels.join(' and ') : '') + (result ? ', ' + (result.passed ? 'passed' : 'not passed yet') + ', latest score ' + result.score + ' out of 100, ' + result.attempts + (result.attempts === 1 ? ' attempt' : ' attempts') : ''),
           onClick: () => loadLesson(lesson)
         }, /*#__PURE__*/React.createElement("span", {
           className: "lesson-tile-number"
         }, String(index + 1).padStart(2, '0')), /*#__PURE__*/React.createElement("span", {
           className: "lesson-tile-copy"
-        }, /*#__PURE__*/React.createElement("strong", null, lesson.title), /*#__PURE__*/React.createElement("span", null, (lesson.intro || 'Program the robot and test your solution in the simulated world.').trim()), /*#__PURE__*/React.createElement("small", null, (lesson.terrain || 'earth').replace(/^./, c => c.toUpperCase()), " world", lesson.readingAge ? ' · Reading age ' + lesson.readingAge + '+' : '')), /*#__PURE__*/React.createElement("span", {
+        }, /*#__PURE__*/React.createElement("strong", null, lesson.title), /*#__PURE__*/React.createElement("span", null, (lesson.intro || 'Program the robot and test your solution in the simulated world.').trim()), /*#__PURE__*/React.createElement("small", null, (lesson.terrain || 'earth').replace(/^./, c => c.toUpperCase()), " world", lesson.readingAge ? ' · Reading age ' + lesson.readingAge + '+' : '', !prereq.ready ? ' · Suggested after ' + prereq.labels.join(' + ') : '')), /*#__PURE__*/React.createElement("span", {
           className: 'lesson-tile-status' + (result && result.passed ? ' done' : '')
-        }, result ? result.passed ? '✓ Complete' : 'Not yet · ' + result.score + '/100' : 'Start'));
+        }, result ? result.passed ? '✓ Complete' : 'Not yet · ' + result.score + '/100' : !prereq.ready ? 'Later' : 'Start'));
       })));
     })), /*#__PURE__*/React.createElement("div", {
       className: "lesson-hub-foot"

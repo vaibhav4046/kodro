@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS unlocked_achievements (
 #: Number of lessons in the bundled library. The "Curriculum complete"
 #: achievement tracks this; bump it when lessons are added (the catalogue
 #: already hardcodes specific lesson ids, so this stays consistent).
-BUNDLED_LESSON_COUNT: int = 18
+BUNDLED_LESSON_COUNT: int = 20
 
 #: One representative lesson per terrain (Earth, Mars, underwater, space).
 #: Passing all four is what "Globetrotter" requires.

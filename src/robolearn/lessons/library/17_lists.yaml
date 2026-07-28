@@ -1,0 +1,48 @@
+id: 17_lists
+title: A list drives the route
+key_stage: KS4
+ct_concepts: [iteration, abstraction]
+curriculum_refs:
+  - "DfE 'Computer Science GCSE subject content' (DfE-00094-2015), section 2: the use of data structures (one-dimensional arrays or lists)."
+  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 subject content: work with ... data structures such as lists."
+prereqs: [05_iteration, 16_variables]
+terrain: mars
+intro: |
+  Three sample patches sit along this track, at different spacings: 2 metres,
+  then 1 more, then 3 more.
+  You could write six lines of drive-and-collect. Instead, put the three
+  distances in a list and let one loop walk it. The DATA describes the route;
+  the code just follows the data.
+  The starter's list is wrong. Fix the numbers, not the loop.
+starter_code: |
+  steps = [2, 2, 2]
+  for step in steps:
+      move_forward(step)
+      collect_sample()
+allowed_constructs: [for, function_call, assignment]
+max_lines: 10
+world:
+  base: [1.0, 1.0]
+  samples:
+    - [3.0, 1.0]
+    - [4.0, 1.0]
+    - [7.0, 1.0]
+  obstacles: []
+  width: 9.0
+  height: 4.0
+solution_code: |
+  steps = [2, 1, 3]
+  for step in steps:
+      move_forward(step)
+      collect_sample()
+success_criteria:
+  - samples_collected: 3
+  - no_collisions: true
+  - uses_construct: for
+  # The list has to be a named value that the loop reads, not six unrolled
+  # lines: the lesson is that data can describe a route.
+  - uses_construct: assignment
+hints:
+  on_failure:
+    - "Walk it on paper: starting at 1 across, which three hops land exactly on 3, 4 and 7? Fix the list to match."
+    - "Only the list changes. If you found yourself editing the loop, the data was the right place to look."

@@ -11,6 +11,7 @@
     "intro": "Let's drive the rover!\nEach line tells the rover one thing to do.\nThe rover does them in order, from the top.\nRight now it only drives 1 metre, which is not far enough.\nThe flag is 3 metres straight ahead.\nChange the number, or add another line, to reach it.\n",
     "keyStage": "KS1",
     "maxLines": 6,
+    "prereqs": [],
     "readingAge": 6,
     "solutionCode": "move_forward(1)\nmove_forward(1)\nmove_forward(1)\n",
     "starterCode": "move_forward(1)\n",
@@ -30,6 +31,9 @@
     "intro": "A square has four equal sides.\nInstead of writing the same steps four times, we use a loop.\n\"for side in range(4):\" repeats the lines below it four times.\nBelow is ONE side. Wrap those two lines in a for loop\nso the rover repeats them and draws the whole square.\n",
     "keyStage": "KS2",
     "maxLines": 8,
+    "prereqs": [
+      "00_first_drive"
+    ],
     "readingAge": 9,
     "solutionCode": "for side in range(4):\n    move_forward(2)\n    turn_right(90)\n",
     "starterCode": "move_forward(2)\nturn_right(90)\n",
@@ -49,6 +53,9 @@
     "intro": "A clever rover looks before it moves.\n\"obstacle_ahead()\" asks the sensor a yes/no question:\nis there a rock right in front of me?\nPress Run first and watch the rover hit the rock.\nThen add \"if obstacle_ahead():\" and a turn ABOVE the move,\nso it looks before it drives.\n",
     "keyStage": "KS2",
     "maxLines": 8,
+    "prereqs": [
+      "00b_repeat_square"
+    ],
     "readingAge": 10,
     "solutionCode": "if obstacle_ahead():\n    turn_left(90)\nmove_forward(3)\n",
     "starterCode": "move_forward(3)\n",
@@ -64,6 +71,7 @@
     "intro": "Welcome to Kodro. Your first job is to give the rover three\ninstructions in order: drive forward, beep, and write a short message\nto the console. This is called a \"sequence\".\nThe rover does not drive far enough yet. Change the number in\nmove_forward so it travels at least 1.5 metres, then run it again.\n",
     "keyStage": "KS3",
     "maxLines": 8,
+    "prereqs": [],
     "readingAge": null,
     "solutionCode": "move_forward(2)\nbeep(1)\nlog(\"hello rover\")\n",
     "starterCode": "move_forward(1)\nbeep(1)\nlog(\"hello rover\")\n",
@@ -79,6 +87,9 @@
     "intro": "The rover can do more than drive forwards. Use turn_left and turn_right\nto change its heading. Build a short path that ends at the sample patch.\n",
     "keyStage": "KS3",
     "maxLines": 8,
+    "prereqs": [
+      "01_hello_rover"
+    ],
     "readingAge": null,
     "solutionCode": "move_forward(3)\nturn_left(90)\nmove_forward(3)\ncollect_sample()\n",
     "starterCode": "move_forward(3)\nturn_left(90)\nmove_forward(3)\n",
@@ -94,6 +105,9 @@
     "intro": "Drive a U-shaped path: forward, turn, forward, turn, forward. Then\ncollect the sample at the far end. Every line of your program is one\nstep in the sequence.\nThe last move stops short of the sample, so nothing is collected.\nWork out how far that last move needs to be.\n",
     "keyStage": "KS3",
     "maxLines": 10,
+    "prereqs": [
+      "02_move_turn"
+    ],
     "readingAge": null,
     "solutionCode": "move_forward(3)\nturn_left(90)\nmove_forward(2)\nturn_left(90)\nmove_forward(3)\ncollect_sample()\n",
     "starterCode": "move_forward(3)\nturn_left(90)\nmove_forward(2)\nturn_left(90)\nmove_forward(1)\ncollect_sample()\n",
@@ -109,6 +123,9 @@
     "intro": "A rock sits between the rover and the sample patch.\nThe starter program already asks the sensor whether something is in the\nway, and drives round it when the answer is yes.\nRun it and watch: the rover ends up right on the patch, but comes home\nempty. Add the one line that picks the sample up.\n",
     "keyStage": "KS3",
     "maxLines": 10,
+    "prereqs": [
+      "03_sequence"
+    ],
     "readingAge": null,
     "solutionCode": "if obstacle_ahead(2.0):\n    turn_left(90)\n    move_forward(1)\n    turn_right(90)\n    move_forward(4)\n    turn_right(90)\n    move_forward(1)\n    collect_sample()\n",
     "starterCode": "if obstacle_ahead(2.0):\n    turn_left(90)\n    move_forward(1)\n    turn_right(90)\n    move_forward(4)\n    turn_right(90)\n    move_forward(1)\n",
@@ -125,6 +142,9 @@
     "intro": "Drive forward and collect samples while avoiding rocks. Use a while loop\nso the rover keeps moving until it sees an obstacle, then turn and\ncontinue. Every loop iteration is one step.\n",
     "keyStage": "KS3",
     "maxLines": 12,
+    "prereqs": [
+      "04_selection"
+    ],
     "readingAge": null,
     "solutionCode": "turn_left(30)\nwhile not sample_detected():\n    move_forward(0.2)\ncollect_sample()\nturn_right(45)\nwhile not sample_detected():\n    move_forward(0.2)\ncollect_sample()\nturn_left(40)\nwhile not sample_detected():\n    move_forward(0.2)\ncollect_sample()\n",
     "starterCode": "for _ in range(8):\n    if obstacle_ahead():\n        break\n    move_forward(1)\n    if sample_detected(0.6):\n        collect_sample()\n",
@@ -141,6 +161,9 @@
     "intro": "Wrap the \"drive then turn\" pattern in a function so you can call it many\ntimes. Functions let you give a meaningful name to a sequence of\ninstructions -- this is called \"decomposition\".\n",
     "keyStage": "KS3",
     "maxLines": 14,
+    "prereqs": [
+      "05_iteration"
+    ],
     "readingAge": null,
     "solutionCode": "def hop():\n    move_forward(2)\n    collect_sample()\n    turn_left(90)\n\nhop()\nhop()\nhop()\nhop()\n",
     "starterCode": "def hop():\n    move_forward(2)\n    turn_left(90)\n\nhop()\nhop()\nhop()\nhop()\n",
@@ -157,6 +180,9 @@
     "intro": "Underwater visibility is poor. Combine read_distance() with a while loop\nso the rover stops one metre before any wall, no matter how far it is.\n",
     "keyStage": "KS3",
     "maxLines": 10,
+    "prereqs": [
+      "05_iteration"
+    ],
     "readingAge": null,
     "solutionCode": "while read_distance() > 1.0:\n    move_forward(0.5)\ncollect_sample()\n",
     "starterCode": "while read_distance() > 1.0:\n    move_forward(0.5)\n",
@@ -174,6 +200,10 @@
     "intro": "A rock sits between the base and the sample.\nThe starter program already gets there. It keeps driving while it cannot\nsee the sample, and when the sensor says something is in the way it calls\ndodge() to step around it.\nThen it stops, and the mission is not finished until the rover is home.\nTurn it around and write the same loop again for the journey back.\nYou do not need to write dodge() a second time. That is what a function is for.\n",
     "keyStage": "KS3",
     "maxLines": 30,
+    "prereqs": [
+      "06_functions",
+      "04_selection"
+    ],
     "readingAge": null,
     "solutionCode": "def dodge():\n    turn_left(90)\n    move_forward(1.5)\n    turn_right(90)\n    move_forward(2)\n    turn_right(90)\n    move_forward(1.5)\n    turn_left(90)\n\nwhile not sample_detected():\n    if obstacle_ahead(1.0):\n        dodge()\n    else:\n        move_forward(0.5)\n\ncollect_sample()\n\nturn_left(180)\n\nwhile not at_base():\n    if obstacle_ahead(1.0):\n        dodge()\n    else:\n        move_forward(0.5)\n",
     "starterCode": "def dodge():\n    turn_left(90)\n    move_forward(1.5)\n    turn_right(90)\n    move_forward(2)\n    turn_right(90)\n    move_forward(1.5)\n    turn_left(90)\n\nwhile not sample_detected():\n    if obstacle_ahead(1.0):\n        dodge()\n    else:\n        move_forward(0.5)\n\ncollect_sample()\n",
@@ -190,6 +220,9 @@
     "intro": "Draw a square spiral by calling a function that calls itself with a\nsmaller step. Recursion lets you describe an infinite-looking pattern\nwith just a few lines of code -- the base case stops the spiral.\n",
     "keyStage": "KS4",
     "maxLines": 12,
+    "prereqs": [
+      "06_functions"
+    ],
     "readingAge": null,
     "solutionCode": "def spiral(step):\n    if step < 0.5:\n        return\n    move_forward(step)\n    turn_left(90)\n    spiral(step - 0.5)\n\npen_down()\nspiral(3.0)\n",
     "starterCode": "def spiral(step):\n    if step < 0.5:\n        return\n    move_forward(step)\n    turn_left(90)\n    spiral(step - 0.5)\n\nspiral(1.0)\n",
@@ -206,6 +239,9 @@
     "intro": "Three samples are scattered across the arena. Collect them all using the\nsmallest possible distance travelled. Try a couple of orderings and keep\nthe cheapest one -- this is the simplest form of route optimisation.\n",
     "keyStage": "KS4",
     "maxLines": 22,
+    "prereqs": [
+      "08_pathfinding"
+    ],
     "readingAge": null,
     "solutionCode": "# Order 3-2-1 costs 22 m of driving, but 1-3-2 costs 28 m, so drive 3-2-1.\nfor _ in range(6):\n    move_forward(1)\nturn_left(90)\nmove_forward(1)\ncollect_sample()\nfor _ in range(3):\n    move_forward(1)\nturn_left(90)\nfor _ in range(2):\n    move_forward(1)\ncollect_sample()\nfor _ in range(3):\n    move_forward(1)\nturn_right(90)\nmove_forward(1)\ncollect_sample()\nturn_left(90)\nmove_forward(1)\nturn_left(90)\nfor _ in range(5):\n    move_forward(1)\n",
     "starterCode": "# First pass: walk to each sample, collect it, head home.\n# Sample 1 at (2, 6): turn north, go 5, collect.\nturn_left(90)\nfor _ in range(5):\n    move_forward(1)\nturn_right(90)\nmove_forward(1)\ncollect_sample()\n# Sample 2 at (5, 5): south + east a bit.\nturn_right(90)\nmove_forward(1)\nturn_left(90)\nfor _ in range(3):\n    move_forward(1)\ncollect_sample()\n# Sample 3 at (7, 2): south then east.\nturn_right(90)\nfor _ in range(3):\n    move_forward(1)\nturn_left(90)\nfor _ in range(2):\n    move_forward(1)\ncollect_sample()\n# Return to base.\nturn_left(180)\nfor _ in range(10):\n    move_forward(1)\n",
@@ -222,6 +258,9 @@
     "intro": "Break the patrol into named jobs. Write one small helper function per\nleg of the route, then call them in order. Decomposition turns a single\nlong problem into a few short ones you can read and test on their own.\n",
     "keyStage": "KS4",
     "maxLines": 16,
+    "prereqs": [
+      "06_functions"
+    ],
     "readingAge": null,
     "solutionCode": "def leg_one():\n    move_forward(3)\n    collect_sample()\n\ndef leg_two():\n    turn_left(90)\n    move_forward(3)\n    collect_sample()\n\nleg_one()\nleg_two()\n",
     "starterCode": "def leg_one():\n    move_forward(3)\n    collect_sample()\n\ndef leg_two():\n    turn_left(90)\n    move_forward(3)\n    collect_sample()\n\nleg_one()\n# TODO: call leg_two() so the rover reaches the second sample too\n",
@@ -238,6 +277,9 @@
     "intro": "Don't hard-code the route -- ask the world. The starter drives blindly\nand crashes. Use obstacle_ahead() to decide when to turn, so one short\nprogram copes with whatever is in the way. Reading a sensor is an\nabstraction: you get \"is something there?\" without caring how it is\nmeasured.\n",
     "keyStage": "KS4",
     "maxLines": 14,
+    "prereqs": [
+      "07_sensors"
+    ],
     "readingAge": null,
     "solutionCode": "while read_battery() > 40:\n    # look further than one step, so there is room to turn\n    if obstacle_ahead(1.5):\n        turn_left(90)\n    else:\n        move_forward(1)\n",
     "starterCode": "# This drives straight and will crash. Add a sensor check to avoid it.\nwhile read_battery() > 40:\n    move_forward(1)\n",
@@ -253,6 +295,9 @@
     "intro": "Sweep the whole field, not just one row. The starter collects a single\nrow of samples; wrap it in a second loop so the rover repeats the sweep\nfor every row. A loop inside a loop is \"nested iteration\" -- the inner\nloop runs in full on each pass of the outer loop.\n",
     "keyStage": "KS4",
     "maxLines": 16,
+    "prereqs": [
+      "05_iteration"
+    ],
     "readingAge": null,
     "solutionCode": "for row in range(2):\n    for col in range(3):\n        move_forward(2)\n        collect_sample()\n    # turn around at the end of the row and line up with the next one\n    move_forward(2)\n    turn_left(90)\n    move_forward(2)\n    turn_left(90)\n",
     "starterCode": "# This sweeps ONE row. Wrap it in a second loop to cover every row.\nfor col in range(3):\n    move_forward(2)\n    collect_sample()\n",
@@ -268,6 +313,9 @@
     "intro": "Keep a running tally. The starter collects one sample and adds 1 to a\ncounter; turn it into a loop that repeats until the counter reaches the\ntarget. A variable you add to on each pass is called an accumulator -- it\nis how programs count things while they iterate.\n",
     "keyStage": "KS4",
     "maxLines": 16,
+    "prereqs": [
+      "05_iteration"
+    ],
     "readingAge": null,
     "solutionCode": "count = 0\nwhile count < 3:\n    move_forward(2)\n    collect_sample()\n    count = count + 1\n",
     "starterCode": "# A counter variable, but no loop yet.\ncount = 0\nmove_forward(2)\ncollect_sample()\ncount = count + 1\n# TODO: wrap the move/collect/count in a while loop until count == 3\n",
@@ -283,10 +331,54 @@
     "intro": "One function, many jobs. The starter's `hop` always moves the same fixed\ndistance, so it can only reach one sample. Give it a `distance` parameter\nand call it with different values to reach every sample. A parameter is an\ninput that lets a single function be reused for different cases.\n",
     "keyStage": "KS4",
     "maxLines": 16,
+    "prereqs": [
+      "06_functions"
+    ],
     "readingAge": null,
     "solutionCode": "def hop(distance):\n    move_forward(distance)\n    collect_sample()\n\nhop(2)\nhop(3)\nhop(2)\n",
     "starterCode": "# hop always moves 2m. Add a `distance` parameter and pass different values.\ndef hop():\n    move_forward(2)\n    collect_sample()\n\nhop()\n",
     "terrain": "mars",
     "title": "Functions with parameters (KS4 stretch)"
+  },
+  {
+    "concepts": [
+      "sequence",
+      "abstraction"
+    ],
+    "glossary": {
+      "variable": "A name that remembers a value. Use the name and you get the value."
+    },
+    "id": "16_variables",
+    "intro": "Two flags, and both are the same distance away: 2 metres east, then\n2 metres north.\nThe program stores that distance in a variable called step, and uses the\nname twice. Right now step is 1, which is too short for BOTH moves.\nChange the number ONCE, and watch both moves change with it.\nThat is what a variable is for.\n",
+    "keyStage": "KS2",
+    "maxLines": 10,
+    "prereqs": [
+      "03_sequence"
+    ],
+    "readingAge": 9,
+    "solutionCode": "step = 2\nmove_forward(step)\ncollect_sample()\nturn_left(90)\nmove_forward(step)\ncollect_sample()\n",
+    "starterCode": "step = 1\nmove_forward(step)\ncollect_sample()\nturn_left(90)\nmove_forward(step)\ncollect_sample()\n",
+    "terrain": "earth",
+    "title": "One name, used twice"
+  },
+  {
+    "concepts": [
+      "iteration",
+      "abstraction"
+    ],
+    "glossary": {},
+    "id": "17_lists",
+    "intro": "Three sample patches sit along this track, at different spacings: 2 metres,\nthen 1 more, then 3 more.\nYou could write six lines of drive-and-collect. Instead, put the three\ndistances in a list and let one loop walk it. The DATA describes the route;\nthe code just follows the data.\nThe starter's list is wrong. Fix the numbers, not the loop.\n",
+    "keyStage": "KS4",
+    "maxLines": 10,
+    "prereqs": [
+      "05_iteration",
+      "16_variables"
+    ],
+    "readingAge": null,
+    "solutionCode": "steps = [2, 1, 3]\nfor step in steps:\n    move_forward(step)\n    collect_sample()\n",
+    "starterCode": "steps = [2, 2, 2]\nfor step in steps:\n    move_forward(step)\n    collect_sample()\n",
+    "terrain": "mars",
+    "title": "A list drives the route"
   }
 ]

@@ -96,6 +96,8 @@
     "13_nested_loops": {"world":{"base":[1,1],"samples":[[3,1],[5,1],[7,1],[3,3],[5,3],[7,3]],"obstacles":[],"width":10,"height":10},"criteria":[{"samples_collected":6},{"no_collisions":true},{"uses_construct":"for"}],"hints":{"onFailure":["You collected one row. Add an outer loop so the inner sweep repeats for each row.","After each row, turn and move to the next row before sweeping again."],"onSuccess":[]}},
     "14_counting": {"world":{"base":[1,1],"samples":[[3,1],[5,1],[7,1]],"obstacles":[],"width":10,"height":10},"criteria":[{"samples_collected":3},{"no_collisions":true},{"uses_construct":"while"}],"hints":{"onFailure":["You collected one sample. Put the move/collect/count lines inside a `while count < 3:` loop.","Remember to add 1 to count inside the loop, or it will never reach 3 and will loop forever."],"onSuccess":[]}},
     "15_parameters": {"world":{"base":[1,1],"samples":[[3,1],[6,1],[8,1]],"obstacles":[],"width":10,"height":10},"criteria":[{"samples_collected":3},{"no_collisions":true},{"uses_construct":"function_def"}],"hints":{"onFailure":["The samples are at different gaps, so a fixed 2m hop can't reach them all -- add a `distance` parameter.","Define `def hop(distance):` then call hop(2), hop(3), hop(2) to step between the samples."],"onSuccess":[]}},
+    "16_variables": {"world":{"base":[1,1],"samples":[[3,1],[3,3]],"obstacles":[],"width":6,"height":6},"criteria":[{"samples_collected":2},{"no_collisions":true},{"uses_construct":"assignment"}],"hints":{"onFailure":["Both flags are 2 metres away. Change step = 1 to step = 2, in one place only.","Notice you did NOT have to change the move_forward lines. The name step carries the new value to both of them."],"onSuccess":[]}},
+    "17_lists": {"world":{"base":[1,1],"samples":[[3,1],[4,1],[7,1]],"obstacles":[],"width":9,"height":4},"criteria":[{"samples_collected":3},{"no_collisions":true},{"uses_construct":"for"},{"uses_construct":"assignment"}],"hints":{"onFailure":["Walk it on paper: starting at 1 across, which three hops land exactly on 3, 4 and 7? Fix the list to match.","Only the list changes. If you found yourself editing the loop, the data was the right place to look."],"onSuccess":[]}},
   };
 
   // --- lessons authored on this device (Lesson Studio) ---------------------
@@ -709,6 +711,18 @@
     // never run is rejected.
     if (n.kind === 'while') return !isConstantFalsy(n.test);
     if (n.kind === 'for') return !isProvablyEmptyIterable(n.iter);
+    if (n.kind === 'assign' || n.kind === 'augassign') {
+      // Mirror of grader.py: a variable nobody reads is a dead store, not a
+      // demonstration of variables. The assigned name must appear as a READ
+      // somewhere else in the program.
+      var assigned = (typeof n.target === 'string') ? n.target : null;
+      if (!assigned) return true;
+      var readElsewhere = false;
+      walkList(program, function (o) {
+        if (o && o.k === 'name' && o.v === assigned) readElsewhere = true;
+      });
+      return readElsewhere;
+    }
     if (n.kind === 'def') {
       // A definition nobody ever names is dead code, not modular design.
       var named = false;

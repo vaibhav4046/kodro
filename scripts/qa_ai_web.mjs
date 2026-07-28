@@ -174,6 +174,25 @@ console.log('\n== normalizeApi + extractCode (via reviewCode) ==');
   check('invalid reviewer rewrite is rejected and original is retained',
     r7.revised === false && r7.validated === false && r7.code.trim() === 'placeholder', JSON.stringify(r7));
 
+  setGen('```python\ndef move_robot():\n    move_forward(3)\n    move_robot()\nmove_robot()\n```');
+  const runaway = await AI.reviewCode('move_forward(3)', null);
+  check('reviewer rejects newly introduced runaway recursion',
+    runaway.revised === false && runaway.validated === false && runaway.code.trim() === 'move_forward(3)',
+    JSON.stringify(runaway));
+
+  setGen('```python\nmove_forward(3)\nturn_right(90)\n```');
+  const changedBehaviour = await AI.reviewCode('move_forward(3)', null);
+  check('reviewer rejects a runnable rewrite that changes robot behaviour',
+    changedBehaviour.revised === false && changedBehaviour.validated === false
+      && changedBehaviour.code.trim() === 'move_forward(3)',
+    JSON.stringify(changedBehaviour));
+
+  setGen('```python\n# clearer comment\nmove_forward(3)\n```');
+  const sameBehaviour = await AI.reviewCode('move_forward(3)', null);
+  check('reviewer accepts a comment-only rewrite with the same robot trace',
+    sameBehaviour.revised === true && sameBehaviour.validated === true,
+    JSON.stringify(sameBehaviour));
+
   // extractCode pulls the body out of a ```python fence, backticks gone.
   const r8 = await reviewedCode('Here is a tidy version:\n```python\nmove_forward(1)\n```\ndone');
   check('extractCode: ```python fence yields inner code, no backticks',
@@ -208,6 +227,20 @@ console.log('\n== stripFences (via ask) ==');
   const a2 = await asked('Use move_forward to drive ahead.');
   check('stripFences leaves fence-free prose unchanged',
     a2.text === 'Use move_forward to drive ahead.', JSON.stringify(a2.text));
+
+  // Questions about the current editor are answered by deterministic traces,
+  // not a small model guessing at indentation or branch behaviour.
+  setGen('Wrong: the move is skipped when an obstacle is ahead.');
+  const explained = await AI.ask('Why does move_forward happen after the if?', {
+    lessonId: '00c_look_first',
+    code: 'if obstacle_ahead():\n    turn_left(90)\nmove_forward(3)',
+  });
+  check('current-program explanation comes from the interpreter',
+    explained.deterministic === true && explained.source === 'interpreter',
+    JSON.stringify(explained));
+  check('verified explanation states the unindented move runs on both branches',
+    /not indented/.test(explained.text) && /whichever answer/.test(explained.text),
+    JSON.stringify(explained.text));
 }
 
 console.log('\n== looksLikeCode (via chatStart/chatPoll) ==');

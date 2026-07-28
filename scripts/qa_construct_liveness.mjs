@@ -84,6 +84,12 @@ const CASES = [
   ['while True:\n    move_forward(1)\n', 'while', true],
   ['for i in range(4):\n    move_forward(1)\n', 'for', true],
   ['def f():\n    pass\n\nf()\n', 'function_def', true],
+  // A variable nobody reads is a dead store, not "using variables": `x = 2`
+  // alone satisfied the node-presence test while demonstrating nothing a
+  // variables lesson teaches. The name must be READ somewhere.
+  ['x = 2\n', 'assignment', false],
+  ['x = 2\nmove_forward(x)\n', 'assignment', true],
+  ['x = 1\nx += 2\nmove_forward(x)\n', 'assignment', true],
   ['def f(n):\n    if n <= 0:\n        return 0\n    return f(n - 1)\n\nf(3)\n', 'recursion', true],
 ];
 

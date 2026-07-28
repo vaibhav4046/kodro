@@ -468,6 +468,24 @@
     const [lessonResults, setLessonResults] = useState(() => {
       try { return JSON.parse(lsGet('or_lesson_results')) || {}; } catch (e) { return {}; }
     });
+    function lessonPrereqState(lesson, alsoPassedId) {
+      const prereqs = (lesson && lesson.prereqs) || [];
+      const unmet = prereqs.filter(id => id !== alsoPassedId && !(lessonResults[id] && lessonResults[id].passed));
+      return {
+        ready: unmet.length === 0,
+        unmet,
+        labels: unmet.map(id => ((lessons.find(l => l.id === id) || {}).title || id)),
+      };
+    }
+    function recommendedLesson() {
+      const unfinished = lessons.filter(l => !(lessonResults[l.id] && lessonResults[l.id].passed));
+      return unfinished.find(l => lessonPrereqState(l).ready) || unfinished[0] || lessons[0] || null;
+    }
+    function nextConnectedLesson(currentId) {
+      const unfinished = lessons.filter(l => l.id !== currentId && !(lessonResults[l.id] && lessonResults[l.id].passed));
+      const direct = unfinished.find(l => (l.prereqs || []).indexOf(currentId) >= 0 && lessonPrereqState(l, currentId).ready);
+      return direct || unfinished.find(l => lessonPrereqState(l, currentId).ready) || null;
+    }
     const lessonResultsPupilRef = useRef(null);
     useEffect(() => {
       if (!activePupilId) return;
@@ -1022,7 +1040,13 @@
     } = (window.KodroHooks && window.KodroHooks.useVibeChat)
       // onTerrain is destructured from useSimEngine further down, so defer the
       // reference to call time (an eager shorthand here would hit the TDZ).
-      ? window.KodroHooks.useVibeChat({ terrain, currentLessonIdRef, dispatchWorldAction, onTerrain: (id) => onTerrain(id) })
+      ? window.KodroHooks.useVibeChat({
+          terrain, currentLessonIdRef, dispatchWorldAction,
+          onTerrain: (id) => onTerrain(id),
+          // The closure is called only after render, when `code` below has
+          // been initialised. This keeps the Companion on the live buffer.
+          getCode: () => code,
+        })
       : {
         vibeOpen: false, setVibeOpen: function () {}, vibePrompt: '', setVibePrompt: function () {},
         vibeBusy: false, setVibeBusy: function () {}, vibeError: null, setVibeError: function () {},
@@ -2732,7 +2756,7 @@
                 const revealedHints = hintBank.slice(hintsShownByVerdict, hintsShownByVerdict + extraHints);
                 const moreHintsLeft = hintsShownByVerdict + extraHints < hintBank.length;
                 const nextLesson = (liveVerdict && liveVerdict.passed)
-                  ? lessons[lessons.findIndex(l => l.id === lesson.id) + 1] || null
+                  ? nextConnectedLesson(lesson.id)
                   : null;
                 return (
                   <section className="lesson-card" aria-label="Current lesson">
@@ -3137,7 +3161,8 @@
               <div className={'lesson-hub-scroll' + (simpleExperience && !lessonBrowseAll ? ' lesson-hub-focused' : '')}>
                 {lessons.length === 0 && <p className="lesson-hub-loading">Loading the offline lesson library…</p>}
                 {simpleExperience && !lessonBrowseAll && lessons.length > 0 ? (() => {
-                  const lesson = lessons.find(l => !(lessonResults[l.id] && lessonResults[l.id].passed)) || lessons[0];
+                  const lesson = recommendedLesson();
+                  if (!lesson) return null;
                   const result = lessonResults[lesson.id];
                   return (
                     <section className="lesson-recommended" aria-labelledby="recommended-lesson-title">
@@ -3172,20 +3197,23 @@
                         {stageLessons.map((lesson, index) => {
                           const result = lessonResults[lesson.id];
                           const isCurrent = currentLessonId === lesson.id;
+                          const prereq = lessonPrereqState(lesson);
                           return (
                             <button type="button" key={lesson.id}
-                              className={'lesson-tile' + (isCurrent ? ' current' : '') + (result && result.passed ? ' complete' : '')}
+                              className={'lesson-tile' + (isCurrent ? ' current' : '') + (result && result.passed ? ' complete' : '') + (!prereq.ready ? ' has-prereq' : '')}
                               aria-label={(result && result.passed ? 'Completed lesson: ' : result ? 'Continue lesson: ' : 'Open lesson: ') + lesson.title
+                                + (!prereq.ready ? ', suggested after ' + prereq.labels.join(' and ') : '')
                                 + (result ? ', ' + (result.passed ? 'passed' : 'not passed yet') + ', latest score ' + result.score + ' out of 100, ' + result.attempts + (result.attempts === 1 ? ' attempt' : ' attempts') : '')}
                               onClick={() => loadLesson(lesson)}>
                               <span className="lesson-tile-number">{String(index + 1).padStart(2, '0')}</span>
                               <span className="lesson-tile-copy">
                                 <strong>{lesson.title}</strong>
                                 <span>{(lesson.intro || 'Program the robot and test your solution in the simulated world.').trim()}</span>
-                                <small>{(lesson.terrain || 'earth').replace(/^./, c => c.toUpperCase())} world{lesson.readingAge ? ' · Reading age ' + lesson.readingAge + '+' : ''}</small>
+                                <small>{(lesson.terrain || 'earth').replace(/^./, c => c.toUpperCase())} world{lesson.readingAge ? ' · Reading age ' + lesson.readingAge + '+' : ''}
+                                  {!prereq.ready ? ' · Suggested after ' + prereq.labels.join(' + ') : ''}</small>
                               </span>
                               <span className={'lesson-tile-status' + (result && result.passed ? ' done' : '')}>
-                                {result ? (result.passed ? '✓ Complete' : 'Not yet · ' + result.score + '/100') : 'Start'}
+                                {result ? (result.passed ? '✓ Complete' : 'Not yet · ' + result.score + '/100') : (!prereq.ready ? 'Later' : 'Start')}
                               </span>
                             </button>
                           );

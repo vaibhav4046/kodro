@@ -220,7 +220,7 @@ const CAP = `<!DOCTYPE html>
           }));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay'), seedlesson: q.get('seedlesson'), describe: q.get('describe'), predict: q.get('predict') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), lessonswitch: q.get('lessonswitch'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay'), seedlesson: q.get('seedlesson'), describe: q.get('describe'), predict: q.get('predict') };
     })();
   </script>
   <div id="root"></div>
@@ -478,6 +478,30 @@ const CAP = `<!DOCTYPE html>
           if (!lessonDone && lessonTries >= 40) finishLesson(false);
         }, 350);
         tryPick();
+      }
+      if (!C.onb && C.lessonswitch) {
+        // Wait for the requested lesson to be visibly active, then switch the
+        // world through the real controlled select. This catches the stale
+        // lesson-arena/grade bug rather than merely testing a direct setter.
+        var switchDone = false;
+        var tryLessonSwitch = function () {
+          if (switchDone || !document.querySelector('.lesson-card')) return;
+          var sel = document.querySelector('.site-select');
+          if (!sel) return;
+          var setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value').set;
+          setter.call(sel, C.lessonswitch);
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          switchDone = true;
+        };
+        var switchObserver = new MutationObserver(tryLessonSwitch);
+        switchObserver.observe(document.body, { childList: true, subtree: true });
+        var switchTimer = setInterval(function () {
+          tryLessonSwitch();
+          if (switchDone) {
+            clearInterval(switchTimer);
+            switchObserver.disconnect();
+          }
+        }, 300);
       }
       if (!C.onb && C.predict) {
         // Predict-then-run driver. Waits for the lesson card's predict input,

@@ -706,10 +706,11 @@ function checkMemoryGraph(chrome) {
 // CHAT BUILDS THE WORLD (F-chat) — a Vibe message that is a clear build/move
 // command actually builds the robot and switches the world, and posts a visible
 // action line. This runs the real dispatch (KodroChatIntent -> RobotLab.build +
-// onTerrain) with NO model needed, so it works headless: "build a mars rover"
-// must produce an action bubble that names Mars and reports a built robot.
+// onTerrain) with NO model needed, so it works headless. Assert the actual
+// selected world and fitted parts, not only an optimistic chat sentence.
 function checkVibeBuild(chrome) {
-  const url = `${BASE}?world=earth&robot=rover&q=low&vibe=${encodeURIComponent('build a mars rover')}`;
+  const request = 'build a Mars exploration rover with 4 motors, ultrasonic, camera, and a 30 minute battery';
+  const url = `${BASE}?world=earth&robot=rover&q=low&vibe=${encodeURIComponent(request)}`;
   const { dom, error } = dumpDom(chrome, 'behaviour_vibe_build', url, { vtime: 12000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
@@ -722,7 +723,32 @@ function checkVibeBuild(chrome) {
   if (!/Built a rover|Built a general rover/.test(dom)) {
     return { pass: false, reason: 'world moved but no robot was built from the chat command' };
   }
-  return { pass: true, reason: 'a "build a mars rover" chat command built the robot and moved the world to Mars (visible action line)' };
+  if (!/data-active-world="mars"/.test(dom)) {
+    return { pass: false, reason: 'chat claimed Mars, but the actual active world was not Mars' };
+  }
+  if (!/4 DC motors, ultrasonic range, IMU, camera/.test(dom)) {
+    return { pass: false, reason: 'the build acknowledgement did not enumerate the exact fitted drive and sensors' };
+  }
+  if (!/catalogue runtime estimate/.test(dom)) {
+    return { pass: false, reason: 'the 30-minute battery request was silently ignored instead of receiving an honest runtime estimate' };
+  }
+  return { pass: true, reason: 'detailed chat build fitted the requested parts, reported runtime honestly, and the actual active world is Mars' };
+}
+
+// Switching the visible world while a lesson is open must leave the lesson
+// first. Otherwise the new label is paired with the old lesson walls and grade.
+function checkLessonWorldExit(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&experience=expert&lesson=00_first_drive&lessonswitch=mars`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_world_exit', url, { vtime: 14000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const mars = /data-active-world="mars"/.test(dom);
+  const lessonGone = !/class="lesson-card"/.test(dom);
+  if (mars && lessonGone) {
+    return { pass: true, reason: 'world switch selected Mars and atomically left the prior lesson grading context' };
+  }
+  return { pass: false, reason: `world/lesson ownership mismatch (mars: ${mars}, lessonGone: ${lessonGone})` };
 }
 
 // Collision help must work without a generative model and must remain an
@@ -1400,7 +1426,9 @@ function cleanup() {
       ['authored-lesson', checkAuthoredLesson],
     ] : [
       ['chat-repair', checkVibeRepairPreview],
+      ['chat-build', checkVibeBuild],
       ['lesson-goals', checkLessonGoals],
+      ['lesson-world-exit', checkLessonWorldExit],
       ['stage-journey', checkStageJourney],
       ['authored-lesson', checkAuthoredLesson],
     ];
@@ -1521,6 +1549,11 @@ function cleanup() {
   const vibeBuild = checkVibeBuild(chrome);
   behaviour.push(vibeBuild.pass);
   console.log(`${vibeBuild.pass ? 'PASS' : 'FAIL'}  ${'chat-build'.padEnd(20)} ${vibeBuild.reason}`);
+  gap();
+
+  const lessonWorldExit = checkLessonWorldExit(chrome);
+  behaviour.push(lessonWorldExit.pass);
+  console.log(`${lessonWorldExit.pass ? 'PASS' : 'FAIL'}  ${'lesson-world-exit'.padEnd(20)} ${lessonWorldExit.reason}`);
   gap();
 
   const vibeRepair = checkVibeRepairPreview(chrome);

@@ -52,10 +52,15 @@
   var CONSTRUCT_LABEL = {
     if: 'an if statement', while: 'a while loop', for: 'a for loop',
     function_def: 'a function', function_call: 'a function call',
-    comparison: 'a comparison', recursion: 'recursion',
+    comparison: 'a comparison', recursion: 'recursion', assignment: 'a variable',
   };
 
   var WORLD_LABEL = { earth: 'Earth', mars: 'Mars', underwater: 'Underwater', space: 'Space' };
+  var CONCEPT_LABEL = {
+    sequence: 'Sequence', selection: 'Selection (if / else)', iteration: 'Loops and iteration',
+    functions: 'Functions', decomposition: 'Decomposition', abstraction: 'Abstraction',
+    recursion: 'Recursion', algorithmic_efficiency: 'Algorithmic efficiency',
+  };
 
   function num(v, dflt) {
     var n = parseFloat(v);
@@ -462,7 +467,12 @@
                   e('select', {
                     value: doc.terrain,
                     onChange: function (ev) { patch(Object.assign({}, doc, { terrain: ev.target.value })); },
-                  }, Store.TERRAINS.map(function (t) { return e('option', { key: t, value: t }, WORLD_LABEL[t] || t); })))),
+                  }, Store.TERRAINS.map(function (t) { return e('option', { key: t, value: t }, WORLD_LABEL[t] || t); }))),
+                e('label', { className: 'ls-field' }, 'Main concept',
+                  e('select', {
+                    value: (doc.concepts && doc.concepts[0]) || 'sequence',
+                    onChange: function (ev) { patch(Object.assign({}, doc, { concepts: [ev.target.value] })); },
+                  }, Store.CT_CONCEPTS.map(function (c) { return e('option', { key: c, value: c }, CONCEPT_LABEL[c] || c); })))),
               e('label', { className: 'ls-field' }, 'What the pupil should do',
                 e('textarea', {
                   rows: 3, value: doc.intro, maxLength: 1200,

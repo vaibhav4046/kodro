@@ -195,7 +195,7 @@ def test_load_library_missing_directory_raises(tmp_path: Path) -> None:
 def test_bundled_library_has_full_lesson_set() -> None:
     lessons = load_library()
     # 15 KS3/KS4 lessons + 3 KS1/KS2 onboarding lessons.
-    assert len(lessons) == 18
+    assert len(lessons) == 20
     by_stage = {
         ks: sum(1 for lsn in lessons if lsn.key_stage == ks) for ks in ("KS1", "KS2", "KS3", "KS4")
     }
@@ -223,6 +223,8 @@ def test_bundled_library_ids_in_filename_order() -> None:
         "13_nested_loops",
         "14_counting",
         "15_parameters",
+        "16_variables",
+        "17_lists",
     ]
     assert [lsn.id for lsn in load_library()] == expected
 

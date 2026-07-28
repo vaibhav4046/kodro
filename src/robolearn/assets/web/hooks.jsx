@@ -394,6 +394,23 @@
           return;
         }
       }
+      // Explanation questions are part of the learning flow, not generation.
+      // Answer from deterministic interpreter traces before asking a model, so
+      // a "why does this line run?" question can never become an unrelated
+      // Apply-to-editor proposal.
+      if (!actionMsg && window.KodroAI && window.KodroAI.explainCurrentProgram) {
+        const currentCode = opts.getCode ? opts.getCode() : '';
+        const explanation = window.KodroAI.explainCurrentProgram(text, currentCode);
+        if (explanation && explanation.ok) {
+          setVibeMsgs(m => [...m, {
+            role: 'ai', kind: 'evidence', text: explanation.text,
+            model: explanation.model,
+            summary: 'Verified against the current editor program.',
+          }]);
+          setVibeBusy(false);
+          return;
+        }
+      }
       // OPP-7: bounded model tool call, tried ONLY when the deterministic
       // intent parse found no action. One whitelisted tool (set_world); the
       // model proposes, the live registry validates. A valid id switches the

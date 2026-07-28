@@ -363,26 +363,137 @@
     return out;
   }
 
-  // Dry-run generated code through the real JS interpreter so the browser path
-  // does not ship code that fails (the desktop bridge already validates; this
-  // gives browser mode the same guarantee). Returns {ok} or {ok:false,error}.
-  function validate(code) {
-    const fitted = validateForBuild(code);
-    if (!fitted.ok) return fitted;
+  // Run a program through the real interpreter with deterministic sensor
+  // readings and retain its observable actions. This is a semantic gate for AI
+  // suggestions and an explanation aid, not a second physics engine.
+  function programTrace(code, distanceCm) {
     try {
-      if (typeof window === 'undefined' || !window.RoverLang) return { ok: true };
+      if (typeof window === 'undefined' || !window.RoverLang) {
+        return { ok: true, complete: true, actions: [] };
+      }
       const prog = window.RoverLang.compile(code);
       const host = {
-        move: function () {}, turn: function () {}, sensor: function () { return 0; },
+        move: function () {}, turn: function () {},
+        sensor: function (name) {
+          if (name === 'distance_m') return distanceCm / 100;
+          if (name === 'distance') return distanceCm;
+          if (name === 'battery') return 100;
+          if (name === 'speed') return 50;
+          return 0;
+        },
         say: function () {}, led: function () {}, beep: function () {}, setSpeed: function () {},
         scan: function () {}, wait: function () {}, penDown: function () {}, penUp: function () {},
         log: function () {}, place: function () {}, collect: function () {}, drop: function () {}, clearProps: function () {},
       };
       const gen = prog.run(host);
+      const actions = [];
       let n = 0;
-      for (const _ev of gen) { if (++n > 4000) break; }
-      return { ok: true };
-    } catch (e) { return { ok: false, error: (e && e.message) || String(e) }; }
+      for (const ev of gen) {
+        n += 1;
+        if (n > 4000) {
+          return { ok: false, complete: false, actions: actions, error: 'The program did not finish within 4,000 interpreter steps.' };
+        }
+        if (!ev || ev.type === 'step') continue;
+        const action = { type: ev.type, line: ev.line || null };
+        ['dir', 'distance', 'deg', 'value', 'seconds', 'down', 'color', 'text'].forEach(function (key) {
+          if (ev[key] !== undefined) action[key] = ev[key];
+        });
+        actions.push(action);
+        if (actions.length > 500) {
+          return { ok: false, complete: false, actions: actions, error: 'The program produced too many actions to review safely.' };
+        }
+      }
+      return { ok: true, complete: true, actions: actions };
+    } catch (e) {
+      return { ok: false, complete: false, actions: [], error: (e && e.message) || String(e) };
+    }
+  }
+
+  function actionSignature(actions) {
+    return JSON.stringify((actions || []).map(function (a) {
+      const clean = {};
+      Object.keys(a).forEach(function (key) { if (key !== 'line') clean[key] = a[key]; });
+      return clean;
+    }));
+  }
+
+  // "Keep the same behaviour" is a product guarantee, not prompt
+  // decoration. Compare blocked and clear sensor cases before offering Apply.
+  function reviewSemantics(original, proposed) {
+    for (const distanceCm of [0, 1000]) {
+      const before = programTrace(original, distanceCm);
+      const after = programTrace(proposed, distanceCm);
+      if (!after.ok) return { ok: false, error: after.error };
+      if (before.ok && actionSignature(before.actions) !== actionSignature(after.actions)) {
+        return {
+          ok: false,
+          error: 'The proposed rewrite changes what the robot does, so Kodro kept your original program.',
+        };
+      }
+    }
+    return { ok: true };
+  }
+
+  function actionWords(action) {
+    if (!action) return 'does an instruction';
+    if (action.type === 'move') return (action.dir < 0 ? 'moves backward ' : 'moves forward ') + ((action.distance || 0) / 100) + ' m';
+    if (action.type === 'turn') return 'turns ' + (action.deg < 0 ? 'left ' : 'right ') + Math.abs(action.deg || 0) + ' degrees';
+    if (action.type === 'speed') return 'sets speed to ' + action.value + '%';
+    if (action.type === 'wait') return 'waits ' + action.seconds + ' s';
+    if (action.type === 'print') return 'prints ' + JSON.stringify(action.text || '');
+    if (action.type === 'say') return 'says ' + JSON.stringify(action.text || '');
+    if (action.type === 'halt') return 'stops';
+    return String(action.type || 'instruction').replace(/_/g, ' ');
+  }
+
+  // Exact, model-free explanation for the current editor program. Two traces
+  // make the important obstacle/no-obstacle branch explicit.
+  function verifiedProgramExplanation(code) {
+    const blocked = programTrace(code, 0);
+    const clear = programTrace(code, 1000);
+    if (!blocked.ok || !clear.ok) return null;
+    const describe = function (run) {
+      if (!run.actions.length) return 'no observable robot action';
+      return run.actions.map(function (a) {
+        return (a.line ? 'line ' + a.line + ' ' : '') + actionWords(a);
+      }).join(', then ');
+    };
+    const lines = String(code || '').split(/\r?\n/);
+    const indentationFacts = [];
+    lines.forEach(function (line, i) {
+      if (!/^\s*(move_forward|move_backward|turn_left|turn_right|stop)\s*\(/.test(line)) return;
+      if (!/^\s+/.test(line) && lines.slice(0, i).some(function (prior) { return /^\s*if\b.*:\s*$/.test(prior); })) {
+        indentationFacts.push('Line ' + (i + 1) + ' is not indented, so it runs after the if block whichever answer the sensor gives.');
+      }
+    });
+    return 'Verified from the current program:\n'
+      + '• If an obstacle is ahead: ' + describe(blocked) + '.\n'
+      + '• If the path is clear: ' + describe(clear) + '.'
+      + (indentationFacts.length ? '\n• ' + indentationFacts.join(' ') : '')
+      + '\nThis trace comes from Kodro’s interpreter, not from the language model guessing.';
+  }
+
+  function explainCurrentProgram(query, code) {
+    const q = String(query || '');
+    const codeQuestion = /\b(current|this|my)\s+(program|code)\b|what\s+does\s+(?:this|my)\s+(?:program|code)\s+do|explain\s+(?:exactly\s+)?(?:what|why|how)|line[- ]by[- ]line|obstacle_ahead|why.*\b(if|move|turn|stop)\b/i.test(q);
+    if (!codeQuestion || !String(code || '').trim()) return null;
+    const verified = verifiedProgramExplanation(code);
+    if (!verified) return null;
+    return {
+      ok: true, text: verified, answer: verified, model: 'Kodro interpreter',
+      grounded: true,
+      sources: [{ source: 'Verified current program', text: String(code).slice(0, 1200) }],
+      answerChecked: true, deterministic: true, source: 'interpreter',
+    };
+  }
+
+  // Dry-run generated code through the real JS interpreter. A program that
+  // exceeds the bounded trace is rejected rather than silently accepted.
+  function validate(code) {
+    const fitted = validateForBuild(code);
+    if (!fitted.ok) return fitted;
+    const traced = programTrace(code, 1000);
+    return traced.ok ? { ok: true } : { ok: false, error: traced.error };
   }
 
   // --- streamed chat (start a job, poll for live text + final result) -------
@@ -592,7 +703,8 @@
       const code = normalizeApi(extractCode(out));
       const notes = stripFences(out.replace(/```[\s\S]*?```/g, '')).trim();
       const check = code ? validate(code) : { ok: true };
-      const revised = !!code && code !== src.trim() && check.ok;
+      const semantic = (code && check.ok) ? reviewSemantics(src, code) : { ok: check.ok, error: check.error };
+      const revised = !!code && code !== src.trim() && check.ok && semantic.ok;
       // The review panel renders `issues`; the desktop bridge fills it from
       // Python but this facade never did, so a browser review ALWAYS said
       // "No problems spotted" while presenting a rewrite (bugs D3). Surface
@@ -601,13 +713,17 @@
       const issues = notes ? notes.split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean) : [];
       if (!issues.length && revised) issues.push('The reviewer suggests a tidied rewrite - read the diff below before applying.');
       if (!check.ok) issues.unshift('Kodro rejected the proposed rewrite: ' + check.error);
-      return { ok: true, revised: revised, code: revised ? code : src.trim(), notes: notes || 'Reviewed.', issues: issues, model: model, source: cloud ? window.KodroProviders.config().provider : 'local', validated: check.ok };
+      else if (!semantic.ok) issues.unshift(semantic.error);
+      return { ok: true, revised: revised, code: revised ? code : src.trim(), notes: notes || 'Reviewed.', issues: issues, model: model, source: cloud ? window.KodroProviders.config().provider : 'local', validated: check.ok && semantic.ok };
     } catch (e) { return { ok: false, reason: 'Review failed: ' + ((e && e.message) || e) }; }
   }
 
-  async function ask(query) {
+  async function ask(query, context) {
+    context = context || {};
+    const directExplanation = explainCurrentProgram(query, context.code);
+    if (directExplanation) return directExplanation;
     const b = bridge();
-    if (b && b.aiAsk) return b.aiAsk(query, currentCommandNames());
+    if (b && b.aiAsk) return b.aiAsk(query, currentCommandNames(), context.lessonId || null);
     const cloud = (typeof window !== 'undefined' && window.KodroProviders && window.KodroProviders.cloudReady());
     let model;
     if (cloud) { model = window.KodroProviders.config().cloudModel; }
@@ -618,7 +734,7 @@
       if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).' };
     }
     const sources = (typeof window !== 'undefined' && window.RoboLearn && window.RoboLearn.searchLessonNotes)
-      ? await window.RoboLearn.searchLessonNotes(query, 3) : [];
+      ? await window.RoboLearn.searchLessonNotes(query, 3, context.lessonId || null) : [];
     if (!sources.length) {
       return { ok: false, reason: 'I could not find this in Kodro\'s built-in lesson notes, so I will not guess.' };
     }
@@ -643,6 +759,7 @@
 
   if (typeof window !== 'undefined') {
     window.KodroAI = { status: status, setModel: setModel, chatStart: chatStart, chatPoll: chatPoll, reviewCode: reviewCode, ask: ask, available: available, pick: pick,
+      explainCurrentProgram: explainCurrentProgram,
       structuredProgram: structuredProgram, buildCommandSchema: buildCommandSchema, compileProgram: compileProgram,
       toolCall: toolCall, resolveToolCall: resolveToolCall };
   }

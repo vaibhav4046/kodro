@@ -1,0 +1,54 @@
+id: 16_variables
+title: One name, used twice
+key_stage: KS2
+reading_age: 9
+ct_concepts: [sequence, abstraction]
+curriculum_refs:
+  - "DfE 'Computing programmes of study: Key Stages 1 and 2' (DfE-00171-2013), KS2: work with variables and various forms of input and output."
+  - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 subject content: use ... variables ... appropriately."
+prereqs: [03_sequence]
+terrain: earth
+glossary:
+  variable: "A name that remembers a value. Use the name and you get the value."
+intro: |
+  Two flags, and both are the same distance away: 2 metres east, then
+  2 metres north.
+  The program stores that distance in a variable called step, and uses the
+  name twice. Right now step is 1, which is too short for BOTH moves.
+  Change the number ONCE, and watch both moves change with it.
+  That is what a variable is for.
+starter_code: |
+  step = 1
+  move_forward(step)
+  collect_sample()
+  turn_left(90)
+  move_forward(step)
+  collect_sample()
+allowed_constructs: [function_call, assignment]
+max_lines: 10
+world:
+  base: [1.0, 1.0]
+  samples:
+    - [3.0, 1.0]
+    - [3.0, 3.0]
+  obstacles: []
+  width: 6.0
+  height: 6.0
+solution_code: |
+  step = 2
+  move_forward(step)
+  collect_sample()
+  turn_left(90)
+  move_forward(step)
+  collect_sample()
+success_criteria:
+  - samples_collected: 2
+  - no_collisions: true
+  # The lesson is about the variable, so the variable is marked. A dead store
+  # does not count (grader liveness): the name has to be read somewhere, which
+  # is exactly what "work with variables" means.
+  - uses_construct: assignment
+hints:
+  on_failure:
+    - "Both flags are 2 metres away. Change step = 1 to step = 2, in one place only."
+    - "Notice you did NOT have to change the move_forward lines. The name step carries the new value to both of them."
