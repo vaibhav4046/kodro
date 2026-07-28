@@ -1019,6 +1019,33 @@ function checkNarration(chrome) {
   };
 }
 
+// PREDICT THEN RUN, AND THE RECORDED TRACE — the PRIMM loop. A pupil records
+// a numeric prediction, the run marks it against the odometer with no
+// judgement, and the engine records a per-instruction trace (the raw material
+// for the step-through, which is how the tracing literature says novices learn
+// to read programs). The driver predicts 2 m on lesson 00, whose starter
+// travels exactly 1 m, so both the comparison and its direction are checkable.
+function checkPredictTrace(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&experience=expert&lesson=00_first_drive&predict=2`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_predict_trace', url, { vtime: 20000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 140)}` };
+  const cmp = /You predicted 2 m\. It travelled 1\.0 m/.test(dom);
+  const direction = /Less than you thought/.test(dom);
+  const probe = /<div id="trace-probe"[^>]*data-len="(\d+)"[^>]*data-first="([^"]*)"[^>]*data-odo="([^"]*)"/.exec(dom);
+  const len = probe ? Number(probe[1]) : 0;
+  const first = probe ? probe[2] : '';
+  const odo = probe ? Number(probe[3]) : -1;
+  if (cmp && direction && len >= 1 && /move_forward\(1\)/.test(first) && odo === 1) {
+    return { pass: true, reason: 'prediction is marked against the odometer with its direction, and the run recorded a per-instruction trace ending at 1 m' };
+  }
+  return {
+    pass: false,
+    reason: `predict/trace incomplete (compared: ${cmp}, direction: ${direction}, traceLen: ${len}, first: "${first}", odo: ${odo})`,
+  };
+}
+
 // AUTHORED LESSON (Lesson Studio) — a lesson made on this device must be a
 // first-class lesson, not a second-class copy. This drives the whole path: a
 // saved document is hydrated at start-up, registered with the grader, merged
@@ -1544,6 +1571,11 @@ function cleanup() {
   const replay = checkReplay(chrome);
   behaviour.push(replay.pass);
   console.log(`${replay.pass ? 'PASS' : 'FAIL'}  ${'run-replay'.padEnd(20)} ${replay.reason}`);
+  gap();
+
+  const predictTrace = checkPredictTrace(chrome);
+  behaviour.push(predictTrace.pass);
+  console.log(`${predictTrace.pass ? 'PASS' : 'FAIL'}  ${'predict-trace'.padEnd(20)} ${predictTrace.reason}`);
   gap();
 
   const narration = checkNarration(chrome);

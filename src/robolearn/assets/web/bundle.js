@@ -16666,6 +16666,142 @@ Object.assign(window, {
 })();
 
 ;(function () {
+/* ============================================================================
+   KODRO - Parsons problems, generated from the verified worked answers.
+
+   A Parsons problem hands the pupil the correct lines of a program in the
+   wrong order and asks them to arrange them. The evidence for them is strong
+   and specific: they teach program CONSTRUCTION about as well as writing from
+   scratch in roughly half the time, because the pupil spends every minute on
+   ordering and structure rather than on typing and syntax.
+
+   Kodro gets them for free, and provably correct, because every lesson already
+   ships a worked answer that a gate runs through both marking engines at 100
+   out of 100 on every change (tests/unit/test_lesson_solutions.py). The lines
+   being reordered are never an approximation of the answer; they ARE the
+   answer, including for lessons a teacher authored in the Studio, whose answers
+   pass the same Check gate.
+
+   Indentation is given, not asked for. That is the deliberate "with indentation"
+   variant: this audience is learning ORDER (what must happen before what), and
+   making them fight leading spaces in a reorder UI would test motor control,
+   not understanding. The indentation stays attached to each line, so the shape
+   of a block is visible while its position is the puzzle.
+
+   Plain JS, no React, so scripts/qa_parsons.mjs can drive every branch in a
+   bare vm. Exposes window.KodroParsons.
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  // Deterministic PRNG (mulberry32). Runs must be reproducible: the same
+  // lesson and seed always deal the same shuffle, so a teacher can put the
+  // same puzzle in front of a whole class, and the QA gate can assert exact
+  // behaviour instead of retrying until luck cooperates.
+  function rng(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a |= 0;
+      a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  /**
+   * Build a Parsons problem from a program.
+   *
+   * Returns {lines, order, solvable} where `lines` is the dealt (shuffled)
+   * list and `order` maps each dealt position to its correct position, or
+   * null when the program has too few distinct lines to make a real puzzle:
+   * shuffling two lines is a coin toss, not a problem, and offering it would
+   * waste the pupil's click.
+   */
+  function deal(source, seed) {
+    var lines = String(source || '').replace(/\r\n?/g, '\n').split('\n').filter(function (ln) {
+      return ln.trim() !== '';
+    });
+    if (lines.length < 3) return null;
+    // A program whose lines are all identical (three move_forward(1) calls)
+    // cannot be mis-ordered; every arrangement is correct. Refuse rather than
+    // present a puzzle the Check button would have to always pass.
+    var distinct = {};
+    for (var i = 0; i < lines.length; i++) distinct[lines[i]] = true;
+    if (Object.keys(distinct).length < 3) return null;
+    var idx = lines.map(function (_, i) {
+      return i;
+    });
+    var rand = rng((seed === undefined ? 1 : seed) || 1);
+    // Fisher-Yates, then a guarantee: if the deal happens to be the solved
+    // order (likely on short programs), rotate by one. A Parsons problem that
+    // arrives already solved teaches only that Check can be clicked.
+    for (var j = idx.length - 1; j > 0; j--) {
+      var k = Math.floor(rand() * (j + 1));
+      var tmp = idx[j];
+      idx[j] = idx[k];
+      idx[k] = tmp;
+    }
+    var solved = idx.every(function (v, i) {
+      return v === i;
+    });
+    if (solved) idx.push(idx.shift());
+    return {
+      lines: idx.map(function (i) {
+        return lines[i];
+      }),
+      order: idx.slice(),
+      total: lines.length,
+      solvable: true
+    };
+  }
+
+  /**
+   * Check an arrangement. `arrangement` is the pupil's current list of lines.
+   *
+   * Returns {correct, firstWrong} where firstWrong is the 1-based position of
+   * the first line that is out of place, or null when correct. Only the FIRST
+   * wrong position is reported, deliberately: naming every wrong line is an
+   * answer key, naming the first is a nudge, and the difference is whether the
+   * pupil still has a problem to solve afterwards.
+   *
+   * Compared by TEXT, not by index, so two identical lines (a repeated
+   * move_forward) are interchangeable and the pupil is never marked wrong for
+   * an arrangement that produces the identical program.
+   */
+  function check(source, arrangement) {
+    var want = String(source || '').replace(/\r\n?/g, '\n').split('\n').filter(function (ln) {
+      return ln.trim() !== '';
+    });
+    var got = (arrangement || []).slice();
+    if (got.length !== want.length) {
+      // The reorder UI cannot change the number of lines, so this branch only
+      // fires on a malformed caller. Point at the first position that cannot
+      // match rather than pretending to a more precise diagnosis.
+      return {
+        correct: false,
+        firstWrong: Math.min(got.length, want.length) + 1
+      };
+    }
+    for (var i = 0; i < want.length; i++) {
+      if (got[i] !== want[i]) return {
+        correct: false,
+        firstWrong: i + 1
+      };
+    }
+    return {
+      correct: true,
+      firstWrong: null
+    };
+  }
+  window.KodroParsons = {
+    deal: deal,
+    check: check
+  };
+})();
+})();
+
+;(function () {
 /*
  * Browser lesson grader - the JS twin of robolearn/lessons/grader.py plus the
  * slice of the Python engine a graded run needs (WebBackend slice 2).
@@ -24077,7 +24213,8 @@ Object.assign(window, {
       runSwarm
     };
   }
-  function useAsk() {
+  function useAsk(opts) {
+    opts = opts || {};
     // Grounded Ask: answers from the lesson material, offline retrieval. Fully
     // self-contained (window.KodroAI.ask); no external inputs. Moved VERBATIM.
     const [askOpen, setAskOpen] = useState(false);
@@ -24090,7 +24227,10 @@ Object.assign(window, {
       setAskBusy(true);
       setAskData(null);
       try {
-        const r = await window.KodroAI.ask(q);
+        const r = await window.KodroAI.ask(q, {
+          lessonId: opts.currentLessonId || null,
+          code: opts.code || ''
+        });
         setAskData(r || {
           ok: false,
           reason: 'No response.'
@@ -24695,6 +24835,40 @@ Object.assign(window, {
     // sensor reads and lesson actions the grader counts in `events`. The
     // separate cmdCountRef stays the diagnostics figure it already was.
     const gradeStepsRef = useRef(0);
+    // What the program DID, step by step, with the rover's state after each
+    // step. This is the raw material for the trace stepper: the evidence says
+    // novices learn to read programs by tracing them (Lister's ~50% threshold,
+    // PRIMM's Investigate stage, AQA's trace-table requirement), and until now
+    // Kodro offered no way to see the run slower than it happened.
+    //
+    // Recorded during the watched run, from the same live state the grade
+    // reads, so the trace can never disagree with the mark. Exposed on window
+    // rather than through React state because the stepper only opens AFTER the
+    // run has ended; nothing needs to re-render per step while driving, and a
+    // per-event setState would cost frames mid-animation.
+    const runTraceRef = useRef([]);
+    const TRACE_CAP = 600;
+    function traceStep(desc, line) {
+      const t = runTraceRef.current;
+      if (t.length >= TRACE_CAP) return;
+      const s = live.current;
+      t.push({
+        n: t.length + 1,
+        desc: desc,
+        line: line || null,
+        x: Math.round(s.x),
+        y: Math.round(s.y),
+        heading: Math.round((s.heading % 360 + 360) % 360),
+        battery: Math.round(s.battery * 10) / 10,
+        odoM: Math.round(odoRef.current) / 100,
+        collisions: runCollisionsRef.current
+      });
+      try {
+        window.KODRO_RUN_TRACE = t;
+      } catch (e) {
+        void e;
+      }
+    }
     const sync = () => {
       setRover({
         ...live.current
@@ -24801,7 +24975,7 @@ Object.assign(window, {
       return best;
     }
     const host = {
-      sensor(name, args) {
+      sensor(name, args, line) {
         const s = live.current;
         // Single source of truth (RobotLab.KodroCommands): a sensor command is
         // only available if the part it needs is fitted. A missing part is a
@@ -24813,12 +24987,17 @@ Object.assign(window, {
           if (!g.ok) throw new Error(g.reason);
         }
         gradeStepsRef.current++; // the grader traces every sensor read
+        const read = value => {
+          const shown = typeof value === 'number' ? Math.round(value * 100) / 100 : String(value);
+          traceStep(name + '() -> ' + shown, line);
+          return value;
+        };
         switch (name) {
           case 'distance':
             {
               const d = Math.round(sensorRayDistance(s));
               setSensorDist(d);
-              return d;
+              return read(d);
             }
           // read_distance(): METRES, and measured the way the grader measures
           // it -- from the rover's centre, against the lesson's own obstacles
@@ -24831,35 +25010,35 @@ Object.assign(window, {
               if (!lw) {
                 const d = sensorRayDistance(s);
                 setSensorDist(Math.round(d));
-                return d / 100;
+                return read(d / 100);
               }
               const m = lessonLidarM(s, lw);
               setSensorDist(Math.round(Math.min(m, 50) * 100));
-              return m;
+              return read(m);
             }
           case 'heading':
-            return Math.round((s.heading % 360 + 360) % 360);
+            return read(Math.round((s.heading % 360 + 360) % 360));
           case 'battery':
-            return Math.round(s.battery);
+            return read(Math.round(s.battery));
           case 'speed':
-            return Math.round(s.speed);
+            return read(Math.round(s.speed));
           case 'x':
-            return Math.round(s.x);
+            return read(Math.round(s.x));
           case 'y':
-            return Math.round(-s.y);
+            return read(Math.round(-s.y));
           case 'tilt':
-            return 0;
+            return read(0);
           // worlds are flat planes: a synthesized non-zero tilt contradicted the
           // fidelity disclosure (IMU returns level readings) and diverged from the
           // self-test, lesson grader and Python engine, which all model 0 (judge round 9).
           case 'temperature':
-            return terrain.env.temp;
+            return read(terrain.env.temp);
           case 'gravity':
-            return terrain.env.gravity;
+            return read(terrain.env.gravity);
           case 'light':
-            return terrain.env.light;
+            return read(terrain.env.light);
           case 'ground':
-            return terrain.id;
+            return read(terrain.id);
           // Line follower: every world carries one synthesized practice line, a
           // straight 40 cm wide strip along the x axis through the start point
           // (the worlds' painted lanes are decorative with no queryable
@@ -24867,9 +25046,9 @@ Object.assign(window, {
           // 1 on the strip, 0 off it -- matching a real reflectance sensor's
           // binary read. Gated above by the fitted Line follower part.
           case 'on_line':
-            return Math.abs(s.y) <= 20 ? 1 : 0;
+            return read(Math.abs(s.y) <= 20 ? 1 : 0);
           default:
-            return 0;
+            return read(0);
         }
       },
       // Seeded per run in compileFresh (OPP-2): random() in a program reads
@@ -24893,7 +25072,7 @@ Object.assign(window, {
       // the same lesson data, so what the pupil sees, senses and collects is
       // what they are marked on. Returns null when no lesson is loaded, which
       // leaves free play exactly as it was.
-      lessonApi(name, args) {
+      lessonApi(name, args, line) {
         const lw = lessonWorldRef.current;
         if (!lw) return null;
         const s = live.current;
@@ -24929,21 +25108,35 @@ Object.assign(window, {
         gradeStepsRef.current++; // the grader traces every lesson verb
         switch (name) {
           case 'obstacle_ahead':
-            // Measured the grader's way (see lessonLidarM), so the branch the
-            // pupil watches is the branch they are marked on.
-            return lessonLidarM(s, lw) <= num(args[0], 0.5);
+            {
+              // Measured the grader's way (see lessonLidarM), so the branch the
+              // pupil watches is the branch they are marked on.
+              const ahead = lessonLidarM(s, lw) <= num(args[0], 0.5);
+              traceStep('obstacle_ahead() -> ' + ahead, line);
+              return ahead;
+            }
           case 'sample_detected':
-            return near(num(args[0], 0.3)) !== null;
+            {
+              const found = near(num(args[0], 0.3)) !== null;
+              traceStep('sample_detected() -> ' + found, line);
+              return found;
+            }
           case 'at_base':
-            return Math.hypot(rx - lw.base[0], ry - lw.base[1]) <= 0.3;
+            {
+              const home = Math.hypot(rx - lw.base[0], ry - lw.base[1]) <= 0.3;
+              traceStep('at_base() -> ' + home, line);
+              return home;
+            }
           case 'collect_sample':
             {
               const sm = near(0.3);
               if (!sm) {
+                traceStep('collect_sample() -> False', line);
                 say('There was nothing here to pick up.');
                 return false;
               }
               sm.collected = true;
+              traceStep('collect_sample() -> True', line);
               say('Picked up a sample. ' + lw.samples.filter(x => !x.collected).length + ' left.');
               // Drop the marker from the viewport so the pupil sees the patch
               // disappear the moment it is collected.
@@ -24951,6 +25144,7 @@ Object.assign(window, {
               return true;
             }
           case 'drop_sample':
+            traceStep('drop_sample() -> False', line);
             return false;
           default:
             return null;
@@ -25437,9 +25631,11 @@ Object.assign(window, {
         if (ev.line) setActiveLine(ev.line);
         switch (ev.type) {
           case 'step':
+            traceStep('Evaluate line ' + (ev.line || '?'), ev.line);
             await delay(stepMode ? 0 : 70 / speedMulRef.current);
             break;
           case 'print':
+            traceStep('log(' + JSON.stringify(String(ev.text).slice(0, 30)) + ')', ev.line);
             addConsole(ev.text, 'out');
             await delay(stepMode ? 0 : 90 / speedMulRef.current);
             break;
@@ -25467,18 +25663,28 @@ Object.assign(window, {
               }
               if (ev.type === 'move') {
                 sfx('move');
-                return await animateMove(ev);
+                const collisionsBefore = runCollisionsRef.current;
+                const ok = await animateMove(ev);
+                traceStep((ev.dir < 0 ? 'move_backward(' : 'move_forward(') + Math.abs(ev.distance) / 100 + ')', ev.line);
+                if (runCollisionsRef.current > collisionsBefore) traceStep('Collision stopped this movement', ev.line);
+                return ok;
               }
               sfx('turn');
-              return await animateTurn(ev);
+              const turnCollisionsBefore = runCollisionsRef.current;
+              const turnOk = await animateTurn(ev);
+              traceStep((ev.deg < 0 ? 'turn_left(' : 'turn_right(') + Math.abs(ev.deg) + ')', ev.line);
+              if (runCollisionsRef.current > turnCollisionsBefore) traceStep('Collision stopped this turn', ev.line);
+              return turnOk;
             }
           case 'speed':
             live.current.speed = Math.max(0, Math.min(100, ev.value));
             sync();
+            traceStep('set_speed(' + ev.value + ')', ev.line);
             break;
           case 'wait':
             live.current.vel = 0;
             await delay(ev.seconds * 1000 / speedMulRef.current);
+            traceStep('wait(' + ev.seconds + ')', ev.line);
             break;
           case 'pen':
             live.current.penDown = ev.down;
@@ -25489,21 +25695,25 @@ Object.assign(window, {
               }]);
               setTrail([...trailRef.current]);
             }
+            traceStep(ev.down ? 'pen_down()' : 'pen_up()', ev.line);
             break;
           case 'halt':
             live.current.moving = false;
             sync();
+            traceStep('stop()', ev.line);
             break;
           case 'led':
             sfx('led');
             live.current.led = ev.color in LED_COLORS ? LED_COLORS[ev.color] : terrain.accent;
             sync();
+            traceStep('led(' + JSON.stringify(ev.color) + ')', ev.line);
             break;
           case 'say':
             // Visual program output only: a speech bubble plus a console line.
             sfx('say');
             showSay(ev.text);
             await delay(stepMode ? 0 : 200 / speedMulRef.current);
+            traceStep('say(' + JSON.stringify(String(ev.text).slice(0, 30)) + ')', ev.line);
             break;
           case 'beep':
             {
@@ -25515,6 +25725,7 @@ Object.assign(window, {
                 sfx('beep');
                 await delay(stepMode ? 0 : 160 / speedMulRef.current);
               }
+              traceStep('beep(' + n + ')', ev.line);
               break;
             }
           case 'place':
@@ -25529,6 +25740,7 @@ Object.assign(window, {
                 id: p.length
               }]);
               await delay(stepMode ? 0 : 160 / speedMulRef.current);
+              traceStep('place(' + JSON.stringify(ev.kind) + ')', ev.line);
               break;
             }
           // "Remove every prop placed with place()" -- pupil-placed props only.
@@ -25537,6 +25749,7 @@ Object.assign(window, {
           // live in the grade.
           case 'clear_props':
             setProps(p => p.filter(x => x.lessonSampleId || x.lessonBase));
+            traceStep('clear_props()', ev.line);
             break;
           case 'scan':
             {
@@ -25561,6 +25774,7 @@ Object.assign(window, {
               await delay(1000 / speedMulRef.current);
               live.current.scanning = false;
               sync();
+              traceStep('scan()', ev.line);
               break;
             }
         }
@@ -25908,6 +26122,12 @@ Object.assign(window, {
       cmdCountRef.current = 0;
       gradeStepsRef.current = 0;
       gradeTurnDegRef.current = 0;
+      runTraceRef.current = [];
+      try {
+        window.KODRO_RUN_TRACE = runTraceRef.current;
+      } catch (e) {
+        void e;
+      }
       // Clear the measured-speed anchor so a later step-through (which reads
       // wallMs before a fresh run sets this) cannot inherit a prior run's start
       // time and report a wildly inflated elapsed-wall figure.
@@ -29513,6 +29733,80 @@ say("Survey done")`
     // the lesson is about. Jumping straight from "I am stuck" to the finished
     // program teaches copying.
     const [solutionStage, setSolutionStage] = useState(0);
+    // The trace stepper: walk the finished run one instruction at a time, with
+    // the rover's state after each. Reading a program at execution speed is not
+    // reading it at all for a novice; the tracing evidence (and AQA's own trace
+    // table requirement) is that stepping IS how program comprehension is
+    // learned. The trace itself is recorded by the engine during the watched
+    // run (hooks.jsx runTraceRef), from the same state the grade reads.
+    // Parsons puzzle: the lesson's verified answer with its lines dealt out of
+    // order. {lines, result} while open, null while closed. Dealt with a seed
+    // derived from the lesson id, so every pupil in a class gets the SAME
+    // puzzle and a teacher can talk about "line three" to the whole room.
+    const [parsons, setParsons] = useState(null);
+    function openParsons(lesson) {
+      const P = window.KodroParsons;
+      if (!P || !lesson.solutionCode) return;
+      let seed = 2166136261;
+      for (let i = 0; i < lesson.id.length; i++) {
+        seed ^= lesson.id.charCodeAt(i);
+        seed = Math.imul(seed, 16777619);
+      }
+      const dealt = P.deal(lesson.solutionCode, seed >>> 0);
+      if (!dealt) {
+        showToast('This answer is too short to make a puzzle from.', 'sys');
+        return;
+      }
+      setParsons({
+        lines: dealt.lines,
+        source: lesson.solutionCode,
+        result: null,
+        checks: 0
+      });
+    }
+    const [stepperOpen, setStepperOpen] = useState(false);
+    const [stepIdx, setStepIdx] = useState(0);
+    const [lastRunTrace, setLastRunTrace] = useState([]);
+    // Predict before you run. PRIMM's first stage, and the cheapest honest
+    // version of it: a single number (how far, in metres) that the run itself
+    // then confirms or corrects. Free text would need marking; a distance is
+    // checkable against the odometer with no judgement involved.
+    const [predictText, setPredictText] = useState('');
+    const [predictResult, setPredictResult] = useState(null);
+    const predictArmedRef = useRef(null);
+    const predictionRunStateRef = useRef(runState);
+    useEffect(() => {
+      const previous = predictionRunStateRef.current;
+      predictionRunStateRef.current = runState;
+      if (runState === 'running' && previous !== 'paused') {
+        // Capture at launch: editing the prediction mid-run must not change
+        // what was predicted.
+        predictArmedRef.current = predictText.trim() === '' ? null : parseFloat(predictText);
+        setStepperOpen(false);
+        setPredictResult(null);
+        setLastRunTrace([]);
+      } else if ((runState === 'done' || runState === 'error') && predictArmedRef.current !== null) {
+        const predicted = predictArmedRef.current;
+        predictArmedRef.current = null;
+        if (isFinite(predicted)) {
+          setPredictResult({
+            predicted: predicted,
+            actual: Math.round(odoRef.current) / 100
+          });
+        }
+      }
+      if (runState === 'done' || runState === 'error') {
+        const completed = Array.isArray(window.KODRO_RUN_TRACE) ? window.KODRO_RUN_TRACE : [];
+        // Immutable snapshot: Reset starts a new trace array, but the learner
+        // must still be able to inspect the exact finished run they watched.
+        setLastRunTrace(completed.map(step => ({
+          ...step
+        })));
+      }
+      // odoRef is a ref (stable identity); reading .current at transition time
+      // is the point, so it does not belong in the dep array.
+    }, [runState]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // The editor's current source: a lesson's own buffer when one is loaded,
     // otherwise the active example tab. (Declared AFTER the state above to
     // avoid a temporal-dead-zone ReferenceError.)
@@ -30187,6 +30481,10 @@ say("Survey done")`
     // to be open last time.
     const [simpleCodeOpen, setSimpleCodeOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => window.getKodroRobot ? window.getKodroRobot() : null);
+    // A chat request can name both a robot and an explicit world. RobotLab's
+    // save event normally recommends a world by archetype; this ref makes the
+    // explicit request win in the same synchronous transition.
+    const robotWorldOverrideRef = useRef(null);
     // Build-a-real-robot planner (budget build). Extracted VERBATIM to
     // window.KodroHooks.useBuild (hooks.jsx); its external inputs are
     // setRobotLabOpen (openBuildReal/adoptPlanParts toggle the Lab) and showToast
@@ -30241,14 +30539,9 @@ say("Survey done")`
           void err;
         }
         // Drop the new robot into the world the assistant recommends for it.
-        const w = full && full.world;
+        const w = robotWorldOverrideRef.current || full && full.world;
         if (w && window.TERRAINS && window.TERRAINS[w]) {
-          setTerrainId(w);
-          try {
-            localStorage.setItem('or_terrain', w);
-          } catch (err) {
-            void err;
-          }
+          if (onTerrainRef.current) onTerrainRef.current(w);
         }
         // Keep the active tab runnable for the freshly chosen build. A build
         // with NO drive actuator (a fixed-base arm) cannot run ANY drive
@@ -30351,7 +30644,10 @@ say("Survey done")`
       askData,
       setAskData,
       runAsk
-    } = window.KodroHooks && window.KodroHooks.useAsk ? window.KodroHooks.useAsk() : {
+    } = window.KodroHooks && window.KodroHooks.useAsk ? window.KodroHooks.useAsk({
+      currentLessonId,
+      code
+    }) : {
       askOpen: false,
       setAskOpen: function () {},
       askQuery: '',
@@ -30453,11 +30749,30 @@ say("Survey done")`
     }
 
     // Short human description of a freshly built robot for the chat's action line.
-    function describeSpec(spec) {
+    function describeSpec(spec, derived, requestText) {
       if (!spec) return 'a robot';
-      const n = (spec.sensors || []).length;
+      const labels = {
+        motors2: '2 DC motors',
+        motors4: '4 DC motors',
+        servos: 'steering servos',
+        gripper: 'gripper',
+        ultrasonic: 'ultrasonic range',
+        imu: 'IMU',
+        camera: 'camera',
+        gps: 'GPS',
+        line: 'line follower',
+        bumper: 'bumper'
+      };
+      const fitted = (spec.actuators || []).concat(spec.sensors || []).map(id => labels[id] || id);
       let s = 'a ' + (spec.type || 'robot');
-      if (n) s += ' with ' + n + ' sensor' + (n === 1 ? '' : 's');
+      if (fitted.length) s += ' fitted with ' + fitted.join(', ');
+      if (derived && derived.runtimeMin != null) {
+        s += '; catalogue runtime estimate about ' + derived.runtimeMin + ' minutes';
+        const asked = /(\d+(?:\.\d+)?)\s*(?:-| )?(?:minute|min)\b/i.exec(String(requestText || ''));
+        if (asked && derived.runtimeMin < Number(asked[1])) {
+          s += ', below the requested ' + Number(asked[1]) + ' minutes, so that constraint is not claimed';
+        }
+      }
       return s;
     }
     function companionDraftCheck(source) {
@@ -30517,8 +30832,10 @@ say("Survey done")`
       if (!intent || !intent.isCommand) return null;
       const parts = [];
       if (intent.build && window.RobotLab && window.RobotLab.buildFromText) {
+        robotWorldOverrideRef.current = intent.world ? intent.world.id : null;
         const r = window.RobotLab.buildFromText(text); // builds + commits (fires kodro-robot)
-        if (r && r.understood) parts.push('Built ' + describeSpec(r.spec) + '.');else parts.push('Built a general rover — I could not tell a specific robot from that, so say "rover", "car" or "arm" to be exact.');
+        robotWorldOverrideRef.current = null;
+        if (r && r.understood) parts.push('Built ' + describeSpec(r.spec, r.derived, text) + '.');else parts.push('Built a general rover — I could not tell a specific robot from that, so say "rover", "car" or "arm" to be exact.');
       }
       if (intent.world && typeof onTerrain === 'function') {
         onTerrain(intent.world.id); // explicit world wins over buildFromText's type-coarse auto-switch
@@ -30740,6 +31057,11 @@ say("Survey done")`
       }
       setActiveStage('prove');
       setLessonHubOpen(false);
+      setStepperOpen(false);
+      setLastRunTrace([]);
+      setPredictText('');
+      setPredictResult(null);
+      predictArmedRef.current = null;
       setCurrentLessonId(lesson.id);
       // Restore this lesson's own last verdict rather than clearing it. A pupil
       // who looked at another lesson and came back lost the explanation of what
@@ -31124,7 +31446,7 @@ say("Survey done")`
       onRun,
       onStep,
       onReset,
-      onTerrain,
+      onTerrain: engineOnTerrain,
       runReplLine,
       onCodeChange,
       exportReportClick,
@@ -31188,6 +31510,29 @@ say("Survey done")`
       exportReportClick: function () {},
       queueReplaySeed: function () {}
     };
+
+    // A selected world owns the viewport and its grading context. Preserve the
+    // lesson's editor buffer/result, but explicitly leave the lesson before a
+    // different free-play world is activated so the label, walls and mark can
+    // never describe different places.
+    function onTerrain(id) {
+      const leavingLesson = !!currentLessonIdRef.current;
+      if (leavingLesson) {
+        try {
+          if (onResetRef.current) onResetRef.current();
+        } catch (e) {
+          void e;
+        }
+        currentLessonIdRef.current = null;
+        setCurrentLessonId(null);
+        setLessonVerdict(null);
+        clearLessonWorld();
+        setStepperOpen(false);
+        setLastRunTrace([]);
+        showToast('Lesson closed. Your code and result are saved.', 'sys');
+      }
+      if (engineOnTerrain) engineOnTerrain(id);
+    }
 
     // OPP-2 Replay: re-drive a recorded run exactly. Restores the report's
     // world and program, arms the sim with the recorded seed, then runs. The
@@ -31281,7 +31626,7 @@ say("Survey done")`
     const evidenceDrawerActive = simpleExperience && evidenceOpen && narrowViewport;
     const evidenceDrawerRef = useRef(false);
     evidenceDrawerRef.current = evidenceDrawerActive;
-    anyOverlayOpenRef.current = !!(studioDoc || homeOpen || !onboarded || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
+    anyOverlayOpenRef.current = !!(parsons || stepperOpen || studioDoc || homeOpen || !onboarded || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
     const fpvRef = useRef(fpv);
     fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
@@ -31303,6 +31648,8 @@ say("Survey done")`
         setDemoOpen(false);
         setLessonHubOpen(false);
         setStudioDoc(null);
+        setParsons(null);
+        setStepperOpen(false);
         setSettingsOpen(false);
         setMoreToolsOpen(false);
         setRunToolsOpen(false);
@@ -31422,7 +31769,7 @@ say("Survey done")`
     // assistive tech that focus is confined to the dialog, so honour it: when one
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
-    const anyModalOpen = !!studioDoc || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
+    const anyModalOpen = !!parsons || !!studioDoc || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
     // Is a surface covering the live viewport?
     //
     // Two things hang off this, and they point the same way. The 3D loop stops
@@ -31504,6 +31851,19 @@ say("Survey done")`
     // them say so up front instead of inviting an action that cannot finish here.
     const browserMode = !!(window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable());
     function goStage(stage) {
+      if (stage !== 'prove' && currentLessonIdRef.current) {
+        try {
+          if (onResetRef.current) onResetRef.current();
+        } catch (e) {
+          void e;
+        }
+        currentLessonIdRef.current = null;
+        setCurrentLessonId(null);
+        setLessonVerdict(null);
+        clearLessonWorld();
+        setStepperOpen(false);
+        setLastRunTrace([]);
+      }
       setActiveStage(stage);
       setSettingsOpen(false);
       setMoreToolsOpen(false);
@@ -31825,7 +32185,16 @@ say("Survey done")`
         describeScene();
       },
       "aria-label": "Describe the scene out loud"
-    }, I.report, "Describe"), /*#__PURE__*/React.createElement("button", {
+    }, I.report, "Describe"), (runState === 'done' || runState === 'error') && lastRunTrace.length > 0 && /*#__PURE__*/React.createElement("button", {
+      className: "ctrl",
+      onClick: () => {
+        setRunToolsOpen(false);
+        setStepIdx(0);
+        setStepperOpen(true);
+        if (lastRunTrace[0] && lastRunTrace[0].line) setActiveLine(lastRunTrace[0].line);
+      },
+      "aria-label": "Step through the last run, one instruction at a time"
+    }, I.step, "Step through"), /*#__PURE__*/React.createElement("button", {
       className: "ctrl",
       title: "Validate this program across 5 randomised seeds",
       onClick: () => {
@@ -32583,7 +32952,24 @@ say("Survey done")`
         title: "Run again to mark the program you have now"
       }, "Not run for this version")), lesson.intro ? /*#__PURE__*/React.createElement("p", {
         className: "lesson-intro"
-      }, lesson.intro.trim()) : null, goals.length > 0 && /*#__PURE__*/React.createElement("ul", {
+      }, lesson.intro.trim()) : null, /*#__PURE__*/React.createElement("label", {
+        className: "lesson-predict"
+      }, "Before you run: how far will the rover travel?", /*#__PURE__*/React.createElement("span", {
+        className: "lesson-predict-row"
+      }, /*#__PURE__*/React.createElement("input", {
+        type: "number",
+        step: "0.5",
+        min: "0",
+        inputMode: "decimal",
+        value: predictText,
+        onChange: e => setPredictText(e.target.value),
+        "aria-label": "Predicted distance in metres"
+      }), /*#__PURE__*/React.createElement("span", {
+        className: "ls-unit"
+      }, "metres"))), predictResult && /*#__PURE__*/React.createElement("p", {
+        className: "lesson-predict-out",
+        role: "status"
+      }, 'You predicted ' + predictResult.predicted + ' m. It travelled ' + predictResult.actual.toFixed(1) + ' m' + (Math.abs(predictResult.predicted - predictResult.actual) <= 0.3 ? '. Spot on.' : predictResult.predicted > predictResult.actual ? '. Less than you thought: what stopped it early?' : '. Further than you thought: which line added the extra?')), goals.length > 0 && /*#__PURE__*/React.createElement("ul", {
         className: "lesson-goals",
         "aria-label": "Lesson goals"
       }, goals.map((c, i) => {
@@ -32641,7 +33027,10 @@ say("Survey done")`
         }, "Hide it again")));
       })(), (moreHintsLeft || lessonFailed || nextLesson) && /*#__PURE__*/React.createElement("div", {
         className: "lesson-actions"
-      }, moreHintsLeft && /*#__PURE__*/React.createElement("button", {
+      }, lesson.solutionCode && window.KodroParsons && window.KodroParsons.deal(lesson.solutionCode, 1) && /*#__PURE__*/React.createElement("button", {
+        className: "btn-mini lesson-parsons-open",
+        onClick: () => openParsons(lesson)
+      }, "Rebuild the answer"), moreHintsLeft && /*#__PURE__*/React.createElement("button", {
         className: "btn-mini lesson-hint-more",
         onClick: () => setExtraHints(x => x + 1)
       }, hintsShownByVerdict + extraHints === 0 ? 'Need a hint?' : 'Need another hint?'), lessonFailed && liveVerdict.reasons.length > 0 && /*#__PURE__*/React.createElement("button", {
@@ -33499,7 +33888,113 @@ say("Survey done")`
         goStage('prove');
         setSimpleCodeOpen(true);
       }
-    }), studioDoc && window.KodroLessonStudio && /*#__PURE__*/React.createElement(window.KodroLessonStudio, {
+    }), parsons && /*#__PURE__*/React.createElement("div", {
+      className: "modal-backdrop",
+      onClick: () => setParsons(null)
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal parsons-modal",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "Rebuild the answer",
+      onClick: e => e.stopPropagation()
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "modal-head"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "Puzzle"), /*#__PURE__*/React.createElement("h2", null, "Put the lines in order")), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => setParsons(null)
+    }, "Close")), /*#__PURE__*/React.createElement("p", {
+      className: "parsons-lede"
+    }, "These are the right lines. Arrange them so the program works, then check."), /*#__PURE__*/React.createElement("ol", {
+      className: "parsons-lines"
+    }, parsons.lines.map((ln, i) => /*#__PURE__*/React.createElement("li", {
+      key: 'pl' + i,
+      className: parsons.result && !parsons.result.correct && parsons.result.firstWrong === i + 1 ? 'parsons-wrong' : ''
+    }, /*#__PURE__*/React.createElement("code", null, ln), /*#__PURE__*/React.createElement("span", {
+      className: "parsons-move"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: i === 0,
+      "aria-label": 'Move line ' + (i + 1) + ' up',
+      onClick: () => setParsons(pz => {
+        const next = pz.lines.slice();
+        const t = next[i - 1];
+        next[i - 1] = next[i];
+        next[i] = t;
+        return {
+          ...pz,
+          lines: next,
+          result: null
+        };
+      })
+    }, "\u2191"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      disabled: i === parsons.lines.length - 1,
+      "aria-label": 'Move line ' + (i + 1) + ' down',
+      onClick: () => setParsons(pz => {
+        const next = pz.lines.slice();
+        const t = next[i + 1];
+        next[i + 1] = next[i];
+        next[i] = t;
+        return {
+          ...pz,
+          lines: next,
+          result: null
+        };
+      })
+    }, "\u2193"))))), /*#__PURE__*/React.createElement("div", {
+      className: "parsons-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      onClick: () => setParsons(pz => ({
+        ...pz,
+        checks: pz.checks + 1,
+        result: window.KodroParsons.check(pz.source, pz.lines)
+      }))
+    }, "Check the order"), parsons.result && /*#__PURE__*/React.createElement("p", {
+      className: 'parsons-verdict ' + (parsons.result.correct ? 'ok' : 'bad'),
+      role: "status"
+    }, parsons.result.correct ? 'That is the right order. Now try typing it from memory in the editor.' : 'Not yet. Line ' + parsons.result.firstWrong + ' is the first one out of place.')))), stepperOpen && (() => {
+      const trace = lastRunTrace;
+      const i = Math.max(0, Math.min(stepIdx, trace.length - 1));
+      const t = trace[i];
+      if (!t) return null;
+      const go = j => {
+        const k = Math.max(0, Math.min(j, trace.length - 1));
+        setStepIdx(k);
+        if (trace[k] && trace[k].line) setActiveLine(trace[k].line);
+      };
+      return /*#__PURE__*/React.createElement("div", {
+        className: "run-stepper",
+        role: "region",
+        "aria-label": "Step through the run"
+      }, /*#__PURE__*/React.createElement("div", {
+        className: "run-stepper-head"
+      }, /*#__PURE__*/React.createElement("strong", null, "Step ", t.n, " of ", trace.length), /*#__PURE__*/React.createElement("button", {
+        className: "btn-mini",
+        onClick: () => setStepperOpen(false),
+        "aria-label": "Close the stepper"
+      }, "Close")), /*#__PURE__*/React.createElement("p", {
+        className: "run-stepper-desc"
+      }, t.desc), /*#__PURE__*/React.createElement("dl", {
+        className: "run-stepper-state"
+      }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, "Position"), /*#__PURE__*/React.createElement("dd", null, (() => {
+        const lw = lessonWorldRef.current;
+        if (lw) return (lw.base[0] + -t.y / 100).toFixed(1) + ', ' + (lw.base[1] + -t.x / 100).toFixed(1) + ' m';
+        return (t.x / 100).toFixed(1) + ', ' + (-t.y / 100).toFixed(1) + ' m';
+      })())), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, "Heading"), /*#__PURE__*/React.createElement("dd", null, t.heading, "\xB0")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, "Travelled"), /*#__PURE__*/React.createElement("dd", null, t.odoM.toFixed(1), " m")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, "Battery"), /*#__PURE__*/React.createElement("dd", null, t.battery, "%")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("dt", null, "Collisions"), /*#__PURE__*/React.createElement("dd", null, t.collisions))), /*#__PURE__*/React.createElement("div", {
+        className: "run-stepper-nav"
+      }, /*#__PURE__*/React.createElement("button", {
+        className: "btn-mini",
+        disabled: i === 0,
+        onClick: () => go(i - 1)
+      }, "\u2190 Back"), /*#__PURE__*/React.createElement("button", {
+        className: "btn-mini",
+        disabled: i >= trace.length - 1,
+        onClick: () => go(i + 1)
+      }, "Next \u2192")));
+    })(), studioDoc && window.KodroLessonStudio && /*#__PURE__*/React.createElement(window.KodroLessonStudio, {
       doc: studioDoc,
       onClose: () => setStudioDoc(null),
       onSaved: doc => {

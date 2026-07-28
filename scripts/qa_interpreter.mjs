@@ -771,7 +771,7 @@ async function mockFetch(url) {
   const u = String(url);
   if (u.includes('/api/tags')) return { ok: true, json: async () => ({ models: [{ name: 'test-coder' }] }) };
   if (u.includes('/api/generate')) {
-    return { ok: true, json: async () => ({ response: '```python\nfor i in range(4):\n    move_forward(2)\n    turn_right(90)\n```\nTightened the repeated moves into one loop.' }) };
+    return { ok: true, json: async () => ({ response: '```python\nfor i in range(2):\n    move_forward(2)\n    turn_right(90)\n```\nTightened the repeated moves into one loop.' }) };
   }
   throw new Error('unexpected fetch ' + u);
 }

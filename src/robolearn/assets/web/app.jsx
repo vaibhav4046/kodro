@@ -519,6 +519,64 @@
     // the lesson is about. Jumping straight from "I am stuck" to the finished
     // program teaches copying.
     const [solutionStage, setSolutionStage] = useState(0);
+    // The trace stepper: walk the finished run one instruction at a time, with
+    // the rover's state after each. Reading a program at execution speed is not
+    // reading it at all for a novice; the tracing evidence (and AQA's own trace
+    // table requirement) is that stepping IS how program comprehension is
+    // learned. The trace itself is recorded by the engine during the watched
+    // run (hooks.jsx runTraceRef), from the same state the grade reads.
+    // Parsons puzzle: the lesson's verified answer with its lines dealt out of
+    // order. {lines, result} while open, null while closed. Dealt with a seed
+    // derived from the lesson id, so every pupil in a class gets the SAME
+    // puzzle and a teacher can talk about "line three" to the whole room.
+    const [parsons, setParsons] = useState(null);
+    function openParsons(lesson) {
+      const P = window.KodroParsons;
+      if (!P || !lesson.solutionCode) return;
+      let seed = 2166136261;
+      for (let i = 0; i < lesson.id.length; i++) { seed ^= lesson.id.charCodeAt(i); seed = Math.imul(seed, 16777619); }
+      const dealt = P.deal(lesson.solutionCode, seed >>> 0);
+      if (!dealt) { showToast('This answer is too short to make a puzzle from.', 'sys'); return; }
+      setParsons({ lines: dealt.lines, source: lesson.solutionCode, result: null, checks: 0 });
+    }
+    const [stepperOpen, setStepperOpen] = useState(false);
+    const [stepIdx, setStepIdx] = useState(0);
+    const [lastRunTrace, setLastRunTrace] = useState([]);
+    // Predict before you run. PRIMM's first stage, and the cheapest honest
+    // version of it: a single number (how far, in metres) that the run itself
+    // then confirms or corrects. Free text would need marking; a distance is
+    // checkable against the odometer with no judgement involved.
+    const [predictText, setPredictText] = useState('');
+    const [predictResult, setPredictResult] = useState(null);
+    const predictArmedRef = useRef(null);
+    const predictionRunStateRef = useRef(runState);
+    useEffect(() => {
+      const previous = predictionRunStateRef.current;
+      predictionRunStateRef.current = runState;
+      if (runState === 'running' && previous !== 'paused') {
+        // Capture at launch: editing the prediction mid-run must not change
+        // what was predicted.
+        predictArmedRef.current = predictText.trim() === '' ? null : parseFloat(predictText);
+        setStepperOpen(false);
+        setPredictResult(null);
+        setLastRunTrace([]);
+      } else if ((runState === 'done' || runState === 'error') && predictArmedRef.current !== null) {
+        const predicted = predictArmedRef.current;
+        predictArmedRef.current = null;
+        if (isFinite(predicted)) {
+          setPredictResult({ predicted: predicted, actual: Math.round(odoRef.current) / 100 });
+        }
+      }
+      if (runState === 'done' || runState === 'error') {
+        const completed = Array.isArray(window.KODRO_RUN_TRACE) ? window.KODRO_RUN_TRACE : [];
+        // Immutable snapshot: Reset starts a new trace array, but the learner
+        // must still be able to inspect the exact finished run they watched.
+        setLastRunTrace(completed.map(step => ({ ...step })));
+      }
+      // odoRef is a ref (stable identity); reading .current at transition time
+      // is the point, so it does not belong in the dep array.
+    }, [runState]);  // eslint-disable-line react-hooks/exhaustive-deps
+
     // The editor's current source: a lesson's own buffer when one is loaded,
     // otherwise the active example tab. (Declared AFTER the state above to
     // avoid a temporal-dead-zone ReferenceError.)
@@ -1045,6 +1103,10 @@
     // to be open last time.
     const [simpleCodeOpen, setSimpleCodeOpen] = useState(false);
     const [robotSpec, setRobotSpec] = useState(() => (window.getKodroRobot ? window.getKodroRobot() : null));
+    // A chat request can name both a robot and an explicit world. RobotLab's
+    // save event normally recommends a world by archetype; this ref makes the
+    // explicit request win in the same synchronous transition.
+    const robotWorldOverrideRef = useRef(null);
     // Build-a-real-robot planner (budget build). Extracted VERBATIM to
     // window.KodroHooks.useBuild (hooks.jsx); its external inputs are
     // setRobotLabOpen (openBuildReal/adoptPlanParts toggle the Lab) and showToast
@@ -1071,10 +1133,9 @@
         setRobotSpec(full);
         try { window.KODRO_ROBOT = full; } catch (err) { void err; }
         // Drop the new robot into the world the assistant recommends for it.
-        const w = full && full.world;
+        const w = robotWorldOverrideRef.current || (full && full.world);
         if (w && window.TERRAINS && window.TERRAINS[w]) {
-          setTerrainId(w);
-          try { localStorage.setItem('or_terrain', w); } catch (err) { void err; }
+          if (onTerrainRef.current) onTerrainRef.current(w);
         }
         // Keep the active tab runnable for the freshly chosen build. A build
         // with NO drive actuator (a fixed-base arm) cannot run ANY drive
@@ -1136,7 +1197,7 @@
     // Extracted VERBATIM to window.KodroHooks.useAsk (hooks.jsx); fully
     // self-contained (window.KodroAI.ask), no external inputs.
     const { askOpen, setAskOpen, askQuery, setAskQuery, askBusy, askData, setAskData, runAsk } = (window.KodroHooks && window.KodroHooks.useAsk)
-      ? window.KodroHooks.useAsk()
+      ? window.KodroHooks.useAsk({ currentLessonId, code })
       : { askOpen: false, setAskOpen: function () {}, askQuery: '', setAskQuery: function () {}, askBusy: false, askData: null, setAskData: function () {}, runAsk: function () {} };
     // B3 trigger: validate the current program across randomised seeds in the
     // scenario that fits this robot, persist the report, and open the dashboard.
@@ -1222,11 +1283,23 @@
     }
 
     // Short human description of a freshly built robot for the chat's action line.
-    function describeSpec(spec) {
+    function describeSpec(spec, derived, requestText) {
       if (!spec) return 'a robot';
-      const n = (spec.sensors || []).length;
+      const labels = {
+        motors2: '2 DC motors', motors4: '4 DC motors', servos: 'steering servos', gripper: 'gripper',
+        ultrasonic: 'ultrasonic range', imu: 'IMU', camera: 'camera', gps: 'GPS',
+        line: 'line follower', bumper: 'bumper',
+      };
+      const fitted = (spec.actuators || []).concat(spec.sensors || []).map(id => labels[id] || id);
       let s = 'a ' + (spec.type || 'robot');
-      if (n) s += ' with ' + n + ' sensor' + (n === 1 ? '' : 's');
+      if (fitted.length) s += ' fitted with ' + fitted.join(', ');
+      if (derived && derived.runtimeMin != null) {
+        s += '; catalogue runtime estimate about ' + derived.runtimeMin + ' minutes';
+        const asked = /(\d+(?:\.\d+)?)\s*(?:-| )?(?:minute|min)\b/i.exec(String(requestText || ''));
+        if (asked && derived.runtimeMin < Number(asked[1])) {
+          s += ', below the requested ' + Number(asked[1]) + ' minutes, so that constraint is not claimed';
+        }
+      }
       return s;
     }
 
@@ -1304,8 +1377,10 @@
       if (!intent || !intent.isCommand) return null;
       const parts = [];
       if (intent.build && window.RobotLab && window.RobotLab.buildFromText) {
+        robotWorldOverrideRef.current = intent.world ? intent.world.id : null;
         const r = window.RobotLab.buildFromText(text); // builds + commits (fires kodro-robot)
-        if (r && r.understood) parts.push('Built ' + describeSpec(r.spec) + '.');
+        robotWorldOverrideRef.current = null;
+        if (r && r.understood) parts.push('Built ' + describeSpec(r.spec, r.derived, text) + '.');
         else parts.push('Built a general rover — I could not tell a specific robot from that, so say "rover", "car" or "arm" to be exact.');
       }
       if (intent.world && typeof onTerrain === 'function') {
@@ -1464,6 +1539,11 @@
       try { if (onResetRef.current) onResetRef.current(); } catch (e) { void e; }
       setActiveStage('prove');
       setLessonHubOpen(false);
+      setStepperOpen(false);
+      setLastRunTrace([]);
+      setPredictText('');
+      setPredictResult(null);
+      predictArmedRef.current = null;
       setCurrentLessonId(lesson.id);
       // Restore this lesson's own last verdict rather than clearing it. A pupil
       // who looked at another lesson and came back lost the explanation of what
@@ -1741,7 +1821,7 @@
     // for (module constants, live state, shared refs, setters, cross-concern
     // callbacks) is threaded in; it returns the seven handlers the chrome and
     // the keyboard layer call. Moved VERBATIM so the odometer still reads 3.4m.
-    const { onRun, onStep, onReset, onTerrain, runReplLine, onCodeChange, exportReportClick, queueReplaySeed } =
+    const { onRun, onStep, onReset, onTerrain: engineOnTerrain, runReplLine, onCodeChange, exportReportClick, queueReplaySeed } =
       (window.KodroHooks && window.KodroHooks.useSimEngine)
         ? window.KodroHooks.useSimEngine({
             LED_COLORS, R_DEFAULT, WALL, TERRAINS, PREFERS_REDUCED_MOTION,
@@ -1756,6 +1836,25 @@
             lessonWorldRef, lessonMarks, currentLessonIdRef, narrate,
           })
         : { onRun: function () {}, onStep: function () {}, onReset: function () {}, onTerrain: function () {}, runReplLine: function () {}, onCodeChange: function () {}, exportReportClick: function () {}, queueReplaySeed: function () {} };
+
+    // A selected world owns the viewport and its grading context. Preserve the
+    // lesson's editor buffer/result, but explicitly leave the lesson before a
+    // different free-play world is activated so the label, walls and mark can
+    // never describe different places.
+    function onTerrain(id) {
+      const leavingLesson = !!currentLessonIdRef.current;
+      if (leavingLesson) {
+        try { if (onResetRef.current) onResetRef.current(); } catch (e) { void e; }
+        currentLessonIdRef.current = null;
+        setCurrentLessonId(null);
+        setLessonVerdict(null);
+        clearLessonWorld();
+        setStepperOpen(false);
+        setLastRunTrace([]);
+        showToast('Lesson closed. Your code and result are saved.', 'sys');
+      }
+      if (engineOnTerrain) engineOnTerrain(id);
+    }
 
     // OPP-2 Replay: re-drive a recorded run exactly. Restores the report's
     // world and program, arms the sim with the recorded seed, then runs. The
@@ -1834,7 +1933,7 @@
     const evidenceDrawerActive = simpleExperience && evidenceOpen && narrowViewport;
     const evidenceDrawerRef = useRef(false);
     evidenceDrawerRef.current = evidenceDrawerActive;
-    anyOverlayOpenRef.current = !!(studioDoc || homeOpen || !onboarded || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
+    anyOverlayOpenRef.current = !!(parsons || stepperOpen || studioDoc || homeOpen || !onboarded || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
     const fpvRef = useRef(fpv); fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
     const WORLDS_KB = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
@@ -1847,6 +1946,8 @@
         setShowHelp(false); setRealismOpen(false); setDemoOpen(false);
         setLessonHubOpen(false);
         setStudioDoc(null);
+        setParsons(null);
+        setStepperOpen(false);
         setSettingsOpen(false);
         setMoreToolsOpen(false);
         setRunToolsOpen(false);
@@ -1901,7 +2002,7 @@
     // assistive tech that focus is confined to the dialog, so honour it: when one
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
-    const anyModalOpen = !!studioDoc || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
+    const anyModalOpen = !!parsons || !!studioDoc || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
     // Is a surface covering the live viewport?
     //
     // Two things hang off this, and they point the same way. The 3D loop stops
@@ -1963,6 +2064,15 @@
     const browserMode = !!(window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable());
 
     function goStage(stage) {
+      if (stage !== 'prove' && currentLessonIdRef.current) {
+        try { if (onResetRef.current) onResetRef.current(); } catch (e) { void e; }
+        currentLessonIdRef.current = null;
+        setCurrentLessonId(null);
+        setLessonVerdict(null);
+        clearLessonWorld();
+        setStepperOpen(false);
+        setLastRunTrace([]);
+      }
       setActiveStage(stage);
       setSettingsOpen(false);
       setMoreToolsOpen(false);
@@ -2189,6 +2299,13 @@
                 arena from the one being scored. */}
             <button className="ctrl" onClick={() => { setRunToolsOpen(false); describeScene(); }}
               aria-label="Describe the scene out loud">{I.report}Describe</button>
+            {(runState === 'done' || runState === 'error') && lastRunTrace.length > 0 && (
+              <button className="ctrl" onClick={() => {
+                setRunToolsOpen(false); setStepIdx(0); setStepperOpen(true);
+                if (lastRunTrace[0] && lastRunTrace[0].line) setActiveLine(lastRunTrace[0].line);
+              }}
+                aria-label="Step through the last run, one instruction at a time">{I.step}Step through</button>
+            )}
             {/* Validate lives in the main run bar, next to Run, because it is a
                 run-family action (it drives the program across 5 seeds) and a
                 real user reported they could not find it when it was buried as
@@ -2644,6 +2761,30 @@
                       )}
                     </div>
                     {lesson.intro ? <p className="lesson-intro">{lesson.intro.trim()}</p> : null}
+                    {/* Predict, then run. One checkable number rather than free
+                        text: the odometer marks the prediction, no judgement
+                        involved, and a wrong guess is a teaching moment rather
+                        than a wrong answer. */}
+                    <label className="lesson-predict">
+                      Before you run: how far will the rover travel?
+                      <span className="lesson-predict-row">
+                        <input type="number" step="0.5" min="0" inputMode="decimal"
+                          value={predictText}
+                          onChange={e => setPredictText(e.target.value)}
+                          aria-label="Predicted distance in metres" />
+                        <span className="ls-unit">metres</span>
+                      </span>
+                    </label>
+                    {predictResult && (
+                      <p className="lesson-predict-out" role="status">
+                        {'You predicted ' + predictResult.predicted + ' m. It travelled ' + predictResult.actual.toFixed(1) + ' m'
+                          + (Math.abs(predictResult.predicted - predictResult.actual) <= 0.3
+                            ? '. Spot on.'
+                            : predictResult.predicted > predictResult.actual
+                              ? '. Less than you thought: what stopped it early?'
+                              : '. Further than you thought: which line added the extra?')}
+                      </p>
+                    )}
                     {goals.length > 0 && (
                       <ul className="lesson-goals" aria-label="Lesson goals">
                         {goals.map((c, i) => {
@@ -2727,6 +2868,11 @@
                     })()}
                     {(moreHintsLeft || lessonFailed || nextLesson) && (
                       <div className="lesson-actions">
+                        {lesson.solutionCode && window.KodroParsons && window.KodroParsons.deal(lesson.solutionCode, 1) && (
+                          <button className="btn-mini lesson-parsons-open" onClick={() => openParsons(lesson)}>
+                            Rebuild the answer
+                          </button>
+                        )}
                         {moreHintsLeft && (
                           <button className="btn-mini lesson-hint-more" onClick={() => setExtraHints(x => x + 1)}>
                             {hintsShownByVerdict + extraHints === 0 ? 'Need a hint?' : 'Need another hint?'}
@@ -3168,6 +3314,107 @@
             }}
           />
         )}
+
+        {/* Parsons puzzle: the verified answer, lines dealt out of order. The
+            evidence for these is that they teach program construction about as
+            well as writing does in roughly half the time, because every minute
+            goes on ORDER and structure instead of typing. The lines are the
+            lesson's machine-verified answer, so the puzzle can never teach a
+            wrong program. Up and down buttons rather than drag, so it works
+            with a keyboard and on a trackpad-less school machine. */}
+        {parsons && (
+          <div className="modal-backdrop" onClick={() => setParsons(null)}>
+            <div className="modal parsons-modal" role="dialog" aria-modal="true" aria-label="Rebuild the answer"
+              onClick={e => e.stopPropagation()}>
+              <div className="modal-head">
+                <div><span className="eyebrow">Puzzle</span><h2>Put the lines in order</h2></div>
+                <button className="btn-mini" onClick={() => setParsons(null)}>Close</button>
+              </div>
+              <p className="parsons-lede">These are the right lines. Arrange them so the program works, then check.</p>
+              <ol className="parsons-lines">
+                {parsons.lines.map((ln, i) => (
+                  <li key={'pl' + i} className={parsons.result && !parsons.result.correct && parsons.result.firstWrong === i + 1 ? 'parsons-wrong' : ''}>
+                    <code>{ln}</code>
+                    <span className="parsons-move">
+                      <button className="btn-mini" disabled={i === 0} aria-label={'Move line ' + (i + 1) + ' up'}
+                        onClick={() => setParsons(pz => {
+                          const next = pz.lines.slice();
+                          const t = next[i - 1]; next[i - 1] = next[i]; next[i] = t;
+                          return { ...pz, lines: next, result: null };
+                        })}>&uarr;</button>
+                      <button className="btn-mini" disabled={i === parsons.lines.length - 1} aria-label={'Move line ' + (i + 1) + ' down'}
+                        onClick={() => setParsons(pz => {
+                          const next = pz.lines.slice();
+                          const t = next[i + 1]; next[i + 1] = next[i]; next[i] = t;
+                          return { ...pz, lines: next, result: null };
+                        })}>&darr;</button>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <div className="parsons-actions">
+                <button className="ctrl ctrl-run" onClick={() => setParsons(pz => ({
+                  ...pz,
+                  checks: pz.checks + 1,
+                  result: window.KodroParsons.check(pz.source, pz.lines),
+                }))}>Check the order</button>
+                {parsons.result && (
+                  <p className={'parsons-verdict ' + (parsons.result.correct ? 'ok' : 'bad')} role="status">
+                    {parsons.result.correct
+                      ? 'That is the right order. Now try typing it from memory in the editor.'
+                      : 'Not yet. Line ' + parsons.result.firstWrong + ' is the first one out of place.'}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* The trace stepper: the finished run, one instruction at a time.
+            Reads an immutable snapshot of KODRO_RUN_TRACE, which the engine
+            recorded during the watched run from the same live state the grade
+            uses. Highlights the source
+            line of the current step through the same setActiveLine the runner
+            uses, so the pupil sees WHICH LINE did it. */}
+        {stepperOpen && (() => {
+          const trace = lastRunTrace;
+          const i = Math.max(0, Math.min(stepIdx, trace.length - 1));
+          const t = trace[i];
+          if (!t) return null;
+          const go = (j) => {
+            const k = Math.max(0, Math.min(j, trace.length - 1));
+            setStepIdx(k);
+            if (trace[k] && trace[k].line) setActiveLine(trace[k].line);
+          };
+          return (
+            <div className="run-stepper" role="region" aria-label="Step through the run">
+              <div className="run-stepper-head">
+                <strong>Step {t.n} of {trace.length}</strong>
+                <button className="btn-mini" onClick={() => setStepperOpen(false)} aria-label="Close the stepper">Close</button>
+              </div>
+              <p className="run-stepper-desc">{t.desc}</p>
+              <dl className="run-stepper-state">
+                {/* Lesson space when a lesson is loaded (the same coordinates
+                    the goals, the map and Describe use); sim space otherwise.
+                    Same mapping as lessonApi: the live origin IS the base, and
+                    the axes are mirrored. */}
+                <div><dt>Position</dt><dd>{(() => {
+                  const lw = lessonWorldRef.current;
+                  if (lw) return (lw.base[0] + (-t.y / 100)).toFixed(1) + ', ' + (lw.base[1] + (-t.x / 100)).toFixed(1) + ' m';
+                  return (t.x / 100).toFixed(1) + ', ' + (-t.y / 100).toFixed(1) + ' m';
+                })()}</dd></div>
+                <div><dt>Heading</dt><dd>{t.heading}&deg;</dd></div>
+                <div><dt>Travelled</dt><dd>{t.odoM.toFixed(1)} m</dd></div>
+                <div><dt>Battery</dt><dd>{t.battery}%</dd></div>
+                <div><dt>Collisions</dt><dd>{t.collisions}</dd></div>
+              </dl>
+              <div className="run-stepper-nav">
+                <button className="btn-mini" disabled={i === 0} onClick={() => go(i - 1)}>&larr; Back</button>
+                <button className="btn-mini" disabled={i >= trace.length - 1} onClick={() => go(i + 1)}>Next &rarr;</button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Lesson Studio. Mounted last so it sits above every other surface,
             and registered in the three overlay lists above so Escape closes it

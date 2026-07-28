@@ -220,7 +220,7 @@ const CAP = `<!DOCTYPE html>
           }));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay'), seedlesson: q.get('seedlesson'), describe: q.get('describe') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay'), seedlesson: q.get('seedlesson'), describe: q.get('describe'), predict: q.get('predict') };
     })();
   </script>
   <div id="root"></div>
@@ -478,6 +478,61 @@ const CAP = `<!DOCTYPE html>
           if (!lessonDone && lessonTries >= 40) finishLesson(false);
         }, 350);
         tryPick();
+      }
+      if (!C.onb && C.predict) {
+        // Predict-then-run driver. Waits for the lesson card's predict input,
+        // types the predicted metres the way a user would (native setter plus a
+        // bubbling input event), presses Run, then, when the comparison line
+        // appears, bridges window.KODRO_RUN_TRACE into a hidden probe div so a
+        // DOM dump can assert the trace was recorded. The dump tool sees DOM,
+        // not window, so the bridge is the only honest way to gate the trace.
+        var predictDone = false, predictRan = false;
+        var tryPredict = function () {
+          if (predictDone) return;
+          if (!predictRan) {
+            var pi = document.querySelector('.lesson-predict input');
+            if (!pi) return;
+            var iset = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+            iset.call(pi, String(C.predict));
+            pi.dispatchEvent(new Event('input', { bubbles: true }));
+            var runBtn = null;
+            var all = [].slice.call(document.querySelectorAll('button'));
+            for (var i = 0; i < all.length; i++) {
+              var t = (all[i].textContent || '').trim();
+              if (/^Run this test$|^Run$/i.test(t)) { runBtn = all[i]; break; }
+            }
+            if (!runBtn) return;
+            runBtn.click();
+            predictRan = true;
+            return;
+          }
+          if (!document.querySelector('.lesson-predict-out')) return;
+          var tr = window.KODRO_RUN_TRACE || [];
+          var probe = document.createElement('div');
+          probe.id = 'trace-probe';
+          probe.style.display = 'none';
+          probe.setAttribute('data-len', String(tr.length));
+          probe.setAttribute('data-first', tr.length ? tr[0].desc : '');
+          probe.setAttribute('data-last', tr.length ? tr[tr.length - 1].desc : '');
+          probe.setAttribute('data-odo', tr.length ? String(tr[tr.length - 1].odoM) : '');
+          document.body.appendChild(probe);
+          predictDone = true;
+        };
+        var predictObs = null;
+        try {
+          predictObs = new MutationObserver(tryPredict);
+          predictObs.observe(document.body, { childList: true, subtree: true });
+        } catch (e) { void e; }
+        var predictTries = 0;
+        var predictTimer = setInterval(function () {
+          predictTries += 1;
+          tryPredict();
+          if (predictDone || predictTries >= 60) {
+            clearInterval(predictTimer);
+            if (predictObs) predictObs.disconnect();
+            if (!predictDone) must(false, 'predict=' + C.predict + ' (predict input, Run, or the comparison line never appeared)');
+          }
+        }, 400);
       }
       if (!C.onb && C.describe) {
         // Read the arena out loud. The button lives behind the run bar's More

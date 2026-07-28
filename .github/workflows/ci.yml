@@ -175,6 +175,13 @@ jobs:
       - name: Pupil-facing error explanations gate
         run: node scripts/qa_pupil_errors.mjs
 
+      # Parsons puzzles are dealt from the machine-verified worked answers, so
+      # the one thing they must never do is lie: never dealt pre-solved, never
+      # marking a correct arrangement wrong, never offered where no real puzzle
+      # exists.
+      - name: Parsons puzzle gate
+        run: node scripts/qa_parsons.mjs
+
       - name: Cross-engine fuzz gate
         run: node scripts/qa_fuzz.mjs
 

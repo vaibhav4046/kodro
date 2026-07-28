@@ -39,11 +39,27 @@ def test_returns_issues_and_keeps_code_when_no_rewrite_offered() -> None:
     assert res.final_code == "while True:\n    move_forward(1)"
 
 
-def test_accepts_rewrite_when_validate_passes() -> None:
-    client = _FakeClient(_reply(["Add a stop"], "move_forward(3)\nsay('done')"))
+def test_accepts_comment_only_rewrite_when_validate_passes() -> None:
+    client = _FakeClient(_reply(["Add a comment"], "# Drive one step\nmove_forward(3)"))
     res = review_program("move_forward(3)", client=client, validate=lambda _c: None)
     assert res.revised is True
-    assert res.final_code == "move_forward(3)\nsay('done')"
+    assert res.final_code == "# Drive one step\nmove_forward(3)"
+
+
+def test_rejects_rewrite_that_changes_robot_actions() -> None:
+    client = _FakeClient(_reply(["Add a turn"], "move_forward(3)\nturn_right(90)"))
+    res = review_program("move_forward(3)", client=client, validate=lambda _c: None)
+    assert res.revised is False
+    assert res.final_code == "move_forward(3)"
+    assert "changed executable behaviour" in res.issues[0]
+
+
+def test_rejects_rewrite_that_introduces_recursion() -> None:
+    recursive = "def move_robot():\n    move_forward(3)\n    move_robot()\nmove_robot()"
+    client = _FakeClient(_reply(["Use a helper"], recursive))
+    res = review_program("move_forward(3)", client=client, validate=lambda _c: None)
+    assert res.revised is False
+    assert res.final_code == "move_forward(3)"
 
 
 def test_rejects_rewrite_when_validate_reports_error() -> None:

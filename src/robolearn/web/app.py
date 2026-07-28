@@ -900,7 +900,12 @@ class BridgeAPI:
         paths = [[[round(x, 2), round(y, 2)] for (x, y) in p] for p in raw_paths]
         return {"ok": True, "n": len(paths), "paths": paths}
 
-    def ai_ask(self, query: str, allowed_commands: list[str] | None = None) -> dict[str, Any]:
+    def ai_ask(
+        self,
+        query: str,
+        allowed_commands: list[str] | None = None,
+        lesson_id: str | None = None,
+    ) -> dict[str, Any]:
         """Answer a how-do-I question grounded in the lesson material.
 
         Retrieval is fully offline, so even with no local model the pupil
@@ -916,7 +921,12 @@ class BridgeAPI:
             return {"ok": False, "reason": "Ask a question about the lessons first."}
         client = OllamaClient()
         if not client.available():
-            hits = search(q, build_corpus(self._lessons), k=2)
+            hits = search(
+                q,
+                build_corpus(self._lessons),
+                k=2,
+                preferred_source_prefix=(lesson_id + " ") if lesson_id else None,
+            )
             if hits:
                 return {
                     "ok": True,
@@ -930,7 +940,13 @@ class BridgeAPI:
         if model is None:
             return {"ok": False, "reason": "Ollama has no models. Pull qwen2.5-coder:3b first."}
         try:
-            out = grounded_answer(q, self._lessons, client=client, model=model)
+            out = grounded_answer(
+                q,
+                self._lessons,
+                client=client,
+                model=model,
+                preferred_lesson_id=lesson_id,
+            )
         except OllamaError as exc:
             return {"ok": False, "reason": f"Ask failed: {exc}"}
         answer = _normalize_rover_api(str(out.get("answer", "")))

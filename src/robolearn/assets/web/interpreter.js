@@ -736,7 +736,7 @@
             const name = callee.name;
             if (name in SENSOR_METHODS) {
               const args = node.args.map(evalExpr);
-              return host.sensor(name, args);
+              return host.sensor(name, args, curLine);
             }
             if (name in MOTION_METHODS) {
               // Motion used as a value: ignore movement, return None.
@@ -748,17 +748,17 @@
           // `if obstacle_ahead():` or `d = distance()`.
           if (callee.k === 'name' && !(callee.v in scope) && !funcs[callee.v]) {
             const v = callee.v;
-            if (v in LESSON_SENSOR) return host.sensor(LESSON_SENSOR[v], node.args.map(evalExpr));
+            if (v in LESSON_SENSOR) return host.sensor(LESSON_SENSOR[v], node.args.map(evalExpr), curLine);
             if (v in LESSON_API && host && typeof host.lessonApi === 'function') {
-              return host.lessonApi(v, node.args.map(evalExpr));
+              return host.lessonApi(v, node.args.map(evalExpr), curLine);
             }
             if (v === 'obstacle_ahead') {
-              const d = host.sensor('distance', []);
+              const d = host.sensor('distance', [], curLine);
               return typeof d === 'number' && d < OBSTACLE_AHEAD_CM;
             }
             if (v === 'sample_detected') return false;  // JS sim has no samples; Python grades them
             if (v === 'at_base') {
-              const bx = host.sensor('x', []), by = host.sensor('y', []);
+              const bx = host.sensor('x', [], curLine), by = host.sensor('y', [], curLine);
               return typeof bx === 'number' && typeof by === 'number'
                 ? Math.hypot(bx, by) < AT_BASE_CM : true;
             }
@@ -918,7 +918,7 @@
                 yield motionEvent(name, args, line);
                 return;
               }
-              if (name in SENSOR_METHODS) { host.sensor(name, expr.args.map(evalExpr)); yield { type: 'step', line: line }; return; }
+              if (name in SENSOR_METHODS) { host.sensor(name, expr.args.map(evalExpr), line); yield { type: 'step', line: line }; return; }
               throw new RoverError('rover has no method "' + name + '".', line);
             }
             // Bare-verb RoboLearn lesson API on its own line.
@@ -932,9 +932,9 @@
                 return;
               }
               if (v in LESSON_MOTION) { yield motionEvent(LESSON_MOTION[v], expr.args.map(evalExpr), line); return; }
-              if (v in LESSON_SENSOR) { host.sensor(LESSON_SENSOR[v], expr.args.map(evalExpr)); yield { type: 'step', line: line }; return; }
+              if (v in LESSON_SENSOR) { host.sensor(LESSON_SENSOR[v], expr.args.map(evalExpr), line); yield { type: 'step', line: line }; return; }
               if (v in LESSON_API && host && typeof host.lessonApi === 'function') {
-                host.lessonApi(v, expr.args.map(evalExpr));
+                host.lessonApi(v, expr.args.map(evalExpr), line);
                 yield { type: 'step', line: line };
                 return;
               }

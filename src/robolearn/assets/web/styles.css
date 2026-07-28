@@ -2734,3 +2734,47 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   }
   .modal-backdrop { background:var(--void); }
 }
+
+/* --- trace stepper + predict-before-run ---------------------------------- */
+/* The stepper is a small fixed card, not a modal: the pupil needs to see the
+   editor line highlight beside it, so it must not cover the editor. Solid
+   surface, existing tokens only. */
+.run-stepper {
+  position: fixed; right: 18px; bottom: 18px; z-index: 120;
+  width: min(320px, calc(100vw - 36px));
+  padding: 12px 14px;
+  background: var(--navy-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); box-shadow: 0 12px 32px rgba(0,0,0,.35);
+}
+.run-stepper-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.run-stepper-desc {
+  margin: 8px 0; font-family: var(--font-mono); font-size: var(--text-sm);
+  color: var(--fg-1); word-break: break-all;
+}
+.run-stepper-state { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 14px; margin: 0 0 10px; }
+.run-stepper-state div { display: flex; justify-content: space-between; gap: 8px; }
+.run-stepper-state dt { color: var(--fg-3); font-size: var(--text-sm); }
+.run-stepper-state dd { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); }
+.run-stepper-nav { display: flex; justify-content: space-between; }
+
+.lesson-predict { display: block; margin: 8px 0 2px; font-size: var(--text-sm); color: var(--fg-3); }
+.lesson-predict-row { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
+.lesson-predict input { width: 74px; }
+.lesson-predict-out { margin: 4px 0 0; font-size: var(--text-sm); color: var(--fg-1); }
+
+/* --- Parsons puzzle ------------------------------------------------------- */
+.parsons-modal { width: min(560px, 94vw); }
+.parsons-lede { margin: 0 0 10px; color: var(--fg-3); font-size: var(--text-sm); }
+.parsons-lines { list-style: none; margin: 0; padding: 0; }
+.parsons-lines li {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  padding: 6px 10px; margin-bottom: 4px;
+  background: var(--navy-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.parsons-lines code { font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre; overflow-x: auto; }
+.parsons-lines li.parsons-wrong { border-color: var(--warning); }
+.parsons-move { display: flex; gap: 4px; flex-shrink: 0; }
+.parsons-actions { margin-top: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.parsons-verdict { margin: 0; font-size: var(--text-sm); }
+.parsons-verdict.ok { color: var(--success); }
+.parsons-verdict.bad { color: var(--warning); }

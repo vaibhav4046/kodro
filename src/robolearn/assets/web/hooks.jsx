@@ -492,7 +492,8 @@
     return { swarmOpen, setSwarmOpen, swarmBusy, swarmData, runSwarm };
   }
 
-  function useAsk() {
+  function useAsk(opts) {
+    opts = opts || {};
     // Grounded Ask: answers from the lesson material, offline retrieval. Fully
     // self-contained (window.KodroAI.ask); no external inputs. Moved VERBATIM.
     const [askOpen, setAskOpen] = useState(false);
@@ -504,7 +505,10 @@
       if (!q || askBusy) return;
       setAskBusy(true); setAskData(null);
       try {
-        const r = await window.KodroAI.ask(q);
+        const r = await window.KodroAI.ask(q, {
+          lessonId: opts.currentLessonId || null,
+          code: opts.code || '',
+        });
         setAskData(r || { ok: false, reason: 'No response.' });
       } catch (e) { setAskData({ ok: false, reason: String(e) }); }
       setAskBusy(false);
@@ -919,6 +923,36 @@
     // sensor reads and lesson actions the grader counts in `events`. The
     // separate cmdCountRef stays the diagnostics figure it already was.
     const gradeStepsRef = useRef(0);
+    // What the program DID, step by step, with the rover's state after each
+    // step. This is the raw material for the trace stepper: the evidence says
+    // novices learn to read programs by tracing them (Lister's ~50% threshold,
+    // PRIMM's Investigate stage, AQA's trace-table requirement), and until now
+    // Kodro offered no way to see the run slower than it happened.
+    //
+    // Recorded during the watched run, from the same live state the grade
+    // reads, so the trace can never disagree with the mark. Exposed on window
+    // rather than through React state because the stepper only opens AFTER the
+    // run has ended; nothing needs to re-render per step while driving, and a
+    // per-event setState would cost frames mid-animation.
+    const runTraceRef = useRef([]);
+    const TRACE_CAP = 600;
+    function traceStep(desc, line) {
+      const t = runTraceRef.current;
+      if (t.length >= TRACE_CAP) return;
+      const s = live.current;
+      t.push({
+        n: t.length + 1,
+        desc: desc,
+        line: line || null,
+        x: Math.round(s.x),
+        y: Math.round(s.y),
+        heading: Math.round(((s.heading % 360) + 360) % 360),
+        battery: Math.round(s.battery * 10) / 10,
+        odoM: Math.round(odoRef.current) / 100,
+        collisions: runCollisionsRef.current,
+      });
+      try { window.KODRO_RUN_TRACE = t; } catch (e) { void e; }
+    }
 
     const sync = () => { setRover({ ...live.current }); try { window.KODRO_ROVER = { x: live.current.x, y: live.current.y }; } catch (e) { void e; } };
     const pushTrailPoint = () => {
@@ -998,7 +1032,7 @@
       return best;
     }
     const host = {
-      sensor(name, args) {
+      sensor(name, args, line) {
         const s = live.current;
         // Single source of truth (RobotLab.KodroCommands): a sensor command is
         // only available if the part it needs is fitted. A missing part is a
@@ -1010,10 +1044,15 @@
           if (!g.ok) throw new Error(g.reason);
         }
         gradeStepsRef.current++;  // the grader traces every sensor read
+        const read = (value) => {
+          const shown = typeof value === 'number' ? Math.round(value * 100) / 100 : String(value);
+          traceStep(name + '() -> ' + shown, line);
+          return value;
+        };
         switch (name) {
           case 'distance': {
             const d = Math.round(sensorRayDistance(s));
-            setSensorDist(d); return d;
+            setSensorDist(d); return read(d);
           }
           // read_distance(): METRES, and measured the way the grader measures
           // it -- from the rover's centre, against the lesson's own obstacles
@@ -1022,31 +1061,31 @@
           // different question with a different answer.
           case 'distance_m': {
             const lw = lessonWorldRef && lessonWorldRef.current;
-            if (!lw) { const d = sensorRayDistance(s); setSensorDist(Math.round(d)); return d / 100; }
+            if (!lw) { const d = sensorRayDistance(s); setSensorDist(Math.round(d)); return read(d / 100); }
             const m = lessonLidarM(s, lw);
             setSensorDist(Math.round(Math.min(m, 50) * 100));
-            return m;
+            return read(m);
           }
-          case 'heading': return Math.round(((s.heading % 360) + 360) % 360);
-          case 'battery': return Math.round(s.battery);
-          case 'speed': return Math.round(s.speed);
-          case 'x': return Math.round(s.x);
-          case 'y': return Math.round(-s.y);
-          case 'tilt': return 0; // worlds are flat planes: a synthesized non-zero tilt contradicted the
+          case 'heading': return read(Math.round(((s.heading % 360) + 360) % 360));
+          case 'battery': return read(Math.round(s.battery));
+          case 'speed': return read(Math.round(s.speed));
+          case 'x': return read(Math.round(s.x));
+          case 'y': return read(Math.round(-s.y));
+          case 'tilt': return read(0); // worlds are flat planes: a synthesized non-zero tilt contradicted the
           // fidelity disclosure (IMU returns level readings) and diverged from the
           // self-test, lesson grader and Python engine, which all model 0 (judge round 9).
-          case 'temperature': return terrain.env.temp;
-          case 'gravity': return terrain.env.gravity;
-          case 'light': return terrain.env.light;
-          case 'ground': return terrain.id;
+          case 'temperature': return read(terrain.env.temp);
+          case 'gravity': return read(terrain.env.gravity);
+          case 'light': return read(terrain.env.light);
+          case 'ground': return read(terrain.id);
           // Line follower: every world carries one synthesized practice line, a
           // straight 40 cm wide strip along the x axis through the start point
           // (the worlds' painted lanes are decorative with no queryable
           // geometry, so the line is defined here, not sampled from pixels).
           // 1 on the strip, 0 off it -- matching a real reflectance sensor's
           // binary read. Gated above by the fitted Line follower part.
-          case 'on_line': return Math.abs(s.y) <= 20 ? 1 : 0;
-          default: return 0;
+          case 'on_line': return read(Math.abs(s.y) <= 20 ? 1 : 0);
+          default: return read(0);
         }
       },
       // Seeded per run in compileFresh (OPP-2): random() in a program reads
@@ -1070,7 +1109,7 @@
       // the same lesson data, so what the pupil sees, senses and collects is
       // what they are marked on. Returns null when no lesson is loaded, which
       // leaves free play exactly as it was.
-      lessonApi(name, args) {
+      lessonApi(name, args, line) {
         const lw = lessonWorldRef.current;
         if (!lw) return null;
         const s = live.current;
@@ -1101,18 +1140,28 @@
         };
         gradeStepsRef.current++;  // the grader traces every lesson verb
         switch (name) {
-          case 'obstacle_ahead':
+          case 'obstacle_ahead': {
             // Measured the grader's way (see lessonLidarM), so the branch the
             // pupil watches is the branch they are marked on.
-            return lessonLidarM(s, lw) <= num(args[0], 0.5);
-          case 'sample_detected':
-            return near(num(args[0], 0.3)) !== null;
-          case 'at_base':
-            return Math.hypot(rx - lw.base[0], ry - lw.base[1]) <= 0.3;
+            const ahead = lessonLidarM(s, lw) <= num(args[0], 0.5);
+            traceStep('obstacle_ahead() -> ' + ahead, line);
+            return ahead;
+          }
+          case 'sample_detected': {
+            const found = near(num(args[0], 0.3)) !== null;
+            traceStep('sample_detected() -> ' + found, line);
+            return found;
+          }
+          case 'at_base': {
+            const home = Math.hypot(rx - lw.base[0], ry - lw.base[1]) <= 0.3;
+            traceStep('at_base() -> ' + home, line);
+            return home;
+          }
           case 'collect_sample': {
             const sm = near(0.3);
-            if (!sm) { say('There was nothing here to pick up.'); return false; }
+            if (!sm) { traceStep('collect_sample() -> False', line); say('There was nothing here to pick up.'); return false; }
             sm.collected = true;
+            traceStep('collect_sample() -> True', line);
             say('Picked up a sample. '
               + lw.samples.filter((x) => !x.collected).length + ' left.');
             // Drop the marker from the viewport so the pupil sees the patch
@@ -1121,6 +1170,7 @@
             return true;
           }
           case 'drop_sample':
+            traceStep('drop_sample() -> False', line);
             return false;
           default:
             return null;
@@ -1513,8 +1563,8 @@
         if (ev.type !== 'step') { cmdCountRef.current++; gradeStepsRef.current++; }
         if (ev.line) setActiveLine(ev.line);
         switch (ev.type) {
-          case 'step': await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
-          case 'print': addConsole(ev.text, 'out'); await delay(stepMode ? 0 : 90 / speedMulRef.current); break;
+          case 'step': traceStep('Evaluate line ' + (ev.line || '?'), ev.line); await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
+          case 'print': traceStep('log(' + JSON.stringify(String(ev.text).slice(0, 30)) + ')', ev.line); addConsole(ev.text, 'out'); await delay(stepMode ? 0 : 90 / speedMulRef.current); break;
           case 'move': case 'turn': {
             // Arm honesty (A13, bugs D4): a fixed-base arm has no drive, so a
             // move/turn must be refused with a readable coach line instead of
@@ -1532,21 +1582,34 @@
               const g = window.KodroCommands.driveCheck(driveRobot, cmdName);
               if (!g.ok) { const err = new Error(g.reason); err.line = ev.line; handleRuntimeError(err); return false; }
             }
-            if (ev.type === 'move') { sfx('move'); return await animateMove(ev); }
-            sfx('turn'); return await animateTurn(ev);
+            if (ev.type === 'move') {
+              sfx('move');
+              const collisionsBefore = runCollisionsRef.current;
+              const ok = await animateMove(ev);
+              traceStep((ev.dir < 0 ? 'move_backward(' : 'move_forward(') + (Math.abs(ev.distance) / 100) + ')', ev.line);
+              if (runCollisionsRef.current > collisionsBefore) traceStep('Collision stopped this movement', ev.line);
+              return ok;
+            }
+            sfx('turn');
+            const turnCollisionsBefore = runCollisionsRef.current;
+            const turnOk = await animateTurn(ev);
+            traceStep((ev.deg < 0 ? 'turn_left(' : 'turn_right(') + Math.abs(ev.deg) + ')', ev.line);
+            if (runCollisionsRef.current > turnCollisionsBefore) traceStep('Collision stopped this turn', ev.line);
+            return turnOk;
           }
-          case 'speed': live.current.speed = Math.max(0, Math.min(100, ev.value)); sync(); break;
-          case 'wait': live.current.vel = 0; await delay(ev.seconds * 1000 / speedMulRef.current); break;
+          case 'speed': live.current.speed = Math.max(0, Math.min(100, ev.value)); sync(); traceStep('set_speed(' + ev.value + ')', ev.line); break;
+          case 'wait': live.current.vel = 0; await delay(ev.seconds * 1000 / speedMulRef.current); traceStep('wait(' + ev.seconds + ')', ev.line); break;
           case 'pen':
             live.current.penDown = ev.down;
             if (ev.down) { trailRef.current.push([{ x: live.current.x, y: live.current.y }]); setTrail([...trailRef.current]); }
+            traceStep(ev.down ? 'pen_down()' : 'pen_up()', ev.line);
             break;
-          case 'halt': live.current.moving = false; sync(); break;
-          case 'led': sfx('led'); live.current.led = (ev.color in LED_COLORS) ? LED_COLORS[ev.color] : terrain.accent; sync(); break;
+          case 'halt': live.current.moving = false; sync(); traceStep('stop()', ev.line); break;
+          case 'led': sfx('led'); live.current.led = (ev.color in LED_COLORS) ? LED_COLORS[ev.color] : terrain.accent; sync(); traceStep('led(' + JSON.stringify(ev.color) + ')', ev.line); break;
           case 'say':
             // Visual program output only: a speech bubble plus a console line.
             sfx('say');
-            showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); break;
+            showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); traceStep('say(' + JSON.stringify(String(ev.text).slice(0, 30)) + ')', ev.line); break;
           case 'beep': {
             // S3: beep() plays the synthesised beep it always claimed to be
             // (SFX.beep existed unused); repeats are spaced so 3 beeps read
@@ -1556,6 +1619,7 @@
               sfx('beep');
               await delay(stepMode ? 0 : 160 / speedMulRef.current);
             }
+            traceStep('beep(' + n + ')', ev.line);
             break;
           }
           case 'place': {
@@ -1564,13 +1628,14 @@
             sfx('led');
             setProps(p => p.length >= 80 ? p : [...p, { kind: ev.kind, x: px, y: py, id: p.length }]);
             await delay(stepMode ? 0 : 160 / speedMulRef.current);
+            traceStep('place(' + JSON.stringify(ev.kind) + ')', ev.line);
             break;
           }
           // "Remove every prop placed with place()" -- pupil-placed props only.
           // The props layer is also where a lesson's sample flags are drawn, and
           // wiping those made the goals vanish from the screen while they stayed
           // live in the grade.
-          case 'clear_props': setProps(p => p.filter(x => x.lessonSampleId || x.lessonBase)); break;
+          case 'clear_props': setProps(p => p.filter(x => x.lessonSampleId || x.lessonBase)); traceStep('clear_props()', ev.line); break;
           case 'scan': {
             // scan() reports an ultrasonic range, so gate it on the same part
             // distance() needs. A no-ultrasonic build refuses here for BOTH the
@@ -1586,6 +1651,7 @@
             addConsole('Scanning. Nearest obstacle ' + Math.round(sensorRayDistance(live.current)) + ' cm ahead.', 'sys');
             await delay(1000 / speedMulRef.current);
             live.current.scanning = false; sync();
+            traceStep('scan()', ev.line);
             break;
           }
         }
@@ -1894,6 +1960,8 @@
       cmdCountRef.current = 0;
       gradeStepsRef.current = 0;
       gradeTurnDegRef.current = 0;
+      runTraceRef.current = [];
+      try { window.KODRO_RUN_TRACE = runTraceRef.current; } catch (e) { void e; }
       // Clear the measured-speed anchor so a later step-through (which reads
       // wallMs before a fresh run sets this) cannot inherit a prior run's start
       // time and report a wildly inflated elapsed-wall figure.
