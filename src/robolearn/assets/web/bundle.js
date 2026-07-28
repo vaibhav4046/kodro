@@ -17054,6 +17054,24 @@ Object.assign(window, {
   // --- per-lesson grading data (generated from lessons/library/*.yaml) -----
   // Regenerate with: node scripts/qa_grader.mjs --emit
   var LESSON_DATA = {
+    "000_watch_it_go": {
+      "world": {
+        "base": [1, 1],
+        "samples": [[3, 1]],
+        "obstacles": [],
+        "width": 6,
+        "height": 6
+      },
+      "criteria": [{
+        "min_distance_travelled": 2
+      }, {
+        "no_collisions": true
+      }],
+      "hints": {
+        "onFailure": ["Press Run once and watch. Then change the 1 in move_forward(1) to 2.", "Your finished step should say move_forward(2)."],
+        "onSuccess": []
+      }
+    },
     "00_first_drive": {
       "world": {
         "base": [1, 1],
@@ -17069,6 +17087,26 @@ Object.assign(window, {
       }],
       "hints": {
         "onFailure": ["The rover has to travel at least 3 metres. Try move_forward(3).", "You can use move_forward more than once to go further."],
+        "onSuccess": []
+      }
+    },
+    "00a_turn_the_corner": {
+      "world": {
+        "base": [1, 1],
+        "samples": [[3, 3]],
+        "obstacles": [],
+        "width": 6,
+        "height": 6
+      },
+      "criteria": [{
+        "calls_in_order": ["move_forward", "turn_left", "move_forward"]
+      }, {
+        "min_distance_travelled": 4
+      }, {
+        "no_collisions": true
+      }],
+      "hints": {
+        "onFailure": ["Drive first, then turn, then drive again: move_forward, turn_left, move_forward.", "turn_left(90) makes a quarter turn. The rover turns on the spot, it does not move."],
         "onSuccess": []
       }
     },

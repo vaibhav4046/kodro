@@ -4,6 +4,25 @@
       "sequence"
     ],
     "glossary": {
+      "program": "A list of steps for the rover to do, one after another.",
+      "run": "Make the rover do the program."
+    },
+    "id": "000_watch_it_go",
+    "intro": "This is a program.\nIt is a list of steps for the rover.\nThis one has one step: drive 1 metre.\nPress Run and watch the rover do it.\nThen change 1 to 2 and Run it again.\n",
+    "keyStage": "KS1",
+    "maxLines": 4,
+    "prereqs": [],
+    "readingAge": 5,
+    "solutionCode": "move_forward(2)\n",
+    "starterCode": "move_forward(1)\n",
+    "terrain": "earth",
+    "title": "Watch It, Then Change It"
+  },
+  {
+    "concepts": [
+      "sequence"
+    ],
+    "glossary": {
       "forward": "Go straight ahead, the way the rover is facing.",
       "program": "A list of steps for the rover to do, one after another."
     },
@@ -17,6 +36,26 @@
     "starterCode": "move_forward(1)\n",
     "terrain": "earth",
     "title": "Drive to the Flag"
+  },
+  {
+    "concepts": [
+      "sequence"
+    ],
+    "glossary": {
+      "turn": "Spin on the spot to face a new way. The rover does not move forward while turning. A quarter turn is 90 degrees, like turning to face the next wall of a room."
+    },
+    "id": "00a_turn_the_corner",
+    "intro": "The flag is not straight ahead this time.\nIt is around a corner.\nThe rover must drive, make a quarter turn to the left,\nthen drive again.\nturn_left(90) is a quarter turn.\n",
+    "keyStage": "KS1",
+    "maxLines": 6,
+    "prereqs": [
+      "00_first_drive"
+    ],
+    "readingAge": 6,
+    "solutionCode": "move_forward(2)\nturn_left(90)\nmove_forward(2)\n",
+    "starterCode": "move_forward(2)\n",
+    "terrain": "earth",
+    "title": "Turn the Corner"
   },
   {
     "concepts": [

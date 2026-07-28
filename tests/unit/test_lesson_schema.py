@@ -194,8 +194,8 @@ def test_load_library_missing_directory_raises(tmp_path: Path) -> None:
 
 def test_bundled_library_has_full_lesson_set() -> None:
     lessons = load_library()
-    # 15 KS3/KS4 lessons + 3 KS1/KS2 onboarding lessons.
-    assert len(lessons) == 20
+    # 15 KS3/KS4 lessons + 5 KS1/KS2 onboarding lessons + 2 KS2/KS4 data lessons.
+    assert len(lessons) == 22
     by_stage = {
         ks: sum(1 for lsn in lessons if lsn.key_stage == ks) for ks in ("KS1", "KS2", "KS3", "KS4")
     }
@@ -205,7 +205,9 @@ def test_bundled_library_has_full_lesson_set() -> None:
 def test_bundled_library_ids_in_filename_order() -> None:
     """Lessons load in filename order: KS1/KS2 intro set, then the KS3/KS4 core."""
     expected = [
+        "000_watch_it_go",
         "00_first_drive",
+        "00a_turn_the_corner",
         "00b_repeat_square",
         "00c_look_first",
         "01_hello_rover",

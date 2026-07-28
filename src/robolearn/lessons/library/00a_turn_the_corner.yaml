@@ -1,0 +1,40 @@
+id: 00a_turn_the_corner
+title: Turn the Corner
+key_stage: KS1
+reading_age: 6
+ct_concepts: [sequence]
+curriculum_refs:
+  - "DfE 'Computing programmes of study: Key Stages 1 and 2' (DfE-00171-2013), KS1: create and debug simple programs; use logical reasoning to predict the behaviour of simple programs."
+prereqs: [00_first_drive]
+terrain: earth
+glossary:
+  turn: "Spin on the spot to face a new way. The rover does not move forward while turning. A quarter turn is 90 degrees, like turning to face the next wall of a room."
+intro: |
+  The flag is not straight ahead this time.
+  It is around a corner.
+  The rover must drive, make a quarter turn to the left,
+  then drive again.
+  turn_left(90) is a quarter turn.
+starter_code: |
+  move_forward(2)
+allowed_constructs: [function_call]
+max_lines: 6
+world:
+  base: [1.0, 1.0]
+  samples:
+    - [3.0, 3.0]
+  obstacles: []
+  width: 6.0
+  height: 6.0
+solution_code: |
+  move_forward(2)
+  turn_left(90)
+  move_forward(2)
+success_criteria:
+  - calls_in_order: [move_forward, turn_left, move_forward]
+  - min_distance_travelled: 4.0
+  - no_collisions: true
+hints:
+  on_failure:
+    - "Drive first, then turn, then drive again: move_forward, turn_left, move_forward."
+    - "turn_left(90) makes a quarter turn. The rover turns on the spot, it does not move."

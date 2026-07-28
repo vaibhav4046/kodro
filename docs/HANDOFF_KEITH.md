@@ -37,7 +37,7 @@ named command. Nothing is estimated.
 | World sweep | 61 of 61 | `node scripts/qa_worlds.mjs` |
 | Web boot and privacy | 5 of 5 | `node scripts/qa_web.mjs` |
 
-The 18 lessons map to named DfE programme of study statements and BCS
+The 22 lessons map to named DfE programme of study statements and BCS
 computational thinking concepts. Each lesson states its success criteria on
 screen before the pupil runs anything.
 
@@ -46,7 +46,7 @@ defend hardest:
 
 **Every lesson is provably finishable.** Each one ships a worked answer, shown
 to a pupil only after the hints run out. Those answers are not editorial. An
-automated gate runs all eighteen through *both* marking engines on every change
+automated gate runs all twenty two through *both* marking engines on every change
 and requires 100 out of 100, inside the constructs that lesson has taught and
 inside its own line budget. A lesson whose own answer fails does not ship. That
 gate is also the only thing that would ever tell us a lesson had become
@@ -56,7 +56,7 @@ impossible, and writing it found eight cases where the harness itself was wrong.
 arena by clicking, choose what counts as finished, and write the starter and one
 answer. You cannot save until your own answer passes, checked by the same marker
 the pupils face. A saved lesson sits in the library marked "Made here" and is
-graded by the identical code as the built-in eighteen. It exports to one file
+graded by the identical code as the built-in twenty two. It exports to one file
 you can send to a colleague. No server, no account.
 
 ### Not ready, and these are the honest gaps

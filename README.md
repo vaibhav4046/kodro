@@ -162,7 +162,7 @@ What currently ships in this repository:
   record in [`AUDIT_CODEX.md`](AUDIT_CODEX.md).
 - **Every lesson is provably finishable.** Each ships one worked answer,
   shown to a pupil only after the hints run out. Those answers are not
-  editorial: an automated gate runs all eighteen through *both* marking
+  editorial: an automated gate runs all twenty two through *both* marking
   engines on every change and requires 100 out of 100, inside the constructs
   that lesson has taught and inside its own line budget
   (`tests/unit/test_lesson_solutions.py`, plus the solvability block in
@@ -173,7 +173,7 @@ What currently ships in this repository:
   as the bundled ones, appear in the library marked "Made here", and export
   to a single `.kodrolesson` file you can send to anyone. You cannot save a
   lesson until your own answer passes it, which is the same bar the built-in
-  eighteen are held to.
+  twenty two are held to.
 - **Offline by default.** No account, paid service or mandatory network
   call is required for Design, Test, lessons or deterministic checking.
   Local Ollama is optional, and cloud models are an explicit
