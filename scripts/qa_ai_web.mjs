@@ -241,6 +241,19 @@ console.log('\n== stripFences (via ask) ==');
   check('verified explanation states the unindented move runs on both branches',
     /not indented/.test(explained.text) && /whichever answer/.test(explained.text),
     JSON.stringify(explained.text));
+
+  const companionExplained = AI.explainCurrentProgram(
+    'Why does move_forward happen after the if? Explain exactly what my current code does.',
+    'if obstacle_ahead():\n    turn_left(90)\nmove_forward(3)'
+  );
+  check('default Companion routes current-code questions to the interpreter',
+    companionExplained && companionExplained.deterministic === true
+      && companionExplained.source === 'interpreter',
+    JSON.stringify(companionExplained));
+  check('Companion explanation is evidence, never an applicable code proposal',
+    /line 2 turns left 90 degrees/.test(companionExplained.text)
+      && /Line 3 is not indented/.test(companionExplained.text),
+    JSON.stringify(companionExplained.text));
 }
 
 console.log('\n== looksLikeCode (via chatStart/chatPoll) ==');

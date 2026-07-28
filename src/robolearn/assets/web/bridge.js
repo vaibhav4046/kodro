@@ -96,21 +96,30 @@
   // lessons.json, so use that real corpus instead of asking a model from memory
   // and then labelling the answer ungrounded. Token overlap is deliberately
   // simple and inspectable; no embedding service or network account is needed.
-  const searchLessonNotesBrowser = async (query, limit) => {
+  const searchLessonNotesBrowser = async (query, limit, preferredLessonId) => {
     const stop = { the: 1, and: 1, for: 1, with: 1, how: 1, what: 1, does: 1, this: 1, that: 1, rover: 1, robot: 1 };
-    const tokens = (text) => String(text || '').toLowerCase().match(/[a-z_][a-z0-9_]{2,}/g) || [];
-    const wanted = {};
-    tokens(query).forEach((t) => { if (!stop[t]) wanted[t] = 1; });
-    if (!Object.keys(wanted).length) return [];
+    // Underscores are separators so "move forward" matches move_forward().
+    const tokens = (text) => String(text || '').toLowerCase().match(/[a-z0-9]+/g) || [];
+    const wanted = new Set(tokens(query).filter((t) => t.length > 1 && !stop[t]));
+    if (!wanted.size) return [];
     const lessons = await fetchLessons();
     return lessons.map((lesson) => {
       const glossary = lesson && lesson.glossary
         ? Object.keys(lesson.glossary).map((k) => k + ': ' + lesson.glossary[k]).join(' ')
         : '';
       const text = [lesson && lesson.title, lesson && lesson.intro, glossary, lesson && lesson.starterCode].filter(Boolean).join(' ');
+      const docTokens = new Set(tokens(text + ' ' + ((lesson && lesson.id) || '')));
       let score = 0;
-      tokens(text).forEach((t) => { if (wanted[t]) score += t.indexOf('_') >= 0 ? 3 : 1; });
-      return { score: score, source: (lesson && lesson.title) || 'Kodro lesson', text: text.slice(0, 900) };
+      wanted.forEach((t) => { if (docTokens.has(t)) score += 1; });
+      // The learner explicitly chose this lesson. Prefer it among genuinely
+      // relevant passages instead of letting a coincidental repeated word in a
+      // later lesson outrank the material visible on screen.
+      if (score > 0 && lesson && lesson.id === preferredLessonId) score += 100;
+      return {
+        score: score,
+        source: ((lesson && lesson.id) ? lesson.id + ' ' : '') + ((lesson && lesson.title) || 'Kodro lesson'),
+        text: text.slice(0, 900),
+      };
     }).filter((hit) => hit.score > 0)
       .sort((a, b) => b.score - a.score || a.source.localeCompare(b.source))
       .slice(0, Math.max(1, Math.min(Number(limit) || 3, 5)))
@@ -180,8 +189,8 @@
     isAvailable: isPywebview,
     listLessons: () => (isPywebview() ? call("list_lessons") : listLessonsBrowser()),
     getLesson: (id) => (isPywebview() ? call("get_lesson", id) : getLessonBrowser(id)),
-    searchLessonNotes: (query, limit) =>
-      (isPywebview() ? Promise.resolve([]) : searchLessonNotesBrowser(query, limit)),
+    searchLessonNotes: (query, limit, preferredLessonId) =>
+      (isPywebview() ? Promise.resolve([]) : searchLessonNotesBrowser(query, limit, preferredLessonId)),
     submitAttempt: (lessonId, source, traceJson) =>
       (isPywebview()
         // Grade against the fitted build, not spec-blind: send its mass factor,
@@ -229,7 +238,8 @@
       call("ai_generate", prompt, lessonId, allowedCommands || null),
     aiReviewCode: (source, lessonId, allowedCommands) =>
       call("ai_review_code", source, lessonId, allowedCommands || null),
-    aiAsk: (query, allowedCommands) => call("ai_ask", query, allowedCommands || null),
+    aiAsk: (query, allowedCommands, lessonId) =>
+      call("ai_ask", query, allowedCommands || null, lessonId || null),
     swarmRun: (source, lessonId, n) =>
       (isPywebview()
         ? call("swarm_run", source, lessonId || null, n || 5)

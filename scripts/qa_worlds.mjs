@@ -225,7 +225,18 @@ const gap = () => { const until = Date.now() + GAP_MS; while (Date.now() < until
   for (const [site, base, marks] of SITES) {
     // q=med so the med-gated treatments (water surface, caustics) build; the
     // heavier high-only layers are covered by the tier loop above.
-    const r = drive(chrome, `site3d_${site}`, `${BASE}?world=${site}&q=med`, { dom: true, vtime: 7_000 });
+    let r = drive(chrome, `site3d_${site}`, `${BASE}?world=${site}&q=med`, { dom: true, vtime: 7_000 });
+    // A 60+ Chrome-process sweep can occasionally return the initial React
+    // shell before Three.js stamps its scene marker even though the isolated
+    // site is healthy. Retry only that incomplete-paint signature with a fresh
+    // profile and a larger virtual-time budget; console errors and genuinely
+    // absent sites still fail immediately below.
+    if (r.pass && !new RegExp(`data-world="${base}:${site}"`).test(r.dom)) {
+      gap();
+      r = drive(chrome, `site3d_${site}_retry`, `${BASE}?world=${site}&q=med`, {
+        dom: true, vtime: 15_000, timeout: FIRST_SPAWN_TIMEOUT_MS,
+      });
+    }
     let verdict;
     if (!r.pass) verdict = r;
     else if (!new RegExp(`data-world="${base}:${site}"`).test(r.dom)) {
