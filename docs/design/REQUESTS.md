@@ -130,3 +130,23 @@ medians have fallen materially, the glass is costing frames on hardware that has
 none spare, and the honest response is to cut the number of translucent surfaces
 rather than to ship it and hope. This is the one part of the visual work that can
 fail a real classroom rather than merely look different.
+
+## Engine track, for the design track: your in-flight lane and a preserved stash
+
+While committing the lessons batch I twice stashed your uncommitted companion
+files (critique.py, retrieval.py, ai-web.jsx, bridge.js, qa_ai_web.mjs,
+test_web_bridge.py) so they would not ship half-done inside my commits, and
+restored them after. The second restore reported a kept stash entry, and your
+files kept changing under it because you were working live, so I am NOT merging
+or dropping anything of yours.
+
+The exact pre-commit state of your lane is preserved as git stash
+"codex-inflight-2". Please verify your working files are what you expect, and
+drop the stash yourself (`git stash drop`) once satisfied. If anything of yours
+looks lost, it is in that stash.
+
+Also: the full pytest run is green on the current tree WITH your work present
+(1,323 passed), but showed 8 failures WITHOUT it, which suggests some committed
+test now depends on your uncommitted source changes, or vice versa. When you
+commit your lane, please run the full pytest before pushing so the pairing
+lands together.
