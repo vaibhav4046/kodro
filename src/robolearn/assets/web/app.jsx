@@ -1264,13 +1264,18 @@
     }
 
     function explainLatestRun() {
-      const report = simpleLatestRun || browserRuns[0] || null;
-      if (!report && currentLessonId && lessonVerdict) {
+      const verdictMatchesCode = !lessonVerdict || !lessonVerdict.codeHash
+        || !window.KodroScenario || !window.KodroScenario.codeHash
+        || lessonVerdict.codeHash === window.KodroScenario.codeHash(code);
+      if (currentLessonId && lessonVerdict && verdictMatchesCode) {
         const reasons = (lessonVerdict.reasons || []).join(' ');
-        return 'The lesson result is ' + (lessonVerdict.passed ? 'complete' : 'not complete') + ' at '
+        const hint = lessonVerdict.hint && lessonVerdict.hint.message
+          ? ' Next hint: ' + lessonVerdict.hint.message : '';
+        return 'The lesson is ' + (lessonVerdict.passed ? 'complete' : 'not complete') + ' at '
           + lessonVerdict.score + ' out of 100. ' + (reasons || 'Every checked goal passed.')
-          + ' This explanation comes from the recorded simulated trace.';
+          + hint + ' This explanation comes from the recorded simulated trace, not a guarantee about a physical robot.';
       }
+      const report = simpleLatestRun || browserRuns[0] || null;
       if (!report) {
         return 'There is no recorded run for this design yet, so I will not guess. Close the Companion, press Run this test, then ask me to explain the result.';
       }
@@ -1533,6 +1538,8 @@
       if (!window.RoboLearn) return;
       const lessonId = currentLessonIdRef.current;
       if (!lessonId) return;
+      const runWorldAtSubmit = terrain.id;
+      const robotTypeAtSubmit = (robotSpec && robotSpec.type) || '';
       // Identity captured BEFORE the async grade: if the teacher switches
       // pupil while the grade is in flight, the resolved result must not be
       // filed under (or displayed as) the new pupil's record.
@@ -1596,6 +1603,21 @@
             hint: r.hint || null,
           },
         }));
+        // A cleanly finished program can still fail a lesson goal. Record the
+        // grader outcome here, after the authoritative verdict exists, rather
+        // than teaching Memory that every non-crashing lesson "worked".
+        if (window.KodroMemory) {
+          const lessonDetail = Array.isArray(r.reasons) && r.reasons.length
+            ? r.reasons.join(' ')
+            : ('Lesson score ' + r.score + ' out of 100.');
+          window.KodroMemory.record({
+            world: runWorldAtSubmit,
+            robotType: robotTypeAtSubmit,
+            outcome: r.passed ? 'done' : 'lesson_incomplete',
+            detail: lessonDetail,
+            ts: Date.now(),
+          });
+        }
         // Browser mode has no Python store, so keep an on-device class register
         // (pupil-store.js) with the same EMA rule. Desktop persists via Python,
         // so only record here in the browser. A graded attempt (r.ok !== false
@@ -3045,7 +3067,7 @@
 
         {realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, { onClose: () => setRealismOpen(false), terrain: terrain, code: code })}
         {demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, { onClose: () => setDemoOpen(false) })}
-        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} projectContext={{ robot: chipName, world: terrain.name || terrain.id, program: currentLessonId ? ((lessons.find(l => l.id === currentLessonId) || {}).title || 'Lesson program') : (SIMPLE_PROGRAM_NAMES[activeTab] || ((EXAMPLES[activeTab] && EXAMPLES[activeTab].label) || 'Current program')), outcome: simpleLatestRun ? (SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded') : null }} onExplain={() => { setVibeOpen(false); setAskData(null); setAskOpen(true); }} onReview={() => { setVibeOpen(false); runReview(); }} />}
+        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} projectContext={{ robot: chipName, world: terrain.name || terrain.id, program: currentLessonId ? ((lessons.find(l => l.id === currentLessonId) || {}).title || 'Lesson program') : (SIMPLE_PROGRAM_NAMES[activeTab] || ((EXAMPLES[activeTab] && EXAMPLES[activeTab].label) || 'Current program')), outcome: currentLessonId && liveVerdict ? ((liveVerdict.passed ? 'Lesson passed, ' : 'Lesson not complete, ') + liveVerdict.score + '/100') : (simpleLatestRun ? (SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded') : null) }} onExplain={() => { setVibeOpen(false); setAskData(null); setAskOpen(true); }} onReview={() => { setVibeOpen(false); runReview(); }} />}
 
         {blocksOpen && <window.KodroPanels.BlocksModal setBlocksOpen={setBlocksOpen} BLOCK_DEFS={BLOCK_DEFS} robotSpec={robotSpec} addBlock={addBlock} endBlock={endBlock} blockIndent={blockIndent} setBlockIndent={setBlockIndent} blocks={blocks} setBlocks={setBlocks} moveBlock={moveBlock} canMoveBlock={canMoveBlock} removeBlock={removeBlock} insertBlocksCode={insertBlocksCode} classroom={classroom} />}
 

@@ -1748,8 +1748,10 @@
       } catch (err) { void err; }
       addConsole('Program finished.', 'ok');
       showToast('Program complete', 'ok');
-      // Self-refinement: a clean finish is a result worth remembering.
-      if (window.KodroMemory) {
+      // In free play, a clean finish is worth remembering. In a lesson,
+      // however, "the program ended" is not the same as "the goal passed";
+      // gradeWithBridge records the authoritative lesson outcome moments later.
+      if (window.KodroMemory && !currentLessonId) {
         window.KodroMemory.record({ world: terrain.id, robotType: (robotSpec && robotSpec.type) || '', outcome: 'done', detail: 'finished without a collision', ts: Date.now() });
       }
       // Coach: confirm the design held up, or name what to still watch. The

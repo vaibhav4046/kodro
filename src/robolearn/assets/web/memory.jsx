@@ -37,6 +37,9 @@
     if (run.outcome === 'done') {
       return "Program worked. Consider saving it as a skill with the Save button to reuse on similar tasks.";
     }
+    if (run.outcome === 'lesson_incomplete') {
+      return "The program finished, but the lesson goal was not complete. " + detail + " Use the lesson hint, change one thing, and run the same test again.";
+    }
     if (run.outcome === 'crash') {
       if (what.indexOf('pedestrian') >= 0) {
         // Two lines, not a compound one-liner: Kodro's interpreter rejects a

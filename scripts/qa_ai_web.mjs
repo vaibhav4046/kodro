@@ -77,7 +77,12 @@ async function mockFetch(url, options) {
   }
   throw new Error('unexpected fetch ' + u);
 }
-const lsStub = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+const lsData = new Map();
+const lsStub = {
+  getItem: (key) => lsData.has(key) ? lsData.get(key) : null,
+  setItem: (key, value) => { lsData.set(key, String(value)); },
+  removeItem: (key) => { lsData.delete(key); },
+};
 win.RoboLearn = {
   isAvailable: () => false,
   searchLessonNotes: async () => [{ source: 'QA lesson', text: 'Use the fitted Kodro commands.' }],
@@ -86,8 +91,10 @@ win.RoboLearn = {
 // Load the facade against the shared shim (same pattern as qa_interpreter.mjs).
 new Function('window', 'fetch', 'localStorage', web('ai-web.jsx'))(win, mockFetch, lsStub);
 new Function('window', web('chat-intent.js'))(win);
+new Function('window', 'localStorage', web('memory.jsx'))(win, lsStub);
 const AI = win.KodroAI;
 const Intent = win.KodroChatIntent;
+const Memory = win.KodroMemory;
 
 // --- tiny assert harness (mirrors qa_interpreter.mjs) ---------------------
 let pass = 0, fail = 0;
@@ -317,6 +324,25 @@ console.log('\n== ON-DEVICE COMPANION INTENTS ==');
   const clamped = Intent.parse('Set the speed to 900 percent');
   check('speed requests are clamped to the real 0 to 100 control',
     clamped.speed === 100, JSON.stringify(clamped));
+}
+
+console.log('\n== LESSON-AWARE MEMORY ==');
+{
+  const incomplete = Memory.record({
+    world: 'earth',
+    robotType: 'rover',
+    outcome: 'lesson_incomplete',
+    detail: 'Collected 0 of 1 samples.',
+    ts: 1,
+  });
+  check('an incomplete lesson is never remembered as a successful program',
+    /lesson goal was not complete/.test(incomplete) && !/Program worked/.test(incomplete),
+    JSON.stringify(incomplete));
+  const recalled = Memory.lessonFor('earth', 'rover');
+  check('Companion context recalls the lesson failure and concrete reason',
+    recalled && recalled.outcome === 'lesson_incomplete'
+      && /Collected 0 of 1 samples/.test(recalled.reflection),
+    JSON.stringify(recalled));
 }
 
 console.log('\n== RESULT: ' + pass + ' passed, ' + fail + ' failed ==');

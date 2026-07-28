@@ -2631,6 +2631,9 @@ function _extends() { return _extends = Object.assign ? Object.assign.bind() : f
     if (run.outcome === 'done') {
       return "Program worked. Consider saving it as a skill with the Save button to reuse on similar tasks.";
     }
+    if (run.outcome === 'lesson_incomplete') {
+      return "The program finished, but the lesson goal was not complete. " + detail + " Use the lesson hint, change one thing, and run the same test again.";
+    }
     if (run.outcome === 'crash') {
       if (what.indexOf('pedestrian') >= 0) {
         // Two lines, not a compound one-liner: Kodro's interpreter rejects a
@@ -25730,8 +25733,10 @@ Object.assign(window, {
       }
       addConsole('Program finished.', 'ok');
       showToast('Program complete', 'ok');
-      // Self-refinement: a clean finish is a result worth remembering.
-      if (window.KodroMemory) {
+      // In free play, a clean finish is worth remembering. In a lesson,
+      // however, "the program ended" is not the same as "the goal passed";
+      // gradeWithBridge records the authoritative lesson outcome moments later.
+      if (window.KodroMemory && !currentLessonId) {
         window.KodroMemory.record({
           world: terrain.id,
           robotType: robotSpec && robotSpec.type || '',
@@ -30477,11 +30482,13 @@ say("Survey done")`
       return ['# Companion draft: move in small steps and check clearance each time', 'set_speed(' + targetSpeed + ')', 'for step in range(20):', '    if distance() < 80:', '        stop()', '        turn_right(45)', '    else:', '        move_forward(0.5)', ''].join('\n');
     }
     function explainLatestRun() {
-      const report = simpleLatestRun || browserRuns[0] || null;
-      if (!report && currentLessonId && lessonVerdict) {
+      const verdictMatchesCode = !lessonVerdict || !lessonVerdict.codeHash || !window.KodroScenario || !window.KodroScenario.codeHash || lessonVerdict.codeHash === window.KodroScenario.codeHash(code);
+      if (currentLessonId && lessonVerdict && verdictMatchesCode) {
         const reasons = (lessonVerdict.reasons || []).join(' ');
-        return 'The lesson result is ' + (lessonVerdict.passed ? 'complete' : 'not complete') + ' at ' + lessonVerdict.score + ' out of 100. ' + (reasons || 'Every checked goal passed.') + ' This explanation comes from the recorded simulated trace.';
+        const hint = lessonVerdict.hint && lessonVerdict.hint.message ? ' Next hint: ' + lessonVerdict.hint.message : '';
+        return 'The lesson is ' + (lessonVerdict.passed ? 'complete' : 'not complete') + ' at ' + lessonVerdict.score + ' out of 100. ' + (reasons || 'Every checked goal passed.') + hint + ' This explanation comes from the recorded simulated trace, not a guarantee about a physical robot.';
       }
+      const report = simpleLatestRun || browserRuns[0] || null;
       if (!report) {
         return 'There is no recorded run for this design yet, so I will not guess. Close the Companion, press Run this test, then ask me to explain the result.';
       }
@@ -30810,6 +30817,8 @@ say("Survey done")`
       if (!window.RoboLearn) return;
       const lessonId = currentLessonIdRef.current;
       if (!lessonId) return;
+      const runWorldAtSubmit = terrain.id;
+      const robotTypeAtSubmit = robotSpec && robotSpec.type || '';
       // Identity captured BEFORE the async grade: if the teacher switches
       // pupil while the grade is in flight, the resolved result must not be
       // filed under (or displayed as) the new pupil's record.
@@ -30894,6 +30903,19 @@ say("Survey done")`
             hint: r.hint || null
           }
         }));
+        // A cleanly finished program can still fail a lesson goal. Record the
+        // grader outcome here, after the authoritative verdict exists, rather
+        // than teaching Memory that every non-crashing lesson "worked".
+        if (window.KodroMemory) {
+          const lessonDetail = Array.isArray(r.reasons) && r.reasons.length ? r.reasons.join(' ') : 'Lesson score ' + r.score + ' out of 100.';
+          window.KodroMemory.record({
+            world: runWorldAtSubmit,
+            robotType: robotTypeAtSubmit,
+            outcome: r.passed ? 'done' : 'lesson_incomplete',
+            detail: lessonDetail,
+            ts: Date.now()
+          });
+        }
         // Browser mode has no Python store, so keep an on-device class register
         // (pupil-store.js) with the same EMA rule. Desktop persists via Python,
         // so only record here in the browser. A graded attempt (r.ok !== false
@@ -33320,7 +33342,7 @@ say("Survey done")`
         robot: chipName,
         world: terrain.name || terrain.id,
         program: currentLessonId ? (lessons.find(l => l.id === currentLessonId) || {}).title || 'Lesson program' : SIMPLE_PROGRAM_NAMES[activeTab] || EXAMPLES[activeTab] && EXAMPLES[activeTab].label || 'Current program',
-        outcome: simpleLatestRun ? SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded' : null
+        outcome: currentLessonId && liveVerdict ? (liveVerdict.passed ? 'Lesson passed, ' : 'Lesson not complete, ') + liveVerdict.score + '/100' : simpleLatestRun ? SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded' : null
       },
       onExplain: () => {
         setVibeOpen(false);
