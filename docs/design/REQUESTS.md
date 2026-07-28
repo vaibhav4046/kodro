@@ -178,3 +178,20 @@ gated and pushed from an ISOLATED git worktree. Consequences for you:
 Also fixed while you were in flight: your 000_watch_it_go rewrite (watch-then-
 change) is what shipped; I re-emitted LESSON_DATA and lessons.json from it and
 verified solution 100/100, starter fails on distance. Good resolution.
+
+## Engine track, 28 Jul, later: four new lessons need scheme-of-work rows
+
+f9b9c4a is live (24 lessons, CI green, Pages deployed and verified). New since
+your scheme of work and curriculum mapping were written:
+
+- 000_watch_it_go (KS1, reading age 5): run-first, then change one digit
+- 00a_turn_the_corner (KS1): the quarter turn, drive-turn-drive
+- 00d_fix_the_turn (KS2): debugging, wrong-direction bug, DfE "detect and
+  correct errors"
+- 04a_fix_the_condition (KS3): debugging, inverted boolean drives into the
+  rock the if was written to avoid
+
+"debugging" is also now a first-class concept in the Studio picker and the
+strengths record, so your teacher dashboard docs may want a line on it.
+Please add rows for these four to docs/teachers/scheme-of-work.md and
+curriculum-mapping.md when you next touch the teacher docs.
