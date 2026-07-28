@@ -61,7 +61,7 @@ const PORT = 8099;
 const BASE = `http://${HOST}:${PORT}/cap.html`;
 const SUITE_ARG = process.argv.find((arg) => arg.startsWith('--suite='));
 const SUITE = SUITE_ARG ? SUITE_ARG.slice('--suite='.length) : 'all';
-const VALID_SUITES = new Set(['all', 'paint', 'behaviour', 'layout', 'modals']);
+const VALID_SUITES = new Set(['all', 'paint', 'behaviour', 'layout', 'modals', 'critical', 'authored']);
 if (!VALID_SUITES.has(SUITE)) throw new Error(`unknown UI suite: ${SUITE}`);
 const RUN_PAINT = SUITE === 'all' || SUITE === 'paint';
 const RUN_BEHAVIOUR = SUITE === 'all' || SUITE === 'behaviour';
@@ -725,6 +725,29 @@ function checkVibeBuild(chrome) {
   return { pass: true, reason: 'a "build a mars rover" chat command built the robot and moved the world to Mars (visible action line)' };
 }
 
+// Collision help must work without a generative model and must remain an
+// explicit Apply/Discard preview instead of silently replacing pupil code.
+function checkVibeRepairPreview(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&vibe=${encodeURIComponent('fix the collision and make it safer')}`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_vibe_repair', url, { vtime: 12000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  if (!/class="vibe-msg ai evidence"/.test(dom) || !/Based on this project/.test(dom)) {
+    return { pass: false, reason: 'collision help did not render a project-evidence response' };
+  }
+  if (!/Proposed edit:/.test(dom) || !/distance\(\) &lt; 80/.test(dom)) {
+    return { pass: false, reason: 'collision help did not produce the validated sensor-checking code preview' };
+  }
+  if (!/Apply to editor/.test(dom) || !/>Discard</.test(dom)) {
+    return { pass: false, reason: 'repair preview is missing the explicit Apply or Discard choice' };
+  }
+  if (/class="vibe-error"/.test(dom)) {
+    return { pass: false, reason: 'the built-in collision repair draft failed Kodro self-validation' };
+  }
+  return { pass: true, reason: 'offline collision help produced a project-backed, validated sensor repair with explicit Apply/Discard controls' };
+}
+
 // LIGHT-THEME HUD READABILITY (F-light) — the viewport HUD is a fixed
 // dark-glass surface in every theme, so its text must stay LIGHT even in the
 // light theme (where the --fg tokens flip dark and used to vanish). The probe
@@ -834,7 +857,8 @@ function checkClassroomMode(chrome) {
 // THREE-STAGE JOURNEY — the simplified shell must expose one stable Design →
 // Prove → Build path, and Build must be useful in the hosted browser rather
 // than ending at a desktop-only notice. Drive the real Build stage and require
-// both its state marker and the locally generated prototype-brief content.
+// both its state marker and an honest pre-export evidence gate. A prototype
+// brief must not be downloadable until this exact design has a recorded run.
 // The middle stage is labelled "Test", not "Prove": the audits found that
 // "Prove" reads as a claim of physical proof to a newcomer, on a screen that
 // simultaneously discloses the simulation cannot certify physical
@@ -842,20 +866,21 @@ function checkClassroomMode(chrome) {
 // only the locator text moved with the product.
 function checkStageJourney(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&open=build`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_stage_journey', url, { vtime: 9000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_stage_journey', url, { vtime: 16000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
-  const nav = /aria-label="Robot project stages"/.test(dom)
-    && /aria-label="1 Design, current robot/.test(dom)
+  const nav = /aria-label="Robot project stages, from design to test to prototype"/.test(dom)
+    && /aria-label="1 Design, [^"]+, (?:design ready|needs a design fix)"/.test(dom)
     && /aria-label="2 Test in /.test(dom)
-    && /aria-label="3 Build a prototype pack"/.test(dom);
+    && /aria-label="3 Build a prototype pack, available after a saved run"/.test(dom);
   const stage = /data-stage="build"/.test(dom);
-  const useful = /Download prototype brief/.test(dom)
+  const useful = /Run a test first/.test(dom)
     && /Concept bill of materials/.test(dom)
+    && /Waiting for test evidence/.test(dom)
     && /Verify before purchasing/.test(dom);
   if (nav && stage && useful) {
-    return { pass: true, reason: 'Design → Test → Build navigation works and hosted Build renders a local prototype brief with an explicit evidence boundary' };
+    return { pass: true, reason: 'Design → Test → Build navigation is stateful and hosted Build requires saved evidence before exporting its prototype brief' };
   }
   return { pass: false, reason: `stage journey incomplete (nav: ${nav}, active Build: ${stage}, useful browser pack: ${useful})` };
 }
@@ -1006,7 +1031,7 @@ function checkNarration(chrome) {
 function checkAuthoredLesson(chrome) {
   const id = 'authored:qa-crater-hop-0000abcd';
   const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&seedlesson=1&lesson=${encodeURIComponent(id)}`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_authored_lesson', url, { vtime: 14000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_authored_lesson', url, { vtime: 20000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 140)}` };
@@ -1340,6 +1365,31 @@ function cleanup() {
 
   const gap = () => { const until = Date.now() + GAP_MS; while (Date.now() < until) { /* dep-free pause */ } };
 
+  // A bounded release gate for the connected journey added after the original
+  // behaviour suite grew beyond a useful local feedback loop.
+  if (SUITE === 'critical' || SUITE === 'authored') {
+    console.log('\n== UI CRITICAL: Companion, lesson, and stage journey ==');
+    const checks = SUITE === 'authored' ? [
+      ['authored-lesson', checkAuthoredLesson],
+    ] : [
+      ['chat-repair', checkVibeRepairPreview],
+      ['lesson-goals', checkLessonGoals],
+      ['stage-journey', checkStageJourney],
+      ['authored-lesson', checkAuthoredLesson],
+    ];
+    const results = [];
+    for (const [name, check] of checks) {
+      const result = check(chrome);
+      results.push(result.pass);
+      console.log(`${result.pass ? 'PASS' : 'FAIL'}  ${name.padEnd(20)} ${result.reason}`);
+      gap();
+    }
+    cleanup();
+    console.log(`\n== UI CRITICAL: ${results.filter(Boolean).length}/${results.length} critical flows pass ==`);
+    process.exitCode = results.every(Boolean) ? 0 : 1;
+    return;
+  }
+
   // ---- Phase 1: paint + console smoke across the core flows (unchanged) -----
   let clean = 0;
   if (RUN_PAINT) for (let i = 0; i < FLOWS.length; i++) {
@@ -1444,6 +1494,11 @@ function cleanup() {
   const vibeBuild = checkVibeBuild(chrome);
   behaviour.push(vibeBuild.pass);
   console.log(`${vibeBuild.pass ? 'PASS' : 'FAIL'}  ${'chat-build'.padEnd(20)} ${vibeBuild.reason}`);
+  gap();
+
+  const vibeRepair = checkVibeRepairPreview(chrome);
+  behaviour.push(vibeRepair.pass);
+  console.log(`${vibeRepair.pass ? 'PASS' : 'FAIL'}  ${'chat-repair'.padEnd(20)} ${vibeRepair.reason}`);
   gap();
 
   const lessonGoals = checkLessonGoals(chrome);

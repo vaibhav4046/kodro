@@ -33319,7 +33319,7 @@ say("Survey done")`
       projectContext: {
         robot: chipName,
         world: terrain.name || terrain.id,
-        program: currentLessonId ? (lessons.find(l => l.id === currentLessonId) || {}).title || 'Lesson program' : SIMPLE_PROGRAM_NAMES[activeTab] || EXAMPLES[activeTab].label,
+        program: currentLessonId ? (lessons.find(l => l.id === currentLessonId) || {}).title || 'Lesson program' : SIMPLE_PROGRAM_NAMES[activeTab] || EXAMPLES[activeTab] && EXAMPLES[activeTab].label || 'Current program',
         outcome: simpleLatestRun ? SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded' : null
       },
       onExplain: () => {

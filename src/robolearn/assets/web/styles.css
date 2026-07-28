@@ -210,7 +210,6 @@ body {
   border:1px solid var(--border); border-radius:50%; color:var(--fg-3);
   font:600 var(--text-2xs)/1 var(--font-mono);
 }
-.stage-link.active .stage-count { color:var(--void); background:var(--cyan); border-color:var(--cyan); }
 .stage-link[data-state="done"] .stage-count,
 .stage-link[data-state="ready"] .stage-count { color:var(--success); border-color:color-mix(in srgb,var(--success) 68%,var(--border)); }
 .stage-link[data-state="attention"] .stage-count { color:var(--warning); border-color:color-mix(in srgb,var(--warning) 70%,var(--border)); }
