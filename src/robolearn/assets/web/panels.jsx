@@ -316,6 +316,39 @@
             )}
             {hasRows && (
               <div className="teacher-content">
+                {/* The marks, OUT of the browser. The whole register dies on
+                    this device otherwise: a head of computing cannot bring a
+                    localStorage key to a book scrutiny. CSV because every
+                    school system already opens it (SIMS, Arbor, Excel,
+                    Sheets); one file per question. Browser mode only: the
+                    desktop app's register lives in Python's SQLite and exports
+                    from there. */}
+                {browserMode && window.KodroMarkbook && (
+                  <div className="teacher-export" role="group" aria-label="Export the register">
+                    <button className="btn-mini" onClick={() => {
+                      const csv = window.KodroMarkbook.markbookCsv(
+                        (typeof window.KODRO_LESSON_LIST !== 'undefined' && window.KODRO_LESSON_LIST) || []);
+                      if (!csv) { alert('No lesson results to export yet. Results appear here after a pupil submits a lesson.'); return; }
+                      const blob = new Blob([csv], { type: 'text/csv' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url; a.download = 'kodro-markbook.csv';
+                      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                      setTimeout(() => URL.revokeObjectURL(url), 2000);
+                    }}>Download markbook (CSV)</button>
+                    <button className="btn-mini" onClick={() => {
+                      const csv = window.KodroMarkbook.strengthsCsv();
+                      if (!csv) { alert('No concept strengths to export yet.'); return; }
+                      const blob = new Blob([csv], { type: 'text/csv' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url; a.download = 'kodro-concept-strengths.csv';
+                      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                      setTimeout(() => URL.revokeObjectURL(url), 2000);
+                    }}>Download strengths (CSV)</button>
+                    <span className="teacher-export-note">Practice feedback, not assessment evidence.</span>
+                  </div>
+                )}
                 <div className="teacher-summary" aria-label="Classroom summary">
                   <div><strong>{teacherData.pupils.length}</strong><span>{teacherData.pupils.length === 1 ? 'learner' : 'learners'}</span></div>
                   <div><strong>{teacherData.concepts.length}</strong><span>{teacherData.concepts.length === 1 ? 'concept' : 'concepts'} practised</span></div>

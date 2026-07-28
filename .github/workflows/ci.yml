@@ -182,6 +182,12 @@ jobs:
       - name: Parsons puzzle gate
         run: node scripts/qa_parsons.mjs
 
+      # The markbook is the marks leaving the device. A CSV that drops a pupil,
+      # breaks on a comma in a name, or loses results for a renamed lesson is
+      # worse than no export, because the teacher trusts the file.
+      - name: Teacher markbook gate
+        run: node scripts/qa_markbook.mjs
+
       - name: Cross-engine fuzz gate
         run: node scripts/qa_fuzz.mjs
 

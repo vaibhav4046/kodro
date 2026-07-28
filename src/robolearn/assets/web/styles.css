@@ -2778,3 +2778,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .parsons-verdict { margin: 0; font-size: var(--text-sm); }
 .parsons-verdict.ok { color: var(--success); }
 .parsons-verdict.bad { color: var(--warning); }
+
+/* --- teacher register export --------------------------------------------- */
+.teacher-export { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.teacher-export-note { font-size: var(--text-sm); color: var(--text-dim); }

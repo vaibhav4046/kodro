@@ -1529,7 +1529,15 @@
       // the isAvailable() gate. (Submit also works in both modes now: the
       // bridge routes it to the JS lesson grader when pywebview is absent.)
       if (!window.RoboLearn) return;
-      window.RoboLearn.listLessons().then(ls => { if (Array.isArray(ls)) setLessons(mergeAuthored(ls)); });
+      window.RoboLearn.listLessons().then(ls => {
+        if (Array.isArray(ls)) {
+          const merged = mergeAuthored(ls);
+          setLessons(merged);
+          // For the markbook exporter (panels.jsx), which needs titles and key
+          // stages for its human columns but is not in this component tree.
+          try { window.KODRO_LESSON_LIST = merged; } catch (err) { void err; }
+        }
+      });
     }, []);
     // Built-in lessons first, then whatever was made on this device. Hydrate
     // BEFORE merging: a row whose grader entry was refused must not appear in
@@ -1692,6 +1700,22 @@
         const verdictHash = (window.KodroScenario && window.KodroScenario.codeHash)
           ? window.KodroScenario.codeHash(source) : null;
         setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null, codeHash: verdictHash });
+        // The quiet catastrophe on a school Chromebook: everything here lives
+        // in localStorage, shared and ephemeral profiles wipe it at sign-out,
+        // and the pupil finds out next lesson. Nothing forced a save and
+        // nothing warned. So: once a pupil has two recorded results and has
+        // never saved a project file on this device, say so, once per session,
+        // at a moment of success rather than mid-struggle.
+        try {
+          if (window.RoboLearn && window.RoboLearn.isAvailable && !window.RoboLearn.isAvailable()
+            && !window.KODRO_NUDGED_SAVE
+            && !localStorage.getItem('kodro_saved_once')
+            && Object.keys(lessonResults).length >= 1) {
+            window.KODRO_NUDGED_SAVE = true;
+            showToast('Your work is saved only in this browser. On a shared computer it can be wiped at sign-out: Settings, then Save project, keeps a file copy.', 'sys');
+            addConsole('Tip: Settings > Save project downloads a .kodro file with everything in it. Open it later on any computer to carry on.', 'sys');
+          }
+        } catch (err) { void err; }
         setLessonResults(prev => ({
           ...prev,
           [lessonId]: {

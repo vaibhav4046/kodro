@@ -633,6 +633,10 @@
     async function saveProjectClick() {
       setSettingsOpen(false);
       if (!window.KodroProject) return;
+      // Remember that a file copy exists. The work-loss nudge (app.jsx) stops
+      // firing once the pupil has ever saved a project on this device, because
+      // its whole job is to reach the pupil who never has.
+      try { localStorage.setItem('kodro_saved_once', '1'); } catch (e) { void e; }
       const doc = window.KodroProject.collect();
       const json = JSON.stringify(doc, null, 2);
       const fname = window.KodroProject.fileName(doc);
