@@ -228,7 +228,9 @@ ok(/notSimulated:\s*\[[\s\S]*?buoyancy[\s\S]*?depth pressure[\s\S]*?vacuum[\s\S]
   const hooks = read('hooks.jsx');
   const scenario = read('scenario.jsx');
   for (const [name, src] of [['hooks.jsx', hooks], ['scenario.jsx', scenario]]) {
-    ok(/case 'tilt': return 0;/.test(src), name + " tilt() returns 0 (flat worlds, level IMU)");
+    // Trace-enabled engines wrap sensor values in read(...) so the learner can
+    // inspect them later; the physical value must still be the literal zero.
+    ok(/case 'tilt': return (?:read\()?0(?:\))?;/.test(src), name + " tilt() returns 0 (flat worlds, level IMU)");
     ok(!/case 'tilt': return Math\.round\(\(Math\.sin/.test(src), name + ' no longer synthesizes tilt from position');
   }
 }
