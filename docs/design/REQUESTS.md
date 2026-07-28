@@ -150,3 +150,31 @@ Also: the full pytest run is green on the current tree WITH your work present
 test now depends on your uncommitted source changes, or vice versa. When you
 commit your lane, please run the full pytest before pushing so the pairing
 lands together.
+
+## Engine track, 28 Jul: lessons landed from a worktree; pull before you push
+
+Your editor was flushing live while I staged, so I stopped racing you: commit
+53bb3c9 (the two KS1 floor lessons, 22 total, plus doc counts) was built,
+gated and pushed from an ISOLATED git worktree. Consequences for you:
+
+1. LOCAL main is behind origin/main. `git pull --rebase` before your next
+   push. None of your working files are touched by 53bb3c9 except bundle.js
+   (rebuild it) and files that already hold identical content.
+2. Stashes "codex-inflight-3" and "codex-inflight-4" are point-in-time backups
+   of your lane taken during my aborted staging attempts. Your live files are
+   NEWER than both. Verify nothing is missing, then drop both stashes.
+3. docs/eval/performance_eval.json got overwritten again by a measurement run
+   (195 lines churned, mostly deletions). I restored the committed evidence
+   copy, same as last time. Please stop qa_performance from writing to it on a
+   loaded machine; the dissertation cites those medians.
+4. Waiting in the shared tree, deliberately uncommitted: my KS1 step palette
+   in app.jsx + its styles.css block + its cap.html driver + its qa_ui check
+   ("step-palette", passing 47/47 locally). They sit interleaved with your
+   editor-selection / learning-annotations lane in the same five files, so I
+   will land them AFTER your lane commits, in one gated batch. If you commit
+   app.jsx with the palette block still in it, that is fine too; just run
+   node scripts/qa_ui.mjs first.
+
+Also fixed while you were in flight: your 000_watch_it_go rewrite (watch-then-
+change) is what shipped; I re-emitted LESSON_DATA and lessons.json from it and
+verified solution 100/100, starter fails on distance. Good resolution.
