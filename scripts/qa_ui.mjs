@@ -704,35 +704,63 @@ function checkMemoryGraph(chrome) {
 }
 
 // CHAT BUILDS THE WORLD (F-chat) — a Vibe message that is a clear build/move
-// command actually builds the robot and switches the world, and posts a visible
-// action line. This runs the real dispatch (KodroChatIntent -> RobotLab.build +
-// onTerrain) with NO model needed, so it works headless. Assert the actual
-// selected world and fitted parts, not only an optimistic chat sentence.
+// command first shows a structured, non-mutating preview. A second real browser
+// pass clicks Apply and proves the reviewed robot/world change becomes the live
+// project; no model is needed, so the flow remains deterministic and headless.
 function checkVibeBuild(chrome) {
   const request = 'build a Mars exploration rover with 4 motors, ultrasonic, camera, and a 30 minute battery';
-  const url = `${BASE}?world=earth&robot=rover&q=low&vibe=${encodeURIComponent(request)}`;
-  const { dom, error } = dumpDom(chrome, 'behaviour_vibe_build', url, { vtime: 12000 });
+  const previewUrl = `${BASE}?world=earth&robot=rover&q=low&vibe=${encodeURIComponent(request)}`;
+  const previewRun = dumpDom(chrome, 'behaviour_vibe_build_preview', previewUrl, { vtime: 12000 });
+  if (previewRun.error) return { pass: false, reason: `preview dump-dom failed: ${previewRun.error.message}` };
+  if (!previewRun.dom) return { pass: false, reason: 'preview produced no DOM (page never rendered)' };
+  if (!/class="vibe-msg ai project-preview"/.test(previewRun.dom)
+      || !/Preview .* nothing changed/.test(previewRun.dom)
+      || !/Apply project change/.test(previewRun.dom)
+      || !/data-active-world="earth"/.test(previewRun.dom)) {
+    return { pass: false, reason: 'build request did not remain an explicit, non-mutating project preview' };
+  }
+  if (!/4 motors requested/.test(previewRun.dom)
+      || !/30 minute mission requested/.test(previewRun.dom)
+      || !/Runtime needs real component/.test(previewRun.dom)) {
+    return { pass: false, reason: 'preview omitted the parsed motor/runtime requirements or their honest unresolved status' };
+  }
+
+  const applyUrl = `${previewUrl}&vibeapply=1`;
+  const appliedRun = dumpDom(chrome, 'behaviour_vibe_build_apply', applyUrl, { vtime: 15000 });
+  if (appliedRun.error) return { pass: false, reason: `apply dump-dom failed: ${appliedRun.error.message}` };
+  if (!appliedRun.dom) return { pass: false, reason: 'apply produced no DOM (page never rendered)' };
+  if (!/class="vibe-msg ai action"/.test(appliedRun.dom)
+      || !/Applied: built a rover/.test(appliedRun.dom)
+      || !/moved to Mars/.test(appliedRun.dom)) {
+    return { pass: false, reason: 'Apply did not post the completed robot/world action' };
+  }
+  if (!/data-active-world="mars"/.test(appliedRun.dom)) {
+    return { pass: false, reason: 'Apply claimed Mars, but the live project was not Mars' };
+  }
+  if (!/4 DC motors, ultrasonic range, IMU, camera/.test(appliedRun.dom)) {
+    return { pass: false, reason: 'the applied build did not enumerate the fitted drive and sensors' };
+  }
+  return { pass: true, reason: 'build stayed unchanged through preview, disclosed unresolved constraints, then Apply fitted the robot and switched the live project to Mars' };
+}
+
+function checkLearningAnnotation(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&experience=expert&annotation=${encodeURIComponent('move_forward')}`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_learning_annotation', url, { vtime: 7000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
-  if (!/class="vibe-msg ai action"/.test(dom)) {
-    return { pass: false, reason: 'no action line in the Vibe thread after a build command (chat did not act on the world)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const hasToolbar = /class="learning-selection-bar"/.test(dom);
+  const hasCard = /class="learning-annotation-card"/.test(dom);
+  const hasSource = /Source[^<]{0,20}line \d+/.test(dom);
+  if (!hasToolbar || !hasCard || !hasSource) {
+    return { pass: false, reason: `a real editor selection did not open a source-cited explanation card (toolbar ${hasToolbar}, card ${hasCard}, source ${hasSource})` };
   }
-  if (!/Moved to Mars/.test(dom)) {
-    return { pass: false, reason: 'action line present but it did not move the world to Mars' };
+  const unavailable = /Run evidence[^<]{0,20}unavailable/.test(dom);
+  const refusesGuess = /runtime values are deliberately not guessed/.test(dom);
+  if (!unavailable || !refusesGuess) {
+    return { pass: false, reason: `the pre-run annotation did not declare missing evidence clearly (unavailable ${unavailable}, refusesGuess ${refusesGuess})` };
   }
-  if (!/Built a rover|Built a general rover/.test(dom)) {
-    return { pass: false, reason: 'world moved but no robot was built from the chat command' };
-  }
-  if (!/data-active-world="mars"/.test(dom)) {
-    return { pass: false, reason: 'chat claimed Mars, but the actual active world was not Mars' };
-  }
-  if (!/4 DC motors, ultrasonic range, IMU, camera/.test(dom)) {
-    return { pass: false, reason: 'the build acknowledgement did not enumerate the exact fitted drive and sensors' };
-  }
-  if (!/catalogue runtime estimate/.test(dom)) {
-    return { pass: false, reason: 'the 30-minute battery request was silently ignored instead of receiving an honest runtime estimate' };
-  }
-  return { pass: true, reason: 'detailed chat build fitted the requested parts, reported runtime honestly, and the actual active world is Mars' };
+  return { pass: true, reason: 'selected code opened a claim-level source card and refused to invent runtime values before a run' };
 }
 
 // Switching the visible world while a lesson is open must leave the lesson
@@ -1427,6 +1455,7 @@ function cleanup() {
     ] : [
       ['chat-repair', checkVibeRepairPreview],
       ['chat-build', checkVibeBuild],
+      ['learning-note', checkLearningAnnotation],
       ['lesson-goals', checkLessonGoals],
       ['lesson-world-exit', checkLessonWorldExit],
       ['stage-journey', checkStageJourney],
@@ -1549,6 +1578,11 @@ function cleanup() {
   const vibeBuild = checkVibeBuild(chrome);
   behaviour.push(vibeBuild.pass);
   console.log(`${vibeBuild.pass ? 'PASS' : 'FAIL'}  ${'chat-build'.padEnd(20)} ${vibeBuild.reason}`);
+  gap();
+
+  const learningAnnotation = checkLearningAnnotation(chrome);
+  behaviour.push(learningAnnotation.pass);
+  console.log(`${learningAnnotation.pass ? 'PASS' : 'FAIL'}  ${'learning-note'.padEnd(20)} ${learningAnnotation.reason}`);
   gap();
 
   const lessonWorldExit = checkLessonWorldExit(chrome);

@@ -2782,3 +2782,146 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 /* --- teacher register export --------------------------------------------- */
 .teacher-export { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
 .teacher-export-note { font-size: var(--text-sm); color: var(--text-dim); }
+
+/* --- KS1 step palette ----------------------------------------------------- */
+/* One-tap buttons for pupils who cannot type yet. Targets are 44px minimum
+   (WCAG 2.5.8 / small motor control at age 5), text is the button, and the
+   palette reads left to right in the order a program is built. Existing
+   tokens only; contrast stays inside the audited pairs. */
+.step-palette {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  margin: 8px 0 2px;
+}
+.step-btn {
+  min-height: 44px; padding: 8px 16px;
+  font-size: var(--text-base, 1rem); font-weight: 600;
+  background: var(--navy-2); color: var(--fg-1);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.step-btn:hover:not(:disabled) { border-color: var(--cyan); }
+.step-btn:disabled { opacity: .45; cursor: default; }
+.step-btn.step-undo { font-weight: 400; color: var(--fg-3); }
+.step-full-note { font-size: var(--text-sm); color: var(--fg-3); }
+
+/* --- Learning Studio annotations ----------------------------------------- */
+.learning-selection-bar {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 7px 10px; border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--navy-2) 92%, var(--cyan) 8%);
+}
+.learning-selection-label {
+  color: var(--cyan); font-size: 11px; font-weight: 800;
+  letter-spacing: .03em; margin-right: 2px;
+}
+.learning-selection-empty { font-size: 11.5px; color: var(--fg-3); flex: 1; }
+.learning-notebook-btn { margin-left: auto; }
+.learning-change-btn { border-color: color-mix(in srgb, var(--cyan) 55%, var(--border)); }
+.learning-annotation-card {
+  margin: 10px; padding: 12px; max-height: min(52vh, 560px); overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--cyan) 38%, var(--border));
+  border-radius: 12px; background: var(--navy-2); box-shadow: 0 12px 32px rgba(0,0,0,.2);
+}
+.learning-annotation-head, .learning-notebook-entry-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.learning-annotation-head h3, .learning-notebook-entry h3 {
+  margin: 3px 0 0; font-size: 15px; color: var(--fg-1);
+}
+.learning-excerpt {
+  margin: 10px 0; padding: 9px 10px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--navy); color: var(--fg-1);
+  font: 12px/1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.learning-claims { display: grid; gap: 8px; margin: 0; padding-left: 22px; }
+.learning-claims li { padding-left: 2px; color: var(--fg-1); font-size: 12px; line-height: 1.45; }
+.learning-claims cite, .learning-values cite {
+  display: block; width: max-content; max-width: 100%; margin-top: 4px; padding: 2px 6px;
+  border-radius: 999px; background: color-mix(in srgb, var(--cyan) 12%, transparent);
+  color: var(--cyan); font-size: 9.5px; font-style: normal; font-weight: 750;
+}
+.learning-claims.compact { gap: 6px; }
+.learning-values {
+  margin: 10px 0; padding: 10px; border-radius: 9px;
+  background: color-mix(in srgb, var(--navy) 84%, var(--cyan) 16%);
+}
+.learning-values > strong, .run-stepper-vars > strong {
+  display: block; margin-bottom: 7px; font-size: 11px; color: var(--fg-2);
+}
+.learning-values dl, .run-stepper-vars dl { display: grid; gap: 4px; margin: 0; }
+.learning-values dl > div, .run-stepper-vars dl > div {
+  display: grid; grid-template-columns: minmax(70px,.7fr) minmax(0,1.3fr); gap: 8px;
+}
+.learning-values dt, .run-stepper-vars dt { font: 700 11px/1.4 var(--font-mono); color: var(--fg-2); }
+.learning-values dd, .run-stepper-vars dd {
+  margin: 0; display: flex; align-items: flex-start; gap: 6px; flex-wrap: wrap;
+}
+.learning-values code, .run-stepper-vars code { color: var(--cyan); overflow-wrap: anywhere; }
+.learning-no-values, .vibe-preview-warning {
+  padding: 8px 10px; border-left: 3px solid var(--warning);
+  background: color-mix(in srgb, var(--warning) 9%, transparent);
+  color: var(--fg-2); font-size: 11px; line-height: 1.45;
+}
+.learning-note-field {
+  display: grid; gap: 5px; margin-top: 10px; color: var(--fg-2);
+  font-size: 11px; font-weight: 700;
+}
+.learning-note-field textarea {
+  width: 100%; box-sizing: border-box; resize: vertical; padding: 8px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--navy); color: var(--fg-1); font: inherit; font-size: 12px; line-height: 1.4;
+}
+.learning-annotation-actions {
+  display: flex; gap: 7px; justify-content: flex-end; margin-top: 9px;
+}
+.learning-notebook-sub { margin: 4px 0 0; color: var(--fg-3); font-size: 11px; }
+.learning-notebook-list {
+  display: grid; gap: 12px; padding: 12px; max-height: min(72vh, 760px); overflow: auto;
+}
+.learning-notebook-entry {
+  padding: 12px; border: 1px solid var(--border); border-radius: 11px; background: var(--navy-2);
+}
+
+/* Companion project previews: state and constraints stay visible until Apply. */
+.vibe-msg.project-preview {
+  display: block; border-color: color-mix(in srgb, var(--cyan) 45%, var(--border));
+}
+.project-preview-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.vibe-preview-badge {
+  display: inline-block; padding: 2px 7px; border-radius: 999px;
+  background: color-mix(in srgb, var(--cyan) 16%, transparent);
+  color: var(--cyan); font-size: 9.5px; font-weight: 850;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.vibe-project-diff { display: grid; gap: 6px; margin: 9px 0; }
+.vibe-project-diff > div {
+  display: grid; grid-template-columns: 90px 1fr; gap: 8px;
+  padding: 7px; border-radius: 8px; background: var(--navy);
+}
+.vibe-project-diff b { font-size: 10px; color: var(--fg-3); text-transform: uppercase; }
+.vibe-project-diff span { font-size: 11px; color: var(--fg-1); }
+.vibe-project-diff small { display: block; color: var(--fg-3); font-size: 10px; }
+.vibe-requirements { display: grid; gap: 5px; list-style: none; margin: 8px 0; padding: 0; }
+.vibe-requirements li {
+  display: flex; gap: 7px; align-items: flex-start; padding: 7px;
+  border-radius: 8px; background: var(--navy);
+}
+.vibe-requirements li > span:first-child { font-weight: 900; color: var(--warning); }
+.vibe-requirements li[data-status="met"] > span:first-child { color: var(--success); }
+.vibe-requirements b, .vibe-requirements small { display: block; }
+.vibe-requirements b { font-size: 11px; color: var(--fg-1); }
+.vibe-requirements small { margin-top: 2px; color: var(--fg-3); font-size: 10px; }
+.run-stepper-vars {
+  margin-top: 9px; padding: 9px; border: 1px solid var(--border);
+  border-radius: 8px; background: var(--navy);
+}
+
+@media (max-width: 720px) {
+  .learning-notebook-btn { margin-left: 0; }
+  .learning-selection-bar .btn-mini { min-height: 34px; }
+  .learning-annotation-card { max-height: none; }
+  .vibe-project-diff > div { grid-template-columns: 1fr; }
+}

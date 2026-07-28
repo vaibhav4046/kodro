@@ -346,6 +346,7 @@
     function vibeClear() {
       setVibeMsgs([]); setVibeError(null); setVibeLive('');
       try { window.localStorage.removeItem(VIBE_KEY); } catch (_e) { /* ignore */ }
+      if (opts.clearEditScope) opts.clearEditScope();
     }
 
     // Streamed reply: start a job, poll ~4x/s, and show the model's text live
@@ -361,17 +362,27 @@
       // textarea, so a click event can never become "[object Object]" in chat.
       const text = (typeof overrideText === 'string' ? overrideText : vibePrompt).trim();
       if (vibeBusy || !text) return;
+      const editScope = opts.getEditScope ? opts.getEditScope() : null;
       const next = [...vibeMsgs, { role: 'user', kind: 'text', text }];
       setVibeMsgs(next); setVibePrompt(''); setVibeBusy(true); setVibeError(null); setVibeLive(''); vibeCancelRef.current = false;
       // Chat that acts on the world: if this message is a clear build/move
       // command, perform it NOW (before the model runs) so the robot grounding
       // the model sees is the new robot. Works even when no AI model is present.
       let actionMsg = null;
-      try { actionMsg = opts.dispatchWorldAction ? opts.dispatchWorldAction(text) : null; } catch (_e) { actionMsg = null; }
+      if (!editScope) {
+        try { actionMsg = opts.dispatchWorldAction ? opts.dispatchWorldAction(text) : null; } catch (_e) { actionMsg = null; }
+      }
       if (actionMsg) {
         const replies = [];
         if (actionMsg.message) {
           replies.push({ role: 'ai', kind: actionMsg.kind || 'action', text: actionMsg.message });
+        }
+        if (actionMsg.preview) {
+          replies.push({
+            role: 'ai', kind: 'project-preview',
+            text: actionMsg.previewTitle || 'Review this project change before applying it.',
+            preview: actionMsg.preview,
+          });
         }
         // An on-device repair uses the same preview card as model-written code:
         // the current program is untouched until the user chooses Apply, and
@@ -390,6 +401,7 @@
         // model request that can fail and paint "AI unavailable" under a task
         // Kodro has already completed successfully.
         if (actionMsg.handled !== false) {
+          if (opts.clearEditScope) opts.clearEditScope();
           setVibeBusy(false);
           return;
         }
@@ -398,7 +410,7 @@
       // Answer from deterministic interpreter traces before asking a model, so
       // a "why does this line run?" question can never become an unrelated
       // Apply-to-editor proposal.
-      if (!actionMsg && window.KodroAI && window.KodroAI.explainCurrentProgram) {
+      if (!editScope && !actionMsg && window.KodroAI && window.KodroAI.explainCurrentProgram) {
         const currentCode = opts.getCode ? opts.getCode() : '';
         const explanation = window.KodroAI.explainCurrentProgram(text, currentCode);
         if (explanation && explanation.ok) {
@@ -407,6 +419,7 @@
             model: explanation.model,
             summary: 'Verified against the current editor program.',
           }]);
+          if (opts.clearEditScope) opts.clearEditScope();
           setVibeBusy(false);
           return;
         }
@@ -416,7 +429,7 @@
       // model proposes, the live registry validates. A valid id switches the
       // world, an invalid one refuses readably, and any model failure falls
       // through silently to plain chat.
-      if (!actionMsg && opts.onTerrain && window.KodroAI && window.KodroAI.toolCall) {
+      if (!editScope && !actionMsg && opts.onTerrain && window.KodroAI && window.KodroAI.toolCall) {
         try {
           const tc = await window.KodroAI.toolCall(text, { set_world: { hint: 'world or site id' } });
           if (tc) {
@@ -443,17 +456,40 @@
         if (window.KodroCommands && window.getKodroRobot) {
           history.unshift({ role: 'user', text: window.KodroCommands.groundingText(window.getKodroRobot()) });
         }
+        if (editScope) {
+          history.unshift({
+            role: 'user',
+            text: 'Edit ONLY lines ' + editScope.startLine + ' to ' + editScope.endLine
+              + ' of the current program. Return Python code only. Do not change any character before or after the selected range. Selected code:\n'
+              + editScope.selected,
+          });
+        }
         const start = await window.KodroAI.chatStart(history, currentLessonIdRef.current);
-        if (!start || !start.ok) { setVibeError((start && start.reason) || 'AI unavailable. Start Ollama or run the desktop app.'); setVibeBusy(false); return; }
+        if (!start || !start.ok) {
+          setVibeError((start && start.reason) || 'AI unavailable. Start Ollama or run the desktop app.');
+          if (opts.clearEditScope) opts.clearEditScope();
+          setVibeBusy(false);
+          return;
+        }
         let r = null;
         for (;;) {
           await new Promise(res => setTimeout(res, 250));
-          if (vibeCancelRef.current) { setVibeLive(''); setVibeBusy(false); return; }
+          if (vibeCancelRef.current) {
+            setVibeLive('');
+            if (opts.clearEditScope) opts.clearEditScope();
+            setVibeBusy(false);
+            return;
+          }
           const p = await window.KodroAI.chatPoll(start.jobId);
           // L2: the await above can resolve AFTER the user cancelled (closed the
           // panel) during it; re-check before committing the poll result to
           // state, so a cancelled generation never writes onto the closed modal.
-          if (vibeCancelRef.current) { setVibeLive(''); setVibeBusy(false); return; }
+          if (vibeCancelRef.current) {
+            setVibeLive('');
+            if (opts.clearEditScope) opts.clearEditScope();
+            setVibeBusy(false);
+            return;
+          }
           if (!p || !p.ok) { r = p; break; }
           if (p.done) { r = p; break; }
           setVibeLive(p.text || '');
@@ -462,11 +498,17 @@
         if (r && r.ok && r.type === 'question') {
           setVibeMsgs(m => [...m, { role: 'ai', kind: 'text', text: r.text }]);
         } else if (r && r.ok && r.type === 'code') {
-          setVibeMsgs(m => [...m, { role: 'ai', kind: 'code', text: r.code, model: r.model, validated: r.validated, validationError: r.validationError }]);
+          setVibeMsgs(m => [...m, {
+            role: 'ai', kind: 'code', text: r.code, model: r.model,
+            validated: r.validated, validationError: r.validationError,
+            scope: editScope || null,
+            summary: editScope ? 'Changes only lines ' + editScope.startLine + 'â€“' + editScope.endLine + '; the surrounding program is protected.' : null,
+          }]);
         } else {
           setVibeError((r && r.reason) || 'Generation failed.');
         }
       } catch (e) { setVibeError(String(e)); }
+      if (opts.clearEditScope) opts.clearEditScope();
       setVibeBusy(false);
     }
 
@@ -957,7 +999,7 @@
     // per-event setState would cost frames mid-animation.
     const runTraceRef = useRef([]);
     const TRACE_CAP = 600;
-    function traceStep(desc, line) {
+    function traceStep(desc, line, vars) {
       const t = runTraceRef.current;
       if (t.length >= TRACE_CAP) return;
       const s = live.current;
@@ -971,6 +1013,7 @@
         battery: Math.round(s.battery * 10) / 10,
         odoM: Math.round(odoRef.current) / 100,
         collisions: runCollisionsRef.current,
+        vars: vars && typeof vars === 'object' ? { ...vars } : {},
       });
       try { window.KODRO_RUN_TRACE = t; } catch (e) { void e; }
     }
@@ -1584,8 +1627,8 @@
         if (ev.type !== 'step') { cmdCountRef.current++; gradeStepsRef.current++; }
         if (ev.line) setActiveLine(ev.line);
         switch (ev.type) {
-          case 'step': traceStep('Evaluate line ' + (ev.line || '?'), ev.line); await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
-          case 'print': traceStep('log(' + JSON.stringify(String(ev.text).slice(0, 30)) + ')', ev.line); addConsole(ev.text, 'out'); await delay(stepMode ? 0 : 90 / speedMulRef.current); break;
+          case 'step': traceStep('Evaluate line ' + (ev.line || '?'), ev.line, ev.vars); await delay(stepMode ? 0 : 70 / speedMulRef.current); break;
+          case 'print': traceStep('log(' + JSON.stringify(String(ev.text).slice(0, 30)) + ')', ev.line, ev.vars); addConsole(ev.text, 'out'); await delay(stepMode ? 0 : 90 / speedMulRef.current); break;
           case 'move': case 'turn': {
             // Arm honesty (A13, bugs D4): a fixed-base arm has no drive, so a
             // move/turn must be refused with a readable coach line instead of
@@ -1607,30 +1650,30 @@
               sfx('move');
               const collisionsBefore = runCollisionsRef.current;
               const ok = await animateMove(ev);
-              traceStep((ev.dir < 0 ? 'move_backward(' : 'move_forward(') + (Math.abs(ev.distance) / 100) + ')', ev.line);
-              if (runCollisionsRef.current > collisionsBefore) traceStep('Collision stopped this movement', ev.line);
+              traceStep((ev.dir < 0 ? 'move_backward(' : 'move_forward(') + (Math.abs(ev.distance) / 100) + ')', ev.line, ev.vars);
+              if (runCollisionsRef.current > collisionsBefore) traceStep('Collision stopped this movement', ev.line, ev.vars);
               return ok;
             }
             sfx('turn');
             const turnCollisionsBefore = runCollisionsRef.current;
             const turnOk = await animateTurn(ev);
-            traceStep((ev.deg < 0 ? 'turn_left(' : 'turn_right(') + Math.abs(ev.deg) + ')', ev.line);
-            if (runCollisionsRef.current > turnCollisionsBefore) traceStep('Collision stopped this turn', ev.line);
+            traceStep((ev.deg < 0 ? 'turn_left(' : 'turn_right(') + Math.abs(ev.deg) + ')', ev.line, ev.vars);
+            if (runCollisionsRef.current > turnCollisionsBefore) traceStep('Collision stopped this turn', ev.line, ev.vars);
             return turnOk;
           }
-          case 'speed': live.current.speed = Math.max(0, Math.min(100, ev.value)); sync(); traceStep('set_speed(' + ev.value + ')', ev.line); break;
-          case 'wait': live.current.vel = 0; await delay(ev.seconds * 1000 / speedMulRef.current); traceStep('wait(' + ev.seconds + ')', ev.line); break;
+          case 'speed': live.current.speed = Math.max(0, Math.min(100, ev.value)); sync(); traceStep('set_speed(' + ev.value + ')', ev.line, ev.vars); break;
+          case 'wait': live.current.vel = 0; await delay(ev.seconds * 1000 / speedMulRef.current); traceStep('wait(' + ev.seconds + ')', ev.line, ev.vars); break;
           case 'pen':
             live.current.penDown = ev.down;
             if (ev.down) { trailRef.current.push([{ x: live.current.x, y: live.current.y }]); setTrail([...trailRef.current]); }
-            traceStep(ev.down ? 'pen_down()' : 'pen_up()', ev.line);
+            traceStep(ev.down ? 'pen_down()' : 'pen_up()', ev.line, ev.vars);
             break;
-          case 'halt': live.current.moving = false; sync(); traceStep('stop()', ev.line); break;
-          case 'led': sfx('led'); live.current.led = (ev.color in LED_COLORS) ? LED_COLORS[ev.color] : terrain.accent; sync(); traceStep('led(' + JSON.stringify(ev.color) + ')', ev.line); break;
+          case 'halt': live.current.moving = false; sync(); traceStep('stop()', ev.line, ev.vars); break;
+          case 'led': sfx('led'); live.current.led = (ev.color in LED_COLORS) ? LED_COLORS[ev.color] : terrain.accent; sync(); traceStep('led(' + JSON.stringify(ev.color) + ')', ev.line, ev.vars); break;
           case 'say':
             // Visual program output only: a speech bubble plus a console line.
             sfx('say');
-            showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); traceStep('say(' + JSON.stringify(String(ev.text).slice(0, 30)) + ')', ev.line); break;
+            showSay(ev.text); await delay(stepMode ? 0 : 200 / speedMulRef.current); traceStep('say(' + JSON.stringify(String(ev.text).slice(0, 30)) + ')', ev.line, ev.vars); break;
           case 'beep': {
             // S3: beep() plays the synthesised beep it always claimed to be
             // (SFX.beep existed unused); repeats are spaced so 3 beeps read
@@ -1640,7 +1683,7 @@
               sfx('beep');
               await delay(stepMode ? 0 : 160 / speedMulRef.current);
             }
-            traceStep('beep(' + n + ')', ev.line);
+            traceStep('beep(' + n + ')', ev.line, ev.vars);
             break;
           }
           case 'place': {
@@ -1649,14 +1692,14 @@
             sfx('led');
             setProps(p => p.length >= 80 ? p : [...p, { kind: ev.kind, x: px, y: py, id: p.length }]);
             await delay(stepMode ? 0 : 160 / speedMulRef.current);
-            traceStep('place(' + JSON.stringify(ev.kind) + ')', ev.line);
+            traceStep('place(' + JSON.stringify(ev.kind) + ')', ev.line, ev.vars);
             break;
           }
           // "Remove every prop placed with place()" -- pupil-placed props only.
           // The props layer is also where a lesson's sample flags are drawn, and
           // wiping those made the goals vanish from the screen while they stayed
           // live in the grade.
-          case 'clear_props': setProps(p => p.filter(x => x.lessonSampleId || x.lessonBase)); traceStep('clear_props()', ev.line); break;
+          case 'clear_props': setProps(p => p.filter(x => x.lessonSampleId || x.lessonBase)); traceStep('clear_props()', ev.line, ev.vars); break;
           case 'scan': {
             // scan() reports an ultrasonic range, so gate it on the same part
             // distance() needs. A no-ultrasonic build refuses here for BOTH the
@@ -1672,7 +1715,7 @@
             addConsole('Scanning. Nearest obstacle ' + Math.round(sensorRayDistance(live.current)) + ' cm ahead.', 'sys');
             await delay(1000 / speedMulRef.current);
             live.current.scanning = false; sync();
-            traceStep('scan()', ev.line);
+            traceStep('scan()', ev.line, ev.vars);
             break;
           }
         }

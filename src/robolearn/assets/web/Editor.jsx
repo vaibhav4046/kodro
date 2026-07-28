@@ -68,7 +68,7 @@
 
   const LH = 21, PAD = 14;
 
-  function Editor({ code, onChange, activeLine, readOnly }) {
+  function Editor({ code, onChange, activeLine, readOnly, onSelection }) {
     const taRef = useRef(null);
     const preRef = useRef(null);
     const wrapRef = useRef(null);
@@ -95,6 +95,23 @@
     // Re-tokenize only when the program changes, not on every 60Hz telemetry
     // render of the app tree during a run (judge round 9).
     const highlighted = useMemo(() => highlight(code), [code]);
+
+    function reportSelection(e) {
+      if (!onSelection) return;
+      const ta = e && e.currentTarget ? e.currentTarget : taRef.current;
+      if (!ta) return;
+      const start = Number(ta.selectionStart) || 0;
+      const end = Number(ta.selectionEnd) || start;
+      const before = code.slice(0, start);
+      const selected = code.slice(start, end);
+      onSelection({
+        start: start,
+        end: end,
+        startLine: before.split('\n').length,
+        endLine: (before + selected.replace(/\n$/, '')).split('\n').length,
+        text: selected,
+      });
+    }
 
     function handleKey(e) {
       // Escape releases the textarea so keyboard-only users are never trapped
@@ -168,8 +185,14 @@
               readOnly={readOnly}
               aria-label="Python code editor. Press Tab to indent, Escape to move focus out."
               aria-multiline="true"
-              onChange={e => onChange(e.target.value)}
+              onChange={e => {
+                if (onSelection) onSelection(null);
+                onChange(e.target.value);
+              }}
               onKeyDown={handleKey}
+              onSelect={reportSelection}
+              onMouseUp={reportSelection}
+              onKeyUp={reportSelection}
               style={{ minWidth: 'max-content' }}
             ></textarea>
           </div>

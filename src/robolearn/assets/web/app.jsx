@@ -560,6 +560,24 @@
     const [stepperOpen, setStepperOpen] = useState(false);
     const [stepIdx, setStepIdx] = useState(0);
     const [lastRunTrace, setLastRunTrace] = useState([]);
+    // Selection-grounded learning: an explanation is tied to exact editor
+    // offsets and recorded evidence. The notebook is local-only, and a scoped
+    // Companion edit carries an immutable copy of the selected program.
+    const [editorSelection, setEditorSelection] = useState(null);
+    const [learningCard, setLearningCard] = useState(null);
+    const [learningNote, setLearningNote] = useState('');
+    const [notebookOpen, setNotebookOpen] = useState(false);
+    const [notebookEntries, setNotebookEntries] = useState(() => (
+      window.KodroAnnotations ? window.KodroAnnotations.load() : []
+    ));
+    const selectionEditScopeRef = useRef(null);
+    useEffect(() => {
+      const refresh = () => {
+        if (window.KodroAnnotations) setNotebookEntries(window.KodroAnnotations.load());
+      };
+      window.addEventListener('kodro-annotations', refresh);
+      return () => window.removeEventListener('kodro-annotations', refresh);
+    }, []);
     // Predict before you run. PRIMM's first stage, and the cheapest honest
     // version of it: a single number (how far, in metres) that the run itself
     // then confirms or corrects. Free text would need marking; a distance is
@@ -1046,6 +1064,8 @@
           // The closure is called only after render, when `code` below has
           // been initialised. This keeps the Companion on the live buffer.
           getCode: () => code,
+          getEditScope: () => selectionEditScopeRef.current,
+          clearEditScope: () => { selectionEditScopeRef.current = null; },
         })
       : {
         vibeOpen: false, setVibeOpen: function () {}, vibePrompt: '', setVibePrompt: function () {},
@@ -1059,6 +1079,9 @@
     // status-refresh / model-pick logic, polling at mount and re-checking when
     // the vibe panel opens. vibeOpen is its only external input.
     const { aiInfo, pickModel, refreshAiStatus } = (window.KodroHooks ? window.KodroHooks.useAiStatus(vibeOpen) : { aiInfo: {}, pickModel: function(){}, refreshAiStatus: function(){} });
+    useEffect(() => {
+      if (!vibeOpen) selectionEditScopeRef.current = null;
+    }, [vibeOpen]);
     const [realismOpen, setRealismOpen] = useState(false);
     const [demoOpen, setDemoOpen] = useState(false);
     // Render-quality tier read by Viewport3D (Low/Med/High/Cinematic): bounds
@@ -1296,13 +1319,28 @@
       addConsole('Self-test: ' + t.summary, (t.ok && !t.hitWall) ? 'ok' : 'err');
     }
 
-    function vibeApply(code, model) {
-      addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
-      applyProgramText(code);
-      selfTestReport(code);
+    function vibeApply(proposedCode, model, scope) {
+      let nextCode = proposedCode;
+      if (scope && window.KodroAnnotations) {
+        const result = window.KodroAnnotations.applyScopedEdit(code, scope, proposedCode);
+        if (!result.ok) {
+          setVibeError(result.error);
+          return;
+        }
+        nextCode = result.code;
+        addConsole('AI (' + (model || aiInfo.model) + ') changed only lines ' + result.startLine + 'â€“' + result.endLine + '. Read it, then press Run.', 'sys');
+      } else {
+        addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
+      }
+      applyProgramText(nextCode);
+      selfTestReport(nextCode);
+      selectionEditScopeRef.current = null;
+      setEditorSelection(null);
       setVibeMsgs(m => [...m, {
         role: 'ai', kind: 'action',
-        text: 'Applied this draft to the editor. Nothing has run yet. Review it, then press Run when you are ready.',
+        text: scope
+          ? 'Applied only the selected section. Everything outside it stayed byte-for-byte unchanged. Nothing has run yet.'
+          : 'Applied this draft to the editor. Nothing has run yet. Review it, then press Run when you are ready.',
       }]);
     }
 
@@ -1399,6 +1437,55 @@
       if (!window.KodroChatIntent) return null;
       const intent = window.KodroChatIntent.parse(text);
       if (!intent || !intent.isCommand) return null;
+      // Robot, world and environment changes are project-level mutations. Show
+      // one connected before/after preview and require an explicit Apply rather
+      // than changing the simulator while the learner is still reading chat.
+      if (intent.build || intent.world || intent.environment) {
+        let robotPreview = null;
+        if (intent.build && window.RobotLab && window.RobotLab.previewFromText) {
+          robotPreview = window.RobotLab.previewFromText(text);
+        }
+        let targetTerrain = terrain;
+        try {
+          if (intent.world && window.resolveSite) targetTerrain = window.resolveSite(intent.world.id);
+        } catch (err) { void err; }
+        const baseWorld = (targetTerrain && targetTerrain.id) || terrainId;
+        const environment = {};
+        const notices = [];
+        if (intent.environment && intent.environment.time) {
+          if (baseWorld === 'room') notices.push('The indoor test bay has fixed lighting, so its time of day will stay unchanged.');
+          else environment.time = intent.environment.time;
+        }
+        if (intent.environment && intent.environment.weather) {
+          const w = intent.environment.weather;
+          const supported = w.id === 'clear'
+            || (w.id === 'storm' && baseWorld === 'mars')
+            || ((w.id === 'rain' || w.id === 'snow') && (baseWorld === 'earth' || baseWorld === 'city'));
+          if (supported) environment.weather = w;
+          else notices.push(w.label.replace(/^./, c => c.toUpperCase()) + ' is not modelled in this world, so it will stay unchanged.');
+        }
+        const preview = {
+          before: {
+            robot: chipName,
+            world: terrain.name || terrain.id,
+            lesson: currentLessonId ? ((lessons.find(l => l.id === currentLessonId) || {}).title || currentLessonId) : null,
+          },
+          robot: robotPreview,
+          world: intent.world || null,
+          environment: environment,
+          notices: notices,
+        };
+        const changes = [];
+        if (robotPreview) changes.push(describeSpec(robotPreview.spec, robotPreview.derived, text));
+        if (intent.world) changes.push(intent.world.label);
+        if (environment.time) changes.push(environment.time.label);
+        if (environment.weather) changes.push(environment.weather.label);
+        return {
+          handled: true,
+          preview: preview,
+          previewTitle: changes.length ? 'Proposed: ' + changes.join(' Â· ') : 'Review this project change.',
+        };
+      }
       const parts = [];
       if (intent.build && window.RobotLab && window.RobotLab.buildFromText) {
         robotWorldOverrideRef.current = intent.world ? intent.world.id : null;
@@ -1476,6 +1563,43 @@
       }
       if (!parts.length) return null;
       return { handled: true, kind: 'action', message: parts.join(' ') };
+    }
+
+    function vibeApplyProject(preview) {
+      if (!preview) return;
+      const changes = [];
+      const changesSetup = !!(preview.robot || preview.world);
+      if (changesSetup && currentLessonId) {
+        setCurrentLessonId(null);
+        clearLessonWorld();
+      }
+      if (preview.robot && preview.robot.spec && window.RobotLab && window.RobotLab.applySpec) {
+        // Preserve the current/explicit world while the robot event fires; the
+        // design's generic recommendation must not override the reviewed plan.
+        robotWorldOverrideRef.current = preview.world ? preview.world.id : terrainId;
+        try {
+          window.RobotLab.applySpec(preview.robot.spec);
+        } finally {
+          robotWorldOverrideRef.current = null;
+        }
+        changes.push('built ' + describeSpec(preview.robot.spec, preview.robot.derived, ''));
+      }
+      if (preview.world && typeof onTerrain === 'function') {
+        onTerrain(preview.world.id);
+        changes.push('moved to ' + preview.world.label);
+      }
+      if (preview.environment && preview.environment.time) {
+        setTod(preview.environment.time.id);
+        changes.push('set time to ' + preview.environment.time.label);
+      }
+      if (preview.environment && preview.environment.weather) {
+        setWeather(preview.environment.weather.id);
+        changes.push('set weather to ' + preview.environment.weather.label);
+      }
+      setVibeMsgs(m => [...m, {
+        role: 'ai', kind: 'action',
+        text: changes.length ? 'Applied: ' + changes.join('; ') + '. Nothing ran automatically.' : 'No supported project change was applied.',
+      }]);
     }
 
     // runReview / applyReview moved to window.KodroHooks.useReview (hooks.jsx).
@@ -1981,7 +2105,7 @@
     const evidenceDrawerActive = simpleExperience && evidenceOpen && narrowViewport;
     const evidenceDrawerRef = useRef(false);
     evidenceDrawerRef.current = evidenceDrawerActive;
-    anyOverlayOpenRef.current = !!(parsons || stepperOpen || studioDoc || homeOpen || !onboarded || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
+    anyOverlayOpenRef.current = !!(parsons || stepperOpen || studioDoc || homeOpen || !onboarded || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || notebookOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen || settingsOpen || moreToolsOpen || runToolsOpen || evidenceDrawerActive);
     const fpvRef = useRef(fpv); fpvRef.current = fpv;
     // World order matches the terrain-switch bar: Ctrl+1..6 maps to these ids.
     const WORLDS_KB = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
@@ -1989,7 +2113,7 @@
       const typingIn = (el) => el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable);
       const closeAllOverlays = () => {
         setSwarmOpen(false); setAskOpen(false); setTeacherOpen(false);
-        setRobotLabOpen(false); setMemoryOpen(false); setReviewOpen(false);
+        setRobotLabOpen(false); setMemoryOpen(false); setNotebookOpen(false); setReviewOpen(false);
         setVibeOpen(false); setBlocksOpen(false); setBuildOpen(false);
         setShowHelp(false); setRealismOpen(false); setDemoOpen(false);
         setLessonHubOpen(false);
@@ -2050,7 +2174,7 @@
     // assistive tech that focus is confined to the dialog, so honour it: when one
     // opens, move focus into it and trap Tab inside; on close, restore focus to
     // whatever had it before. Keyed on the open-state so it does not run per frame.
-    const anyModalOpen = !!parsons || !!studioDoc || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
+    const anyModalOpen = !!parsons || !!studioDoc || swarmOpen || askOpen || teacherOpen || robotLabOpen || memoryOpen || notebookOpen || reviewOpen || vibeOpen || blocksOpen || buildOpen || showHelp || realismOpen || demoOpen || lessonHubOpen;
     // Is a surface covering the live viewport?
     //
     // Two things hang off this, and they point the same way. The 3D loop stops
@@ -2097,7 +2221,7 @@
       // so the effect would not re-run and focus would stay trapped in the now
       // occluded background modal. Depending on every flag re-captures the new
       // frontmost dialog and moves focus into it.
-    }, [swarmOpen, askOpen, teacherOpen, robotLabOpen, memoryOpen, reviewOpen, vibeOpen, blocksOpen, buildOpen, showHelp, realismOpen, demoOpen, lessonHubOpen]);
+    }, [swarmOpen, askOpen, teacherOpen, robotLabOpen, memoryOpen, notebookOpen, reviewOpen, vibeOpen, blocksOpen, buildOpen, showHelp, realismOpen, demoOpen, lessonHubOpen]);
 
     // Shared vocabulary (app-data.jsx): telemetry renders the SAME labels.
     const statusLabel = (window.KodroStatusLabels || { idle: 'Standby', running: 'Running', paused: 'Paused', done: 'Complete', error: 'Halted' })[runState];
@@ -2204,6 +2328,51 @@
     const lessonVerdictStale = !!(lessonVerdict && window.KodroScenario && window.KodroScenario.codeHash
       && lessonVerdict.codeHash !== window.KodroScenario.codeHash(code));
     const liveVerdict = lessonVerdictStale ? null : lessonVerdict;
+
+    function openLearningAction(action) {
+      if (!window.KodroAnnotations || !editorSelection) {
+        showToast('Select a line or code range first.', 'sys');
+        return;
+      }
+      const lesson = lessons.find(l => l.id === currentLessonId);
+      const graderEntry = lesson && window.KodroLessonGrader
+        ? ((window.KodroLessonGrader.getEntry && window.KodroLessonGrader.getEntry(lesson.id))
+          || (window.KodroLessonGrader.LESSON_DATA && window.KodroLessonGrader.LESSON_DATA[lesson.id]))
+        : null;
+      const fallbackHint = graderEntry && graderEntry.hints && graderEntry.hints.onFailure
+        ? graderEntry.hints.onFailure[0] : null;
+      const card = window.KodroAnnotations.create({
+        action: action,
+        code: code,
+        selection: editorSelection,
+        trace: lastRunTrace,
+        lessonId: currentLessonId,
+        context: lesson ? lesson.title : (EXAMPLES[activeTab] ? EXAMPLES[activeTab].label : 'Current program'),
+        failure: liveVerdict && !liveVerdict.passed ? (liveVerdict.reasons || []).join(' ') : null,
+        failureSource: 'Lesson grader Â· last attempt',
+        hint: (liveVerdict && liveVerdict.hint && liveVerdict.hint.message) || fallbackHint,
+        hintSource: 'Active lesson Â· authored hint',
+      });
+      setLearningCard(card);
+      setLearningNote('');
+    }
+
+    function saveLearningCard() {
+      if (!learningCard || !window.KodroAnnotations) return;
+      setNotebookEntries(window.KodroAnnotations.save(learningCard, learningNote));
+      showToast('Saved to your local learning notebook.', 'ok');
+    }
+
+    function startScopedSelectionEdit() {
+      if (!window.KodroAnnotations || !editorSelection) {
+        showToast('Select the exact code you want changed first.', 'sys');
+        return;
+      }
+      const scope = window.KodroAnnotations.makeEditScope(code, editorSelection);
+      selectionEditScopeRef.current = scope;
+      setVibePrompt('Change only lines ' + scope.startLine + 'â€“' + scope.endLine + ': ');
+      setVibeOpen(true);
+    }
 
     const SIMPLE_OUTCOME_NAMES = { done: 'Test completed', crash: 'Collision detected', flat: 'Battery depleted', stalled: 'Robot stalled', error: 'Program stopped' };
     // In a lesson the headline is the lesson result, not the free-play outcome
@@ -2724,7 +2893,68 @@
                   </details>
                 </div>
               </div>
-              <window.Editor code={code} onChange={onCodeChange} activeLine={activeLine} readOnly={runState === 'running'} />
+              <window.Editor
+                code={code}
+                onChange={onCodeChange}
+                activeLine={activeLine}
+                readOnly={runState === 'running'}
+                onSelection={setEditorSelection}
+              />
+              <div className="learning-selection-bar" role="toolbar" aria-label="Learn from selected code">
+                {editorSelection
+                  ? <span className="learning-selection-label">
+                    {editorSelection.startLine === editorSelection.endLine
+                      ? 'Line ' + editorSelection.startLine
+                      : 'Lines ' + editorSelection.startLine + 'â€“' + editorSelection.endLine}
+                  </span>
+                  : <span className="learning-selection-empty">Select code to explain it, inspect recorded values, or change only that section.</span>}
+                <button type="button" className="btn-mini" disabled={!editorSelection} onClick={() => openLearningAction('explain')}>Explain selection</button>
+                <button type="button" className="btn-mini" disabled={!editorSelection} onClick={() => openLearningAction('values')}>Show values</button>
+                <button type="button" className="btn-mini" disabled={!editorSelection} onClick={() => openLearningAction('failure')}>Why failed?</button>
+                <button type="button" className="btn-mini" disabled={!editorSelection} onClick={() => openLearningAction('hint')}>Hint</button>
+                <button type="button" className="btn-mini learning-change-btn" disabled={!editorSelection || !aiInfo.available} title={aiInfo.available ? 'Ask the connected model to change only the selected section' : 'Connect Ollama or a supported model first'} onClick={startScopedSelectionEdit}>Change only this</button>
+                <button type="button" className="btn-mini learning-notebook-btn" onClick={() => setNotebookOpen(true)}>Notebook ({notebookEntries.length})</button>
+              </div>
+              {learningCard && (
+                <section className="learning-annotation-card" aria-label={learningCard.title}>
+                  <div className="learning-annotation-head">
+                    <div>
+                      <span className="eyebrow">{learningCard.context} Â· evidence-grounded</span>
+                      <h3>{learningCard.title}</h3>
+                    </div>
+                    <button type="button" className="btn-mini" aria-label="Close annotation" onClick={() => setLearningCard(null)}>âœ•</button>
+                  </div>
+                  <pre className="learning-excerpt">{learningCard.excerpt}</pre>
+                  <ol className="learning-claims">
+                    {learningCard.claims.map((claim, i) => (
+                      <li key={i}><span>{claim.text}</span><cite>{claim.source}</cite></li>
+                    ))}
+                  </ol>
+                  {learningCard.values.length > 0 ? (
+                    <div className="learning-values">
+                      <strong>Recorded variable values</strong>
+                      <dl>
+                        {learningCard.values.map(row => (
+                          <div key={row.name}>
+                            <dt>{row.name}</dt>
+                            <dd><code>{row.value}</code><cite>{row.source}</cite></dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  ) : learningCard.action === 'values' ? (
+                    <p className="learning-no-values">No value for this selection was recorded. Run this exact program first; Kodro will not invent runtime values.</p>
+                  ) : null}
+                  <label className="learning-note-field">
+                    <span>My note (optional)</span>
+                    <textarea rows={2} value={learningNote} onChange={e => setLearningNote(e.target.value)} placeholder="What did you learn or want to try next?"></textarea>
+                  </label>
+                  <div className="learning-annotation-actions">
+                    <button type="button" className="btn-mini" onClick={startScopedSelectionEdit} disabled={!aiInfo.available}>Change only this section</button>
+                    <button type="button" className="ctrl ctrl-run" onClick={saveLearningCard}>Save to notebook</button>
+                  </div>
+                </section>
+              )}
               {(() => {
                 // The hint strip is driven by the SAME availability source the
                 // blocks palette and the runtime gate use (KodroCommands), so
@@ -3261,11 +3491,20 @@
 
         {memoryOpen && <window.KodroPanels.MemoryModal setMemoryOpen={setMemoryOpen} memTick={memTick} code={code} terrain={terrain} robotSpec={robotSpec} currentLessonId={currentLessonId} setLessonBuffers={setLessonBuffers} setPrograms={setPrograms} activeTab={activeTab} applyCode={applyProgramText} />}
 
+        {notebookOpen && window.KodroPanels.LearningNotebookModal && (
+          <window.KodroPanels.LearningNotebookModal
+            entries={notebookEntries}
+            onClose={() => setNotebookOpen(false)}
+            onRemove={id => setNotebookEntries(window.KodroAnnotations.remove(id))}
+            onUpdateNote={(id, note) => setNotebookEntries(window.KodroAnnotations.updateNote(id, note))}
+          />
+        )}
+
         {reviewOpen && <window.KodroPanels.ReviewModal reviewBusy={reviewBusy} setReviewOpen={setReviewOpen} reviewErr={reviewErr} reviewData={reviewData} applyReview={applyReview} />}
 
         {realismOpen && window.KodroRealism && React.createElement(window.KodroRealism, { onClose: () => setRealismOpen(false), terrain: terrain, code: code })}
         {demoOpen && window.KodroDemo && React.createElement(window.KodroDemo, { onClose: () => setDemoOpen(false) })}
-        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} projectContext={{ robot: chipName, world: terrain.name || terrain.id, program: currentLessonId ? ((lessons.find(l => l.id === currentLessonId) || {}).title || 'Lesson program') : (SIMPLE_PROGRAM_NAMES[activeTab] || ((EXAMPLES[activeTab] && EXAMPLES[activeTab].label) || 'Current program')), outcome: currentLessonId && liveVerdict ? ((liveVerdict.passed ? 'Lesson passed, ' : 'Lesson not complete, ') + liveVerdict.score + '/100') : (simpleLatestRun ? (SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded') : null) }} onExplain={() => { setVibeOpen(false); setAskData(null); setAskOpen(true); }} onReview={() => { setVibeOpen(false); runReview(); }} />}
+        {vibeOpen && <window.KodroPanels.VibeModal setVibeOpen={setVibeOpen} vibeCancelRef={vibeCancelRef} setVibeBusy={setVibeBusy} aiInfo={aiInfo} pickModel={pickModel} refreshAiStatus={refreshAiStatus} vibeMsgs={vibeMsgs} setVibeMsgs={setVibeMsgs} vibeApply={vibeApply} vibeApplyProject={vibeApplyProject} vibeBusy={vibeBusy} vibeLive={vibeLive} vibeEndRef={vibeEndRef} vibeError={vibeError} vibePrompt={vibePrompt} setVibePrompt={setVibePrompt} vibeSend={vibeSend} vibeClear={vibeClear} vibeContext={(window.KodroMemory && window.KodroMemory.lessonFor) ? window.KodroMemory.lessonFor(terrain.id) : null} projectContext={{ robot: chipName, world: terrain.name || terrain.id, program: currentLessonId ? ((lessons.find(l => l.id === currentLessonId) || {}).title || 'Lesson program') : (SIMPLE_PROGRAM_NAMES[activeTab] || ((EXAMPLES[activeTab] && EXAMPLES[activeTab].label) || 'Current program')), outcome: currentLessonId && liveVerdict ? ((liveVerdict.passed ? 'Lesson passed, ' : 'Lesson not complete, ') + liveVerdict.score + '/100') : (simpleLatestRun ? (SIMPLE_OUTCOME_NAMES[simpleLatestRun.outcome] || 'Test recorded') : null) }} onExplain={() => { setVibeOpen(false); setAskData(null); setAskOpen(true); }} onReview={() => { setVibeOpen(false); runReview(); }} />}
 
         {blocksOpen && <window.KodroPanels.BlocksModal setBlocksOpen={setBlocksOpen} BLOCK_DEFS={BLOCK_DEFS} robotSpec={robotSpec} addBlock={addBlock} endBlock={endBlock} blockIndent={blockIndent} setBlockIndent={setBlockIndent} blocks={blocks} setBlocks={setBlocks} moveBlock={moveBlock} canMoveBlock={canMoveBlock} removeBlock={removeBlock} insertBlocksCode={insertBlocksCode} classroom={classroom} />}
 
@@ -3460,6 +3699,13 @@
                 <div><dt>Battery</dt><dd>{t.battery}%</dd></div>
                 <div><dt>Collisions</dt><dd>{t.collisions}</dd></div>
               </dl>
+              {t.vars && Object.keys(t.vars).length > 0 && (
+                <dl className="run-stepper-vars">
+                  {Object.keys(t.vars).sort().map(name => (
+                    <div key={name}><dt>{name}</dt><dd><code>{JSON.stringify(t.vars[name])}</code></dd></div>
+                  ))}
+                </dl>
+              )}
               <div className="run-stepper-nav">
                 <button className="btn-mini" disabled={i === 0} onClick={() => go(i - 1)}>&larr; Back</button>
                 <button className="btn-mini" disabled={i >= trace.length - 1} onClick={() => go(i + 1)}>Next &rarr;</button>

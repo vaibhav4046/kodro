@@ -161,7 +161,7 @@ const CAP = `<!DOCTYPE html>
         var md = q.get('mode'); if (md) localStorage.setItem('kodro_mode', md);
         var xp = q.get('experience');
         if (xp === 'simple' || xp === 'expert') localStorage.setItem('kodro_experience', xp);
-        else if (q.get('code') || q.get('open') || q.get('blockstest') || q.get('reverttest') || q.get('repl') || q.get('replay') || q.get('run') || q.get('panel') || q.get('lesson') || q.get('tab')) localStorage.setItem('kodro_experience', 'expert');
+        else if (q.get('code') || q.get('open') || q.get('blockstest') || q.get('reverttest') || q.get('repl') || q.get('replay') || q.get('run') || q.get('panel') || q.get('lesson') || q.get('tab') || q.get('annotation')) localStorage.setItem('kodro_experience', 'expert');
         else localStorage.setItem('kodro_experience', 'simple');
         var th = q.get('theme'); if (th) localStorage.setItem('or_theme', th);
         var vw = q.get('view');
@@ -220,7 +220,7 @@ const CAP = `<!DOCTYPE html>
           }));
         }
       } catch (e) { void e; }
-      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), lessonswitch: q.get('lessonswitch'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay'), seedlesson: q.get('seedlesson'), describe: q.get('describe'), predict: q.get('predict') };
+      window.__CAP = { onb: onb, step: +(q.get('step') || 0), robot: q.get('robot'), world: q.get('world'), panel: q.get('panel'), run: q.get('run'), vibe: q.get('vibe'), vibeapply: q.get('vibeapply'), annotation: q.get('annotation'), blockstest: q.get('blockstest'), code: q.get('code'), open: q.get('open'), repl: q.get('repl'), site: q.get('site'), layout: q.get('layout'), importspec: q.get('importspec'), reverttest: q.get('reverttest'), memview: q.get('memview'), lesson: q.get('lesson'), lessonswitch: q.get('lessonswitch'), contrastprobe: q.get('contrastprobe'), replay: q.get('replay'), seedlesson: q.get('seedlesson'), describe: q.get('describe'), predict: q.get('predict'), palette: q.get('palette') };
     })();
   </script>
   <div id="root"></div>
@@ -385,6 +385,23 @@ const CAP = `<!DOCTYPE html>
           } catch (e) { void e; }
         }, 2600);
       }
+      if (!C.onb && C.annotation) {
+        // Select actual editor text, emit the same select event as a pointer
+        // selection, then open its deterministic evidence card.
+        setTimeout(function () {
+          var editor = document.querySelector('.code-ta');
+          if (!must(!!editor, 'annotation editor (.code-ta)')) return;
+          var start = (editor.value || '').indexOf(C.annotation);
+          if (!must(start >= 0, 'annotation text "' + C.annotation + '"')) return;
+          editor.focus();
+          editor.setSelectionRange(start, start + C.annotation.length);
+          editor.dispatchEvent(new Event('select', { bubbles: true }));
+          editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+          setTimeout(function () {
+            must(clickText('Explain selection'), 'Explain selection button');
+          }, 450);
+        }, 1700);
+      }
       if (!C.onb && C.vibe) {
         // Drive the Vibe panel end-to-end like a user: open it, type the prompt
         // into the React-controlled textarea (native setter + input event), then
@@ -399,7 +416,30 @@ const CAP = `<!DOCTYPE html>
               inp.dispatchEvent(new Event('input', { bubbles: true }));
               setTimeout(function () {
                 var btns = [].slice.call(document.querySelectorAll('button'));
-                for (var i = 0; i < btns.length; i++) { if ((btns[i].textContent || '').trim() === 'Send') { btns[i].click(); return; } }
+                for (var i = 0; i < btns.length; i++) {
+                  if ((btns[i].textContent || '').trim() === 'Send') {
+                    btns[i].click();
+                    if (C.vibeapply) {
+                      var applyTries = 0;
+                      var applyTimer = setInterval(function () {
+                        applyTries += 1;
+                        var actions = [].slice.call(document.querySelectorAll('button'));
+                        for (var ai = 0; ai < actions.length; ai++) {
+                          if ((actions[ai].textContent || '').trim() === 'Apply project change') {
+                            clearInterval(applyTimer);
+                            actions[ai].click();
+                            return;
+                          }
+                        }
+                        if (applyTries >= 40) {
+                          clearInterval(applyTimer);
+                          must(false, 'vibeapply=1 (project preview never exposed Apply project change)');
+                        }
+                      }, 300);
+                    }
+                    return;
+                  }
+                }
               }, 400);
             }
           }, 700);
@@ -555,6 +595,60 @@ const CAP = `<!DOCTYPE html>
             clearInterval(predictTimer);
             if (predictObs) predictObs.disconnect();
             if (!predictDone) must(false, 'predict=' + C.predict + ' (predict input, Run, or the comparison line never appeared)');
+          }
+        }, 400);
+      }
+      if (!C.onb && C.palette) {
+        // KS1 step-palette driver. One click per tick, because each click's
+        // handler closes over the code prop from ITS render; two clicks in one
+        // tick would both see the same stale program and the second would
+        // clobber the first (the recurring React stale-read trap). Sequence:
+        // turn_left, forward, undo; then bridge the editor's value and the
+        // api-hint strip's presence into a probe div for the DOM dump.
+        var paletteStep = 0, paletteDone = 0;
+        var tryPalette = function () {
+          if (paletteDone) return;
+          var ta = document.querySelector('.code-ta');
+          var val = ta ? ta.value : '';
+          if (paletteStep === 0) {
+            var b1 = document.querySelector('.step-palette button[data-verb="turn_left"]');
+            if (!b1) return;
+            b1.click(); paletteStep = 1; return;
+          }
+          if (paletteStep === 1) {
+            if (val.indexOf('turn_left(90)') < 0) return;
+            var b2 = document.querySelector('.step-palette button[data-verb="forward"]');
+            if (!b2) return;
+            b2.click(); paletteStep = 2; return;
+          }
+          if (paletteStep === 2) {
+            if (val.indexOf('turn_left(90)\\nmove_forward(1)') < 0) return;
+            var b3 = document.querySelector('.step-palette button[data-verb="undo"]');
+            if (!b3) return;
+            b3.click(); paletteStep = 3; return;
+          }
+          if (val.indexOf('move_forward(1)') >= 0) return; // undo not applied yet
+          var probe = document.createElement('div');
+          probe.id = 'palette-probe';
+          probe.style.display = 'none';
+          probe.setAttribute('data-value', val);
+          probe.setAttribute('data-strip', document.querySelector('.api-hint') ? '1' : '0');
+          document.body.appendChild(probe);
+          paletteDone = 1;
+        };
+        var paletteObs = null;
+        try {
+          paletteObs = new MutationObserver(tryPalette);
+          paletteObs.observe(document.body, { childList: true, subtree: true });
+        } catch (e) { void e; }
+        var paletteTries = 0;
+        var paletteTimer = setInterval(function () {
+          paletteTries += 1;
+          tryPalette();
+          if (paletteDone || paletteTries >= 60) {
+            clearInterval(paletteTimer);
+            if (paletteObs) paletteObs.disconnect();
+            if (!paletteDone) must(false, 'palette driver stalled at step ' + paletteStep);
           }
         }, 400);
       }

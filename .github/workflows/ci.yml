@@ -188,6 +188,13 @@ jobs:
       - name: Teacher markbook gate
         run: node scripts/qa_markbook.mjs
 
+      # Learning-studio truth gate: selected-code explanations cite the exact
+      # source/recorded run, values come from interpreter snapshots, notebook
+      # notes persist locally, scoped edits preserve every unselected byte, and
+      # robot requirements are previewed before any state changes.
+      - name: Learning annotations and project preview gate
+        run: node scripts/qa_learning_annotations.mjs
+
       - name: Cross-engine fuzz gate
         run: node scripts/qa_fuzz.mjs
 

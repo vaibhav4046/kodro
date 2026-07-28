@@ -860,7 +860,7 @@
     );
   }
 
-  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, refreshAiStatus, vibeMsgs, setVibeMsgs, vibeApply, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeClear, vibeContext, projectContext, onExplain, onReview }) {
+  function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, refreshAiStatus, vibeMsgs, setVibeMsgs, vibeApply, vibeApplyProject, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeClear, vibeContext, projectContext, onExplain, onReview }) {
     // The reflection the assistant is fed from past runs in this world,
     // rendered as a VISIBLE chip instead of an invisible prompt injection
     // (product-coherence D7: the memory loop must be seen to be believed).
@@ -946,7 +946,7 @@
                     {m.summary && <p className="vibe-code-summary"><b>Proposed edit:</b> {m.summary}</p>}
                     <pre className="vibe-code">{m.text}</pre>
                     <div className="vibe-code-actions">
-                      {m.validated !== false && <button className="ctrl ctrl-run" onClick={() => vibeApply(m.text, m.model)}>✓ Apply to editor</button>}
+                      {m.validated !== false && <button className="ctrl ctrl-run" onClick={() => vibeApply(m.text, m.model, m.scope)}>✓ Apply to editor</button>}
                       <button className="btn-mini" onClick={() => {
                         // Discard means discard: drop THIS code block from the
                         // thread (and so from storage and the model's history),
@@ -954,6 +954,50 @@
                         // rejected code and its Apply button live.
                         setVibeMsgs(ms => ms.filter((_, j) => j !== i));
                       }}>Discard</button>
+                    </div>
+                  </div>
+                ) : m.kind === 'project-preview' ? (
+                  <div key={i} className="vibe-msg ai project-preview">
+                    <div className="project-preview-head">
+                      <span className="vibe-preview-badge">Preview · nothing changed</span>
+                      <strong>{m.text}</strong>
+                    </div>
+                    <div className="vibe-project-diff">
+                      <div>
+                        <span>Before</span>
+                        <b>{m.preview && m.preview.before ? m.preview.before.robot : 'Current robot'}</b>
+                        <small>{m.preview && m.preview.before ? m.preview.before.world : 'Current world'}</small>
+                      </div>
+                      <div>
+                        <span>After Apply</span>
+                        <b>{m.preview && m.preview.robot ? m.preview.robot.spec.name : 'Keep current robot'}</b>
+                        <small>{m.preview && m.preview.world ? m.preview.world.label : 'Keep current world'}</small>
+                      </div>
+                    </div>
+                    {m.preview && (m.preview.robot || m.preview.world) && m.preview.before && m.preview.before.lesson && (
+                      <p className="vibe-preview-warning">Applying a robot or world change exits the active lesson so its grader cannot remain attached to the wrong setup.</p>
+                    )}
+                    {m.preview && m.preview.robot && m.preview.robot.checks && m.preview.robot.checks.length > 0 && (
+                      <ul className="vibe-requirements">
+                        {m.preview.robot.checks.map(check => (
+                          <li key={check.id} data-status={check.status}>
+                            <span>{check.status === 'met' ? 'Met' : check.status === 'unmet' ? 'Not met' : 'Unresolved'}</span>
+                            <b>{check.label}</b>
+                            <small>{check.detail}</small>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {m.preview && m.preview.notices && m.preview.notices.map((notice, ni) => (
+                      <p className="vibe-preview-warning" key={ni}>{notice}</p>
+                    ))}
+                    <div className="vibe-code-actions">
+                      <button className="ctrl ctrl-run" onClick={() => {
+                        const preview = m.preview;
+                        setVibeMsgs(ms => ms.filter((_, j) => j !== i));
+                        if (vibeApplyProject) vibeApplyProject(preview);
+                      }}>Apply project change</button>
+                      <button className="btn-mini" onClick={() => setVibeMsgs(ms => ms.filter((_, j) => j !== i))}>Discard</button>
                     </div>
                   </div>
                 ) : m.kind === 'action' ? (
@@ -1136,6 +1180,54 @@
     );
   }
 
+  function LearningNotebookModal({ entries, onClose, onRemove, onUpdateNote }) {
+    const rows = Array.isArray(entries) ? entries : [];
+    return (
+      <div className="modal-backdrop" onClick={onClose}>
+        <div className="modal modal-wide learning-notebook-modal" role="dialog" aria-modal="true" aria-label="Learning notebook" onClick={e => e.stopPropagation()}>
+          <div className="modal-head">
+            <div>
+              <span className="eyebrow" role="heading" aria-level="2">Learning notebook · evidence stays attached</span>
+              <p className="learning-notebook-sub">Saved locally on this device. Every explanation keeps its selected code and claim-level source.</p>
+            </div>
+            <button className="btn-mini" aria-label="Close learning notebook" onClick={onClose}>✕</button>
+          </div>
+          <div className="learning-notebook-list">
+            {rows.length === 0 ? (
+              <EmptyState
+                icon="report"
+                title="No annotations saved yet"
+                hint={<>Select code in the editor, choose Explain selection or Show values, then save the verified annotation here.</>}
+              />
+            ) : rows.map(entry => (
+              <article className="learning-notebook-entry" key={entry.id}>
+                <div className="learning-notebook-entry-head">
+                  <div>
+                    <span className="eyebrow">{entry.context || 'Program'} · {entry.selection && entry.selection.startLine === entry.selection.endLine
+                      ? 'line ' + entry.selection.startLine
+                      : 'lines ' + (entry.selection ? entry.selection.startLine + '–' + entry.selection.endLine : '?')}</span>
+                    <h3>{entry.title}</h3>
+                  </div>
+                  <button type="button" className="btn-mini" aria-label={'Remove ' + entry.title} onClick={() => onRemove(entry.id)}>Remove</button>
+                </div>
+                <pre className="learning-excerpt">{entry.excerpt}</pre>
+                <ol className="learning-claims compact">
+                  {(entry.claims || []).map((claim, ci) => (
+                    <li key={ci}><span>{claim.text}</span><cite>{claim.source}</cite></li>
+                  ))}
+                </ol>
+                <label className="learning-note-field">
+                  <span>My note</span>
+                  <textarea rows={2} defaultValue={entry.note || ''} onBlur={e => onUpdateNote(entry.id, e.target.value)} placeholder="Add a reflection or next step"></textarea>
+                </label>
+              </article>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   window.KodroPanels = {
     HelpModal,
     BuildModal,
@@ -1146,5 +1238,6 @@
     MemoryModal,
     VibeModal,
     BlocksModal,
+    LearningNotebookModal,
   };
 })();

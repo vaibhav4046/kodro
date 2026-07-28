@@ -877,18 +877,92 @@
     save(clean);
     return { spec: clean, derived: derive(clean), world: (WORLD_FOR[clean.type] || {}) };
   };
-  RobotLab.buildFromText = function (text) {
+
+  function requirementsFromText(text) {
+    const source = String(text || '');
+    const t = source.toLowerCase();
+    const requirements = { motorCount: null, sensors: [], runtimeMin: null, payloadKg: null, battery: null };
+    const motorMatch = t.match(/\b(2|4|two|four)[ -]?(?:wheel|motor)/);
+    if (motorMatch) {
+      requirements.motorCount = /4|four/.test(motorMatch[1]) ? 4 : 2;
+    }
+    [
+      ['camera', /camera|vision|\bsee\b|marker|look/],
+      ['ultrasonic', /ultrasonic|distance|obstacle|avoid|range|sonar/],
+      ['imu', /imu|gyro|balance|tilt|orient|accelerom/],
+      ['gps', /gps|location|position|navigat/],
+      ['line', /line follow|follow.?line|\bline\b|track/],
+      ['bumper', /bumper|touch|contact|switch/]
+    ].forEach(function (entry) { if (entry[1].test(t)) requirements.sensors.push(entry[0]); });
+    const runtime = t.match(/\b(\d+(?:\.\d+)?)\s*(?:minute|min|minutes|mins)\b/);
+    if (runtime) requirements.runtimeMin = Number(runtime[1]);
+    const payload = t.match(/\b(\d+(?:\.\d+)?)\s*(kg|kilogram|kilograms|g|gram|grams)\b(?:\s+(?:payload|load))?/);
+    if (payload) {
+      requirements.payloadKg = /^g/.test(payload[2]) ? Number(payload[1]) / 1000 : Number(payload[1]);
+    }
+    const battery = t.match(/\b(\d+(?:\.\d+)?)\s*(mah|ah|wh)\b/);
+    if (battery) requirements.battery = { value: Number(battery[1]), unit: battery[2] };
+    return requirements;
+  }
+
+  function requirementChecks(requirements, spec) {
+    const checks = [];
+    if (requirements.motorCount !== null) {
+      const actual = spec.actuators.indexOf('motors4') >= 0 ? 4 : (spec.actuators.indexOf('motors2') >= 0 ? 2 : 0);
+      checks.push({
+        id: 'motors', label: requirements.motorCount + ' motors requested',
+        status: actual === requirements.motorCount ? 'met' : 'unmet',
+        detail: 'The selected drivetrain has ' + actual + ' motors.',
+      });
+    }
+    requirements.sensors.forEach(function (sensor) {
+      const present = spec.sensors.indexOf(sensor) >= 0;
+      checks.push({
+        id: 'sensor-' + sensor, label: sensor + ' sensor requested',
+        status: present ? 'met' : 'unmet',
+        detail: present ? 'The sensor is included in this build.' : 'The sensor is not included in this build.',
+      });
+    });
+    if (requirements.runtimeMin !== null) {
+      checks.push({
+        id: 'runtime', label: requirements.runtimeMin + ' minute mission requested',
+        status: 'unresolved', detail: 'Runtime needs real component, battery and duty-cycle data.',
+      });
+    }
+    if (requirements.payloadKg !== null) {
+      checks.push({
+        id: 'payload', label: requirements.payloadKg + ' kg payload requested',
+        status: 'unresolved', detail: 'Payload capacity is not modelled, so Kodro cannot claim this constraint.',
+      });
+    }
+    if (requirements.battery) {
+      checks.push({
+        id: 'battery', label: requirements.battery.value + ' ' + requirements.battery.unit.toUpperCase() + ' battery requested',
+        status: 'unresolved', detail: 'Battery sizing needs verified voltage, chemistry, capacity and duty-cycle data.',
+      });
+    }
+    return checks;
+  }
+
+  RobotLab.requirementsFromText = requirementsFromText;
+  RobotLab.previewFromText = function (text) {
     const parsed = robotFromText(text);
-    // Keep the persisted RobotSpec clean: `understood` is mapping metadata for
-    // the caller's UI, not a part of the robot, so it rides in the envelope and
-    // never lands in localStorage or the sim's KODRO_ROBOT.
     const spec = { type: parsed.type, name: parsed.name, board: parsed.board, sensors: parsed.sensors, actuators: parsed.actuators };
-    save(spec);
-    // `note` is a ready-to-display honest line for the not-understood case, so
-    // any consumer (onboarding agent, plan-parts adopt) can surface it with a
-    // single render instead of silently shipping a guessed build.
-    const note = parsed.understood ? null : NL_FALLBACK_NOTE;
-    return { spec: spec, derived: derive(spec), world: (WORLD_FOR[spec.type] || {}), understood: parsed.understood, note: note };
+    const requirements = requirementsFromText(text);
+    return {
+      spec: spec,
+      derived: derive(spec),
+      world: (WORLD_FOR[spec.type] || {}),
+      understood: parsed.understood,
+      note: parsed.understood ? null : NL_FALLBACK_NOTE,
+      requirements: requirements,
+      checks: requirementChecks(requirements, spec)
+    };
+  };
+  RobotLab.buildFromText = function (text) {
+    const preview = RobotLab.previewFromText(text);
+    save(preview.spec);
+    return preview;
   };
   // SI1: apply a KRS spec from raw JSON text - the SAME validate-then-save
   // path the Lab's Import button drives after reading the file, exposed so

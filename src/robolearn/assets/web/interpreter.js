@@ -693,6 +693,32 @@
         let callDepth = 0;
         const MAX_CALL_DEPTH = 400;
 
+        // Bounded, serialisable variable snapshots travel with interpreter
+        // events so the learning studio can show values from the exact run
+        // instead of asking a model to guess them.
+        function snapshotVars() {
+          const visible = Object.create(null);
+          Object.keys(globalScope).forEach(function (name) { visible[name] = globalScope[name]; });
+          if (scope !== globalScope) Object.keys(scope).forEach(function (name) { visible[name] = scope[name]; });
+          const out = {};
+          Object.keys(visible).sort().slice(0, 24).forEach(function (name) {
+            if (name.indexOf('__') === 0) return;
+            const value = visible[name];
+            if (typeof value === 'number' || typeof value === 'boolean' || value === null) out[name] = value;
+            else if (typeof value === 'string') out[name] = value.slice(0, 120);
+            else if (Array.isArray(value)) {
+              out[name] = value.slice(0, 12).map(function (item) {
+                return (typeof item === 'number' || typeof item === 'boolean' || typeof item === 'string' || item === null)
+                  ? item : String(item).slice(0, 80);
+              });
+            }
+          });
+          return out;
+        }
+        function event(payload) {
+          return Object.assign({}, payload, { vars: snapshotVars() });
+        }
+
         function evalExpr(node) {
           switch (node.k) {
             case 'num': return node.v;
@@ -841,21 +867,21 @@
           if (++steps > MAX_STEPS) throw new RoverError('Program ran too long (possible infinite loop).', s.line);
           curLine = s.line;
           switch (s.kind) {
-            case 'pass': yield { type: 'step', line: s.line }; return;
+            case 'pass': yield event({ type: 'step', line: s.line }); return;
             case 'break': throw BREAK;
             case 'continue': throw CONTINUE;
             case 'global': {
               if (scope !== globalScope) { if (!curGlobals) curGlobals = new Set(); s.names.forEach(n => curGlobals.add(n)); }
-              yield { type: 'step', line: s.line }; return;
+              yield event({ type: 'step', line: s.line }); return;
             }
-            case 'assign': setVar(s.target, evalExpr(s.expr)); yield { type: 'step', line: s.line }; return;
+            case 'assign': setVar(s.target, evalExpr(s.expr)); yield event({ type: 'step', line: s.line }); return;
             case 'augassign': {
               // Python raises NameError for `x += 1` with x undefined; the old
               // silent base-0 default masked real pupil mistakes and diverged
               // from the grader's engine.
               if (!(s.target in scope)) throw new RoverError('Name "' + s.target + '" is not defined.', s.line);
               setVar(s.target, binop(s.op, scope[s.target], evalExpr(s.expr), s.line));
-              yield { type: 'step', line: s.line }; return;
+              yield event({ type: 'step', line: s.line }); return;
             }
             case 'expr': {
               yield* execExprStmt(s.expr, s.line); return;
@@ -875,7 +901,7 @@
               else throw new RoverError("'" + pyTypeName(iter) + "' object is not iterable", s.line);
               for (let i = 0; i < list.length; i++) {
                 scope[s.varName] = list[i];
-                yield { type: 'step', line: s.line };
+                yield event({ type: 'step', line: s.line });
                 try { yield* execBlock(s.body); }
                 catch (e) { if (e === BREAK) break; if (e === CONTINUE) continue; throw e; }
               }
@@ -885,7 +911,7 @@
               let guard = 0;
               while (truthy(evalExpr(s.test))) {
                 if (++guard > 100000) throw new RoverError('while loop ran too long.', s.line);
-                yield { type: 'step', line: s.line };
+                yield event({ type: 'step', line: s.line });
                 try { yield* execBlock(s.body); }
                 catch (e) { if (e === BREAK) break; if (e === CONTINUE) continue; throw e; }
               }
@@ -893,12 +919,12 @@
             }
             case 'if': {
               for (const b of s.branches) {
-                if (truthy(evalExpr(b.test))) { yield { type: 'step', line: s.line }; yield* execBlock(b.body); return; }
+                if (truthy(evalExpr(b.test))) { yield event({ type: 'step', line: s.line }); yield* execBlock(b.body); return; }
               }
-              if (s.orelse) { yield { type: 'step', line: s.line }; yield* execBlock(s.orelse); }
+              if (s.orelse) { yield event({ type: 'step', line: s.line }); yield* execBlock(s.orelse); }
               return;
             }
-            case 'def': funcs[s.name] = s; yield { type: 'step', line: s.line }; return;
+            case 'def': funcs[s.name] = s; yield event({ type: 'step', line: s.line }); return;
             case 'return':  // carry the value + unwind to the enclosing call
               RETURN.value = s.expr ? evalExpr(s.expr) : null;
               throw RETURN;
@@ -918,7 +944,7 @@
                 yield motionEvent(name, args, line);
                 return;
               }
-              if (name in SENSOR_METHODS) { host.sensor(name, expr.args.map(evalExpr), line); yield { type: 'step', line: line }; return; }
+              if (name in SENSOR_METHODS) { host.sensor(name, expr.args.map(evalExpr), line); yield event({ type: 'step', line: line }); return; }
               throw new RoverError('rover has no method "' + name + '".', line);
             }
             // Bare-verb RoboLearn lesson API on its own line.
@@ -932,10 +958,10 @@
                 return;
               }
               if (v in LESSON_MOTION) { yield motionEvent(LESSON_MOTION[v], expr.args.map(evalExpr), line); return; }
-              if (v in LESSON_SENSOR) { host.sensor(LESSON_SENSOR[v], expr.args.map(evalExpr), line); yield { type: 'step', line: line }; return; }
+              if (v in LESSON_SENSOR) { host.sensor(LESSON_SENSOR[v], expr.args.map(evalExpr), line); yield event({ type: 'step', line: line }); return; }
               if (v in LESSON_API && host && typeof host.lessonApi === 'function') {
                 host.lessonApi(v, expr.args.map(evalExpr), line);
-                yield { type: 'step', line: line };
+                yield event({ type: 'step', line: line });
                 return;
               }
               if (v === 'beep') {
@@ -943,28 +969,28 @@
                 // times clamps 0..16, mirroring the Python API's beep clamp
                 // (rover_api._MAX_BEEP_TIMES); QA hosts ignore the new type.
                 const bt = expr.args.length ? evalExpr(expr.args[0]) : 1;
-                yield { type: 'beep', times: clampNum(bt, 0, 16, 1), line: line };
+                yield event({ type: 'beep', times: clampNum(bt, 0, 16, 1), line: line });
                 return;
               }
-              if (v === 'log') { const a = expr.args.map(evalExpr); yield { type: 'print', line: line, text: a.map(pyStr).join(' ') }; return; }
-              if (v === 'collect_sample') { yield { type: 'print', line: line, text: 'Sample collected.' }; return; }
-              if (v === 'drop_sample') { yield { type: 'print', line: line, text: 'Sample dropped.' }; return; }
+              if (v === 'log') { const a = expr.args.map(evalExpr); yield event({ type: 'print', line: line, text: a.map(pyStr).join(' ') }); return; }
+              if (v === 'collect_sample') { yield event({ type: 'print', line: line, text: 'Sample collected.' }); return; }
+              if (v === 'drop_sample') { yield event({ type: 'print', line: line, text: 'Sample dropped.' }); return; }
               // World-building: place(kind) at the rover, or place(kind, x_m, y_m).
               if (v === 'place') {
                 const a = expr.args.map(evalExpr);
                 const kind = a.length ? String(a[0]) : 'flag';
                 const ev = { type: 'place', kind: kind, line: line };
                 if (a.length >= 3) { ev.x = clampNum(a[1], -15, 15, 0) * 100; ev.y = clampNum(a[2], -15, 15, 0) * 100; }
-                yield ev;
+                yield event(ev);
                 return;
               }
-              if (v === 'clear_props') { yield { type: 'clear_props', line: line }; return; }
-              if (v === 'obstacle_ahead' || v === 'sample_detected' || v === 'at_base') { yield { type: 'step', line: line }; return; }
+              if (v === 'clear_props') { yield event({ type: 'clear_props', line: line }); return; }
+              if (v === 'obstacle_ahead' || v === 'sample_detected' || v === 'at_base') { yield event({ type: 'step', line: line }); return; }
             }
             // print(...)
             if (callee.k === 'name' && callee.v === 'print') {
               const args = expr.args.map(evalExpr);
-              yield { type: 'print', line: line, text: args.map(pyStr).join(' ') };
+              yield event({ type: 'print', line: line, text: args.map(pyStr).join(' ') });
               return;
             }
             // user function call on its own line -> execute its body (may move)
@@ -978,7 +1004,7 @@
               const callerScope = scope, callerGlobals = curGlobals;
               scope = Object.create(globalScope); curGlobals = null;
               fn.params.forEach((pn, idx) => { scope[pn] = args[idx]; });
-              yield { type: 'step', line: line };
+              yield event({ type: 'step', line: line });
               callDepth++;
               try {
                 if (callDepth > MAX_CALL_DEPTH) throw new RoverError('Recursion too deep (over ' + MAX_CALL_DEPTH + ' nested calls; check for a missing base case).', line);
@@ -991,25 +1017,25 @@
           }
           // fallback: evaluate for side effects
           evalExpr(expr);
-          yield { type: 'step', line: line };
+          yield event({ type: 'step', line: line });
         }
 
         function motionEvent(name, args, line) {
           switch (name) {
-            case 'forward': return { type: 'move', dir: 1, distance: clampNum(args[0], 0, 4000, 100), line: line };
-            case 'backward': return { type: 'move', dir: -1, distance: clampNum(args[0], 0, 4000, 100), line: line };
-            case 'turn_right': return { type: 'turn', deg: clampNum(args[0], -3600, 3600, 90), line: line };
-            case 'turn_left': return { type: 'turn', deg: -clampNum(args[0], -3600, 3600, 90), line: line };
-            case 'set_speed': return { type: 'speed', value: clampNum(args[0], 0, 100, 50), line: line };
-            case 'wait': case 'sleep': return { type: 'wait', seconds: clampNum(args[0], 0, 10, 1), line: line };
-            case 'pen_down': return { type: 'pen', down: true, line: line };
-            case 'pen_up': return { type: 'pen', down: false, line: line };
-            case 'stop': return { type: 'halt', line: line };
-            case 'led': return { type: 'led', color: args[0] != null ? String(args[0]) : 'cyan', line: line };
-            case 'say': return { type: 'say', text: args.map(pyStr).join(' '), line: line };
-            case 'scan': return { type: 'scan', line: line };
+            case 'forward': return event({ type: 'move', dir: 1, distance: clampNum(args[0], 0, 4000, 100), line: line });
+            case 'backward': return event({ type: 'move', dir: -1, distance: clampNum(args[0], 0, 4000, 100), line: line });
+            case 'turn_right': return event({ type: 'turn', deg: clampNum(args[0], -3600, 3600, 90), line: line });
+            case 'turn_left': return event({ type: 'turn', deg: -clampNum(args[0], -3600, 3600, 90), line: line });
+            case 'set_speed': return event({ type: 'speed', value: clampNum(args[0], 0, 100, 50), line: line });
+            case 'wait': case 'sleep': return event({ type: 'wait', seconds: clampNum(args[0], 0, 10, 1), line: line });
+            case 'pen_down': return event({ type: 'pen', down: true, line: line });
+            case 'pen_up': return event({ type: 'pen', down: false, line: line });
+            case 'stop': return event({ type: 'halt', line: line });
+            case 'led': return event({ type: 'led', color: args[0] != null ? String(args[0]) : 'cyan', line: line });
+            case 'say': return event({ type: 'say', text: args.map(pyStr).join(' '), line: line });
+            case 'scan': return event({ type: 'scan', line: line });
           }
-          return { type: 'step', line: line };
+          return event({ type: 'step', line: line });
         }
 
         // Surface stray control-flow sentinels as real diagnostics instead of
