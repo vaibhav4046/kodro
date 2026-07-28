@@ -54,6 +54,10 @@
 
   // A message that clearly asks a question is never treated as a command.
   var QUESTION_RE = /^\s*(how|what|why|when|where|which|who|can|could|should|would|does|do|is|are|will|explain|tell me)\b/i;
+  // A request for code may legitimately mention a world, speed, collision or
+  // weather as program context. Let the model draft and validate that program
+  // instead of firing one of the immediate project-control shortcuts.
+  var CODE_REQUEST_RE = /\b(code|program|programme|python|script|function|loop|complete replacement|replace (the )?current program)\b/i;
 
   // A build command needs the verb, an INDEFINITE article (a/an/new/another/…),
   // then a robot noun. The article is what separates "make A rover" (build) from
@@ -86,32 +90,33 @@
     var raw = String(text || '');
     var t = raw.toLowerCase();
     var isQuestion = QUESTION_RE.test(raw);
+    var isCodeRequest = CODE_REQUEST_RE.test(t);
 
     var named = findWorld(t);
     // Never act on a question ("how do I make the rover faster?", "why crash on mars?").
-    var build = !isQuestion && BUILD_CMD_RE.test(t);
+    var build = !isQuestion && !isCodeRequest && BUILD_CMD_RE.test(t);
 
     // Honour a named world when the message either moves explicitly ("go to
     // mars", "on the moon") OR is itself a build command ("build a mars rover"
     // -> put it on Mars). A bare place phrase ("on/to/in <place>") also counts.
     var explicitMove = !!named && (MOVE_VERB.test(t) || /\b(on|to|in)\s+(the\s+)?[a-z]/.test(t));
-    var world = (!isQuestion && named && (explicitMove || build)) ? named : null;
+    var world = (!isQuestion && !isCodeRequest && named && (explicitMove || build)) ? named : null;
 
     // Weather and time changes are deterministic app controls, not model
     // guesses. A bare mention such as "does rain affect grip?" remains a
     // question; an explicit "make it rain" becomes an action.
     var time = findPreset(TIMES, t);
     var weather = findPreset(WEATHERS, t);
-    var environment = (!isQuestion && ENV_VERB.test(t) && (time || weather))
+    var environment = (!isQuestion && !isCodeRequest && ENV_VERB.test(t) && (time || weather))
       ? { time: time, weather: weather } : null;
 
-    var diagnose = DIAGNOSE_RE.test(t);
-    var repair = !isQuestion && REPAIR_RE.test(t);
+    var diagnose = !isCodeRequest && DIAGNOSE_RE.test(t);
+    var repair = !isQuestion && !isCodeRequest && REPAIR_RE.test(t);
     var speed = null;
     var speedMatch = t.match(/\b(?:set|change|limit|make)\b[^.?!]*\bspeed\b[^0-9]{0,12}(\d{1,3})\s*%?/i);
-    if (!isQuestion && speedMatch) speed = Math.max(0, Math.min(100, parseInt(speedMatch[1], 10)));
-    else if (!isQuestion && /\b(slow down|slower|reduce speed)\b/i.test(t)) speed = 30;
-    else if (!isQuestion && /\b(speed up|faster|increase speed)\b/i.test(t)) speed = 70;
+    if (!isQuestion && !isCodeRequest && speedMatch) speed = Math.max(0, Math.min(100, parseInt(speedMatch[1], 10)));
+    else if (!isQuestion && !isCodeRequest && /\b(slow down|slower|reduce speed)\b/i.test(t)) speed = 30;
+    else if (!isQuestion && !isCodeRequest && /\b(speed up|faster|increase speed)\b/i.test(t)) speed = 70;
 
     return {
       build: build,

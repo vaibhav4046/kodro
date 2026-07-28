@@ -324,6 +324,20 @@ console.log('\n== ON-DEVICE COMPANION INTENTS ==');
   const clamped = Intent.parse('Set the speed to 900 percent');
   check('speed requests are clamped to the real 0 to 100 control',
     clamped.speed === 100, JSON.stringify(clamped));
+
+  const contextualWorld = Intent.parse(
+    'Write a short Kodro program that safely drives in this city after a collision.'
+  );
+  check('a coding request that mentions a world stays on the model path',
+    !contextualWorld.isCommand && contextualWorld.world === null,
+    JSON.stringify(contextualWorld));
+
+  const contextualSpeed = Intent.parse(
+    'Replace the current program with Python code. Set speed to 35 and move forward.'
+  );
+  check('a coding request that mentions speed stays on the model path',
+    !contextualSpeed.isCommand && contextualSpeed.speed === null,
+    JSON.stringify(contextualSpeed));
 }
 
 console.log('\n== LESSON-AWARE MEMORY ==');

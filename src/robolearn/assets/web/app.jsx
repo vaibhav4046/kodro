@@ -1254,11 +1254,11 @@
         '# Companion draft: move in small steps and check clearance each time',
         'set_speed(' + targetSpeed + ')',
         'for step in range(20):',
-        '    if distance() < 80:',
+        '    if distance() < 150:',
         '        stop()',
         '        turn_right(45)',
         '    else:',
-        '        move_forward(0.5)',
+        '        move_forward(0.25)',
         '',
       ].join('\n');
     }
@@ -1355,7 +1355,7 @@
         return {
           handled: true,
           kind: 'evidence',
-          message: 'I prepared a safer alternative that slows down, checks 80 centimetres ahead, and moves in half-metre steps. Your current program is unchanged until you choose Apply.',
+          message: 'I prepared a safer alternative that slows down, keeps a 150 centimetre clearance buffer, and moves in quarter-metre steps. Your current program is unchanged until you choose Apply.',
           draft: draft,
           summary: 'Replaces the current program with a sensor-checked low-speed patrol.',
           validated: checked.ok,

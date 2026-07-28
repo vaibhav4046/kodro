@@ -736,7 +736,7 @@ function checkVibeRepairPreview(chrome) {
   if (!/class="vibe-msg ai evidence"/.test(dom) || !/Based on this project/.test(dom)) {
     return { pass: false, reason: 'collision help did not render a project-evidence response' };
   }
-  if (!/Proposed edit:/.test(dom) || !/distance\(\) &lt; 80/.test(dom)) {
+  if (!/Proposed edit:/.test(dom) || !/distance\(\) &lt; 150/.test(dom)) {
     return { pass: false, reason: 'collision help did not produce the validated sensor-checking code preview' };
   }
   if (!/Apply to editor/.test(dom) || !/>Discard</.test(dom)) {
