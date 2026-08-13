@@ -610,24 +610,32 @@ const CAP = `<!DOCTYPE html>
           if (paletteDone) return;
           var ta = document.querySelector('.code-ta');
           var val = ta ? ta.value : '';
+          // Line-position checks, not raw substring search: the KS1 starter
+          // code for this lesson is itself "move_forward(1)", so searching
+          // for that substring anywhere in the textarea can never tell the
+          // starter line apart from a clicked one. Compare against the last
+          // (and second-to-last) real line instead.
+          var lines = val.split('\\n').filter(function (l) { return l.length; });
+          var last = lines[lines.length - 1];
+          var last2 = lines[lines.length - 2];
           if (paletteStep === 0) {
             var b1 = document.querySelector('.step-palette button[data-verb="turn_left"]');
             if (!b1) return;
             b1.click(); paletteStep = 1; return;
           }
           if (paletteStep === 1) {
-            if (val.indexOf('turn_left(90)') < 0) return;
+            if (last !== 'turn_left(90)') return;
             var b2 = document.querySelector('.step-palette button[data-verb="forward"]');
             if (!b2) return;
             b2.click(); paletteStep = 2; return;
           }
           if (paletteStep === 2) {
-            if (val.indexOf('turn_left(90)\\nmove_forward(1)') < 0) return;
+            if (last !== 'move_forward(1)' || last2 !== 'turn_left(90)') return;
             var b3 = document.querySelector('.step-palette button[data-verb="undo"]');
             if (!b3) return;
             b3.click(); paletteStep = 3; return;
           }
-          if (val.indexOf('move_forward(1)') >= 0) return; // undo not applied yet
+          if (last !== 'turn_left(90)' || lines.length !== 2) return; // undo not applied yet
           var probe = document.createElement('div');
           probe.id = 'palette-probe';
           probe.style.display = 'none';

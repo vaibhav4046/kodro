@@ -2900,6 +2900,53 @@
                 readOnly={runState === 'running'}
                 onSelection={setEditorSelection}
               />
+              {(() => {
+                // The step palette: the floor below typing. A five year old on
+                // a KS1 lesson cannot spell move_forward, and the Blocks modal
+                // is a separate screen away. These are one-tap buttons that
+                // append one step to the bottom of the program, which matches
+                // the mental model every KS1 lesson teaches: a program is a
+                // list of steps, read top to bottom. The pupil still SEES the
+                // real Python appear in the editor as they press, which is the
+                // bridge to typing it later; nothing here is a second language.
+                if (!classroom) return null;
+                const lesson = lessons.find(l => l.id === currentLessonId);
+                if (!lesson || lesson.keyStage !== 'KS1') return null;
+                const running = runState === 'running';
+                const lineCount = code.split('\n').filter(ln => ln.trim() !== '').length;
+                const capLines = lesson.maxLines || 12;
+                const full = lineCount >= capLines;
+                const addStep = (snippet) => {
+                  const trimmed = code.replace(/\s+$/, '');
+                  onCodeChange((trimmed ? trimmed + '\n' : '') + snippet + '\n');
+                };
+                const undoStep = () => {
+                  const linesArr = code.replace(/\s+$/, '').split('\n');
+                  linesArr.pop();
+                  onCodeChange(linesArr.length ? linesArr.join('\n') + '\n' : '');
+                };
+                const STEPS = [
+                  ['move_forward(1)', 'Forward 1 m', 'forward'],
+                  ['turn_left(90)', 'Turn left', 'turn_left'],
+                  ['turn_right(90)', 'Turn right', 'turn_right'],
+                  ['beep(1)', 'Beep', 'beep'],
+                ];
+                return (
+                  <div className="step-palette" role="group" aria-label="Add a step to the program">
+                    {STEPS.map(([snippet, label, key]) => (
+                      <button key={key} type="button" className="step-btn" data-verb={key}
+                        disabled={running || full}
+                        title={full ? 'The program is full. Take a step out first.' : snippet}
+                        onClick={() => addStep(snippet)}>{label}</button>
+                    ))}
+                    <button type="button" className="step-btn step-undo" data-verb="undo"
+                      disabled={running || lineCount === 0}
+                      title="Remove the last step"
+                      onClick={undoStep}>Take a step out</button>
+                    {full && <span className="step-full-note" role="status">{'The program is full (' + capLines + ' lines). Take a step out.'}</span>}
+                  </div>
+                );
+              })()}
               <div className="learning-selection-bar" role="toolbar" aria-label="Learn from selected code">
                 {editorSelection
                   ? <span className="learning-selection-label">
@@ -2966,6 +3013,11 @@
                 // Studio keeps the screen quiet (round-3 feedback: fewer
                 // words); learners in classroom mode keep the command strip.
                 if (!classroom) return null;
+                // At the KS1 floor the step palette above replaces this strip:
+                // its dense adult text (set_speed(0-100), sensors return
+                // values) is noise at reading age 5-6.
+                const curLesson = lessons.find(l => l.id === currentLessonId);
+                if (curLesson && curLesson.keyStage === 'KS1') return null;
                 const gateOk = (g) => !g || !window.KodroCommands || window.KodroCommands.check(robotSpec, g).ok;
                 const ACTION_HINTS = [
                   ['move_forward(m)', null], ['move_backward(m)', null], ['turn_left(°)', null], ['turn_right(°)', null],

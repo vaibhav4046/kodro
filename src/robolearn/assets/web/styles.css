@@ -2925,3 +2925,20 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   .learning-annotation-card { max-height: none; }
   .vibe-project-diff > div { grid-template-columns: 1fr; }
 }
+
+/* --- KS1 step palette ----------------------------------------------------- */
+.step-palette {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  margin: 8px 0 2px;
+}
+.step-btn {
+  min-height: 44px; padding: 8px 16px;
+  font-size: var(--text-base, 1rem); font-weight: 600;
+  background: var(--navy-2); color: var(--fg-1);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.step-btn:hover:not(:disabled) { border-color: var(--cyan); }
+.step-btn:disabled { opacity: .45; cursor: default; }
+.step-btn.step-undo { font-weight: 400; color: var(--fg-3); }
+.step-full-note { font-size: var(--text-sm); color: var(--fg-3); }

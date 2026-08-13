@@ -863,6 +863,33 @@ function checkLessonGoals(chrome) {
   return { pass: false, reason: 'no "Need a hint?" help-on-request button before the first run' };
 }
 
+// KS1 STEP PALETTE — a pupil who cannot spell move_forward still needs a
+// program built entirely from clicks. Drive turn_left, forward, undo through
+// the real buttons and check the editor's own text ends up correct, and that
+// the adult api-hint strip is suppressed at this key stage.
+function checkStepPalette(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&lesson=000_watch_it_go&palette=1`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_step_palette', url, { vtime: 14000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const probeMatch = dom.match(/id="palette-probe"[^>]*data-value="([^"]*)"[^>]*data-strip="(\d)"/);
+  if (!probeMatch) return { pass: false, reason: 'palette driver never completed (probe div missing)' };
+  const [, value, strip] = probeMatch;
+  // Line-position check, not raw substring search: lesson 000_watch_it_go's
+  // starter code is itself "move_forward(1)", so a bare indexOf can't tell
+  // the permanent starter line apart from a clicked-and-undone one.
+  const lines = value.split('\n').map((l) => l.replace(/\r/g, '').trim()).filter(Boolean);
+  const wantsCode = lines.length === 2 && lines[0] === 'move_forward(1)' && lines[1] === 'turn_left(90)';
+  if (!wantsCode) {
+    return { pass: false, reason: `step-palette clicks did not produce the expected program (got: ${JSON.stringify(value).slice(0, 80)})` };
+  }
+  if (strip !== '0') {
+    return { pass: false, reason: 'adult api-hint strip is still showing at KS1, should be replaced by the step palette' };
+  }
+  return { pass: true, reason: 'turn_left/forward/undo clicks built the right program text and the adult hint strip stayed hidden at KS1' };
+}
+
 // STUDIO MODE (A1) — the default profile is the professional studio: the
 // Settings popover must carry the Mode control but NONE of the classroom
 // furniture (teacher dashboard, progress-report export, novelty themes).
@@ -1457,6 +1484,7 @@ function cleanup() {
       ['chat-build', checkVibeBuild],
       ['learning-note', checkLearningAnnotation],
       ['lesson-goals', checkLessonGoals],
+      ['step-palette', checkStepPalette],
       ['lesson-world-exit', checkLessonWorldExit],
       ['stage-journey', checkStageJourney],
       ['authored-lesson', checkAuthoredLesson],
@@ -1598,6 +1626,11 @@ function cleanup() {
   const lessonGoals = checkLessonGoals(chrome);
   behaviour.push(lessonGoals.pass);
   console.log(`${lessonGoals.pass ? 'PASS' : 'FAIL'}  ${'lesson-goals'.padEnd(20)} ${lessonGoals.reason}`);
+  gap();
+
+  const stepPalette = checkStepPalette(chrome);
+  behaviour.push(stepPalette.pass);
+  console.log(`${stepPalette.pass ? 'PASS' : 'FAIL'}  ${'step-palette'.padEnd(20)} ${stepPalette.reason}`);
   gap();
 
   const lightHud = checkLightHud(chrome);
