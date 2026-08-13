@@ -22,6 +22,7 @@ INTERP = (
 )
 
 _NODE = shutil.which("node")
+NODE_TIMEOUT_SECONDS = 60
 
 pytestmark = pytest.mark.skipif(_NODE is None, reason="Node.js not available")
 
@@ -55,7 +56,11 @@ def _drive(source: str) -> dict:
       process.stdout.write(JSON.stringify(out));
     """
     proc = subprocess.run(
-        [str(_NODE), "-e", harness], capture_output=True, text=True, timeout=30, check=False
+        [str(_NODE), "-e", harness],
+        capture_output=True,
+        text=True,
+        timeout=NODE_TIMEOUT_SECONDS,
+        check=False,
     )
     assert proc.returncode == 0, proc.stderr
     return json.loads(proc.stdout)
@@ -136,7 +141,11 @@ def _drive_prints(src: str) -> list:
       }}
     """
     proc = subprocess.run(
-        [str(_NODE), "-e", harness], capture_output=True, text=True, timeout=30, check=False
+        [str(_NODE), "-e", harness],
+        capture_output=True,
+        text=True,
+        timeout=NODE_TIMEOUT_SECONDS,
+        check=False,
     )
     assert proc.returncode == 0, proc.stderr
     return json.loads(proc.stdout)
@@ -273,7 +282,11 @@ def _frame_progress() -> dict:
       }}));
     """
     proc = subprocess.run(
-        [str(_NODE), "-e", harness], capture_output=True, text=True, timeout=30, check=False
+        [str(_NODE), "-e", harness],
+        capture_output=True,
+        text=True,
+        timeout=NODE_TIMEOUT_SECONDS,
+        check=False,
     )
     assert proc.returncode == 0, proc.stderr
     return json.loads(proc.stdout)

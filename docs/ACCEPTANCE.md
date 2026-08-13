@@ -1,54 +1,63 @@
-# Kodro Acceptance Standard
+# Kodro 2.1 acceptance record
 
-This is Kodro's objective definition of done. It is separate from the
-adversarial judge-panel score: these gates ask whether the build is correct,
-honest, reproducible and shippable; the judge panel scores subjective product
-quality and should not be forced to 10/10.
+This record separates verified engineering results from external or human
+activities. It was refreshed on 13 August 2026 from the synchronized repository
+at the 2.1 candidate worktree. A release is not described as published until
+the candidate commit, CI run, tag and platform artifacts exist on GitHub.
 
-Last measured locally on 2026-07-09 from the current release-readiness
-checkout. The release vehicle for this pass is `v2.0.2`.
+## Candidate baseline
 
-## Criteria
+- Product version: `2.1.0`.
+- Learning library: 24 lessons: 3 KS1, 4 KS2, 9 KS3 and 8 KS4.
+- Primary journey: Design, Prove, Build, with learning and authoring routes.
+- Core operation: local-first, no account, and no mandatory model or network
+  request after the static application has been obtained.
 
-| # | Criterion | How reproduced | Result |
-|---|-----------|----------------|--------|
-| 1 | No confirmed HIGH defects remain in the audited scope | Requested audit plus gate failures | Pass after fixing the isolated offline gate, CI coverage-marker regression, Windows release packaging collision and README asset-name mismatch |
-| 2 | Bundle freshness | `node scripts/build_web.cjs --check` | Pass: `bundle.js is up to date.` |
-| 3 | Interpreter conformance | `node scripts/qa_interpreter.mjs` | Pass: 157 passed, 0 failed |
-| 4 | Lesson-grader parity | `node scripts/qa_grader.mjs` | Pass: 34 passed, 0 failed |
-| 5 | Simulation physics unit gate | `node scripts/qa_physics.mjs` | Pass: 20 passed, 0 failed |
-| 6 | AI facade unit gate | `node scripts/qa_ai_web.mjs` | Pass: 19 passed, 0 failed |
-| 7 | Static web boot + privacy | `node scripts/build_web.cjs --static`; `node scripts/qa_web.mjs` | Pass: 4/4 checks, including privacy-zero-external |
-| 8 | World/site render sweep | Static server on `localhost:8099`; `node scripts/build_screenshot_harness.cjs`; `node scripts/qa_worlds.mjs` | Pass: 61 passed, 0 failed |
-| 9 | UI smoke and modal coverage | Static server on `localhost:8099`; `node scripts/qa_ui.mjs` | Pass: 6/6 flows, 24/24 behaviour asserts, 12/12 modals |
-| 10 | Python suite + coverage gate | `python -m pytest` | Pass: 1023 passed, 1 skipped; coverage total reported above the 85% gate |
-| 11 | Lint, format, types | `ruff check .`; `ruff format --check .`; `mypy src` | Pass on all three local gates |
-| 12 | Offline web guard can run alone | `python -m pytest tests/unit/test_web_offline.py` | Pass: 4 passed; isolated run no longer fails only because whole-repo coverage is below 85% |
-| 13 | Source app constructs | `python -c "from robolearn.web.app import build_app; app = build_app(); print(app.window.title)"` | Pass: prints `Kodro` |
-| 14 | Live hosted web reachable and CI-gated deploy exists | `Invoke-WebRequest https://vaibhav4046.github.io/robolearn/`; `gh run list --branch main --workflow CI` | Pass: HTTP 200; main/release GitHub Actions remain part of the shipping gate |
-| 15 | Windows installer/release packaging | `python scripts/build_exe.py --clean` | Pass: produced distinct `dist/RoboLearn.exe` and `dist/robolearn-tk.exe`; release workflow now packages the distinct fallback binary |
+## Reproducible checks
 
-## Release Artifacts
+| Area | Command or evidence | Candidate result |
+| --- | --- | --- |
+| Web source/bundle identity | `node scripts/build_web.cjs --check` | PASS |
+| Python suite on this Windows host | workspace-local `PYTHONPATH=src`; `pytest --cov-fail-under=0` | PASS: 1,239 passed, 140 skipped; skips are Tcl/Tk GUI cases unavailable in this Python 3.13 installation |
+| Coverage release policy | Linux Python 3.12 CI with Xvfb and `--cov-fail-under=85` | Must pass on the published candidate commit; the pre-candidate `main` run is green but is not substituted for candidate evidence |
+| Interpreter | `node scripts/qa_interpreter.mjs` | PASS: 180 |
+| Lesson grader and solvability | `node scripts/qa_grader.mjs` | PASS: 55; all 24 worked answers pass both graders at 100/100 |
+| Physics | `node scripts/qa_physics.mjs` | PASS: 25 |
+| Scenario collision parity | `node scripts/qa_scenario_parity.mjs` | PASS: 8 |
+| Assistant facade | `node scripts/qa_ai_web.mjs` | PASS: 51 |
+| Pupil store | `node scripts/qa_pupilstore.mjs` | PASS: 23 |
+| Honesty assertions | `node scripts/qa_honesty.mjs` | PASS: 121 |
+| Contrast and responsive tokens | `node scripts/qa_contrast.mjs` | PASS: 61 across 10 themes |
+| Parts, memory and GPU gates | `qa_parts`, `qa_memgraph`, `qa_gpucaps` | PASS: 40, 22 and 46 |
+| Storage and construct liveness | `qa_project_storage`, `qa_construct_liveness` | PASS: 16 and 30 |
+| Lesson Studio | `node scripts/qa_lesson_studio.mjs` | PASS: 79 |
+| Pupil error explanations | `node scripts/qa_pupil_errors.mjs` | PASS: 42 |
+| Parsons and markbook | `qa_parsons`, `qa_markbook` | PASS: 13 and 16 |
+| Learning annotations and preview | `node scripts/qa_learning_annotations.mjs` | PASS: 28 |
+| Cross-engine fuzzing | `node scripts/qa_fuzz.mjs` | PASS: 9 suites: 120 parity cases, 120 junk inputs and 30 storage rounds |
+| Browser boot and privacy | local static server; `node scripts/qa_web.mjs` | PASS: 5/5, including studio mount, clean console and zero app-originated external requests |
+| Windows packaging | `python scripts/build_exe.py --clean` | PASS: `Kodro.exe` (302,106,757 bytes; SHA-256 `4620918A185A561371095097A1571B5C6504A5B96970A9F4D9D349E1902389E4`) and `robolearn-tk.exe` (301,822,391 bytes; SHA-256 `DEAC2DFD56474B6B1F55BE043761ED4216438187D79EF1363C530480DB3CC0A3`) |
+| Full local paint harness | `node scripts/qa_ui.mjs --suite=paint` | HOST LIMITATION: Chrome process creation timed out for all six captures on this saturated Windows/SwiftShader host; no product assertion ran, so this is not recorded as a pass or product failure |
+| Public lesson/document parity | `test_docs_match_reality.py` | PASS: counts agree and the scheme, mapping and answer key cover all 24 lessons; every documented answer matches its verified YAML solution |
 
-Local Windows build outputs from this pass:
+## Acceptance boundaries
 
-| File | Size | SHA-256 |
-|---|---:|---|
-| `dist/RoboLearn.exe` | 75,781,082 bytes | `99B3372BC4EC77A4F9C1993968611E7D74BDC71AC14169CD38BAB130C7A8E3F6` |
-| `dist/robolearn-tk.exe` | 75,495,392 bytes | `9FE51DF7ED45A60295D0C99466FA14927B050E7621FA09F9D4E75FDABFD7EF95` |
+The software evidence above does not establish classroom efficacy, physical
+predictive validity, electrical or mechanical safety, accessibility for every
+disabled user, or a causal benefit from the memory mechanism. No human study is
+reported. Those boundaries are maintained in `docs/known-limitations.md` and
+the dissertation.
 
-The previous latest GitHub release before this audit was `v2.0.0`, tagged at
-`9ed5f4680c6dab41fa709f529d2477d1de252e6b`, while current `main` had advanced
-to `e78112c25f95ff30494c68764712e38e1c9c68ac`. That was treated as a HIGH
-shipping defect. `v2.0.1` exposed a CI-only pytest-cov marker regression, so
-`v2.0.2` is the required current-release vehicle.
+The following are release operations rather than claims that may be inferred
+from a local worktree:
 
-## Verdict
+1. Publish the candidate branch and obtain green Python 3.12 CI on Windows,
+   Ubuntu and macOS, including the Linux browser matrix.
+2. Merge the reviewed candidate to `main`.
+3. Tag the exact merged commit as `v2.1.0` and let `release.yml` build its
+   Windows, Linux and macOS assets.
+4. Verify the GitHub Pages bundle and stylesheet against that commit and record
+   the resulting hashes.
 
-Objective acceptance score: **15/15 measured passing locally**.
-
-Subjective judge-panel score: **about 8.1/10**, not 10/10. Remaining limitations
-are still disclosed in `docs/known-limitations.md`: Kodro is kinematic rather
-than a rigid-body simulator, Pymunk is not the visible runtime, imported assets
-are procedural rather than glTF/URDF, and several fitted hardware parts affect
-robot properties before they have dedicated command bindings.
+Until those four operations are complete, this document describes a locally
+verified candidate, not a published 2.1 release.

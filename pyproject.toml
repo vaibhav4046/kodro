@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "robolearn"
-version = "2.0.0"
+version = "2.1.0"
 description = "Offline AI-assisted robotics design and simulation platform (Kodro): build a robot, program it, validate it in a 3D world, all on one laptop."
 readme = "README.md"
 requires-python = ">=3.12"

@@ -308,7 +308,7 @@ ok(/Weather: rain, snow and dust storms change the light level and the visuals o
 }
 
 // 15. The learning pillar is named at first contact (judge round 9).
-ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
+ok(/Lessons<\/b>: 24 graded missions/.test(read('onboarding.jsx')),
   'onboarding step 3 introduces the Lessons pillar');
 
 // 16. Catalogue no-load top speed must NOT scale with drive-part count or type

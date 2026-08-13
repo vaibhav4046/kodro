@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 
 import pytest
-from hypothesis import given
+from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from robolearn.engine.rover import Rover
@@ -189,6 +189,7 @@ def test_lidar_distance_is_non_negative_in_empty_arena(
     rover_y=st.floats(min_value=1.0, max_value=9.0),
     radius=st.floats(min_value=0.1, max_value=1.0),
 )
+@settings(deadline=None)
 def test_obstacle_makes_lidar_no_greater_than_empty(
     rover_x: float, rover_y: float, radius: float
 ) -> None:

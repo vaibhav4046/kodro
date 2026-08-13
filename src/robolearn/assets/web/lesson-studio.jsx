@@ -1,7 +1,7 @@
 /* ============================================================================
    KODRO - Lesson Studio: make your own lesson.
 
-   Kodro shipped 18 lessons and no way to write a nineteenth. A teacher whose
+   Kodro originally shipped 18 lessons and no way to author another. A teacher whose
    class was doing something specific that week had to use ours or nothing, and
    a pupil who wanted to set a challenge for a friend had no way to.
 
@@ -14,7 +14,7 @@
 
    1. YOU CANNOT SAVE A LESSON YOU HAVE NOT SOLVED. The Check button runs your
       worked answer through the same grader a pupil will be marked by, and Save
-      stays disabled until it passes. Every one of the 18 built-in lessons is
+      stays disabled until it passes. Every one of the 24 built-in lessons is
       held to exactly this standard by a test; it would be strange to hold a
       teacher's lesson to a lower one. A lesson whose own answer fails is a
       lesson that sends a child in circles.

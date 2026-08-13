@@ -7,12 +7,12 @@ You are GPT 5.x. Read everything below, then output ONE copy-paste master prompt
 Kodro is BOTH a testing platform and a learning platform, in one offline-first free app:
 
 - TESTING: a person designs a customized robot from real parts within a budget, imports or enters real motor/battery/body numbers, and tests it in a simulated world BEFORE building it in the real world. They see real derived numbers (top speed, battery life, slope limit, stopping distance) and watch the build drive, crash, and drain in a living city. Multiple operations: Python code or block coding, seeded validation runs, replay, URDF exchange with ROS tools.
-- LEARNING: the same app teaches robotics and programming through 18 graded lessons (ages 5-16), a class register for teachers, hints, and an AI helper that writes code from plain words.
+- LEARNING: the same app teaches robotics and programming through 24 graded lessons (ages 5-16), a class register for teachers, hints, and an optional assistant that can explain or draft code from plain words.
 - GOVERNANCE / HARNESS: a deterministic validator and sandbox always has the final word on what runs; the AI only proposes. Fidelity is disclosed per figure in three tiers (HONOURED / APPROXIMATED / NOT SIMULATED). Nothing leaves the user's machine by default; all AI options are free (local Ollama, or bring-your-own FREE key: Groq free tier, OpenRouter free models such as DeepSeek). Paid providers were deliberately removed.
 
 Product rule number one: SIMPLIFY. Every change must make the product simpler and clearer for a first-time user, never more complicated. When in doubt, cut words, cut chrome, keep the world and the robot on screen.
 
-## 2. CURRENT STATE (verified 2026-07-15, all numbers real)
+## 2. CURRENT STATE (candidate verified locally 2026-08-13)
 
 - Live site: https://vaibhav4046.github.io/robolearn/ serving commit 291cf00 (live bundle sha256 verified equal to the committed build).
 - Repo: github.com/vaibhav4046/robolearn. Local working copy: D:\project\robolearn. Branches: work on kodro-identity-pass, fast-forward main, push BOTH; deploy is gated on CI (3 OS matrix) via GitHub Pages.
@@ -23,7 +23,7 @@ Product rule number one: SIMPLIFY. Every change must make the product simpler an
 
 ## 3. QUALITY GATES (the prompt must keep every one green at every commit)
 
-Node gates (node scripts/<name>.mjs): qa_interpreter 180, qa_grader 34, qa_physics 20, qa_ai_web 27, qa_web 4, qa_parts 40, qa_memgraph 22, qa_pupilstore 23, qa_scenario_parity 4, qa_interp_fixes 13. Browser gates (serve src/robolearn/assets/web on :8099 with python -m http.server first): qa_ui (6 flows + 32 behaviour + 12 modals), qa_worlds 61. Ollama-gated: qa_ai_grammar 6. Python: python -m pytest = 1068 passed at 89 percent coverage (85 gate); ruff check; ruff format --check; mypy (66 files, strict; optional extras have overrides). CI runs on ubuntu + macos + windows; deploy fires only on CI success; after deploy, verify the LIVE bundle sha256 equals the committed one before claiming shipped.
+Current deterministic gates (run `node scripts/<name>.mjs`): qa_interpreter 180, qa_grader 55, qa_physics 25, qa_ai_web 51, qa_web 5, qa_parts 40, qa_memgraph 22, qa_pupilstore 23, qa_scenario_parity 8, qa_honesty 121, qa_contrast 61, qa_gpucaps 46, qa_project_storage 16, qa_construct_liveness 30, qa_lesson_studio 79, qa_pupil_errors 42, qa_parsons 13, qa_markbook 16 and qa_learning_annotations 28. The cross-engine fuzz gate passes 120 parity cases, 120 junk inputs and 30 storage rounds. The local Python 3.13 candidate run passed 1,239 tests and skipped 140 Tcl/Tk GUI cases unavailable on that host. Release coverage comes only from Linux Python 3.12 CI with Xvfb and an 85 percent branch-aware gate. Ruff check, Ruff format check and strict mypy pass. CI runs on Ubuntu, macOS and Windows; deploy fires only on CI success. Never claim the candidate shipped until the candidate commit is published and the live bundle is verified against it.
 
 Known traps to write into the prompt verbatim: the robolearn editable-install .pth must point at D:\project\robolearn\src; a backslash-n inside the harness generator template must be escaped double or cap.html breaks at parse; qa harness Chrome profiles are wiped per dump because a reused profile serves stale cached assets; qa_ui/qa_worlds can flake with chrome spawn timeouts under heavy load (rerun after cooldown; CI does not run them); always run ruff format, not only ruff check; OLLAMA_ORIGINS must include https://vaibhav4046.github.io for the live site to reach local Ollama.
 

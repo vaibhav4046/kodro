@@ -109,7 +109,7 @@ hooks, app-data, panels, app
 | `hooks.jsx` | Sim engine tick, run loop, seeds, console, toasts, teacher, project IO. |
 | `app.jsx` | Root component, mission bar, settings, modals wiring. |
 | `interpreter.js` | Python-subset recursive-descent interpreter + sandbox. |
-| `lesson-grader.jsx` + `lessons.json` | 18 graded lessons + grading. |
+| `lesson-grader.jsx` + `lessons.json` | 24 graded lessons + grading. |
 | `Viewport3D.jsx`, `worldfx.jsx`, `ambient.jsx` | 3D world, weather, agents/traffic. |
 | `terrains.jsx` | 6 base worlds + 17 named mission sites (env: gravity/temp/pressure/light/traction). |
 | `pupil-store.js` | On-device class register (localStorage, EMA concept strength). |
@@ -139,7 +139,7 @@ node scripts/qa_memgraph.mjs         # 22
 node scripts/qa_pupilstore.mjs       # 23
 node scripts/qa_scenario_parity.mjs  # 4
 node scripts/qa_interp_fixes.mjs     # 13
-node scripts/qa_honesty.mjs          # 91  <-- the honesty regression gate
+node scripts/qa_honesty.mjs          # 121 <-- the honesty regression gate
 node scripts/qa_contrast.mjs         # 61  <-- WCAG AA across 10 themes
 node scripts/qa_web.mjs              # 5/5 (boot + privacy + studio-mount)
 ```
@@ -149,7 +149,7 @@ node scripts/qa_web.mjs              # 5/5 (boot + privacy + studio-mount)
 node scripts/build_web.cjs                      # rebuild bundle
 node scripts/build_screenshot_harness.cjs       # regenerate cap.html
 # serve D:\project\robolearn\src\robolearn\assets\web on http://localhost:8099
-node scripts/qa_ui.mjs        # 6/6 flows, 38/38 behaviour, 12/12 modals
+node scripts/qa_ui.mjs        # run all current browser suites; trust emitted counts
 node scripts/qa_worlds.mjs    # 61 world/site renders
 ```
 
@@ -159,7 +159,7 @@ python -m pytest                       # CI-authoritative
 python -m ruff check .
 python -m ruff format --check .
 python -m mypy src
-python -m build --wheel                # robolearn-2.0.0-py3-none-any.whl
+python -m build --wheel                # robolearn-2.1.0-py3-none-any.whl
 ```
 
 **CI does NOT run `qa_ui` / `qa_worlds`** — they are LOCAL acceptance gates.

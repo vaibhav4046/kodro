@@ -19178,7 +19178,7 @@ Object.assign(window, {
 /* ============================================================================
    KODRO - the lesson document, its on-device store, and its file format.
 
-   Kodro shipped 18 lessons and no way to write a nineteenth. A teacher who
+   Kodro originally shipped 18 lessons and no way to author another. A teacher who
    wanted an arena that matched what their class was doing that week, or a pupil
    who wanted to set a challenge for a friend, had nothing: the curriculum was
    whatever we had decided months earlier, baked into the bundle.
@@ -21375,7 +21375,7 @@ Object.assign(window, {
       style: {
         marginTop: 10
       }
-    }, "Prefer to learn step by step? The studio also has ", /*#__PURE__*/React.createElement("b", null, "Lessons"), ": 18 graded missions, from first drive to full autopilot, for ages 5 and up. Open them any time from", /*#__PURE__*/React.createElement("b", null, " More Tools \u2192 Lessons"), " in the top bar."), /*#__PURE__*/React.createElement(Steps, {
+    }, "Prefer to learn step by step? The studio also has ", /*#__PURE__*/React.createElement("b", null, "Lessons"), ": 24 graded missions, from first drive to full autopilot, for ages 5 and up. Open them any time from", /*#__PURE__*/React.createElement("b", null, " More Tools \u2192 Lessons"), " in the top bar."), /*#__PURE__*/React.createElement(Steps, {
       current: 2
     }), /*#__PURE__*/React.createElement("div", {
       className: "konb-actions"
@@ -21544,7 +21544,7 @@ Object.assign(window, {
     key: 'lessons',
     kicker: 'Start here',
     title: 'Learn to code',
-    desc: 'Follow 18 guided lessons with a working program, a clear goal and feedback after every run.',
+    desc: 'Follow 24 guided lessons with a working program, a clear goal and feedback after every run.',
     go: 'Open the lessons',
     icon: 'report',
     className: 'kh-card-primary',
@@ -21728,7 +21728,7 @@ Object.assign(window, {
 /* ============================================================================
    KODRO - Lesson Studio: make your own lesson.
 
-   Kodro shipped 18 lessons and no way to write a nineteenth. A teacher whose
+   Kodro originally shipped 18 lessons and no way to author another. A teacher whose
    class was doing something specific that week had to use ours or nothing, and
    a pupil who wanted to set a challenge for a friend had no way to.
 
@@ -21741,7 +21741,7 @@ Object.assign(window, {
 
    1. YOU CANNOT SAVE A LESSON YOU HAVE NOT SOLVED. The Check button runs your
       worked answer through the same grader a pupil will be marked by, and Save
-      stays disabled until it passes. Every one of the 18 built-in lessons is
+      stays disabled until it passes. Every one of the 24 built-in lessons is
       held to exactly this standard by a test; it would be strange to hold a
       teacher's lesson to a lower one. A lesson whose own answer fails is a
       lesson that sends a child in circles.
@@ -30771,7 +30771,7 @@ say("Survey done")`
     function seedLessonWorld(lessonId) {
       const G = window.KodroLessonGrader;
       // getEntry, not LESSON_DATA: the generated table holds only the shipped
-      // 18, and an authored lesson would seed an empty arena and then be
+      // library, and an authored lesson would seed an empty arena and then be
       // ungradable. The fallback keeps this working against an older grader
       // during a partial rebuild.
       const entry = G && G.getEntry ? G.getEntry(lessonId) : G && G.LESSON_DATA ? G.LESSON_DATA[lessonId] : null;

@@ -1,105 +1,44 @@
-# Human TODO
+# Human-only completion items
 
-A few deliverables remain that the autonomous build cannot finish
-without a human in the room.
+The software, web companion, automated QA, teacher materials and dissertation
+are maintained in the repository. This file contains only work that cannot be
+completed truthfully by an automated development pass.
 
-## 1. Conduct the 5-8 teacher evaluation study
+## Before university submission
 
-Recruit five to eight UK secondary-school Computing teachers; show
-each one the simulator end-to-end (welcome wizard, three lessons of
-their choice, the teacher dashboard, the new lesson editor, the
-replay debugger). Capture:
+1. Confirm the title-page name, student number, supervisor, module code and due
+   date against the university submission portal.
+2. Read the final PDF personally and confirm that it represents the work and
+   decisions you are prepared to defend in a viva or demonstration.
+3. Check the current University of Liverpool declaration and permitted-tool
+   wording, then retain the disclosure that is required by the applicable
+   assessment rules. Do not remove a required disclosure merely to make the
+   document appear unaided.
+4. Submit the final PDF through the official portal and retain its receipt.
+5. Review the institution's similarity report if one is provided. No local tool
+   can promise or certify a particular Turnitin percentage.
 
-- Time-to-first-success per lesson.
-- Hint-engine usefulness (did the surfaced hint help?).
-- Achievement-system reaction (motivating? distracting?).
-- Free-form feedback.
+## Human evaluation, only after approval
 
-Store the raw responses in `docs/teachers/evaluation-raw.md` (gitignored
-if it contains personal data) and a redacted summary in
-`docs/teachers/evaluation-summary.md`.
+No participant study is reported in the dissertation. If a teacher pilot is
+conducted later, obtain the required ethics approval and supervisor agreement
+before recruitment. Use the materials in `docs/study/`, collect informed
+consent, minimise personal data and report the result even if it is negative.
+Never create participant responses retrospectively.
 
-## 2. Cut the next release tag
+## Distribution credentials
 
-The current released tag is `v2.0.0`, and it matches the `pyproject.toml`
-version and the CHANGELOG `[2.0.0]` entry, so there is nothing to tag right
-now. For a future release, add a dated CHANGELOG entry, bump the
-`pyproject.toml` version to match, then tag and push:
+The automated release workflow can build Windows, Linux and macOS artifacts.
+Windows signing and macOS notarisation still require credentials owned by the
+developer. Unsigned binaries are acceptable only where the recipient and
+assessment rules allow them, and must not be described as signed.
 
-```bash
-git tag -a vX.Y.Z -m "vX.Y.Z"
-git push origin vX.Y.Z
-```
+## Optional evidence that needs real people or hardware
 
-The `release.yml` workflow then builds the Windows, macOS and Linux
-binaries via PyInstaller and attaches them to the release.
+- A classroom accessibility review involving disabled users.
+- A physical-robot comparison with named hardware and measured tolerances.
+- A controlled study of whether learning memory reduces the number of design
+  iterations.
 
-## 3. Deferred polish (P7 + P8)
-
-The "polish-to-90" sweep deliberately stopped after **P1–P6** and
-left two ambitious tasks for a follow-up sprint:
-
-### P7 — Automated demo-GIF recorder (deferred)
-
-`scripts/record_demo.py` is not yet written. Recording a GIF
-automatically requires:
-
-1. A working `xvfb-run` pipeline on Linux CI (already in place).
-2. A pygame surface dump every 80 ms during a scripted lesson run.
-3. `imageio` to compose the frames into a 25 s, ≤4 MB GIF.
-
-For now the README still ships without an animated demo; replace the
-placeholder with a manually-recorded clip (ScreenToGif on Windows,
-peek on Linux) until P7 is built.
-
-### P8 — Web companion (deferred, needs a scope discussion)
-
-The desktop spec deliberately forbade web frameworks; a JS-port of
-the rover API would re-architect the project as two parallel
-codebases. Before starting, decide:
-
-- Is the web port a teaser (read-only demos) or a peer (full lessons)?
-- Will it share the lesson YAMLs (build-time JSON conversion) or
-  fork them?
-- Does GitHub Pages count as the "no cloud" clause being honoured?
-  (It is static hosting, so arguably yes.)
-
-Once those questions are answered the `web/` folder can be added
-with a JS mini-interpreter, a Canvas renderer, and a Playwright
-smoke test, exactly as the P8 spec describes.
-
-## 4. Real-app screenshots (DONE, with a reproducible offline capture path)
-
-The interactive preview tool (`preview_screenshot`) hangs on this app and
-was confirmed to hang even on a WebGL-free DOM-only page, so it is an
-unusable harness limitation, not a product bug. The screenshots were
-instead captured offline with headless Chrome, which works and is
-reproducible:
-
-```bash
-node scripts/build_screenshot_harness.cjs   # writes harness.html + studio_harness.html
-# onboarding landing + brand mark (no WebGL):
-chrome --headless=new --window-size=1280,800 --virtual-time-budget=2500 \
-  --screenshot=docs/img/onboarding_landing.png \
-  file:///.../src/robolearn/assets/web/harness.html
-# studio in the City world (WebGL via SwiftShader):
-chrome --headless=new --window-size=1280,800 --use-angle=swiftshader \
-  --enable-unsafe-swiftshader --virtual-time-budget=9000 \
-  --screenshot=docs/img/studio.png \
-  file:///.../src/robolearn/assets/web/studio_harness.html
-```
-
-`docs/img/onboarding_landing.png` and `docs/img/studio.png` are committed and
-referenced from the README. The studio shot confirms the City world renders
-with traffic, a crossing, the robot, the code editor and live telemetry, and
-the brand mark reads cleanly. Remaining nice-to-haves for a human: a retina
-(2x) re-shoot via `--force-device-scale-factor=2`, and stills of the robot
-picker and Robot Lab if wanted for the portfolio.
-
-## Optional: implement true PDF export for the teacher dashboard
-
-The current dashboard offers CSV export only. To add PDF, the
-`reportlab`-based curriculum-coverage generator
-(`scripts/generate_curriculum_report.py`) is a good template — copy
-its `SimpleDocTemplate` usage into a sibling `export_pdf` method on
-`ui.teacher_dashboard.TeacherDashboard`.
+Until those activities are genuinely completed, they remain limitations rather
+than release blockers or claimed results.

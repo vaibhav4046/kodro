@@ -1,7 +1,7 @@
 /* ============================================================================
    KODRO - the lesson document, its on-device store, and its file format.
 
-   Kodro shipped 18 lessons and no way to write a nineteenth. A teacher who
+   Kodro originally shipped 18 lessons and no way to author another. A teacher who
    wanted an arena that matched what their class was doing that week, or a pupil
    who wanted to set a challenge for a friend, had nothing: the curriculum was
    whatever we had decided months earlier, baked into the bundle.

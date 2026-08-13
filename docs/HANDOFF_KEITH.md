@@ -4,11 +4,9 @@ Prepared 27 July 2026. Everything below was measured at commit `b33e5b8`.
 
 ## What this is
 
-Kodro is an offline robot design and simulation studio for UK Computing. The 18
-lessons span Key Stage 1 to Key Stage 4 but are weighted to the top of that
-range: 1 at KS1, 2 at KS2, 8 at KS3, 7 at KS4. "KS1 to KS4" is true and
-misleading on its own, so the honest description is upper KS2 through KS4 with a
-KS1 taster. A pupil designs a robot from real parts, writes
+Kodro is an offline robot design and simulation studio for UK Computing. The 24
+lessons span Key Stage 1 to Key Stage 4: 3 at KS1, 4 at KS2, 9 at KS3 and 8 at
+KS4. A pupil designs a robot from real parts, writes
 Python to drive it, watches it run in a 3D world, and gets marked on that run.
 It runs in a browser with no install, no account, no server and no API calls.
 
@@ -27,13 +25,12 @@ named command. Nothing is estimated.
 
 | What | Result | Command |
 |---|---|---|
-| Python test matrix | 1,296 pass, 87.80% branch coverage against an 85% gate | `pytest tests/` |
+| Local Python 3.13 candidate matrix | 1,239 pass, 140 Tcl/Tk skips; release coverage remains CI-authoritative | workspace-local `pytest --cov-fail-under=0` |
 | Interpreter harness | 180 of 180 | `node scripts/qa_interpreter.mjs` |
-| Grader parity and solvability | 45 of 45 | `node scripts/qa_grader.mjs` |
-| Lesson Studio document and store | 56 of 56 | `node scripts/qa_lesson_studio.mjs` |
-| Construct liveness | 27 of 27 | `node scripts/qa_construct_liveness.mjs` |
-| Browser behaviour, real bundle in headless Chrome | 34 of 34 | `node scripts/qa_ui.mjs --suite=behaviour` |
-| Browser paint / layout / modals | 6 of 6, 6 of 6, 13 of 13 | `node scripts/qa_ui.mjs --suite=paint` etc |
+| Grader parity and solvability | 55 of 55; all 24 worked answers pass both graders | `node scripts/qa_grader.mjs` |
+| Lesson Studio document and store | 79 of 79 | `node scripts/qa_lesson_studio.mjs` |
+| Construct liveness | 30 of 30 | `node scripts/qa_construct_liveness.mjs` |
+| Browser paint harness on this host | Chrome creation timed out before assertions; candidate CI remains authoritative | `node scripts/qa_ui.mjs --suite=paint` |
 | World sweep | 61 of 61 | `node scripts/qa_worlds.mjs` |
 | Web boot and privacy | 5 of 5 | `node scripts/qa_web.mjs` |
 

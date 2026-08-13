@@ -153,10 +153,10 @@ What currently ships in this repository:
 - **Procedural sound effects.** Every cue (drive, turn, scan, LED,
   speech, pass, fail, crash) is synthesised at runtime with the Web
   Audio API or the standard library. No audio files, no network.
-- **Curriculum lessons.** Eighteen bundled lessons mapped to the UK
+- **Curriculum lessons.** Twenty-four bundled lessons mapped to the UK
   DfE / BCS computing programme of study, spanning KS1 through KS4
-  and weighted to KS3 and KS4: 1 lesson is tagged KS1, 2 are KS2, 8 are
-  KS3 and 7 are KS4 stretch. Each has stated goals and offline hints. Each lesson is graded on
+  and weighted to KS3 and KS4: 3 lessons are tagged KS1, 4 are KS2, 9 are
+  KS3 and 8 are KS4 stretch. Each has stated goals and offline hints. Each lesson is graded on
   the run you watch, in the lesson's own world. The independent audit that
   found the earlier visible-world and grading mismatches is kept as a dated
   record in [`AUDIT_CODEX.md`](AUDIT_CODEX.md).
@@ -328,17 +328,20 @@ python -m pytest                  # Python engine test suite
   parity edge cases (chained comparison, division by zero, banker's
   rounding, range validation) and malformed input handling are all
   asserted.
-- **UI regression net.** `node scripts/qa_ui.mjs` drives the real
-  bundle in headless Chrome: six rendered flows, 33 behavior assertions,
-  six responsive layouts and 12 modal surfaces. `qa_worlds.mjs` adds 61
-  world, robot, quality, site and weather identity checks.
-- **Python matrix.** The 26 July 2026 audit run passed 1,204 tests with one
-  Tcl-environment skip and 87.80 percent branch-aware coverage, above the
-  85 percent repository gate.
+- **Browser boot and privacy.** `node scripts/qa_web.mjs` rebuilds and serves
+  the static application, mounts the real studio with a clean console and
+  verifies that the default application makes no external request. The 2.1
+  candidate passes all 5 checks. The wider `qa_ui.mjs` and `qa_worlds.mjs`
+  suites exercise the real bundle across responsive layouts and all worlds.
+- **Python matrix.** The 13 August 2026 local candidate run passed 1,239 tests
+  and skipped 140 Tcl/Tk GUI cases unavailable in this Python 3.13
+  installation. Release coverage is decided only by the Linux Python 3.12
+  Xvfb CI job, which enforces the 85 percent branch-aware gate.
 - **Deterministic Prove.** Four contracts pass 20 of 20 seeded runs,
   reproduce byte-identically and reject the deliberately broken controller.
-- **Python engine and CLI: 950+ tests passing**, coverage gated at
-  `--cov-fail-under=85` on every push.
+- **Curriculum parity.** All 24 shipped worked answers pass both marking
+  engines at 100/100, and repository tests require the scheme of work,
+  curriculum mapping and answer key to cover the same lesson set.
 
 ## KodroBench: measuring grounded code
 

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-08-13
+
+### Added
+
+- Six learning activities that lower the entry floor and extend the curriculum:
+  two watch-and-turn KS1 lessons, two debugging lessons, a KS2 variables lesson
+  and a KS4 lists lesson. The shipped library now contains 24 fully worked,
+  automatically graded lessons across KS1 to KS4.
+- Prediction capture, step-through execution, Parsons puzzles, persistent
+  learning notes, selected-code explanations and project-preview safeguards.
+- Teacher markbook export and recoverable project storage, including explicit
+  local-only and downloaded-file states.
+- Lesson-grounded Companion context and reviewable edits that preserve the
+  selected source range.
+
+### Changed
+
+- Reconciled the live product, README, teacher scheme of work, answer key,
+  curriculum mapping and dissertation against one 24-lesson release baseline.
+- Added a regression gate that fails when public lesson counts drift or any
+  shipped lesson is omitted from teacher materials.
+- Expanded deterministic interpreter, grader, storage, learning, accessibility
+  and cross-engine QA coverage.
+
+### Fixed
+
+- Corrected stale product copy that continued to advertise 18 lessons after six
+  additional lessons had shipped.
+- Removed obsolete release and web-companion instructions from the human-only
+  completion list.
+- Rebuilt the distributable web bundle from the corrected source files.
+
 ## [2.0.0] - 2026-07-07
 
 ### Added

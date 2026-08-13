@@ -1,79 +1,71 @@
 {
-  "schema": "kodro-evidence/1",
-  "generated_for_commit": "93fec9596fe26863d88dd4674254e775757f25ae",
-  "authoritative_repo": "D:\\project\\robolearn",
+  "schema": "kodro-evidence/2",
+  "measured_at": "2026-08-13",
+  "candidate_version": "2.1.0",
+  "baseline_parent_commit": "f01767ee908f74c50436aa2e6086de7358eefab0",
+  "repository": "C:\\Users\\lalwa\\OneDrive\\Desktop\\codex fix\\robolearn",
   "origin": "github.com/vaibhav4046/robolearn",
-  "branches_synced_at_product_commit": [
-    "main",
-    "kodro-identity-pass",
-    "origin/main",
-    "origin/kodro-identity-pass"
-  ],
-  "live": {
-    "url": "https://vaibhav4046.github.io/robolearn/",
-    "http_status": 200,
-    "ci": {
-      "status": "success",
-      "run_id": 29537982283,
-      "url": "https://github.com/vaibhav4046/robolearn/actions/runs/29537982283",
-      "platforms": ["windows-latest", "macos-latest", "ubuntu-latest"]
-    },
-    "deploy_pages": {
-      "status": "success",
-      "run_id": 29538259855,
-      "url": "https://github.com/vaibhav4046/robolearn/actions/runs/29538259855"
-    },
-    "assets": {
-      "bundle.js": {
-        "bytes": 1103091,
-        "sha256": "8c3417345b3c8caf220baa15d9ddcdb62856a20e12d18d0fba2999119ed3f8fb",
-        "committed_matches_live": true
-      },
-      "styles.css": {
-        "bytes": 121644,
-        "sha256": "3ca2099a24a5f5a713a2708679179e6524bca99d8d3230014f7cff5583801611",
-        "committed_matches_live": true
-      }
-    }
+  "publication": {
+    "candidate_pushed": false,
+    "candidate_ci_verified": false,
+    "merged_to_main": false,
+    "tag": null,
+    "release_assets_verified": false,
+    "note": "External GitHub publication requires an explicit publish decision; local evidence is not relabelled as release evidence."
   },
-  "product_release": {
+  "product": {
     "journey": "Design -> Prove -> Build",
-    "hosted_build": "deterministic local prototype brief; no certification, supplier validation, ordering, or exact physical-equivalence claim",
-    "companion": "Create, Explain, and Check actions with deterministic fallbacks; optional local model adapter",
-    "store_lifecycle": "all owned SQLite handles closed across worker threads and covered by regression tests"
+    "lesson_count": 24,
+    "lesson_distribution": {
+      "KS1": 3,
+      "KS2": 4,
+      "KS3": 9,
+      "KS4": 8
+    },
+    "human_study_reported": false,
+    "physical_validation_reported": false
   },
-  "gate_matrix": {
-    "python_local": "1069 passed; 88.96% coverage; zero ResourceWarnings in the release run",
-    "store_regression": "19 passed with ResourceWarning promoted to error",
-    "ruff": "clean",
-    "ruff_format": "clean on 142 files",
-    "mypy": "66 source files clean",
-    "wheel": "robolearn-2.0.0-py3-none-any.whl built",
+  "local_gate_matrix": {
+    "python": "1239 passed, 140 skipped on Python 3.13; skips are Tcl/Tk GUI cases unavailable on this host; local coverage 66% is not release coverage",
+    "bundle_freshness": "pass",
     "qa_interpreter": "180/0",
-    "qa_grader": "34/0",
-    "qa_physics": "20/0",
-    "qa_ai_web": "27/0",
+    "qa_grader": "55/0; 24/24 worked solutions pass both graders",
+    "qa_physics": "25/0",
+    "qa_scenario_parity": "8/0",
+    "qa_ai_web": "51/0",
+    "qa_pupilstore": "23/0",
+    "qa_honesty": "121/0",
+    "qa_contrast": "61/0 across 10 themes",
     "qa_parts": "40/0",
     "qa_memgraph": "22/0",
-    "qa_pupilstore": "23/0",
-    "qa_scenario_parity": "4/0",
-    "qa_interp_fixes": "13/0",
-    "qa_honesty": "91/0",
-    "qa_contrast": "61/0 across 10 themes",
-    "qa_web": "5/5 including real-Chrome boot, studio mount, clean console, and privacy-zero-external",
-    "qa_ui_local": "timed out after 904 seconds with no buffered assertions on the degraded local headless Chrome/SwiftShader host; not counted as pass",
-    "direct_visual": "desktop Design/Prove/Build journey and Build dialog inspected locally at 1280x720 with no horizontal overflow"
+    "qa_gpucaps": "46/0",
+    "qa_project_storage": "16/0",
+    "qa_construct_liveness": "30/0",
+    "qa_lesson_studio": "79/0",
+    "qa_pupil_errors": "42/0",
+    "qa_parsons": "13/0",
+    "qa_markbook": "16/0",
+    "qa_learning_annotations": "28/0",
+    "qa_fuzz": "9/0; 120 parity cases, 120 junk inputs, 30 storage rounds",
+    "qa_web": "5/5: boot, app content, studio mount, clean console, zero app-originated external requests",
+    "windows_packaging": "pass: Kodro.exe 302106757 bytes sha256 4620918A185A561371095097A1571B5C6504A5B96970A9F4D9D349E1902389E4; robolearn-tk.exe 301822391 bytes sha256 DEAC2DFD56474B6B1F55BE043761ED4216438187D79EF1363C530480DB3CC0A3",
+    "qa_ui_paint": "not executed: Chrome process creation timed out before assertions on the saturated Windows/SwiftShader host"
   },
-  "convergence": {
-    "counter": 0,
-    "rounds_run": 14,
-    "latest_round": "R14 accepted two real P2/P3 defects; both fixed",
-    "declared_complete": false,
-    "note": "The release is green and deployed, but the historical two-clean-round convergence condition has not been reached."
+  "release_authority": {
+    "python": "Python 3.12 GitHub Actions matrix",
+    "coverage": "Ubuntu Xvfb job with 85% branch-aware threshold",
+    "browser": "Linux Chrome jobs in CI",
+    "platform_artifacts": "release.yml tag workflow"
   },
   "academic": {
-    "dissertation_revision_status": "not started in this product-direction checkpoint",
-    "checkpoint_required": true,
-    "known_external_steps_not_done": ["teacher study with real participants", "Turnitin", "executable signing"]
+    "dissertation_stage": "revision pending mandatory academic-pipeline checkpoint",
+    "human_participant_evidence": "none",
+    "turnitin_result": "not measured",
+    "external_steps": [
+      "student verification of administrative details and final text",
+      "official submission and receipt",
+      "any future participant work only after ethics approval",
+      "code signing and notarisation if required"
+    ]
   }
 }
