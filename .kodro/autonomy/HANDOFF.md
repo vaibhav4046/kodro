@@ -13,6 +13,8 @@ continuing. Never quote a historical count without rerunning its gate.
   `bundle.js` whenever a source module changes.
 - Desktop: Python bridge and PyInstaller builds; the release workflow produces
   the platform artifacts.
+- Published product commit: `0559257b17ee2b3899bdffa0455c49c984050640`.
+- Draft PR: `https://github.com/vaibhav4046/robolearn/pull/3`.
 
 ## Verified locally on 13 August 2026
 
@@ -30,6 +32,10 @@ continuing. Never quote a historical count without rerunning its gate.
   exact candidate hashes are recorded in `EVIDENCE.json`.
 - Teacher materials cover all 24 lessons and copy every machine-verified answer
   exactly.
+- Candidate GitHub Actions: Ubuntu, Windows and macOS Python 3.12 jobs green;
+  Prove contract summary green.
+- Dissertation: 50 pages, approximately 20,005 body words, 26/26 cited
+  bibliography keys, clean multi-pass build and all-page visual inspection.
 
 ## Non-negotiable boundaries
 
@@ -44,10 +50,8 @@ continuing. Never quote a historical count without rerunning its gate.
 
 ## Remaining external sequence
 
-1. Obtain explicit permission to push the candidate branch.
-2. Run the GitHub Python 3.12 and browser matrix and fix any real regression.
-3. Merge, tag `v2.1.0`, verify platform artifacts and Pages hashes.
-4. Revise the dissertation against that immutable release evidence, run the
-   mandatory final-integrity gate, compile LaTeX and inspect every rendered page.
-5. The student confirms administrative details, reads the final PDF and submits
-   it through the official university portal.
+1. Push the dissertation/audit commit and require the updated PR CI to pass.
+2. The student confirms the mandatory academic finalization checkpoint, checks
+   title-page details, reads the PDF and submits through the official portal.
+3. If the repository owner chooses, merge pull request 3, tag `v2.1.0`, then
+   verify release assets and Pages hashes from that exact immutable commit.

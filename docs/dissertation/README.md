@@ -2,7 +2,8 @@
 
 The **canonical, up-to-date dissertation is
 [`Kodro_Dissertation.tex`](Kodro_Dissertation.tex)** (and the PDF built from
-it). It reflects the candidate release state verified on 18 July 2026: a robot
+it). It reflects the Kodro 2.1 candidate product commit
+`0559257b17ee2b3899bdffa0455c49c984050640`, verified on 13 August 2026: a robot
 **proving ground** where a skeptical builder imports a robot specification
 (KRS) and tests it under a disclosed first-order model, with every reported figure carried at a stated level
 of fidelity (HONOURED / APPROXIMATED / NOT SIMULATED), backed by one shared
@@ -10,10 +11,15 @@ motion model locked across the two engines. The same platform doubles as a
 design studio for a non-expert who has only an idea. The final interface uses
 Simple progressive disclosure by default, follows a Design, Prove, Build
 journey, and keeps an opt-in Expert surface.
-The complete declared Python matrix passes 1,087 tests with zero skips at
-88.21% branch-aware coverage. Four deterministic contracts pass twenty seeded
-runs and reject an intentionally broken controller. Synthetic-persona and renderer results are
-reported as engineering evidence only, with their human-study and hardware
+The workspace-local Python 3.13 run passes 1,239 tests and skips 140 Tcl/Tk
+cases because that host has no working Tk runtime; the dissertation does not
+mislabel its resulting 66% coverage as release coverage. Release coverage is
+owned by the Python 3.12 Linux/Xvfb CI gate at 85%. Nineteen deterministic
+JavaScript gates pass locally, including 180 interpreter checks, 55 lesson
+grader checks and 121 honesty assertions. All 24 worked lesson answers pass
+both graders. The static-browser boot/privacy gate passes 5/5, and both Windows
+executables build and hash successfully. Synthetic-persona and renderer results
+remain engineering evidence only, with their human-study and hardware
 boundaries explicit.
 
 The previously tracked HTML dissertation was an obsolete early draft and has
@@ -48,7 +54,8 @@ or on the not-yet-run human study, the text says so explicitly rather than
 asserting an unsupported result. No result from a study with real users is
 reported anywhere, because that study has not been run.
 
-The final evidence trail is recorded in
-[`INTEGRITY_AUDIT_2026-07-17.md`](INTEGRITY_AUDIT_2026-07-17.md), and the
-item-by-item bibliography check is recorded in
-[`REFERENCE_AUDIT_2026-07-17.md`](REFERENCE_AUDIT_2026-07-17.md).
+The current evidence trail is recorded in
+[`INTEGRITY_AUDIT_2026-08-13.md`](INTEGRITY_AUDIT_2026-08-13.md), and the
+bibliography check is recorded in
+[`REFERENCE_AUDIT_2026-08-13.md`](REFERENCE_AUDIT_2026-08-13.md). Earlier dated
+audits are retained as historical records, not current release evidence.

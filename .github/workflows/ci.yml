@@ -86,8 +86,7 @@ jobs:
 
       # Lesson-grader gate: pure Node, no browser, so it is cheap to run on every
       # leg. Guards the JS lesson grader (browser-mode submit/hint) against
-      # regressions. The browser-driven gates (qa_web, qa_worlds) need headless
-      # Chrome plus a served site and are run locally / pre-deploy, not here.
+      # regressions. Browser-driven gates are wired into the Linux leg below.
       - name: Web grader gate
         run: node scripts/qa_grader.mjs
 
@@ -203,7 +202,7 @@ jobs:
       # in headless Chrome to prove two things a green Python/Node CI otherwise
       # cannot: the app actually BOOTS (React mounts, the studio paints) and its
       # default load makes ZERO app-originated external requests (the coded proof
-      # of "nothing leaves your machine"). Those 4 boot+privacy checks are the
+      # of "nothing leaves your machine"). Those 5 boot+privacy checks are the
       # high-value smoke.
       #
       # Chrome is installed explicitly rather than relied on as an incidental
@@ -215,9 +214,8 @@ jobs:
       #
       # Linux-only on purpose: the Windows/macOS runners differ in Chrome
       # availability and headless-GL behaviour, so gating them would add flake for
-      # no extra signal. qa_worlds / qa_ui are deliberately NOT in CI -- they drive
-      # 36+ world/robot combos through a Python static server and are too slow /
-      # flake-prone for the gate; they stay local + pre-deploy.
+      # no extra signal. qa_worlds remains local and pre-deploy because it drives
+      # 36+ world/robot combinations; the split qa_ui suites are gated below.
       - name: Setup Chrome (Linux only, for qa_web)
         if: matrix.os == 'ubuntu-latest'
         id: setup-chrome

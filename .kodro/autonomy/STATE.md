@@ -14,9 +14,13 @@ similarity-check or signing evidence.
 
 ## Current stage
 
-The local product candidate is verified and is awaiting the mandatory academic
-pipeline checkpoint plus explicit authority for external GitHub publication.
-It is based on parent commit `f01767ee908f74c50436aa2e6086de7358eefab0`.
+The Kodro 2.1 product candidate is published on branch
+`agent/kodro-2-1-completion` at commit
+`0559257b17ee2b3899bdffa0455c49c984050640`. Draft pull request 3 is open. Its
+Ubuntu, Windows and macOS Python 3.12 jobs and Prove summary are green. The
+dissertation has completed revision, reference checking, the final-integrity
+gate and all-page PDF review; it awaits the student's mandatory finalization
+checkpoint. Merge, tag and release are not implied by candidate publication.
 
 ## Product candidate
 
@@ -42,8 +46,19 @@ It is based on parent commit `f01767ee908f74c50436aa2e6086de7358eefab0`.
 - Windows packaging: both `Kodro.exe` and `robolearn-tk.exe` built successfully
   from the candidate; exact sizes and SHA-256 hashes are in `EVIDENCE.json`.
 - Full paint capture did not execute because Chrome process creation timed out
-  on the saturated Windows/SwiftShader host. Do not call that a product failure
-  or a pass; rely on candidate CI for the browser matrix.
+  on the saturated Windows/SwiftShader host. No local assertion ran; the Linux
+  candidate CI browser matrix is the release authority and passed.
+
+## Dissertation snapshot
+
+- Canonical LaTeX and PDF: 50 pages; approximately 20,005 body words.
+- 26 in-text citation keys and 26 bibliography entries match bidirectionally.
+- No blank rendered page, unresolved citation/reference, duplicate destination,
+  overfull box or Unicode en/em dash remains.
+- Current product claims are locked to commit `0559257`; historical model,
+  persona and renderer evidence is labelled as historical/formative evidence.
+- No human-study, physical-validation, universal-accessibility, Turnitin,
+  signing or safety-certification claim is made.
 
 ## Convergence
 
@@ -54,13 +69,12 @@ green, candidate CI green, release artifacts built from one immutable commit,
 and dissertation claims verified against that commit. The latter external and
 academic gates remain pending.
 
-## Required next decisions
+## Required next decision
 
-1. Academic pipeline checkpoint: confirm progression from the synchronized
-   product/evidence stage into dissertation revision and final integrity review.
-2. Publication authority: confirm creation and push of a candidate branch and
-   draft pull request. No external repository mutation is assumed from a local
-   editing request.
+The student must read the candidate PDF and explicitly confirm the mandatory
+academic-pipeline finalization checkpoint. After that, administrative submission
+is performed through the university service. Merging pull request 3 and creating
+the `v2.1.0` tag/release are separate repository-owner decisions.
 
 ## Human-only boundaries
 

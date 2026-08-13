@@ -18,49 +18,49 @@
 \contentsline {section}{\numberline {2.3}The model: hallucination, grounding, and honest refinement}{5}{section.2.3}%
 \contentsline {section}{\numberline {2.4}Small local models}{6}{section.2.4}%
 \contentsline {section}{\numberline {2.5}The niche}{6}{section.2.5}%
-\contentsline {chapter}{\numberline {3}Requirements and Analysis}{7}{chapter.3}%
-\contentsline {section}{\numberline {3.1}The intended user, and who it is not for}{7}{section.3.1}%
-\contentsline {section}{\numberline {3.2}Functional requirements}{7}{section.3.2}%
-\contentsline {section}{\numberline {3.3}Non-functional requirements}{7}{section.3.3}%
-\contentsline {section}{\numberline {3.4}The central analysis: a helpful model against a trustworthy result}{8}{section.3.4}%
-\contentsline {chapter}{\numberline {4}Design and Architecture}{10}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Design goals}{10}{section.4.1}%
-\contentsline {section}{\numberline {4.2}Technology choices and their rationale}{10}{section.4.2}%
-\contentsline {section}{\numberline {4.3}Layered architecture}{10}{section.4.3}%
-\contentsline {section}{\numberline {4.4}A less-is-more interaction model}{10}{section.4.4}%
-\contentsline {subsection}{\numberline {4.4.1}Input, process and output by stage}{11}{subsection.4.4.1}%
-\contentsline {section}{\numberline {4.5}The robot specification as the single source of truth}{11}{section.4.5}%
-\contentsline {section}{\numberline {4.6}The three-tier fidelity disclosure}{13}{section.4.6}%
-\contentsline {section}{\numberline {4.7}One shared motion model}{13}{section.4.7}%
-\contentsline {section}{\numberline {4.8}The trace-driven core}{14}{section.4.8}%
-\contentsline {section}{\numberline {4.9}Safety: the sandbox, the executor, and the gate}{14}{section.4.9}%
+\contentsline {chapter}{\numberline {3}Requirements and Analysis}{8}{chapter.3}%
+\contentsline {section}{\numberline {3.1}The intended user, and who it is not for}{8}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Functional requirements}{8}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Non-functional requirements}{8}{section.3.3}%
+\contentsline {section}{\numberline {3.4}The central analysis: a helpful model against a trustworthy result}{10}{section.3.4}%
+\contentsline {chapter}{\numberline {4}Design and Architecture}{11}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Design goals}{11}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Technology choices and their rationale}{11}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Layered architecture}{11}{section.4.3}%
+\contentsline {section}{\numberline {4.4}A less-is-more interaction model}{11}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Input, process and output by stage}{13}{subsection.4.4.1}%
+\contentsline {section}{\numberline {4.5}The robot specification as the single source of truth}{13}{section.4.5}%
+\contentsline {section}{\numberline {4.6}The three-tier fidelity disclosure}{14}{section.4.6}%
+\contentsline {section}{\numberline {4.7}One shared motion model}{14}{section.4.7}%
+\contentsline {section}{\numberline {4.8}The trace-driven core}{15}{section.4.8}%
+\contentsline {section}{\numberline {4.9}Safety: the sandbox, the executor, and the gate}{15}{section.4.9}%
 \contentsline {section}{\numberline {4.10}Worlds, mission sites, and moving agents}{15}{section.4.10}%
 \contentsline {section}{\numberline {4.11}The grounded assistant and its deterministic fallback}{16}{section.4.11}%
-\contentsline {section}{\numberline {4.12}Self-refinement without retraining}{16}{section.4.12}%
-\contentsline {chapter}{\numberline {5}Implementation}{17}{chapter.5}%
-\contentsline {section}{\numberline {5.1}The program surface and the interpreter}{17}{section.5.1}%
-\contentsline {section}{\numberline {5.2}The robot specification and the derive step}{17}{section.5.2}%
-\contentsline {section}{\numberline {5.3}Importing a real robot: the KRS schema}{17}{section.5.3}%
-\contentsline {section}{\numberline {5.4}The shared motion model and its conformance gates}{18}{section.5.4}%
-\contentsline {section}{\numberline {5.5}The verification report}{18}{section.5.5}%
-\contentsline {section}{\numberline {5.6}The worlds and the natural-motion tick}{18}{section.5.6}%
-\contentsline {section}{\numberline {5.7}Offline shading without an asset pipeline}{19}{section.5.7}%
+\contentsline {section}{\numberline {4.12}Self-refinement without retraining}{17}{section.4.12}%
+\contentsline {chapter}{\numberline {5}Implementation}{18}{chapter.5}%
+\contentsline {section}{\numberline {5.1}The program surface and the interpreter}{18}{section.5.1}%
+\contentsline {section}{\numberline {5.2}The robot specification and the derive step}{18}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Importing a real robot: the KRS schema}{18}{section.5.3}%
+\contentsline {section}{\numberline {5.4}The shared motion model and its conformance gates}{19}{section.5.4}%
+\contentsline {section}{\numberline {5.5}The verification report}{19}{section.5.5}%
+\contentsline {section}{\numberline {5.6}The worlds and the natural-motion tick}{19}{section.5.6}%
+\contentsline {section}{\numberline {5.7}Offline shading without an asset pipeline}{20}{section.5.7}%
 \contentsline {section}{\numberline {5.8}Memory, the assistant, and the fallback}{20}{section.5.8}%
-\contentsline {section}{\numberline {5.9}Engineering discipline}{20}{section.5.9}%
-\contentsline {section}{\numberline {5.10}Representative listing}{20}{section.5.10}%
-\contentsline {section}{\numberline {5.11}Showcases, icons, and project files}{20}{section.5.11}%
-\contentsline {section}{\numberline {5.12}Removing the voice route}{21}{section.5.12}%
-\contentsline {section}{\numberline {5.13}Two front-ends over one engine}{21}{section.5.13}%
-\contentsline {section}{\numberline {5.14}Challenges met and fixed}{21}{section.5.14}%
-\contentsline {section}{\numberline {5.15}Packaging}{22}{section.5.15}%
-\contentsline {section}{\numberline {5.16}Web deployment}{22}{section.5.16}%
+\contentsline {section}{\numberline {5.9}Engineering discipline}{21}{section.5.9}%
+\contentsline {section}{\numberline {5.10}Representative listing}{21}{section.5.10}%
+\contentsline {section}{\numberline {5.11}Showcases, icons, and project files}{21}{section.5.11}%
+\contentsline {section}{\numberline {5.12}Removing the voice route}{22}{section.5.12}%
+\contentsline {section}{\numberline {5.13}Two front-ends over one engine}{22}{section.5.13}%
+\contentsline {section}{\numberline {5.14}Challenges met and fixed}{22}{section.5.14}%
+\contentsline {section}{\numberline {5.15}Packaging}{23}{section.5.15}%
+\contentsline {section}{\numberline {5.16}Web deployment}{23}{section.5.16}%
 \contentsline {chapter}{\numberline {6}Evaluation}{24}{chapter.6}%
 \contentsline {section}{\numberline {6.1}Evaluation strategy}{24}{section.6.1}%
 \contentsline {section}{\numberline {6.2}Automated verification}{24}{section.6.2}%
 \contentsline {section}{\numberline {6.3}Measured renderer evidence}{26}{section.6.3}%
 \contentsline {section}{\numberline {6.4}Persona review (formative)}{26}{section.6.4}%
-\contentsline {section}{\numberline {6.5}Objective persona-task evaluation}{26}{section.6.5}%
-\contentsline {section}{\numberline {6.6}Adversarial code-verified persona panel}{27}{section.6.6}%
+\contentsline {section}{\numberline {6.5}Objective persona-task evaluation}{27}{section.6.5}%
+\contentsline {section}{\numberline {6.6}Adversarial code-verified persona panel}{28}{section.6.6}%
 \contentsline {section}{\numberline {6.7}Measuring grounded code generation (KodroBench)}{29}{section.6.7}%
 \contentsline {section}{\numberline {6.8}Threats to validity}{31}{section.6.8}%
 \contentsline {section}{\numberline {6.9}The planned human evaluation}{32}{section.6.9}%
@@ -73,18 +73,18 @@
 \contentsline {section}{\numberline {7.4}Procedural geometry, with surface shading and a gated post pass}{34}{section.7.4}%
 \contentsline {section}{\numberline {7.5}An arena-scale mismatch between the two engines}{34}{section.7.5}%
 \contentsline {section}{\numberline {7.6}The measured-build simulation is the studio only}{34}{section.7.6}%
-\contentsline {section}{\numberline {7.7}Memory exists, but improvement is not demonstrated}{35}{section.7.7}%
+\contentsline {section}{\numberline {7.7}Memory exists, but improvement is not demonstrated}{34}{section.7.7}%
 \contentsline {section}{\numberline {7.8}Build guidance is not purchasing or electrical advice}{35}{section.7.8}%
 \contentsline {section}{\numberline {7.9}Frame rate is measured, not guaranteed}{35}{section.7.9}%
 \contentsline {section}{\numberline {7.10}The small-model ceiling}{35}{section.7.10}%
 \contentsline {chapter}{\numberline {8}Professional Issues}{36}{chapter.8}%
 \contentsline {section}{\numberline {8.1}Ethics}{36}{section.8.1}%
 \contentsline {section}{\numberline {8.2}BCS professional issues and project criteria}{36}{section.8.2}%
-\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{37}{chapter.9}%
-\contentsline {section}{\numberline {9.1}Summary}{37}{section.9.1}%
-\contentsline {section}{\numberline {9.2}Reflection}{37}{section.9.2}%
-\contentsline {section}{\numberline {9.3}Future work}{37}{section.9.3}%
-\contentsline {section}{\numberline {9.4}Closing statement}{38}{section.9.4}%
-\contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{41}{appendix.A}%
-\contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{42}{appendix.B}%
+\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{38}{chapter.9}%
+\contentsline {section}{\numberline {9.1}Summary}{38}{section.9.1}%
+\contentsline {section}{\numberline {9.2}Reflection}{38}{section.9.2}%
+\contentsline {section}{\numberline {9.3}Future work}{38}{section.9.3}%
+\contentsline {section}{\numberline {9.4}Closing statement}{39}{section.9.4}%
+\contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{42}{appendix.A}%
+\contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{43}{appendix.B}%
 \contentsfinish 

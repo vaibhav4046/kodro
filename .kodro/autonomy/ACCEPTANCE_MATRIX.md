@@ -5,17 +5,16 @@ Repository: `C:\Users\lalwa\OneDrive\Desktop\codex fix\robolearn`
 Baseline parent: `f01767ee908f74c50436aa2e6086de7358eefab0`
 
 This matrix links product promises to implemented surfaces and reproducible
-evidence. `DELIVERED` means implemented and verified locally. `PUBLISH PENDING`
-means the local candidate is ready for an external GitHub action that has not
-been silently performed. `DISCLOSED` means the boundary is intentionally not
-claimed as complete.
+evidence. `DELIVERED` means implemented and verified. `RELEASE PENDING` means
+the candidate is published in draft pull request 3 but is not merged/tagged.
+`DISCLOSED` means the boundary is intentionally not claimed as complete.
 
 ## Engineering acceptance
 
 | Criterion | Evidence | Candidate result | Status |
 | --- | --- | --- | --- |
 | Bundle matches source | `build_web.cjs --check` | Fresh | DELIVERED |
-| Python behaviour | workspace-local `pytest` | 1,239 passed; 140 Tcl/Tk skips on Python 3.13 | DELIVERED locally; Python 3.12 CI pending publication |
+| Python behaviour | workspace-local `pytest` plus candidate CI | 1,239 passed and 140 host-unavailable Tcl/Tk skips locally; Python 3.12 CI green on Ubuntu, Windows and macOS | DELIVERED |
 | Interpreter | `qa_interpreter` | 180/180 | DELIVERED |
 | Lesson grading and solvability | `qa_grader` plus Python solution tests | 55/55; all 24 solutions pass both engines | DELIVERED |
 | Web physics and scenario parity | `qa_physics`, `qa_scenario_parity` | 25/25 and 8/8 | DELIVERED |
@@ -27,9 +26,9 @@ claimed as complete.
 | Authored lessons | `qa_lesson_studio` | 79/79 | DELIVERED |
 | Fuzz and construct parity | `qa_fuzz`, `qa_construct_liveness` | 9/9 suites and 30/30 | DELIVERED |
 | Public lesson claims | documentation parity tests | Product copy and teacher materials agree on 24 lessons | DELIVERED |
-| Platform CI and coverage | GitHub Actions at the candidate commit | Awaiting candidate publication | PUBLISH PENDING |
-| Platform binaries | `v2.1.0` tag workflow | Awaiting merge/tag | PUBLISH PENDING |
-| Pages hash equality | live bundle and stylesheet versus tagged commit | Awaiting deployment | PUBLISH PENDING |
+| Platform CI and coverage | GitHub Actions at product commit `0559257` | Python 3.12 matrix and Prove summary green | DELIVERED for candidate |
+| Platform binaries | `v2.1.0` tag workflow | Awaiting merge/tag | RELEASE PENDING |
+| Pages hash equality | live bundle and stylesheet versus tagged commit | Awaiting deployment | RELEASE PENDING |
 
 ## CA1, README and BCS parity
 

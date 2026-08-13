@@ -2,12 +2,15 @@
 
 This record separates verified engineering results from external or human
 activities. It was refreshed on 13 August 2026 from the synchronized repository
-at the 2.1 candidate worktree. A release is not described as published until
-the candidate commit, CI run, tag and platform artifacts exist on GitHub.
+at the 2.1 candidate worktree. The candidate branch and draft pull request are
+published; a release is not described as published until merge, tag and
+platform artifacts exist on GitHub.
 
 ## Candidate baseline
 
 - Product version: `2.1.0`.
+- Product commit: `0559257b17ee2b3899bdffa0455c49c984050640`.
+- Draft pull request: `https://github.com/vaibhav4046/robolearn/pull/3`.
 - Learning library: 24 lessons: 3 KS1, 4 KS2, 9 KS3 and 8 KS4.
 - Primary journey: Design, Prove, Build, with learning and authoring routes.
 - Core operation: local-first, no account, and no mandatory model or network
@@ -19,7 +22,7 @@ the candidate commit, CI run, tag and platform artifacts exist on GitHub.
 | --- | --- | --- |
 | Web source/bundle identity | `node scripts/build_web.cjs --check` | PASS |
 | Python suite on this Windows host | workspace-local `PYTHONPATH=src`; `pytest --cov-fail-under=0` | PASS: 1,239 passed, 140 skipped; skips are Tcl/Tk GUI cases unavailable in this Python 3.13 installation |
-| Coverage release policy | Linux Python 3.12 CI with Xvfb and `--cov-fail-under=85` | Must pass on the published candidate commit; the pre-candidate `main` run is green but is not substituted for candidate evidence |
+| Coverage release policy | Linux Python 3.12 CI with Xvfb and `--cov-fail-under=85` | PASS on product commit `0559257`; Windows and macOS Python 3.12 jobs also passed |
 | Interpreter | `node scripts/qa_interpreter.mjs` | PASS: 180 |
 | Lesson grader and solvability | `node scripts/qa_grader.mjs` | PASS: 55; all 24 worked answers pass both graders at 100/100 |
 | Physics | `node scripts/qa_physics.mjs` | PASS: 25 |
@@ -51,13 +54,11 @@ the dissertation.
 The following are release operations rather than claims that may be inferred
 from a local worktree:
 
-1. Publish the candidate branch and obtain green Python 3.12 CI on Windows,
-   Ubuntu and macOS, including the Linux browser matrix.
-2. Merge the reviewed candidate to `main`.
-3. Tag the exact merged commit as `v2.1.0` and let `release.yml` build its
+1. Merge the reviewed candidate to `main`.
+2. Tag the exact merged commit as `v2.1.0` and let `release.yml` build its
    Windows, Linux and macOS assets.
-4. Verify the GitHub Pages bundle and stylesheet against that commit and record
+3. Verify the GitHub Pages bundle and stylesheet against that commit and record
    the resulting hashes.
 
-Until those four operations are complete, this document describes a locally
-verified candidate, not a published 2.1 release.
+Until those three operations are complete, this document describes a published,
+CI-verified candidate, not a published 2.1 release.

@@ -6,12 +6,19 @@
   "repository": "C:\\Users\\lalwa\\OneDrive\\Desktop\\codex fix\\robolearn",
   "origin": "github.com/vaibhav4046/robolearn",
   "publication": {
-    "candidate_pushed": false,
-    "candidate_ci_verified": false,
+    "candidate_branch": "agent/kodro-2-1-completion",
+    "product_commit": "0559257b17ee2b3899bdffa0455c49c984050640",
+    "draft_pull_request": "https://github.com/vaibhav4046/robolearn/pull/3",
+    "candidate_pushed": true,
+    "candidate_ci_verified": true,
+    "candidate_ci_run": "https://github.com/vaibhav4046/robolearn/actions/runs/31737575604",
+    "candidate_ci_result": "success on Ubuntu, Windows and macOS with Python 3.12",
+    "prove_summary_run": "https://github.com/vaibhav4046/robolearn/actions/runs/31737575284",
+    "prove_summary_result": "success",
     "merged_to_main": false,
     "tag": null,
     "release_assets_verified": false,
-    "note": "External GitHub publication requires an explicit publish decision; local evidence is not relabelled as release evidence."
+    "note": "The candidate branch and draft pull request are published. Merge, tag and release remain deliberately separate actions."
   },
   "product": {
     "journey": "Design -> Prove -> Build",
@@ -58,11 +65,18 @@
     "platform_artifacts": "release.yml tag workflow"
   },
   "academic": {
-    "dissertation_stage": "revision pending mandatory academic-pipeline checkpoint",
+    "dissertation_stage": "revision, reference audit, integrity gate and 50-page PDF review complete; awaiting student finalization checkpoint",
+    "canonical_source": "docs/dissertation/Kodro_Dissertation.tex",
+    "pdf": "docs/dissertation/Kodro_Dissertation.pdf",
+    "page_count": 50,
+    "approximate_body_word_count": 20005,
+    "citation_keys": 26,
+    "bibliography_entries": 26,
+    "integrity_audit": "docs/dissertation/INTEGRITY_AUDIT_2026-08-13.md",
     "human_participant_evidence": "none",
     "turnitin_result": "not measured",
     "external_steps": [
-      "student verification of administrative details and final text",
+      "student verification of administrative details and final text at the mandatory academic-pipeline checkpoint",
       "official submission and receipt",
       "any future participant work only after ethics approval",
       "code signing and notarisation if required"
