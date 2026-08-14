@@ -127,8 +127,8 @@ ok(V.normaliseTranscript('Hey Cottro open the path finding lesson.') === 'open t
   'a second mishearing of the same word is stripped');
 ok(V.isBargeIn('Hey Cottro, stop.') === true,
   'the interruption whisper heard as "Cottro" still interrupts');
-ok(V.isBargeIn('Hey, Caudrill. Stop.') === true,
-  'and so does the one it heard as "Caudrill", punctuation and all');
+ok(V.isBargeIn('Hey, Caudrill. Stop.') === true && V.isBargeIn('Hey Caudrill, stop.') === true,
+  'and so does the one it heard as "Caudrill", in both punctuations it produced');
 const misheard = V.transcriptIntent('Hey Caudreau, how do I make the rover go faster?');
 ok(misheard && misheard.isCommand === false && misheard.speed == null,
   'a question survives a mis-heard wake word instead of setting the speed');
