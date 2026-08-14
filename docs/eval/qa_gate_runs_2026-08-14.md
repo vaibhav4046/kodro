@@ -74,23 +74,33 @@ and every one reproduced its existing number exactly.
 | Gate | Reason | Where its figure comes from instead |
 | --- | --- | --- |
 | `qa_personas` | Needs a local Ollama server at `http://localhost:11434`, which was not running. | `docs/eval/persona_eval_results.json`, which **is** tracked in git. |
-| `qa_vibe` | Same. | `docs/eval/vibe_eval.json`, which is present on disk but **not yet tracked in git** — see the note below. |
+| `qa_vibe` | Same. | `docs/eval/vibe_eval.json`, which **is** tracked in git. |
 
-### The artefact-tracking gap
+### The artefact-tracking gap, now closed
 
-An earlier version of the table above said each of those artefacts was
-"committed". Three of them are not. `git log --all -- <path>` returns no commits
-at all for `docs/eval/test_suite.json`, `docs/eval/ui_eval.json` and
-`docs/eval/vibe_eval.json`: they exist on disk and are named in the dissertation,
-but they have never entered version control. A fourth,
-`docs/eval/ui_eval_behaviour.json`, is deliberately ignored by `.gitignore:76`
-and correctly so — `scripts/qa_ui.mjs:78` writes that filename only for a
-narrowed `--suite=behaviour` run, so it is partial-run scratch by construction,
-not an evidence artefact. The dissertation sentence that listed it as one has
-been corrected.
+An earlier version of this section said that `docs/eval/test_suite.json`,
+`docs/eval/ui_eval.json` and `docs/eval/vibe_eval.json` had never entered
+version control. That was true when it was written and is no longer true. All
+three were committed in `706f93d`:
 
-The remaining three should be tracked before submission. Nothing here does that
-on the author's behalf.
+```
+$ for f in test_suite ui_eval vibe_eval; do git log --oneline -1 -- docs/eval/$f.json; done
+706f93d feat: MCP server, voice layer, project interop and CA2 evidence
+706f93d feat: MCP server, voice layer, project interop and CA2 evidence
+706f93d feat: MCP server, voice layer, project interop and CA2 evidence
+```
+
+The paragraph is corrected in place rather than deleted, because the
+dissertation points a reader at this file and a reader who found the old text
+would have been told the evidence was untracked when it is tracked.
+
+One related file stays untracked on purpose. `docs/eval/ui_eval_behaviour.json`
+is ignored by `.gitignore:76`, and correctly so, because `scripts/qa_ui.mjs:78`
+writes that filename only for a narrowed `--suite=behaviour` run. It is
+partial-run scratch by construction, not an evidence artefact, and three
+siblings (`ui_eval_layout.json`, `ui_eval_modals.json`, `ui_eval_paint.json`)
+sit beside it under the same rule. The dissertation sentence that once listed it
+as evidence has been corrected.
 
 ## A hazard worth knowing about, found while producing this log — now closed
 
