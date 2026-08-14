@@ -63,8 +63,14 @@ rl = [
 ]
 
 [project.scripts]
+# `kodro` is the product name, so it launches the product. It used to launch
+# the headless batch runner, which meant typing the name of the application
+# started something that is not the application. The batch runner now sits in
+# the kodro-* family with the other non-UI tools. `robolearn` is kept as an
+# alias because it is the package name and it is in older documentation.
+kodro = "robolearn.__main__:main"
 robolearn = "robolearn.__main__:main"
-kodro = "robolearn.bench:main"
+kodro-bench = "robolearn.bench:main"
 kodrobench = "robolearn.kodrobench:main"
 kodro-prove = "robolearn.prove:main"
 kodro-mcp = "robolearn.mcp.server:main"

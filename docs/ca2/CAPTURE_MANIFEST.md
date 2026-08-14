@@ -46,9 +46,19 @@ node scripts/qa_honesty.mjs && node scripts/qa_interpreter.mjs && node scripts/q
 | MCP server, documented fallback | `python -m robolearn.mcp` |
 | MCP smoke harness, for the on-camera session | `python scripts/smoke_mcp.py` |
 
-Do not type `kodro` on camera. That console script is currently wired to the
-benchmark tool, not to the application, and the mismatch is a question you do
-not want to answer mid-demonstration. Use the two commands in the table.
+`kodro` now points at the application in `pyproject.toml`, and `kodro-bench` is
+the batch runner it used to shadow. A console script is only written at install
+time, though, so an environment installed before that change still runs the old
+mapping. Check before trusting it:
+
+```bash
+python -c "import importlib.metadata as m; print([(e.name, e.value) for e in m.distribution('robolearn').entry_points if e.group == 'console_scripts'])"
+```
+
+If `kodro` still reports `robolearn.bench:main`, do not type `kodro` on camera.
+Use `python -m robolearn` from the table instead. Reinstalling to fix it needs
+the build backend, which is not present offline on this machine, so treat the
+module command as the one that is known to work.
 
 ## Recording order
 
