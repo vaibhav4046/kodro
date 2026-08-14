@@ -2,7 +2,67 @@
 
 Last updated by: Fable 5 lead agent
 Repo: D:\project\robolearn | origin https://github.com/vaibhav4046/robolearn.git
-Branch flow: work on `kodro-identity-pass`, ff `main`, push BOTH, CI-gated Pages deploy.
+Branch flow (current): work on `agent/kodro-ca2-candidate`. Nothing is
+fast-forwarded to `main` and nothing is deployed during the CA2 release pass.
+Branch flow (historical, up to 2026-07-16): work on `kodro-identity-pass`, ff
+`main`, push BOTH, CI-gated Pages deploy. Everything below the CA2 checkpoint
+describes that older flow and should be read as history.
+
+## CA2 release-candidate checkpoint (2026-08-14)
+
+Commit `2222e1e865105e2105cce1f1c9932736c0da87f8` on
+`agent/kodro-ca2-candidate`. Working tree clean at the time of writing.
+
+What this checkpoint is for: the CA2 assessment candidate, not a deployment.
+No tag was cut, no release published, no branch merged, nothing pushed to
+`main`, and the Pages site still serves the July build.
+
+Measured, not assumed:
+- The gate matrix in `EVIDENCE.json` had drifted on nine of twenty rows. The
+  July snapshot is kept intact and a `superseding_measurement` section was
+  added beside it, because the `wheel` row cannot be faithfully regenerated
+  offline (`hatchling` is absent), so a full rewrite would have produced an
+  artefact that looks current and is not.
+- The biggest correction: `qa_ui_local` was recorded as "timed out after 904
+  seconds ... not counted as pass". It now passes for real: 325 seconds, exit
+  0, nine flows PASS, 41 of 41 behaviour or layout assertions. The degraded
+  headless box described further down this file recovered.
+- Second correction: the lint gate was red while the artefact claimed clean.
+  7 ruff errors and 4 unformatted files, all in files added or edited during
+  this release pass. Fixed at `2222e1e`; the reformat of the shipped
+  `src/robolearn/mcp/tools.py` was proved inert by 97 passing tests and two
+  real-subprocess MCP smoke runs rather than assumed inert.
+- Counts that grew since July: qa_grader 34 to 55, qa_honesty 91 to 121,
+  qa_physics 20 to 25, qa_ai_web 27 to 51, qa_scenario_parity 4 to 8, mypy 66
+  to 73 source files, the Python suite 1,069 to 1,638 passed at 90.90 percent.
+  Gates that did not exist in the July matrix: qa_voice 108, qa_secrets 27,
+  qa_learning_annotations 28, qa_encoding 10, and 66 MCP server unit tests.
+
+The bundle SHA-256 `8c3417345b3c...` recorded in the 2026-07-16 checkpoint
+below is historical. The committed bundle is now
+`17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174`
+(1,502,665 bytes) with CSS
+`ac7c9050cbd7b06e2814366ed6c6cc8d868ec10a75ecdaeb0814ba789ba45e0d`
+(172,179 bytes). Since nothing on this branch is deployed, no
+committed-matches-live claim can be made about either file today.
+
+Host conditions that will bite the next session:
+- `pytest` fails with `PermissionError: [WinError 5]` on the
+  `pytest-of-lalwa` temp root unless `--basetemp` is passed. Harness, not
+  product. Any run of a module-scoped `tmp_path_factory` fixture hits it.
+- A subset pytest run always trips the 85 percent project coverage gate. That
+  is expected and is not a failure of the tests being run.
+- `hatchling` is not installed and cannot be fetched offline, so the wheel
+  cannot be rebuilt. One consequence is visible in the installed metadata:
+  `kodro` still resolves to `robolearn.bench:main` while `pyproject.toml`
+  declares `robolearn.__main__:main`, so on this machine typing the product
+  name starts the batch runner. That is stale install metadata, not a source
+  defect, and it clears on the next real install. It does not affect the MCP
+  entry point: `kodro-mcp -> robolearn.mcp.server:main` is installed exactly
+  as declared, and the smoke harness passes 2 of 2 entry points on both
+  platforms with no `--entry` restriction.
+- `qa_personas` and `qa_vibe` exit 0 without a local model and produce no
+  data. They are honest skips and must never be counted as passes.
 
 ## Current objective
 Execute the Codex master prompt: drive Kodro toward an honestly-accepted release

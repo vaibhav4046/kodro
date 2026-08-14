@@ -9,7 +9,8 @@ half matters more. A demonstration loses more marks for one unsupported claim
 than it gains from three extra features.
 
 Measured on 14 August 2026 unless a date is given. Commit `aa174cf` for the
-suite artefact, working tree clean; the rest re-run at `13c0997`.
+Python suite artefact, working tree clean; the Node gates, the lint and type
+gates and both MCP smoke scripts re-run at `2222e1e`.
 
 ## Claims with evidence
 
@@ -48,7 +49,8 @@ should be said out loud if coverage comes up in the Q&A.
 | A malformed frame returns `-32700` and the session survives | that check passes | same |
 | Non-ASCII round trips byte-exact | `café-90°-naïve-✓` check passes | same |
 | 66 unit tests cover the server | 66 passed in 9.80s | `python -m pytest tests/unit/test_mcp_server.py` |
-| The Windows and Unix smoke scripts both pass 14 checks | exit 0 both | `.\scripts\smoke_mcp.ps1 -Entry module`, `bash scripts/smoke_mcp.sh --entry module` |
+| The Windows and Unix smoke scripts both pass 14 checks per entry point | `== MCP SMOKE: 2 of 2 entry points clean ==`, exit 0 on both, no `--entry` restriction | `.\scripts\smoke_mcp.ps1`, `bash scripts/smoke_mcp.sh` |
+| The `kodro-mcp` console script is installed exactly as `pyproject.toml` declares it | `kodro-mcp -> robolearn.mcp.server:main` in the installed entry points, and the smoke run drives it | `python -c "from importlib.metadata import entry_points; ..."` then the smoke scripts above |
 
 One distinction the video must keep. What has been verified is a **real
 subprocess JSON-RPC handshake against the server**, driven by the smoke
@@ -88,7 +90,7 @@ would be the one unsupported claim in an otherwise clean voice section.
 | The honesty gate passes 121 checks | `PASS honesty: 121 passed, 0 failed` | `node scripts/qa_honesty.mjs` |
 | The interpreter gate passes 180 checks | `180 passed, 0 failed` | `node scripts/qa_interpreter.mjs` |
 | Encoding is clean across 406 files | 10 passed | `node scripts/qa_encoding.mjs` |
-| No tracked file carries a credential, a key file or a local account name | `PASS secrets: 27 passed (473 of 775 tracked files read, 13 credential rules)` | `node scripts/qa_secrets.mjs` |
+| No tracked file carries a credential, a key file or a local account name | `PASS secrets: 27 passed (477 of 779 tracked files read, 13 credential rules)` | `node scripts/qa_secrets.mjs` |
 | Learning annotations pass 28 checks | 28 passed | `node scripts/qa_learning_annotations.mjs` |
 | Software-rasterised rendering holds the mid twenties in FPS | medians 25.7 low quality, 24.4 high, over three samples per tier | `node scripts/qa_performance.mjs --gl=software --repeat=3`, verdict MEASURED |
 
