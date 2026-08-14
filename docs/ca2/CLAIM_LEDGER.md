@@ -33,7 +33,8 @@ should be said out loud if coverage comes up in the Q&A.
 |---|---|---|
 | 24 lessons ship, 3 at KS1, 4 at KS2, 9 at KS3, 8 at KS4 | the lesson library YAML | `python scripts/export_lessons.py` |
 | The exported lesson JSON matches the authoritative library byte for byte | SHA-256 `f1167f28...` matched on regeneration | `python scripts/export_lessons.py` twice, hashes compared |
-| Web and desktop grade the same lesson identically | 52 passed | `python -m pytest tests/unit/test_web_lesson_parity.py` |
+| Web and desktop grade the same lesson identically | `RESULT: 55 passed, 0 failed`; the JS grader's lesson table is re-extracted from every YAML and the reason strings are matched against `grader.py` | `node scripts/qa_grader.mjs` |
+| Every lesson's starter runs name-error-free in both runtimes, and every lesson is reachable by voice | 52 passed | `python -m pytest tests/unit/test_web_lesson_parity.py` |
 | A failed check costs 20 points | `SCORE_PENALTY_PER_FAILURE = 20` in the grader | source |
 
 ### MCP

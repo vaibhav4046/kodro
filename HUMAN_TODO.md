@@ -15,15 +15,50 @@ replay debugger). Capture:
 - Achievement-system reaction (motivating? distracting?).
 - Free-form feedback.
 
-Store the raw responses in `docs/teachers/evaluation-raw.md` (gitignored
-if it contains personal data) and a redacted summary in
-`docs/teachers/evaluation-summary.md`.
+**Do not write the responses into `docs/teachers/evaluation-raw.md` or
+`docs/teachers/evaluation-summary.md`.** Those two files are already taken.
+They hold the speculative teacher-persona walkthrough, which is an
+analyst-written design review with no participants and no measurements, and
+both say so on their first line. Writing study output into them would either
+destroy that artefact or, worse, leave a reader unable to tell which parts came
+from a person and which were imagined in advance. That is the exact confusion
+the whole evidence discipline in this repository exists to prevent.
+
+Use new files instead:
+
+- `docs/teachers/study-raw.md` for the raw responses. Add it to `.gitignore`
+  before writing anything into it if it will carry names, schools, or any other
+  personal data.
+- `docs/teachers/study-summary.md` for the redacted summary.
+
+When the study exists, the two speculative files should gain a line at the top
+pointing at it, since their stated purpose is to raise hypotheses that the
+study then tests.
 
 ## 2. Cut the next release tag
 
-The current released tag is `v2.0.0`, and it matches the `pyproject.toml`
-version and the CHANGELOG `[2.0.0]` entry, so there is nothing to tag right
-now. For a future release, add a dated CHANGELOG entry, bump the
+The three version records disagree, and the disagreement is the author's to
+settle. Measured on 14 August 2026:
+
+| Record | Value |
+| --- | --- |
+| Latest semver tag | `v2.0.2`, commit `e1df641`, 9 July 2026, an ancestor of the candidate branch |
+| Other v2 tags | `v2.0.0` `7dfdebf`, `v2.0.1` `3008566`, and `v2.0-submission` `ab8cdb1` on 27 July |
+| `pyproject.toml` | `version = "2.0.0"` |
+| CHANGELOG | `[Unreleased]`, then `[2.0.0]` dated 7 July 2026 |
+
+So `v2.0.1` and `v2.0.2` were tagged without CHANGELOG entries and without a
+version bump, and `v2.0-submission` is a marker tag rather than a semver
+release. Nothing here is broken at runtime, because the package version is only
+metadata, but a marker reading the repository would find a tag list that the
+CHANGELOG does not explain.
+
+Two honest options, both the author's call: bump `pyproject.toml` to `2.0.2`
+and backfill two short CHANGELOG entries describing what those tags carried, or
+leave the tags alone and add a line to the CHANGELOG saying that `2.0.1` and
+`2.0.2` were untracked point tags. Do not delete or move a published tag.
+
+For an actual future release, add a dated CHANGELOG entry, bump the
 `pyproject.toml` version to match, then tag and push:
 
 ```bash
@@ -52,21 +87,36 @@ For now the README still ships without an animated demo; replace the
 placeholder with a manually-recorded clip (ScreenToGif on Windows,
 peek on Linux) until P7 is built.
 
-### P8 — Web companion (deferred, needs a scope discussion)
+### P8 — Web companion (SHIPPED, this entry was stale)
 
-The desktop spec deliberately forbade web frameworks; a JS-port of
-the rover API would re-architect the project as two parallel
-codebases. Before starting, decide:
+This was written while the web port was still a proposal. It was built. There
+are 92 tracked files under `src/robolearn/assets/web/`, a PyInstaller spec at
+`robolearn-web.spec`, a build and freshness gate at `scripts/build_web.cjs`,
+and `tests/unit/test_web_lesson_parity.py` holds the two runtimes to the same
+grading behaviour.
 
-- Is the web port a teaser (read-only demos) or a peer (full lessons)?
-- Will it share the lesson YAMLs (build-time JSON conversion) or
-  fork them?
-- Does GitHub Pages count as the "no cloud" clause being honoured?
-  (It is static hosting, so arguably yes.)
+The three questions it posed were answered by what got built, not by a meeting:
 
-Once those questions are answered the `web/` folder can be added
-with a JS mini-interpreter, a Canvas renderer, and a Playwright
-smoke test, exactly as the P8 spec describes.
+- **Teaser or peer?** Peer. `scripts/qa_grader.mjs` loads the shipped
+  `interpreter.js`, `motion-model.js` and `lesson-grader.jsx` under Node and
+  holds them to two things: the lesson table embedded in the JS grader must
+  match a fresh extraction from every lesson YAML, and known-good and known-bad
+  submissions must produce the exact pupil-facing reason strings `grader.py`
+  produces. 55 checks, all passing.
+  `tests/unit/test_web_lesson_parity.py` covers the neighbouring property, that
+  every lesson's starter code runs without a name error in both runtimes and
+  that every shipped lesson is reachable by voice.
+- **Share the lesson YAMLs or fork them?** Share. `scripts/export_lessons.py`
+  converts the authoritative YAML to JSON at build time, and re-running it
+  reproduces the committed JSON byte for byte.
+- **Does static hosting honour the no-cloud clause?** Unresolved, and
+  deliberately so. Nothing is hosted. The web build runs from a local file or a
+  local server, so the question has not had to be answered yet, and it should
+  not be answered by quietly deploying something.
+
+Nothing is required here. The entry is kept rather than deleted because the
+questions and their answers are the record of why the web runtime looks the way
+it does.
 
 ## 4. Real-app screenshots (DONE, with a reproducible offline capture path)
 
