@@ -24655,12 +24655,87 @@ Object.assign(window, {
 
   // --- pure: what a transcript means -------------------------------------
 
-  // Speech recognisers do not know the word "Kodro" and guess. These are
-  // mishearings, not synonyms: stripping them matters because the intent
-  // parser anchors its question test at the START of the string, so a stray
-  // "Kodro," in front of "how do I..." would stop it being read as a question.
-  var WAKE_RE = /^\s*(?:hey|ok|okay|hi)?\s*(?:kodro|codro|kodo|quadro|cadre|kadro|kodra)\s*[,.!:-]*\s*/i;
-  var FILLER_RE = /^\s*(?:um+|uh+|er+|erm+|hmm+)\s*[,]?\s*/i;
+  // Speech recognisers do not know the word "Kodro" and guess, and they do not
+  // guess the same way twice. Ten synthesised clips measured through
+  // faster-whisper (docs/eval/stt_bench.json) came back as "Caudreau",
+  // "Cottro" and "Caudrill", and not one of them was a spelling a hand-written
+  // list held. So the list stays for the spellings actually seen, and a sound
+  // test sits beside it for the ones nobody has seen yet.
+  //
+  // Getting this wrong costs twice. The intent parser anchors its question
+  // test at the START of the string, so a wake word left in front of "how do
+  // I..." turns a question into a command: "Hey Caudreau, how do I make the
+  // rover go faster?" measured as isCommand with speed 70, silently changing
+  // the robot. And isBargeIn tests the whole utterance, so "Hey Cottro, stop."
+  // stops being an interruption at all, which is the one thing that must never
+  // fail to fire.
+  //
+  // The sound test folds a word down to its consonant skeleton: hard c, k and
+  // qu all become k, vowels and the semi-vowels h/w/y go, doubled letters
+  // collapse. "kodro", "caudreau", "quadro" and "kodrow" all reduce to "kdr".
+  // A skeleton of at most four letters opening k-d-r or k-t-r is a mishearing
+  // of the product name. The length cap is what keeps real words out:
+  // "quadruped" (kdrpd), "quadrant" (kdrnt) and "cathedral" (ktdrl) are five
+  // and survive, while "quiet" (kt), "code" (kd), "clear" (klr), "carry" (kr)
+  // and "country" (kntr) never reach the prefix at all. "quiet" matters most
+  // of those: it is itself a barge-in word.
+  var WAKE_WORDS = ['kodro', 'codro', 'kodo', 'quadro', 'cadre', 'kadro', 'kodra'];
+  var GREETING_RE = /^(?:hey|hi|ok|okay)$/i;
+  var FILLER_WORD_RE = /^(?:um+|uh+|er+|erm+|hmm+)$/i;
+
+  // One leading word plus whatever punctuation the recogniser hung off it.
+  // Whole words on purpose: the previous rule matched a bare prefix, so
+  // "kodrow stop" came out as "w stop" and "error, stop" lost its "err".
+  var LEAD_RE = /^([A-Za-z']+)\s*[,.!:;-]*\s*/;
+  function soundSkeleton(word) {
+    var s = String(word).toLowerCase().replace(/[^a-z]/g, '');
+    s = s.replace(/^qu/, 'k').replace(/q/g, 'k').replace(/c/g, 'k');
+    s = s.replace(/[aeiouhwy]/g, '');
+    return s.replace(/(.)\1+/g, '$1');
+  }
+  function isWakeWord(word) {
+    var lower = String(word).toLowerCase();
+    for (var i = 0; i < WAKE_WORDS.length; i += 1) {
+      if (WAKE_WORDS[i] === lower) return true;
+    }
+    var skeleton = soundSkeleton(lower);
+    return skeleton.length <= 4 && /^k[dt]r/.test(skeleton);
+  }
+
+  /* Eat the leading greeting, filler and wake word, in whatever order the
+   * speaker produced them.
+   *
+   * A greeting is only dropped when something follows it, so a learner who
+   * says nothing but "hi" still sends "hi" to the chat rather than silence.
+   * At most one wake word is taken: a second one is part of the sentence.
+   */
+  function stripLead(text) {
+    var s = text;
+    var seenGreeting = false;
+    var seenWake = false;
+    for (var guard = 0; guard < 4; guard += 1) {
+      var match = LEAD_RE.exec(s);
+      if (!match) break;
+      var word = match[1];
+      var rest = s.slice(match[0].length);
+      if (FILLER_WORD_RE.test(word)) {
+        s = rest;
+        continue;
+      }
+      if (!seenGreeting && !seenWake && GREETING_RE.test(word) && rest) {
+        seenGreeting = true;
+        s = rest;
+        continue;
+      }
+      if (!seenWake && isWakeWord(word)) {
+        seenWake = true;
+        s = rest;
+        continue;
+      }
+      break;
+    }
+    return s;
+  }
 
   // Talking over the reply has to stop the reply, not become a message about
   // stopping. The test is whole-utterance on purpose. "Stop the rover at the
@@ -24678,9 +24753,7 @@ Object.assign(window, {
    */
   function normaliseTranscript(raw) {
     var s = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
-    s = s.replace(WAKE_RE, '');
-    s = s.replace(FILLER_RE, '');
-    return s.trim();
+    return stripLead(s).trim();
   }
 
   /* Is this transcript an interruption rather than an instruction?

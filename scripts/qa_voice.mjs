@@ -111,6 +111,54 @@ const moved = V.transcriptIntent('kodro take me to mars');
 ok(moved && moved.world && moved.world.id === 'mars', 'a spoken move command resolves the world');
 ok(V.transcriptIntent('   ') === null, 'silence produces no intent');
 
+// --- 2a. the wake word a recogniser actually returns ----------------------
+//
+// Every string below is verbatim output from faster-whisper on the ten clips
+// in docs/eval/stt_bench.json. None of them spells the product name, and
+// before the sound test was added none of them was stripped: the question
+// became a speed command and the interruption stopped interrupting. These are
+// the measured cases, so they are the ones pinned.
+
+ok(V.normaliseTranscript('Hey Caudreau, build me a rover.') === 'build me a rover.',
+  'the wake word whisper actually produces is stripped');
+ok(V.normaliseTranscript('Caudreau take me to Mars.') === 'take me to Mars.',
+  'a mishearing with no greeting in front of it is stripped');
+ok(V.normaliseTranscript('Hey Cottro open the path finding lesson.') === 'open the path finding lesson.',
+  'a second mishearing of the same word is stripped');
+ok(V.isBargeIn('Hey Cottro, stop.') === true,
+  'the interruption whisper heard as "Cottro" still interrupts');
+ok(V.isBargeIn('Hey, Caudrill. Stop.') === true,
+  'and so does the one it heard as "Caudrill", punctuation and all');
+const misheard = V.transcriptIntent('Hey Caudreau, how do I make the rover go faster?');
+ok(misheard && misheard.isCommand === false && misheard.speed == null,
+  'a question survives a mis-heard wake word instead of setting the speed');
+
+// Whole words only. The old rule matched a bare prefix, so "kodrow" left a
+// stray "w" in front of the sentence and "errors" lost its "err".
+ok(V.normaliseTranscript('kodrow stop') === 'stop',
+  'a longer mishearing is consumed whole, leaving no debris');
+ok(V.normaliseTranscript('errors in my loop') === 'errors in my loop',
+  'a word that merely starts like a filler sound is left intact');
+
+// The sound test earns its keep by what it refuses. Each of these is a word a
+// learner really says, and each one is close enough to the product name that a
+// looser rule would eat it. "quiet" matters most: it is a barge-in word.
+ok(V.normaliseTranscript('quiet') === 'quiet' && V.isBargeIn('quiet') === true,
+  'the sound test does not swallow "quiet", which is itself an interruption');
+for (const kept of [
+  'clear the program', 'code a rover for me', 'country roads', 'carry the value',
+  'quadrant three is empty', 'cathedral world please', 'quadruped robot',
+]) {
+  ok(V.normaliseTranscript(kept) === kept,
+    'the sound test leaves a real word alone: ' + JSON.stringify(kept));
+}
+
+// A greeting on its own is a message, not a prefix to something else.
+ok(V.normaliseTranscript('hi') === 'hi' && V.normaliseTranscript('okay') === 'okay',
+  'a bare greeting reaches the chat instead of being stripped to nothing');
+ok(V.normaliseTranscript('okay stop') === 'stop',
+  'but a greeting in front of an interruption is dropped');
+
 // A spoken sentence must never gain power a typed one lacks.
 const spokenSentences = [
   'build a rover', 'take me to the reef', 'set the time to night',
