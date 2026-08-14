@@ -33,7 +33,7 @@ import subprocess
 import sys
 import time
 import wave
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
 
 MODEL = "Systran/faster-whisper-base.en"
@@ -68,8 +68,10 @@ class Clip:
 def synthesize(outdir: Path) -> None:
     """Write one 16 kHz mono wav per command per voice using the OS speech engine."""
     if platform.system() != "Windows":
-        sys.exit("--synthesize uses the Windows speech engine; run it on Windows "
-                 "or supply your own clips in " + str(outdir))
+        sys.exit(
+            "--synthesize uses the Windows speech engine; run it on Windows "
+            "or supply your own clips in " + str(outdir)
+        )
     outdir.mkdir(parents=True, exist_ok=True)
     jobs = [
         {"voice": voice, "text": text, "path": str(outdir / f"{key}__{slug(voice)}.wav")}
@@ -96,7 +98,9 @@ foreach ($job in $jobs) {
 """
     done = subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
-        input=json.dumps(jobs), capture_output=True, text=True,
+        input=json.dumps(jobs),
+        capture_output=True,
+        text=True,
     )
     if done.returncode != 0:
         sys.exit("speech synthesis failed:\n" + done.stderr)
@@ -137,11 +141,13 @@ def word_error_rate(reference: str, hypothesis: str) -> tuple[float, int, int]:
     for i, ref_word in enumerate(ref, start=1):
         current = [i]
         for j, hyp_word in enumerate(hyp, start=1):
-            current.append(min(
-                previous[j] + 1,
-                current[j - 1] + 1,
-                previous[j - 1] + (ref_word != hyp_word),
-            ))
+            current.append(
+                min(
+                    previous[j] + 1,
+                    current[j - 1] + 1,
+                    previous[j - 1] + (ref_word != hyp_word),
+                )
+            )
         previous = current
     return round(previous[-1] / len(ref), 4), previous[-1], len(ref)
 
@@ -169,18 +175,22 @@ def try_gpu(clip: Path) -> str:
     cannot transcribe a single second of audio. Transcribe something."""
     try:
         from faster_whisper import WhisperModel
+
         model = WhisperModel(MODEL, device="cuda", compute_type="float16", local_files_only=True)
         segments, _info = model.transcribe(str(clip), beam_size=1, language="en")
         list(segments)
         return "available"
-    except Exception as error:  # noqa: BLE001 - the message is the result
+    except Exception as error:
         return f"unavailable: {type(error).__name__}: {str(error).strip().splitlines()[0][:200]}"
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--synthesize", action="store_true",
-                        help="write the wav clips with the Windows speech engine first")
+    parser.add_argument(
+        "--synthesize",
+        action="store_true",
+        help="write the wav clips with the Windows speech engine first",
+    )
     parser.add_argument("--audio", default=None, help="directory holding the clips")
     parser.add_argument("--out", default=None, help="where to write the JSON result")
     args = parser.parse_args()
@@ -211,19 +221,21 @@ def main() -> int:
             timings.append(time.perf_counter() - start)
         median = statistics.median(timings)
         rate, errors, words = word_error_rate(clip.reference, transcript)
-        results.append({
-            "command": clip.command,
-            "voice": clip.voice,
-            "reference": clip.reference,
-            "transcript": transcript,
-            "audio_seconds": clip.seconds,
-            "first_call_seconds": round(timings[0], 3),
-            "median_seconds": round(median, 3),
-            "real_time_factor": round(median / clip.seconds, 3),
-            "word_error_rate": rate,
-            "word_errors": errors,
-            "reference_words": words,
-        })
+        results.append(
+            {
+                "command": clip.command,
+                "voice": clip.voice,
+                "reference": clip.reference,
+                "transcript": transcript,
+                "audio_seconds": clip.seconds,
+                "first_call_seconds": round(timings[0], 3),
+                "median_seconds": round(median, 3),
+                "real_time_factor": round(median / clip.seconds, 3),
+                "word_error_rate": rate,
+                "word_errors": errors,
+                "reference_words": words,
+            }
+        )
 
     medians = [row["median_seconds"] for row in results]
     report = {
@@ -234,27 +246,34 @@ def main() -> int:
         "beam_size": 1,
         "repeats_per_clip": REPEATS,
         "downloads": "none; local_files_only=True",
-        "audio_source": ("Windows System.Speech synthesis, 16 kHz mono. Synthetic "
-                         "speech, not human speech: treat every word error rate "
-                         "below as indicative of a clean-audio upper bound only."),
+        "audio_source": (
+            "Windows System.Speech synthesis, 16 kHz mono. Synthetic "
+            "speech, not human speech: treat every word error rate "
+            "below as indicative of a clean-audio upper bound only."
+        ),
         "machine": {
             "platform": platform.platform(),
             "processor": platform.processor(),
             "python": platform.python_version(),
         },
         "model_load_seconds": load_seconds,
-        "model_load_note": ("fresh process, operating system file cache already warm; "
-                            "a genuinely cold disk would be slower"),
+        "model_load_note": (
+            "fresh process, operating system file cache already warm; "
+            "a genuinely cold disk would be slower"
+        ),
         "baseline_peak_ram_mb": baseline_ram,
         "peak_ram_mb": peak_ram_mb(),
         "gpu_float16": try_gpu(clips[0].path),
         "median_latency_seconds": round(statistics.median(medians), 3),
         "worst_latency_seconds": round(max(medians), 3),
         "median_real_time_factor": round(
-            statistics.median([row["real_time_factor"] for row in results]), 3),
+            statistics.median([row["real_time_factor"] for row in results]), 3
+        ),
         "mean_word_error_rate": round(
             sum(row["word_errors"] for row in results)
-            / max(1, sum(row["reference_words"] for row in results)), 4),
+            / max(1, sum(row["reference_words"] for row in results)),
+            4,
+        ),
         "clips": results,
     }
 
@@ -271,10 +290,12 @@ def main() -> int:
     print()
     for row in results:
         flag = "  " if row["word_error_rate"] == 0 else "!!"
-        print(f"{flag} {row['command']:<14} {row['voice'].split()[1]:<6} "
-              f"{row['audio_seconds']:>5}s  {row['median_seconds']:>6}s  "
-              f"rtf {row['real_time_factor']:>5}  wer {row['word_error_rate']:<7} "
-              f"{row['transcript']!r}")
+        print(
+            f"{flag} {row['command']:<14} {row['voice'].split()[1]:<6} "
+            f"{row['audio_seconds']:>5}s  {row['median_seconds']:>6}s  "
+            f"rtf {row['real_time_factor']:>5}  wer {row['word_error_rate']:<7} "
+            f"{row['transcript']!r}"
+        )
     print(f"\nwrote {out_path}")
     return 0
 

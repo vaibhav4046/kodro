@@ -503,7 +503,7 @@ def _console_mark(app: App) -> int:
     return len(app.console.text())
 
 
-def _editor(app: App):  # noqa: ANN202 -- EditorPanel, kept local to the bridge tests
+def _editor(app: App):
     editor = app.main_window.get_slot("editor")
     assert editor is not None
     return editor
@@ -561,7 +561,7 @@ def test_the_suggested_file_name_reaches_the_chooser(app_ctx: App, tmp_path: obj
     assert app_ctx.console is not None
     seen: list[str] = []
 
-    def chooser(suggested: str):  # noqa: ANN202 -- Path | None
+    def chooser(suggested: str):
         seen.append(suggested)
         return tmp_path / suggested  # type: ignore[operator]
 
@@ -587,9 +587,7 @@ def test_an_unwritable_target_is_reported_not_raised(app_ctx: App, tmp_path: obj
     assert "Could not save the project" in _console_tail(app_ctx, mark)
 
 
-def test_a_corrupt_file_is_refused_with_the_shared_wording(
-    app_ctx: App, tmp_path: object
-) -> None:
+def test_a_corrupt_file_is_refused_with_the_shared_wording(app_ctx: App, tmp_path: object) -> None:
     from robolearn.app import _open_project
 
     assert app_ctx.console is not None

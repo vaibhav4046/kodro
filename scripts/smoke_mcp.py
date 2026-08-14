@@ -84,7 +84,7 @@ class ServerProcess:
         # mangle any non-ASCII in a lesson brief. The server writes UTF-8; say so.
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUTF8"] = "1"
-        self.proc = subprocess.Popen(  # noqa: S603 - argv is built here, never from input
+        self.proc = subprocess.Popen(
             argv,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -369,7 +369,8 @@ def entry_points(requested: str) -> list[tuple[str, list[str]]]:
     if requested in {"all", "console"} and console:
         found.append(("kodro-mcp (console script)", [console]))
     if requested in {"all", "module"}:
-        found.append((f"{Path(sys.executable).name} -m robolearn.mcp", [sys.executable, "-m", "robolearn.mcp"]))
+        label = f"{Path(sys.executable).name} -m robolearn.mcp"
+        found.append((label, [sys.executable, "-m", "robolearn.mcp"]))
     if not found:
         if requested == "console":
             raise SmokeFailure("kodro-mcp is not on PATH. Reinstall with: pip install -e .")

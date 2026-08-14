@@ -617,9 +617,7 @@ TOOL_DESCRIPTORS: Final[tuple[dict[str, Any], ...]] = tuple(
 
 _HANDLERS: Final[dict[str, Any]] = {tool["name"]: tool["handler"] for tool in TOOLS}
 
-_SCHEMAS: Final[dict[str, dict[str, Any]]] = {
-    tool["name"]: tool["inputSchema"] for tool in TOOLS
-}
+_SCHEMAS: Final[dict[str, dict[str, Any]]] = {tool["name"]: tool["inputSchema"] for tool in TOOLS}
 
 #: JSON Schema type names mapped to what Python accepts for them, with the
 #: phrasing used in the error. ``bool`` is excluded from the numeric rows by the
