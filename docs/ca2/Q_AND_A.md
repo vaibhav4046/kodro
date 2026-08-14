@@ -86,8 +86,13 @@ The path I demonstrated runs locally: about one and a half seconds to load the
 model, under a second per command, peak memory under four hundred megabytes, and
 a quarter of words wrong on a ten-clip benchmark. That word error rate is why it
 is scoped to a fixed command vocabulary and not offered as dictation. There is a
-second path, the browser's own dictation API, which does send audio to Google.
-It is off by default, it is opt-in, and the notice is in the product. I would not
+second path, the browser's own dictation API, which does send the audio off the
+machine. It goes to a transcription service belonging to whoever made the
+browser, and Kodro neither picks it nor can see it, which is what the opt-in
+notice says. It deliberately does not name a company: the desktop build renders
+in the platform web view, not Chrome, so an earlier notice that said Google was
+wrong on the engine the product actually ships on. The gate now fails if the
+notice names a single vendor. It is off by default, it is opt-in, and I would not
 claim the product is fully offline without naming that exception.
 
 ---

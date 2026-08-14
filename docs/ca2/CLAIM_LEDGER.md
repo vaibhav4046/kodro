@@ -60,7 +60,7 @@ session", which is what the evidence supports.
 
 | Claim | Evidence | Command |
 |---|---|---|
-| The voice layer has 104 passing checks | `PASS voice: 104 passed, 0 failed` | `node scripts/qa_voice.mjs` |
+| The voice layer has 108 passing checks | `PASS voice: 108 passed, 0 failed` | `node scripts/qa_voice.mjs` |
 | Speech and typing go through the same intent parser | that gate covers it | same |
 | Local speech-to-text loads in 1.587 s | `docs/eval/stt_bench.md` and `.json`, 10 clips | the bench script in that document |
 | Median latency 0.885 s, median real-time factor 0.371 | same | same |
@@ -115,8 +115,12 @@ These are ordered by how much damage each one does.
    as a pass would be the exact kind of green-by-default claim the honesty gate
    exists to prevent.
 6. **Do not claim browser dictation is private.** It uses the browser's own
-   speech API, which sends audio to Google. It is opt-in, off by default, and
-   the notice is in the product. If the offline claim is made on camera, this
+   speech API, which sends the audio off the machine to a service belonging to
+   whoever made the browser. It is opt-in, off by default, and the notice in the
+   product says exactly that. Do not name a company either: the desktop build
+   renders in the platform web view rather than in Chrome, so the recogniser
+   comes from whichever engine is hosting, and `qa_voice.mjs` now fails if the
+   notice names one vendor. If the offline claim is made on camera, this
    exception must be named in the same breath, and the local speech-to-text path
    is the one to demonstrate.
 7. **Do not claim deployment, signing, release, or a Turnitin result.** None

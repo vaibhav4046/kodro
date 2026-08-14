@@ -12,11 +12,16 @@
  *   speaking is switched off with an honest message. It never silently falls
  *   back to a voice that would send the reply off the laptop.
  *
- *   LISTENING (webkitSpeechRecognition) cannot be made on-device in Chrome.
- *   The audio goes to Google's servers. There is no flag that changes that.
- *   So dictation is OFF by default, behind an explicit opt-in that spells out
- *   where the audio goes, and typing always remains available. Nothing in the
- *   product requires a microphone.
+ *   LISTENING (webkitSpeechRecognition) cannot be made on-device, and there is
+ *   no flag that changes that. Which company receives the audio is decided by
+ *   the engine, not by Kodro: recogniserCtor() takes whatever the runtime
+ *   exposes, and the shipped desktop surface is not Chrome at all but the
+ *   platform web view (Edge WebView2 on Windows, WebKit on macOS, WebKitGTK
+ *   on Linux -- see robolearn/web/app.py). So the notice states the fact that
+ *   holds everywhere, which is that the audio leaves the machine and Kodro
+ *   neither picks nor can see the recipient. Dictation is OFF by default,
+ *   behind an explicit opt-in, and typing always remains available. Nothing in
+ *   the product requires a microphone.
  *
  * Speech is never a second command language. A transcript is normalised and
  * handed to the SAME window.KodroChatIntent parser the typed box uses, which
@@ -45,11 +50,21 @@
 
   // Shown before dictation can be switched on. Deliberately blunt about the
   // network: an opt-in that hides the cost is not consent.
+  //
+  // It names the recipient as far as the product can honestly know it. Kodro
+  // does not choose the transcription service and cannot inspect it, so a
+  // notice that named one company would be wrong on every engine except that
+  // company's own. What is always true is the part that matters for consent:
+  // the recording leaves the machine, and it goes somewhere Kodro does not
+  // control. Naming a specific wrong recipient is worse than naming none.
   var DICTATION_NOTICE =
     'Listening uses your browser speech recogniser, which sends the recorded ' +
-    'audio to Google to be transcribed. It is the one part of Kodro that ' +
-    'leaves this laptop. Everything else, including the reply spoken back to ' +
-    'you, stays on this machine. Typing does the same job with nothing sent.';
+    'audio off this machine to be transcribed. The service that receives it ' +
+    'belongs to whoever made your browser, not to Kodro, and Kodro can ' +
+    'neither choose it nor see what it does with the recording. It is the one ' +
+    'part of Kodro that leaves this laptop. Everything else, including the ' +
+    'reply spoken back to you, stays on this machine. Typing does the same ' +
+    'job with nothing sent.';
 
   function read(key) {
     try {

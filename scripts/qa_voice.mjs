@@ -71,8 +71,25 @@ ok(caps.canSpeak === false && caps.localVoiceCount === 0,
   'capabilities reports speaking unavailable with no voices');
 ok(typeof caps.speakBlockedReason === 'string' && caps.speakBlockedReason.length > 20,
   'capabilities explains in words why speaking is unavailable');
-ok(/audio/i.test(V.DICTATION_NOTICE) && /Google/.test(V.DICTATION_NOTICE),
-  'the dictation notice names what is sent and where');
+/* The dictation notice has to survive being read on any engine, because
+ * recogniserCtor() takes whatever the runtime exposes and the shipped desktop
+ * surface is the platform web view, not Chrome. The notice used to say the
+ * audio went to Google, which is a claim the code never establishes and which
+ * is wrong wherever the engine is not Chrome's. These five checks pin the
+ * facts that hold everywhere and forbid the regression that named one vendor.
+ *
+ * The vendor check is deliberately a denylist of the three companies whose
+ * engines the product can actually land on, not a ban on the word "browser":
+ * the notice must still say who receives the audio in general terms. */
+ok(/audio/i.test(V.DICTATION_NOTICE), 'the dictation notice says audio is what gets sent');
+ok(/off this machine|leaves this laptop/i.test(V.DICTATION_NOTICE),
+  'the dictation notice says the recording leaves the device');
+ok(/not to Kodro|nor see|neither choose/i.test(V.DICTATION_NOTICE),
+  'the dictation notice says Kodro neither picks nor can inspect the recipient');
+ok(!/\b(Google|Microsoft|Apple)\b/.test(V.DICTATION_NOTICE),
+  'the dictation notice names no single vendor as the recipient, since the engine decides');
+ok(/typing/i.test(V.DICTATION_NOTICE),
+  'the dictation notice offers typing as the alternative that sends nothing');
 
 // Listening is off until consented, and consent is not implied by support.
 ok(V.dictationConsented() === false, 'dictation is off by default');

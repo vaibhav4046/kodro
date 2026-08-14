@@ -197,8 +197,11 @@ Do not soften any of this. It is the part that earns the marks.
 > Sim, and the fidelity boundaries are written into the product rather than into a
 > footnote."
 
-> "One privacy exception. The browser's built-in dictation sends audio to Google.
-> It is off by default, it is opt-in, and the notice is in the product. The local
+> "One privacy exception. The browser's built-in dictation sends the audio off
+> the machine, to a service belonging to whoever made the browser rather than to
+> Kodro. It is off by default, it is opt-in, and the notice is in the product and
+> says exactly that, because the shipped desktop build renders in the platform
+> web view and naming one company would be wrong on most of them. The local
 > speech path is the one I demonstrated, and it runs on this machine: one and a
 > half seconds to load, under a second per command, and a quarter of words wrong
 > on a ten-clip benchmark, which makes it usable for a fixed command vocabulary

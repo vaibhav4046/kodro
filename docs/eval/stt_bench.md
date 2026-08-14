@@ -119,5 +119,6 @@ is itself an interruption.
 - Two synthesised speakers is a range of two, which is barely a range.
 - The GPU path is untested rather than slow: it could not run here at all.
 - Nothing here measures the browser dictation path the app ships with today,
-  which is a different engine entirely and sends audio to Google. This benchmark
-  measures the offline alternative.
+  which is a different engine entirely and sends the audio off the machine to a
+  service belonging to whoever made the browser. This benchmark measures the
+  offline alternative.
