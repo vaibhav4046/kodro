@@ -23,6 +23,10 @@
  * feeds the same preview-then-Apply path. A spoken sentence cannot do anything
  * a typed one cannot, and cannot skip a confirmation.
  *
+ * The one exception is an interruption. "Stop", "halt" and "mute" are checked
+ * BEFORE the parser and never reach it, because a request to stop that queues
+ * behind the reply it is trying to stop is not a stop. See isBargeIn.
+ *
  * Exposes window.KodroVoice. The pure parts (spokenForm, pickVoice,
  * normaliseTranscript, transcriptIntent) take their inputs as arguments so
  * scripts/qa_voice.mjs can exercise them in Node with no browser.
@@ -145,6 +149,15 @@
   var WAKE_RE = /^\s*(?:hey|ok|okay|hi)?\s*(?:kodro|codro|kodo|quadro|cadre|kadro|kodra)\s*[,.!:-]*\s*/i;
   var FILLER_RE = /^\s*(?:um+|uh+|er+|erm+|hmm+)\s*[,]?\s*/i;
 
+  // Talking over the reply has to stop the reply, not become a message about
+  // stopping. The test is whole-utterance on purpose. "Stop the rover at the
+  // wall" and "make it stop colliding" are real instructions that the intent
+  // parser already claims -- DIAGNOSE_RE and REPAIR_RE both match on the word
+  // "stop" -- so a rule that fired on any sentence CONTAINING it would swallow
+  // work the learner meant to do. Only a sentence that is nothing but the
+  // interruption counts, which is also exactly how a person interrupts.
+  var BARGE_RE = /^(?:please\s+)?(?:stop|halt|mute|quiet|be\s+quiet|shut\s+up|stop\s+it|stop\s+(?:talking|speaking|reading)|enough)\s*[.!?,]*$/i;
+
   /* Tidy dictation into something the typed-text parser can read.
    *
    * Deliberately small. Anything clever here would be a second grammar living
@@ -155,6 +168,19 @@
     s = s.replace(WAKE_RE, '');
     s = s.replace(FILLER_RE, '');
     return s.trim();
+  }
+
+  /* Is this transcript an interruption rather than an instruction?
+   *
+   * Pure, and normalised first, so "hey Kodro, stop." and a typed "stop" are
+   * the same question. Kept out of KodroChatIntent deliberately: an
+   * interruption is not an intent the model or the world ever sees, it is the
+   * one thing that has to happen before anything else is considered.
+   */
+  function isBargeIn(raw) {
+    var text = normaliseTranscript(raw);
+    if (!text) return false;
+    return BARGE_RE.test(text);
   }
 
   /* Normalise, then hand to the one and only intent parser. */
@@ -291,6 +317,20 @@
         if (event.results[i].isFinal) finalText += chunk;
         else interim += chunk;
       }
+      // An interruption outranks everything else in this handler, including
+      // the transcript it arrived in. Speech is silenced on the INTERIM guess,
+      // before the recogniser has committed to the sentence, because a
+      // barge-in that lands a second late has already failed at its one job.
+      // Guessing wrong there costs nothing: the reply text stays on screen and
+      // no state changes. Only the FINAL result ends the turn, and it returns
+      // before cb.onText, so "stop" never becomes a chat message and never
+      // reaches a model.
+      if (interim && isBargeIn(interim)) cancel();
+      if (finalText && isBargeIn(finalText)) {
+        bargeIn();
+        if (cb.onBarge) cb.onBarge(normaliseTranscript(finalText));
+        return;
+      }
       if (interim && cb.onInterim) cb.onInterim(normaliseTranscript(interim));
       if (finalText && cb.onText) cb.onText(normaliseTranscript(finalText));
     };
@@ -326,6 +366,20 @@
 
   function isListening() {
     return !!active;
+  }
+
+  /* Act on an interruption: silence the reply and end the listening turn.
+   *
+   * Both halves matter. cancel() stops the speech being talked over, and
+   * stopDictation() closes the turn rather than leaving a recogniser running
+   * with nothing left to transcribe. Returns whether it actually interrupted
+   * anything, so the panel can say "Stopped" only when something stopped.
+   */
+  function bargeIn() {
+    var interrupted = speaking || !!active;
+    cancel();
+    stopDictation();
+    return interrupted;
   }
 
   /* One object the panel can render straight from, so the UI never has to
@@ -371,6 +425,7 @@
     pickVoice: pickVoice,
     localVoices: localVoices,
     normaliseTranscript: normaliseTranscript,
+    isBargeIn: isBargeIn,
     transcriptIntent: transcriptIntent,
     capabilities: capabilities,
     speak: speak,
@@ -386,6 +441,7 @@
     startDictation: startDictation,
     stopDictation: stopDictation,
     isListening: isListening,
+    bargeIn: bargeIn,
     DICTATION_NOTICE: DICTATION_NOTICE,
     MAX_SPOKEN: MAX_SPOKEN,
   };

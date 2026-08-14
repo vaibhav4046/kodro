@@ -78,6 +78,16 @@ jobs:
       - name: Web bundle freshness
         run: node scripts/build_web.cjs --check
 
+      # Text-encoding gate: catches mojibake, text written as UTF-8 and read back
+      # as Windows-1252 before being written out again. A middle dot becomes two
+      # characters, an en dash becomes three, and nothing else in the pipeline
+      # notices: the file still parses, the bundle still builds, the tests still
+      # pass, and the corruption lands on screen in front of the reader. Runs
+      # after the freshness check so a stale bundle is reported by the gate that
+      # explains it, not by this one. Pure node, no dependencies.
+      - name: Text encoding gate
+        run: node scripts/qa_encoding.mjs
+
       # Cross-engine interpreter gate: builds the bundle and runs the RoverLang
       # parity suite in Node (no browser needed), so a JS-engine regression is
       # caught in CI, not only locally.

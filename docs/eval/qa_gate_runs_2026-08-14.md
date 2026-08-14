@@ -167,3 +167,36 @@ deterministic". No orphan Chrome processes were left behind by either probe
 (checked: zero). The full sweep takes roughly thirty minutes; a 560-second run
 reached 12 of the 36 world-by-robot combinations before being cut off. Run it on
 an uncontended machine and read the printed total, not just the exit code.
+
+## Gate added after the sweep above
+
+`scripts/qa_encoding.mjs` did not exist when the two tables above were recorded,
+so it is deliberately not counted in either of them. The nine-gate group cited in
+the dissertation's "Automated verification" section is the first table as written
+and is unaffected by this addition.
+
+| Command | Printed result | What the gate covers |
+| --- | --- | --- |
+| `node scripts/qa_encoding.mjs` | `10 passed (393 files, 100 protected characters)` | Text-encoding integrity across `src`, `scripts`, `docs` and `tests`: every scanned file is valid UTF-8 with no byte order mark, no code file carries a U+FFFD replacement character, and no file contains double-encoded text. |
+
+It was written in response to a defect it then found: nine characters across
+`app.jsx` and `hooks.jsx` had been written as UTF-8, read back as Windows-1252
+and written out again, so a middle dot had become two characters, an en dash
+three, and a close-button glyph three more. Four of the nine were on screens that
+appear in the assessment video. Nothing else in the pipeline noticed. The files
+still parsed, the bundle still built, and every other gate above still passed.
+
+The forbidden byte sequences are derived, not listed. The gate collects every
+non-ASCII character the repository actually writes, pushes each one's UTF-8 bytes
+through the Windows-1252 table, and searches for the result. A glyph introduced
+tomorrow is protected the day it lands, and a character the project never uses
+cannot produce a false positive. The count in the printed line is that derived
+set, so it moves with the codebase rather than with the gate.
+
+Two exclusions are worth stating because they look like loopholes and are not.
+The six `docs/dissertation/*compile*.txt` files are pdflatex console captures,
+transcribed byte for byte from a tool that prints Latin-1 font names into a UTF-8
+terminal; they are legitimately not valid UTF-8, and rewriting them to satisfy a
+gate would corrupt evidence of a compile. The U+FFFD check is restricted to code
+because `docs/mcp.md` prints that character in a troubleshooting table so a
+reader can recognise the symptom, which is the documentation doing its job.

@@ -176,6 +176,93 @@ const both = win.KodroChatIntent.parse('take me to the recursion lesson on mars'
 ok(both.lesson && both.lesson.id === '09_recursion' && both.world === null,
   'a lesson wins over a world named in the same sentence');
 
+// --- 2c. interrupting ----------------------------------------------------
+//
+// "Stop" outranks everything else. The risk is not that it fails to fire, it
+// is that it fires too eagerly: the intent parser already claims sentences
+// containing the word ("stop it colliding" is a repair request, "why did it
+// stop" is a diagnosis), and swallowing one of those would silently throw away
+// work the learner asked for. So both halves are pinned here.
+
+for (const said of [
+  'stop', 'Stop.', 'stop!', 'STOP', 'halt', 'mute', 'quiet', 'be quiet',
+  'shut up', 'stop talking', 'stop speaking', 'stop reading', 'stop it',
+  'enough', 'please stop', 'hey kodro, stop', 'Kodro stop.', 'um, stop',
+]) {
+  ok(V.isBargeIn(said) === true, 'isBargeIn accepts the interruption: ' + JSON.stringify(said));
+}
+
+for (const said of [
+  'stop the rover when it sees a wall',
+  'make it stop colliding',
+  'why did it stop',
+  'stop at the red wall',
+  'how do I stop the loop',
+  'the robot stopped',
+  'mute the sound in lesson three',
+  '', '   ',
+]) {
+  ok(V.isBargeIn(said) === false, 'isBargeIn refuses the instruction: ' + JSON.stringify(said));
+}
+ok(V.isBargeIn(null) === false && V.isBargeIn(undefined) === false,
+  'isBargeIn survives missing input');
+
+// The load-bearing half of the near-misses: they are not merely "not a stop",
+// they are commands that still work. A barge-in rule that ate these would look
+// fine in isolation and lose a repair request in the product.
+const stillWorks = win.KodroChatIntent.parse('make it stop colliding');
+ok(stillWorks.repair === true, 'a repair request containing "stop" survives the barge-in check');
+const stillDiagnoses = win.KodroChatIntent.parse('why did it stop');
+ok(stillDiagnoses.diagnose === true, 'a diagnosis containing "stop" survives the barge-in check');
+
+// Priority inside the recogniser. A fake recogniser is installed here rather
+// than earlier so the "no recogniser present" assertions above still test the
+// real absence.
+function makeEvent(text, isFinal) {
+  const result = [{ transcript: text }];
+  result.isFinal = isFinal;
+  return { resultIndex: 0, results: [result] };
+}
+let live = null;
+function FakeRecogniser() { live = this; }
+FakeRecogniser.prototype.start = function () { };
+FakeRecogniser.prototype.stop = function () { if (this.onend) this.onend(); };
+win.SpeechRecognition = FakeRecogniser;
+V.setDictationConsent(true);
+
+const heard = [], barged = [], seen = [];
+const turn = () => V.startDictation({
+  onInterim: t => seen.push(t),
+  onText: t => heard.push(t),
+  onBarge: t => barged.push(t),
+  onEnd: () => { },
+});
+
+ok(turn() === 'ok', 'startDictation runs once a recogniser exists and consent is given');
+live.onresult(makeEvent('sto', false));
+live.onresult(makeEvent('stop', true));
+ok(barged.length === 1 && barged[0] === 'stop', 'a final "stop" fires the barge-in callback');
+ok(heard.length === 0, 'and never reaches onText, so it never becomes a chat message or a model call');
+ok(V.isListening() === false, 'the listening turn ends on a barge-in');
+
+ok(turn() === 'ok', 'a new turn starts after an interruption');
+live.onresult(makeEvent('build a rover', true));
+ok(heard.length === 1 && heard[0] === 'build a rover',
+  'an ordinary sentence still reaches onText unchanged');
+V.stopDictation();
+
+ok(turn() === 'ok', 'and a third turn starts');
+live.onresult(makeEvent('make it stop colliding', true));
+ok(heard.length === 2 && heard[1] === 'make it stop colliding' && barged.length === 1,
+  'a sentence that merely contains "stop" is passed through, not swallowed');
+V.stopDictation();
+
+// bargeIn() itself is safe with nothing to interrupt: the panel calls it from a
+// typed "stop" too, where there may be no speech and no microphone at all.
+ok(V.bargeIn() === false, 'bargeIn reports honestly that it interrupted nothing');
+delete win.SpeechRecognition;
+V.setDictationConsent(false);
+
 // --- 3. what a reply sounds like -----------------------------------------
 
 const withCode = 'Here is the fix:\n```python\nmove_forward(2)\nturn_left(90)\n```\nApply it when ready.';

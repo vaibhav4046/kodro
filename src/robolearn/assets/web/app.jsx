@@ -1328,7 +1328,7 @@
           return;
         }
         nextCode = result.code;
-        addConsole('AI (' + (model || aiInfo.model) + ') changed only lines ' + result.startLine + 'â€“' + result.endLine + '. Read it, then press Run.', 'sys');
+        addConsole('AI (' + (model || aiInfo.model) + ') changed only lines ' + result.startLine + '–' + result.endLine + '. Read it, then press Run.', 'sys');
       } else {
         addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
       }
@@ -1499,7 +1499,7 @@
         return {
           handled: true,
           preview: preview,
-          previewTitle: changes.length ? 'Proposed: ' + changes.join(' Â· ') : 'Review this project change.',
+          previewTitle: changes.length ? 'Proposed: ' + changes.join(' · ') : 'Review this project change.',
         };
       }
       const parts = [];
@@ -2378,9 +2378,9 @@
         lessonId: currentLessonId,
         context: lesson ? lesson.title : (EXAMPLES[activeTab] ? EXAMPLES[activeTab].label : 'Current program'),
         failure: liveVerdict && !liveVerdict.passed ? (liveVerdict.reasons || []).join(' ') : null,
-        failureSource: 'Lesson grader Â· last attempt',
+        failureSource: 'Lesson grader · last attempt',
         hint: (liveVerdict && liveVerdict.hint && liveVerdict.hint.message) || fallbackHint,
-        hintSource: 'Active lesson Â· authored hint',
+        hintSource: 'Active lesson · authored hint',
       });
       setLearningCard(card);
       setLearningNote('');
@@ -2399,7 +2399,7 @@
       }
       const scope = window.KodroAnnotations.makeEditScope(code, editorSelection);
       selectionEditScopeRef.current = scope;
-      setVibePrompt('Change only lines ' + scope.startLine + 'â€“' + scope.endLine + ': ');
+      setVibePrompt('Change only lines ' + scope.startLine + '–' + scope.endLine + ': ');
       setVibeOpen(true);
     }
 
@@ -2981,7 +2981,7 @@
                   ? <span className="learning-selection-label">
                     {editorSelection.startLine === editorSelection.endLine
                       ? 'Line ' + editorSelection.startLine
-                      : 'Lines ' + editorSelection.startLine + 'â€“' + editorSelection.endLine}
+                      : 'Lines ' + editorSelection.startLine + '–' + editorSelection.endLine}
                   </span>
                   : <span className="learning-selection-empty">Select code to explain it, inspect recorded values, or change only that section.</span>}
                 <button type="button" className="btn-mini" disabled={!editorSelection} onClick={() => openLearningAction('explain')}>Explain selection</button>
@@ -2995,10 +2995,10 @@
                 <section className="learning-annotation-card" aria-label={learningCard.title}>
                   <div className="learning-annotation-head">
                     <div>
-                      <span className="eyebrow">{learningCard.context} Â· evidence-grounded</span>
+                      <span className="eyebrow">{learningCard.context} · evidence-grounded</span>
                       <h3>{learningCard.title}</h3>
                     </div>
-                    <button type="button" className="btn-mini" aria-label="Close annotation" onClick={() => setLearningCard(null)}>âœ•</button>
+                    <button type="button" className="btn-mini" aria-label="Close annotation" onClick={() => setLearningCard(null)}>✕</button>
                   </div>
                   <pre className="learning-excerpt">{learningCard.excerpt}</pre>
                   <ol className="learning-claims">

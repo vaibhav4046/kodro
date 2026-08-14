@@ -24542,6 +24542,10 @@ Object.assign(window, {
  * feeds the same preview-then-Apply path. A spoken sentence cannot do anything
  * a typed one cannot, and cannot skip a confirmation.
  *
+ * The one exception is an interruption. "Stop", "halt" and "mute" are checked
+ * BEFORE the parser and never reach it, because a request to stop that queues
+ * behind the reply it is trying to stop is not a stop. See isBargeIn.
+ *
  * Exposes window.KodroVoice. The pure parts (spokenForm, pickVoice,
  * normaliseTranscript, transcriptIntent) take their inputs as arguments so
  * scripts/qa_voice.mjs can exercise them in Node with no browser.
@@ -24658,6 +24662,15 @@ Object.assign(window, {
   var WAKE_RE = /^\s*(?:hey|ok|okay|hi)?\s*(?:kodro|codro|kodo|quadro|cadre|kadro|kodra)\s*[,.!:-]*\s*/i;
   var FILLER_RE = /^\s*(?:um+|uh+|er+|erm+|hmm+)\s*[,]?\s*/i;
 
+  // Talking over the reply has to stop the reply, not become a message about
+  // stopping. The test is whole-utterance on purpose. "Stop the rover at the
+  // wall" and "make it stop colliding" are real instructions that the intent
+  // parser already claims -- DIAGNOSE_RE and REPAIR_RE both match on the word
+  // "stop" -- so a rule that fired on any sentence CONTAINING it would swallow
+  // work the learner meant to do. Only a sentence that is nothing but the
+  // interruption counts, which is also exactly how a person interrupts.
+  var BARGE_RE = /^(?:please\s+)?(?:stop|halt|mute|quiet|be\s+quiet|shut\s+up|stop\s+it|stop\s+(?:talking|speaking|reading)|enough)\s*[.!?,]*$/i;
+
   /* Tidy dictation into something the typed-text parser can read.
    *
    * Deliberately small. Anything clever here would be a second grammar living
@@ -24668,6 +24681,19 @@ Object.assign(window, {
     s = s.replace(WAKE_RE, '');
     s = s.replace(FILLER_RE, '');
     return s.trim();
+  }
+
+  /* Is this transcript an interruption rather than an instruction?
+   *
+   * Pure, and normalised first, so "hey Kodro, stop." and a typed "stop" are
+   * the same question. Kept out of KodroChatIntent deliberately: an
+   * interruption is not an intent the model or the world ever sees, it is the
+   * one thing that has to happen before anything else is considered.
+   */
+  function isBargeIn(raw) {
+    var text = normaliseTranscript(raw);
+    if (!text) return false;
+    return BARGE_RE.test(text);
   }
 
   /* Normalise, then hand to the one and only intent parser. */
@@ -24793,6 +24819,20 @@ Object.assign(window, {
         var chunk = event.results[i][0] ? event.results[i][0].transcript : '';
         if (event.results[i].isFinal) finalText += chunk;else interim += chunk;
       }
+      // An interruption outranks everything else in this handler, including
+      // the transcript it arrived in. Speech is silenced on the INTERIM guess,
+      // before the recogniser has committed to the sentence, because a
+      // barge-in that lands a second late has already failed at its one job.
+      // Guessing wrong there costs nothing: the reply text stays on screen and
+      // no state changes. Only the FINAL result ends the turn, and it returns
+      // before cb.onText, so "stop" never becomes a chat message and never
+      // reaches a model.
+      if (interim && isBargeIn(interim)) cancel();
+      if (finalText && isBargeIn(finalText)) {
+        bargeIn();
+        if (cb.onBarge) cb.onBarge(normaliseTranscript(finalText));
+        return;
+      }
       if (interim && cb.onInterim) cb.onInterim(normaliseTranscript(interim));
       if (finalText && cb.onText) cb.onText(normaliseTranscript(finalText));
     };
@@ -24826,6 +24866,20 @@ Object.assign(window, {
   }
   function isListening() {
     return !!active;
+  }
+
+  /* Act on an interruption: silence the reply and end the listening turn.
+   *
+   * Both halves matter. cancel() stops the speech being talked over, and
+   * stopDictation() closes the turn rather than leaving a recogniser running
+   * with nothing left to transcribe. Returns whether it actually interrupted
+   * anything, so the panel can say "Stopped" only when something stopped.
+   */
+  function bargeIn() {
+    var interrupted = speaking || !!active;
+    cancel();
+    stopDictation();
+    return interrupted;
   }
 
   /* One object the panel can render straight from, so the UI never has to
@@ -24866,6 +24920,7 @@ Object.assign(window, {
     pickVoice: pickVoice,
     localVoices: localVoices,
     normaliseTranscript: normaliseTranscript,
+    isBargeIn: isBargeIn,
     transcriptIntent: transcriptIntent,
     capabilities: capabilities,
     speak: speak,
@@ -24881,6 +24936,7 @@ Object.assign(window, {
     startDictation: startDictation,
     stopDictation: stopDictation,
     isListening: isListening,
+    bargeIn: bargeIn,
     DICTATION_NOTICE: DICTATION_NOTICE,
     MAX_SPOKEN: MAX_SPOKEN
   };
@@ -25565,6 +25621,29 @@ Object.assign(window, {
       // textarea, so a click event can never become "[object Object]" in chat.
       const text = (typeof overrideText === 'string' ? overrideText : vibePrompt).trim();
       if (vibeBusy || !text) return;
+      // "Stop" is an interruption, not a message, and the same sentence has to
+      // mean the same thing whether it was said or typed. Spoken, voice.js
+      // silences the reply before the transcript is even final; typed, it is
+      // caught here, before the model, the world and the busy flag. It is
+      // answered on-device: a request to stop that waits for a generation to
+      // come back has not stopped anything.
+      const voice = window.KodroVoice;
+      if (voice && typeof voice.isBargeIn === 'function' && voice.isBargeIn(text)) {
+        voice.bargeIn();
+        setVibeMsgs(m => [...m, {
+          role: 'user',
+          kind: 'text',
+          text
+        }, {
+          role: 'ai',
+          kind: 'action',
+          text: 'Stopped. Nothing was sent.'
+        }]);
+        setVibePrompt('');
+        setVibeError(null);
+        setVibeLive('');
+        return;
+      }
       const editScope = opts.getEditScope ? opts.getEditScope() : null;
       const next = [...vibeMsgs, {
         role: 'user',
@@ -25758,7 +25837,7 @@ Object.assign(window, {
             validated: r.validated,
             validationError: r.validationError,
             scope: editScope || null,
-            summary: editScope ? 'Changes only lines ' + editScope.startLine + 'â€“' + editScope.endLine + '; the surrounding program is protected.' : null
+            summary: editScope ? 'Changes only lines ' + editScope.startLine + '–' + editScope.endLine + '; the surrounding program is protected.' : null
           }]);
         } else {
           setVibeError(r && r.reason || 'Generation failed.');
@@ -30370,6 +30449,14 @@ say("Survey done")`
           setInterim('');
           if (text && onTranscript) onTranscript(text);
         },
+        // "Stop" interrupts rather than instructs, so it never reaches
+        // onTranscript and never becomes a chat message. It still gets a
+        // visible line: the learner has to be able to see what was heard and
+        // what it did, or an interruption is indistinguishable from a crash.
+        onBarge: text => {
+          setInterim('');
+          setNote('Heard "' + text + '". Stopped speaking. Nothing was sent.');
+        },
         onEnd: () => {
           setListening(false);
           setInterim('');
@@ -32748,7 +32835,7 @@ say("Survey done")`
           return;
         }
         nextCode = result.code;
-        addConsole('AI (' + (model || aiInfo.model) + ') changed only lines ' + result.startLine + 'â€“' + result.endLine + '. Read it, then press Run.', 'sys');
+        addConsole('AI (' + (model || aiInfo.model) + ') changed only lines ' + result.startLine + '–' + result.endLine + '. Read it, then press Run.', 'sys');
       } else {
         addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
       }
@@ -32909,7 +32996,7 @@ say("Survey done")`
         return {
           handled: true,
           preview: preview,
-          previewTitle: changes.length ? 'Proposed: ' + changes.join(' Â· ') : 'Review this project change.'
+          previewTitle: changes.length ? 'Proposed: ' + changes.join(' · ') : 'Review this project change.'
         };
       }
       const parts = [];
@@ -34138,9 +34225,9 @@ say("Survey done")`
         lessonId: currentLessonId,
         context: lesson ? lesson.title : EXAMPLES[activeTab] ? EXAMPLES[activeTab].label : 'Current program',
         failure: liveVerdict && !liveVerdict.passed ? (liveVerdict.reasons || []).join(' ') : null,
-        failureSource: 'Lesson grader Â· last attempt',
+        failureSource: 'Lesson grader · last attempt',
         hint: liveVerdict && liveVerdict.hint && liveVerdict.hint.message || fallbackHint,
-        hintSource: 'Active lesson Â· authored hint'
+        hintSource: 'Active lesson · authored hint'
       });
       setLearningCard(card);
       setLearningNote('');
@@ -34157,7 +34244,7 @@ say("Survey done")`
       }
       const scope = window.KodroAnnotations.makeEditScope(code, editorSelection);
       selectionEditScopeRef.current = scope;
-      setVibePrompt('Change only lines ' + scope.startLine + 'â€“' + scope.endLine + ': ');
+      setVibePrompt('Change only lines ' + scope.startLine + '–' + scope.endLine + ': ');
       setVibeOpen(true);
     }
     const SIMPLE_OUTCOME_NAMES = {
@@ -35127,7 +35214,7 @@ say("Survey done")`
       "aria-label": "Learn from selected code"
     }, editorSelection ? /*#__PURE__*/React.createElement("span", {
       className: "learning-selection-label"
-    }, editorSelection.startLine === editorSelection.endLine ? 'Line ' + editorSelection.startLine : 'Lines ' + editorSelection.startLine + 'â€“' + editorSelection.endLine) : /*#__PURE__*/React.createElement("span", {
+    }, editorSelection.startLine === editorSelection.endLine ? 'Line ' + editorSelection.startLine : 'Lines ' + editorSelection.startLine + '–' + editorSelection.endLine) : /*#__PURE__*/React.createElement("span", {
       className: "learning-selection-empty"
     }, "Select code to explain it, inspect recorded values, or change only that section."), /*#__PURE__*/React.createElement("button", {
       type: "button",
@@ -35166,12 +35253,12 @@ say("Survey done")`
       className: "learning-annotation-head"
     }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
       className: "eyebrow"
-    }, learningCard.context, " \xC2\xB7 evidence-grounded"), /*#__PURE__*/React.createElement("h3", null, learningCard.title)), /*#__PURE__*/React.createElement("button", {
+    }, learningCard.context, " \xB7 evidence-grounded"), /*#__PURE__*/React.createElement("h3", null, learningCard.title)), /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: "btn-mini",
       "aria-label": "Close annotation",
       onClick: () => setLearningCard(null)
-    }, "\xE2\u0153\u2022")), /*#__PURE__*/React.createElement("pre", {
+    }, "\u2715")), /*#__PURE__*/React.createElement("pre", {
       className: "learning-excerpt"
     }, learningCard.excerpt), /*#__PURE__*/React.createElement("ol", {
       className: "learning-claims"

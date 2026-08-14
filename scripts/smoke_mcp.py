@@ -347,7 +347,10 @@ def run_suite(argv: list[str], *, verbose: bool) -> list[str]:
     reply = server.read()
     require("error" not in reply, f"resources/read failed: {reply.get('error')}")
     require(
-        "�" not in json.dumps(reply, ensure_ascii=False),
+        # Written as an escape rather than the glyph. A literal replacement
+        # character in the source of an encoding check is the exact thing an
+        # editor mangles, and a mangled probe silently stops probing.
+        "\ufffd" not in json.dumps(reply, ensure_ascii=False),
         "resources/read returned a replacement character",
     )
     passed.append(f"non-ASCII round trip is byte-exact ({UNICODE_PROBE})")

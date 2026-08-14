@@ -949,6 +949,14 @@
           setInterim('');
           if (text && onTranscript) onTranscript(text);
         },
+        // "Stop" interrupts rather than instructs, so it never reaches
+        // onTranscript and never becomes a chat message. It still gets a
+        // visible line: the learner has to be able to see what was heard and
+        // what it did, or an interruption is indistinguishable from a crash.
+        onBarge: text => {
+          setInterim('');
+          setNote('Heard "' + text + '". Stopped speaking. Nothing was sent.');
+        },
         onEnd: () => { setListening(false); setInterim(''); },
         onError: code => {
           setListening(false); setInterim('');
