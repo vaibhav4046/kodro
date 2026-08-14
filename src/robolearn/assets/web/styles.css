@@ -1541,7 +1541,7 @@ kbd {
    ring on the label instead. */
 .mem-io .mem-import:focus-within { outline:3px solid var(--cyan); outline-offset:2px; border-radius:var(--radius-sm); }
 
-/* Vibe chat thread (Claude/ChatGPT-style assistant inside the modal). */
+/* Vibe chat thread (chat-style assistant inside the modal). */
 .vibe-thread {
   max-height: 320px; min-height: 140px; overflow-y: auto;
   display:flex; flex-direction:column; gap:8px; padding:4px 2px; margin:10px 0;

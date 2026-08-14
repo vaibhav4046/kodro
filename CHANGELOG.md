@@ -180,8 +180,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (WCAG 1.4.10) instead of crushing the viewport off-screen on Chromebooks;
   the API hint bar now lists the real lesson verbs (`move_forward`,
   `obstacle_ahead`, `collect_sample`).
-- **NEW web UI** (`python -m robolearn.web`), the actual Claude Design
-  rover-simulator React/CSS prototype is now vendored under
+- **NEW web UI** (`python -m robolearn.web`), the actual rover-simulator
+  React/CSS design prototype is now vendored under
   `src/robolearn/assets/web/` (with React 18, Babel standalone, and 14 TTF
   font files vendored locally, fully offline, no CDN) and rendered in a
   desktop window via **pywebview** (Edge WebView2 on Windows). A new
@@ -228,9 +228,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Rover pen trail**, the viewport now traces the rover's path as a
   phosphor-cyan trail while it drives (the design's signature "pen trail"),
   cleared on Reset or lesson change. Capped at 400 points.
-- **"Orbital Rover" mission bar**, implements the signature chrome from the
-  Claude Design handoff (`Rover Simulator.html`): a wordmark + `ROVER
-  SIMULATOR` mono subtitle, a run-status dot (idle / running / complete /
+- **Mission bar**, implements the signature chrome from the design handoff
+  (`Rover Simulator.html`): a wordmark + mono subtitle, a run-status dot
+  (idle / running / complete /
   error, in the design's phosphor-cyan palette) wired to the run lifecycle,
   and a **sim-speed slider** that scales playback (0.25× to 4×) via
   `orbital.scaled_delay`. Tk-free tokens/helpers in `robolearn.ui.orbital`.

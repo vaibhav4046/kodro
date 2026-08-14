@@ -1,16 +1,24 @@
-"""Design tokens + helpers for the "Orbital Rover" mission-control look.
+"""Design tokens + helpers for the Kodro mission-control look.
 
-Ported from the Claude Design handoff (``Rover Simulator.html`` — the
-*Orbital Rover* mission-control IDE). The full prototype is a React/CSS web
-app; this module captures the parts that translate to the Tk desktop UI:
-the colour tokens, the run-status palette, and the sim-speed scaling used by
-the mission bar. It is deliberately free of Tk imports so the numeric
-helpers unit-test without a display.
+Ported from the design handoff (``Rover Simulator.html``, the mission-control
+IDE prototype). The full prototype is a React/CSS web app; this module
+captures the parts that translate to the Tk desktop UI: the colour tokens,
+the run-status palette, and the sim-speed scaling used by the mission bar. It
+is deliberately free of Tk imports so the numeric helpers unit-test without a
+display.
 """
 
 from __future__ import annotations
 
-# --- Orbital Rover colour tokens (from styles.css :root) -------------------
+# --- Product identity ------------------------------------------------------
+# The desktop mission bar, the web hub header and the window title all read
+# from one place, so the two front ends cannot drift apart on camera. The
+# subtitle is the shipped web tagline ("Test robot designs before you build
+# them") shortened to fit a 7px mono line in the top bar.
+PRODUCT_NAME: str = "Kodro"
+PRODUCT_TAGLINE: str = "TEST BEFORE YOU BUILD"
+
+# --- Colour tokens (from styles.css :root) ---------------------------------
 VOID: str = "#08090f"
 NAVY: str = "#0f1220"
 NAVY_2: str = "#161a2d"

@@ -1,7 +1,7 @@
-"""Web UI: pywebview desktop window rendering the vendored Claude design.
+"""Web UI: pywebview desktop window rendering the vendored web design.
 
 The design itself (``src/robolearn/assets/web/*``) is the actual React/CSS
-prototype from the Claude Design handoff, vendored offline. This package
+prototype from the design handoff, vendored offline. This package
 boots a pywebview desktop window pointing at it and exposes a Python API
 that bridges the design's JS shell into RoboLearn's existing engine
 (``lessons``, ``grader``, ``memory.store``, etc.).

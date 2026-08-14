@@ -251,7 +251,7 @@ def build_app(
         command=lambda: _save_project(app, console, editor),
     ).pack(side=tk.RIGHT, padx=4, pady=6)
 
-    # Mission bar (from the "Orbital Rover" design handoff): wordmark +
+    # Mission bar (from the mission-control design handoff): wordmark +
     # subtitle, a run-status dot, and a sim-speed slider.
     brand = ttk.Frame(win.frames.topbar)
     brand.pack(side=tk.LEFT, padx=(8, 4), pady=2)
@@ -260,12 +260,12 @@ def build_app(
     )
     wordmark = ttk.Frame(brand)
     wordmark.pack(side=tk.LEFT)
-    ttk.Label(wordmark, text="Orbital Rover", font=(orbital.FONT_DISPLAY, 13, "bold")).pack(
+    ttk.Label(wordmark, text=orbital.PRODUCT_NAME, font=(orbital.FONT_DISPLAY, 13, "bold")).pack(
         anchor=tk.W
     )
     ttk.Label(
         wordmark,
-        text="ROVER SIMULATOR",
+        text=orbital.PRODUCT_TAGLINE,
         foreground=orbital.FG_MUTED,
         font=(orbital.FONT_MONO, 7),
     ).pack(anchor=tk.W)
