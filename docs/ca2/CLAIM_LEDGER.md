@@ -78,7 +78,8 @@ not as dictation", which is what the number actually says.
 |---|---|---|
 | The honesty gate passes 121 checks | `PASS honesty: 121 passed, 0 failed` | `node scripts/qa_honesty.mjs` |
 | The interpreter gate passes 180 checks | `180 passed, 0 failed` | `node scripts/qa_interpreter.mjs` |
-| Encoding is clean across 397 files | 10 passed | `node scripts/qa_encoding.mjs` |
+| Encoding is clean across 406 files | 10 passed | `node scripts/qa_encoding.mjs` |
+| No tracked file carries a credential, a key file or a local account name | `PASS secrets: 27 passed (473 of 775 tracked files read, 13 credential rules)` | `node scripts/qa_secrets.mjs` |
 | Learning annotations pass 28 checks | 28 passed | `node scripts/qa_learning_annotations.mjs` |
 | Software-rasterised rendering holds about 22 FPS | medians 22.2 low quality, 21.1 high | `node scripts/qa_performance.mjs --gl=software --repeat=3`, verdict MEASURED |
 

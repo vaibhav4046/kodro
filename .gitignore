@@ -91,7 +91,17 @@ docs/dissertation/pass*.txt
 # machine built it, which means it carries a local username. The .aux, .toc and
 # .out files do not, and one of them is cited by a diagnostic, so those stay
 # tracked. Regenerate the log by rebuilding; it is never evidence.
-docs/dissertation/Kodro_Dissertation.log
+#
+# The pattern covers every pass log under the build directory, not just the one
+# named after the document. Nine such logs had been committed before this rule
+# existed (p1, p2, q1, q2, pass1, pass2 and two copies of the document log);
+# scripts/qa_secrets.mjs is what found them.
+docs/dissertation/**/*.log
+
+# Stray QA console capture at the repo root. Same problem, same non-value: it is
+# the terminal output of a headless-Chrome behaviour run, nothing references it,
+# and it names the local account in every browser path it prints.
+/beh.log
 
 # latexmk's dependency database and file list, for the same reason and worse:
 # they are nothing but absolute paths. Measured on the current build, the

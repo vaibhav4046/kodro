@@ -69,7 +69,7 @@ shipped judge rounds: ...c8118bb(JR10) -> 19027e3 -> 75db527(JR11) ->
 and live bundle sha256 == committed each round. The old tag e1df641/v2.0.2 IS an
 ancestor here (git rev-parse e1df641 resolves). The "other inspection saw main at
 e1df641/v2.0.2, could not resolve c8118bb" was the STALE clone at
-`C:\Users\lalwa\OneDrive\Desktop\codex fix\robolearn` (HEAD e1df641, CLEAN tree,
+`%USERPROFILE%\OneDrive\Desktop\codex fix\robolearn` (HEAD e1df641, CLEAN tree,
 no un-lost user work). Nothing to integrate from OneDrive. Ledger files created:
 FINDINGS.jsonl (73 findings, 72 FIXED + 1 DISCLOSED, all 54 JR fixed),
 ACCEPTANCE_MATRIX.md, DISSERTATION_TRACEABILITY.md, EVIDENCE.json.
@@ -131,7 +131,7 @@ EXACT RESUME STEPS when the user says "continue":
    src/robolearn/assets/web; regenerate narrow_mobile at a TRUE 420px CDP
    viewport via scripts/lib/cdp-viewport.mjs so phone layout is judged honestly).
 3. Run judge round 11 with the Workflow tool, scriptPath:
-   C:\Users\lalwa\.claude\projects\D--project-robolearn\8de95992-bd5b-4a12-b04f-1b334c9f4674\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js
+   %USERPROFILE%\.claude\projects\D--project-robolearn\8de95992-bd5b-4a12-b04f-1b334c9f4674\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js
 4. Parse accepted findings (brace-match the tool result, or reconstruct from the
    run's journal.jsonl + agent-*.jsonl like scratchpad/parse_journal10.js). For
    each accepted P0-P3: reproduce, root-fix, add/extend a gate (qa_honesty /

@@ -88,6 +88,16 @@ jobs:
       - name: Text encoding gate
         run: node scripts/qa_encoding.mjs
 
+      # Secret-scan gate: the repository is public, so anything committed is
+      # published the moment it is pushed. This sweeps every tracked file for
+      # issuer-shaped credentials, tracked key/env files, and absolute home
+      # directories carrying a real account name. It reports file and line only
+      # and never echoes the matched text, so a leak is not re-leaked into a
+      # public build log. It found nine committed LaTeX console logs on its
+      # first run. Pure node, works on all three runners.
+      - name: Secret scan gate
+        run: node scripts/qa_secrets.mjs
+
       # Cross-engine interpreter gate: builds the bundle and runs the RoverLang
       # parity suite in Node (no browser needed), so a JS-engine regression is
       # caught in CI, not only locally.

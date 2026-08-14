@@ -54,8 +54,8 @@ behaviour in a realistic simulated WORLD → the system self-refines from usage.
 **GitHub:** https://github.com/vaibhav4046/robolearn  (remote `origin`, branch `main`)
 **Portfolio site:** repo `vaibhav-portfolio` (static, deployed on Vercel)
 **GitHub profile README:** repo `vaibhav4046` (profile). GH push email is the noreply form.
-**User email:** vaibhavlalwani26969@gmail.com   **Today:** 2026-06-14
-**Auto-memory index:** `C:\Users\lalwa\.claude\projects\D--\memory\MEMORY.md`
+**User email:** the account's own address; commits use the GitHub noreply form above.   **Today:** 2026-06-14
+**Auto-memory index:** `%USERPROFILE%\.claude\projects\D--\memory\MEMORY.md`
 
 ### Web app source (React JSX, pre-compiled offline — NO build server)
 All under `src/robolearn/assets/web/`:

@@ -22,7 +22,7 @@ A dirty tree means the thing on camera is not the thing in the repository.
    four minutes:
 
 ```bash
-node scripts/qa_honesty.mjs && node scripts/qa_interpreter.mjs && node scripts/qa_voice.mjs && python scripts/smoke_mcp.py
+node scripts/qa_secrets.mjs && node scripts/qa_honesty.mjs && node scripts/qa_interpreter.mjs && node scripts/qa_voice.mjs && python scripts/smoke_mcp.py
 ```
 
 3. **Clear the frame.** Work through the "must not appear in frame" list in

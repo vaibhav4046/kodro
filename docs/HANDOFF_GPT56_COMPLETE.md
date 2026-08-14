@@ -41,7 +41,7 @@ state below.
 | Known limitations | `D:\project\robolearn\docs\known-limitations.md` |
 | Human-only tasks | `D:\project\robolearn\HUMAN_TODO.md` |
 
-**WARNING — stale clone**: `C:\Users\lalwa\OneDrive\Desktop\codex fix\robolearn`
+**WARNING — stale clone**: `%USERPROFILE%\OneDrive\Desktop\codex fix\robolearn`
 is a **STALE** copy pinned at `e1df641` / tag `v2.0.2` with a clean tree.
 **Ignore it.** All real work is in `D:\project\robolearn`.
 
@@ -201,7 +201,7 @@ curl -s "https://vaibhav4046.github.io/robolearn/styles.css?v=..." | grep <your-
 
 **Workflow script** (a Claude-Code "Workflow"; port the idea if you lack that tool):
 ```
-C:\Users\lalwa\.claude\projects\D--project-robolearn\8de95992-bd5b-4a12-b04f-1b334c9f4674\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js
+%USERPROFILE%\.claude\projects\D--project-robolearn\8de95992-bd5b-4a12-b04f-1b334c9f4674\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js
 ```
 It runs **6 judges in parallel** over an evidence pack, dedups, then **independently
 refutes every finding** (refuter defaults to REJECT if uncertain), returning

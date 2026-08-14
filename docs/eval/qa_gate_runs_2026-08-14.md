@@ -189,6 +189,10 @@ and is unaffected by this addition.
 | --- | --- | --- |
 | `node scripts/qa_encoding.mjs` | `10 passed (393 files, 100 protected characters)` | Text-encoding integrity across `src`, `scripts`, `docs` and `tests`: every scanned file is valid UTF-8 with no byte order mark, no code file carries a U+FFFD replacement character, and no file contains double-encoded text. |
 
+The file count in that line moves with the repository, not with the gate. It read
+393 when the row was written and reads 406 after the CA2 documents were added.
+The assertion count, 10, is the stable figure.
+
 It was written in response to a defect it then found: nine characters across
 `app.jsx` and `hooks.jsx` had been written as UTF-8, read back as Windows-1252
 and written out again, so a middle dot had become two characters, an en dash
@@ -210,3 +214,41 @@ terminal; they are legitimately not valid UTF-8, and rewriting them to satisfy a
 gate would corrupt evidence of a compile. The U+FFFD check is restricted to code
 because `docs/mcp.md` prints that character in a troubleshooting table so a
 reader can recognise the symptom, which is the documentation doing its job.
+
+## Second gate added after the sweep above
+
+`scripts/qa_secrets.mjs` did not exist when either table was recorded, so it is
+not counted in either. The nine-gate group cited in the dissertation's
+"Automated verification" section is unaffected.
+
+| Command | Printed result | What the gate covers |
+| --- | --- | --- |
+| `node scripts/qa_secrets.mjs` | `PASS  secrets: 27 passed (473 of 775 tracked files read, 13 credential rules)` | Every tracked file, working-tree contents, swept for issuer-shaped credentials, for tracked key and environment files, and for absolute home directories carrying a real account name. |
+
+Two design decisions are worth stating.
+
+The gate reports `file:line` and a rule id and never echoes the matched text.
+A secret scanner that prints its findings re-publishes them into whatever log is
+watching, and on a public repository that log is public too.
+
+Every rule proves itself on each run. Thirteen synthetic values of the documented
+issuer shapes are fed through, and six confusable strings that must NOT match are
+fed through as well: a git object hash, a lockfile integrity line, `token_count`,
+`secret_santa`, a `password: <your password here>` placeholder, and a slash
+separated word list. A regex that silently stops matching is otherwise
+indistinguishable from a clean repository.
+
+It was written to satisfy the release rule that nothing published may carry a
+credential, a private path or a local account name, and it found a real breach on
+its first run: nine committed console logs, eight pdflatex passes under
+`docs/dissertation/_build/` and one stray headless-Chrome capture at the
+repository root, carrying the developer's Windows account name across 711 lines.
+None of the nine was referenced by any script, document or test. They were
+untracked with `git rm --cached`, so the working copies survive, and
+`.gitignore` now covers the whole class rather than the single filename it
+covered before. Four handoff documents kept their warnings and lost the account
+name, which now reads `%USERPROFILE%`.
+
+The count of files read is lower than the count of tracked files because binary
+extensions and anything over four megabytes are skipped. Both numbers are printed
+so the gap is visible rather than implied.

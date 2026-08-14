@@ -12,8 +12,10 @@ are also the three that can invalidate everything else.
       public material says 10 minutes in one place and 15 in another. The master
       script fits 10 with four expansion blocks for 15. See `BRIEF_VERIFIED.md`.
 - [ ] Working tree clean, and the commit noted: `git status --porcelain && git log --oneline -1`
-- [ ] Short gate set green on that exact state: `qa_honesty`, `qa_interpreter`,
-      `qa_voice`, `smoke_mcp`
+- [ ] Short gate set green on that exact state: `qa_secrets`, `qa_honesty`,
+      `qa_interpreter`, `qa_voice`, `smoke_mcp`
+- [ ] `qa_secrets` specifically, because the repository is public and the video
+      shows a terminal: a leaked path on screen is published twice over
 - [ ] Frame cleared against the list in `STORYBOARD.md`, including the probe
       files in the served asset directory and the two clutter files at the
       repository root
