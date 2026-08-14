@@ -15183,8 +15183,9 @@ Object.assign(window, {
   const DRIVE_ACTUATORS = ['motors2', 'motors4', 'servos'];
   // Only commands the interpreter actually implements are gated, keyed by the
   // internal name host.sensor receives (after the lesson-alias mapping). The
-  // camera/gps/bumper/line/gripper commands are not implemented, so they are
-  // not listed (they would never reach this gate) and are not advertised.
+  // camera/gps/bumper/gripper commands are not implemented, so they are not
+  // listed (they would never reach this gate) and are not advertised. The line
+  // follower IS implemented and is listed below as `on_line`.
   const COMMAND_PART = {
     distance: 'ultrasonic',
     read_distance: 'ultrasonic',
@@ -21544,7 +21545,7 @@ Object.assign(window, {
     key: 'lessons',
     kicker: 'Start here',
     title: 'Learn to code',
-    desc: 'Follow 18 guided lessons with a working program, a clear goal and feedback after every run.',
+    desc: 'Follow 24 guided lessons with a working program, a clear goal and feedback after every run.',
     go: 'Open the lessons',
     icon: 'report',
     className: 'kh-card-primary',
@@ -21728,7 +21729,7 @@ Object.assign(window, {
 /* ============================================================================
    KODRO - Lesson Studio: make your own lesson.
 
-   Kodro shipped 18 lessons and no way to write a nineteenth. A teacher whose
+   Kodro shipped a fixed lesson library and no way to write one more. A teacher whose
    class was doing something specific that week had to use ours or nothing, and
    a pupil who wanted to set a challenge for a friend had no way to.
 
@@ -24258,8 +24259,124 @@ Object.assign(window, {
     label: 'clear weather'
   }];
 
+  // Natural-language -> lesson id. Ordered SPECIFIC BEFORE GENERIC for the same
+  // reason WORLDS is: "nested loops" must not stop at the plain loops lesson,
+  // "functions with parameters" must not stop at functions, and "counting" must
+  // not stop at variables (the counting lesson's own title contains the word
+  // "variable"). The ids are the filenames in lessons/library, and a unit test
+  // asserts every id here still exists there.
+  var LESSONS = [{
+    re: /\bbroken program\b|\bfix the turn\b|\bfix the broken\b/,
+    id: '00d_fix_the_turn',
+    label: 'Fix the Broken Program'
+  }, {
+    re: /\bbackwards test\b|\bfix the condition\b|\bbackward test\b/,
+    id: '04a_fix_the_condition',
+    label: 'Fix the Backwards Test'
+  }, {
+    re: /\blook before you move\b|\blook first\b/,
+    id: '00c_look_first',
+    label: 'Look Before You Move'
+  }, {
+    re: /\bsquare\b/,
+    id: '00b_repeat_square',
+    label: 'Make a Square'
+  }, {
+    re: /\bnested loops?\b|\bloop inside a loop\b|\bloops? in(?:side)? loops?\b/,
+    id: '13_nested_loops',
+    label: 'Nested loops'
+  }, {
+    re: /\bparameters?\b|\barguments?\b/,
+    id: '15_parameters',
+    label: 'Functions with parameters'
+  }, {
+    re: /\bfunctions?\b|\bsubroutines?\b|\bprocedures?\b/,
+    id: '06_functions',
+    label: 'Functions'
+  }, {
+    re: /\bcounting\b|\bcounter\b|\bcount up\b/,
+    id: '14_counting',
+    label: 'Counting with a variable'
+  }, {
+    re: /\bvariables?\b|\bone name used twice\b/,
+    id: '16_variables',
+    label: 'One name, used twice'
+  }, {
+    re: /\blists?\b|\barrays?\b/,
+    id: '17_lists',
+    label: 'A list drives the route'
+  }, {
+    re: /\brecursion\b|\brecursive\b/,
+    id: '09_recursion',
+    label: 'Recursion'
+  }, {
+    re: /\boptimisation\b|\boptimization\b|\boptimis|\boptimiz/,
+    id: '10_optimisation',
+    label: 'Optimisation'
+  }, {
+    re: /\bdecomposition\b|\bdecompose\b|\bbreak(?:ing)? (?:it|the problem) down\b/,
+    id: '11_decomposition',
+    label: 'Decomposition'
+  }, {
+    re: /\babstraction\b|\babstract\b/,
+    id: '12_abstraction',
+    label: 'Abstraction'
+  }, {
+    re: /\bpathfinding\b|\bpath finding\b|\bmaze\b|\bshortest path\b/,
+    id: '08_pathfinding',
+    label: 'Pathfinding basics'
+  }, {
+    re: /\bsensors?\b|\bsensing\b/,
+    id: '07_sensors',
+    label: 'Reading sensors'
+  }, {
+    re: /\biteration\b|\bwhile[- ]loops?\b|\bloops?\b|\blooping\b|\brepeat\b|\brepeating\b/,
+    id: '05_iteration',
+    label: 'Iteration with while-loops'
+  }, {
+    re: /\bselection\b|\bif ?\/ ?else\b|\bif[- ]else\b|\bif statements?\b|\bconditionals?\b|\bcondition\b/,
+    id: '04_selection',
+    label: 'Selection (if / else)'
+  }, {
+    re: /\bsequence\b|\bsequencing\b|\bin order\b/,
+    id: '03_sequence',
+    label: 'Sequence'
+  }, {
+    re: /\bmove and turn\b|\bmoving and turning\b/,
+    id: '02_move_turn',
+    label: 'Move and turn'
+  }, {
+    re: /\bturn the corner\b|\bcorner\b/,
+    id: '00a_turn_the_corner',
+    label: 'Turn the Corner'
+  }, {
+    re: /\bhello,? rover\b|\bfirst programme?\b/,
+    id: '01_hello_rover',
+    label: 'Hello, Rover!'
+  }, {
+    re: /\bdrive to the flag\b|\bfirst drive\b|\bflag\b/,
+    id: '00_first_drive',
+    label: 'Drive to the Flag'
+  }, {
+    re: /\bwatch it,? then change it\b|\bwatch it go\b/,
+    id: '000_watch_it_go',
+    label: 'Watch It, Then Change It'
+  }];
+
   // A message that clearly asks a question is never treated as a command.
   var QUESTION_RE = /^\s*(how|what|why|when|where|which|who|can|could|should|would|does|do|is|are|will|explain|tell me)\b/i;
+  // Lesson gating, kept as conservative as the rest of the file. A bare topic
+  // word is NOT enough: "my loop is broken" must stay a coding question. Either
+  // the learner names the thing ("lesson", "exercise") or asks to be taught it.
+  var LESSON_MARK = /\blessons?\b|\btutorials?\b|\bexercises?\b|\bactivit(?:y|ies)\b|\bchallenges?\b/;
+  var LESSON_VERB = /\b(?:teach|learn|learning|practi[sc]e|practi[sc]ing|study|revise)\b/;
+  var OPEN_VERB = /\b(?:open|start|begin|load|launch|resume|continue|do|go to|take me to|switch to|jump to|show me|next)\b/;
+  // "how do I finish the loops lesson" and "should I start the loops lesson"
+  // are asking ABOUT a lesson. Opening one would answer a question the learner
+  // did not ask, so both interrogative shapes are refused outright.
+  var WH_RE = /^\s*(?:how|what|why|when|where|which|who)\b/;
+  var HYPOTHETICAL_RE = /^\s*(?:should|would|is|are|will|does|did|has|have|am|was)\b/;
+  var LESSON_NUM_RE = /\blessons?\s*(?:number\s*)?(\d{1,2})\b/;
   // A request for code may legitimately mention a world, speed, collision or
   // weather as program context. Let the model draft and validate that program
   // instead of firing one of the immediate project-control shortcuts.
@@ -24282,6 +24399,49 @@ Object.assign(window, {
     }
     return null;
   }
+
+  /* "lesson 5" -> the lesson whose filename starts 05_. Only the two-digit
+   * prefixes are addressable this way: 00a/00b/00c/00d and 000 are the
+   * pre-numbered starter lessons and are reached by name, not by number.
+   */
+  function lessonByNumber(t) {
+    var m = t.match(LESSON_NUM_RE);
+    if (!m) return null;
+    var n = parseInt(m[1], 10);
+    if (isNaN(n)) return null;
+    var prefix = (n < 10 ? '0' : '') + n + '_';
+    for (var i = 0; i < LESSONS.length; i++) {
+      if (LESSONS[i].id.indexOf(prefix) === 0) return {
+        id: LESSONS[i].id,
+        label: LESSONS[i].label
+      };
+    }
+    return null;
+  }
+
+  /* Decide whether the text asks to OPEN a lesson, and which one.
+   *
+   * Two ways in. Either the learner names the artefact ("open the loops
+   * lesson", "lesson 5") or asks to be taught the topic ("teach me
+   * recursion"). Naming a lesson without a verb that opens it ("this lesson is
+   * hard") is not a command, and neither is any question about a lesson.
+   */
+  function findLesson(t) {
+    if (WH_RE.test(t) || HYPOTHETICAL_RE.test(t)) return null;
+    var marked = LESSON_MARK.test(t);
+    var teaching = LESSON_VERB.test(t);
+    if (!marked && !teaching) return null;
+    if (marked && !teaching && !OPEN_VERB.test(t)) return null;
+    var numbered = marked ? lessonByNumber(t) : null;
+    if (numbered) return numbered;
+    for (var i = 0; i < LESSONS.length; i++) {
+      if (LESSONS[i].re.test(t)) return {
+        id: LESSONS[i].id,
+        label: LESSONS[i].label
+      };
+    }
+    return null;
+  }
   function findPreset(rows, text) {
     for (var i = 0; i < rows.length; i++) {
       if (rows[i].re.test(text)) return {
@@ -24292,24 +24452,35 @@ Object.assign(window, {
     return null;
   }
 
-  // parse(text) -> { build, world, isCommand }
+  // parse(text) -> { build, world, lesson, environment, diagnose, repair, speed, isCommand }
   //   build: true when the text is an imperative to build/create a robot.
   //   world: {id,label} when the text names a place to move to, else null.
-  //   isCommand: build || !!world  (whether any world/robot action should run).
+  //   lesson: {id,label} when the text asks to open a lesson, else null. Wins
+  //     over build and world, which it suppresses.
+  //   isCommand: true when any of the above should run.
   function parse(text) {
     var raw = String(text || '');
     var t = raw.toLowerCase();
     var isQuestion = QUESTION_RE.test(raw);
     var isCodeRequest = CODE_REQUEST_RE.test(t);
+
+    // Lesson navigation runs its own, narrower question test rather than the
+    // blanket one. "Can you open the loops lesson" opens with an interrogative
+    // but is a request, and refusing it would leave the mic unable to reach the
+    // one thing the platform is for. "Write me the code for the loops lesson"
+    // stays a code request: the model drafts, the library is not touched.
+    var lesson = !isCodeRequest ? findLesson(t) : null;
     var named = findWorld(t);
     // Never act on a question ("how do I make the rover faster?", "why crash on mars?").
-    var build = !isQuestion && !isCodeRequest && BUILD_CMD_RE.test(t);
+    // Opening a lesson also swaps the world and the program buffer, so it wins
+    // outright: one sentence must not trigger two competing project changes.
+    var build = !lesson && !isQuestion && !isCodeRequest && BUILD_CMD_RE.test(t);
 
     // Honour a named world when the message either moves explicitly ("go to
     // mars", "on the moon") OR is itself a build command ("build a mars rover"
     // -> put it on Mars). A bare place phrase ("on/to/in <place>") also counts.
     var explicitMove = !!named && (MOVE_VERB.test(t) || /\b(on|to|in)\s+(the\s+)?[a-z]/.test(t));
-    var world = !isQuestion && !isCodeRequest && named && (explicitMove || build) ? named : null;
+    var world = !lesson && !isQuestion && !isCodeRequest && named && (explicitMove || build) ? named : null;
 
     // Weather and time changes are deterministic app controls, not model
     // guesses. A bare mention such as "does rain affect grip?" remains a
@@ -24328,16 +24499,390 @@ Object.assign(window, {
     return {
       build: build,
       world: world,
+      lesson: lesson,
       environment: environment,
       diagnose: diagnose,
       repair: repair,
       speed: speed,
-      isCommand: build || !!world || !!environment || diagnose || repair || speed !== null
+      isCommand: build || !!world || !!lesson || !!environment || diagnose || repair || speed !== null
     };
   }
   window.KodroChatIntent = {
     parse: parse,
-    findWorld: findWorld
+    findWorld: findWorld,
+    findLesson: findLesson,
+    LESSONS: LESSONS
+  };
+})();
+})();
+
+;(function () {
+/* Kodro voice - speaking and listening for the Companion.
+ *
+ * Two separate capabilities with two very different privacy stories, and the
+ * difference is the whole reason this file exists rather than three lines
+ * inline in the chat panel:
+ *
+ *   SPEAKING (speechSynthesis) can be fully on-device -- but only if the voice
+ *   used is a local one. Chrome ships network voices (the "Google ..." ones)
+ *   in the SAME getVoices() list as the local ones, and speaking with a network
+ *   voice POSTs the text to a server. So pickVoice() filters on
+ *   voice.localService === true and, if there is no local voice on the machine,
+ *   speaking is switched off with an honest message. It never silently falls
+ *   back to a voice that would send the reply off the laptop.
+ *
+ *   LISTENING (webkitSpeechRecognition) cannot be made on-device in Chrome.
+ *   The audio goes to Google's servers. There is no flag that changes that.
+ *   So dictation is OFF by default, behind an explicit opt-in that spells out
+ *   where the audio goes, and typing always remains available. Nothing in the
+ *   product requires a microphone.
+ *
+ * Speech is never a second command language. A transcript is normalised and
+ * handed to the SAME window.KodroChatIntent parser the typed box uses, which
+ * feeds the same preview-then-Apply path. A spoken sentence cannot do anything
+ * a typed one cannot, and cannot skip a confirmation.
+ *
+ * Exposes window.KodroVoice. The pure parts (spokenForm, pickVoice,
+ * normaliseTranscript, transcriptIntent) take their inputs as arguments so
+ * scripts/qa_voice.mjs can exercise them in Node with no browser.
+ */
+(function () {
+  'use strict';
+
+  var SPEAK_KEY = 'kodro_voice_speak';
+  var DICTATION_KEY = 'kodro_voice_dictation';
+  var VOICE_NAME_KEY = 'kodro_voice_name';
+
+  // A spoken reply is listened to, not skimmed. Past roughly this length the
+  // learner has stopped following, so speech is cut at a sentence boundary and
+  // the full text stays on screen where it can be re-read.
+  var MAX_SPOKEN = 320;
+
+  // Shown before dictation can be switched on. Deliberately blunt about the
+  // network: an opt-in that hides the cost is not consent.
+  var DICTATION_NOTICE = 'Listening uses your browser speech recogniser, which sends the recorded ' + 'audio to Google to be transcribed. It is the one part of Kodro that ' + 'leaves this laptop. Everything else, including the reply spoken back to ' + 'you, stays on this machine. Typing does the same job with nothing sent.';
+  function read(key) {
+    try {
+      return window.localStorage.getItem(key);
+    } catch (e) {
+      void e;
+      return null;
+    }
+  }
+  function write(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (e) {
+      void e;
+    }
+  }
+
+  // --- pure: what a reply sounds like ------------------------------------
+
+  /* Turn a chat reply into something worth hearing.
+   *
+   * Reading Python aloud is useless -- "def move underscore forward open
+   * paren" tells a learner nothing they cannot see better on screen -- so code
+   * fences are replaced by a single sentence pointing at the editor, and the
+   * markdown that makes text scannable but not speakable is stripped.
+   */
+  function spokenForm(text) {
+    var s = String(text == null ? '' : text);
+    var hadCode = /```/.test(s);
+    // Unterminated fences happen while a reply is still streaming; treat the
+    // rest of the string as code rather than reading half a program out.
+    s = s.replace(/```[\s\S]*?```/g, ' ').replace(/```[\s\S]*$/, ' ');
+    s = s.replace(/`([^`]*)`/g, '$1');
+    s = s.replace(/^\s{0,3}#{1,6}\s+/gm, '');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/(^|\s)\*([^*]+)\*/g, '$1$2');
+    s = s.replace(/^\s*[-*+]\s+/gm, '');
+    s = s.replace(/\s+/g, ' ').trim();
+    if (hadCode) {
+      s = s ? s + ' The code is in the editor.' : 'The code is in the editor.';
+    }
+    if (s.length <= MAX_SPOKEN) return s;
+    var cut = s.slice(0, MAX_SPOKEN);
+    var stop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('? '), cut.lastIndexOf('! '));
+    if (stop > 80) return cut.slice(0, stop + 1) + ' The rest is on screen.';
+    return cut.replace(/\s+\S*$/, '') + '... The rest is on screen.';
+  }
+
+  // --- pure: which voice is safe to use ----------------------------------
+
+  /* Choose an on-device voice, or nothing.
+   *
+   * localService === true is the only signal a browser gives for "this voice
+   * is synthesised here". Anything else may POST the text, so anything else is
+   * not a candidate -- not even as a fallback when the list is otherwise empty.
+   */
+  function pickVoice(voices, preferredName) {
+    var list = [];
+    var all = voices || [];
+    for (var i = 0; i < all.length; i += 1) {
+      if (all[i] && all[i].localService === true) list.push(all[i]);
+    }
+    if (!list.length) return null;
+    var j;
+    if (preferredName) {
+      for (j = 0; j < list.length; j += 1) {
+        if (list[j].name === preferredName) return list[j];
+      }
+    }
+    for (j = 0; j < list.length; j += 1) {
+      if (/^en[-_]GB/i.test(list[j].lang || '')) return list[j];
+    }
+    for (j = 0; j < list.length; j += 1) {
+      if (/^en/i.test(list[j].lang || '')) return list[j];
+    }
+    return list[0];
+  }
+
+  /* Every local voice, for the picker in the panel. */
+  function localVoices() {
+    var synth = window.speechSynthesis;
+    if (!synth || typeof synth.getVoices !== 'function') return [];
+    var all = synth.getVoices() || [];
+    var out = [];
+    for (var i = 0; i < all.length; i += 1) {
+      if (all[i] && all[i].localService === true) out.push(all[i]);
+    }
+    return out;
+  }
+
+  // --- pure: what a transcript means -------------------------------------
+
+  // Speech recognisers do not know the word "Kodro" and guess. These are
+  // mishearings, not synonyms: stripping them matters because the intent
+  // parser anchors its question test at the START of the string, so a stray
+  // "Kodro," in front of "how do I..." would stop it being read as a question.
+  var WAKE_RE = /^\s*(?:hey|ok|okay|hi)?\s*(?:kodro|codro|kodo|quadro|cadre|kadro|kodra)\s*[,.!:-]*\s*/i;
+  var FILLER_RE = /^\s*(?:um+|uh+|er+|erm+|hmm+)\s*[,]?\s*/i;
+
+  /* Tidy dictation into something the typed-text parser can read.
+   *
+   * Deliberately small. Anything clever here would be a second grammar living
+   * next to KodroChatIntent, and the two would drift.
+   */
+  function normaliseTranscript(raw) {
+    var s = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
+    s = s.replace(WAKE_RE, '');
+    s = s.replace(FILLER_RE, '');
+    return s.trim();
+  }
+
+  /* Normalise, then hand to the one and only intent parser. */
+  function transcriptIntent(raw) {
+    var text = normaliseTranscript(raw);
+    if (!text) return null;
+    if (!window.KodroChatIntent || typeof window.KodroChatIntent.parse !== 'function') return null;
+    var intent = window.KodroChatIntent.parse(text);
+    if (!intent) return null;
+    intent.text = text;
+    return intent;
+  }
+
+  // --- speaking -----------------------------------------------------------
+
+  var speaking = false;
+  function speakEnabled() {
+    return read(SPEAK_KEY) === '1';
+  }
+  function setSpeakEnabled(on) {
+    write(SPEAK_KEY, on ? '1' : '0');
+    if (!on) cancel();
+  }
+  function voiceName() {
+    return read(VOICE_NAME_KEY) || '';
+  }
+  function setVoiceName(name) {
+    write(VOICE_NAME_KEY, String(name || ''));
+  }
+
+  /* Say something, on-device or not at all.
+   *
+   * Returns the reason it did not speak rather than a bare false, so the panel
+   * can tell the learner "no on-device voice is installed" instead of leaving
+   * a mute button that looks broken.
+   */
+  function speak(text) {
+    var synth = window.speechSynthesis;
+    if (!synth || typeof window.SpeechSynthesisUtterance !== 'function') return 'unsupported';
+    if (!speakEnabled()) return 'off';
+    var body = spokenForm(text);
+    if (!body) return 'empty';
+    var voice = pickVoice(localVoices(), voiceName());
+    if (!voice) return 'no-local-voice';
+    try {
+      synth.cancel();
+      var utterance = new window.SpeechSynthesisUtterance(body);
+      utterance.voice = voice;
+      utterance.lang = voice.lang || 'en-GB';
+      utterance.rate = 0.98;
+      utterance.pitch = 1;
+      utterance.onend = function () {
+        speaking = false;
+      };
+      utterance.onerror = function () {
+        speaking = false;
+      };
+      speaking = true;
+      synth.speak(utterance);
+      return 'ok';
+    } catch (e) {
+      void e;
+      speaking = false;
+      return 'failed';
+    }
+  }
+  function cancel() {
+    speaking = false;
+    try {
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    } catch (e) {
+      void e;
+    }
+  }
+  function isSpeaking() {
+    return speaking;
+  }
+
+  // --- listening ----------------------------------------------------------
+
+  function recogniserCtor() {
+    return window.SpeechRecognition || window.webkitSpeechRecognition || null;
+  }
+  function dictationAvailable() {
+    return !!recogniserCtor();
+  }
+  function dictationConsented() {
+    return read(DICTATION_KEY) === '1';
+  }
+  function setDictationConsent(on) {
+    write(DICTATION_KEY, on ? '1' : '0');
+    if (!on) stopDictation();
+  }
+  var active = null;
+
+  /* Start a single dictation turn.
+   *
+   * continuous is false on purpose: an always-on microphone in a classroom is
+   * a different product with a different consent conversation. One press, one
+   * sentence, then it stops.
+   */
+  function startDictation(handlers) {
+    var cb = handlers || {};
+    var Ctor = recogniserCtor();
+    if (!Ctor) return 'unsupported';
+    if (!dictationConsented()) return 'not-consented';
+    if (active) return 'busy';
+    var rec;
+    try {
+      rec = new Ctor();
+    } catch (e) {
+      void e;
+      return 'failed';
+    }
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = 'en-GB';
+    rec.maxAlternatives = 1;
+    rec.onresult = function (event) {
+      var finalText = '';
+      var interim = '';
+      for (var i = event.resultIndex; i < event.results.length; i += 1) {
+        var chunk = event.results[i][0] ? event.results[i][0].transcript : '';
+        if (event.results[i].isFinal) finalText += chunk;else interim += chunk;
+      }
+      if (interim && cb.onInterim) cb.onInterim(normaliseTranscript(interim));
+      if (finalText && cb.onText) cb.onText(normaliseTranscript(finalText));
+    };
+    rec.onerror = function (event) {
+      active = null;
+      if (cb.onError) cb.onError(event && event.error || 'error');
+    };
+    rec.onend = function () {
+      active = null;
+      if (cb.onEnd) cb.onEnd();
+    };
+    try {
+      rec.start();
+    } catch (e) {
+      void e;
+      active = null;
+      return 'failed';
+    }
+    active = rec;
+    return 'ok';
+  }
+  function stopDictation() {
+    if (!active) return false;
+    try {
+      active.stop();
+    } catch (e) {
+      void e;
+    }
+    active = null;
+    return true;
+  }
+  function isListening() {
+    return !!active;
+  }
+
+  /* One object the panel can render straight from, so the UI never has to
+   * guess why a control is unavailable. */
+  function capabilities() {
+    var voices = localVoices();
+    var synth = !!(window.speechSynthesis && typeof window.SpeechSynthesisUtterance === 'function');
+    return {
+      canSpeak: synth && voices.length > 0,
+      speechSupported: synth,
+      localVoiceCount: voices.length,
+      speakEnabled: speakEnabled(),
+      dictationSupported: dictationAvailable(),
+      dictationConsented: dictationConsented(),
+      dictationNotice: DICTATION_NOTICE,
+      // The honest one-liner for the panel when speaking is unavailable.
+      speakBlockedReason: !synth ? 'This browser has no speech synthesiser.' : voices.length === 0 ? 'No on-device voice is installed, and Kodro will not use a voice that sends the text to a server.' : ''
+    };
+  }
+
+  // getVoices() is frequently empty on first call; the list arrives later.
+  // Re-dispatch so a mounted panel can re-render its picker.
+  try {
+    if (window.speechSynthesis && typeof window.speechSynthesis.addEventListener === 'function') {
+      window.speechSynthesis.addEventListener('voiceschanged', function () {
+        try {
+          window.dispatchEvent(new window.CustomEvent('kodro-voices-changed'));
+        } catch (e) {
+          void e;
+        }
+      });
+    }
+  } catch (e) {
+    void e;
+  }
+  window.KodroVoice = {
+    spokenForm: spokenForm,
+    pickVoice: pickVoice,
+    localVoices: localVoices,
+    normaliseTranscript: normaliseTranscript,
+    transcriptIntent: transcriptIntent,
+    capabilities: capabilities,
+    speak: speak,
+    cancel: cancel,
+    isSpeaking: isSpeaking,
+    speakEnabled: speakEnabled,
+    setSpeakEnabled: setSpeakEnabled,
+    voiceName: voiceName,
+    setVoiceName: setVoiceName,
+    dictationAvailable: dictationAvailable,
+    dictationConsented: dictationConsented,
+    setDictationConsent: setDictationConsent,
+    startDictation: startDictation,
+    stopDictation: stopDictation,
+    isListening: isListening,
+    DICTATION_NOTICE: DICTATION_NOTICE,
+    MAX_SPOKEN: MAX_SPOKEN
   };
 })();
 })();
@@ -28472,6 +29017,13 @@ say("Survey done")`
  * window.RoverSchematic in Build) — those globals are loaded before this module
  * in the ORDER array, same as when the markup lived in app.jsx.
  *
+ * ONE deliberate exception: VoiceControls, near the bottom, owns state and
+ * effects. It has to. Browser speech is an external system with its own async
+ * lifecycle (voices arrive after a voiceschanged event, recognition streams
+ * interim results, consent persists in localStorage), and threading all of that
+ * up into App would spread microphone plumbing across a file that has nothing
+ * else to do with it. Everything else in here stays pure.
+ *
  * app.jsx keeps the open/close semantics: it still renders each as
  *   {xOpen && <window.KodroPanels.XModal {...props} />}
  * so behaviour is identical — this is a structural move, not a behavioural one.
@@ -29728,6 +30280,171 @@ say("Survey done")`
       }
     }, "Your key stays in this browser and is sent only to the provider you pick. Switch to Local for fully offline use."));
   }
+
+  // Plain-English reasons for the recogniser's error codes. The raw codes
+  // ("not-allowed", "audio-capture") mean nothing to a 12-year-old, and a mic
+  // button that goes quiet without saying why reads as a broken product.
+  const VOICE_ERRORS = {
+    'not-allowed': 'The browser blocked the microphone. Allow it in the address bar, or keep typing.',
+    'service-not-allowed': 'The browser blocked the microphone. Allow it in the address bar, or keep typing.',
+    'no-speech': 'I did not hear anything. Press the microphone and speak, or type instead.',
+    'audio-capture': 'No microphone was found on this computer. Typing does the same job.',
+    network: 'The speech recogniser could not be reached. It needs the internet; typing does not.',
+    aborted: ''
+  };
+
+  /* Speaking and listening for the Companion.
+   *
+   * Speaking is on-device: window.KodroVoice only ever uses a voice with
+   * localService === true, so the reply is synthesised here. If the machine has
+   * no local voice the control explains that instead of quietly using a network
+   * voice that would post the text to a server.
+   *
+   * Listening is the opposite and is treated as such. Chrome's recogniser
+   * uploads the audio, so the microphone is off until the learner reads what
+   * that means and turns it on. A final transcript is sent as if it had been
+   * typed -- it goes through the same intent parser and the same
+   * preview-then-Apply gate, so a mishearing can waste a sentence but cannot
+   * change the robot, the world or the program on its own.
+   */
+  function VoiceControls({
+    vibeMsgs,
+    vibeBusy,
+    onTranscript
+  }) {
+    const V = window.KodroVoice;
+    const [caps, setCaps] = React.useState(() => V ? V.capabilities() : null);
+    const [listening, setListening] = React.useState(false);
+    const [interim, setInterim] = React.useState('');
+    const [note, setNote] = React.useState('');
+    const [asking, setAsking] = React.useState(false);
+    // Start from the CURRENT length: reopening the Companion restores the saved
+    // thread, and reading a whole past conversation aloud would be a jump-scare.
+    const spokenTo = React.useRef(vibeMsgs.length);
+    React.useEffect(() => {
+      if (!V) return undefined;
+      const onVoices = () => setCaps(V.capabilities());
+      window.addEventListener('kodro-voices-changed', onVoices);
+      return () => window.removeEventListener('kodro-voices-changed', onVoices);
+    }, [V]);
+    React.useEffect(() => () => {
+      if (V) {
+        V.cancel();
+        V.stopDictation();
+      }
+    }, [V]);
+    React.useEffect(() => {
+      if (!V) return;
+      if (vibeMsgs.length <= spokenTo.current) {
+        spokenTo.current = vibeMsgs.length;
+        return;
+      }
+      const last = vibeMsgs[vibeMsgs.length - 1];
+      spokenTo.current = vibeMsgs.length;
+      if (!last || last.role === 'user' || !V.speakEnabled()) return;
+      // A code block read character by character is noise. Speak what the edit
+      // DOES and leave the program on screen where it can be read properly.
+      let say = last.text;
+      if (last.kind === 'code') {
+        say = (last.summary ? last.summary + '. ' : '') + 'The program is in the preview. Choose Apply or Discard.';
+      } else if (last.kind === 'project-preview') {
+        say = last.text + ' Nothing has changed yet. Choose Apply or Discard.';
+      }
+      const outcome = V.speak(say);
+      if (outcome === 'no-local-voice') setNote(V.capabilities().speakBlockedReason);
+    }, [vibeMsgs, V]);
+    if (!V || !caps) return null;
+    function toggleSpeak() {
+      const next = !V.speakEnabled();
+      V.setSpeakEnabled(next);
+      const fresh = V.capabilities();
+      setCaps(fresh);
+      setNote(next && !fresh.canSpeak ? fresh.speakBlockedReason : '');
+    }
+    function beginListening() {
+      setNote('');
+      setInterim('');
+      const outcome = V.startDictation({
+        onInterim: text => setInterim(text),
+        onText: text => {
+          setInterim('');
+          if (text && onTranscript) onTranscript(text);
+        },
+        onEnd: () => {
+          setListening(false);
+          setInterim('');
+        },
+        onError: code => {
+          setListening(false);
+          setInterim('');
+          setNote(Object.prototype.hasOwnProperty.call(VOICE_ERRORS, code) ? VOICE_ERRORS[code] : 'The microphone stopped (' + code + '). Typing still works.');
+        }
+      });
+      if (outcome === 'ok') setListening(true);else if (outcome === 'not-consented') setAsking(true);else setNote('Listening could not start on this browser. Type your message instead.');
+    }
+    function toggleMic() {
+      if (listening) {
+        V.stopDictation();
+        setListening(false);
+        setInterim('');
+        return;
+      }
+      if (!V.dictationConsented()) {
+        setAsking(true);
+        return;
+      }
+      beginListening();
+    }
+    return /*#__PURE__*/React.createElement("div", {
+      className: "vibe-voice",
+      role: "group",
+      "aria-label": "Voice"
+    }, caps.speechSupported && /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini voice-btn",
+      "aria-pressed": caps.speakEnabled,
+      onClick: toggleSpeak,
+      title: caps.canSpeak ? 'Read replies aloud using a voice installed on this computer. Nothing is sent anywhere.' : 'No on-device voice is installed on this computer.'
+    }, caps.speakEnabled ? 'Speaking replies' : 'Speak replies'), caps.dictationSupported && /*#__PURE__*/React.createElement("button", {
+      className: 'btn-mini voice-btn' + (listening ? ' is-live' : ''),
+      "aria-pressed": listening,
+      disabled: vibeBusy,
+      onClick: toggleMic,
+      title: caps.dictationConsented ? 'Speak instead of typing. The audio is sent to the browser speech service.' : 'Speak instead of typing. Read what this sends before turning it on.'
+    }, listening ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
+      className: "voice-dot",
+      "aria-hidden": "true"
+    }), "Listening, press to stop") : 'Speak to Kodro'), asking && /*#__PURE__*/React.createElement("div", {
+      className: "voice-consent",
+      role: "dialog",
+      "aria-label": "Turn on listening"
+    }, /*#__PURE__*/React.createElement("p", null, caps.dictationNotice), /*#__PURE__*/React.createElement("div", {
+      className: "voice-consent-actions"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "ctrl ctrl-run",
+      onClick: () => {
+        V.setDictationConsent(true);
+        setCaps(V.capabilities());
+        setAsking(false);
+        beginListening();
+      }
+    }, "I understand, turn listening on"), /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => setAsking(false)
+    }, "Keep typing"))), caps.dictationConsented && !asking && /*#__PURE__*/React.createElement("button", {
+      className: "btn-mini",
+      onClick: () => {
+        V.setDictationConsent(false);
+        setCaps(V.capabilities());
+        setListening(false);
+      },
+      title: "Stop using the browser speech service"
+    }, "Turn listening off"), interim && /*#__PURE__*/React.createElement("p", {
+      className: "voice-interim"
+    }, "Heard: ", interim), note && /*#__PURE__*/React.createElement("p", {
+      className: "voice-note",
+      role: "status"
+    }, note));
+  }
   function VibeModal({
     setVibeOpen,
     vibeCancelRef,
@@ -29989,7 +30706,17 @@ say("Survey done")`
       className: "ctrl ctrl-run",
       disabled: vibeBusy || !vibePrompt.trim(),
       onClick: vibeSend
-    }, "Send")), /*#__PURE__*/React.createElement("span", {
+    }, "Send")), /*#__PURE__*/React.createElement(VoiceControls, {
+      vibeMsgs: vibeMsgs,
+      vibeBusy: vibeBusy,
+      onTranscript: text => {
+        // A finished sentence is sent as if typed. vibeSend takes the
+        // text directly rather than going through the textarea state,
+        // which would still hold the previous render's value.
+        setVibePrompt('');
+        vibeSend(text);
+      }
+    }), /*#__PURE__*/React.createElement("span", {
       className: "vibe-hint"
     }, "Proposed edits are previews. Choose Apply or Discard for each one. Nothing runs until you press Run. The conversation stays on this device."), !aiInfo.available && /*#__PURE__*/React.createElement("ol", {
       className: "vibe-steps"
@@ -32118,6 +32845,26 @@ say("Survey done")`
       if (!window.KodroChatIntent) return null;
       const intent = window.KodroChatIntent.parse(text);
       if (!intent || !intent.isCommand) return null;
+      // Opening a lesson is navigation, not a project mutation: each lesson
+      // keeps its own program buffer, so nothing the learner wrote is
+      // overwritten and there is nothing for an Apply gate to protect. It acts
+      // straight away, the way clicking the lesson in the library does.
+      if (intent.lesson) {
+        const target = lessons.find(l => l.id === intent.lesson.id);
+        if (!target) {
+          return {
+            handled: true,
+            kind: 'evidence',
+            message: 'I could not find the ' + intent.lesson.label + ' lesson in this library, so nothing was opened.'
+          };
+        }
+        loadLesson(target);
+        return {
+          handled: true,
+          kind: 'action',
+          message: 'Opened ' + (target.title || intent.lesson.label) + '.'
+        };
+      }
       // Robot, world and environment changes are project-level mutations. Show
       // one connected before/after preview and require an explicit Apply rather
       // than changing the simulator while the learner is still reading chat.
@@ -32590,12 +33337,19 @@ say("Survey done")`
         // pass restored from an earlier session sat above code the pupil had
         // since rewritten, and said 'Complete' about a program never run.
         const verdictHash = window.KodroScenario && window.KodroScenario.codeHash ? window.KodroScenario.codeHash(source) : null;
+        // batteryUsedPct / energyTrueBatteryPct come from the desktop grade
+        // only (the browser grader returns neither), so the build note below
+        // renders on the desktop and is simply absent in browser mode rather
+        // than guessed at. Both are undefined on a restored verdict too: they
+        // are facts about a run that just happened, not about a stored score.
         setLessonVerdict({
           passed: !!r.passed,
           score: r.score,
           reasons: r.reasons || [],
           hint: r.hint || null,
-          codeHash: verdictHash
+          codeHash: verdictHash,
+          batteryUsedPct: typeof r.batteryUsedPct === 'number' ? r.batteryUsedPct : null,
+          energyTrueBatteryPct: typeof r.energyTrueBatteryPct === 'number' ? r.energyTrueBatteryPct : null
         });
         // The quiet catastrophe on a school Chromebook: everything here lives
         // in localStorage, shared and ephemeral profiles wipe it at sign-out,
@@ -34496,6 +35250,17 @@ say("Survey done")`
       const revealedHints = hintBank.slice(hintsShownByVerdict, hintsShownByVerdict + extraHints);
       const moreHintsLeft = hintsShownByVerdict + extraHints < hintBank.length;
       const nextLesson = liveVerdict && liveVerdict.passed ? nextConnectedLesson(lesson.id) : null;
+      // The mark is earned on the reference rover, on purpose: lesson
+      // battery limits are fixed YAML numbers authored against it, so
+      // grading the pupil's own build would mark a design-bench choice
+      // as a programming mistake. That decision is invisible unless we
+      // say it, and saying it is also the honest place to report what
+      // their build WOULD have cost. Shown only when the two differ by
+      // enough to round differently at one decimal place -- a pupil on
+      // the reference rover is told nothing they need.
+      const gradedBattery = liveVerdict ? liveVerdict.batteryUsedPct : null;
+      const buildBattery = liveVerdict ? liveVerdict.energyTrueBatteryPct : null;
+      const buildEnergyNote = gradedBattery != null && buildBattery != null && Math.abs(buildBattery - gradedBattery) >= 0.05 ? 'Marked on the reference rover, which used ' + gradedBattery.toFixed(1) + '% battery. The robot you designed would have used ' + buildBattery.toFixed(1) + '% for this program.' : null;
       return /*#__PURE__*/React.createElement("section", {
         className: "lesson-card",
         "aria-label": "Current lesson"
@@ -34557,7 +35322,9 @@ say("Survey done")`
       }, Object.keys(lesson.glossary).map(term => /*#__PURE__*/React.createElement("div", {
         key: term,
         className: "gloss-item"
-      }, /*#__PURE__*/React.createElement("dt", null, term), /*#__PURE__*/React.createElement("dd", null, lesson.glossary[term])))), liveVerdict && !liveVerdict.passed && liveVerdict.reasons.length > 0 && /*#__PURE__*/React.createElement("ul", {
+      }, /*#__PURE__*/React.createElement("dt", null, term), /*#__PURE__*/React.createElement("dd", null, lesson.glossary[term])))), buildEnergyNote && /*#__PURE__*/React.createElement("p", {
+        className: "lesson-build-energy"
+      }, buildEnergyNote), liveVerdict && !liveVerdict.passed && liveVerdict.reasons.length > 0 && /*#__PURE__*/React.createElement("ul", {
         className: "lesson-reasons"
       }, liveVerdict.reasons.map((r, i) => /*#__PURE__*/React.createElement("li", {
         key: i

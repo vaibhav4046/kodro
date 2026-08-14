@@ -97,6 +97,20 @@ const FLAGS = [
   '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
 ];
 
+// How long ONE headless Chrome invocation is allowed, wall-clock. This is not
+// the same thing as --virtual-time-budget: the budget governs how much page
+// time the render gets, this governs how long the machine may take to deliver
+// it. The distinction is load-bearing here, because measurement showed the two
+// fail in completely different ways. Driving cap.html at 8000, 16000 and 32000
+// budgets produced a byte-identical 63589-byte DOM with the data-world marker
+// present in all three -- the studio finishes well inside 8000 and more budget
+// buys nothing. What actually broke the gate was wall time: with the pytest
+// suite and the other UI gates running alongside, one cold spawn was still
+// producing nothing after 212 seconds and a warm one took 116, both of which
+// blew the old 90s ceiling. So the budget stays at 8000 (it is provably
+// enough) and the wall clock is what gets the headroom.
+const CHROME_WALL_MS = 300000;
+
 // Run Chrome ASYNCHRONOUSLY (spawn, not spawnSync). This is load-bearing: the
 // static file server (startServer) lives in THIS process's event loop. A
 // blocking spawnSync would freeze that loop for the whole child run, so the
@@ -136,7 +150,7 @@ async function dumpOnce(chrome, url, netlog) {
     '--enable-logging=stderr',
     '--virtual-time-budget=8000', '--dump-dom', url,
   ];
-  const res = await runChrome(chrome, args, 90000);
+  const res = await runChrome(chrome, args, CHROME_WALL_MS);
   let net = '';
   try { net = readFileSync(netlog, 'utf8'); } catch { net = ''; }
   return { dom: res.stdout || '', stderr: res.stderr || '', net, error: res.error };
@@ -144,12 +158,21 @@ async function dumpOnce(chrome, url, netlog) {
 
 // Chrome's cold spawn on Windows sometimes ETIMEDOUTs; warm up, then try a few
 // times so a launch flake does not read as a product failure.
-async function loadWithRetry(chrome, url) {
+//
+// `wants` is an optional predicate on the DOM. Without it this retries only
+// when Chrome hard-fails, which quietly meant a snapshot that arrived but was
+// missing the thing being asserted got ONE attempt and was then reported as a
+// product defect. Passing a predicate makes the retry cover that case too, so
+// "the marker was not there yet" and "the marker is never there" stop looking
+// alike. Returns the attempt count so the caller can say which try succeeded
+// rather than presenting a third-attempt pass as a clean first read.
+async function loadWithRetry(chrome, url, wants) {
   await runChrome(chrome, [...FLAGS, '--virtual-time-budget=1500', '--dump-dom', 'about:blank'], 60000);
-  let out = { dom: '', net: '', stderr: '', error: new Error('not run') };
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  let out = { dom: '', net: '', stderr: '', error: new Error('not run'), attempts: 0 };
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
     out = await dumpOnce(chrome, url, path.join(mkdtempSync(path.join(os.tmpdir(), 'kodro-net-')), 'n.json'));
-    if (!out.error && out.dom) return out;
+    out.attempts = attempt;
+    if (!out.error && out.dom && (!wants || wants(out.dom))) return out;
   }
   return out;
 }
@@ -181,7 +204,10 @@ async function main() {
 
   const server = await startServer();
   try {
-    const { dom, net, error } = await loadWithRetry(chrome, `http://${HOST}:${PORT}/index.html`);
+    // Same predicate the boot-mount assert below uses, so a snapshot caught
+    // mid-mount is retried rather than counted as a failure to mount.
+    const { dom, net, error } = await loadWithRetry(chrome, `http://${HOST}:${PORT}/index.html`,
+      (d) => !d.includes('id="rl-boot"') && (d.includes('Skip to studio') || d.includes('data-world=')));
     if (error || !dom) {
       results.push(log(false, 'boot', `chrome load failed after retries: ${error ? error.message : 'empty DOM'}`));
     } else {
@@ -218,15 +244,26 @@ async function main() {
         results.push(log(false, 'studio-mount', 'cap.html generator failed: ' + ((gen.stderr || '').slice(0, 120))));
       } else {
         copyFileSync(capSrc, path.join(SITE, 'cap.html'));
-        const st = await loadWithRetry(chrome, `http://${HOST}:${PORT}/cap.html?world=city&robot=rover&q=low`);
+        const st = await loadWithRetry(chrome, `http://${HOST}:${PORT}/cap.html?world=city&robot=rover&q=low`,
+          (d) => d.includes('data-world='));
         const NOISE = /gcm|registration|GROUP_MARKER|swiftshader|GPU stall|extension|manifest|web_app|externally_managed|about:blank|Permissions-Policy|deprecat|AudioContext|autoplay|could not load lessons\.json/i;
         const CFAIL = /CONSOLE.*(error|uncaught|is not a function|is not defined|cannot read)/i;
         const consoleError = (st.stderr || '').split(/\r?\n/).filter((l) => l && !NOISE.test(l) && CFAIL.test(l))[0];
-        const studioUp = !st.error && st.dom && st.dom.includes('data-world=');
-        results.push(log(!!studioUp && !consoleError, 'studio-mount',
-          !studioUp ? 'studio did not mount (no data-world marker)'
-            : consoleError ? 'console error in studio: ' + consoleError.slice(0, 140)
-              : 'studio mounted with a clean console'));
+        // Separate the two ways this can go wrong. Chrome failing to hand back
+        // any DOM is a fact about this machine; the studio rendering without
+        // its scene marker is a fact about the product. Both used to print
+        // "studio did not mount", which accused the app of a fault the
+        // evidence did not support -- the observed failure was three spawns
+        // running out of wall clock, with the studio never given the chance to
+        // paint. Naming them apart is what makes a red line here trustworthy.
+        const noDom = !!st.error || !st.dom;
+        const studioUp = !noDom && st.dom.includes('data-world=');
+        const tries = st.attempts > 1 ? ` (attempt ${st.attempts} of 3)` : '';
+        results.push(log(studioUp && !consoleError, 'studio-mount',
+          noDom ? `chrome returned no DOM after ${st.attempts} attempts (${st.error ? st.error.message : 'empty stdout'}); this is the harness running out of wall clock, NOT the studio failing to render`
+            : !studioUp ? 'studio did not mount (DOM returned, but no data-world marker in it)'
+              : consoleError ? 'console error in studio: ' + consoleError.slice(0, 140)
+                : `studio mounted with a clean console${tries}`));
       }
     } catch (e) {
       results.push(log(false, 'studio-mount', 'check crashed: ' + e.message));

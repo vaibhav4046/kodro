@@ -41,6 +41,8 @@ nav:
   - For developers:
       - Architecture: developers/architecture.md
       - Extending lessons: developers/extending-lessons.md
+      - Connect an assistant (MCP): mcp.md
+      - MCP internals: developers/mcp-server.md
       - Decision log: developers/decision-log.md
       - Test evidence: developers/test-evidence.md
       - Evaluation: developers/evaluation.md

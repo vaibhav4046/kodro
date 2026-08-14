@@ -10,11 +10,17 @@ motion model locked across the two engines. The same platform doubles as a
 design studio for a non-expert who has only an idea. The final interface uses
 Simple progressive disclosure by default, follows a Design, Prove, Build
 journey, and keeps an opt-in Expert surface.
-The complete declared Python matrix passes 1,087 tests with zero skips at
-88.21% branch-aware coverage. Four deterministic contracts pass twenty seeded
-runs and reject an intentionally broken controller. Synthetic-persona and renderer results are
-reported as engineering evidence only, with their human-study and hardware
-boundaries explicit.
+The complete declared Python matrix passes 1,488 tests with one host Tk skip at
+90.97% branch-aware coverage against an 85% gate. That run writes its own
+commit and working-tree status into
+[`../eval/test_suite.json`](../eval/test_suite.json); read the figure there
+rather than from this paragraph, which is only as current as its last edit.
+Four deterministic contracts — straight transit, controlled corner, obstacle
+clearance and battery reserve — pass five seeded runs each, twenty in total,
+and reject an intentionally broken controller; the per-run record is in
+[`../eval/prove_baseline.json`](../eval/prove_baseline.json). Synthetic-persona
+and renderer results are reported as engineering evidence only, with their
+human-study and hardware boundaries explicit.
 
 The previously tracked HTML dissertation was an obsolete early draft and has
 been removed. It contradicted the canonical LaTeX on ethics, evaluation and
@@ -48,7 +54,15 @@ or on the not-yet-run human study, the text says so explicitly rather than
 asserting an unsupported result. No result from a study with real users is
 reported anywhere, because that study has not been run.
 
-The final evidence trail is recorded in
+The July evidence trail is recorded in
 [`INTEGRITY_AUDIT_2026-07-17.md`](INTEGRITY_AUDIT_2026-07-17.md), and the
 item-by-item bibliography check is recorded in
-[`REFERENCE_AUDIT_2026-07-17.md`](REFERENCE_AUDIT_2026-07-17.md).
+[`REFERENCE_AUDIT_2026-07-17.md`](REFERENCE_AUDIT_2026-07-17.md). **Both are
+dated snapshots, not the current state.** Each now opens with a note listing
+what has moved since; the integrity audit's figures in particular were measured
+against a 49-page PDF and a smaller test matrix, and the bibliography has since
+grown by two entries that have not been checked against a primary record.
+
+The current-state assessment, including the outstanding items that only the
+author can close, is
+[`DIAGNOSTIC_2026-08-14.md`](DIAGNOSTIC_2026-08-14.md).

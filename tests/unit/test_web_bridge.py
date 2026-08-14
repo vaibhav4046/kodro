@@ -9,6 +9,7 @@ contract the React app depends on is locked down.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -19,9 +20,16 @@ from robolearn.web.app import BridgeAPI
 
 
 @pytest.fixture
-def api(tmp_path: Path) -> BridgeAPI:
+def api(tmp_path: Path) -> Iterator[BridgeAPI]:
+    # Own the store's lifetime: ``Store`` opens a connection per thread and only
+    # ``close()`` releases the ones opened off the constructing thread.  Without
+    # this the handles survive until ``__del__`` runs, which on Windows keeps a
+    # file lock on the temp DB for an arbitrary stretch of the session.
     store = Store(tmp_path / "pupil.db")
-    return BridgeAPI(store=store, lessons=list(load_library()))
+    try:
+        yield BridgeAPI(store=store, lessons=list(load_library()))
+    finally:
+        store.close()
 
 
 def test_on_ui_ready_reports_lesson_count_and_pupil(api: BridgeAPI) -> None:
@@ -180,6 +188,98 @@ def test_get_class_heatmap_reflects_graded_submissions(api: BridgeAPI) -> None:
     assert me is not None
     assert me["scores"], "a graded submission must populate the class heatmap"
     assert heat["concepts"], "the heatmap must list the concepts touched"
+
+
+def _battery_gated_lesson_ids() -> list[str]:
+    """Lesson ids that put a ceiling on battery -- the ones a build can break."""
+    return [
+        lesson.id
+        for lesson in load_library()
+        if any(c.max_battery_used is not None for c in lesson.success_criteria)
+    ]
+
+
+@pytest.mark.parametrize("lesson_id", _battery_gated_lesson_ids())
+def test_grading_is_invariant_to_the_pupils_build(api: BridgeAPI, lesson_id: str) -> None:
+    """The same program must earn the same mark whatever robot the pupil built.
+
+    Lesson thresholds are fixed numbers in YAML, authored against the reference
+    rover; nothing recalibrates ``max_battery_used`` per build. The browser
+    grader strips build scaling out before grading, so if the desktop kept it
+    in, the same correct program passed in one place and failed in the other --
+    and the failure named the battery, blaming the program for a choice the
+    pupil made on the design bench. 01_hello_rover's own shipped solution
+    travels 2.00 m, which at 1.1 %/m is 2.20% against a 5% ceiling, so any mass
+    factor above ~2.3 used to fail lesson one; at 10 it scored 80 and said
+    "Battery used 22.0% (limit 5.0%)". That is what the 10.0 below reproduces.
+
+    Every lesson here declares a battery ceiling, so these are exactly the
+    lessons a heavy build could break.
+    """
+    lesson = next(les for les in load_library() if les.id == lesson_id)
+    source = lesson.solution_code or ""
+    assert source, f"{lesson_id} has no solution_code to submit"
+
+    reference = api.submit_attempt(lesson_id, source, None)
+    assert reference["passed"] is True, (
+        f"{lesson_id}'s own solution must pass on the reference rover before "
+        f"this test can say anything about builds: {reference['reasons']}"
+    )
+
+    # A build heavy enough that the old drain-scaled grader failed lesson one.
+    heavy = api.submit_attempt(lesson_id, source, None, 10.0, None)
+    # And an imported measured build, which takes the other branch of
+    # _drain_scale_for (energy-true %/m, preferred over the mass proxy).
+    measured = api.submit_attempt(lesson_id, source, None, None, 11.0)
+
+    for label, result in (("heavy", heavy), ("measured", measured)):
+        assert result["passed"] == reference["passed"], f"{label} build changed the verdict"
+        assert result["score"] == reference["score"], f"{label} build changed the score"
+        assert result["reasons"] == reference["reasons"], f"{label} build changed the reasons"
+
+
+def test_energy_true_battery_still_reflects_the_build(api: BridgeAPI) -> None:
+    """Grading ignores the build; the reported energy figure must not.
+
+    Removing build scaling from the verdict is not the same as throwing the
+    number away. The pupil still needs to see what their rover would actually
+    have spent, so it is reported alongside the mark instead of inside it.
+
+    Both halves of that pair are pinned here, because either one alone is
+    unreadable: ``batteryUsedPct`` is what the mark was made against and must
+    stay put whatever the pupil built, while ``energyTrueBatteryPct`` is what
+    their own build would have cost and must move when the build does. The
+    lesson card prints the two together and only when they differ, so the
+    difference the UI keys off is asserted too.
+    """
+    lesson = next(les for les in load_library() if les.id == "01_hello_rover")
+    source = lesson.solution_code or ""
+
+    reference = api.submit_attempt(lesson.id, source, None)
+    heavy = api.submit_attempt(lesson.id, source, None, 10.0, None)
+    measured = api.submit_attempt(lesson.id, source, None, None, 11.0)
+
+    assert "energyTrueBatteryPct" in reference
+    assert "batteryUsedPct" in reference
+    # Graded on the reference rover, so the graded figure is the unscaled one
+    # and no build may shift it. Without this the UI's "marked on the reference
+    # rover at X%" sentence could quietly quote a build-scaled number.
+    assert reference["energyTrueBatteryPct"] == pytest.approx(reference["batteryUsedPct"])
+    for label, result in (("heavy", heavy), ("measured", measured)):
+        assert result["batteryUsedPct"] == pytest.approx(reference["batteryUsedPct"]), (
+            f"{label} build moved the graded battery figure"
+        )
+
+    assert heavy["energyTrueBatteryPct"] > reference["energyTrueBatteryPct"], (
+        "a ten-times-heavier build must report a bigger energy cost, otherwise "
+        "the figure is decorative"
+    )
+    # The lesson card shows the build note only when the two round differently
+    # at one decimal place (>= 0.05 apart). A heavy build that failed this would
+    # leave the pupil with no explanation of why their design changed nothing.
+    assert abs(heavy["energyTrueBatteryPct"] - heavy["batteryUsedPct"]) >= 0.05
+    # Reported as a battery percentage, so it cannot exceed a full battery.
+    assert 0.0 <= heavy["energyTrueBatteryPct"] <= 100.0
 
 
 def test_submit_attempt_drives_the_learner_model(api: BridgeAPI) -> None:

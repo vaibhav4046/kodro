@@ -67,6 +67,7 @@ robolearn = "robolearn.__main__:main"
 kodro = "robolearn.bench:main"
 kodrobench = "robolearn.kodrobench:main"
 kodro-prove = "robolearn.prove:main"
+kodro-mcp = "robolearn.mcp.server:main"
 
 [project.urls]
 Homepage = "https://github.com/vaibhav4046/robolearn"
@@ -201,10 +202,10 @@ addopts = [
     # 0 (Tasks 1-3) -> 60 (after Task 4) -> 75 (after Task 10) -> 85 (after Task 18).
     "--cov-fail-under=85",
 ]
-markers = [
-    "slow: integration tests that exercise the engine for several frames",
-    "ui: tests that require an embedded pygame surface",
-]
+# No custom markers are declared: with --strict-markers an unused declaration is
+# an invitation to write a selector nothing honours. tests/conftest.py applies
+# pytest-cov's built-in ``no_cover`` marker, which pytest-cov registers itself.
+markers = []
 
 [tool.coverage.run]
 source = ["src/robolearn"]

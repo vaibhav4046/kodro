@@ -298,7 +298,7 @@
     ],
     "glossary": {},
     "id": "09_recursion",
-    "intro": "Draw a square spiral by calling a function that calls itself with a\nsmaller step. Recursion lets you describe an infinite-looking pattern\nwith just a few lines of code -- the base case stops the spiral.\n",
+    "intro": "Draw a square spiral by calling a function that calls itself with a\nsmaller step. Recursion lets you describe an infinite-looking pattern\nwith just a few lines of code -- the base case stops the spiral.\nCall pen_down() first if you want the rover to leave a trail as it goes.\nThe spiral drives the same shape either way, so the pen is yours to choose.\n",
     "keyStage": "KS4",
     "maxLines": 12,
     "prereqs": [
@@ -353,9 +353,11 @@
       "abstraction",
       "selection"
     ],
-    "glossary": {},
+    "glossary": {
+      "read_battery": "Reports how much charge is left, from 100 (full) down to 0 (flat)."
+    },
     "id": "12_abstraction",
-    "intro": "Don't hard-code the route -- ask the world. The starter drives blindly\nand crashes. Use obstacle_ahead() to decide when to turn, so one short\nprogram copes with whatever is in the way. Reading a sensor is an\nabstraction: you get \"is something there?\" without caring how it is\nmeasured.\n",
+    "intro": "Don't hard-code the route -- ask the world. The starter drives blindly\nand crashes. Use obstacle_ahead() to decide when to turn, so one short\nprogram copes with whatever is in the way. Reading a sensor is an\nabstraction: you get \"is something there?\" without caring how it is\nmeasured. The loop keeps going while read_battery() is above 40, so the\nmission stops itself before the rover runs flat.\n",
     "keyStage": "KS4",
     "maxLines": 14,
     "prereqs": [
@@ -427,6 +429,8 @@
       "abstraction"
     ],
     "glossary": {
+      "collect_sample": "Picks up the sample the rover is standing on. It is already written for you here.",
+      "sample": "A marker on the ground for the rover to pick up. The flags in this lesson are samples.",
       "variable": "A name that remembers a value. Use the name and you get the value."
     },
     "id": "16_variables",
@@ -434,7 +438,7 @@
     "keyStage": "KS2",
     "maxLines": 10,
     "prereqs": [
-      "03_sequence"
+      "00a_turn_the_corner"
     ],
     "readingAge": 9,
     "solutionCode": "step = 2\nmove_forward(step)\ncollect_sample()\nturn_left(90)\nmove_forward(step)\ncollect_sample()\n",

@@ -1,7 +1,7 @@
 /* ============================================================================
    KODRO - Lesson Studio: make your own lesson.
 
-   Kodro shipped 18 lessons and no way to write a nineteenth. A teacher whose
+   Kodro shipped a fixed lesson library and no way to write one more. A teacher whose
    class was doing something specific that week had to use ours or nothing, and
    a pupil who wanted to set a challenge for a friend had no way to.
 

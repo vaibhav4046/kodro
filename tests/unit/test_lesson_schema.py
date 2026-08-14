@@ -150,6 +150,151 @@ def test_hints_default_to_empty_lists() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Criteria that cannot fail
+#
+# The grader compares ``actual < required``, so a required value of zero is met
+# by every program ever written, including an empty one. A lesson carrying such
+# a criterion looks assessed and is not, which is worse than carrying no
+# criterion at all because nothing in the UI distinguishes the two. The schema
+# is the only place this can be caught, so these tests pin it there.
+# ---------------------------------------------------------------------------
+
+
+def test_zero_samples_collected_rejected() -> None:
+    with pytest.raises(ValidationError):
+        SuccessCriterion(samples_collected=0)
+
+
+def test_zero_min_distance_travelled_rejected() -> None:
+    with pytest.raises(ValidationError):
+        SuccessCriterion(min_distance_travelled=0.0)
+
+
+def test_empty_calls_in_order_rejected() -> None:
+    """An empty list does not merely pass, it skips the check entirely.
+
+    ``grader._check_criterion`` guards this branch with a plain truthiness test
+    (``if criterion.calls_in_order``), so ``[]`` is falsy and the ordering
+    assertion never runs — while still counting as a populated field for the
+    at-least-one-field model validator, so the criterion looks well formed.
+    """
+    with pytest.raises(ValidationError):
+        SuccessCriterion(calls_in_order=[])
+
+
+def test_blank_call_name_in_calls_in_order_rejected() -> None:
+    with pytest.raises(ValidationError):
+        SuccessCriterion(calls_in_order=["move_forward", "   "])
+
+
+@pytest.mark.parametrize(
+    "criterion",
+    [
+        {"samples_collected": 1},
+        {"min_distance_travelled": 1.5},
+        {"calls_in_order": ["move_forward"]},
+    ],
+)
+def test_smallest_meaningful_criteria_still_accepted(criterion: dict) -> None:  # type: ignore[type-arg]
+    """The guards must reject only the vacuous case, not the tightest real one."""
+    assert SuccessCriterion.model_validate(criterion) is not None
+
+
+@pytest.mark.parametrize("criterion", [{"max_battery_used": 0.0}, {"max_steps": 0}])
+def test_zero_ceilings_are_allowed_because_they_are_strict(criterion: dict) -> None:  # type: ignore[type-arg]
+    """These two read the other way round and must stay permitted.
+
+    The grader tests ``used > ceiling``, so a ceiling of zero is unusually
+    strict rather than vacuous. An unpassable lesson is a real defect, but it is
+    caught by tests/unit/test_lesson_solutions.py running every ``solution_code``
+    through both graders — it is not the schema's job, and forbidding zero here
+    would outlaw a legitimate "do not move at all" criterion.
+    """
+    assert SuccessCriterion.model_validate(criterion) is not None
+
+
+def test_a_vacuous_criterion_would_pass_an_empty_program() -> None:
+    """Demonstrate the failure the constraints above exist to prevent.
+
+    Built with ``model_construct`` to bypass validation, because after the fix
+    this object can no longer be created through the normal path. An empty
+    tracer is a pupil who ran nothing at all; it scores 100.
+    """
+    from robolearn.lessons.grader import grade
+    from robolearn.runtime.tracer import Tracer
+
+    payload = _minimal_lesson_payload()
+    lesson = Lesson.model_validate(payload)
+    vacuous = SuccessCriterion.model_construct(
+        samples_collected=0,
+        max_battery_used=None,
+        no_collisions=None,
+        uses_construct=None,
+        returns_to_base=None,
+        max_steps=None,
+        min_distance_travelled=None,
+        calls_in_order=None,
+    )
+    lesson = lesson.model_copy(update={"success_criteria": [vacuous]})
+
+    result = grade(lesson, Tracer(), source="")
+
+    assert result.passed is True, (
+        "a zero-valued criterion is supposed to pass an empty program; if this "
+        "now fails, the grader semantics changed and the schema guards that "
+        "depend on them should be revisited"
+    )
+    assert result.score == 100
+
+
+# ---------------------------------------------------------------------------
+# Blank strings that read as content
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("field", ["on_failure", "on_success"])
+def test_blank_hint_rejected(field: str) -> None:
+    """A blank hint surfaces to a pupil as an empty hint box."""
+    with pytest.raises(ValidationError):
+        HintRules(**{field: ["Try turning first.", "  "]})
+
+
+@pytest.mark.parametrize("field", ["curriculum_refs", "prereqs"])
+def test_blank_list_entry_rejected(field: str) -> None:
+    """A blank prereq id matches no lesson; a blank ref claims absent coverage."""
+    payload = _minimal_lesson_payload()
+    payload[field] = [""]
+    with pytest.raises(ValidationError):
+        Lesson.model_validate(payload)
+
+
+@pytest.mark.parametrize("glossary", [{"": "a laser range-finder"}, {"lidar": "   "}])
+def test_blank_glossary_entry_rejected(glossary: dict) -> None:  # type: ignore[type-arg]
+    """The glossary exists so jargon is never unexplained; a blank entry
+    defeats that while still counting as coverage in the UI."""
+    payload = _minimal_lesson_payload()
+    payload["glossary"] = glossary
+    with pytest.raises(ValidationError):
+        Lesson.model_validate(payload)
+
+
+def test_every_bundled_lesson_criterion_can_fail() -> None:
+    """The shipped library must contain no criterion that asserts nothing.
+
+    This is the check that would have caught the defect in the field rather
+    than in review, and it keeps holding as lessons are added.
+    """
+    for lesson in load_library():
+        for criterion in lesson.success_criteria:
+            if criterion.samples_collected is not None:
+                assert criterion.samples_collected > 0, lesson.id
+            if criterion.min_distance_travelled is not None:
+                assert criterion.min_distance_travelled > 0.0, lesson.id
+            if criterion.calls_in_order is not None:
+                assert criterion.calls_in_order, lesson.id
+
+
+# ---------------------------------------------------------------------------
 # Library loader
 # ---------------------------------------------------------------------------
 

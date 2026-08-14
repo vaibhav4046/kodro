@@ -10,14 +10,17 @@ from __future__ import annotations
 
 import contextlib
 import json
+import time
 import tkinter as tk
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from tkinter import filedialog
 
 from robolearn.engine.rover import Rover
 from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, World
+from robolearn.engine.world import World
+from robolearn.interop import kodro_project
 from robolearn.lessons.grader import grade
 from robolearn.lessons.schema import Lesson, load_library
 from robolearn.memory.achievements import (
@@ -34,10 +37,11 @@ from robolearn.memory.pupil_model import (
     update_on_submission,
 )
 from robolearn.memory.report import export_progress_report
-from robolearn.memory.store import Store
+from robolearn.memory.store import DEFAULT_DB_PATH, Store
 from robolearn.runtime.binding import set_active_rover, set_active_world
 from robolearn.runtime.executor import execute as run_pupil_code
-from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
+from robolearn.runtime.session import snapshot, world_from_lesson
+from robolearn.runtime.tracer import Tracer, set_active, set_state_provider
 from robolearn.ui import a11y, orbital, sounds
 from robolearn.ui.console_panel import ConsolePanel, HintCardArea
 from robolearn.ui.editor_panel import EditorCallbacks, EditorPanel
@@ -49,8 +53,10 @@ from robolearn.ui.sensors_panel import SensorsPanel
 from robolearn.ui.sim_panel import SimPanel
 from robolearn.ui.teacher_dashboard import TeacherDashboard
 
-#: Path the desktop app uses for the SQLite store. Tests override this.
-DEFAULT_DB_PATH: Path = Path.home() / ".robolearn" / "pupil.db"
+#: Path the desktop app uses for the SQLite store, re-exported from
+#: :mod:`robolearn.memory.store` so the desktop app, the web bridge and the MCP
+#: server cannot drift onto three different databases. Tests override this.
+__all__ = ["DEFAULT_DB_PATH", "App", "build_app", "launch", "main"]
 
 
 @dataclass(slots=True)
@@ -234,6 +240,16 @@ def build_app(
     ttk.Button(
         win.frames.topbar, text="📄 Report", command=lambda: _export_report(app, console)
     ).pack(side=tk.RIGHT, padx=4, pady=6)
+    ttk.Button(
+        win.frames.topbar,
+        text="📂 Open project…",
+        command=lambda: _open_project(app, console, editor),
+    ).pack(side=tk.RIGHT, padx=4, pady=6)
+    ttk.Button(
+        win.frames.topbar,
+        text="💾 Save project…",
+        command=lambda: _save_project(app, console, editor),
+    ).pack(side=tk.RIGHT, padx=4, pady=6)
 
     # Mission bar (from the "Orbital Rover" design handoff): wordmark +
     # subtitle, a run-status dot, and a sim-speed slider.
@@ -352,6 +368,112 @@ def _export_report(app: App, console: ConsolePanel) -> None:
         console.log(f"Could not save report: {exc}", level="error")
         return
     console.log(f"📄 Saved progress report to {path}", level="hint")
+
+
+#: World ids the browser studio and this app both understand. The web build
+#: also ships ``city`` and ``room``, which have no desktop terrain: a project
+#: saved in one of those opens here with its program intact and says plainly
+#: that the world could not come with it, rather than silently pretending the
+#: pupil is somewhere they are not.
+SHARED_WORLDS: frozenset[str] = frozenset(t.value for t in Terrain)
+
+
+def _save_project(
+    app: App,
+    console: ConsolePanel,
+    editor: EditorPanel,
+    chooser: Callable[[str], Path | None] | None = None,
+) -> Path | None:
+    """Write the current program and world to a ``.kodro`` file.
+
+    The same file opens in the browser studio, which is the point: a pupil can
+    write a program on a school desktop, take the file home, and carry on in
+    the website with no account and nothing uploaded anywhere.
+    """
+    document = kodro_project.new_document(
+        program=editor.get_source(),
+        world=app.world.terrain.value,
+        # Milliseconds, matching the browser's Date.now() so a file written by
+        # either half sorts correctly against one written by the other.
+        saved_at=int(time.time() * 1000),
+    )
+    pick = chooser or _default_project_save_chooser
+    target = pick(kodro_project.file_name(document))
+    if target is None:
+        return None
+    try:
+        written = kodro_project.write_file(target, document)
+    except OSError as exc:
+        console.log(f"Could not save the project: {exc}", level="error")
+        return None
+    console.log(
+        f"💾 Saved project to {written} — this file opens in the website too.",
+        level="hint",
+    )
+    return written
+
+
+def _open_project(
+    app: App,
+    console: ConsolePanel,
+    editor: EditorPanel,
+    chooser: Callable[[], Path | None] | None = None,
+) -> bool:
+    """Load a ``.kodro`` file's program into the editor. Returns True on success.
+
+    Only the program crosses over. The world stays whatever the current lesson
+    set, because the lesson's goal is graded against that world -- swapping the
+    terrain underneath a lesson would quietly change what "passed" means. The
+    file's world is reported instead so the pupil knows what changed and what
+    did not.
+    """
+    pick = chooser or _default_project_open_chooser
+    source_path = pick()
+    if source_path is None:
+        return False
+    result = kodro_project.read_file(source_path)
+    if not result.ok or result.document is None:
+        for message in result.errors:
+            console.log(f"Could not open that project: {message}", level="error")
+        return False
+    document = result.document
+    for message in result.warnings:
+        console.log(f"Project file: {message}", level="warn")
+    program = document.program()
+    if not program:
+        console.log(
+            "That project has no program saved in it; the editor is unchanged.",
+            level="warn",
+        )
+        return False
+    editor.set_source(program)
+    named = document.robot_name or "project"
+    console.log(f"📂 Loaded {named} from {source_path.name}.", level="hint")
+    if document.world != app.world.terrain.value:
+        known = document.world in SHARED_WORLDS
+        where = document.world if known else f"{document.world} (web only)"
+        console.log(
+            f"That project was saved in {where}; this lesson stays in "
+            f"{app.world.terrain.value} so its goal still means the same thing.",
+            level="info",
+        )
+    return True
+
+
+def _default_project_save_chooser(suggested: str) -> Path | None:  # pragma: no cover -- GUI
+    chosen = filedialog.asksaveasfilename(
+        defaultextension=".kodro",
+        initialfile=suggested,
+        filetypes=[("Kodro project", "*.kodro"), ("All files", "*.*")],
+    )
+    return Path(chosen) if chosen else None
+
+
+def _default_project_open_chooser() -> Path | None:  # pragma: no cover -- GUI
+    chosen = filedialog.askopenfilename(
+        filetypes=[("Kodro project", "*.kodro"), ("All files", "*.*")],
+    )
+    return Path(chosen) if chosen else None
 
 
 def _apply_a11y(app: App) -> None:
@@ -532,31 +654,12 @@ def _default_lesson() -> Lesson:
     )
 
 
-def _world_from_lesson(lesson: Lesson) -> World:
-    from robolearn.engine.world import Obstacle, Sample
-
-    world_def = lesson.world
-    return World(
-        terrain=Terrain(lesson.terrain),
-        base=tuple(world_def.base),  # type: ignore[arg-type]
-        samples=[Sample(s[0], s[1]) for s in world_def.samples],
-        obstacles=[Obstacle(o.x, o.y, o.r) for o in world_def.obstacles],
-        bounds=ArenaBounds(width=world_def.width, height=world_def.height),
-    )
-
-
-def _snapshot(rover: Rover) -> RoverSnapshot:
-    state = rover.state
-    return RoverSnapshot(
-        x=state.x,
-        y=state.y,
-        heading_deg=state.heading_deg,
-        battery_pct=state.battery_pct,
-        samples_held=state.samples_held,
-        samples_collected=state.samples_collected,
-        collisions=state.collisions,
-        distance_travelled_m=state.distance_travelled_m,
-    )
+# The desktop app and the web bridge each used to carry their own byte-identical
+# copy of these two helpers. They now delegate to the single definition in
+# robolearn.runtime.session so a physics or snapshot fix can never land on one
+# surface and silently miss the other.
+_world_from_lesson = world_from_lesson
+_snapshot = snapshot
 
 
 #: Wall-clock gap between animation frames during Run playback (ms).

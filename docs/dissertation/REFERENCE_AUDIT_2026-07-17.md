@@ -1,9 +1,15 @@
 # Reference integrity audit — 17 July 2026
 
-This audit covers every item in the canonical LaTeX bibliography. Titles,
-authors, dates, venues and persistent identifiers were checked against a
-publisher, proceedings, project-owner or arXiv record. Search snippets were not
-treated as evidence where a primary record was available.
+> **Superseded in part. Read the addendum at the foot of this file before
+> relying on the coverage claim below.** The table dated 17 July 2026 covers 23
+> of the 25 entries now in the canonical bibliography. Two entries were added
+> after this audit ran and have not been checked against a primary record:
+> `trinket2026` and `bcscode`.
+
+This audit covered every item that was in the canonical LaTeX bibliography on
+17 July 2026. Titles, authors, dates, venues and persistent identifiers were
+checked against a publisher, proceedings, project-owner or arXiv record. Search
+snippets were not treated as evidence where a primary record was available.
 
 | Key | Authoritative record checked | Result |
 | --- | --- | --- |
@@ -42,3 +48,22 @@ required correction. No unverified citation was retained as a factual support.
 OpenAI Codex assisted with locating and comparing records. The committed URLs
 above are the evidence trail; the author remains responsible for checking the
 records and the final bibliography.
+
+---
+
+## Addendum — 14 August 2026
+
+The bibliography has grown from 23 entries to 25 since the audit above was run.
+The two new entries are recorded here as **unchecked**, not as verified. Neither
+could be checked in the session that produced this addendum, because no external
+record could be fetched from it; the rows below were produced by diffing the
+`\bibitem` keys in `Kodro_Dissertation.tex` against the table above, not by
+opening any source.
+
+| Key | Status | What still has to be done before submission |
+| --- | --- | --- |
+| `trinket2026` | **VERIFY** | Cited in Chapter 2 for a load-bearing factual claim about a third party: that Trinket announced a shutdown on 31 August 2026, that publishing the source does not preserve the service, and that unexported pupil work is lost at the deadline. The entry carries an access date of 27 July 2026, which is after this audit ran, so the author may already have read it; there is no evidence trail either way. Re-open <https://trinket.io/announcement>, confirm the shutdown date and the three specific consequences the dissertation attributes to the announcement, and archive a copy, because a shutdown notice is exactly the kind of page that disappears once the shutdown happens. |
+| `bcscode` | **VERIFY** | Cited in the ethics chapter for the four duties of the BCS Code of Conduct. The bibliography entry deliberately carries a visible `[VERIFY VERSION, URL AND ACCESS DATE BEFORE SUBMISSION]` marker inside the PDF. The version year (2022), the URL and the access date are all unconfirmed. Fetch the current code from bcs.org, confirm the four duty headings quoted in the text, then replace the marker with the real version and access date. **Do not delete the marker without doing the check** — it is there so that an unverified citation cannot pass as a verified one. |
+
+No other bibliography entry changed. The 23 rows in the table above still stand
+as audited on 17 July 2026 and were not re-checked here.

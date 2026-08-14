@@ -7,6 +7,13 @@
  * window.RoverSchematic in Build) — those globals are loaded before this module
  * in the ORDER array, same as when the markup lived in app.jsx.
  *
+ * ONE deliberate exception: VoiceControls, near the bottom, owns state and
+ * effects. It has to. Browser speech is an external system with its own async
+ * lifecycle (voices arrive after a voiceschanged event, recognition streams
+ * interim results, consent persists in localStorage), and threading all of that
+ * up into App would spread microphone plumbing across a file that has nothing
+ * else to do with it. Everything else in here stays pure.
+ *
  * app.jsx keeps the open/close semantics: it still renders each as
  *   {xOpen && <window.KodroPanels.XModal {...props} />}
  * so behaviour is identical — this is a structural move, not a behavioural one.
@@ -860,6 +867,154 @@
     );
   }
 
+  // Plain-English reasons for the recogniser's error codes. The raw codes
+  // ("not-allowed", "audio-capture") mean nothing to a 12-year-old, and a mic
+  // button that goes quiet without saying why reads as a broken product.
+  const VOICE_ERRORS = {
+    'not-allowed': 'The browser blocked the microphone. Allow it in the address bar, or keep typing.',
+    'service-not-allowed': 'The browser blocked the microphone. Allow it in the address bar, or keep typing.',
+    'no-speech': 'I did not hear anything. Press the microphone and speak, or type instead.',
+    'audio-capture': 'No microphone was found on this computer. Typing does the same job.',
+    network: 'The speech recogniser could not be reached. It needs the internet; typing does not.',
+    aborted: '',
+  };
+
+  /* Speaking and listening for the Companion.
+   *
+   * Speaking is on-device: window.KodroVoice only ever uses a voice with
+   * localService === true, so the reply is synthesised here. If the machine has
+   * no local voice the control explains that instead of quietly using a network
+   * voice that would post the text to a server.
+   *
+   * Listening is the opposite and is treated as such. Chrome's recogniser
+   * uploads the audio, so the microphone is off until the learner reads what
+   * that means and turns it on. A final transcript is sent as if it had been
+   * typed -- it goes through the same intent parser and the same
+   * preview-then-Apply gate, so a mishearing can waste a sentence but cannot
+   * change the robot, the world or the program on its own.
+   */
+  function VoiceControls({ vibeMsgs, vibeBusy, onTranscript }) {
+    const V = window.KodroVoice;
+    const [caps, setCaps] = React.useState(() => (V ? V.capabilities() : null));
+    const [listening, setListening] = React.useState(false);
+    const [interim, setInterim] = React.useState('');
+    const [note, setNote] = React.useState('');
+    const [asking, setAsking] = React.useState(false);
+    // Start from the CURRENT length: reopening the Companion restores the saved
+    // thread, and reading a whole past conversation aloud would be a jump-scare.
+    const spokenTo = React.useRef(vibeMsgs.length);
+
+    React.useEffect(() => {
+      if (!V) return undefined;
+      const onVoices = () => setCaps(V.capabilities());
+      window.addEventListener('kodro-voices-changed', onVoices);
+      return () => window.removeEventListener('kodro-voices-changed', onVoices);
+    }, [V]);
+
+    React.useEffect(() => () => { if (V) { V.cancel(); V.stopDictation(); } }, [V]);
+
+    React.useEffect(() => {
+      if (!V) return;
+      if (vibeMsgs.length <= spokenTo.current) { spokenTo.current = vibeMsgs.length; return; }
+      const last = vibeMsgs[vibeMsgs.length - 1];
+      spokenTo.current = vibeMsgs.length;
+      if (!last || last.role === 'user' || !V.speakEnabled()) return;
+      // A code block read character by character is noise. Speak what the edit
+      // DOES and leave the program on screen where it can be read properly.
+      let say = last.text;
+      if (last.kind === 'code') {
+        say = (last.summary ? last.summary + '. ' : '') + 'The program is in the preview. Choose Apply or Discard.';
+      } else if (last.kind === 'project-preview') {
+        say = last.text + ' Nothing has changed yet. Choose Apply or Discard.';
+      }
+      const outcome = V.speak(say);
+      if (outcome === 'no-local-voice') setNote(V.capabilities().speakBlockedReason);
+    }, [vibeMsgs, V]);
+
+    if (!V || !caps) return null;
+
+    function toggleSpeak() {
+      const next = !V.speakEnabled();
+      V.setSpeakEnabled(next);
+      const fresh = V.capabilities();
+      setCaps(fresh);
+      setNote(next && !fresh.canSpeak ? fresh.speakBlockedReason : '');
+    }
+
+    function beginListening() {
+      setNote(''); setInterim('');
+      const outcome = V.startDictation({
+        onInterim: text => setInterim(text),
+        onText: text => {
+          setInterim('');
+          if (text && onTranscript) onTranscript(text);
+        },
+        onEnd: () => { setListening(false); setInterim(''); },
+        onError: code => {
+          setListening(false); setInterim('');
+          setNote(Object.prototype.hasOwnProperty.call(VOICE_ERRORS, code)
+            ? VOICE_ERRORS[code]
+            : 'The microphone stopped (' + code + '). Typing still works.');
+        },
+      });
+      if (outcome === 'ok') setListening(true);
+      else if (outcome === 'not-consented') setAsking(true);
+      else setNote('Listening could not start on this browser. Type your message instead.');
+    }
+
+    function toggleMic() {
+      if (listening) { V.stopDictation(); setListening(false); setInterim(''); return; }
+      if (!V.dictationConsented()) { setAsking(true); return; }
+      beginListening();
+    }
+
+    return (
+      <div className="vibe-voice" role="group" aria-label="Voice">
+        {caps.speechSupported && (
+          <button
+            className="btn-mini voice-btn"
+            aria-pressed={caps.speakEnabled}
+            onClick={toggleSpeak}
+            title={caps.canSpeak
+              ? 'Read replies aloud using a voice installed on this computer. Nothing is sent anywhere.'
+              : 'No on-device voice is installed on this computer.'}
+          >{caps.speakEnabled ? 'Speaking replies' : 'Speak replies'}</button>
+        )}
+        {caps.dictationSupported && (
+          <button
+            className={'btn-mini voice-btn' + (listening ? ' is-live' : '')}
+            aria-pressed={listening}
+            disabled={vibeBusy}
+            onClick={toggleMic}
+            title={caps.dictationConsented
+              ? 'Speak instead of typing. The audio is sent to the browser speech service.'
+              : 'Speak instead of typing. Read what this sends before turning it on.'}
+          >{listening ? <><span className="voice-dot" aria-hidden="true"></span>Listening, press to stop</> : 'Speak to Kodro'}</button>
+        )}
+        {asking && (
+          <div className="voice-consent" role="dialog" aria-label="Turn on listening">
+            <p>{caps.dictationNotice}</p>
+            <div className="voice-consent-actions">
+              <button className="ctrl ctrl-run" onClick={() => {
+                V.setDictationConsent(true);
+                setCaps(V.capabilities());
+                setAsking(false);
+                beginListening();
+              }}>I understand, turn listening on</button>
+              <button className="btn-mini" onClick={() => setAsking(false)}>Keep typing</button>
+            </div>
+          </div>
+        )}
+        {caps.dictationConsented && !asking && (
+          <button className="btn-mini" onClick={() => { V.setDictationConsent(false); setCaps(V.capabilities()); setListening(false); }}
+            title="Stop using the browser speech service">Turn listening off</button>
+        )}
+        {interim && <p className="voice-interim">Heard: {interim}</p>}
+        {note && <p className="voice-note" role="status">{note}</p>}
+      </div>
+    );
+  }
+
   function VibeModal({ setVibeOpen, vibeCancelRef, setVibeBusy, aiInfo, pickModel, refreshAiStatus, vibeMsgs, setVibeMsgs, vibeApply, vibeApplyProject, vibeBusy, vibeLive, vibeEndRef, vibeError, vibePrompt, setVibePrompt, vibeSend, vibeClear, vibeContext, projectContext, onExplain, onReview }) {
     // The reflection the assistant is fed from past runs in this world,
     // rendered as a VISIBLE chip instead of an invisible prompt injection
@@ -1031,6 +1186,17 @@
                 />
                 <button className="ctrl ctrl-run" disabled={vibeBusy || !vibePrompt.trim()} onClick={vibeSend}>Send</button>
               </div>
+              <VoiceControls
+                vibeMsgs={vibeMsgs}
+                vibeBusy={vibeBusy}
+                onTranscript={text => {
+                  // A finished sentence is sent as if typed. vibeSend takes the
+                  // text directly rather than going through the textarea state,
+                  // which would still hold the previous render's value.
+                  setVibePrompt('');
+                  vibeSend(text);
+                }}
+              />
               <span className="vibe-hint">Proposed edits are previews. Choose Apply or Discard for each one. Nothing runs until you press Run. The conversation stays on this device.</span>
               {!aiInfo.available && (
                 <ol className="vibe-steps">

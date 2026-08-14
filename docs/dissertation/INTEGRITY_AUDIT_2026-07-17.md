@@ -1,5 +1,28 @@
 # Dissertation integrity audit — 17 July 2026
 
+> **STALE as of 14 August 2026. Do not quote any figure in this file as the
+> current state of the project.** Every number below was measured against
+> commit `2645af9` and a 49-page PDF. The document and the test matrix have both
+> moved a long way since. What this file is still good for is the research-
+> integrity reasoning: which claims were treated as established, which were
+> treated as not established, and why. The superseding-figures table immediately
+> below records what has changed; the rest of the file is left unedited as a
+> record of the 17 July state.
+>
+> | Surface | This file (17 Jul, `2645af9`) | Current, and where the current figure comes from |
+> | --- | --- | --- |
+> | Python matrix | 1,081 passed, 0 skipped, 89.00% branch coverage | 1,488 passed, 1 host Tk skip, 90.97% branch coverage against an 85% gate. Emitted by the run itself into `docs/eval/test_suite.json`, which records its own commit and working-tree status — read the figure there, not here. |
+> | Final PDF | 49 A4 pages | 58 pages total; body runs Chapter 1 to the end of the References at page 47, Appendix A opens at 48. The 50-page limit applies to the body, so the current margin is 3 pages. |
+> | LaTeX log | "no overfull box, unresolved reference or unresolved citation warning" | Unresolved references and citations: still none. **Overfull and underfull boxes: 19.** The clean-log half of that sentence no longer holds and should not be repeated. |
+> | Headless UI matrix | 6 render flows, 39 behaviour assertions, 12 modal checks | 40 behaviour and 13 modal checks, per `docs/HANDOFF_KEITH.md` measured at commit `b33e5b8`. Not re-run for this note. |
+> | Bibliography | "checked item by item", 23 entries | 25 entries. Two are unchecked and are logged as VERIFY in the addendum to `REFERENCE_AUDIT_2026-07-17.md`. One of them, `bcscode`, carries a deliberate visible verification marker inside the PDF. |
+>
+> Two verdicts in this file have **not** changed and are the ones most worth
+> carrying forward: no human participant study has been run, so nothing about
+> usability or learning is established; and the simulation has never been
+> calibrated against a physical robot, so nothing about physical predictive
+> validity is established. Both are still stated in the dissertation itself.
+
 ## Scope and source lock
 
 - Canonical source: `Kodro_Dissertation.tex`

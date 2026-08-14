@@ -478,6 +478,195 @@ def test_sound_toggle_flips_persists_and_applies(
     assert sounds.is_enabled() is True
 
 
+# --- the .kodro bridge to the website --------------------------------------
+#
+# Save and Open are the desktop half of the two-implementation file format, and
+# the failure they exist to prevent is silent: a pupil's work crossing to the
+# website and arriving empty. Both take an injectable chooser precisely so the
+# path a pupil actually walks can be exercised with no file dialog -- these
+# tests drive that path rather than the ``# pragma: no cover -- GUI`` default.
+
+
+def _console_tail(app: App, mark: int) -> str:
+    """Console text logged since ``mark``.
+
+    The app fixture is module-scoped, so the console accumulates every earlier
+    test's output; asserting on the whole buffer would let an unrelated line
+    satisfy the assertion.
+    """
+    assert app.console is not None
+    return app.console.text()[mark:]
+
+
+def _console_mark(app: App) -> int:
+    assert app.console is not None
+    return len(app.console.text())
+
+
+def _editor(app: App):  # noqa: ANN202 -- EditorPanel, kept local to the bridge tests
+    editor = app.main_window.get_slot("editor")
+    assert editor is not None
+    return editor
+
+
+def test_cancelling_the_save_dialog_writes_nothing(app_ctx: App, tmp_path: object) -> None:
+    """A pupil who backs out of the file dialog gets no file and no log noise."""
+    from robolearn.app import _save_project
+
+    assert app_ctx.console is not None
+    mark = _console_mark(app_ctx)
+    result = _save_project(app_ctx, app_ctx.console, _editor(app_ctx), chooser=lambda _s: None)
+    assert result is None
+    assert list(tmp_path.iterdir()) == []  # type: ignore[attr-defined]
+    assert _console_tail(app_ctx, mark) == ""
+
+
+def test_cancelling_the_open_dialog_leaves_the_editor_alone(app_ctx: App) -> None:
+    from robolearn.app import _open_project
+
+    assert app_ctx.console is not None
+    editor = _editor(app_ctx)
+    editor.set_source("move_forward(1)")
+    mark = _console_mark(app_ctx)
+    assert _open_project(app_ctx, app_ctx.console, editor, chooser=lambda: None) is False
+    assert editor.get_source().strip() == "move_forward(1)"
+    assert _console_tail(app_ctx, mark) == ""
+
+
+def test_a_saved_project_opens_back_into_the_editor(app_ctx: App, tmp_path: object) -> None:
+    """The round trip that matters: what was written is what comes back."""
+    from robolearn.app import _open_project, _save_project
+
+    assert app_ctx.console is not None
+    editor = _editor(app_ctx)
+    program = "move_forward(2)\nturn_left(90)\nbeep(1)"
+    editor.set_source(program)
+    target = tmp_path / "trip.kodro"  # type: ignore[operator]
+
+    written = _save_project(app_ctx, app_ctx.console, editor, chooser=lambda _s: target)
+    assert written == target
+    assert target.exists()
+
+    editor.set_source("# cleared")
+    mark = _console_mark(app_ctx)
+    assert _open_project(app_ctx, app_ctx.console, editor, chooser=lambda: target) is True
+    assert editor.get_source().strip() == program
+    assert "Loaded" in _console_tail(app_ctx, mark)
+
+
+def test_the_suggested_file_name_reaches_the_chooser(app_ctx: App, tmp_path: object) -> None:
+    """The dialog is pre-filled, so a pupil is not asked to invent a name."""
+    from robolearn.app import _save_project
+
+    assert app_ctx.console is not None
+    seen: list[str] = []
+
+    def chooser(suggested: str):  # noqa: ANN202 -- Path | None
+        seen.append(suggested)
+        return tmp_path / suggested  # type: ignore[operator]
+
+    _save_project(app_ctx, app_ctx.console, _editor(app_ctx), chooser=chooser)
+    # No KRS spec exists on the desktop side, so the generic name is correct
+    # here -- what is being asserted is that a name arrives at all.
+    assert seen == ["kodro-project.kodro"]
+
+
+def test_an_unwritable_target_is_reported_not_raised(app_ctx: App, tmp_path: object) -> None:
+    """A save that cannot land says so; it does not take the app down."""
+    from robolearn.app import _save_project
+
+    assert app_ctx.console is not None
+    # A real filesystem refusal rather than a patched one: writing over a
+    # directory raises IsADirectoryError on POSIX and PermissionError on
+    # Windows, both OSError, which is the branch under test.
+    blocked = tmp_path / "a-directory.kodro"  # type: ignore[operator]
+    blocked.mkdir()
+    mark = _console_mark(app_ctx)
+    result = _save_project(app_ctx, app_ctx.console, _editor(app_ctx), chooser=lambda _s: blocked)
+    assert result is None
+    assert "Could not save the project" in _console_tail(app_ctx, mark)
+
+
+def test_a_corrupt_file_is_refused_with_the_shared_wording(
+    app_ctx: App, tmp_path: object
+) -> None:
+    from robolearn.app import _open_project
+
+    assert app_ctx.console is not None
+    editor = _editor(app_ctx)
+    editor.set_source("keep me")
+    bad = tmp_path / "bad.kodro"  # type: ignore[operator]
+    bad.write_text("{not json", encoding="utf-8")
+    mark = _console_mark(app_ctx)
+    assert _open_project(app_ctx, app_ctx.console, editor, chooser=lambda: bad) is False
+    tail = _console_tail(app_ctx, mark)
+    assert "Could not open that project" in tail
+    assert "Not valid JSON" in tail
+    assert editor.get_source().strip() == "keep me"
+
+
+def test_a_project_with_no_program_leaves_the_editor_unchanged(
+    app_ctx: App, tmp_path: object
+) -> None:
+    """An empty project must not blank the editor a pupil is working in."""
+    import json
+
+    from robolearn.app import _open_project
+
+    assert app_ctx.console is not None
+    editor = _editor(app_ctx)
+    editor.set_source("work in progress")
+    empty = tmp_path / "empty.kodro"  # type: ignore[operator]
+    empty.write_text(json.dumps({"kodroProject": 1}), encoding="utf-8")
+    mark = _console_mark(app_ctx)
+    assert _open_project(app_ctx, app_ctx.console, editor, chooser=lambda: empty) is False
+    assert editor.get_source().strip() == "work in progress"
+    assert "no program saved in it" in _console_tail(app_ctx, mark)
+
+
+def test_a_web_only_world_is_named_as_web_only(app_ctx: App, tmp_path: object) -> None:
+    """``city`` has no desktop terrain, and the pupil is told rather than moved."""
+    import json
+
+    from robolearn.app import _open_project
+
+    assert app_ctx.console is not None
+    editor = _editor(app_ctx)
+    here = app_ctx.world.terrain.value
+    doc = {"kodroProject": 1, "tab": "drive", "programs": {"drive": "wait(1)"}, "world": "city"}
+    from_web = tmp_path / "city.kodro"  # type: ignore[operator]
+    from_web.write_text(json.dumps(doc), encoding="utf-8")
+    mark = _console_mark(app_ctx)
+    assert _open_project(app_ctx, app_ctx.console, editor, chooser=lambda: from_web) is True
+    tail = _console_tail(app_ctx, mark)
+    assert "city (web only)" in tail
+    # The lesson's world is what the grader marks, so it must not have moved.
+    assert app_ctx.world.terrain.value == here
+    assert f"stays in {here}" in tail
+
+
+def test_a_shared_world_is_named_without_the_web_only_caveat(
+    app_ctx: App, tmp_path: object
+) -> None:
+    """A world both halves have is reported plainly -- no misleading caveat."""
+    import json
+
+    from robolearn.app import SHARED_WORLDS, _open_project
+
+    assert app_ctx.console is not None
+    editor = _editor(app_ctx)
+    here = app_ctx.world.terrain.value
+    other = next(w for w in sorted(SHARED_WORLDS) if w != here)
+    doc = {"kodroProject": 1, "tab": "drive", "programs": {"drive": "wait(1)"}, "world": other}
+    path = tmp_path / "shared.kodro"  # type: ignore[operator]
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    mark = _console_mark(app_ctx)
+    assert _open_project(app_ctx, app_ctx.console, editor, chooser=lambda: path) is True
+    tail = _console_tail(app_ctx, mark)
+    assert f"saved in {other}" in tail
+    assert "web only" not in tail
+
+
 def test_source_for_lesson_resume_vs_starter(app_ctx: App) -> None:
     """A lesson with no history yields its starter; with history, the last code."""
     import dataclasses

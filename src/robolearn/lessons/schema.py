@@ -84,18 +84,37 @@ class SuccessCriterion(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    samples_collected: int | None = Field(default=None, ge=0)
+    # ``gt`` rather than ``ge``: the grader tests ``collected < required``, so a
+    # criterion of zero is satisfied by every program ever written, including an
+    # empty one. A criterion that cannot fail is not a criterion, and it is worse
+    # than no criterion at all because the lesson looks assessed when it is not.
+    samples_collected: int | None = Field(default=None, gt=0)
     max_battery_used: float | None = Field(default=None, ge=0.0)
     no_collisions: bool | None = None
     uses_construct: AllowedConstruct | None = None
     returns_to_base: bool | None = None
     max_steps: int | None = Field(default=None, ge=0)
-    min_distance_travelled: float | None = Field(default=None, ge=0.0)
+    # Same reasoning as samples_collected: the grader tests
+    # ``travelled < minimum``, so a minimum of zero asserts nothing.
+    min_distance_travelled: float | None = Field(default=None, gt=0.0)
     # The named functions must be called, in this relative order. A lesson
     # that teaches a sequence has to be able to check that sequence: without
     # this, 01_hello_rover told the pupil to call three functions in order and
     # then passed a program with two of them deleted.
-    calls_in_order: list[str] | None = None
+    #
+    # ``min_length=1`` because the grader guards this check with a plain
+    # truthiness test (``if criterion.calls_in_order``), so an empty list does
+    # not merely pass, it skips the check entirely while still counting as a
+    # populated field for _at_least_one_field below.
+    calls_in_order: list[str] | None = Field(default=None, min_length=1)
+
+    @field_validator("calls_in_order")
+    @classmethod
+    def _reject_blank_call_names(cls, value: list[str] | None) -> list[str] | None:
+        """Reject blank function names, which can never match a real call."""
+        if value is not None and any(not name.strip() for name in value):
+            raise ValueError("calls_in_order entries must be non-blank function names")
+        return value
 
     @model_validator(mode="after")
     def _at_least_one_field(self) -> SuccessCriterion:
@@ -123,6 +142,14 @@ class HintRules(BaseModel):
 
     on_failure: list[str] = Field(default_factory=list)
     on_success: list[str] = Field(default_factory=list)
+
+    @field_validator("on_failure", "on_success")
+    @classmethod
+    def _reject_blank_hints(cls, value: list[str]) -> list[str]:
+        """Reject blank hints, which surface to a pupil as an empty hint box."""
+        if any(not hint.strip() for hint in value):
+            raise ValueError("hints must be non-blank")
+        return value
 
 
 class Lesson(BaseModel):
@@ -169,6 +196,34 @@ class Lesson(BaseModel):
     def _coerce_terrain(cls, value: Any) -> Terrain | Any:
         if isinstance(value, str):
             return Terrain(value)
+        return value
+
+    @field_validator("curriculum_refs", "prereqs")
+    @classmethod
+    def _reject_blank_entries(cls, value: list[str]) -> list[str]:
+        """Reject blank ids and references.
+
+        A blank prereq id matches no lesson, and a blank curriculum reference
+        claims curriculum coverage that is not there.
+        """
+        if any(not entry.strip() for entry in value):
+            raise ValueError("entries must be non-blank")
+        return value
+
+    @field_validator("glossary")
+    @classmethod
+    def _reject_blank_glossary(cls, value: dict[str, str]) -> dict[str, str]:
+        """Reject blank terms or definitions.
+
+        The glossary exists so a younger learner never meets unexplained jargon;
+        an entry with an empty definition defeats that while still counting as
+        coverage.
+        """
+        for term, definition in value.items():
+            if not term.strip():
+                raise ValueError("glossary terms must be non-blank")
+            if not definition.strip():
+                raise ValueError(f"glossary definition for {term!r} must be non-blank")
         return value
 
 

@@ -20,6 +20,8 @@ pip-wheel-metadata/
 
 # Testing / coverage
 .pytest_cache/
+# Windows-only: the --basetemp escape hatch documented in CONTRIBUTING.md.
+.pytest-tmp/
 .coverage
 coverage.xml
 htmlcov/
@@ -68,6 +70,32 @@ src/robolearn/assets/web/cap.html
 # (qa_performance.mjs, qa_ui.mjs). Thousands of files; never source.
 tmp/
 
+# Partial qa_ui runs. `--suite=paint` and friends write ui_eval_<suite>.json so
+# a narrowed local run can never overwrite the full-run ui_eval.json the docs
+# cite; those per-suite files are local scratch, so only the full one is tracked.
+docs/eval/ui_eval_*.json
+
 # Local tool binaries and editor/agent config (machine-specific, never shipped).
 .claude/
 .tools/
+
+# Scratch output from full local verification runs. The pytest log and its
+# basetemp are machine-specific and megabytes wide; the LaTeX pass logs are
+# latexmk console captures, not the build itself. The evidence that survives a
+# run is docs/eval/*.json and the compiled PDF, both of which ARE tracked.
+.pytest-full.log
+.pytest-tmp-final/
+docs/dissertation/pass*.txt
+
+# The pdflatex console log embeds the absolute MiKTeX install path on whichever
+# machine built it, which means it carries a local username. The .aux, .toc and
+# .out files do not, and one of them is cited by a diagnostic, so those stay
+# tracked. Regenerate the log by rebuilding; it is never evidence.
+docs/dissertation/Kodro_Dissertation.log
+
+# latexmk's dependency database and file list, for the same reason and worse:
+# they are nothing but absolute paths. Measured on the current build, the
+# .fdb_latexmk carries 127 lines naming C:/Users/<name> and the .fls carries
+# 246. Both are rebuilt on every compile and neither is evidence of anything.
+docs/dissertation/*.fdb_latexmk
+docs/dissertation/*.fls

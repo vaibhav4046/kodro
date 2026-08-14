@@ -1437,6 +1437,22 @@
       if (!window.KodroChatIntent) return null;
       const intent = window.KodroChatIntent.parse(text);
       if (!intent || !intent.isCommand) return null;
+      // Opening a lesson is navigation, not a project mutation: each lesson
+      // keeps its own program buffer, so nothing the learner wrote is
+      // overwritten and there is nothing for an Apply gate to protect. It acts
+      // straight away, the way clicking the lesson in the library does.
+      if (intent.lesson) {
+        const target = lessons.find(l => l.id === intent.lesson.id);
+        if (!target) {
+          return {
+            handled: true,
+            kind: 'evidence',
+            message: 'I could not find the ' + intent.lesson.label + ' lesson in this library, so nothing was opened.',
+          };
+        }
+        loadLesson(target);
+        return { handled: true, kind: 'action', message: 'Opened ' + (target.title || intent.lesson.label) + '.' };
+      }
       // Robot, world and environment changes are project-level mutations. Show
       // one connected before/after preview and require an explicit Apply rather
       // than changing the simulator while the learner is still reading chat.
@@ -1823,7 +1839,20 @@
         // since rewritten, and said 'Complete' about a program never run.
         const verdictHash = (window.KodroScenario && window.KodroScenario.codeHash)
           ? window.KodroScenario.codeHash(source) : null;
-        setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null, codeHash: verdictHash });
+        // batteryUsedPct / energyTrueBatteryPct come from the desktop grade
+        // only (the browser grader returns neither), so the build note below
+        // renders on the desktop and is simply absent in browser mode rather
+        // than guessed at. Both are undefined on a restored verdict too: they
+        // are facts about a run that just happened, not about a stored score.
+        setLessonVerdict({
+          passed: !!r.passed,
+          score: r.score,
+          reasons: r.reasons || [],
+          hint: r.hint || null,
+          codeHash: verdictHash,
+          batteryUsedPct: typeof r.batteryUsedPct === 'number' ? r.batteryUsedPct : null,
+          energyTrueBatteryPct: typeof r.energyTrueBatteryPct === 'number' ? r.energyTrueBatteryPct : null,
+        });
         // The quiet catastrophe on a school Chromebook: everything here lives
         // in localStorage, shared and ephemeral profiles wipe it at sign-out,
         // and the pupil finds out next lesson. Nothing forced a save and
@@ -3064,6 +3093,22 @@
                 const nextLesson = (liveVerdict && liveVerdict.passed)
                   ? nextConnectedLesson(lesson.id)
                   : null;
+                // The mark is earned on the reference rover, on purpose: lesson
+                // battery limits are fixed YAML numbers authored against it, so
+                // grading the pupil's own build would mark a design-bench choice
+                // as a programming mistake. That decision is invisible unless we
+                // say it, and saying it is also the honest place to report what
+                // their build WOULD have cost. Shown only when the two differ by
+                // enough to round differently at one decimal place -- a pupil on
+                // the reference rover is told nothing they need.
+                const gradedBattery = liveVerdict ? liveVerdict.batteryUsedPct : null;
+                const buildBattery = liveVerdict ? liveVerdict.energyTrueBatteryPct : null;
+                const buildEnergyNote = (gradedBattery != null && buildBattery != null
+                  && Math.abs(buildBattery - gradedBattery) >= 0.05)
+                  ? 'Marked on the reference rover, which used ' + gradedBattery.toFixed(1)
+                    + '% battery. The robot you designed would have used '
+                    + buildBattery.toFixed(1) + '% for this program.'
+                  : null;
                 return (
                   <section className="lesson-card" aria-label="Current lesson">
                     <div className="lesson-card-head">
@@ -3136,6 +3181,9 @@
                           </div>
                         ))}
                       </dl>
+                    )}
+                    {buildEnergyNote && (
+                      <p className="lesson-build-energy">{buildEnergyNote}</p>
                     )}
                     {liveVerdict && !liveVerdict.passed && liveVerdict.reasons.length > 0 && (
                       <ul className="lesson-reasons">

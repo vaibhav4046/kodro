@@ -91,38 +91,63 @@ The Robot Lab derives a robot specification from the parts you choose,
 and a single command registry (`KodroCommands` in `RobotLab.jsx`) is the
 source of truth for which commands the build supports. The commands that
 are actually implemented in the interpreter, the ultrasonic range read
-`distance()` and the IMU read `heading()` (with its `tilt` reading), are
-gated end to end: the text editor, the blocks palette and the grounded
-assistant all refuse the call with a readable message
-when the part is not fitted, rather than faking a reading, and the
-assistant is handed the same registry so it refuses too.
+`distance()`, the IMU read `heading()` (with its `tilt` reading) and the
+line follower read `on_line()`, are gated end to end: the text editor,
+the blocks palette and the grounded assistant all refuse the call with a
+readable message when the part is not fitted, rather than faking a
+reading, and the assistant is handed the same registry so it refuses
+too. All three are real bound builtins. They sit in the interpreter's
+`SENSOR_METHODS` and `LESSON_SENSOR` tables
+(`assets/web/interpreter.js`), the host answers them from world state
+(`on_line` reads 1 on the synthesized practice line and 0 off it), and
+each of the three parts carries a `cmd` entry in the catalogue so the
+gate has something to check.
 
-The other catalogue parts, the camera, GPS, bumper, line follower and
-gripper, are real fitted hardware: they add mass and change how the build
+The other catalogue parts, the camera, GPS, bumper and gripper, are real
+fitted hardware: they add mass and change how the build
 accelerates, brakes and drains its battery, so choosing them still
 changes the behaviour. What they do not yet have is a runnable command
-binding (`see()`, `locate()`, `bumped()`, `on_line()`, `grab()`). The
+binding (`see()`, `locate()`, `bumped()`, `grab()`), and no part entry
+for them carries a `cmd`. The
 catalogue used to advertise those commands, which then failed with a
 confusing "name is not defined" instead of a clean refusal, so they have
 been removed from the advertised set and from the assistant's grounding:
 nothing is promised that the runtime cannot honour. Implementing those
-bindings, and gating a ground-colour read behind the line follower, is a
+four bindings is a
 near-term roadmap item. Until then the honest position is that gating is
 enforced for the commands that exist, and the remaining parts are
 hardware that shapes the build without a dedicated command.
 
-## Arena size mismatch between the JS and Python engines
+## Arena bounds: one free-play box, per-world bounds everywhere else
 
-The in-browser JavaScript interpreter runs the rover in a 30 metre
-arena, while the Python engine and grader work in a 10 metre world.
-Both engines run every bundled lesson and the conformance test passes,
-because the lesson criteria are scale tolerant, but the mismatch means
-a program tuned visually in the web UI may score differently under the
-Python grader. The metres to centimetres scaling in the interpreter
-mitigates this for motion but not for arena boundary behaviour.
+There is no single arena size, because the two engines answer two
+different questions. Free play runs in a fixed square defined by
+`arenaHalfExtentCm: 1500` in the shared motion model
+(`assets/web/motion-model.js`, and the same entry in its Python twin
+`engine/motion_model.py`). That is a half extent of 1500 cm: 15 metres
+in each direction from the start point, 30 metres across. A graded
+world instead carries its own rectangle as data. On the Python side it
+comes from the lesson YAML through `WorldDef.width`/`height`
+(`lessons/schema.py`) into `ArenaBounds` (`engine/world.py`), and
+`Rover.move` clamps to it and counts the clamp as a wall collision. The
+bundled lessons range from 6 x 6 to 10 x 10 metres; the 10 metre figure
+is only the schema default, not a size every lesson uses. The bench
+world (8 x 8) and the proof contracts set their own bounds again.
 
-We are working toward a single shared arena definition so the two
-engines agree on the world size.
+The two engines do agree where it matters. Once a lesson is loaded the
+studio sim stops using the free-play box: `app.jsx` builds a `bounds`
+rectangle from the lesson's own width, height and base offset, and
+`sim-physics.js` falls back to the symmetric half extent only when no
+`bounds` is present, so the walls the pupil hits are the walls the
+grader marks. The browser lesson grader clamps with the same
+`min(max(t, 0), width)` form as the Python `Rover.move`
+(`assets/web/lesson-grader.jsx`). So the 30 metre box is a free-play
+property, not a scoring divergence.
+
+What remains is that free play and a graded run are genuinely different
+worlds. A program tuned in the open studio box can meet a wall much
+earlier inside a 6 x 6 metre lesson arena, and nothing in the UI warns
+about that before the run.
 
 ## The shared motion model and what the KRS import honours (M2)
 
@@ -152,8 +177,8 @@ and the verification report:
   the constant-power battery model (no voltage sag, no thermal derating).
 - NOT SIMULATED: slopes (the max-slope figure is reported, never driven),
   wheel-level slip and torque curves, suspension/3D contact, per-motor
-  current transients, IMU acceleration content, and the camera/GPS/bumper/
-  line/gripper command semantics above.
+  current transients, IMU acceleration content, and the
+  camera/GPS/bumper/gripper command semantics above.
 
 The Ackermann minimum turn radius (wheelbase/tan(steer)) is REPORT-ONLY in
 v1: the sim still turns in place (or on its fixed display arc for the car
@@ -169,7 +194,7 @@ studio's readable speed range is calibrated around the 3.125 m/s anchor.
 The two engines are locked at two levels. The constant table is hash-gated
 (`test_motion_model_conformance.py`, E-C4) and the catalogue behaviour is
 golden-trace gated (`test_golden_traces.py`, E-P2). As of this pass the
-physical-mode CLOSED FORMS are gated too: the twelve `phys*` functions plus
+physical-mode CLOSED FORMS are gated too: the fourteen `phys*` functions plus
 `sensorPose` were ported from `motion-model.js` into `engine/motion_model.py`
 and `test_physical_golden_trace.py` runs the JS twin over the shipped
 Reference Rover and fails on any drift, so an imported build's DERIVED NUMBERS

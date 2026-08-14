@@ -84,10 +84,19 @@ jobs:
       - name: Web interpreter gate
         run: node scripts/qa_interpreter.mjs
 
+      # Regression pins for the interpreter hardening pass (scope leaks, global
+      # writes, augmented assignment on an undefined name, prototype members
+      # exposed as builtins, stack overflow on large min/max). Pure Node, no
+      # browser, sub-second: cheap enough to run on every leg, and the bugs it
+      # pins are exactly the kind a later parser change reintroduces silently.
+      - name: Interpreter regression gate
+        run: node scripts/qa_interp_fixes.mjs
+
       # Lesson-grader gate: pure Node, no browser, so it is cheap to run on every
       # leg. Guards the JS lesson grader (browser-mode submit/hint) against
-      # regressions. The browser-driven gates (qa_web, qa_worlds) need headless
-      # Chrome plus a served site and are run locally / pre-deploy, not here.
+      # regressions. The browser-driven gates need headless Chrome plus a served
+      # site: qa_web and qa_ui run on the Linux leg further down, qa_worlds is
+      # local / pre-deploy only.
       - name: Web grader gate
         run: node scripts/qa_grader.mjs
 
@@ -195,6 +204,16 @@ jobs:
       - name: Learning annotations and project preview gate
         run: node scripts/qa_learning_annotations.mjs
 
+      # Voice gate: the Companion can speak and can listen, and both claims are
+      # privacy claims before they are features. Pins that the voice picker
+      # rejects every non-localService voice (a Chrome "Google ..." voice would
+      # POST the reply text), that listening stays off until explicitly
+      # consented, and that a spoken sentence is parsed by the SAME grammar as a
+      # typed one -- so speech never becomes a second, more powerful command
+      # language. Pure node under a window shim, no browser and no microphone.
+      - name: Web voice gate
+        run: node scripts/qa_voice.mjs
+
       - name: Cross-engine fuzz gate
         run: node scripts/qa_fuzz.mjs
 
@@ -215,9 +234,13 @@ jobs:
       #
       # Linux-only on purpose: the Windows/macOS runners differ in Chrome
       # availability and headless-GL behaviour, so gating them would add flake for
-      # no extra signal. qa_worlds / qa_ui are deliberately NOT in CI -- they drive
-      # 36+ world/robot combos through a Python static server and are too slow /
-      # flake-prone for the gate; they stay local + pre-deploy.
+      # no extra signal. qa_ui runs below on the same Linux leg; qa_worlds is
+      # deliberately NOT in CI -- it drives 36+ world/robot combos through a
+      # static server, and runtime alone keeps it out of the gate. The spawn
+      # flake it used to show was root-caused (a 60s Chrome-launch ceiling that
+      # a loaded Windows host cannot meet: one flow measured 2m56s) and fixed by
+      # the platform-aware SPAWN_TIMEOUT_MS, so slowness is now the only reason.
+      # It stays local + pre-deploy and passes 61/61 there.
       - name: Setup Chrome (Linux only, for qa_web)
         if: matrix.os == 'ubuntu-latest'
         id: setup-chrome

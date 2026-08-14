@@ -329,16 +329,26 @@ python -m pytest                  # Python engine test suite
   rounding, range validation) and malformed input handling are all
   asserted.
 - **UI regression net.** `node scripts/qa_ui.mjs` drives the real
-  bundle in headless Chrome: six rendered flows, 33 behavior assertions,
-  six responsive layouts and 12 modal surfaces. `qa_worlds.mjs` adds 61
-  world, robot, quality, site and weather identity checks.
-- **Python matrix.** The 26 July 2026 audit run passed 1,204 tests with one
-  Tcl-environment skip and 87.80 percent branch-aware coverage, above the
-  85 percent repository gate.
+  bundle in headless Chrome: six rendered flows, 41 behaviour assertions,
+  six responsive layouts and 13 modal surfaces, written to
+  [`docs/eval/ui_eval.json`](docs/eval/ui_eval.json) with the SHA-256 of the
+  bundle they ran against. Run it with nothing else competing for the
+  machine: the flows are driven against a single-threaded dev server on
+  wall-clock timers, so concurrent load can time out an assert that passes
+  on its own. `qa_worlds.mjs` adds 61 world, robot, quality, site and
+  weather identity checks.
+- **Python matrix.** The latest audit run collected 1,489 tests and passed
+  1,488, the one exception being a Tcl-environment skip on the recording
+  host, at 90.97 percent branch-aware coverage against the 85 percent
+  repository gate. Those numbers come out of the run's own coverage and
+  JUnit output into [`docs/eval/test_suite.json`](docs/eval/test_suite.json),
+  which records the commit and working-tree state they belong to. The
+  percentage is a floor: the harness drops the coverage contribution of
+  node-subprocess tests on Windows outside CI while still running them, so
+  CI measures the same suite at or above that figure.
 - **Deterministic Prove.** Four contracts pass 20 of 20 seeded runs,
   reproduce byte-identically and reject the deliberately broken controller.
-- **Python engine and CLI: 950+ tests passing**, coverage gated at
-  `--cov-fail-under=85` on every push.
+- **Coverage gate.** `--cov-fail-under=85` on every push.
 
 ## KodroBench: measuring grounded code
 
@@ -381,6 +391,36 @@ Reproduce the benchmark yourself:
 kodrobench --help                        # console script
 python -m robolearn.kodrobench --help    # module entry point
 ```
+
+## MCP server: an assistant that marks the same way Kodro does
+
+`kodro-mcp` is a Model Context Protocol server that exposes the lesson library,
+the sandboxed interpreter and the grader to any MCP client. An assistant helping
+a pupil can therefore run their program in the real world model and mark it with
+the real grader instead of guessing, and a guess that contradicts the grader is
+worse than no help at all.
+
+```bash
+kodro-mcp --list-tools     # the eight tools, printed to stderr
+kodro-mcp                  # start the server (JSON-RPC 2.0 over stdio)
+```
+
+Register it with a client:
+
+```json
+{"mcpServers": {"kodro": {"command": "kodro-mcp"}}}
+```
+
+Eight tools: `list_lessons`, `get_lesson`, `run_program`, `grade_program`,
+`check_api`, `validate_robot_spec`, `prove_contracts`, `pupil_progress`. Plus
+resources for the API reference and every lesson brief.
+
+It runs offline like everything else here. The transport is hand-rolled on the
+standard library, because an MCP server that needed `pip install mcp` to start
+would put a hole in the no-network claim. There is a test that monkeypatches
+`socket` to raise and then calls every tool.
+
+Details in [`docs/developers/mcp-server.md`](docs/developers/mcp-server.md).
 
 ## Documentation
 

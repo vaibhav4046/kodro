@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "harness": "pytest",
+  "generatedAt": "2026-08-14T01:14:43+00:00",
+  "command": "python -m pytest --basetemp=<tmp> -q --cov-report=json:<cov> --junitxml=<junit>",
+  "note": "Coverage settings (source, branch mode, --cov-fail-under=85) come from pyproject.toml addopts and are not repeated on the command line.",
+  "source": {
+    "commit": "02dd047a392884a12ef40f2f4113f217ac5470b1",
+    "describe": "v2.0-submission-31-g02dd047-dirty",
+    "workingTreeClean": false,
+    "untrackedTestFiles": [
+      "tests/unit/test_kodrobench_cli.py",
+      "tests/unit/test_prove_cli.py",
+      "tests/unit/test_urdf_io.py",
+      "tests/unit/test_web_bridge_export.py",
+      "tests/unit/test_web_startup.py"
+    ],
+    "provenanceWarning": "This run was taken on the working tree, not on a tagged commit. Where the tree is dirty or lists untracked test files, the counts below include them and are NOT reproducible by checking out a tag."
+  },
+  "platform": {
+    "python": "3.13.3",
+    "platform": "win32"
+  },
+  "tests": {
+    "collected": 1489,
+    "passed": 1488,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 1,
+    "durationSeconds": 163.47
+  },
+  "skipDetail": [
+    {
+      "test": "tests.unit.test_ui_main_window::test_apply_theme_changes_palette",
+      "reason": "Tk unavailable in this environment: Can't find a usable tk.tcl in the following directories: "
+    }
+  ],
+  "failureDetail": [],
+  "coverage": {
+    "percentCovered": 90.97,
+    "gate": 85,
+    "statements": 6380,
+    "missingLines": 466,
+    "coveredLines": 5914,
+    "branches": 1496,
+    "partialBranches": 181,
+    "branchMode": true
+  },
+  "measures": "Whether the declared Python matrix passes and how much of the package its lines and branches reach. Not a measure of whether the product is useful, usable, or physically accurate.",
+  "coverageFloorDisclosure": "tests/conftest.py applies pytest.mark.no_cover to node-subprocess test files on Windows + Python >= 3.13 outside CI, which is exactly this host. Those tests still RUN and still count in the test totals, but their coverage contribution is dropped. The percentage here is therefore a conservative floor: CI, which does not apply the marker, measures the same suite at or above this figure.",
+  "verdict": "PASS"
+}

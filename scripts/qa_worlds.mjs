@@ -23,9 +23,16 @@
  * Environment-missing cases (no Chrome, no static server) SKIP with exit 0 so
  * a GPU-less box never breaks a pipeline; real failures exit 1.
  *
+ * That default has a sharp edge: a green exit covers both "61 checks passed"
+ * and "nothing ran". Anywhere the exit code is the only thing being read -- CI,
+ * or a run whose total is going to be quoted as evidence -- pass --strict (or
+ * set KODRO_QA_WORLDS_REQUIRED=1, the same shape as qa_ui.mjs's
+ * KODRO_QA_UI_REQUIRED) and a missing fixture becomes a failure, not a skip.
+ *
  *   cd src/robolearn/assets/web && python -m http.server 8099   # serve first
  *   node scripts/build_screenshot_harness.cjs                   # emit cap.html
  *   node scripts/qa_worlds.mjs                                  # this sweep
+ *   node scripts/qa_worlds.mjs --strict                         # no silent skip
  */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, existsSync, statSync, rmSync, writeFileSync } from 'node:fs';
@@ -46,8 +53,14 @@ const BASE = `http://${HOST}:${PORT}/cap.html`;
 const MIN_PNG_BYTES = 90_000;   // a real 1280x800 studio paint; below = blank
 const GAP_MS = 1000;            // single-threaded dev server: let it breathe
 const VTIME_MS = 9_000;         // load + robot dispatch + Run + several moves
-const SPAWN_TIMEOUT_MS = 60_000;
-const FIRST_SPAWN_TIMEOUT_MS = 90_000;
+// Platform-aware ceiling, for the reason spelled out in qa_ui.mjs: a measured
+// Windows flow took 2m56s on a loaded box, so a 60s cap there reports the
+// machine rather than the product. Override with KODRO_QA_UI_TIMEOUT_MS.
+const TIMEOUT_ENV = Number.parseInt(process.env.KODRO_QA_UI_TIMEOUT_MS || '', 10);
+const SPAWN_TIMEOUT_MS = Number.isFinite(TIMEOUT_ENV) && TIMEOUT_ENV > 0
+  ? TIMEOUT_ENV
+  : (process.platform === 'win32' ? 300_000 : 60_000);
+const FIRST_SPAWN_TIMEOUT_MS = Math.round(SPAWN_TIMEOUT_MS * 1.5);
 
 const WORLDS = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
 // null = the default saved build; the rest are the Robot Lab archetypes.
@@ -128,21 +141,35 @@ function warmUpChrome(chrome) {
 
 const gap = () => { const until = Date.now() + GAP_MS; while (Date.now() < until) { /* dep-free pause */ } };
 
+/* Named to match its sibling: qa_ui.mjs gates the same skip on
+ * KODRO_QA_UI_REQUIRED=1, so this is KODRO_QA_WORLDS_REQUIRED=1. */
+const STRICT = process.argv.includes('--strict')
+  || process.env.KODRO_QA_WORLDS_REQUIRED === '1';
+
+/* A missing fixture is a skip by default and a failure under --strict. Either
+ * way it says which it is, so the exit code is never the whole story. */
+function bail(reason, remedy) {
+  const label = STRICT ? 'FAIL' : 'SKIP';
+  console.log(`${label}: ${reason}`);
+  if (remedy) console.log(`      ${remedy}`);
+  if (STRICT) console.log('      --strict is on: a missing fixture counts as a failure, because zero assertions ran.');
+  process.exit(STRICT ? 1 : 0);
+}
+
 (async function main() {
   if (!existsSync(CAP)) {
-    console.log('SKIP: cap.html missing — run `node scripts/build_screenshot_harness.cjs` first.');
-    process.exit(0);
+    bail('cap.html missing.', 'Emit it with:  node scripts/build_screenshot_harness.cjs');
   }
   const chrome = resolveChrome();
   if (!chrome) {
-    console.log('SKIP: Chrome not found (set CHROME_PATH). World sweep needs headless Chrome.');
-    process.exit(0);
+    bail('Chrome not found (set CHROME_PATH). World sweep needs headless Chrome.');
   }
   const status = await probeServer();
   if (status !== 200) {
-    console.log(`SKIP: static server not serving cap.html on :${PORT} (got ${status || 'no connection'}).`);
-    console.log('      Start it with:  cd src/robolearn/assets/web && python -m http.server 8099');
-    process.exit(0);
+    bail(
+      `static server not serving cap.html on :${PORT} (got ${status || 'no connection'}).`,
+      'Start it with:  cd src/robolearn/assets/web && python -m http.server 8099',
+    );
   }
 
   mkdirSync(TMP, { recursive: true });

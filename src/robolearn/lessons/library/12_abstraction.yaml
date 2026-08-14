@@ -7,12 +7,18 @@ curriculum_refs:
   - "BCS Csizmadia et al., 2015: abstraction as hiding detail to manage complexity."
 prereqs: [07_sensors]
 terrain: underwater
+glossary:
+  # read_battery() is handed to the pupil in the starter, but the prereq
+  # (07_sensors) teaches read_distance(), not this one. Without a definition
+  # the loop guard AND the threshold 40 both arrive unexplained.
+  read_battery: "Reports how much charge is left, from 100 (full) down to 0 (flat)."
 intro: |
   Don't hard-code the route -- ask the world. The starter drives blindly
   and crashes. Use obstacle_ahead() to decide when to turn, so one short
   program copes with whatever is in the way. Reading a sensor is an
   abstraction: you get "is something there?" without caring how it is
-  measured.
+  measured. The loop keeps going while read_battery() is above 40, so the
+  mission stops itself before the rover runs flat.
 starter_code: |
   # This drives straight and will crash. Add a sensor check to avoid it.
   while read_battery() > 40:
