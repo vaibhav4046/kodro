@@ -146,6 +146,28 @@ the brand mark reads cleanly. Remaining nice-to-haves for a human: a retina
 (2x) re-shoot via `--force-device-scale-factor=2`, and stills of the robot
 picker and Robot Lab if wanted for the portfolio.
 
+## 5. One trip to bcs.org closes two dissertation items
+
+Both need a browser and neither can be done from here: `WebFetch` and
+`WebSearch` fail in the release session with `There's an issue with the selected
+model (auto/best-free)`.
+
+1. **The `bcscode` placeholder** at `Kodro_Dissertation.tex:952` renders as bold
+   `[VERIFY VERSION, URL AND ACCESS DATE BEFORE SUBMISSION]` inside the
+   References. Confirm the BCS Code of Conduct version, URL and access date and
+   replace it. Do not invent a date.
+2. **The BCS traceability table.** PR 3 carries a nine-row table mapping BCS
+   abilities 2.1.1 to 2.1.9 to project evidence, cited to the BCS course
+   accreditation guidelines. The candidate has prose only. The table is the
+   stronger answer to that marking criterion and its Chapter 6 and Chapter 7
+   cross-references already match this document's numbering, but it was not
+   ported because its citation could not be verified. Conditions, the exact
+   block to lift and the insertion point are in
+   `.kodro/autonomy/CA2_RECONCILIATION.md` section 10.4.
+
+If the accreditation PDF does not confirm what PR 3 says it does, the table does
+not go in and prose only is a defensible answer.
+
 ## Optional: implement true PDF export for the teacher dashboard
 
 The current dashboard offers CSV export only. To add PDF, the

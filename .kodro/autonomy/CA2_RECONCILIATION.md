@@ -150,9 +150,11 @@ Reasons, in order of weight:
 
 PR 3's genuinely additive content is integrated afterwards at the source level:
 the 27 cleanly portable files can be taken as-is, and the 14 overlapping files
-get a per-hunk decision. PR 3's two real dissertation improvements to carry
-across are the `\hypersetup{pageanchor=false}` fix and the removal of the
-remaining `v2.0-submission` references.
+get a per-hunk decision. PR 3's two candidate dissertation improvements were the
+`\hypersetup{pageanchor=false}` fix and the removal of the remaining
+`v2.0-submission` references. **Both were examined and both are closed without a
+port. Section 10 records why, and records the one thing PR 3 has that the
+candidate genuinely lacks.**
 
 ## 8. Preservation plan
 
@@ -180,7 +182,114 @@ Binding, in force for the rest of this release:
    merged. PR 3 stays open. Content moves off it by cherry-pick or by hand.
 5. Build detritus is added to `.gitignore` rather than committed or deleted.
 
-## 9. Actions that still require the student's explicit confirmation
+## 10. PR 3 integration: the decision, and what is left open
+
+Settled 2026-08-14 at `b53f552`, after reading every file PR 3 adds that the
+candidate does not have. PR 3 stays open and unmerged. Nothing below changes
+that.
+
+Scale first, because it explains the rest. `git diff --stat HEAD
+origin/agent/kodro-2-1-completion` is 161 files, +14,671 / -27,876. PR 3 is a
+long way behind the candidate on product code, which is section 7's finding and
+has not changed. The question here is narrower: of the files PR 3 adds, which
+are absent from the candidate, and is anything in them worth having.
+
+Four files, all dissertation audits dated 2026-08-13:
+`INTEGRITY_AUDIT` (65 lines), `REFERENCE_AUDIT` (37), `REVISION_TRACKING` (18),
+`VERIFICATION_REVIEW` (32).
+
+### 10.1 The four audit documents are not ported
+
+They are read, not dismissed. Their figures are all older than the candidate's:
+1,239 passed with 140 Tk skips against the candidate's 1,638 passed with 1 skip;
+product commit `0559257`; a 50-page PDF against the candidate's 59.
+
+The candidate already carries the same four document types as July snapshots,
+each headed with an explicit stale banner that points forward to 14 August, plus
+the newer `CA2_INTEGRITY_AUDIT_2026-08-14.md` and `DIAGNOSTIC_2026-08-14.md`.
+Adding a third, intermediate generation of the same four documents would leave a
+reader holding three dated audits of one dissertation with no way to tell which
+one governs. That is the precise defect this release pass has spent its time
+closing everywhere else, and importing it here to gain nothing would be
+self-defeating.
+
+### 10.2 The `v2.0-submission` carry-over is closed, not deferred
+
+PR 3 removed every `v2.0-submission` reference from its `.tex`. The candidate
+keeps two, and keeps them deliberately. `.tex:150` reads that the suite grew
+after tagging and its headline count therefore belongs to the commit named
+inside the artefact, `aa174cf`, rather than to `v2.0-submission`. That is a
+better fix than deletion: it names the producer of the number instead of
+removing the only thing that made the mismatch visible. The other tracked
+references are descriptions of the tag inside audit documents and the `describe`
+field of `docs/eval/test_suite.json`, where naming the tag is correct.
+
+### 10.3 The `pageanchor` carry-over is closed as not applicable
+
+PR 3 carries `\hypersetup{pageanchor=false}` at its `.tex:84` with
+`pageanchor=true` restored at `:116`. The candidate has neither line and does not
+need them: `grep -c "has been already used"
+docs/dissertation/_build/Kodro_Dissertation.log` returns **0**. There is no
+duplicate-destination warning on this branch to fix. PR 3's own
+`REVISION_TRACKING_2026-08-13.md` row 9 confirms the change was made against a
+warning that branch emitted. Porting a fix for a warning that does not occur
+would add two untested `hypersetup` calls to a document that currently compiles
+clean.
+
+### 10.4 One real gap: PR 3 has a BCS traceability table, the candidate does not
+
+This is the only thing found on PR 3 that the candidate genuinely lacks, and it
+is not portable today.
+
+Both documents have a `\section{BCS professional issues and project criteria}`.
+The candidate's is prose only, at `.tex:899`, citing the BCS **Code of Conduct**
+as `bcscode`. PR 3's is prose plus a nine-row table, `tab:bcsmap` at its
+`.tex:729-750`, mapping BCS abilities 2.1.1 to 2.1.9 to specific project
+evidence, cited to the BCS **course accreditation guidelines** PDF as `bcs2020`.
+Two different BCS documents, not two versions of one.
+
+The table is the stronger artefact for this criterion. It maps published
+abilities to evidence rather than asserting alignment in prose. Its cross
+references would land correctly here as well: it names Chapter 6 and Chapter 7,
+and in the candidate Evaluation is chapter 6 and Discussion and Limitations is
+chapter 7.
+
+It is still not ported, for one reason. The table's left column asserts what BCS
+publishes and how it is numbered. That assertion is worth exactly as much as the
+citation under it, and the citation cannot be checked from here. PR 3's
+`REFERENCE_AUDIT_2026-08-13.md` states the date was "corrected from 2022 to the
+document's January 2020 date" and stamps an access date of 13 August 2026. That
+is Codex's verification, performed on that branch, not one made here. Both
+`WebFetch` and `WebSearch` fail in this session with `There's an issue with the
+selected model (auto/best-free)`, so neither the accreditation PDF nor the Code
+of Conduct page could be opened to confirm a title, a date or a URL.
+
+Copying a bibliography entry that carries a concrete access date nobody in this
+session verified would make a citation look checked when it is not. The
+candidate's `bcscode` entry instead renders
+`\textbf{[VERIFY VERSION, URL AND ACCESS DATE BEFORE SUBMISSION]}` in the
+bibliography, which is ugly and is logged as audit LOW 13, but which is honest
+and visible. An unverified date that looks clean is worse than a visible marker
+that does not.
+
+**This is an author decision, and it is short once bcs.org can be opened.** The
+work is pre-staged so it does not have to be re-derived:
+
+1. Open `https://www.bcs.org/media/11ofljxo/course-accreditation-guidelines.pdf`
+   and confirm the title, the publication date and that abilities are numbered
+   2.1.1 to 2.1.9 with the names PR 3's table uses.
+2. If it confirms, take the `bcs2020` bibitem and the `tab:bcsmap` block
+   verbatim from `git show
+   origin/agent/kodro-2-1-completion:docs/dissertation/Kodro_Dissertation.tex`
+   lines 729-750 and 790, insert the table after `.tex:899`, and set a real
+   access date.
+3. Separately resolve `bcscode`, which the candidate cites and which carries the
+   placeholder. The two citations can coexist: the Code of Conduct supports the
+   professional-duty sentence, the accreditation guidelines support the table.
+4. If the PDF does not confirm, the table does not go in. Prose only is a
+   defensible answer to this criterion and is what the candidate ships today.
+
+## 11. Actions that still require the student's explicit confirmation
 
 Not taken, not to be taken without a fresh instruction naming the exact action
 and target: merging PR 3, tagging a release, publishing a release, pushing to

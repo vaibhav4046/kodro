@@ -39,7 +39,7 @@ current state; each entry below carries its own evidence.
 | MEDIUM 10, overfull boxes and an oversized float | RESOLVED as a side effect, and therefore fragile. Re-check the compile log before submission |
 | LOW 11, Trinket shutdown claim | OPEN, author only. Needs a live source |
 | LOW 12, reflection figure with no artefact | RESOLVED, and the entry was partly wrong when written |
-| LOW 13, `bcscode` placeholder renders bold | OPEN, author only. Do not invent an access date |
+| LOW 13, `bcscode` placeholder renders bold | OPEN, author only. Do not invent an access date. Same bcs.org trip settles PR 3's BCS table |
 | LOW 14, the document's self-descriptions are correct | Not a defect. Keep as is |
 
 Three of the four open items are author actions that cannot be closed from an
@@ -446,6 +446,10 @@ Corroborated independently on 2026-08-14: `node scripts/qa_ui.mjs --suite=behavi
 
 Confirmed present and confirmed rendering in the PDF as bold text inside the References. This is deliberate and only the author may close it. It is recorded here as an open author action, not as a defect, and it was not removed.
 
+Re-examined on 14 August against PR 3, which cites a **different** BCS document. PR 3 has no `bcscode`. It has `bcs2020`, the course accreditation guidelines PDF, with a date its own reference audit describes as corrected from 2022 to January 2020 and an access date of 13 August 2026. That entry was not adopted here. `WebFetch` and `WebSearch` both fail in this session with `There's an issue with the selected model (auto/best-free)`, so neither the accreditation PDF nor the Code of Conduct page could be opened, and importing a citation with a concrete access date that nobody in this session verified would make it look checked when it is not.
+
+The two are not alternatives. The Code of Conduct supports the professional-duty sentence at `.tex:899`; the accreditation guidelines support a nine-row BCS traceability table that PR 3 has and this document does not. That table, and the conditions under which it can be brought across, are written up in `.kodro/autonomy/CA2_RECONCILIATION.md` section 10.4. Closing this placeholder and deciding the table are one trip to bcs.org, not two.
+
 ---
 
 ### LOW 14. The document's own descriptions of its two weakest evidence sources are correct, and should be kept
@@ -788,7 +792,7 @@ Nothing about it is weakened or hedged. It must not be removed, softened or move
 
 5. **Correct or delete the "artefact-tracking gap" section** of `docs/eval/qa_gate_runs_2026-08-14.md`, lines 79 to 93. All three named artefacts are tracked.
 
-6. **Close the `bcscode` placeholder** at `.tex:952`. Verify the BCS Code of Conduct version, URL and access date, then replace `[VERIFY VERSION, URL AND ACCESS DATE BEFORE SUBMISSION]`. This audit deliberately left it in place. It currently renders in bold in the References.
+6. **Close the `bcscode` placeholder** at `.tex:952`. Verify the BCS Code of Conduct version, URL and access date, then replace `[VERIFY VERSION, URL AND ACCESS DATE BEFORE SUBMISSION]`. This audit deliberately left it in place. It currently renders in bold in the References. While on bcs.org, also settle the BCS traceability table PR 3 carries and this document lacks: the conditions and the exact block to lift are in `.kodro/autonomy/CA2_RECONCILIATION.md` section 10.4.
 
 7. **Verify the Trinket shutdown claim** at `.tex:296`, and the `trinket2026` reference. It is a dated external fact underpinning part of the motivation and it could not be checked offline.
 
