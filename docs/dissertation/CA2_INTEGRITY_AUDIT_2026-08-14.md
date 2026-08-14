@@ -20,6 +20,32 @@ This file is the only artefact this audit created. The `.tex`, the `.pdf` and ev
 
 **The single most important author action:** the software-rasteriser rows of the renderer table (`.tex:659`, `.tex:660`) and three method statements about them (`.tex:648`, `.tex:663`) are no longer supported by `docs/eval/performance_eval.json` as it exists at HEAD. That artefact was regenerated on 14 August as a single-sample run reading 14.2 and 12.9 FPS. The dissertation prints 18.7 and 17.1 with three-sample ranges. A marker who opens the named file finds different numbers and a sample count that contradicts the caption. Either restore the three-sample software run, or re-run it at `--repeat=3` and update the four numbers and the three sentences.
 
+### Status after the release pass, 14 August 2026
+
+Every finding above was worked after the audit was written. This table is the
+current state; each entry below carries its own evidence.
+
+| Finding | State |
+| --- | --- |
+| CRITICAL 1, renderer rows unsupported | RESOLVED. Gate re-run at `--repeat=3`, artefact re-pinned to the shipped bundle hash |
+| HIGH 2, "at the final source state" | RESOLVED. Suite re-run at HEAD, artefact regenerated, every anchor now names the commit |
+| HIGH 3, stale voice assertion count | RESOLVED. `.tex:559` reads 108, matching `PASS voice: 108 passed, 0 failed` |
+| HIGH 4, page-limit rule | OPEN, author only. Cannot be settled offline. See the author actions section |
+| MEDIUM 5, transcript says three artefacts are untracked | RESOLVED. The transcript now carries the correction and the `git log` output that proves it |
+| MEDIUM 6, "four artefacts postdate the tag" | RESOLVED. `.tex:150` now says seven and names all seven |
+| MEDIUM 7, source comment claims 9 figures and 14 tables | RESOLVED. The comment now says 2 figures and 11 tables, which is what the file contains |
+| MEDIUM 8, `huang2023` key against a 2025 label | RESOLVED. The key is now `huang2025`. The DOI is still unverified offline |
+| MEDIUM 9, untracked evidence-shaped files | RESOLVED. `stt_bench.json`, `stt_bench.md`, `bench_stt.py` and 10 clips are tracked, and the working tree is clean |
+| MEDIUM 10, overfull boxes and an oversized float | RESOLVED as a side effect, and therefore fragile. Re-check the compile log before submission |
+| LOW 11, Trinket shutdown claim | OPEN, author only. Needs a live source |
+| LOW 12, reflection figure with no artefact | RESOLVED, and the entry was partly wrong when written |
+| LOW 13, `bcscode` placeholder renders bold | OPEN, author only. Do not invent an access date |
+| LOW 14, the document's self-descriptions are correct | Not a defect. Keep as is |
+
+Three of the four open items are author actions that cannot be closed from an
+offline machine. None of them is a fabrication risk; all three are the opposite,
+a refusal to assert something unverified.
+
 Two things the audit confirms as sound and should not be disturbed:
 
 - The generative AI disclosure is present, intact and prominent at `.tex:152`. It is quoted in full below.
@@ -107,7 +133,13 @@ Fix by one of two routes. Either re-run `node scripts/qa_performance.mjs --repea
 
 ### HIGH 2. "At the final source state" is not the final source state
 
-`.tex:633` and `.tex:908` both anchor the headline test figures to "the final source state", naming `docs/eval/test_suite.json`.
+**RESOLVED 2026-08-14 by both routes at once, and the phrase has been removed
+from the document.** The suite was re-run at HEAD on a clean tree, the artefact
+was regenerated from that run, and every anchor now names the commit instead of
+claiming finality. Detail at the end of this entry.
+
+The finding as written: `.tex:633` and `.tex:908` both anchored the headline test
+figures to "the final source state", naming `docs/eval/test_suite.json`.
 
 That artefact records `source.commit` = `02dd047a392884a12ef40f2f4113f217ac5470b1`, describe `v2.0-submission-31-g02dd047-dirty`. HEAD is `44d30e9`, two commits later. Verified by direct comparison of the two trees:
 
@@ -123,6 +155,21 @@ The Declaration partly anticipates this at `.tex:150` ("the suite grew after tag
 Two honest fixes: re-run the suite at HEAD and update the numbers, or change the phrase "at the final source state" to name the commit the artefact actually records. The first is preferable because the artefact already carries a `provenanceWarning` about dirty-tree runs.
 
 Command a human can run to settle it: `python -m pytest -q` from the repository root, then regenerate `docs/eval/test_suite.json` through its usual harness. This audit did not run it, because it would overwrite a committed evidence artefact.
+
+**What the release pass did.** The command the audit declined to run was run, twice over. An intermediate pass had already re-run the suite at `139a2c8` on a clean tree, giving 1,626 collected and 1,625 passed, and that artefact was committed. HEAD then moved eight commits further, changing two test files and seven source files, so the anchor overstated again by exactly the same mechanism. The suite was therefore re-run at `aa174cf`, on a clean tree, with `git status --porcelain` empty before the run:
+
+```
+1638 passed, 1 skipped in 170.54s (0:02:50)
+Required test coverage of 85% reached. Total coverage: 90.90%
+```
+
+`docs/eval/test_suite.json` was rebuilt from that run's own `junit.xml` (`tests="1639" failures="0" errors="0" skipped="1" time="170.527"`) and `coverage.json` (`totals.percent_covered` 90.90288833295429, 7062 statements, 516 missing, 1732 branches, 206 partial). No figure was transcribed by hand. There is no generator script for this artefact: `git grep -ln "test_suite.json" -- scripts tools src` returns nothing, so the schema was preserved field by field and the `note`, `measures` and `coverageFloorDisclosure` strings were carried over unchanged. The `provenanceNote` was rewritten because it described the older comparison.
+
+Both fixes were applied rather than one. The counts moved to 1,639 and 1,638 at `.tex:160`, `.tex:633`, `.tex:850` and `.tex:908`, and the phrase "at the final source state" was removed from the document entirely: those four places now say "at commit `aa174cf`" or "at the commit recorded in `docs/eval/test_suite.json`". The rendered PDF contains four instances of 1,639, three of 1,638, three of `aa174cf`, zero of 1,626, zero of 1,625 and zero of "final source state".
+
+Two further sentences were corrected in passing, because they carried the same defect in a quieter form. `.tex:150` claimed the artefact records "the test files added since the tag"; it does not, and never had such a field, so it now says it records the working-tree status, which it does. `.tex:641` said the nine offline module gates "were re-run at the final source state"; they were re-run on 14 August 2026 at `13c0997`, which is what it now says.
+
+The honest limit of this fix: naming a commit is stable, but it is not a promise that HEAD will not move again. Any later commit touching `src/` or `tests/` invalidates the count in the same way, and the only safe procedure before submission is to re-run the suite and regenerate the artefact one final time on the tree that ships. That is a mechanical repeat of what is written above.
 
 ---
 
@@ -187,6 +234,15 @@ Reading 3 is the risk. A brief that says "no more than 50 pages" and is enforced
 
 ### MEDIUM 5. The repository's own evidence transcript contains a claim that is now false
 
+**RESOLVED.** `docs/eval/qa_gate_runs_2026-08-14.md` now carries a section headed
+"The artefact-tracking gap, now closed", which states that the earlier paragraph
+was true when written and is no longer true, and pastes the `git log --oneline -1`
+output showing all three artefacts entering version control in `706f93d`. The
+paragraph was corrected in place rather than deleted, for the reason this entry
+gives: a reader the dissertation sends to that file would otherwise have been
+told the evidence was untracked when it is tracked. The treatment of
+`ui_eval_behaviour.json` was left alone, as this entry recommends.
+
 `docs/eval/qa_gate_runs_2026-08-14.md:79` to `:93`, under the heading "The artefact-tracking gap":
 
 > `git log --all -- <path>` returns no commits at all for `docs/eval/test_suite.json`, `docs/eval/ui_eval.json` and `docs/eval/vibe_eval.json`: they exist on disk and are named in the dissertation, but they have never entered version control.
@@ -213,6 +269,17 @@ The same section's treatment of `ui_eval_behaviour.json` is correct and should s
 
 ### MEDIUM 6. "Four artefacts postdate the tag" is an undercount
 
+**RESOLVED by the second route this entry offers, adding the missing artefacts
+rather than weakening "four" to "at least four".** `.tex:150` now reads "Seven
+artefacts postdate the tag" and names all seven: the synthetic-persona
+evaluation, the software-rasterised renderer run, the local-model generation
+run, the full Python test suite, the browser interface run, the hand-written
+gate transcript and the speech-to-text benchmark with its audio clips. That is
+the original four plus `ui_eval.json` and `qa_gate_runs_2026-08-14.md`, which
+this entry identified, plus the STT benchmark, which became quotable when
+MEDIUM 9 was closed by committing it. The list is exhaustive again, so reading
+it as exhaustive is now safe.
+
 `.tex:150` names four artefacts that postdate `v2.0-submission`: the synthetic-persona evaluation, the software-rasterised renderer run, the local-model generation run and the full Python test suite.
 
 All four check out. Tag `v2.0-submission` = `ab8cdb1`. HEAD is 33 commits ahead.
@@ -235,6 +302,12 @@ If "four" is read as an exhaustive list, it is wrong by at least one. Say "at le
 
 ### MEDIUM 7. A source comment claims a figure and table count that is wrong by a wide margin
 
+**RESOLVED.** The comment now reads "the document has 2 figures and 11 tables".
+Re-measured at HEAD: `grep -c 'begin{figure}'` returns 2, `begin{table}`
+returns 11, `begin{lstlisting}` returns 3. The justification sentence was left
+as it was, for the reason this entry gives: it still holds at two figures, and
+only the numbers were false.
+
 `.tex:175` to `.tex:177`, a LaTeX comment:
 
 ```
@@ -251,6 +324,15 @@ This comment does not render, so it cannot mislead a marker reading the PDF. It 
 
 ### MEDIUM 8. One bibliography entry has a citation key that contradicts its own label
 
+**RESOLVED as far as an offline machine can take it.** The key is now
+`huang2025` at `.tex:964`, and both call sites, `.tex:284` and `.tex:886`, cite
+`huang2025`. The compile reports zero undefined citations, so the rename is
+consistent across the document. What is *not* resolved is the underlying
+question this entry raised: the DOI `10.1145/3703155` has still never been
+resolved, because this machine is offline by design. It is labelled here as
+unverified rather than quietly treated as checked, and it stays in the author
+actions list below.
+
 `.tex:964`:
 
 ```
@@ -262,6 +344,23 @@ The key is `huang2023`, the label and the in-text year are both 2025. This rende
 ---
 
 ### MEDIUM 9. Three untracked evidence-shaped files sit in the working tree
+
+**RESOLVED by the commit route, not the delete route.** All thirteen files are
+now tracked: `scripts/bench_stt.py`, `docs/eval/stt_bench.json`,
+`docs/eval/stt_bench.md` and the ten clips under `docs/eval/stt_clips/`. The
+benchmark is now explained rather than orphaned: `.tex:150` names it among the
+seven artefacts that postdate the tag, and `docs/ca2/CLAIM_LEDGER.md` carries a
+row per figure it produces. `git status --porcelain docs/eval scripts` reports
+no untracked files at HEAD. The clips are five command phrases rendered by two
+Windows voices, `Microsoft David Desktop` and `Microsoft Zira Desktop`, through
+`System.Speech.Synthesis.SpeechSynthesizer` in `scripts/bench_stt.py`. Nobody
+was recorded, so committing them raises no participant-data question.
+
+One consequence of that has to travel with the numbers wherever they are
+quoted. A word error rate measured on synthesised speech is a floor on error
+and a ceiling on audio quality: no microphone noise, no accent variation, no
+room, no hesitation. `scripts/bench_stt.py` says this in its own header
+comment. The claim ledger did not, and now does.
 
 ```
 ?? docs/eval/stt_bench.json
@@ -370,12 +469,12 @@ Every numerical claim found in the `.tex`, with its evidence and a verdict. "Mea
 
 | Claim | .tex line | Evidence source | Measured now | Verdict |
 | --- | --- | --- | --- | --- |
-| 1,489 tests collected | 160, 633, 908 | `docs/eval/test_suite.json` `tests.collected` | 1489 | MATCH against artefact, but see HIGH 2 |
-| 1,488 passed | 160, 633, 908 | same, `tests.passed` | 1488 | MATCH, see HIGH 2 |
-| 1 skip, host Tk | 160, 633, 908 | same, `skipDetail` | 1, `test_apply_theme_changes_palette`, "Tk unavailable" | MATCH |
-| 90.97 percent branch-aware coverage | 160, 633 | same, `coverage.percentCovered` | 90.97 | MATCH |
-| 85 percent gate | 160, 526, 633 | same, `coverage.gate` | 85 | MATCH |
-| Artefact is at the final source state | 633, 908 | `source.commit` vs HEAD | `02dd047` vs HEAD `44d30e9`, 2 commits behind, 7 test files added since | **DRIFT** |
+| 1,639 tests collected | 160, 633, 908 | `docs/eval/test_suite.json` `tests.collected` | 1639, from the run's own JUnit `tests` attribute | MATCH, was **DRIFT** at 1,489 then at 1,626 |
+| 1,638 passed | 160, 633, 908 | same, `tests.passed` | 1638 = 1639 collected minus 1 skipped, 0 failures, 0 errors | MATCH, was **DRIFT** |
+| 1 skip, host Tk | 160, 633, 908 | same, `skipDetail` | 1, `tests.unit.test_ai_studio::test_studio_available_when_server_up`, "Tk unavailable: Can't find a usable init.tcl" | MATCH |
+| 90.90 percent branch-aware coverage | 160, 633 | same, `coverage.percentCovered` | 90.90288833295429 from `coverage.json` `totals.percent_covered` | MATCH |
+| 85 percent gate | 160, 526, 633 | same, `coverage.gate` | 85, and the run printed "Required test coverage of 85% reached" | MATCH |
+| The artefact's commit is the one the text names | 150, 160, 633, 850, 908 | `source.commit` vs the `.tex` | both `aa174cf`, working tree clean before the run | MATCH, was **DRIFT**. See HIGH 2 |
 | 180 of 180 interpreter checks | 160, 908 | `qa_gate_runs_2026-08-14.md:45` | transcript records `== RESULT: 180 passed, 0 failed ==` | MATCH against transcript. UNVERIFIABLE-WITHOUT-RERUN independently: `node scripts/qa_interpreter.mjs` |
 
 ### Prove contract figures
@@ -516,7 +615,7 @@ The panel arithmetic is fully self-consistent across all three dimensions, which
 | `arenaHalfExtentCm` = 1500 | 869 | both motion models | `motion_model.py:27` = 1500, `motion-model.js:33` = 1500 | MATCH |
 | MCP offers 8 tools | 567 | `src/robolearn/mcp/tools.py` `TOOLS` | 8: `list_lessons`, `get_lesson`, `run_program`, `grade_program`, `check_api`, `validate_robot_spec`, `prove_contracts`, `pupil_progress` | MATCH |
 | 25 readable resources | 567 | same, `list_resources()` | 25, being `kodro://api/reference` plus one per lesson | MATCH, and 1 + 24 lessons = 25 reconciles |
-| 47 voice assertions | 559 | `scripts/qa_voice.mjs` | gate prints 86 passed; 61 static call sites; was 47 at `706f93d` | **DRIFT** |
+| 108 voice assertions | 559 | `scripts/qa_voice.mjs` | gate prints `PASS voice: 108 passed, 0 failed`; the sentence now reads "One hundred and eight assertions" | MATCH, was **DRIFT** at 47. See HIGH 3 |
 | 14 of those cover the lesson library | 561 | same, lines 131 to 179 | 14 call sites | MATCH |
 | Physical golden-trace tolerance 1e-12 relative or 1e-9 absolute | 503 | not re-measured | not checked | UNVERIFIABLE-WITHOUT-RERUN: the golden-trace parity gate named in Chapter 5 |
 | F1 to F16 requirement counts | 316 to 345 | the tables themselves | internally consistent | MATCH |

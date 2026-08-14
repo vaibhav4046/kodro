@@ -8,7 +8,7 @@ The second half of this file is the list of things that must not be said. That
 half matters more. A demonstration loses more marks for one unsupported claim
 than it gains from three extra features.
 
-Measured on 14 August 2026 unless a date is given. Commit `139a2c8` for the
+Measured on 14 August 2026 unless a date is given. Commit `aa174cf` for the
 suite artefact, working tree clean; the rest re-run at `13c0997`.
 
 ## Claims with evidence
@@ -17,10 +17,10 @@ suite artefact, working tree clean; the rest re-run at `13c0997`.
 
 | Claim | Evidence | Command |
 |---|---|---|
-| 1,626 Python tests collect, 1,625 pass, 1 skips | `docs/eval/test_suite.json` | `python -m pytest --cov-report=json --junitxml=...` |
+| 1,639 Python tests collect, 1,638 pass, 1 skips | `docs/eval/test_suite.json` | `python -m pytest --cov-report=json --junitxml=...` |
 | 90.90 percent branch-aware coverage against an 85 percent gate | same | same |
 | The one skip is a Tk display dependency, not a product failure | `skipDetail` in the same file | same |
-| The counts are reproducible from a clean checkout | `source.workingTreeClean: true` at commit `139a2c8` | `git status --porcelain` before the run |
+| The counts are reproducible from a clean checkout | `source.workingTreeClean: true` at commit `aa174cf` | `git status --porcelain` before the run |
 
 The coverage figure is a conservative floor, not a ceiling. `tests/conftest.py`
 drops the coverage contribution of node-subprocess tests on this exact host
@@ -63,6 +63,7 @@ session", which is what the evidence supports.
 | The voice layer has 108 passing checks | `PASS voice: 108 passed, 0 failed` | `node scripts/qa_voice.mjs` |
 | Speech and typing go through the same intent parser | that gate covers it | same |
 | Local speech-to-text loads in 1.587 s | `docs/eval/stt_bench.md` and `.json`, 10 clips | the bench script in that document |
+| The 10 clips are synthesised, 5 commands through 2 Windows voices | `docs/eval/stt_clips/`, filenames name the voice | `python scripts/bench_stt.py --synthesize` |
 | Median latency 0.885 s, median real-time factor 0.371 | same | same |
 | Peak RAM 367.5 MB | same | same |
 | Aggregate word error rate 0.25 across the clip set | same | same |
@@ -71,6 +72,13 @@ session", which is what the evidence supports.
 The word error rate is 0.25 on ten clips. That is a small sample and it is a
 quarter of words wrong. Present it as "usable for a fixed command vocabulary,
 not as dictation", which is what the number actually says.
+
+Say "synthesised speech" out loud when the benchmark comes up. The clips come
+out of the Windows speech engine, not out of a microphone: no room noise, no
+accent, no hesitation, no clipping. That makes 0.25 a floor on error rather than
+a field measurement, and it makes the latency and real-time factor optimistic
+for the same reason. Presenting these as what a pupil in a classroom would get
+would be the one unsupported claim in an otherwise clean voice section.
 
 ### Other gates
 

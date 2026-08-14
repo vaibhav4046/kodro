@@ -1,41 +1,41 @@
 {
   "schemaVersion": 1,
   "harness": "pytest",
-  "generatedAt": "2026-08-14T20:21:04+00:00",
+  "generatedAt": "2026-08-14T21:29:42+00:00",
   "command": "python -m pytest --basetemp=<tmp> -q --cov-report=json:<cov> --junitxml=<junit>",
   "note": "Coverage settings (source, branch mode, --cov-fail-under=85) come from pyproject.toml addopts and are not repeated on the command line. Counts and coverage are read from the run's own JUnit XML and coverage JSON, not transcribed by hand.",
   "source": {
-    "commit": "139a2c827f3447aae5428ee5d65aaf25287bfa62",
-    "describe": "v2.0-submission-36-g139a2c8",
+    "commit": "aa174cfbd1bd39a4643694c64a24b715853e5026",
+    "describe": "v2.0-submission-44-gaa174cf",
     "workingTreeClean": true,
     "untrackedTestFiles": [],
-    "provenanceNote": "This run was taken on a clean working tree at the commit above: git status reported no modifications and no untracked files, so the counts are reproducible by checking out that commit. The previous artefact was taken on a dirty tree at 02dd047 and was not."
+    "provenanceNote": "This run was taken on a clean working tree at the commit above: git status reported no modifications and no untracked files before the run started, so the counts are reproducible by checking out that commit. The artefact this one replaces was also clean, but at 139a2c8, eight commits earlier, and two test files and seven source files changed in between, so its headline count no longer described the tree the dissertation describes."
   },
   "platform": {
     "python": "3.13.3",
     "platform": "win32"
   },
   "tests": {
-    "collected": 1626,
-    "passed": 1625,
+    "collected": 1639,
+    "passed": 1638,
     "failed": 0,
     "errors": 0,
     "skipped": 1,
-    "durationSeconds": 196.72
+    "durationSeconds": 170.53
   },
   "skipDetail": [
     {
       "test": "tests.unit.test_ai_studio::test_studio_available_when_server_up",
-      "reason": "Tk unavailable in this environment: Can't find a usable tk.tcl in the following directories: (host Tcl path elided)"
+      "reason": "Tk unavailable in this environment: Can't find a usable init.tcl in the following directories: (host Tcl path elided)"
     }
   ],
   "failureDetail": [],
   "coverage": {
     "percentCovered": 90.9,
     "gate": 85,
-    "statements": 7060,
+    "statements": 7062,
     "missingLines": 516,
-    "coveredLines": 6544,
+    "coveredLines": 6546,
     "branches": 1732,
     "partialBranches": 206,
     "branchMode": true
