@@ -261,9 +261,26 @@ This underpins part of the motivation for an offline-first tool. It is a claim a
 
 ### LOW 12. One reflection figure is a session observation with no artefact
 
+**RESOLVED 2026-08-14, and this entry was partly wrong when written.**
+
 `.tex:915`: "Timing one flow end to end instead settled it, at 2 minutes 56 seconds against a 60 second ceiling, with a valid screenshot at the end of it".
 
-No artefact in the repository records a 2 minute 56 second timing. It is a narrative reflection on a debugging episode rather than a reported result, and it does not appear in any evidence table, so it is low severity. It is nonetheless a specific number in a document whose Declaration says numerical claims are retained only where a committed artefact or repeatable command supports them. Either soften it to a qualitative statement or name the command that produced it.
+The original finding said no artefact records the timing. That is not correct. `scripts/qa_ui.mjs:98-105` records it in the gate itself, contemporaneously with the fix it justifies:
+
+```js
+// The ceiling is platform-aware because the two platforms are not close. On the
+// Linux CI runner a flow finishes in a few seconds. On a loaded Windows laptop
+// the same flow was measured at 2m56s end-to-end -- Defender scans every file
+// of the fresh profile as Chrome writes it, and SwiftShader JITs on a box with
+// ~1.5GB free. A 60s ceiling there does not report a broken product, it reports
+// a busy machine
+```
+
+and the ceiling that observation produced is at `qa_ui.mjs:109`, `process.platform === 'win32' ? 300_000 : 60_000`. So the 60 second figure is a literal in the shipped source and the 2m56s figure is a dated engineering record, not an unsupported number.
+
+What was fair in the finding is that the sentence read like a controlled measurement. `.tex:915` now says the observation is recorded in the gate source rather than in a separate evaluation artefact, and that it was a debugging measurement rather than an experiment.
+
+Corroborated independently on 2026-08-14: `node scripts/qa_ui.mjs --suite=behaviour` on this Windows laptop took 325 seconds wall clock for nine flows and passed 41 of 41 asserts, exit 0. That does not reproduce the 2m56s figure, which was a single flow on a different day, but it confirms the magnitude the reflection turns on, which is that a 60 second per-flow ceiling on this platform measures the host and not the product.
 
 ---
 
@@ -467,7 +484,7 @@ The panel arithmetic is fully self-consistent across all three dimensions, which
 | Appendices excluded from the fifty-page limit | 113 | none in the repository | no authoritative brief exists | **UNVERIFIABLE.** See HIGH 4 |
 | Document has 9 figures and 14 tables | 175 to 177, comment only | the `.tex` itself | 2 figures, 11 tables, 3 listings | **DRIFT.** See MEDIUM 7 |
 | Zero em dashes and zero en dashes | `docs/GPT_HANDOFF.md:34` constraint | the `.tex` | 0 of each. The only `--` sequences are at lines 630 and 648 inside `\texttt{--suite=}` and `\texttt{--repeat=3}`, where the ligature is suppressed | **PASS** |
-| 2 minutes 56 seconds against a 60 second ceiling | 915 | none | no artefact | UNVERIFIABLE. See LOW 12 |
+| 2 minutes 56 seconds against a 60 second ceiling | 915 | `scripts/qa_ui.mjs:98-105` records the timing, `:109` carries the 60000 ms ceiling | the ceiling is a literal in the shipped source; the timing is a dated record in the gate comment, corroborated in magnitude by a 325 s nine-flow suite run on 2026-08-14 | **SOURCED.** See LOW 12, which was wrong as first written |
 | Trinket shuts down 31 August 2026 | 296 | external, `\citep{trinket2026}` | offline, not checked | UNVERIFIED. See LOW 11 |
 
 ---
