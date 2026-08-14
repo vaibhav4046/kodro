@@ -81,7 +81,7 @@ not as dictation", which is what the number actually says.
 | Encoding is clean across 406 files | 10 passed | `node scripts/qa_encoding.mjs` |
 | No tracked file carries a credential, a key file or a local account name | `PASS secrets: 27 passed (473 of 775 tracked files read, 13 credential rules)` | `node scripts/qa_secrets.mjs` |
 | Learning annotations pass 28 checks | 28 passed | `node scripts/qa_learning_annotations.mjs` |
-| Software-rasterised rendering holds about 22 FPS | medians 22.2 low quality, 21.1 high | `node scripts/qa_performance.mjs --gl=software --repeat=3`, verdict MEASURED |
+| Software-rasterised rendering holds the mid twenties in FPS | medians 25.7 low quality, 24.4 high, over three samples per tier | `node scripts/qa_performance.mjs --gl=software --repeat=3`, verdict MEASURED |
 
 ### The failure-and-refine story
 

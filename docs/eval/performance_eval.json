@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-14T19:59:18.155Z",
+  "generatedAt": "2026-08-14T21:21:00.915Z",
   "method": "headless Chrome requestAnimationFrame cadence plus in-render submission timing on the shipped Three.js scene",
   "glMode": "software",
   "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -10,7 +10,7 @@
     "node": "v24.12.0"
   },
   "artifactHashes": {
-    "bundleSha256": "0084a2d2a74fec4bdfe599cd3b8664646537b9409cfc1aaa899b4ef24aba3701",
+    "bundleSha256": "17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174",
     "harnessSha256": "50681bdc3764f89f48a6cbe5d4e662bd3c80baa2a79391651477a582ddab9261"
   },
   "target240HzFrameMs": 4.17,
@@ -25,24 +25,24 @@
     "perTier": {
       "low": {
         "samples": 3,
-        "measuredFpsMin": 22,
-        "measuredFpsMax": 22.5,
-        "measuredFpsMedian": 22.2,
+        "measuredFpsMin": 25.3,
+        "measuredFpsMax": 32.2,
+        "measuredFpsMedian": 25.7,
         "all": [
-          22,
-          22.2,
-          22.5
+          25.3,
+          25.7,
+          32.2
         ]
       },
       "high": {
         "samples": 3,
-        "measuredFpsMin": 21,
-        "measuredFpsMax": 21.3,
-        "measuredFpsMedian": 21.1,
+        "measuredFpsMin": 23.3,
+        "measuredFpsMax": 25,
+        "measuredFpsMedian": 24.4,
         "all": [
-          21,
-          21.1,
-          21.3
+          23.3,
+          24.4,
+          25
         ]
       }
     }
@@ -53,26 +53,25 @@
       "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
       "processStatus": 0,
       "timedOut": false,
-      "elapsedMs": 10586,
+      "elapsedMs": 6966,
       "metrics": {
         "schemaVersion": 1,
         "sampleFrames": 120,
-        "measuredFps": 22,
-        "refreshEstimateHz": 23.5,
-        "p95FrameIntervalMs": 72.4,
-        "p95RenderSubmissionMs": 14.8,
+        "measuredFps": 32.2,
+        "refreshEstimateHz": 34.1,
+        "p95FrameIntervalMs": 35.7,
+        "p95RenderSubmissionMs": 12.5,
         "target240HzFrameMs": 4.17,
         "highRefreshSubmissionReady": false,
         "actual240FpsGuaranteed": false,
         "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
-        "quality": "low-adaptive",
+        "quality": "low",
         "rendererClass": "software",
-        "downgraded": true
+        "downgraded": false
       },
       "error": null,
       "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9417/devtools/browser/2c72422c-d415-48fa-8e73-9500e6801d55",
-        "[28864:30308:0814/205817.820:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+        "DevTools listening on ws://127.0.0.1:9417/devtools/browser/0abf4430-b42f-4a26-90df-d9ed4da100ab"
       ],
       "sample": 1
     },
@@ -81,28 +80,25 @@
       "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
       "processStatus": 0,
       "timedOut": false,
-      "elapsedMs": 11347,
+      "elapsedMs": 8592,
       "metrics": {
         "schemaVersion": 1,
         "sampleFrames": 120,
-        "measuredFps": 21,
-        "refreshEstimateHz": 23,
-        "p95FrameIntervalMs": 62,
-        "p95RenderSubmissionMs": 9.9,
+        "measuredFps": 25,
+        "refreshEstimateHz": 26,
+        "p95FrameIntervalMs": 47.5,
+        "p95RenderSubmissionMs": 34,
         "target240HzFrameMs": 4.17,
         "highRefreshSubmissionReady": false,
         "actual240FpsGuaranteed": false,
         "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
-        "quality": "low-adaptive",
+        "quality": "high",
         "rendererClass": "software",
-        "downgraded": true
+        "downgraded": false
       },
       "error": null,
       "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9418/devtools/browser/d52c39bb-ebdc-4f0d-8d90-d6456b7e6172",
-        "[31736:26440:0814/205827.798:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT",
-        "[31736:26440:0814/205827.834:ERROR:google_apis\\gcm\\engine\\mcs_client.cc:700]   Error code: 401  Error message: Authentication Failed: wrong_secret",
-        "[31736:26440:0814/205827.834:ERROR:google_apis\\gcm\\engine\\mcs_client.cc:702] Failed to log in to GCM, resetting connection."
+        "DevTools listening on ws://127.0.0.1:9418/devtools/browser/8c4eb651-a151-4762-9a39-16af28ac2913"
       ],
       "sample": 1
     },
@@ -111,26 +107,25 @@
       "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
       "processStatus": 0,
       "timedOut": false,
-      "elapsedMs": 10941,
+      "elapsedMs": 8861,
       "metrics": {
         "schemaVersion": 1,
         "sampleFrames": 120,
-        "measuredFps": 22.2,
-        "refreshEstimateHz": 23.6,
-        "p95FrameIntervalMs": 61.7,
-        "p95RenderSubmissionMs": 9.8,
+        "measuredFps": 25.7,
+        "refreshEstimateHz": 26.3,
+        "p95FrameIntervalMs": 48,
+        "p95RenderSubmissionMs": 9.1,
         "target240HzFrameMs": 4.17,
         "highRefreshSubmissionReady": false,
         "actual240FpsGuaranteed": false,
         "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
-        "quality": "low-adaptive",
+        "quality": "low",
         "rendererClass": "software",
-        "downgraded": true
+        "downgraded": false
       },
       "error": null,
       "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9419/devtools/browser/c1ef20b4-67a6-4747-9206-dc809c8006e1",
-        "[10492:21784:0814/205838.919:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT"
+        "DevTools listening on ws://127.0.0.1:9419/devtools/browser/ccd152aa-1757-465a-8db0-5bc6849a49bb"
       ],
       "sample": 2
     },
@@ -139,14 +134,14 @@
       "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
       "processStatus": 0,
       "timedOut": false,
-      "elapsedMs": 11518,
+      "elapsedMs": 9763,
       "metrics": {
         "schemaVersion": 1,
         "sampleFrames": 120,
-        "measuredFps": 21.3,
-        "refreshEstimateHz": 23.2,
-        "p95FrameIntervalMs": 54.2,
-        "p95RenderSubmissionMs": 7.3,
+        "measuredFps": 24.4,
+        "refreshEstimateHz": 25.9,
+        "p95FrameIntervalMs": 50.8,
+        "p95RenderSubmissionMs": 6.2,
         "target240HzFrameMs": 4.17,
         "highRefreshSubmissionReady": false,
         "actual240FpsGuaranteed": false,
@@ -157,10 +152,10 @@
       },
       "error": null,
       "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9420/devtools/browser/3596af7e-2442-4dba-9723-5e97794f04cd",
-        "[11780:20492:0814/205850.468:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT",
-        "[11780:20492:0814/205850.512:ERROR:google_apis\\gcm\\engine\\mcs_client.cc:700]   Error code: 401  Error message: Authentication Failed: wrong_secret",
-        "[11780:20492:0814/205850.512:ERROR:google_apis\\gcm\\engine\\mcs_client.cc:702] Failed to log in to GCM, resetting connection."
+        "DevTools listening on ws://127.0.0.1:9420/devtools/browser/2f55a209-c426-4c04-bc19-eb158639f611",
+        "[21228:25836:0814/222037.995:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR",
+        "[21228:25836:0814/222038.021:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT",
+        "[21228:25836:0814/222038.041:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR"
       ],
       "sample": 2
     },
@@ -169,28 +164,28 @@
       "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=low&view=3d",
       "processStatus": 0,
       "timedOut": false,
-      "elapsedMs": 10133,
+      "elapsedMs": 7619,
       "metrics": {
         "schemaVersion": 1,
         "sampleFrames": 120,
-        "measuredFps": 22.5,
-        "refreshEstimateHz": 24,
-        "p95FrameIntervalMs": 53.1,
-        "p95RenderSubmissionMs": 11.7,
+        "measuredFps": 25.3,
+        "refreshEstimateHz": 27.2,
+        "p95FrameIntervalMs": 50.7,
+        "p95RenderSubmissionMs": 4.7,
         "target240HzFrameMs": 4.17,
         "highRefreshSubmissionReady": false,
         "actual240FpsGuaranteed": false,
         "actualFpsBoundary": "Displayed FPS is bounded by the monitor, browser scheduler, GPU, scene and device.",
-        "quality": "low-adaptive",
+        "quality": "low",
         "rendererClass": "software",
-        "downgraded": true
+        "downgraded": false
       },
       "error": null,
       "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9421/devtools/browser/eef440a5-da9e-40e0-90c6-c147393fc4a0",
-        "[32572:20992:0814/205902.773:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT",
-        "[32572:20992:0814/205902.841:ERROR:google_apis\\gcm\\engine\\mcs_client.cc:700]   Error code: 401  Error message: Authentication Failed: wrong_secret",
-        "[32572:20992:0814/205902.841:ERROR:google_apis\\gcm\\engine\\mcs_client.cc:702] Failed to log in to GCM, resetting connection."
+        "DevTools listening on ws://127.0.0.1:9421/devtools/browser/0782f40f-a581-40e4-96a3-7ba34201e1db",
+        "[27708:26372:0814/222046.314:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: DEPRECATED_ENDPOINT",
+        "[27708:26372:0814/222046.358:ERROR:google_apis\\gcm\\engine\\mcs_client.cc:700]   Error code: 401  Error message: Authentication Failed: wrong_secret",
+        "[27708:26372:0814/222046.358:ERROR:google_apis\\gcm\\engine\\mcs_client.cc:702] Failed to log in to GCM, resetting connection."
       ],
       "sample": 3
     },
@@ -199,14 +194,14 @@
       "url": "http://127.0.0.1:8117/cap.html?world=city&robot=rover&q=high&view=3d",
       "processStatus": 0,
       "timedOut": false,
-      "elapsedMs": 13195,
+      "elapsedMs": 11248,
       "metrics": {
         "schemaVersion": 1,
         "sampleFrames": 120,
-        "measuredFps": 21.1,
-        "refreshEstimateHz": 23.2,
-        "p95FrameIntervalMs": 54.6,
-        "p95RenderSubmissionMs": 8.8,
+        "measuredFps": 23.3,
+        "refreshEstimateHz": 25.4,
+        "p95FrameIntervalMs": 54.9,
+        "p95RenderSubmissionMs": 13.9,
         "target240HzFrameMs": 4.17,
         "highRefreshSubmissionReady": false,
         "actual240FpsGuaranteed": false,
@@ -217,10 +212,10 @@
       },
       "error": null,
       "stderrTail": [
-        "DevTools listening on ws://127.0.0.1:9422/devtools/browser/4b9d7a3f-f0f4-4e63-a3c7-0a5135b037c2",
-        "[27500:17576:0814/205913.920:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR",
-        "[27500:17576:0814/205913.920:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR",
-        "[27500:17576:0814/205913.920:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR"
+        "DevTools listening on ws://127.0.0.1:9422/devtools/browser/467e2456-2022-4c11-abd7-f53a98d1deb1",
+        "[20412:28016:0814/222056.844:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR",
+        "[20412:28016:0814/222056.844:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR",
+        "[20412:28016:0814/222056.904:ERROR:google_apis\\gcm\\engine\\registration_request.cc:291] Registration response error message: PHONE_REGISTRATION_ERROR"
       ],
       "sample": 3
     }

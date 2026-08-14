@@ -31,6 +31,46 @@ Two things the audit confirms as sound and should not be disturbed:
 
 ### CRITICAL 1. The renderer table's software rows have no supporting evidence in the repository at HEAD
 
+**RESOLVED 2026-08-14 by the first of the two routes below, then re-resolved once
+the bundle changed.** `node scripts/qa_performance.mjs --gl=software --repeat=3`
+was run twice. The first run (`generatedAt` `2026-08-14T19:59:18.155Z`) restored
+three samples per tier and the table was updated to its medians. That run then
+went stale within the same day: commit `3c2a851` regenerated `bundle.js` for the
+dictation-notice fix, so the artefact's `bundleSha256` no longer matched the
+bundle the dissertation describes. The gate was re-run at
+`2026-08-14T21:21:00.915Z`, and its `bundleSha256`
+`17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174` is byte-for-byte
+the SHA-256 of `src/robolearn/assets/web/bundle.js` at the commit that carries
+this entry. The table now prints that run:
+
+```
+Software, Low  | 25.7 (25.3 to 32.2) | 48.0 ms | 9.1 ms | Not met
+Software, High | 24.4 (23.3 to 25.0) | 50.8 ms | 13.9 ms | Not met
+```
+
+All three falsified method statements were re-checked against the artefact
+rather than assumed fixed. `samplesPerTier` is 3. Every P95 cell in the table,
+hardware and software alike, is the median of that tier's three per-sample
+readings: software Low frame `[35.7, 48, 50.7]` median 48, submission
+`[12.5, 9.1, 4.7]` median 9.1; software High frame `[47.5, 50.8, 54.9]` median
+50.8, submission `[34, 6.2, 13.9]` median 13.9; hardware Low frame
+`[7.4, 7.5, 8.1]` median 7.5, submission `[1.8, 1.9, 2.5]` median 1.9; hardware
+High frame `[8.5, 7.5, 7.8]` median 7.8, submission `[3.1, 2.4, 2.9]` median
+2.9. The caption's budget claim also holds in the strong form it states: all six
+hardware submission readings are under 4.17 ms and all six software readings are
+over it. The "a day apart" sentence was replaced with the two capture dates
+before this pass; see the note under that bullet.
+
+A consequence worth stating plainly rather than burying: the software figures
+moved from 18.7 and 17.1 in the `f01767e` artefact to 22.2 and 21.1 at 12:21 and
+25.7 and 24.4 at 21:21, all on the same host under CPU rasterisation. The
+21:21 run's own Low samples were 25.3, 25.7 and 32.2, a 27 percent spread across
+three consecutive samples. These are noisy floor measurements on a loaded
+machine, and the dissertation should not be read as claiming better than that.
+The prose already says so.
+
+The original finding follows unchanged.
+
 `.tex:659` and `.tex:660` print:
 
 ```
@@ -57,7 +97,7 @@ This is provenance drift, not fabrication. Every number was really measured, and
 
 - `.tex:648`: "Each run is three independent samples per tier (`--repeat=3`)". The software artefact at HEAD has one sample per tier.
 - `.tex:663` caption: "median of three samples per tier with the observed range in brackets; the P95 columns are likewise the median of the three per-sample P95 readings". There are no three readings to take a median of.
-- `.tex:648`: "the two runs were captured a day apart". Hardware is `2026-07-27T21:12`, software at HEAD is `2026-08-14T12:21`. That is 18 days. Under the `f01767e` software artefact it was about 15 hours, which is what the sentence was written against.
+- `.tex:648`: "the two runs were captured a day apart". Hardware is `2026-07-27T21:12`, software at HEAD is `2026-08-14T12:21`. That is 18 days. Under the `f01767e` software artefact it was about 15 hours, which is what the sentence was written against. **RESOLVED.** The sentence now names both capture dates outright, 27 July 2026 and 14 August 2026, so the reader computes the gap instead of being told a wrong one, and it states which of the two artefacts pins the current bundle.
 
 The hardware rows are clean. `.tex:657` and `.tex:658` match `docs/eval/performance_eval_hardware.json` exactly, including the per-sample spread quoted in prose at `.tex:648` ("144.5, 144.9 and 116.8 FPS"), which is the literal `all` array in that file.
 
@@ -237,6 +277,19 @@ They are flagged because they are a speech-to-text benchmark and its audio clips
 
 ### MEDIUM 10. Two overfull boxes and one oversized float survive in the final build
 
+**RESOLVED, and not by anything aimed at it.** Three separate two-pass compiles
+on 2026-08-14, after the privacy paragraph, the reflection sentence and the
+renderer table were rewritten, each report `Overfull: 0`, `Float too large: 0`,
+`Undefined: 0`, `LaTeX Warning: Citation: 0` and `LaTeX Warning: Reference: 0`,
+at 59 pages. Both overfull boxes were in paragraphs this pass rewrote, `.tex:160`
+and `.tex:869`, so the reflow that removed them was a side effect of correcting
+the numbers rather than a typographic fix. Recorded as such, since a fix nobody
+aimed at can regress the moment either paragraph is edited again. Re-check the
+compile log for `Overfull` before the final PDF is submitted rather than trusting
+this entry.
+
+The original finding follows unchanged.
+
 From a clean three-pass scratch build, all three passes exit 0:
 
 ```
@@ -392,15 +445,17 @@ Every one of these is UNVERIFIABLE-WITHOUT-RERUN independently of the transcript
 | Hardware High 128.2 (127.0 to 143.3) | 160, 658 | same | median 128.2, all `[127.0, 128.2, 143.3]` | MATCH |
 | Hardware High P95 frame 7.8 ms, submission 2.9 ms | 658 | same | medians 7.8 and 2.9 | MATCH |
 | Hardware meets budget in all six samples | 648, 663 | same | `highRefreshSubmissionReady` true in all 6 | MATCH |
-| Software Low 18.7 (18.5 to 20.0) | 160, 659 | `performance_eval.json` at HEAD | 14.2, single sample | **DRIFT** |
-| Software Low P95 frame 77.2 ms, submission 23.7 ms | 659 | same | 137.6 and 127.0 | **DRIFT** |
-| Software High 17.1 (16.9 to 18.2) | 160, 660 | same | 12.9, single sample | **DRIFT** |
-| Software High P95 frame 77.6 ms, submission 30.4 ms | 660 | same | 150.0 and 139.7 | **DRIFT** |
-| "three independent samples per tier" | 648, 663 | same | `samplesPerTier: 1` for software | **DRIFT** |
-| "the two runs were captured a day apart" | 648 | both artefacts `generatedAt` | 2026-07-27T21:12 and 2026-08-14T12:21, 18 days | **DRIFT** |
-| Same harness hash, different bundle hashes | 648 | both artefacts `artifactHashes` | harness `50681bdc...` in both; bundles `23201a39...` and `a83a81b7...` | MATCH |
+| Software Low 25.7 (25.3 to 32.2) | 160, 659 | `performance_eval.json`, re-run 21:21 | median 25.7, all `[25.3, 25.7, 32.2]` | MATCH, was **DRIFT** at 18.7 |
+| Software Low P95 frame 48.0 ms, submission 9.1 ms | 659 | same | medians of `[35.7, 48, 50.7]` and `[12.5, 9.1, 4.7]` | MATCH, was **DRIFT** |
+| Software High 24.4 (23.3 to 25.0) | 160, 660 | same | median 24.4, all `[23.3, 24.4, 25.0]` | MATCH, was **DRIFT** at 17.1 |
+| Software High P95 frame 50.8 ms, submission 13.9 ms | 660 | same | medians of `[47.5, 50.8, 54.9]` and `[34, 6.2, 13.9]` | MATCH, was **DRIFT** |
+| "three independent samples per tier" | 648, 663 | same | `samplesPerTier: 3` for both artefacts | MATCH, was **DRIFT** at 1 |
+| Software misses budget in all six samples | 648, 663 | same | all 6 submission readings above 4.17 ms | MATCH |
+| "the two runs were captured a day apart" | 648 | both artefacts `generatedAt` | sentence replaced by the two dates, 27 July and 14 August 2026 | RESOLVED, was **DRIFT** |
+| Same harness hash, different bundle hashes | 648 | both artefacts `artifactHashes` | harness `50681bdc...` in both; bundles `23201a39...` and `17c8d985...` | MATCH |
+| Software artefact pins the bundle the text describes | 648 | artefact vs `src/robolearn/assets/web/bundle.js` | both `17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174` | MATCH |
 
-Command to close the drift: `node scripts/qa_performance.mjs --repeat=3` with software rasterisation forced. Not run by this audit, because it overwrites a committed evidence artefact.
+The drift was closed by running `node scripts/qa_performance.mjs --gl=software --repeat=3`, twice: once to restore three samples per tier, then again after `3c2a851` regenerated the bundle, so the committed artefact pins the bundle this dissertation describes. The audit itself did not run it, because it overwrites a committed evidence artefact; the release pass did, and updated the four numbers and the method sentences to what it produced. See CRITICAL 1 for the resolution and for the honest reading of how noisy these floor figures are.
 
 ### Local model figures
 
@@ -517,6 +572,11 @@ Engine: MiKTeX-pdfTeX 4.23, pdfTeX 1.40.28. No external `.bib`, so no bibtex or 
 | Underfull `\vbox` | 0 |
 | "Float too large for page" | 1, at input line 345, by 53.00719pt |
 | "`h` float specifier changed to `ht`" | 6 |
+
+Re-measured after the three text corrections of 2026-08-14, two passes, both exit
+0: 59 pages, 0 overfull `\hbox`, 0 "Float too large", 0 undefined citations or
+references. The two overfull boxes sat in paragraphs those corrections rewrote.
+See MEDIUM 10.
 
 ---
 

@@ -131,6 +131,18 @@ none spare, and the honest response is to cut the number of translucent surfaces
 rather than to ship it and hope. This is the one part of the visual work that can
 fail a real classroom rather than merely look different.
 
+**Status, 14 August 2026.** Still open, and still not measured on a quiet
+machine. The gate was re-run twice that day to re-pin the bundle hash the
+dissertation cites, both times with agent work in flight: medians 22.2 Low and
+21.1 High at 12:21, then 25.7 Low and 24.4 High at 21:21. Both sit under the
+34.4 and 28.4 named above, but the second run's own Low samples were 25.3, 25.7
+and 32.2, a 27 percent spread across three consecutive samples on one machine,
+so the gap between 25.7 and 34.4 is inside the noise this host produces and is
+not evidence that the glass costs frames. The 34.4 and 28.4 baseline now exists
+only in this paragraph: the committed artefact has been overwritten since, so a
+clean re-measure cannot be compared against a stored file, only against these
+numbers.
+
 ## Engine track, for the design track: your in-flight lane and a preserved stash
 
 While committing the lessons batch I twice stashed your uncommitted companion
