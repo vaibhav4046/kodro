@@ -215,3 +215,19 @@ your scheme of work and curriculum mapping were written:
 strengths record, so your teacher dashboard docs may want a line on it.
 Please add rows for these four to docs/teachers/scheme-of-work.md and
 curriculum-mapping.md when you next touch the teacher docs.
+
+> **DONE. Do not action this again.** Checked 15 August 2026. Both teacher
+> docs were regenerated from the live library and now carry all 24 lessons,
+> not just these four. `scheme-of-work.md` gives each of the six lessons added
+> after it was written a row with placement guidance rather than a block
+> number, because they are entry and fault-finding lessons that slot beside
+> the blocks rather than into the sequence. `curriculum-mapping.md` has a row
+> per lesson plus a concept index, and `Debugging | 00d, 04a` is in that index,
+> which answers the dashboard line asked for above. `answer-key.md` also
+> covers all six. Verify before acting on this entry:
+>
+>     grep -c '000_watch_it_go' docs/teachers/scheme-of-work.md docs/teachers/curriculum-mapping.md docs/teachers/answer-key.md
+>
+> Two more lessons arrived after this request was written, `16_variables`
+> (KS2) and `17_lists` (KS4). They are in all three documents too. The list of
+> four above is what was new on 28 July and is kept as the record of that day.

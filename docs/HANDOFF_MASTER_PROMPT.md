@@ -15,8 +15,14 @@
 > (the last clean full run collected 1639, passed 1638, skipped 1, at commit
 > `aa174cf`, with coverage 90.9 against the 85 gate), that the library holds
 > 10 lessons (it holds 24), and that the dissertation is about 20 pages (it is
-> 50 numbered pages). Do not treat the higher live figures as failures against
-> the "expect" lines in sections 4 and 8. For the current figure on every gate,
+> 50 numbered pages). Those figures are spread across sections 2, 4, 5 and 6, not
+> confined to one place: the `21/21` appears four times (in WHERE EVERYTHING
+> LIVES, in VALIDATED STATE, in the week plan and in the FAST-START "expect"
+> line), the `851` three times, the `10 lessons` in the library path line, and the
+> `~20 pages` in VALIDATED STATE. An earlier version of this warning scoped
+> itself to "sections 4 and 8", which was wrong twice over: the stale interpreter
+> figure sits in section 2, and this file has no section 8, its headings run 0 to
+> 7. Do not treat the higher live figures as failures. For the current figure on every gate,
 > with the exact summary line it printed, see
 > [`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md); for
 > the Python suite see [`docs/eval/test_suite.json`](eval/test_suite.json).
@@ -112,7 +118,9 @@ All under `src/robolearn/assets/web/`:
   WebView2 app). Also `dist/RoboLearn-windows-x64.exe`. Desktop copy named `Kodro.exe`.
 - `qa_interpreter.mjs` — **offline functional QA harness** (Node). Loads the shipped
   interpreter, drives the generator with the real kinematics + wall ray, asserts command
-  semantics + all 7 examples. Run: `node scripts/qa_interpreter.mjs`. Currently 21/21.
+  semantics + all 7 examples. Run: `node scripts/qa_interpreter.mjs`. Was 21/21 when
+  this file was written; 180 as of 14 August 2026. The word "currently" was removed
+  from this line because it survives the date stamp above and reads as a live claim.
 - `make_icon.py`, `make_ai_model.py`, `train_ai.py`, `stress_test_lessons.py`,
   `generate_curriculum_report.py`.
 - App icon: `src/robolearn/assets/icon.ico`. Brand SVG: `ORBIT_SVG` in `app.jsx`.
@@ -123,7 +131,11 @@ All under `src/robolearn/assets/web/`:
 - CA1 proposal (marked ~A / 74): `docs/ca1/CA1_Specification_Design_Proposal.html`,
   `docs/ca1/Kodro_CA1_Specification_Design_Proposal.pdf`, text at `docs/ca1/_proposal_text.txt`,
   figures in `docs/ca1/img/`.
-- `HUMAN_TODO.md` — the 3 things only a human can finish (the teacher study etc.).
+- `HUMAN_TODO.md` — the things only a human can finish. It held three when this
+  file was written; as of 15 August 2026 five numbered sections are open (teacher
+  study, release tag, deferred polish, the page limit against the current brief,
+  and the published-history decision) plus one optional item, with sections 4 and
+  5 marked DONE. Count the open headings rather than trusting a number here.
 - `README.md`, `CHANGELOG.md`, mkdocs site under `docs/`.
 
 ### Test suite
@@ -176,10 +188,20 @@ All under `src/robolearn/assets/web/`:
 2. **New sleek minimal LOGO.** Redesign the Kodro brand mark (`ORBIT_SVG` in `app.jsx`)
    and `src/robolearn/assets/icon.ico` — modern, minimal, professional. Rebuild bundle +
    exe. Show before/after in browser.
-3. **Onboarding / landing / home PIPELINE (currently absent).** Add a professional app
+3. ~~**Onboarding / landing / home PIPELINE (currently absent).** Add a professional app
    flow like real products: splash/landing → short onboarding (what Kodro is, pick a
    robot or a world) → home/dashboard → main IDE. Smooth, beautiful, skippable, remembered
-   in localStorage. Verify the whole flow in the browser.
+   in localStorage. Verify the whole flow in the browser.~~
+   **DONE, and "currently absent" is false as of 15 August 2026. Do not build a
+   second one.** The flow ships as `KodroHome` (`home.jsx`, exposed on `window`).
+   `app.jsx:3690` mounts it when `homeOpen || !onboarded`; `app.jsx:703` reads the
+   seen flag from `localStorage` under `kodro_home_seen` and `app.jsx:713` writes
+   it; `canClose={onboarded}` makes it skippable only after the first run; the
+   brand button at `app.jsx:2509` reopens it. Its four doors are Lessons, Design,
+   Author and Free play. A separate `onboarding.jsx` also exists and is still in
+   the build `ORDER`, but nothing in the app mounts it (only
+   `scripts/build_screenshot_harness.cjs`); `app.jsx:711-713` records it as a
+   screen no longer shipped. Read that comment before touching either file.
 4. **Motion + environment realism pass.** Make movement natural and worlds accurate across
    city/room/terrains. Give rover and home-bot the same detail pass the car already has.
 5. **Code quality / complexity audit.** White-box review of interpreter, app.jsx,

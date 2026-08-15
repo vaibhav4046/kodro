@@ -73,12 +73,24 @@ Measured, not assumed:
   `mkdocs build -f docs/mkdocs.yml --strict`.
 
 The bundle SHA-256 `8c3417345b3c...` recorded in the 2026-07-16 checkpoint
-below is historical. The committed bundle is now
+below is historical, and so is
 `17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174`
-(1,502,665 bytes) with CSS
+(1,502,665 bytes), which this paragraph called the committed bundle until
+15 August. The committed bundle at `dd02cd8` is
+`f17ce80efc318032b70aa07a187567619cbc3c4e7df7936ad986f51d27eb06b1`
+(1,502,967 bytes). The CSS has not moved:
 `ac7c9050cbd7b06e2814366ed6c6cc8d868ec10a75ecdaeb0814ba789ba45e0d`
 (172,179 bytes). Since nothing on this branch is deployed, no
 committed-matches-live claim can be made about either file today.
+
+Do not read a bundle hash out of this file. It goes stale every time the bundle
+is rebuilt, which happened four times during the CA2 pass. Measure it:
+
+    python -c "import hashlib;print(hashlib.sha256(open('src/robolearn/assets/web/bundle.js','rb').read()).hexdigest())"
+
+and check the source agrees with the generated file using
+`node scripts/build_web.cjs --check`, which prints "bundle.js is up to date."
+and exits 0 when they match.
 
 Host conditions that will bite the next session:
 - `pytest` fails with `PermissionError: [WinError 5]` on the
@@ -99,6 +111,14 @@ Host conditions that will bite the next session:
   data. They are honest skips and must never be counted as passes.
 
 ## Current objective
+
+**The heading is stale, 2026-08-15.** The loop below is still the working
+method and is kept for that reason, but the brief it names is not the live one.
+Since the CA2 release pass opened, the governing brief is the CA2 ultimatum and
+the criteria that close it are the CA2 checkpoint above plus the open rows of
+`BACKLOG.json`. A resuming agent that reads the word "Current" here and starts
+executing the Codex master prompt is working to a superseded objective.
+
 Execute the Codex master prompt: drive Kodro toward an honestly-accepted release
 via the loop Measure -> Judge -> Reproduce -> Prioritise -> Patch -> Regress ->
 Integrate -> Verify -> Rejudge -> Record. No audit-only stop.
@@ -294,6 +314,16 @@ proactively exhausted (300-measurement audit clean). NEED two consecutive clean
 complete rounds. When the loop produces findings, refute any that rest on a
 headless artifact (city collision / blank render) and fix only source-grounded
 real defects. Deliver the final report at convergence (or at a user-set cutoff).
+
+**Superseded, 2026-08-15. Do not quote the numbers below as current.** Five of
+them have moved since this checkpoint was written, because gates gained checks:
+qa_honesty is now 121, qa_contrast 61, qa_grader 55, qa_ui 66, qa_scenario_parity
+8. Four are unchanged and still hold: qa_interpreter 180, qa_worlds 61,
+qa_pupilstore 23, qa_web 5/5. The rest were not re-run in the CA2 pass and are
+neither confirmed nor refuted here. The authoritative record of what was run on
+what day is `docs/eval/qa_gate_runs_2026-08-14.md`, and the machine-emitted
+totals are in `docs/eval/test_suite.json`. Earlier counts are kept below as
+historical round checkpoints, the same convention used further up this file.
 
 Gate counts at this checkpoint: qa_honesty 63, qa_contrast 51, qa_web 5/5,
 qa_ui 38/38, qa_worlds 61, qa_interpreter 180, qa_grader 34, qa_physics 20,

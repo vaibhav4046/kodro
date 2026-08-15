@@ -114,12 +114,72 @@ edited again for no measured change in the product. If the bundle changes for
 any reason that touches code, this entry stops holding and the gate has to run
 again.
 
-One piece of independent support was added on 15 August: the full `qa_ui` gate
-was re-run against the new bundle and returned 66 of 66 with
-`artifactHashes.bundleSha256` equal to `2bbeac69...`, so all 66 behavioural,
-layout and modal checks behave on the shipped bundle exactly as they did on the
-measured one. That corroborates behavioural equivalence only. It says nothing
-about frame rates, and it is not a substitute for re-running the renderer gate.
+**Second addendum, 2026-08-15.** The bundle moved a fourth time, at `dd02cd8`,
+a commit that corrected stale "eighteen lessons" claims across fourteen files.
+Two of those sites are comment blocks in `lesson-studio.jsx`, so the bundle was
+regenerated to keep generated and source in agreement. The file on disk now
+hashes to
+`f17ce80efc318032b70aa07a187567619cbc3c4e7df7936ad986f51d27eb06b1`. That move
+was measured the same way, but the filter used above does not transfer and
+saying so matters more than the result:
+
+```
+$ git diff --stat cacf51e HEAD -- src/robolearn/assets/web/bundle.js
+ src/robolearn/assets/web/bundle.js | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+```
+
+Note the flag position. With `--stat` written after the pathspec, git treats it
+as a path and prints the full patch instead, which is how the wrong figures got
+into a draft of this paragraph in the first place.
+
+The `grep -vE '^[+-][[:space:]]*//'` filter used for the third move returns 10,
+not 0, on this diff. It is anchored on `//` line comments and these lines are
+prose inside `/* */` blocks, so the filter reports all ten changed lines as code
+and the figure is an artefact of the wrong tool rather than a finding. The claim
+was therefore re-established with a comment-state scanner that tracks code,
+block comment, line comment, string and template state, so a `/*` inside a
+string cannot be miscounted. Run against the five added lines plus one control:
+
+```
+line 19182: state=block
+line 19183: state=block
+line 19184: state=block
+line 19185: state=block
+line 21745: state=block
+line 19236: state=code   <- control: the CT_CONCEPTS array, must read as code
+```
+
+Every changed line sits inside one of the two documentation blocks at
+`bundle.js:19179` and `bundle.js:21742`, and the control line confirms the
+scanner distinguishes the two states rather than answering "block" to
+everything. The generated file also agrees with what it was generated from:
+
+```
+$ node scripts/build_web.cjs --check
+bundle.js is up to date.
+``` The edits replace "shipped 18 lessons and no way to write a
+nineteenth" and "Every one of the 18 built-in lessons" with wording that carries
+no count, because the library now holds 24 and a hardcoded number in a comment
+goes stale the next time a lesson lands.
+
+One piece of independent support was re-established on 15 August: the full
+`qa_ui` gate was re-run against the current bundle at 13:32:53Z and returned 66
+of 66 with `artifactHashes.bundleSha256` equal to
+`f17ce80efc318032b70aa07a187567619cbc3c4e7df7936ad986f51d27eb06b1`, which is
+the live file. So all 66 behavioural, layout and modal checks behave on the
+shipped bundle exactly as they did on the measured one. That corroborates
+behavioural equivalence only. It says nothing about frame rates, and it is not
+a substitute for re-running the renderer gate.
+
+The pattern across these four moves is worth stating once, because it is the
+thing most likely to go wrong next. `ui_eval.json` and the two
+`performance_eval*.json` files each pin the hash of the bundle their run
+actually measured. Those pins are correct and must never be hand-edited to
+match a newer bundle: doing so would turn a measurement record into a false
+one. What goes stale is prose like this section, which asserts that a pin still
+equals the live file. The repair for that is always to re-run the gate, never
+to bump the number.
 
 All three falsified method statements were re-checked against the artefact
 rather than assumed fixed. `samplesPerTier` is 3. Every P95 cell in the table,
@@ -662,7 +722,7 @@ Every one of these is UNVERIFIABLE-WITHOUT-RERUN independently of the transcript
 | Same harness hash, different bundle hashes | 648 | both artefacts `artifactHashes` | harness `50681bdc...` in both; bundles `23201a39...` and `17c8d985...` | MATCH |
 | Software artefact pins the bundle the text describes | 648 | artefact vs `src/robolearn/assets/web/bundle.js` | both `17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174` | MATCH |
 
-The drift was closed by running `node scripts/qa_performance.mjs --gl=software --repeat=3`, twice: once to restore three samples per tier, then again after `3c2a851` regenerated the bundle, so the committed artefact pins the bundle this dissertation describes. The audit itself did not run it, because it overwrites a committed evidence artefact; the release pass did, and updated the four numbers and the method sentences to what it produced. See CRITICAL 1 for the resolution and for the honest reading of how noisy these floor figures are.
+The drift was closed by running `node scripts/qa_performance.mjs --gl=software --repeat=3`, twice: once to restore three samples per tier, then again after `3c2a851` regenerated the bundle, so the committed artefact pinned the bundle this dissertation described at that point. It no longer does: the bundle moved twice more, at `cacf51e` and `dd02cd8`, both times inside comments only, and the `.tex` sentence was corrected on 15 August to say that neither artefact pins the final bundle rather than that the software one does. See the two addenda under CRITICAL 1. The audit itself did not run it, because it overwrites a committed evidence artefact; the release pass did, and updated the four numbers and the method sentences to what it produced. See CRITICAL 1 for the resolution and for the honest reading of how noisy these floor figures are.
 
 ### Local model figures
 
@@ -802,6 +862,59 @@ Both are committed at HEAD in `706f93d`. The `.tex` mtime is 19:21:13 and the PD
 3. Both `.toc` files are 96 lines and identical.
 
 No other `.tex` or dissertation PDF competes for canonical status in `docs/dissertation/`.
+
+**Every figure in this section is superseded, 2026-08-15.** The section is kept
+because the reasoning holds and the three proofs are the right three; only the
+numbers moved. The heading says "build currency", which is precisely the kind of
+claim that expires, so leaving it unmarked would be the defect this whole audit
+is about. What changed, and what was re-measured rather than re-asserted:
+
+| Figure | This section says | Measured 2026-08-15 |
+|---|---|---|
+| `.tex` size | 1066 lines, 189591 bytes | 1092 lines, 193364 bytes |
+| PDF size | 1105463 bytes | 1115334 bytes |
+| PDF sheets | 59 | 59, unchanged |
+| Commit | `706f93d` | `dd02cd8` plus the uncommitted pass-18 edits |
+
+The 189591 figure was taken from the file on disk when it still carried CRLF
+endings; `.gitattributes` normalises to LF and the working copy is LF now, which
+accounts for exactly 1066 of that difference. The rest is real editing since 14
+August.
+
+The equality claim was re-established, not carried over. Compiled twice from an
+empty scratch directory, then twice into `_build`, then synced to the source
+directory:
+
+```
+scratch rebuild   1115334 bytes   sha256 c4f042f8...
+Kodro_Dissertation.pdf         1115334 bytes   sha256 1d717df82e80f2bc...
+_build/Kodro_Dissertation.pdf  1115334 bytes   sha256 1d717df82e80f2bc...
+```
+
+Note what the first row does and does not say. The scratch rebuild matches in
+size but not in hash, because a PDF embeds a creation timestamp and a document
+ID that differ on every run. The original claim above was worded "byte-identical
+in size" for that reason, and the wording is worth preserving. The two shipped
+copies are byte-identical to each other, which is the claim that matters.
+
+Proof two and proof three still hold on the new files. `pdftotext` on the
+committed PDF and on the scratch rebuild produced identical 192356-byte text
+layers, `cmp` returned nothing. Both `.toc` files are 96 lines and `cmp`
+reports them identical.
+
+Compile health at this build: both passes exit 0, zero overfull boxes, zero
+undefined citations, zero undefined references, and seven LaTeX warnings all of
+which are `` `h' float specifier changed to `ht' ``. The page structure is
+unchanged: 59 sheets, 7 roman-numbered, exactly 50 arabic-numbered, and 2
+unnumbered front sheets. References begins on arabic page 47.
+
+The reason the document moved at all is recorded under CRITICAL 1: the sentence
+at `.tex:648` asserted that the software performance artefact carries the
+SHA-256 of the bundle this dissertation describes. That was true when it was
+written and stopped being true when the bundle was rebuilt at `cacf51e` and
+again at `dd02cd8`. Correcting a false claim in the assessed document is worth a
+recompile; the recompile is what put every number in this section out of date,
+which is the whole pattern in one move.
 
 ---
 

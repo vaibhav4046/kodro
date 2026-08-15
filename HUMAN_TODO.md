@@ -213,7 +213,11 @@ The current dashboard offers CSV export only. To add PDF, the
 its `SimpleDocTemplate` usage into a sibling `export_pdf` method on
 `ui.teacher_dashboard.TeacherDashboard`.
 
-## 6. Decide whether to rewrite published history for a leaked account name
+## 7. Decide whether to rewrite published history for a leaked account name
+
+> Renumbered from 6 to 7 on 15 August 2026. This file carried two sections
+> numbered 6, so "HUMAN_TODO section 6" was ambiguous. Section 6 is the page
+> limit; this one is the history rewrite.
 
 **This one is yours because it is irreversible.** Everything that could be fixed
 without your call has been.

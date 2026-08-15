@@ -105,7 +105,7 @@ Checked this session, not assumed:
 |---|---|---|
 | `src/robolearn/assets/web/bundle.js` | `node scripts/build_web.cjs --check` | `bundle.js is up to date.` exit 0 |
 | `src/robolearn/assets/web/lessons.json` | re-ran `scripts/export_lessons.py`, compared SHA-256 | byte-identical (`f1167f28...`), matches its 24 authoritative YAML lessons |
-| `docs/eval/ui_eval.json` | `node scripts/qa_ui.mjs` full suite | re-run 2026-08-15T12:32:17Z against the current bundle, 66/66, 100, PASS; `artifactHashes.bundleSha256` equals the live `bundle.js` (`2bbeac69...`). The earlier 2026-08-14T18:20:31Z run reported the same totals against the bundle at `706f93d` |
+| `docs/eval/ui_eval.json` | `node scripts/qa_ui.mjs` full suite | re-run 2026-08-15T13:32:53Z against the current bundle, 66/66, 100, PASS; `artifactHashes.bundleSha256` equals the live `bundle.js` (`f17ce80e...`). Two earlier runs reported the same 66/66 against earlier bundles: 2026-08-15T12:32:17Z against `cacf51e` (`2bbeac69...`) and 2026-08-14T18:20:31Z against `706f93d`. Each rebuild of the bundle invalidates this row until the gate is re-run, so re-run it rather than editing the hash |
 | `docs/dissertation/Kodro_Dissertation.pdf` | recompiled 2026-08-15, two clean passes, then synced from `_build` | byte-identical to `_build/Kodro_Dissertation.pdf`: 59 pages, 1,115,505 bytes, sha256 `294103b92657dcd2...` |
 
 **The PDF row is superseded, 2026-08-15 later the same day.** It was correct when
@@ -123,6 +123,32 @@ at exit 0 with zero overfull boxes and zero undefined citations or references.
 The row above is left as written rather than retro-edited, for the same reason
 the list below exists. See `.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`
 and `.kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md`.
+
+**Superseded again, 2026-08-15, third measurement.** The `1115217` /
+`217e7a97...` block immediately above was correct when written and is now
+history too. `Kodro_Dissertation.tex:648` claimed the software performance
+artefact "carries the SHA-256 of the bundle this dissertation describes". That
+was true at `3c2a851` and stopped being true when the bundle was rebuilt at
+`cacf51e` and again at `dd02cd8`. Correcting that sentence changed the document,
+so the PDF changed with it. Recompiled from a clean build directory, two passes,
+then synced from `_build`:
+
+```
+Kodro_Dissertation.pdf         pages= 59 bytes=1115334 sha256=1d717df82e80f2bcd6d9e06f637005e07651a45a7741d0293711d737e5e28589
+_build/Kodro_Dissertation.pdf  pages= 59 bytes=1115334 sha256=1d717df82e80f2bcd6d9e06f637005e07651a45a7741d0293711d737e5e28589
+```
+
+Still 59 sheets, still exactly 50 arabic-numbered pages, still byte-identical
+across the two locations, both passes exit 0 with zero overfull boxes, zero
+undefined citations and zero undefined references. The seven LaTeX warnings are
+all `` `h' float specifier changed to `ht' ``, which is cosmetic. The em and en
+dash count in the `.tex` is still zero.
+
+Three supersessions of one row in one day is the point, not an embarrassment.
+Any row in this table that pins a hash is a measurement, and a measurement of a
+generated file expires the moment the file is regenerated. The repair is always
+to re-run the gate and append, never to edit a recorded hash into agreement with
+a newer artefact.
 
 Stale documents that must not be silently retro-edited, because they record what
 was measured at a past state:

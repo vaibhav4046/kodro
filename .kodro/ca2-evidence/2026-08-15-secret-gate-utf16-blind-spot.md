@@ -308,4 +308,7 @@ become a duplicate of the old one.
 
 Unchanged from the section above. `git rm --cached` and these redactions stop
 the next push from republishing. Neither removes anything from commits already
-pushed to a public remote. That is `HUMAN_TODO.md` section 6.
+pushed to a public remote. That is `HUMAN_TODO.md` section 7, "Decide whether to
+rewrite published history for a leaked account name". It was numbered 6 when this
+was written, at which point the file had two sections numbered 6; it was
+renumbered to 7 on 15 August 2026 to remove the ambiguity.
