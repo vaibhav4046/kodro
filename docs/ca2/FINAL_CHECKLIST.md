@@ -92,9 +92,19 @@ are also the three that can invalidate everything else.
 - [ ] Compiles clean from a clean build directory, two passes, no undefined
       citations, no missing figures, no overfull boxes
 - [ ] Every number in the document maps to a current artefact
-- [ ] The placeholder in the BCS reference is resolved or removed. It currently
-      renders as bold placeholder text in the reference list, and the access date
-      must not be invented
+- [ ] The placeholder in the BCS reference is resolved or removed. **Done on 15
+      August 2026, and the access date was not invented.** The page was fetched,
+      HTTP 200, all four principle headings quoted at `.tex:899` appear on it
+      verbatim, and it carries no version number and no version date anywhere,
+      so the year the entry used to assert had no source. The entry now reads
+      `BCS(no date)` with a real access date. Verified in the committed PDF, not
+      only in the source: `pdftotext` over
+      `docs/dissertation/Kodro_Dissertation.pdf` returns zero occurrences of
+      `VERIFY VERSION`, two of `Accessed: 15 August 2026`, and renders the
+      citation as `(BCS, no date)`. Evidence in
+      `.kodro/ca2-evidence/2026-08-15-bcs-citations-and-aux-shadowing.md`. The
+      box stays open because it must be re-checked against whichever PDF is
+      actually submitted, not because the work is outstanding
 - [ ] No claim of human evaluation, physical validation, deployment, signing or a
       Turnitin result
 

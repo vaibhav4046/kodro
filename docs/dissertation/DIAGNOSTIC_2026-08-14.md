@@ -734,6 +734,21 @@ responsibility to the author. That disclosure remains accurate and should stay.
    from a `.tex` that has since changed. **The submitted PDF and the Canvas code archive
    (318857) would not correspond to one commit.** Tag a submission commit and rebuild the
    PDF from it.
+
+   > **Half closed on 15 August 2026.** The working tree is no longer dirty and the
+   > documents are no longer out of step with each other. `Kodro_Dissertation.tex`,
+   > `Kodro_Dissertation.pdf` and `_build/Kodro_Dissertation.pdf` were all last modified
+   > by the same commit, `498f509`, on branch `agent/kodro-ca2-candidate`, and no later
+   > commit touches the `.tex`. The PDF was checked against the source rather than
+   > assumed to match it: `pdftotext` over the committed PDF returns zero occurrences of
+   > `VERIFY VERSION` and renders the BCS citation as `(BCS, no date)` with
+   > `Accessed: 15 August 2026`, which is the 15 August source edit, so the PDF is the
+   > current `.tex` and not an older build. The `.tex` is also no longer 879 lines; it is
+   > 1,092, which is why the line numbers throughout this file must be re-located.
+   >
+   > **The tag half is still open and is not an agent action.** `git tag --points-at HEAD`
+   > returns nothing on the candidate branch. No submission tag exists for this state, so
+   > the recommendation to tag a submission commit and archive from it stands as written.
 2. **`docs/HANDOFF_KEITH.md` contradicts itself and the code.** Line 7 says "The 18 lessons
    span Key Stage 1 to Key Stage 4… 1 at KS1, 2 at KS2, 8 at KS3, 7 at KS4"; lines 46, 56 and
    65 of the same file say twenty-four. The repository has **24** lessons split 3/4/9/8,
