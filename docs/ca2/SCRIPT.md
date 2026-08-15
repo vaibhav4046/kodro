@@ -265,9 +265,13 @@ End on a static frame of the hub. No music sting, no logo animation.
 - If something breaks on camera, say what broke and continue. A recovered
   failure reads better than an obvious cut.
 - Silence during motion is deliberate. Let the rover drive.
-- Total spoken words come to 925, counted from the quoted lines in this file on
-  15 August. This note used to say "roughly 1,150", which was never counted.
-  Across 580 seconds that is 96 words a minute, well under conversational pace,
+- Total spoken words come to 953, counted from the 79 quoted lines in this file
+  on 15 August. This note used to say "roughly 1,150", which was never counted,
+  and then 925, which was counted correctly at commit `2836f85` and went stale
+  three commits later: `0ef8436` rewrote the failure-and-refine narration to say
+  40 rather than 80 and to name all three failed checks, which added one quoted
+  line and 28 words. Recount rather than trusting this figure after any edit to a
+  `>` line. Across 580 seconds that is 99 words a minute, well under conversational pace,
   and the gap is not slack in the script: it is the rover driving, the terminal
   scrolling and the verdict landing. Do not fill it. If a take runs long, cut
   from the orientation block first and the limits block last.
