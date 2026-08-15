@@ -20,7 +20,20 @@ was added, so it read `27 passed (477 of 779 ...)` against an actual
 `42 passed (480 of 787 ..., bare-name rule live)`. Both were corrected on 15
 August by re-running the gates, and the encoding row no longer carries a file
 count in the claim column, because a count stated as a claim goes stale silently
-while a count quoted as output at least declares what produced it. The
+while a count quoted as output at least declares what produced it.
+
+Then the secrets row went stale a second time, later on the same day, which is
+the best argument on this page for the instruction above. It now reads
+`42 passed (478 of 785 ...)`, two fewer of each. The cause is not a change to the
+gate and not a new finding: commit `2836f85` untracked
+`docs/dissertation/Kodro_Dissertation.lof` and `.lot`, the generated list-of-figures
+and list-of-tables files, which `.gitignore:96` does not name among the build files
+that stay tracked. The tracked set fell from 787 to 785 and the read set from 480
+to 478 with it. Any commit that adds or removes a tracked file moves this number.
+It is a denominator, not a result, and the pass count of 42 is the part that
+carries the claim.
+
+The
 re-measured values on 15 August: honesty 121, interpreter 180, voice 108,
 learning annotations 28, grader 55, MCP unit 66, web lesson parity 52, MCP smoke
 2 of 2 entry points with 8 tools and 25 resources. Every one of those matched
@@ -126,7 +139,7 @@ would be the one unsupported claim in an otherwise clean voice section.
 | The honesty gate passes 121 checks | `PASS honesty: 121 passed, 0 failed` | `node scripts/qa_honesty.mjs` |
 | The interpreter gate passes 180 checks | `180 passed, 0 failed` | `node scripts/qa_interpreter.mjs` |
 | Encoding is clean across the files the gate reads | `10 passed (411 files, 100 protected characters)` | `node scripts/qa_encoding.mjs` |
-| No tracked file carries a credential, a key file or a local account name | `PASS  secrets: 42 passed (480 of 787 tracked files read, 13 credential rules, bare-name rule live)` | `node scripts/qa_secrets.mjs` |
+| No tracked file carries a credential, a key file or a local account name | `PASS  secrets: 42 passed (478 of 785 tracked files read, 13 credential rules, bare-name rule live)` | `node scripts/qa_secrets.mjs` |
 | Learning annotations pass 28 checks | 28 passed | `node scripts/qa_learning_annotations.mjs` |
 | Software-rasterised rendering holds the mid twenties in FPS | medians 25.7 low quality, 24.4 high, over three samples per tier | `node scripts/qa_performance.mjs --gl=software --repeat=3`, verdict MEASURED |
 

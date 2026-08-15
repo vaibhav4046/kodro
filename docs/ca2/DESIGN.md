@@ -138,12 +138,18 @@ accessibility claim and is worth showing for two seconds, not for a minute.
 - Nine `:focus-visible` rule blocks, covering 22 selectors. Six carry a 2px or 3px
   teal outline with an offset. The other three carry a teal SVG stroke instead,
   because the focused thing is a child shape inside an SVG where an outline is not
-  reliably painted: the memory-graph node at `styles.css:2114` and `:2116`, and the
-  lesson-map markers at `:2621`. All nine resolve to `var(--cyan)`. Focus is never
+  reliably painted: the memory-graph node at `styles.css:2116` and `:2117`, and the
+  lesson-map markers at `:2622`. All nine resolve to `var(--cyan)`. Focus is never
   removed and it is never the browser default. This bullet used to read "18 rules,
   all a 2px or 3px teal outline", and eighteen is not the count of anything in the
   file: not the blocks, not the selectors, not the raw occurrences, not the rules
-  that actually draw an outline.
+  that actually draw an outline. The counts were re-measured on 15 August and are
+  right, but the three line numbers were not, and they were corrected the same day.
+  They read `:2114`, `:2116` and `:2621`. Line 2114 is a text-fill rule with no
+  focus state in it at all, and 2621 is `.ls-map [role="button"] { outline:none }`,
+  which is the rule that removes the default outline rather than the one that
+  replaces it. Citing the removal and not the replacement is the worse of the two
+  errors, because it reads as evidence for the opposite of the claim.
 - A skip link that becomes visible on focus (`styles.css:792`).
 - One `forced-colors: active` block, at `styles.css:271`. It covers the status dots
   and nothing else: Windows high-contrast flattens backgrounds to system colours,

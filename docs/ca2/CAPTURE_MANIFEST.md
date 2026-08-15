@@ -118,7 +118,7 @@ Each row is the answer to "the live take failed twice, now what".
 |---|---|
 | MCP session | Record the smoke harness output scrolling in a plain terminal. It is the same evidence and it cannot fail interactively |
 | Voice | Show the typed intent path only, and say plainly that the spoken path is demonstrated in the local benchmark rather than live. Do not fake a transcript |
-| Failure and refine | Two still frames, the 80 verdict and the 100 verdict, with the edit shown as a diff. Weaker, but true |
+| Failure and refine | Two still frames, the 40 verdict and the 100 verdict, with the edit shown as a diff. Weaker, but true. This row said 80 until 15 August, which is not a score the shipped grader can return for this lesson; see `CLAIM_LEDGER.md` |
 | Classroom loop | Cut the export step. It is the least load-bearing part of the block |
 | Design and run | Cut the parameter edit and show a pre-built robot running. Say so |
 | Evidence | Screenshot the artefact instead of scrolling it |
