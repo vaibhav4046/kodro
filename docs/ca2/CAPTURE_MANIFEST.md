@@ -7,8 +7,11 @@ can fail are recorded first, while there is still time to record them again.
 
 ## Before anything is recorded
 
-Run this in order. It is not optional; three of the five steps have caught a
-problem that would have been visible on camera.
+Run this in order. Nothing has been recorded yet, so no claim is made here about
+what these steps have caught in practice; this line used to say three of the five
+had caught something on camera, which is not measurable before a capture exists.
+What is measurable is that steps 1 and 2 are cheap and step 3 is the one that has
+carried a wrong instruction, so read it rather than skimming it.
 
 1. **Confirm the branch and a clean tree.**
 
@@ -18,17 +21,25 @@ git status --porcelain && git log --oneline -1
 
 A dirty tree means the thing on camera is not the thing in the repository.
 
-2. **Confirm the gates still pass on this exact state.** The short set, about
-   four minutes:
+2. **Confirm the gates still pass on this exact state.** The short set, timed
+   twice on 15 August at 4.5 and 3.9 seconds, of which the MCP smoke run was 3.4
+   both times because it spawns two real server subprocesses. The other four are
+   a tenth of a second each. This line used to say "about four minutes", which
+   was never timed; there is no reason to skip a check this cheap:
 
 ```bash
 node scripts/qa_secrets.mjs && node scripts/qa_honesty.mjs && node scripts/qa_interpreter.mjs && node scripts/qa_voice.mjs && python scripts/smoke_mcp.py
 ```
 
 3. **Clear the frame.** Work through the "must not appear in frame" list in
-   `STORYBOARD.md`. The development probe files in the served asset directory
-   are referenced by the QA harnesses, so check the references before moving any
-   of them, and do not delete them to tidy a shot.
+   `STORYBOARD.md`. Four of the files on that list are load-bearing and must not
+   be deleted to tidy a shot: `cap.html`, `harness.html`, `harness_bundle.js` and
+   `studio_harness.html`, which between them are read by six QA scripts. This
+   step used to name the `_a11y_probe*.html` and `_perf_probe.html` files as the
+   harness-referenced ones, and that is backwards. Nothing in `scripts/` opens
+   them; the only "probe" the harnesses know about is a hidden div they inject at
+   run time, which is a different thing with a similar name. Keep everything on
+   the list out of frame rather than moving any of it on capture day.
 
 4. **Set the terminal up.** Short prompt with no user name in it, 16 pt or
    larger, dark background to match the product, no unrelated scrollback.
@@ -56,9 +67,23 @@ python -c "import importlib.metadata as m; print([(e.name, e.value) for e in m.d
 ```
 
 If `kodro` still reports `robolearn.bench:main`, do not type `kodro` on camera.
-Use `python -m robolearn` from the table instead. Reinstalling to fix it needs
-the build backend, which is not present offline on this machine, so treat the
-module command as the one that is known to work.
+Use `python -m robolearn` from the table instead. Measured on 15 August, that is
+the live state: the installed distribution maps `kodro` to `robolearn.bench:main`
+and does not carry `kodro-bench` at all, so the name of the product still starts
+the batch runner in this environment. `kodro-mcp` is installed and correct at
+`robolearn.mcp.server:main`, which is why the MCP block can use it.
+
+This paragraph used to add that reinstalling was impossible because the build
+backend "is not present offline on this machine". That reason is false and was
+already corrected once in `.kodro/autonomy/STATE.md`. It is true that
+`hatchling` does not import in this interpreter, but `pip download hatchling`
+succeeds and fetched 1.32.0 when it was tested, and the wheel has been built and
+exercised in a clean virtual environment. The offline constraint binds Kodro the
+product, not the toolchain that packages it. The honest reason to type the module
+command instead is narrower: a reinstall changes the environment being filmed, so
+if the entry point is going to be fixed it happens before the capture freeze, and
+after the freeze the module command is the one known to work on the state that is
+on camera.
 
 ## Recording order
 
