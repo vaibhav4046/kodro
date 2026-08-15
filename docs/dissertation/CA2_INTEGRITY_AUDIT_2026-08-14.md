@@ -151,9 +151,19 @@ line 19236: state=code   <- control: the CT_CONCEPTS array, must read as code
 ```
 
 Every changed line sits inside one of the two documentation blocks at
-`bundle.js:19179` and `bundle.js:21742`, and the control line confirms the
+`bundle.js:19179` and `bundle.js:21729`, and the control line confirms the
 scanner distinguishes the two states rather than answering "block" to
-everything. The generated file also agrees with what it was generated from:
+everything.
+
+The second of those two block numbers was written here as `21742` and corrected
+to `21729` on 15 August 2026. This is not drift. The bundle at the commit that
+added this file already carried the banner at `21729`, and `21742` was already a
+blank line inside the block, so the number was wrong when it was first written.
+It resolved without error because it landed inside the file, which is why range
+checking alone did not catch it. The scan result above is unaffected: the six
+scanned lines and their states were measured directly and are unchanged.
+
+The generated file also agrees with what it was generated from:
 
 ```
 $ node scripts/build_web.cjs --check

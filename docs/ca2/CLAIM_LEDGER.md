@@ -23,15 +23,26 @@ count in the claim column, because a count stated as a claim goes stale silently
 while a count quoted as output at least declares what produced it.
 
 Then the secrets row went stale a second time, later on the same day, which is
-the best argument on this page for the instruction above. It now reads
-`42 passed (478 of 785 ...)`, two fewer of each. The cause is not a change to the
-gate and not a new finding: commit `2836f85` untracked
+the best argument on this page for the instruction above. It read
+`42 passed (478 of 785 ...)` at that point, two fewer of each. The cause is not a
+change to the gate and not a new finding: commit `2836f85` untracked
 `docs/dissertation/Kodro_Dissertation.lof` and `.lot`, the generated list-of-figures
 and list-of-tables files, which `.gitignore:96` does not name among the build files
 that stay tracked. The tracked set fell from 787 to 785 and the read set from 480
 to 478 with it. Any commit that adds or removes a tracked file moves this number.
 It is a denominator, not a result, and the pass count of 42 is the part that
 carries the claim.
+
+It then moved a third time, which is the point at which chasing it stops being
+useful. Commit `ca82788` added one tracked file,
+`.kodro/ca2-evidence/2026-08-15-suite-reproduction-and-tempdir-defect.md`, and
+the gate reads Markdown, so both halves went up by one: `479 of 786`, measured on
+15 August 2026. That is what the row below now quotes. Nothing about the gate or
+its findings changed on any of the three occasions. Treat the parenthetical as
+the gate reporting its own scope rather than as a figure this page is asserting,
+and treat `42 passed, 0 failed` as the row's actual claim. Every prose sentence
+about this count on this page is deliberately past tense and dated for that
+reason: the row is meant to be re-run, not read.
 
 The
 re-measured values on 15 August: honesty 121, interpreter 180, voice 108,
@@ -139,7 +150,7 @@ would be the one unsupported claim in an otherwise clean voice section.
 | The honesty gate passes 121 checks | `PASS honesty: 121 passed, 0 failed` | `node scripts/qa_honesty.mjs` |
 | The interpreter gate passes 180 checks | `180 passed, 0 failed` | `node scripts/qa_interpreter.mjs` |
 | Encoding is clean across the files the gate reads | `10 passed (411 files, 100 protected characters)` | `node scripts/qa_encoding.mjs` |
-| No tracked file carries a credential, a key file or a local account name | `PASS  secrets: 42 passed (478 of 785 tracked files read, 13 credential rules, bare-name rule live)` | `node scripts/qa_secrets.mjs` |
+| No tracked file carries a credential, a key file or a local account name | `PASS  secrets: 42 passed (479 of 786 tracked files read, 13 credential rules, bare-name rule live)`, 15 August. The two counts are the gate's scope and move with the tracked set; `42 passed, 0 failed` is the claim | `node scripts/qa_secrets.mjs` |
 | Learning annotations pass 28 checks | 28 passed | `node scripts/qa_learning_annotations.mjs` |
 | Software-rasterised rendering holds the mid twenties in FPS | medians 25.7 low quality, 24.4 high, over three samples per tier | `node scripts/qa_performance.mjs --gl=software --repeat=3`, verdict MEASURED |
 

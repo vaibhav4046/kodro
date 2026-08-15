@@ -354,8 +354,8 @@ Do not soften any of this. It is the part that earns the marks.
 > Kodro. It is off by default, it is opt-in, and the notice is in the product and
 > says exactly that, because the shipped desktop build renders in the platform
 > web view and naming one company would be wrong on most of them. The local
-> speech path is the one I demonstrated, and it runs on this machine: one and a
-> half seconds to load, a median of nine tenths of a second per command with a
+> speech path is the one I demonstrated, and it runs on this machine: a second
+> and six tenths to load, a median of nine tenths of a second per command with a
 > worst case of one and a third, and a quarter of words wrong on ten synthesised
 > clips. Synthesised, so that error rate is a floor and not a classroom
 > measurement. It makes the path usable for a fixed command vocabulary and not
@@ -366,6 +366,18 @@ Say "median" and say "synthesised". Both words are required by
 a second per command", which the benchmark's own worst case of 1.339 seconds
 contradicts, and it called the clips a ten-clip benchmark without saying they
 came out of a speech synthesiser rather than a microphone.
+
+The load time read "one and a half seconds" until later the same day. The
+measurement is 1.587 s, so that rounded the only figure in the sentence that
+was rounded in the product's favour, while the three beside it tracked the
+artefact to the digit: nine tenths for 0.885, one and a third for 1.339, a
+quarter for 0.25. `CLAIM_LEDGER.md:127`, `Q_AND_A.md:109` and
+`docs/eval/stt_bench.md:35` all carry 1.587, so this line was the single place
+the number was said loosely, and it was said out loud. It now reads "a second
+and six tenths", which rounds the other way, and it is deliberately the same
+seven words so the limits block stays at 204 and the master cut stays at 953.
+If asked on the day: that 1.587 s is itself a warm-cache figure, recorded in
+`stt_bench.md` under "Cold and warm", and a genuinely cold disk would be slower.
 
 ---
 

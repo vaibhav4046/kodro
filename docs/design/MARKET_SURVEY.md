@@ -19,10 +19,15 @@ Kodro does not lead on any single axis and should stop trying to. Scratch, Scrat
 > Entries 3, 4, 6, 8, 11, 12 and 14 are PARTLY DELIVERED and each now states
 > which half shipped and which half is the live remainder. Entry 9 is still
 > open but its four cited line numbers have rotted and its headline figure was
-> understated. Entries 7, 10, 13 and 15 were re-checked and stand exactly as
-> written: no subgoal-labelled solutions (`solution_subgoals`, `faded_solution`
-> and `practice_world` appear in neither `lessons/schema.py` nor any lesson
-> YAML), no floor raster or colour sensor anywhere in the tree, no accessibility
+> understated. Entry 7 is PARTLY DELIVERED: the first re-verification pass on
+> 15 August put it in the "stands as written" list below, which was wrong, and a
+> second pass the same day found that the faded intermediate reveal it asks for
+> shipped on 27 July in `532ae52`, that the entry misquoted the button label,
+> that it cited a `bundle.js` line which never held that label, and that its
+> line count for `05_iteration.yaml` is wrong. Subgoal labelling and the matched
+> practice task are still open. Entries 10, 13 and 15 were re-checked and stand
+> exactly as
+> written: no floor raster or colour sensor anywhere in the tree, no accessibility
 > statement, DPIA or network-manager page, and `grader.py:80` still scores
 > `max(0, 100 - SCORE_PENALTY_PER_FAILURE * len(reasons))` with no efficiency
 > metric. Ranking is unchanged; it reflects evidence-per-unit-of-work, not
@@ -82,12 +87,12 @@ Kodro does not lead on any single axis and should stop trying to. Scratch, Scrat
 
 **Evidence.** Accessibility review: the binding duty is the Equality Act 2010 anticipatory reasonable-adjustments duty including auxiliary aids (PSBAR does not apply, schools are exempt except for administrative functions). Milne & Ladner's Blocks4All (CHI 2018), children aged 5-10 programming a robot, names Accessing Output as barrier #1 and solved it with a tangible robot, a route Kodro's virtual rover closes. The Game Accessibility Guidelines independently name the same two missing items: an audio description track and a pingable sonar-style audio map. Kodro already has the substrate: sound.js is a full offline Web Audio synthesis engine with a motor loop that tracks the sim's speed profile, and it is muted by default (line 19). The work is one aria-live line per executed command plus an end-of-run spoken summary against each criterion, and promoting three cues in sound.js from decoration to information. Blocks4All's guidelines warn explicitly against a separate screen-reader-only mode, so keep one interface: the narration log doubles as the teacher's run transcript and as scaffolding for low reading age.
 
-### 7. Subgoal-labelled solutions, a faded intermediate, and a near-isomorphic practice task after the reveal
+### 7. Subgoal-labelled solutions and a near-isomorphic practice task after the reveal
 *content, hours*
 
-**What a user cannot do today.** Revealed solutions are bare code. 05_iteration.yaml's solution_code is nine unlabelled lines; a pupil sees nine lines, not three repetitions of one plan. There is no faded version between hints and the full reveal, and after viewing the solution the pupil advances to the next lesson rather than trying a matched problem.
+**What a user could not do when this survey was written, re-checked 15 August 2026.** Revealed solutions are bare code. `05_iteration.yaml`'s `solution_code` is twelve unlabelled lines, so a pupil sees twelve lines rather than three repetitions of one four-line plan. After the reveal the pupil advances to the next lesson rather than trying a matched problem: `app.jsx:3266-3268` offers a "Next lesson" button and nothing else. The faded intermediate this entry originally asked for has SHIPPED and is no longer a gap. Commit `532ae52` (27 July 2026) added `fadeSolution` at `app.jsx:750`, and `app.jsx:3218` renders a stage-one reveal with the decisions blanked out, gated behind a second button before the full answer at stage two.
 
-**Evidence.** Pedagogy review, read directly in the RPF review s1.5: 'students given code including subgoals perform significantly better on programming tasks than students given code without subgoals, and than students who are asked to add subgoals' (Margulieux & Catrambone 2016; Morrison et al. 2016), corroborated in Sentance et al. s2.3.3. Ericson et al. s2.3 attests the Renkl caveat that worked examples work best interleaved with similar practice problems. Kodro's reveal gating is already correct (bundle.js:31257 shows the button only when hints are exhausted, labelled 'Still stuck? Show me one way to do it'). This is a Lesson schema addition (solution_subgoals as label/lines pairs, faded_solution, practice_world) plus a rendering change. No engine work, and it is the highest evidence-per-line-of-code item available.
+**Evidence.** Pedagogy review, read directly in the RPF review s1.5: 'students given code including subgoals perform significantly better on programming tasks than students given code without subgoals, and than students who are asked to add subgoals' (Margulieux & Catrambone 2016; Morrison et al. 2016), corroborated in Sentance et al. s2.3.3. Ericson et al. s2.3 attests the Renkl caveat that worked examples work best interleaved with similar practice problems. Kodro's reveal gating is already correct: `app.jsx:3210` shows the button only when `!moreHintsLeft && lesson.solutionCode && solutionStage === 0`, and the label reads 'Still stuck? Show me how it is built'. An earlier draft of this entry quoted that label as 'Show me one way to do it' and cited `bundle.js:31257`; neither the wording nor the line was ever in the build. Line `31257` holds unrelated code in both bundles checked: run-value stabilisation in the bundle current when this entry was written, and a `localStorage` read in the bundle current now. What remains is a Lesson schema addition (`solution_subgoals` as label/lines pairs, and `practice_world`, both still absent from `lessons/schema.py` and from every lesson YAML) plus a rendering change. No engine work, and it is the highest evidence-per-line-of-code item available.
 
 ### 8. Variables and usable lists, plus the KS2 variables lesson that is currently missing
 *engine, multi-day*

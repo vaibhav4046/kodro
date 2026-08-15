@@ -68,7 +68,12 @@ sha256sum docs/ca2/intro/assets/fonts/*.ttf src/robolearn/assets/web/vendor/font
 ```
 
 The palette is copied from the single `:root` block at
-`src/robolearn/assets/web/styles.css:7-50`. No colour on this card was invented.
+`src/robolearn/assets/web/styles.css:7-86`. No colour on this card was invented.
+That range was first written here as `7-50`, which was wrong in a way range
+checking cannot catch: line 50 is a blank line in the middle of the block, so
+the citation resolved without error while truncating the block it named. The
+block opens at `:7` and its brace closes at `:86`, holding 74 token
+definitions across 40 lines.
 
 ## The toolchain was substituting fonts, and a green gate would have hidden it
 
