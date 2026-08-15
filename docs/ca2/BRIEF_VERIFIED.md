@@ -45,8 +45,15 @@ the authority and this machine cannot open it.
 What has been done about it: `SCRIPT.md` is written as a 9 minute 40 second
 master that fits inside the 10 minute reading, with four named expansion blocks
 marked `[EXPAND-1]` to `[EXPAND-4]`. If the student confirms 15 minutes, the
-four blocks are dropped in and the runtime becomes roughly 14:30. If the student
+four blocks are dropped in and the runtime becomes 14:30 exactly. If the student
 confirms 10, nothing changes and nothing needs re-recording.
+
+Until 15 August that sentence said "roughly 14:30" and the four blocks held no
+narration, only stage directions, so the 15 minute option was not actually
+recordable. All four are now written and timed, 501 words across 290 seconds,
+and each lands on an existing shot boundary so no master shot is cut into. Both
+options are now real, and the choice below is a genuine choice rather than one
+route and one intention.
 
 This is the safe direction: an over-length video can be rejected outright, an
 under-length one is only a lost opportunity. The master is deliberately built

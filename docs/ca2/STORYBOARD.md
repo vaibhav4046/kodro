@@ -39,7 +39,7 @@ existing shot boundary, so no master shot is cut into.
 | Insert | Goes after shot | At | Length | Source | Framing | On screen |
 |---|---|---|---|---|---|---|
 | EXPAND-1 | 6 | 2:15 | 1:10 | Web app, then terminal | Full window; terminal at 16 pt for the last beat | Ultrasonic removed, assistant refusing obstacle avoidance, sensor refitted, requirements check returning an unresolved payload row, `.krs` validated over MCP |
-| EXPAND-2 | 9 | 3:45 | 1:20 | Web app | Full window | More tools to Teacher progress, classroom mode engaging on its own, concept heatmap, one cell drilled down, CSV export, an age chip in the lesson list, readable-text setting on |
+| EXPAND-2 | 9 | 3:45 | 1:20 | Web app | Full window | More tools to Teacher progress, classroom mode engaging on its own, the summary strip, the concept heatmap with per-cell scores and colour, the legend, the one-combined-record line, both CSV buttons, an age chip in the lesson list, readable-text setting on |
 | EXPAND-3 | 14 | 5:45 | 1:00 | Terminal | Full frame, 16 pt minimum, same window as shot 14 | `resources/read` on the fix-the-turn lesson, then `prove_contracts` refusing `runs: 0` and `runs: "five"` |
 | EXPAND-4 | 17 | 7:20 | 1:20 | Editor, then terminal | Full frame | The coverage figure in `test_suite.json`, then the lesson export regenerated and diffed against the committed file |
 
@@ -48,11 +48,18 @@ With all four in, the shots after each insert shift by the running total: shots
 Shot 20 then starts at 14:25 and the cut ends at 14:30. Re-derive that rather
 than trusting this paragraph, the same way the master runtime is checked.
 
-Two inserts changed content on 15 August because what they asked for did not
+Three inserts changed content on 15 August because what they asked for did not
 exist: EXPAND-1 wanted a chassis-capacity refusal the product does not perform,
-and EXPAND-3 wanted a schema bound no schema declares. Both now show real
-behaviour. The reasons are in `SCRIPT.md` under each block and in
-`CLAIM_LEDGER.md`.
+EXPAND-2 wanted a heatmap cell drilled down to a pupil, which the web dashboard
+has no handler for, and EXPAND-3 wanted a schema bound no schema declares. All
+three now show real behaviour. The reasons are in `SCRIPT.md` under each block
+and in `CLAIM_LEDGER.md`.
+
+EXPAND-2 also carries a state prerequisite the other three do not: the heatmap
+renders rows only once lessons have been graded on the machine being filmed
+(`bridge.js:214-227`, `hooks.jsx:604-616`), so an untouched register shows the
+empty state instead. `CAPTURE_MANIFEST.md` places it after the blocks that
+generate that history.
 
 ## Retimed 15 August 2026
 

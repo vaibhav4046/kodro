@@ -166,7 +166,8 @@ so the web verdict panel reads 40 as well. Do not say eighty on camera.
 These four blocks only run if the 15 minute cap is confirmed. Until 15 August
 they had no narration, so they had no rows here either, and the header of
 `SCRIPT.md` was offering a 14:30 cut whose extra 290 seconds nobody had written
-a word for. Writing them cost two of them a claim: see the last two rows.
+a word for. Writing them cost three of them a claim: see the cut claims under
+the table.
 
 | Claim | Evidence | Command |
 |---|---|---|
@@ -175,8 +176,11 @@ a word for. Writing them cost two of them a claim: see the last two rows.
 | The assistant refuses to generate obstacle avoidance without a distance sensor | `app.jsx:1548` refuses the request rather than emitting code for a missing part | source |
 | A payload requirement comes back unresolved, not answered | `RobotLab.jsx:936`: "Payload capacity is not modelled, so Kodro cannot claim this constraint." Runtime and battery requirements carry the same `unresolved` status with their own reasons | source |
 | The build exports as a `.krs` file and MCP validates that same file | `validate_robot_spec` "Validate a robot exported from the Robot Lab (.krs JSON) and report the mass, wheel count and degrees of freedom the simulator derives from it" | `tools.py:552` |
-| The teacher dashboard is a class concept-strength heatmap with per-pupil drill-down and CSV export | `docs/implementation-status.md:26`, reachable at `app.jsx:2582` via More tools, Teacher progress, which forces classroom mode on the way in | source |
-| Dashboard figures come from a local database and nothing is uploaded | `pupil_progress`: "Summarise progress from the local pupil database on this machine ... Nothing leaves the machine." Corroborated by the `privacy-zero-external` gate | `tools.py:597`, `node scripts/qa_web.mjs` |
+| The web teacher dashboard is a concept-strength heatmap, one column per concept, every cell carrying its own score and colour | `panels.jsx:365-396`: a `<th>` per concept at `:369`, the percentage printed at `:396`, the colour computed at `:380` and `:395`. Reachable at `app.jsx:2582` via More tools, Teacher progress, which forces classroom mode on the way in | source |
+| The web dashboard exports two CSVs | `panels.jsx:333` gates both buttons on browser mode and `window.KodroMarkbook`: `kodro-markbook.csv` and `kodro-concept-strengths.csv`. The desktop register exports from Python's SQLite instead, `panels.jsx:326-332` | source |
+| The per-pupil drill-down is in the legacy Tk dashboard only, not in the web app | `teacher_dashboard.py:183-190` builds the pupil listbox and its `<<ListboxSelect>>` handler, and `_refresh_drill_down` at `:243-272` prints the submissions and strengths. Constructed only at `app.py:171`. `panels.jsx:280-417` has no cell handler and never calls `getPupilSummary` | source |
+| The hosted build holds one combined record for this browser, and says so on screen | `panels.jsx:410`: "This hosted version keeps one combined record for this browser. Use the desktop app for separate pupil records." `pupil-store.js` stores it under the localStorage key `kodro_pupils_v1` with a single learner named "This device" | source |
+| Nothing is uploaded from the dashboard | Browser: `pupil-store.js` makes no network call, and the `privacy-zero-external` gate holds the whole web build to that. Desktop: `pupil_progress` reads "the local pupil database on this machine ... Nothing leaves the machine." | `tools.py:597`, `node scripts/qa_web.mjs` |
 | 7 of the 24 lessons declare a reading age | `reading_age` present in 7 of 24 lesson YAMLs: `000_watch_it_go` 5, `00_first_drive` 6, `00a_turn_the_corner` 6, `00b_repeat_square` 9, `00c_look_first` 10, `00d_fix_the_turn` 7, `16_variables` 9 | grep of `src/robolearn/lessons/*.yaml` |
 | The reading age drives the error explanations, not just a badge | `app.jsx:1740` publishes `KODRO_READING_AGE` for the explanation path; the badge at `app.jsx:3126` is the older use | source |
 | The readable-text setting enlarges the reading surfaces without moving the layout | `styles.css:1179` sets Atkinson Hyperlegible with Comic Sans and Verdana fallbacks, wider letter and word spacing, "Scoped to the reading + code surfaces so the fixed app grid is unaffected" | source |
@@ -185,7 +189,7 @@ a word for. Writing them cost two of them a claim: see the last two rows.
 | `prove_contracts` refuses a non-numeric `runs` by type | live session returned `isError=True`, `'runs' must be a whole number, got a string.` | same session |
 | That guard is in the handler, not the schema | `tools.py:379`. No `inputSchema` in the server declares a `minimum` or a `maximum`; `runs` is declared as `{"type": "integer"}` and nothing more | source |
 
-Two claims were cut from these blocks rather than filmed.
+Three claims were cut from these blocks rather than filmed.
 
 **"the sensor gate refusing a sensor the chassis cannot carry"** was in EXPAND-1
 until 15 August. No such gate exists. The command gate refuses a command whose
@@ -195,6 +199,22 @@ modelled. Searches for `max_sensors`, `sensor_slots`, `sensor_limit`,
 `allowed_sensors`, `supports_sensor`, `payload`, `can_carry` and
 `compatib` across the package return nothing that gates on capacity. Filming it
 would have meant staging a refusal the product does not perform.
+
+**"any cell drills down to the pupil and the attempts behind it"** and **"every
+figure comes from a database file on this machine"** were both in EXPAND-2 until
+15 August, over a shot whose source is the web app. The web modal,
+`panels.jsx:280-417`, has five click handlers and none of them is on a cell;
+`getPupilSummary` is exported by `bridge.js:214` and called from nowhere in the
+UI. The drill-down is real and it is in `teacher_dashboard.py`, which only the
+Tk app opens. The database is real too, and only the desktop has it: in the
+browser the register is a localStorage key. Three other rows cite a file under
+`docs/` and they are fine, because a generated evidence record is a measurement:
+`test_suite.json` is what the suite emitted, `stt_bench` is what the benchmark
+emitted, `stt_clips/` is the data itself. This row cited hand-written prose,
+`docs/implementation-status.md:26`, which is a claim wearing the costume of
+evidence. The other row this file has had to correct, the ultrasonic refusal
+above, failed the same way in miniature: it quoted a plausible sentence instead
+of reading the one the code builds. The status doc has been corrected too.
 
 **"the schema rejecting an out-of-range run length"** was in EXPAND-3 until 15
 August, and was wrong twice: no schema declares a bound, and `run_program` has

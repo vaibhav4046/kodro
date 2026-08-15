@@ -186,6 +186,20 @@ evidence does not support.
 
 ---
 
+**"The product is called Kodro, so why does the command say `robolearn`?"**
+
+Because the package was renamed and the installed console script on the capture
+machine was not. `pyproject.toml` maps `kodro` to the application, but a console
+script is only written at install time, and this environment was installed
+before that change, so the `kodro` on its PATH still starts the headless batch
+runner. The two commands that do reach the application, `robolearn` and
+`python -m robolearn`, both carry the package name, which is why the old name is
+what appears in frame. It is a packaging lag, not two different products: the
+same `robolearn.__main__:main` is behind both names. It is recorded in
+`CAPTURE_MANIFEST.md` with the check that detects it.
+
+---
+
 **"What would you do differently?"**
 
 Get it in front of a class in month two instead of month eight. Every design

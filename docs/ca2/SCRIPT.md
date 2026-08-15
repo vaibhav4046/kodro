@@ -13,8 +13,8 @@ thing you could record. It was 290 seconds of an assessed video with nothing
 written to say, in a file whose next sentence is the rule above. Taking that cut
 would have meant improvising the exact minutes the ledger exists to prevent
 improvising. All four are now written out, and verifying them against the
-product first cost two of them a claim: see the notes under EXPAND-1 and
-EXPAND-3.
+product first cost three of them a claim: see the notes under EXPAND-1,
+EXPAND-2 and EXPAND-3.
 
 Spoken text is in quotes. Everything else is a stage direction.
 
@@ -136,11 +136,27 @@ Screen: More tools, then Teacher progress. Opening it switches the app into
 classroom mode on its own; let that happen on camera rather than setting it up
 beforehand.
 
-> "Classroom mode adds the pupil register and the teacher dashboard. The
-> dashboard is a concept-strength heatmap for the class; any cell drills down to
-> the pupil and the attempts behind it, and the whole thing exports to CSV.
-> Every figure comes from a database file on this machine. Nothing is uploaded,
-> because there is nowhere to upload it to."
+> "Classroom mode adds the pupil register and the teacher dashboard: a
+> concept-strength heatmap, one column per concept, every cell carrying its own
+> score and its own colour. This hosted version keeps one combined record for
+> this browser and says so on screen; separate pupil records are a desktop
+> feature. Both tables download as CSV, because a register that cannot leave the
+> browser is no use to a department. Nothing is uploaded, because there is
+> nowhere to upload it to."
+
+This block said "any cell drills down to the pupil and the attempts behind it"
+and "every figure comes from a database file on this machine" until 15 August.
+Neither is true of the app that is in frame. `panels.jsx:280-417` renders a
+summary strip, the heatmap table, a legend and two CSV buttons, and that is the
+whole modal: the cells are plain `<td>` carrying a tooltip, nothing calls
+`getPupilSummary`, and there are five click handlers in the component, none of
+them on a cell. The drill-down is real, but it is in the legacy Tk dashboard,
+`teacher_dashboard.py:183-190`, reachable only through `app.py:171`. And in the
+browser the register is not a database file: it is the localStorage key
+`kodro_pupils_v1` holding one implicit learner named "This device",
+`pupil-store.js`. The claim was sourced to `docs/implementation-status.md`
+rather than to code, which is how it survived this long. Filming it would have
+meant hunting for a click target that does not exist, live, in an assessed take.
 
 Back to the lesson list. Point at a lesson carrying an age chip.
 
@@ -292,13 +308,15 @@ and the list of what has been ruled out.
 
 `[EXPAND-4]` +80s. Use this only if 15 minutes is confirmed.
 
-Screen: `docs/eval/test_suite.json`, on the coverage figure.
+Screen: stay on `docs/eval/test_suite.json`, moving from the counts to the
+coverage figure. This insert lands at 7:20, directly on the end of the evidence
+block, so it continues that sentence rather than opening a new subject.
 
-> "Ninety point nine percent, against a gate of eighty-five. That is a floor
-> rather than a ceiling, and the reason is specific: on this host the harness
-> drops the coverage contribution of the tests that run in a node subprocess
-> while still running them, so the true figure is at least the reported one. The
-> artefact says that in those words rather than rounding up."
+> "That coverage number is a floor rather than a ceiling, and the reason is
+> specific: on this host the harness drops the coverage contribution of the tests
+> that run in a node subprocess while still running them, so the true figure is
+> at least the reported one. The artefact says that in those words rather than
+> rounding up."
 
 Regenerate the lesson export and diff it against the committed file.
 
@@ -308,6 +326,16 @@ Regenerate the lesson export and diff it against the committed file.
 > thousand two hundred and fifty-five bytes. If a lesson changed and the export
 > did not, that comparison is what catches it, rather than someone noticing
 > later."
+
+This block opened "Ninety point nine percent, against a gate of eighty-five"
+until 15 August. The evidence block it attaches to ends on the words "coverage
+is ninety point nine percent against an eighty-five percent gate", and the
+insert goes in at 7:20, which is that block's last frame. In the 15 minute cut
+the same figure would have been spoken twice with nothing between the two. It
+was not wrong, which is why the ledger never caught it: a claims ledger checks
+whether a number is true, not whether it has already been said. Checking the
+inserts against the master narration rather than only against the product is
+what found it, and it is the only overlap of the four.
 
 ---
 
@@ -420,13 +448,20 @@ End on a static frame of the hub. No music sting, no logo animation.
   | block | span | words | wpm |
   |---|---|---|---|
   | EXPAND-1 | 70s | 131 | 112 |
-  | EXPAND-2 | 80s | 139 | 104 |
+  | EXPAND-2 | 80s | 159 | 119 |
   | EXPAND-3 | 60s | 107 | 107 |
-  | EXPAND-4 | 80s | 124 | 93 |
+  | EXPAND-4 | 80s | 117 | 88 |
 
-  501 words across 290 seconds, 104 wpm. The master cut's blocks run from 64 to
-  136 wpm, so all four sit inside that range and none approaches its ceiling.
-  EXPAND-4 is the slowest at 93 because a file is regenerated on screen
+  514 words across 290 seconds, 106 wpm. The master cut's blocks run from 64 to
+  136 wpm, so all four sit inside that range, and the fastest of them, EXPAND-2
+  at 119, is still slower than the limits block at 136.
+  EXPAND-4 is the slowest at 88 because a file is regenerated on screen
   mid-block and the diff has to land.
   None of these words existed before 15 August; all four blocks were stage
-  directions, which is the defect recorded in the header.
+  directions, which is the defect recorded in the header. Two of them moved
+  again later the same day, after the narration was checked against the master
+  rather than only against the product: EXPAND-2 rose from 139 words to 159 when
+  it was rewritten around what the web dashboard actually renders, and EXPAND-4
+  fell from 124 to 117 when its opening stopped restating a figure the master
+  speaks in the preceding frame. Both corrections are recorded under their
+  blocks.

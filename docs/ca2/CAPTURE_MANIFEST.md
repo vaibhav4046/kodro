@@ -85,6 +85,22 @@ if the entry point is going to be fixed it happens before the capture freeze, an
 after the freeze the module command is the one known to work on the state that is
 on camera.
 
+**The name typed on camera will not be Kodro.** That follows from the paragraph
+above and was not stated in it, which is worth fixing here because it is visible
+in frame rather than only in a config file. Three console scripts resolve on this
+machine: `kodro`, `robolearn` and `kodro-mcp`, all under
+`Python313\Scripts`. `kodro-mcp` is correct, so the MCP block types the product
+name. The application is the problem: `kodro` points at the batch runner, and the
+two commands that do reach it, `robolearn` and `python -m robolearn`, both carry
+the package name. So there is no command in this environment that starts the
+application under the product's own name.
+
+Do not paper over that with a shell alias made for the camera. An alias is a
+prop, and it would put a command in frame that does not exist on the machine.
+Either fix it before the capture freeze by reinstalling, accepting that the
+filmed environment then differs from the verified one, or type the module command
+and answer the question if it is asked. `Q_AND_A.md` carries that answer.
+
 ## Recording order
 
 Risky first, safe last.
@@ -100,6 +116,38 @@ Risky first, safe last.
 | 7 | Orientation and hub | 2, 3, 19 | Cannot fail |
 | 8 | Limits narration | 18 | Audio-led, re-recordable at any point |
 | 9 | Title and end card | 1, 20 | Last, because the date on the card should match the recording |
+
+### The four expansion inserts
+
+Record these only if the 15 minute cap is confirmed, and record them in this
+order, which is not the order they appear in the cut. Until 15 August this
+section did not exist: the two tables in this file covered master shots 1 to 20
+and stopped, while the heading below still promised a fallback for every block.
+The inserts became real content when their narration was written and nothing
+here moved with them.
+
+| Order | Insert | Goes with | Why here |
+|---|---|---|---|
+| 1a | EXPAND-3 | Same terminal window and session as shot 14 | A second live subprocess session. Record it back to back with shot 14 so the window, font size and prompt match on the cut, and so a single MCP launch covers both |
+| 1b | EXPAND-1 | Web app, ending in the terminal | Ends with a `.krs` validated over MCP, so it wants the terminal already set up. Its web beats are low risk; the MCP beat is not |
+| 4a | EXPAND-2 | Web app, after orders 3 and 4 | Has a state prerequisite, below. It cannot be recorded before the register has been filled |
+| 6a | EXPAND-4 | Editor, then terminal | Regenerates a file on camera and diffs it. Low risk, but the diff has to land, so give it room |
+
+**EXPAND-2 state prerequisite.** The heatmap renders rows only from graded
+attempts already on the machine being filmed. In browser mode there is no Python
+store: `app.jsx:1907-1910` records a lesson's concepts into
+`window.KodroPupilStore` after each graded attempt, pass or fail, and
+`bridge.js:222-227` reads that same store back for the dashboard. An untouched
+register renders the empty state, not a heatmap. So grade at least the flow B
+lesson and `00d_fix_the_turn` on the capture machine first, which is what orders
+3 and 4 already do. `00d_fix_the_turn` contributes `sequence` and `debugging`
+(`ct_concepts` in its YAML, exported as `concepts` in `lessons.json`), so those
+two columns are guaranteed to be there.
+
+Do not seed the register by hand to make the grid look fuller. A three column
+heatmap that came from the three lessons in the video is worth more than a wide
+one that came from nowhere, and the wide one invites the one question with no
+good answer.
 
 ## File naming
 
@@ -122,6 +170,11 @@ Each row is the answer to "the live take failed twice, now what".
 | Classroom loop | Cut the export step. It is the least load-bearing part of the block |
 | Design and run | Cut the parameter edit and show a pre-built robot running. Say so |
 | Evidence | Screenshot the artefact instead of scrolling it |
+| EXPAND-1 | Cut the closing MCP validation beat and end on the requirements check showing the unresolved payload row. The refusal and the disclaimer are the point of the block; the `.krs` round trip is already covered by shot 14 |
+| EXPAND-2 | Cut to the two CSV downloads and the on-screen one-combined-record line. If the register is empty and there is no time to fill it, drop the insert entirely rather than showing an empty state and talking over it |
+| EXPAND-3 | Paste the two refused calls from the smoke script output instead of typing them live. Same JSON-RPC frames, same error text, no interactive risk |
+| EXPAND-4 | Show the committed lesson export and the recorded hash side by side instead of regenerating. Weaker, because the point of the block is that regeneration reproduces the file byte for byte, so say that is what is being shown |
+| Any insert | Every one of the four is droppable by construction: each lands on a master shot boundary and none is referenced by the master narration. If an insert will not record cleanly, cut it and lose 60 to 80 seconds rather than filming a bad minute |
 | Any block | If nothing works, say on camera that the block is being described rather than shown. That costs a little. Faking it costs everything |
 
 ## After capture

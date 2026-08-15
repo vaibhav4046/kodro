@@ -23,7 +23,7 @@ today. Status values:
 | Local AI Assistant | Complete | Ollama on localhost, 3 to 4B open model preference, deterministic rule based fallback when Ollama is absent. Vibe coding, ask, review and budget builder panels. |
 | Code Reviewer | Complete | Propose then critique reviewer on the local model; up to three issues; rewrite accepted only after passing the same sandbox as Run. |
 | Lesson Grading | Complete | Pure function grader over the trace; per criterion checks for samples, collisions, battery, constructs, base return, steps, distance; AST walk for allowed constructs. |
-| Teacher Dashboard | Complete | Class concept strength heatmap, per pupil drill down, CSV export, progress report. Web app and legacy Tk both surface it. |
+| Teacher Dashboard | Complete | Class concept strength heatmap, CSV export and progress report in both the web app and the legacy Tk dashboard. The per pupil drill down, a submissions list plus a strength table, is Tk only (`ui/teacher_dashboard.py:183-190`); the web modal (`assets/web/panels.jsx:280-417`) has no cell handler. Browser mode keeps one combined on-device record in localStorage, not the SQLite register. |
 | SQLite Persistence | Complete | Pupils, submissions and concept strength tables; EMA updates; submission trace round trips through JSON. |
 | PyInstaller Packaging | Complete | `python scripts/build_exe.py` builds a windowed WebView2 `Kodro.exe`; verified launching and rendering the full UI. |
 | Command Registry | Complete | `KodroCommands` (in `RobotLab.jsx`) is the single source of truth; every fitted-part command is gated across text, blocks and the assistant, with a readable refusal when a part is missing. |
