@@ -8,7 +8,7 @@
 > must be re-located in the current source before it is fixed. Superseded by
 > `CA2_INTEGRITY_AUDIT_2026-08-14.md` where the two overlap.
 >
-> **Two classes of finding below are closed, not merely drifted.** First, every
+> **Three classes of finding below are closed, not merely drifted.** First, every
 > bibliography finding: this file records 25 entries with `trinket2026` and
 > `bcscode` unchecked, and a visible `[VERIFY VERSION, URL AND ACCESS DATE
 > BEFORE SUBMISSION]` placeholder in the PDF. The bibliography now holds 26
@@ -27,6 +27,14 @@
 > `docs/ca2/FINAL_CHECKLIST.md` and as HIGH 4 in
 > `CA2_INTEGRITY_AUDIT_2026-08-14.md`, and it stays open. Do not quote the page
 > arithmetic in this file as a compliance verdict.
+>
+> Third, every Python test count here is superseded. This file reasons
+> throughout from 1,489 collected and 1,488 passed at 90.97 percent, measured
+> against a smaller suite, including in the Part 7 grade table. The artefact
+> `docs/eval/test_suite.json` now records 1,639 collected and 1,638 passed at
+> 90.90 percent against an 85 percent gate, pinned to commit `aa174cf` on a
+> clean tree. The grade reasoning does not turn on which of the two is current,
+> but do not quote either figure out of this file.
 
 Produced 14 August 2026 against `Kodro_Dissertation.tex` (879 lines) at working-tree
 commit `02dd047` (dirty). No text in the `.tex` has been changed. This document is the
