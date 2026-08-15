@@ -54,10 +54,13 @@ Measured, not assumed:
   to 73 source files, and the Python suite 1,069 to 1,639 collected, passing at
   90.78 percent against an 85 percent gate. The skip count is not stable on this
   host and an earlier version of this bullet explained it with a cause I never
-  measured. Three runs of the same 1,639 tests gave 1 skip, then 2, then 0. All
-  of them come from the `root` fixture in `tests/unit/test_ai_studio.py`, which
-  catches `tk.TclError` and skips rather than fails; the recorded reason is
-  "Can't find a usable init.tcl". The cause is not established. It is not the
+  measured. Three runs of the same 1,639 tests gave 1 skip, then 2, then 0.
+  Thirteen test files open a Tk window in a fixture that catches `tk.TclError`
+  and skips rather than fails, and 169 collected tests sit behind those guards,
+  so a bad run takes a whole file with it; the recorded reason is "Can't find a
+  usable init.tcl". A second correction on top of the first: an earlier version
+  of this bullet also named `tests/unit/test_ai_studio.py` as the sole source,
+  which the source tree does not support. The cause is not established. It is not the
   fixed host defect the earlier text claimed: `tk.Tk()` succeeds on demand in
   both the base interpreter and a fresh venv, test order is deterministic (no
   `pytest-randomly`, no `xdist`), and nothing in `tests/` or `src/` touches

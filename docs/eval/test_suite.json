@@ -26,7 +26,8 @@
   "skipDetail": [
     {
       "test": "tests.unit.test_ai_studio::test_studio_available_when_server_up",
-      "reason": "Tk unavailable in this environment: Can't find a usable init.tcl in the following directories: (host Tcl path elided)"
+      "reason": "Tk unavailable in this environment: Can't find a usable init.tcl in the following directories: (host Tcl path elided)",
+      "provenance": "UNVERIFIED PAIR, recorded here rather than quietly corrected. The note at the top of this file covers the counts and the coverage block, which are read from the run's JUnit XML and coverage JSON. This pair was not: it was carried across by hand when the artefact was regenerated. The test name and the reason string cannot both belong to the same skip. The prefix 'Tk unavailable in this environment:' is the literal format string at tests/unit/test_ui_main_window.py:27, while tests/unit/test_ai_studio.py:54 emits 'Tk unavailable:' and has done since eb3a75b, the only commit that has ever touched it. The mismatch was introduced by 41150d8, which replaced the test name (previously tests.unit.test_ui_main_window::test_apply_theme_changes_palette) and left the reason string as it stood; b8c5bda later changed tk.tcl to init.tcl inside that inherited string. Thirteen test files guard on Tk startup the same way and 169 collected tests sit behind those guards, so the skip could have come from any of them. Which test skipped in this run has not been established, and no cause for the intermittency has been established either. Neither is asserted. The counts above are unaffected: one skip out of 1,639 either way."
     }
   ],
   "failureDetail": [],

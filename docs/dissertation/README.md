@@ -16,10 +16,11 @@ stale figure twice now, at 1,087 and then at 1,488, because a restated number
 goes stale the moment the suite grows and nothing forces it to be updated. The
 run writes its own commit, working-tree status, counts and coverage into
 [`../eval/test_suite.json`](../eval/test_suite.json). Read them there. Note that
-the skip count in that file is not stable on the development host: it comes from
-a fixture that turns an intermittent local Tk startup failure into a skip, the
-cause has not been established, and three runs of the same suite gave one skip,
-then two, then none.
+the skip count in that file is not stable on the development host: thirteen test
+files turn an intermittent local Tk startup failure into a skip rather than a
+failure, the cause has not been established, and three runs of the same suite
+gave one skip, then two, then none. The `skipDetail` pair in that file is
+flagged in the file itself as unverified, for the reason given there.
 Four deterministic contracts — straight transit, controlled corner, obstacle
 clearance and battery reserve — pass five seeded runs each, twenty in total,
 and reject an intentionally broken controller; the per-run record is in
@@ -65,8 +66,12 @@ item-by-item bibliography check is recorded in
 [`REFERENCE_AUDIT_2026-07-17.md`](REFERENCE_AUDIT_2026-07-17.md). **Both are
 dated snapshots, not the current state.** Each now opens with a note listing
 what has moved since; the integrity audit's figures in particular were measured
-against a 49-page PDF and a smaller test matrix, and the bibliography has since
-grown by two entries that have not been checked against a primary record.
+against a 49-page PDF and a smaller test matrix. The bibliography has since
+grown from 23 entries to 26, and all 26 were checked against a live registrar
+record or a fetched page on 15 August 2026, one of them turning up a year that
+its own source does not state. The per-entry results and the reproduction
+commands are in
+[`../../.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`](../../.kodro/ca2-evidence/2026-08-15-bibliography-verification.md).
 
 The current-state assessment, including the outstanding items that only the
 author can close, is

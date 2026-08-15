@@ -11,11 +11,11 @@
 >
 > | Surface | This file (17 Jul, `2645af9`) | Current, and where the current figure comes from |
 > | --- | --- | --- |
-> | Python matrix | 1,081 passed, 0 skipped, 89.00% branch coverage | 1,488 passed, 1 host Tk skip, 90.97% branch coverage against an 85% gate. Emitted by the run itself into `docs/eval/test_suite.json`, which records its own commit and working-tree status — read the figure there, not here. |
-> | Final PDF | 49 A4 pages | 58 pages total; body runs Chapter 1 to the end of the References at page 47, Appendix A opens at 48. The 50-page limit applies to the body, so the current margin is 3 pages. |
+> | Python matrix | 1,081 passed, 0 skipped, 89.00% branch coverage | Gated at 85% branch coverage. No count is given here on purpose: this cell has itself gone stale twice, at 1,488 and before that at 1,087. The run emits its own counts, commit and working-tree status into `docs/eval/test_suite.json`. Read the figure there, not here. |
+> | Final PDF | 49 A4 pages | 59 pages, measured 14 August 2026. The body and appendix split recorded in an earlier version of this cell was not re-derived at that page count and is deliberately not repeated; see `CA2_INTEGRITY_AUDIT_2026-08-14.md`. Which page count the brief means is still unconfirmed and is the author's to settle. |
 > | LaTeX log | "no overfull box, unresolved reference or unresolved citation warning" | Unresolved references and citations: still none. **Overfull and underfull boxes: 19.** The clean-log half of that sentence no longer holds and should not be repeated. |
-> | Headless UI matrix | 6 render flows, 39 behaviour assertions, 12 modal checks | 40 behaviour and 13 modal checks, per `docs/HANDOFF_KEITH.md` measured at commit `b33e5b8`. Not re-run for this note. |
-> | Bibliography | "checked item by item", 23 entries | 25 entries. Two are unchecked and are logged as VERIFY in the addendum to `REFERENCE_AUDIT_2026-07-17.md`. One of them, `bcscode`, carries a deliberate visible verification marker inside the PDF. |
+> | Headless UI matrix | 6 render flows, 39 behaviour assertions, 12 modal checks | 41 behaviour and 13 modal checks, per `docs/HANDOFF_KEITH.md` measured at commit `b33e5b8`. Not re-run for this note. |
+> | Bibliography | "checked item by item", 23 entries | 26 entries, all 26 verified against a primary record in the August pass. The two entries this cell previously logged as unchecked have since been checked. |
 >
 > Two verdicts in this file have **not** changed and are the ones most worth
 > carrying forward: no human participant study has been run, so nothing about

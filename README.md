@@ -337,15 +337,17 @@ python -m pytest                  # Python engine test suite
   wall-clock timers, so concurrent load can time out an assert that passes
   on its own. `qa_worlds.mjs` adds 61 world, robot, quality, site and
   weather identity checks.
-- **Python matrix.** The latest audit run collected 1,489 tests and passed
-  1,488, the one exception being a Tcl-environment skip on the recording
-  host, at 90.97 percent branch-aware coverage against the 85 percent
-  repository gate. Those numbers come out of the run's own coverage and
-  JUnit output into [`docs/eval/test_suite.json`](docs/eval/test_suite.json),
-  which records the commit and working-tree state they belong to. The
+- **Python matrix.** Gated at 85 percent branch-aware coverage. The counts
+  are not restated here, because a restated count goes stale the moment the
+  suite grows: this bullet has carried a figure that the suite had already
+  outgrown. They come out of the run's own coverage and JUnit output into
+  [`docs/eval/test_suite.json`](docs/eval/test_suite.json), which records the
+  commit and working-tree state they belong to. Read them there. The
   percentage is a floor: the harness drops the coverage contribution of
   node-subprocess tests on Windows outside CI while still running them, so
-  CI measures the same suite at or above that figure.
+  CI measures the same suite at or above that figure. The skip count in that
+  file is not stable on the development machine, and the file explains what
+  is and is not established about it rather than offering a cause.
 - **Deterministic Prove.** Four contracts pass 20 of 20 seeded runs,
   reproduce byte-identically and reject the deliberately broken controller.
 - **Coverage gate.** `--cov-fail-under=85` on every push.

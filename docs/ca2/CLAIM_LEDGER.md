@@ -23,18 +23,26 @@ gates and both MCP smoke scripts re-run at `2222e1e`.
 | The skip is a local Tk startup failure, not a product failure | `skipDetail` in the same file | same |
 | The counts are reproducible from a clean checkout | `source.workingTreeClean: true` at commit `aa174cf` | `git status --porcelain` before the run |
 
-Say "the skip", not "the one skip", and do not offer a cause on camera. The skip
-count is not stable on this host: three runs of the same 1,639 tests gave 1, then
-2, then 0. All of them come from one fixture, the `root` fixture in
-`tests/unit/test_ai_studio.py`, which catches `tk.TclError` when `tk.Tk()` fails
-to start and skips instead of failing. The recorded reason is "Can't find a
-usable init.tcl". Why it is intermittent is not established: `tk.Tk()` succeeds
-on demand in both the base interpreter and a fresh venv, test order is
-deterministic, and nothing in the repository touches `chdir`, `TCL_LIBRARY` or
-`TK_LIBRARY`. The defensible sentence is that a fixture degrades a local Tk
-startup failure into a skip so a desktop-UI dependency cannot mask a product
-regression. If asked why it is intermittent, the honest answer is that it has
-not been root-caused.
+Say "the skip", not "the one skip", and do not name a test or offer a cause on
+camera. The skip count is not stable on this host: three runs of the same 1,639
+tests gave 1, then 2, then 0. Thirteen test files open a Tk window in a fixture
+that catches `tk.TclError` and skips instead of failing, and 169 collected tests
+sit behind those guards, so a bad run takes a whole file with it. The recorded
+reason is "Can't find a usable init.tcl". Why it is intermittent is not
+established: `tk.Tk()` succeeds on demand in both the base interpreter and a
+fresh venv, test order is deterministic, and nothing in the repository touches
+`chdir`, `TCL_LIBRARY` or `TK_LIBRARY`. The defensible sentence is that a
+fixture degrades a local Tk startup failure into a skip so a desktop-UI
+dependency cannot mask a product regression. If asked why it is intermittent,
+the honest answer is that it has not been root-caused.
+
+Do not read the test name out of `skipDetail` on camera either. That block pairs
+a test name with a reason string that belongs to a different file, because the
+string was carried across by hand at the last regeneration instead of being
+re-read from the run. The artefact now flags the pair as unverified in its own
+`provenance` field. If it comes up, the answer is that the counts and coverage
+are machine-read, that one field was not, and that the file says so rather than
+having been quietly patched to look consistent.
 
 The coverage figure is a conservative floor, not a ceiling. `tests/conftest.py`
 drops the coverage contribution of node-subprocess tests on this exact host

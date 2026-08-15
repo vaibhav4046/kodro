@@ -67,11 +67,19 @@ are also the three that can invalidate everything else.
       `.kodro/ca2-evidence/2026-08-14-test-suite-evidence.md`
 - [ ] If that regeneration produces a different skip count, report it as
       measured. The count is not stable on this host: three runs of the same
-      1,639 tests gave 1 skip, then 2, then 0. Every one is the `root` fixture
-      in `tests/unit/test_ai_studio.py` turning an intermittent local Tk
-      initialisation failure into a skip instead of a failure. The cause is not
+      1,639 tests gave 1 skip, then 2, then 0. Thirteen test files turn an
+      intermittent local Tk initialisation failure into a skip instead of a
+      failure, and 169 collected tests sit behind those guards. The cause is not
       established, so do not write one into the document, and do not re-run
       until the number looks tidier
+- [ ] Re-read the `skipDetail` block after any regeneration. Its `test` and
+      `reason` fields are currently an unverified pair: the reason string's
+      wording is the format string from `tests/unit/test_ui_main_window.py:27`
+      while the test it names lives in `tests/unit/test_ai_studio.py`, which
+      emits different wording and always has. The artefact flags this in its own
+      `provenance` field. A regeneration must read both fields out of the run's
+      JUnit XML rather than carrying either across, and if it does, delete the
+      `provenance` field in the same edit
 - [ ] The academic-integrity AI-assistance disclosure is present and unaltered in
       the dissertation
 

@@ -44,14 +44,17 @@ failure that passes on its own.
 | Web boot and privacy | 5 of 5 | `node scripts/qa_web.mjs` |
 
 On the skip count in the Python row: it is not stable on the development host.
-Three runs of the same suite gave one skip, then two, then none. Every one of
-them comes from a single fixture in `tests/unit/test_ai_studio.py` that opens a
-Tk window; when the toolkit fails to start, the fixture catches the error and
-skips rather than fails, so a bad run skips several tests together. Why it is
-intermittent has not been established, so no cause is asserted here. The
-degradation itself is deliberate: a desktop-UI dependency that will not start
-should not be able to mask a product regression, and it should not be folded
-into the pass count either.
+Three runs of the same suite gave one skip, then two, then none. Thirteen test
+files open a Tk window in a fixture, and 169 collected tests sit behind those
+guards; when the toolkit fails to start, the fixture catches the error and skips
+rather than fails, so a bad run can skip several tests together. Which test
+skipped in a given run is recorded in `docs/eval/test_suite.json`, and the pair
+recorded there is flagged in that file as unverified, because the reason string
+was carried over by hand and belongs to a different file from the test it names.
+Why the failure is intermittent has not been established, so no cause is
+asserted here. The degradation itself is deliberate: a desktop-UI dependency
+that will not start should not be able to mask a product regression, and it
+should not be folded into the pass count either.
 
 The 24 lessons map to named DfE programme of study statements and BCS
 computational thinking concepts. Each lesson states its success criteria on

@@ -54,10 +54,10 @@ tests while still running them, so the true figure is at least what is reported.
 
 The artefact you are looking at recorded one skip at that commit. The honest
 answer is that the number moves: three runs of the same 1,639 tests on this
-machine gave one skip, then two, then none. They all come from a single fixture
-in the AI studio tests that opens a Tk window. When the toolkit fails to start,
-the fixture catches the error and skips instead of failing, so every test in
-that file skips together and the count depends on which run you took.
+machine gave one skip, then two, then none. Thirteen test files open a Tk window
+in a fixture, and 169 collected tests sit behind those guards. When the toolkit
+fails to start, the fixture catches the error and skips instead of failing, so a
+bad run takes a whole file with it and the count depends on which run you took.
 
 I have not root-caused why it is intermittent, and I would rather say that than
 invent a reason. What I did rule out: it is not a virtual environment missing
@@ -67,6 +67,14 @@ in the harness randomises order; and it is not a leaked working directory or
 Tcl environment variable, because nothing in the source or the tests touches
 either. The recorded error is that the toolkit cannot find its initialisation
 script.
+
+One more thing I would rather volunteer than have found. The artefact names a
+specific test alongside that error, and the pair is wrong: the wording of the
+error is the format string from a different test file, and it was carried across
+by hand when the artefact was last regenerated rather than re-read from the run.
+The counts either side of it are machine-read and unaffected, one skip out of
+1,639 whichever test it was. The artefact now says so in its own text rather
+than presenting the pair as measured.
 
 The part that is a deliberate design decision is the degradation. A desktop-UI
 dependency that fails to start should not be able to mask a product regression,

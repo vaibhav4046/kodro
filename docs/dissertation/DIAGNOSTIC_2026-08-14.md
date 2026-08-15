@@ -7,6 +7,26 @@
 > still hold and the rubric analysis in Part 7 is unaffected by line drift, but each one
 > must be re-located in the current source before it is fixed. Superseded by
 > `CA2_INTEGRITY_AUDIT_2026-08-14.md` where the two overlap.
+>
+> **Two classes of finding below are closed, not merely drifted.** First, every
+> bibliography finding: this file records 25 entries with `trinket2026` and
+> `bcscode` unchecked, and a visible `[VERIFY VERSION, URL AND ACCESS DATE
+> BEFORE SUBMISSION]` placeholder in the PDF. The bibliography now holds 26
+> entries, all 26 were checked against a live registrar record or a fetched page
+> on 15 August 2026, and the placeholder is gone because the check behind it was
+> done. See `.kodro/ca2-evidence/2026-08-15-bibliography-verification.md` and
+> `.kodro/ca2-evidence/2026-08-15-bcs-citations-and-aux-shadowing.md`. The
+> reason this file gives for why those entries could not be checked, that no
+> external record could be fetched, was an inference from `WebFetch` failing
+> rather than a measurement; `curl` through the Bash tool has network access on
+> this host.
+>
+> Second, the sentence a few lines below that the module limit is 50 pages
+> excluding the appendix. That is stated here as settled and it is not. Which
+> page count the brief means is an open author action, recorded in
+> `docs/ca2/FINAL_CHECKLIST.md` and as HIGH 4 in
+> `CA2_INTEGRITY_AUDIT_2026-08-14.md`, and it stays open. Do not quote the page
+> arithmetic in this file as a compliance verdict.
 
 Produced 14 August 2026 against `Kodro_Dissertation.tex` (879 lines) at working-tree
 commit `02dd047` (dirty). No text in the `.tex` has been changed. This document is the
