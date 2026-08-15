@@ -12,6 +12,20 @@ Measured on 14 August 2026 unless a date is given. Commit `aa174cf` for the
 Python suite artefact, working tree clean; the Node gates, the lint and type
 gates and both MCP smoke scripts re-run at `2222e1e`.
 
+**Re-run the gate rows on the recording day rather than reading them off this
+page.** Two rows in the quality-gates table went stale between 14 and 15 August
+without anyone noticing: the encoding row named a file count that has since
+moved, and the secrets row quoted an output line from before the bare-name rule
+was added, so it read `27 passed (477 of 779 ...)` against an actual
+`42 passed (480 of 787 ..., bare-name rule live)`. Both were corrected on 15
+August by re-running the gates, and the encoding row no longer carries a file
+count in the claim column, because a count stated as a claim goes stale silently
+while a count quoted as output at least declares what produced it. The
+re-measured values on 15 August: honesty 121, interpreter 180, voice 108,
+learning annotations 28, grader 55, MCP unit 66, web lesson parity 52, MCP smoke
+2 of 2 entry points with 8 tools and 25 resources. Every one of those matched
+its row.
+
 ## Claims with evidence
 
 ### Testing
@@ -110,8 +124,8 @@ would be the one unsupported claim in an otherwise clean voice section.
 |---|---|---|
 | The honesty gate passes 121 checks | `PASS honesty: 121 passed, 0 failed` | `node scripts/qa_honesty.mjs` |
 | The interpreter gate passes 180 checks | `180 passed, 0 failed` | `node scripts/qa_interpreter.mjs` |
-| Encoding is clean across 406 files | 10 passed | `node scripts/qa_encoding.mjs` |
-| No tracked file carries a credential, a key file or a local account name | `PASS secrets: 27 passed (477 of 779 tracked files read, 13 credential rules)` | `node scripts/qa_secrets.mjs` |
+| Encoding is clean across the files the gate reads | `10 passed (411 files, 100 protected characters)` | `node scripts/qa_encoding.mjs` |
+| No tracked file carries a credential, a key file or a local account name | `PASS  secrets: 42 passed (480 of 787 tracked files read, 13 credential rules, bare-name rule live)` | `node scripts/qa_secrets.mjs` |
 | Learning annotations pass 28 checks | 28 passed | `node scripts/qa_learning_annotations.mjs` |
 | Software-rasterised rendering holds the mid twenties in FPS | medians 25.7 low quality, 24.4 high, over three samples per tier | `node scripts/qa_performance.mjs --gl=software --repeat=3`, verdict MEASURED |
 
