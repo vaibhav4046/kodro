@@ -60,11 +60,33 @@ are also the three that can invalidate everything else.
       regeneration, and the bundle matches its source
 - [ ] `docs/eval/test_suite.json` reflects a clean-tree run at the commit being
       submitted, not an older one. It currently pins `aa174cf`. Regenerating it
-      is not a standalone act: the dissertation quotes its figures at
-      `Kodro_Dissertation.tex` lines 150, 160 and 633, and the claim ledger
-      carries the same row, so all four move together or the document
-      contradicts the artefact. Procedure and the exact four edits are in
-      `.kodro/ca2-evidence/2026-08-14-test-suite-evidence.md`
+      is not a standalone act: the dissertation quotes its commit and its
+      figures at five separate places and `CLAIM_LEDGER.md` at four more, so
+      nine sites move together or the document contradicts the artefact. Do not
+      trust the line numbers below, find the sites, because the `.tex` has grown
+      since they were recorded:
+      `git grep -n 'aa174cf\|1,639\|1,638' -- docs/dissertation/Kodro_Dissertation.tex docs/ca2/CLAIM_LEDGER.md`.
+      Run on 15 August that prints `.tex` 150, 160, 633, 850 and 932, and
+      `CLAIM_LEDGER.md` 11, 48, 51 and 54. Note that the split is uneven and
+      that is the trap: `.tex:150` and ledger 11 and 51 name the commit and
+      quote no figure, while `.tex:850`, `.tex:932` and ledger 54 quote the
+      figures and name no commit, so a regeneration that chases only one of the
+      two strings leaves the other sites stale. Procedure and the full edit
+      table are in
+      `.kodro/ca2-evidence/2026-08-14-test-suite-evidence.md`, which records
+      seven edits and is the authority
+- [ ] This item read "lines 150, 160 and 633 ... so all four move together"
+      until 15 August. Those are exactly the three sites carrying the commit
+      name, presented as though they were the sites carrying the figures, which
+      they are not: `.tex:850` and `.tex:932` carry 1,639 and name no commit,
+      and the ledger has four sites rather than one. The evidence file was
+      complete and correct the whole time and this checklist had compressed it
+      wrongly. A subset of an authoritative list is the most dangerous shape a
+      procedure can take, because it looks like a procedure and it runs to
+      completion. The count in the item above was itself wrong once before it
+      was committed, written as six from memory and corrected to nine by
+      running the command the item now offers, which is the only reason that
+      command is in there
 - [ ] If that regeneration produces a different skip count, report it as
       measured. The count is not stable on this host: three runs of the same
       1,639 tests gave 1 skip, then 2, then 0. Thirteen test files turn an

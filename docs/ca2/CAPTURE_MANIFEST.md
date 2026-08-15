@@ -21,25 +21,53 @@ git status --porcelain && git log --oneline -1
 
 A dirty tree means the thing on camera is not the thing in the repository.
 
-2. **Confirm the gates still pass on this exact state.** The short set, timed
-   twice on 15 August at 4.5 and 3.9 seconds, of which the MCP smoke run was 3.4
-   both times because it spawns two real server subprocesses. The other four are
-   a tenth of a second each. This line used to say "about four minutes", which
-   was never timed; there is no reason to skip a check this cheap:
+2. **Confirm the gates still pass on this exact state.** The short set runs in
+   under four seconds. Timed three times on 15 August with a millisecond clock:
+   3.874, 3.868 and 3.912 seconds. Almost all of that is the MCP smoke run, which
+   took 3.282 and 3.292 seconds on its own two timings because it spawns two real
+   server subprocesses. The four Node gates together account for 0.638 of a
+   second: `qa_secrets` 0.295, `qa_interpreter` 0.155, `qa_honesty` 0.102 and
+   `qa_voice` 0.086. This line used to say "about four minutes", which was never
+   timed; there is no reason to skip a check this cheap:
 
 ```bash
 node scripts/qa_secrets.mjs && node scripts/qa_honesty.mjs && node scripts/qa_interpreter.mjs && node scripts/qa_voice.mjs && python scripts/smoke_mcp.py
 ```
 
+   Those figures replace "4.5 and 3.9 seconds ... the other four are a tenth of a
+   second each", which was written on 14 August. The total and the smoke run were
+   close enough, but the per-gate line was wrong: `qa_secrets` reads 478 files and
+   takes 0.295 of a second, three times the tenth it was credited with, and the
+   other three are the ones that actually sit near a tenth. The first timing
+   attempt on 15 August produced no numbers at all because it was written with
+   `bc`, which is not installed in this shell, so every figure printed as an empty
+   string while the gates themselves returned `EXIT=0`. A command that fails on a
+   missing tool and still exits through the success path of the surrounding script
+   is exactly how an unmeasured number gets written down as a measured one.
+
 3. **Clear the frame.** Work through the "must not appear in frame" list in
    `STORYBOARD.md`. Four of the files on that list are load-bearing and must not
    be deleted to tidy a shot: `cap.html`, `harness.html`, `harness_bundle.js` and
-   `studio_harness.html`, which between them are read by six QA scripts. This
-   step used to name the `_a11y_probe*.html` and `_perf_probe.html` files as the
-   harness-referenced ones, and that is backwards. Nothing in `scripts/` opens
-   them; the only "probe" the harnesses know about is a hidden div they inject at
-   run time, which is a different thing with a similar name. Keep everything on
-   the list out of frame rather than moving any of it on capture day.
+   `studio_harness.html`, which between them are read by seven scripts under
+   `scripts/`, only five of which are named `qa_*`. The full list is
+   `qa_ui.mjs`, `qa_worlds.mjs`, `qa_web.mjs`, `qa_performance.mjs`,
+   `qa_interpreter.mjs`, `build_screenshot_harness.cjs` and `build_web.cjs`. This
+   step used to say "six QA scripts", which was wrong on both halves: the count is
+   seven, and two of the seven are build scripts rather than gates, which matters
+   because deleting one of these files would break the web build and not only a
+   test. It also used to name the `_a11y_probe*.html` and `_perf_probe.html` files
+   as the harness-referenced ones, and that is backwards. Nothing in `scripts/`
+   opens them; the only "probe" the harnesses know about is a hidden div they
+   inject at run time, which is a different thing with a similar name. Keep
+   everything on the list out of frame rather than moving any of it on capture
+   day.
+
+   Counting this correctly needs one guard worth writing down, because getting it
+   wrong the first time is what produced the six. A plain search for `harness.html`
+   also matches inside `studio_harness.html`, so the two files inflate each
+   other's totals. The measurement behind the numbers above anchors each name with
+   a negative lookbehind for a word character or underscore and counts occurrences
+   per file.
 
 4. **Set the terminal up.** Short prompt with no user name in it, 16 pt or
    larger, dark background to match the product, no unrelated scrollback.
@@ -87,13 +115,38 @@ on camera.
 
 **The name typed on camera will not be Kodro.** That follows from the paragraph
 above and was not stated in it, which is worth fixing here because it is visible
-in frame rather than only in a config file. Three console scripts resolve on this
-machine: `kodro`, `robolearn` and `kodro-mcp`, all under
-`Python313\Scripts`. `kodro-mcp` is correct, so the MCP block types the product
-name. The application is the problem: `kodro` points at the batch runner, and the
-two commands that do reach it, `robolearn` and `python -m robolearn`, both carry
-the package name. So there is no command in this environment that starts the
-application under the product's own name.
+in frame rather than only in a config file. Five console scripts resolve on this
+machine, all with an `.exe` shim present under `Python313\Scripts`: `kodro`,
+`kodro-mcp`, `kodro-prove`, `kodrobench` and `robolearn`. This paragraph said
+three until 15 August, listing `kodro`, `robolearn` and `kodro-mcp` and omitting
+`kodro-prove` and `kodrobench`. The omission does not change the conclusion,
+because neither omitted script reaches the application either: `kodro-prove` runs
+`robolearn.prove`, the deterministic contract evidence stage, and `kodrobench`
+runs `robolearn.kodrobench`, which measures how well an LLM writes grounded robot
+control code and is therefore the one command in the list that cannot run under
+the offline constraint at all. It is corrected anyway, because a count stated as
+a measurement is a measurement, and the same paragraph is the one telling the
+reader what will be visible in frame.
+
+The first draft of this correction called `kodrobench` the batch runner, guessing
+from the name. It is not; `kodro` is, through `robolearn.bench`. Two commands
+whose names both contain "bench" do different jobs, and the guess was caught only
+because each module's docstring was read instead of trusted. The five entry
+points and what they resolve to:
+
+```
+kodro         robolearn.bench:main        headless batch runner
+kodro-mcp     robolearn.mcp.server:main   MCP server over stdio
+kodro-prove   robolearn.prove:main        contract evidence
+kodrobench    robolearn.kodrobench:main   LLM code-generation benchmark
+robolearn     robolearn.__main__:main     the application
+```
+
+`kodro-mcp` is correct, so the MCP block types the product name. The application
+is the problem: `kodro` points at the batch runner, and the two commands that do
+reach it, `robolearn` and `python -m robolearn`, both carry the package name. So
+there is no command in this environment that starts the application under the
+product's own name.
 
 Do not paper over that with a shell alias made for the camera. An alias is a
 prop, and it would put a command in frame that does not exist on the machine.

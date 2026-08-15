@@ -63,9 +63,16 @@ generate that history.
 
 ## Retimed 15 August 2026
 
-Four shot lengths changed and eleven start times moved with them. The master
+Four shot lengths changed and fifteen start times moved with them. The master
 runtime is unchanged at 9:40 and shot 20 still ends exactly there, because the
 time was moved between shots rather than added.
+
+That count read eleven until it was checked. Fifteen is what the table gives:
+shots 5 and 6 sit 10 seconds earlier, shots 7 to 18 sit 20 seconds earlier, shot
+19 sits 10 seconds later, and only shots 1 to 4 and shot 20 are where they were.
+Eleven was counted by hand, in a paragraph that ends by telling the reader to
+check the arithmetic rather than trust it, which is the whole reason that
+instruction is there.
 
 The cause was in `SCRIPT.md` rather than here. Counting spoken words per block
 instead of only in total showed the limits block asking for 204 words in 60

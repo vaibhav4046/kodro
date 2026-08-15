@@ -22,10 +22,40 @@ copy is the one described here.
 
 ## Where the tokens live
 
-One `:root` block, `styles.css:7` to `styles.css:86`. Nothing outside that block
-invents a colour, a radius, a duration or a font size. If a new surface needs a
-value that is not there, the value is wrong or the token set is missing one, and
-the fix is to add a token rather than to hardcode a literal.
+One bare `:root` block, `styles.css:7` to `styles.css:86`, holding 74 token
+definitions. That is where a surface should reach for a colour, a radius, a
+duration or a font size, and if a new surface needs a value that is not there,
+the value is wrong or the token set is missing one, and the fix is to add a
+token rather than to hardcode a literal.
+
+There are two documented exceptions and they are the reason this paragraph was
+rewritten on 15 August.
+
+The first is the theme system. Nine `:root[data-theme="..."]` blocks redefine
+tokens on top of the base set: `light` at `styles.css:1729`, `matrix` at
+`:1747`, `pixel` at `:1763`, `game` at `:1785`, `lego` at `:1799`, `chatgpt` at
+`:1816`, `abstract` at `:1832`, `wiki` at `:1844` and `contrast` at `:1864`.
+Between them they carry 224 redefinitions across 32 distinct tokens, 22 to 28
+per theme. This is the token system working rather than a breach of it, because
+a theme changes the values and never the names, which is exactly the point made
+under Radius below about the pixel theme flattening all four radius tokens to 0.
+
+The second is the syntax highlighter, which is a real breach and is small.
+Eleven literal hex colours sit in ordinary declarations outside the base block:
+`.tok-fn` at `styles.css:392`, the viewport ground at `:405`, the world selector
+at `:427`, the reading-age chip's text colour at `:1198`, the high-contrast
+scrollbar at `:1878`, and six per-theme token colours at `:1884` to `:1889`.
+
+The paragraph this replaces read "One `:root` block ... Nothing outside that
+block invents a colour, a radius, a duration or a font size." The first sentence
+was defensible only on the narrow reading that `:root[data-theme]` is not a
+`:root` block. The second was false on any reading, and this document refuted it
+itself under Radius below, where it describes the pixel theme flattening the
+radius tokens, which is a radius invented outside `styles.css:7` to `:86`. The
+rule was right and the scope was absolute when it should have been qualified,
+which is the failure mode that makes a design document unusable: a reader who
+finds one exception stops trusting the rest of it, including the parts that are
+exact.
 
 ## Palette
 
