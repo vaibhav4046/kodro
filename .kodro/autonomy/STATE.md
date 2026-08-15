@@ -351,9 +351,21 @@ printed `worlds strict EXIT=1`, so read the printed RESULT line, never the
 wrapper's status.
 
 The authoritative record of what was run on what day is
-`docs/eval/qa_gate_runs_2026-08-14.md`, and the machine-emitted totals are in
-`docs/eval/test_suite.json`. Earlier counts are kept below as historical round
-checkpoints, the same convention used further up this file.
+`docs/eval/qa_gate_runs_2026-08-14.md`, which carries all fourteen of the
+figures above verbatim in its result column, and they were checked against it
+on 15 August: all fourteen agree.
+
+`docs/eval/test_suite.json` is a different thing and does not cover these gates
+at all. Its `harness` field says `pytest` and it holds one run of the Python
+suite: 1638 passed, 1 skipped, 90.9 per cent coverage at commit `aa174cf`. None
+of the fourteen Node gates appear in it. An earlier version of this paragraph
+called it "the machine-emitted totals" while standing in a paragraph about the
+Node gates, which invites the next reader to go looking there for a number that
+was never in the file. The pointer was true about the file and wrong about the
+scope, which is the harder kind to spot.
+
+Earlier counts are kept below as historical round checkpoints, the same
+convention used further up this file.
 
 Gate counts at this checkpoint: qa_honesty 63, qa_contrast 51, qa_web 5/5,
 qa_ui 38/38, qa_worlds 61, qa_interpreter 180, qa_grader 34, qa_physics 20,

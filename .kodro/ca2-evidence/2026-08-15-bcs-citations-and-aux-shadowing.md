@@ -221,8 +221,16 @@ tracked Markdown, hard-fails on a target that is untracked or past end of file,
 and separately reports anchors that are blank or nothing but a brace, plus paths
 that are ambiguous across tracked files. Current result:
 
-    PASS  citations: 146 found across 107 documents, 0 unresolvable,
+    PASS  citations: 148 found across 107 documents, 0 unresolvable,
           0 needing review, 39 waived (1 by line, 1 by file)
+
+That block first read 146, which is what the gate printed just before this
+section was written. Writing the section added two more citations to this very
+file and made the quoted output wrong inside the same edit. It is a small thing
+and it is the whole defect class in miniature: a figure copied out of a real
+run, correct at the instant it was pasted, describing a tree that the paste
+itself changed. Re-run the command before trusting any count quoted in prose,
+including this one.
 
 Three things about that number are worth writing down.
 
