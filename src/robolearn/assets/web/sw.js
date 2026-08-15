@@ -27,7 +27,7 @@ const SHELL = [
   // visitors, but the runtime cache never populated on the FIRST visit: the
   // SW registers on window 'load', so it activates after the app's mount-time
   // listLessons() fetch has already gone straight to the network. A visitor
-  // who then went offline kept the shell but lost all 18 lessons, and the
+  // who then went offline kept the shell but lost every lesson, and the
   // library sat on "Loading the offline lesson library..." forever because
   // bridge.js memoises the empty result. Precaching makes the cache fallback
   // exist from the first load, which is what index.html promises.

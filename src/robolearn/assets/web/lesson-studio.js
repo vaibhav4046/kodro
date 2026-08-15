@@ -1,10 +1,10 @@
 /* ============================================================================
    KODRO - the lesson document, its on-device store, and its file format.
 
-   Kodro shipped 18 lessons and no way to write a nineteenth. A teacher who
-   wanted an arena that matched what their class was doing that week, or a pupil
-   who wanted to set a challenge for a friend, had nothing: the curriculum was
-   whatever we had decided months earlier, baked into the bundle.
+   Kodro shipped a fixed lesson library and no way to write one more. A teacher
+   who wanted an arena that matched what their class was doing that week, or a
+   pupil who wanted to set a challenge for a friend, had nothing: the curriculum
+   was whatever we had decided months earlier, baked into the bundle.
 
    This module is the data half of the Lesson Studio. It owns:
      - the .kodrolesson document shape and its validator,

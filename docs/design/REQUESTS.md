@@ -39,6 +39,14 @@ removing. Please reword to something like "18 lessons spanning KS1 to KS4,
 weighted to KS3 and KS4" and state the split. I have already corrected
 `docs/HANDOFF_KEITH.md`. Verify the numbers yourself with:
 
+> **DONE, and the figures above are superseded.** Applied 27 July, re-checked
+> 15 August 2026. The library has since grown from 18 lessons to 24 and the
+> split is now 3 KS1, 4 KS2, 9 KS3, 8 KS4. `README.md`, `docs/index.md` and
+> `docs/HANDOFF_KEITH.md` all carry the current numbers. Do not copy the
+> 18 / 1-2-8-7 wording out of this entry; run the command below instead. The
+> 1-2-8-7 split was correct when this request was written and is kept for the
+> record.
+
     python -c "import sys; sys.path.insert(0,'src'); from robolearn.lessons.schema import load_library; from collections import Counter; print(Counter(l.key_stage for l in load_library()))"
 
 **I touched `pyproject.toml` to unbreak CI, and it was your files that broke it.**

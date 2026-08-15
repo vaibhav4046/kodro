@@ -14,7 +14,7 @@
 
    1. YOU CANNOT SAVE A LESSON YOU HAVE NOT SOLVED. The Check button runs your
       worked answer through the same grader a pupil will be marked by, and Save
-      stays disabled until it passes. Every one of the 18 built-in lessons is
+      stays disabled until it passes. Every one of the built-in lessons is
       held to exactly this standard by a test; it would be strange to hold a
       teacher's lesson to a lower one. A lesson whose own answer fails is a
       lesson that sends a child in circles.

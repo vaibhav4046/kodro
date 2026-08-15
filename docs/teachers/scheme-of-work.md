@@ -1,8 +1,24 @@
 # Kodro scheme of work
 
-This scheme uses the 18 lessons that ship with Kodro. It does not add or rename
-lessons. Each title below matches a YAML file in
+This scheme schedules 18 lessons. Kodro ships 24. It does not add or rename
+lessons, and each title below matches a YAML file in
 `src/robolearn/lessons/library/`.
+
+Six shipped lessons are deliberately not timetabled here, because they were
+added after this scheme was written and are designed to be dropped in rather
+than sequenced:
+
+| File | Title | Key stage | Suggested use |
+| --- | --- | --- | --- |
+| `000_watch_it_go.yaml` | Watch It, Then Change It | KS1 | Before Block A, as a first-contact lesson |
+| `00a_turn_the_corner.yaml` | Turn the Corner | KS1 | Between the two Block A entry lessons |
+| `00d_fix_the_turn.yaml` | Fix the Broken Program | KS2 | Fault-finding, any point after Block A |
+| `04a_fix_the_condition.yaml` | Fix the Backwards Test | KS3 | Fault-finding, straight after selection in Block B |
+| `16_variables.yaml` | One name, used twice | KS2 | Before parameters in Block D |
+| `17_lists.yaml` | A list drives the route | KS4 | Block D extension |
+
+Counted and cross-checked against the library on 15 August 2026. If you need a
+scheme covering all 24, add these six at the points suggested above.
 
 Times are planning allowances for one pupil on one device. Add 10 minutes the
 first time a class opens the app, or when devices must be shared. A pair can use
@@ -22,7 +38,7 @@ understands.
 | D. From patterns to general solutions | KS3 extension and KS4 bridge | 7 | 7 sessions of 50 to 60 minutes |
 
 Block D contains the seven lessons labelled `KS4 stretch` in the source. They
-are listed here so all 18 shipped lessons have a place, but they should not be
+are listed here so all 18 scheduled lessons have a place, but they should not be
 presented as core KS3 content. In a six-week half-term, choose the lessons that
 match the class curriculum and keep the others for extension.
 
