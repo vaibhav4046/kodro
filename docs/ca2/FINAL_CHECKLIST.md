@@ -59,7 +59,19 @@ are also the three that can invalidate everything else.
 - [ ] Generated artefacts match their sources: the lesson export hash matches on
       regeneration, and the bundle matches its source
 - [ ] `docs/eval/test_suite.json` reflects a clean-tree run at the commit being
-      submitted, not an older one
+      submitted, not an older one. It currently pins `aa174cf`. Regenerating it
+      is not a standalone act: the dissertation quotes its figures at
+      `Kodro_Dissertation.tex` lines 150, 160 and 633, and the claim ledger
+      carries the same row, so all four move together or the document
+      contradicts the artefact. Procedure and the exact four edits are in
+      `.kodro/ca2-evidence/2026-08-14-test-suite-evidence.md`
+- [ ] If that regeneration produces a different skip count, report it as
+      measured. The count is not stable on this host: three runs of the same
+      1,639 tests gave 1 skip, then 2, then 0. Every one is the `root` fixture
+      in `tests/unit/test_ai_studio.py` turning an intermittent local Tk
+      initialisation failure into a skip instead of a failure. The cause is not
+      established, so do not write one into the document, and do not re-run
+      until the number looks tidier
 - [ ] The academic-integrity AI-assistance disclosure is present and unaltered in
       the dissertation
 

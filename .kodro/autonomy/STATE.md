@@ -51,9 +51,19 @@ Measured, not assumed:
   setting and the docs gate ordered before the web gates in CI.
 - Counts that grew since July: qa_grader 34 to 55, qa_honesty 91 to 121,
   qa_physics 20 to 25, qa_ai_web 27 to 51, qa_scenario_parity 4 to 8, mypy 66
-  to 73 source files, the Python suite 1,069 to 1,637 passed at 90.78 percent
-  against an 85 percent gate, with 2 skipped (both the same Tk-unavailable
-  guard in `test_ai_studio.py`; this host's Python is missing `tcl8.6/auto.tcl`).
+  to 73 source files, and the Python suite 1,069 to 1,639 collected, passing at
+  90.78 percent against an 85 percent gate. The skip count is not stable on this
+  host and an earlier version of this bullet explained it with a cause I never
+  measured. Three runs of the same 1,639 tests gave 1 skip, then 2, then 0. All
+  of them come from the `root` fixture in `tests/unit/test_ai_studio.py`, which
+  catches `tk.TclError` and skips rather than fails; the recorded reason is
+  "Can't find a usable init.tcl". The cause is not established. It is not the
+  fixed host defect the earlier text claimed: `tk.Tk()` succeeds on demand in
+  both the base interpreter and a fresh venv, test order is deterministic (no
+  `pytest-randomly`, no `xdist`), and nothing in `tests/` or `src/` touches
+  `chdir`, `TCL_LIBRARY` or `TK_LIBRARY`. Treat it as an intermittent local Tk
+  initialisation failure that the fixture degrades into a skip. The current
+  measurement at this HEAD is `1639 passed in 214.27s`, exit 0, zero skips.
   Gates that did not exist in the July matrix: qa_voice 108, qa_secrets 42,
   qa_learning_annotations 28, qa_encoding 10, 66 MCP server unit tests, and the
   docs build, gated for the first time on 15 August at

@@ -20,8 +20,21 @@ gates and both MCP smoke scripts re-run at `2222e1e`.
 |---|---|---|
 | 1,639 Python tests collect, 1,638 pass, 1 skips | `docs/eval/test_suite.json` | `python -m pytest --cov-report=json --junitxml=...` |
 | 90.90 percent branch-aware coverage against an 85 percent gate | same | same |
-| The one skip is a Tk display dependency, not a product failure | `skipDetail` in the same file | same |
+| The skip is a local Tk startup failure, not a product failure | `skipDetail` in the same file | same |
 | The counts are reproducible from a clean checkout | `source.workingTreeClean: true` at commit `aa174cf` | `git status --porcelain` before the run |
+
+Say "the skip", not "the one skip", and do not offer a cause on camera. The skip
+count is not stable on this host: three runs of the same 1,639 tests gave 1, then
+2, then 0. All of them come from one fixture, the `root` fixture in
+`tests/unit/test_ai_studio.py`, which catches `tk.TclError` when `tk.Tk()` fails
+to start and skips instead of failing. The recorded reason is "Can't find a
+usable init.tcl". Why it is intermittent is not established: `tk.Tk()` succeeds
+on demand in both the base interpreter and a fresh venv, test order is
+deterministic, and nothing in the repository touches `chdir`, `TCL_LIBRARY` or
+`TK_LIBRARY`. The defensible sentence is that a fixture degrades a local Tk
+startup failure into a skip so a desktop-UI dependency cannot mask a product
+regression. If asked why it is intermittent, the honest answer is that it has
+not been root-caused.
 
 The coverage figure is a conservative floor, not a ceiling. `tests/conftest.py`
 drops the coverage contribution of node-subprocess tests on this exact host
