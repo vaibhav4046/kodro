@@ -132,11 +132,21 @@ would be the one unsupported claim in an otherwise clean voice section.
 
 ### The failure-and-refine story
 
-Lesson `00d_fix_the_turn` grades `✗ Not yet · 80/100`, one word changes to
-`turn_left(90)`, it regrades `✓ Complete · 100/100`. This is a real lesson in
-the shipped library and the two verdicts are what the grader actually returns.
-It is the strongest thing in the demonstration because it shows the loop rather
-than describing it.
+Lesson `00d_fix_the_turn` grades `✗ Not yet · 40/100`, one word changes from
+`turn_right(90)` to `turn_left(90)`, it regrades `✓ Complete · 100/100`. This is
+a real lesson in the shipped library and both verdicts were driven through the
+running server on 15 August rather than recalled. The failing run returns three
+reasons: the call order is not `move_forward`, `turn_left`, `move_forward`; it
+travelled 2.0 m against a 3.0 m minimum; and it recorded one collision. It is
+the strongest thing in the demonstration because it shows the loop rather than
+describing it.
+
+This entry said `80/100` until 15 August, and so did `SCRIPT.md` and
+`STORYBOARD.md`. It was never measured. The lesson YAML carries three success
+criteria, the starter fails all three, and `SCORE_PENALTY_PER_FAILURE` is 20,
+so 40 is the only score it can produce; 80 would mean one failed check. The
+same three criteria and the same penalty constant are in the JavaScript grader,
+so the web verdict panel reads 40 as well. Do not say eighty on camera.
 
 ## Claims that must not be made
 

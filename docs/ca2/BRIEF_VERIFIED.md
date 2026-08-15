@@ -67,14 +67,24 @@ The measured facts about the current PDF, which are evidence:
 | Measure | Value |
 |---|---|
 | Total sheets in the PDF | 59 |
-| Front matter, roman numbered | sheets 1 to 9 |
-| First arabic page | sheet 10 |
+| Front matter | sheets 1 to 9 |
+| Of the front matter, carrying no page number at all | sheets 1 and 2, the title page and the anonymous-copy notice |
+| Of the front matter, roman numbered | sheets 3 to 9, numbered ii to viii |
+| First arabic page | sheet 10, numbered 1 |
 | References | printed pages 47 to 48 |
 | Appendix A | printed page 49 |
 | Appendix B | printed page 50 |
-| Body only, excluding references and appendices | 48 printed pages |
+| Body only, excluding references and appendices | 46 printed pages, 1 to 46 |
 | All arabic-numbered pages | exactly 50 |
 | Whole document | 59 sheets |
+
+Two rows of that table were wrong until 15 August, when the labels were read off
+every sheet of the PDF rather than recalled. It gave the front matter as nine
+roman-numbered sheets, and there are seven: the first two sheets carry no number
+at all. It also gave the body as 48 printed pages, which its own neighbouring
+rows contradict, because references start at printed page 47 and the arabic run
+ends at 50, leaving 46. Neither correction changes which of the three readings
+the document complies under.
 
 Three readings of "50 pages" are each defensible against those numbers, and the
 document complies under two of them and fails under none, but only because the
@@ -228,8 +238,9 @@ Read this carefully before doing anything with it.
 - It is 2023 material.
 - It conflicts with the "50 pages maximum" the author recorded in the handoff
   files, and it conflicts in the direction that matters: the current document is
-  48 printed body pages excluding references and appendices, which is roughly
-  double the top of that range.
+  46 printed body pages excluding references and appendices, which is roughly
+  double the top of that range. That figure read 48 here until 15 August, for
+  the reason given under the measured table above.
 
 That is a conflict worth resolving and it is not resolved here. The measured
 table in section 2 is unchanged and still correct. What has changed is that the

@@ -102,16 +102,29 @@ Screen: open lesson `00d_fix_the_turn`. Run the given program. It fails.
 
 > "This is a lesson that ships broken on purpose."
 
-Point at the verdict: `✗ Not yet · 80/100`.
+Point at the verdict: `✗ Not yet · 40/100`.
 
-> "Eighty out of a hundred, and the grader says which check failed. The rover
-> turned the wrong amount."
+> "Forty out of a hundred, and the grader names all three checks it failed. The
+> rover turned right instead of left, so the sequence is wrong, it covered two
+> metres of the three the lesson asks for, and it drove into the rock."
 
-Change the one word. `turn_left(90)`. Run again. Grade again.
+Change the one word. `turn_right(90)` becomes `turn_left(90)`. Run again. Grade
+again.
 
-> "One word. Ninety degrees instead of the wrong angle."
+> "One word. Left instead of right, and all three checks clear together."
 
 Point at `✓ Complete · 100/100`.
+
+Three things in this block were wrong until 15 August, and this is the block
+the marker is most likely to be watching closely. The verdict was written as
+`80/100`. The grader returns 40: the lesson carries three success criteria, the
+broken starter fails all three, and at twenty points a failure that is forty.
+Eighty would mean exactly one check failed, which is not what the shipped
+lesson does. The block also said "the grader says which check failed",
+singular, and it named the bug as the wrong angle. The angle is ninety in both
+versions. The direction is what is broken, which is what the lesson's own hint
+says. Measured through the shipped grader on 15 August, driven over MCP against
+the real server: 40 with three reasons, then 100 with none.
 
 > "That loop, fail, read the reason, change one thing, verify, is the thing being
 > taught. The tool exists to make that loop fast enough to be worth doing."

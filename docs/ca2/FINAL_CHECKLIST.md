@@ -87,8 +87,10 @@ are also the three that can invalidate everything else.
 
 - [ ] **STUDENT: confirm which page count the brief means**, and whether the
       current document complies. Measured: 59 sheets total, 50 arabic-numbered
-      pages, 48 body pages excluding references and appendices. See
-      `BRIEF_VERIFIED.md`
+      pages, 46 body pages excluding references and appendices, 48 if references
+      are counted as body. This line said 48 for the excluding-references
+      reading until 15 August, which mixed up the two; references run to printed
+      page 48, so excluding them the body ends at 46. See `BRIEF_VERIFIED.md`
 - [ ] Compiles clean from a clean build directory, two passes, no undefined
       citations, no missing figures, no overfull boxes
 - [ ] Every number in the document maps to a current artefact

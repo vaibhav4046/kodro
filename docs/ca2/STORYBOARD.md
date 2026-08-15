@@ -19,7 +19,7 @@ Target format: 1920 by 1080, 30 fps, no letterboxing, no zoom transitions.
 | 8 | 3:00 | 0:35 | Web app | Split: editor left, viewport right | Starter program running |
 | 9 | 3:35 | 0:30 | Web app | Verdict panel, half frame | Grade, failed check named, explanation |
 | 10 | 4:05 | 0:20 | Web app | Full window | `00d_fix_the_turn` opened, run, fails |
-| 11 | 4:25 | 0:15 | Web app | Verdict panel, tight | `✗ Not yet · 80/100` |
+| 11 | 4:25 | 0:15 | Web app | Verdict panel, tight | `✗ Not yet · 40/100` and the three reasons under it. Was written here as 80 until 15 August; the grader returns 40, see `CLAIM_LEDGER.md` |
 | 12 | 4:40 | 0:15 | Web app | Editor, tight on one line | The single word edited to `turn_left(90)` |
 | 13 | 4:55 | 0:10 | Web app | Verdict panel, tight | `✓ Complete · 100/100` |
 | 14 | 5:05 | 0:60 | Terminal | Full frame, 16 pt font minimum | MCP session: initialize, tools/list, one good call, one refused call |

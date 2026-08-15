@@ -244,6 +244,8 @@ Three readings of the same document, and they diverge:
 
 Reading 3 is the risk. A brief that says "no more than 50 pages" and is enforced by opening the PDF counts 59. Nine sheets of front matter is a large exposure to leave resting on an unverified interpretation.
 
+**Correction, 15 August 2026, to two labels in that table.** The measurements are unchanged and none of the three readings moves. The row reading "Front matter (title through contents), roman numbered | sheets 1 to 9" is two facts run together: there are nine front-matter sheets, and seven of them are roman-numbered. Sheets 1 and 2, the title page and the anonymous-copy notice, carry no page number at all, so the roman run is sheets 3 to 9, labelled ii to viii. Re-measured by reading the last non-empty line off every page of the committed PDF: `none: n=2 sheets=[1, 2]`, `roman: n=7 sheets=[3..9]`, `arabic: n=50 sheets=[10..59]`. Second, "Body only, Chapter 1 through References | 48 printed pages" is correct as labelled and was quoted elsewhere without its label, as "48 body pages excluding references and appendices", which is a different and smaller thing: excluding references the body ends at printed page 46. `docs/ca2/BRIEF_VERIFIED.md` and `docs/ca2/FINAL_CHECKLIST.md` both carried the mislabelled figure and both were corrected on 15 August.
+
 ---
 
 ### MEDIUM 5. The repository's own evidence transcript contains a claim that is now false

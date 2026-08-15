@@ -180,3 +180,11 @@ turns entirely on which of three readings the real brief means: 48 body pages,
 50 arabic-numbered pages, or 59 sheets in the file. Nobody in this repository
 has seen the brief. `docs/ca2/CLAIM_LEDGER.md` item 8 forbids stating the page
 limit as settled, and that stands.
+
+Added 15 August, later the same day: "48 body pages" above counts the References
+section as body, which is what `CA2_INTEGRITY_AUDIT_2026-08-14.md:235` means by
+"Chapter 1 through References". Excluding references the body is 46, because
+references occupy printed pages 47 and 48. Stating 48 without saying which of
+the two it is had already produced a wrong row in `docs/ca2/BRIEF_VERIFIED.md`
+and a wrong line in `docs/ca2/FINAL_CHECKLIST.md`, both corrected. The three
+readings and the conclusion are unaffected.
