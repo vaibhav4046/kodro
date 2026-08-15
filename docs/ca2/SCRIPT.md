@@ -13,7 +13,12 @@ Spoken text is in quotes. Everything else is a stage direction.
 
 ## 0:00 to 0:35, cold open (35s)
 
-Screen: the Kodro hub, already open, nothing loading.
+Screen: the animated title card for the first twelve seconds, then the Kodro
+hub, already open, nothing loading. The card is `intro/renders/kodro-intro.mp4`
+and it is exactly 12.000000s, so the hub appears at 0:12 and the narration runs
+across the cut. This direction said "the Kodro hub" alone until 15 August and
+did not mention the card at all, which contradicted `STORYBOARD.md` shot 1 and
+would have cost twelve seconds of narration timing on the first take.
 
 > "A school wants pupils to design a robot, program it, and find out whether the
 > design works before anyone spends money on parts. The usual answer is a
@@ -36,7 +41,7 @@ Screen: hover the three stage links in the top bar. Design, Test, Prototype.
 
 ---
 
-## 1:05 to 2:35, flow A: design, program, run, inspect (90s)
+## 1:05 to 2:15, flow A: design, program, run, inspect (70s)
 
 Screen: Design stage. Pick a chassis, change one parameter that visibly matters
 (wheel size or motor power). Move to Test. Type a short program. Run it.
@@ -63,7 +68,7 @@ only if 15 minutes is confirmed.
 
 ---
 
-## 2:35 to 4:05, flow B: the classroom loop (90s)
+## 2:15 to 3:45, flow B: the classroom loop (90s)
 
 Screen: Home, then the lesson list. Pick a Key Stage 2 lesson.
 
@@ -94,7 +99,7 @@ minutes is confirmed.
 
 ---
 
-## 4:05 to 5:05, flow C: failure, then refinement (60s)
+## 3:45 to 4:45, flow C: failure, then refinement (60s)
 
 This is the strongest sixty seconds in the video. Do not rush it.
 
@@ -131,7 +136,7 @@ the real server: 40 with three reasons, then 100 with none.
 
 ---
 
-## 5:05 to 6:05, MCP (60s)
+## 4:45 to 5:45, MCP (60s)
 
 Screen: a terminal. Run the smoke harness so the JSON-RPC session is visible.
 
@@ -160,7 +165,7 @@ length. Use this only if 15 minutes is confirmed.
 
 ---
 
-## 6:05 to 6:50, voice (45s)
+## 5:45 to 6:30, voice (45s)
 
 Screen: the voice panel with the transcript visible.
 
@@ -179,7 +184,7 @@ Say "stop". Show it taking priority.
 
 ---
 
-## 6:50 to 7:40, evidence (50s)
+## 6:30 to 7:20, evidence (50s)
 
 Screen: `docs/eval/test_suite.json`, then a terminal with the gate output.
 
@@ -212,7 +217,7 @@ hash matching. Use this only if 15 minutes is confirmed.
 
 ---
 
-## 7:40 to 8:40, limits (60s)
+## 7:20 to 8:50, limits (90s)
 
 Do not soften any of this. It is the part that earns the marks.
 
@@ -242,7 +247,7 @@ came out of a speech synthesiser rather than a microphone.
 
 ---
 
-## 8:40 to 9:40, close (60s)
+## 8:50 to 9:40, close (50s)
 
 > "Who it is for: a Computing teacher with no lab budget, no reliable network and
 > a class that needs to see cause and effect. Who it is not for: anyone who needs
@@ -271,7 +276,42 @@ End on a static frame of the hub. No music sting, no logo animation.
   three commits later: `0ef8436` rewrote the failure-and-refine narration to say
   40 rather than 80 and to name all three failed checks, which added one quoted
   line and 28 words. Recount rather than trusting this figure after any edit to a
-  `>` line. Across 580 seconds that is 99 words a minute, well under conversational pace,
-  and the gap is not slack in the script: it is the rover driving, the terminal
-  scrolling and the verdict landing. Do not fill it. If a take runs long, cut
-  from the orientation block first and the limits block last.
+  `>` line. Across 580 seconds that is 99 words a minute, well under
+  conversational pace, and the gap is not slack in the script: it is the rover
+  driving, the terminal scrolling and the verdict landing. Do not fill it. If a
+  take runs long, cut from the orientation block first and the limits block last.
+
+- The aggregate is the wrong number to trust on its own, and trusting it hid a
+  block that could not be delivered. Per block, before the retiming below:
+
+  | block | span | words | wpm |
+  |---|---|---|---|
+  | cold open | 35s | 70 | 120 |
+  | orientation | 30s | 59 | 118 |
+  | flow A | 90s | 75 | 50 |
+  | flow B | 90s | 120 | 80 |
+  | flow C | 60s | 92 | 92 |
+  | MCP | 60s | 76 | 76 |
+  | voice | 45s | 63 | 84 |
+  | evidence | 50s | 103 | 124 |
+  | limits | 60s | 204 | **204** |
+  | close | 60s | 91 | 91 |
+
+  Two hundred and four words a minute is not a pace, it is a disclaimer read at
+  auction. Flow A at 50 wpm was carrying it in the average, and flow A is slow on
+  purpose because the rover is driving through it. The limits block is a static
+  frame with no motion to wait for, so every one of its seconds is speech, and it
+  is the block that grew every time a claim was corrected.
+
+- The blocks were retimed on 15 August inside the same 9:40 master runtime, so
+  nothing downstream of the cap changes. Flow A went from 90s to 70s and the
+  close from 60s to 50s; the limits block took both, 60s to 90s. That puts limits
+  at 136 wpm, flow A at 64 and the close at 109, and no block now sits above 136.
+  Flow A keeps thirty uninterrupted seconds of the rover driving, which was the
+  only silence in it that was ever load-bearing. `STORYBOARD.md` shots 4, 6, 18
+  and 19 carry the same change and every later shot start moved with it.
+
+- Re-run the arithmetic rather than eyeballing it. The block spans must be
+  contiguous, must sum to 580, and no block should need more than about 140 wpm.
+  The four `[EXPAND-n]` blocks add 70, 80, 60 and 80 seconds, which is 290, and
+  580 plus 290 is 870, the 14:30 quoted at the top of this file.

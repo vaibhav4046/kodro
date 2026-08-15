@@ -12,23 +12,45 @@ Target format: 1920 by 1080, 30 fps, no letterboxing, no zoom transitions.
 | 1 | 0:00 | 0:12 | Title card | Full frame | Product name, module code, student name, date. Animated since 15 August, see the superseded note below; the 0:12 is the rendered file's exact runtime |
 | 2 | 0:12 | 0:23 | Web app | Full window | Hub, lesson grid, nothing loading |
 | 3 | 0:35 | 0:30 | Web app | Top bar, cropped to upper third | The three stage links, hovered in order |
-| 4 | 1:05 | 0:35 | Web app | Full window | Design stage, chassis and one parameter edit |
-| 5 | 1:40 | 0:30 | Web app | Viewport only, 16:9 crop | The rover driving, uninterrupted |
-| 6 | 2:10 | 0:25 | Web app | Right panel, half frame | Telemetry, one changed value pointed at |
-| 7 | 2:35 | 0:25 | Web app | Full window | Lesson list, Key Stage 2 lesson opened |
-| 8 | 3:00 | 0:35 | Web app | Split: editor left, viewport right | Starter program running |
-| 9 | 3:35 | 0:30 | Web app | Verdict panel, half frame | Grade, failed check named, explanation |
-| 10 | 4:05 | 0:20 | Web app | Full window | `00d_fix_the_turn` opened, run, fails |
-| 11 | 4:25 | 0:15 | Web app | Verdict panel, tight | `✗ Not yet · 40/100` and the three reasons under it. Was written here as 80 until 15 August; the grader returns 40, see `CLAIM_LEDGER.md` |
-| 12 | 4:40 | 0:15 | Web app | Editor, tight on one line | The single word edited to `turn_left(90)` |
-| 13 | 4:55 | 0:10 | Web app | Verdict panel, tight | `✓ Complete · 100/100` |
-| 14 | 5:05 | 0:60 | Terminal | Full frame, 16 pt font minimum | MCP session: initialize, tools/list, one good call, one refused call |
-| 15 | 6:05 | 0:45 | Web app | Voice panel plus transcript, half frame | Spoken command, transcript, identical typed command, then stop |
-| 16 | 6:50 | 0:25 | Editor | Full frame | `docs/eval/test_suite.json`, scrolled to the counts |
-| 17 | 7:15 | 0:25 | Terminal | Full frame | Gate output, honesty gate line visible |
-| 18 | 7:40 | 0:60 | Talking head or static frame | Full frame | Limits. No UI motion competing with the words |
-| 19 | 8:40 | 0:55 | Web app | Full window, static | Hub, held still |
+| 4 | 1:05 | 0:25 | Web app | Full window | Design stage, chassis and one parameter edit. Was 0:35 until 15 August, see the retiming note below |
+| 5 | 1:30 | 0:30 | Web app | Viewport only, 16:9 crop | The rover driving, uninterrupted. Length untouched by the retiming; this is the silence that is load-bearing |
+| 6 | 2:00 | 0:15 | Web app | Right panel, half frame | Telemetry, one changed value pointed at. Was 0:25 until 15 August |
+| 7 | 2:15 | 0:25 | Web app | Full window | Lesson list, Key Stage 2 lesson opened |
+| 8 | 2:40 | 0:35 | Web app | Split: editor left, viewport right | Starter program running |
+| 9 | 3:15 | 0:30 | Web app | Verdict panel, half frame | Grade, failed check named, explanation |
+| 10 | 3:45 | 0:20 | Web app | Full window | `00d_fix_the_turn` opened, run, fails |
+| 11 | 4:05 | 0:15 | Web app | Verdict panel, tight | `✗ Not yet · 40/100` and the three reasons under it. Was written here as 80 until 15 August; the grader returns 40, see `CLAIM_LEDGER.md` |
+| 12 | 4:20 | 0:15 | Web app | Editor, tight on one line | The single word edited to `turn_left(90)` |
+| 13 | 4:35 | 0:10 | Web app | Verdict panel, tight | `✓ Complete · 100/100` |
+| 14 | 4:45 | 0:60 | Terminal | Full frame, 16 pt font minimum | MCP session: initialize, tools/list, one good call, one refused call |
+| 15 | 5:45 | 0:45 | Web app | Voice panel plus transcript, half frame | Spoken command, transcript, identical typed command, then stop |
+| 16 | 6:30 | 0:25 | Editor | Full frame | `docs/eval/test_suite.json`, scrolled to the counts |
+| 17 | 6:55 | 0:25 | Terminal | Full frame | Gate output, honesty gate line visible |
+| 18 | 7:20 | 1:30 | Talking head or static frame | Full frame | Limits. No UI motion competing with the words. Was 0:60 until 15 August, which demanded 204 words a minute |
+| 19 | 8:50 | 0:45 | Web app | Full window, static | Hub, held still. Was 0:55 until 15 August |
 | 20 | 9:35 | 0:05 | End card | Full frame | Repository name and date. No animation |
+
+## Retimed 15 August 2026
+
+Four shot lengths changed and eleven start times moved with them. The master
+runtime is unchanged at 9:40 and shot 20 still ends exactly there, because the
+time was moved between shots rather than added.
+
+The cause was in `SCRIPT.md` rather than here. Counting spoken words per block
+instead of only in total showed the limits block asking for 204 words in 60
+seconds. Nothing else in the video was close: the next fastest block wants 124
+and the average across the whole script is 99. The average was what everyone had
+been reading, and flow A at 50 words a minute was holding it down, so the
+unspeakable block never showed up in the aggregate.
+
+Shot 4 gave 10 seconds and shot 6 gave 10, which is flow A from 90 down to 70.
+Shot 19 gave 10, which is the close from 60 to 50. Shot 18 took all 30 and went
+from 60 to 90, which puts the limits narration at 136 words a minute. Shot 5,
+the rover driving, was deliberately left alone: it is the one silence in flow A
+that the script defends by name.
+
+Check the arithmetic rather than trusting this paragraph. Every row's start plus
+its length must equal the next row's start, and shot 20 must end at 9:40.
 
 ## Framing rules
 
