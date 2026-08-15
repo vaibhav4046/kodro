@@ -22,6 +22,14 @@ The product was already vendor-neutral in the two sibling strings at
 `panels.jsx:998` and `panels.jsx:1018`, both of which say "the browser speech
 service". The notice was the only outlier.
 
+> Line-number correction, 2026-08-15. Those two line numbers were right on
+> 2026-08-14 and are wrong now. Commit `cacf51e` (15 August) grew a comment
+> inside `TeacherModal` from three lines to seven, which pushed everything below
+> it in `panels.jsx` down by four. The two strings are unchanged and now sit at
+> `:1002` and `:1022`. The dated figures above are left as written, because a
+> verification log records what was measured on its date; this note records the
+> drift rather than hiding it.
+
 ## What the notice says now
 
 It states the part that holds on every engine: the recording leaves the machine,

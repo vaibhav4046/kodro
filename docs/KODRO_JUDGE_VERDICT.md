@@ -1,5 +1,25 @@
 # Kodro: Independent Judge-Panel Verdict and Build Prompt
 
+> **Superseded snapshot. Read as history, not as status.** This banner was
+> measured on 15 August 2026 and pins its own figures the same way the body
+> below pins its own. Every measurement,
+> line number, score and priority below describes commit `541941d` on 11 July
+> 2026. That commit is an ancestor of the current branch, and 26 later commits
+> have touched `interpreter.js` and `hooks.jsx` alone, so the cited line numbers
+> no longer point at the code they described. Four figures in the "state at
+> `541941d`" block have since moved: the bundle builds from 47 sources not 36,
+> `qa_interpreter.mjs` reports 180 passed not 163, and `pytest` reports 1638
+> passed 1 skipped not 1039 passed 2 skipped. At least two priorities are
+> closed: the interpreter now opens a child frame per user-function call
+> (`interpreter.js:810` and `:1005`), and the market doc no longer says "no ROS
+> export yet", a string that now survives only where this file quotes it. The
+> remaining priorities were not re-audited, so do not read the list as open
+> work, and do not read this floor of two as a count. Nothing in
+> this file is a gate threshold. For current status use
+> `docs/implementation-status.md` and the gate logs in `.kodro/ca2-evidence/`.
+> The figures below are deliberately left as measured, because a dated
+> evaluation records what was true on its date.
+
 Evaluation performed against the live repository at `D:\project\robolearn` (HEAD `541941d`),
 by running the build, the interpreter QA, the Python test suite, and the app itself, plus a
 63-agent adversarial workflow (5 subsystem maps with independent verification, a strict
@@ -354,7 +374,7 @@ GitHub `vaibhav4046/robolearn`, branch `main`.
 - Dissertation at `docs/dissertation/Kodro_Dissertation.tex`, compiled offline with
   `.tools\tectonic.exe`.
 
-**Verified current state (do not re-litigate, build on it).**
+**Verified state at `541941d`, 11 July 2026. Four of these figures have since moved; see the banner.**
 - `node scripts/build_web.cjs` -> bundle from 36 sources. `node scripts/qa_interpreter.mjs` ->
   163 passed, 0 failed. `python -m pytest -q` -> 1039 passed, 2 skipped. Coverage gate 85
   percent at `pyproject.toml:171`.
@@ -363,7 +383,7 @@ GitHub `vaibhav4046/robolearn`, branch `main`.
 - Sandbox stops `while True: pass`, huge exponents, string doubling, and huge ranges.
 - The dissertation scores about 72 (low Distinction), honest and citation-clean.
 
-**Priorities, highest leverage first. Pipeline them: land each with verification before the next.**
+**Priorities as ranked on 11 July 2026, highest leverage first. Not re-audited since; several are closed. Do not run this as a task list.**
 
 1. Fix HIGH bug: a malformed `.kodro` (non-array `physical.sensors`) boot-bricks the studio.
    Validate the `physical` block as a typed schema in `project.js` before writing, make
@@ -398,10 +418,11 @@ GitHub `vaibhav4046/robolearn`, branch `main`.
     condense the adversarial-panel section, and split the longest sentences. Recompile with
     tectonic and confirm zero em-dashes and en-dashes.
 
-**Verification, mandatory after every change (paste real output, never assert).**
+**Verification loop as specified on 11 July 2026. The counts are that date's floors, not
+current thresholds; the live gate list is in `docs/implementation-status.md`.**
 ```
 node scripts/build_web.cjs          # rebuild the bundle from source
-node scripts/qa_interpreter.mjs     # must stay 163+ passed, 0 failed
+node scripts/qa_interpreter.mjs     # floor on 11 July was 163 passed, 0 failed
 python -m pytest -q                 # must stay green, coverage gate 85
 python scripts/demo.py              # serves http://localhost:8080; drive the real flow
 ```

@@ -147,8 +147,14 @@ All under `src/robolearn/assets/web/`:
 - `README.md`, `CHANGELOG.md`, mkdocs site under `docs/`.
 
 ### Test suite
-- `tests/` — 851 pytest tests, 1 skipped (Tk env), ~86% coverage, gate `--cov-fail-under=85`.
-  Run: `python -m pytest`.
+- `tests/` runs under the `--cov-fail-under=85` gate from `pyproject.toml`.
+  Run: `python -m pytest`. Do not trust a pass count written here; the counts in
+  this file have gone stale before. The authoritative record is
+  `docs/eval/test_suite.json`, which pins the commit it was measured at, and the
+  reproduction note is `.kodro/ca2-evidence/2026-08-15-suite-reproduction-and-tempdir-defect.md`.
+- On this machine the plain command errors at setup for every `tmp_path` test,
+  because pytest's base temp directory has an ACL that denies even its owner.
+  Add `--basetemp=<a fresh empty dir>`. That is a host defect, not a test failure.
 
 ---
 
@@ -242,8 +248,8 @@ browser before claiming done.
 
 ```
 cd D:\project\robolearn
-node scripts/qa_interpreter.mjs          # interpreter functional QA (expect 21/21)
-python -m pytest                          # engine tests (expect 851 passed)
+node scripts/qa_interpreter.mjs          # interpreter functional QA (expect 0 failed)
+python -m pytest --basetemp=<fresh dir>   # engine tests (expect 0 failed, coverage over 85)
 node scripts/build_web.cjs                # rebuild bundle.js after any .jsx edit
 python scripts/build_exe.py               # rebuild dist/RoboLearn.exe
 ```

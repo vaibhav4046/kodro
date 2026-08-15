@@ -26,6 +26,11 @@ for an MSc dissertation (COMP702, due 11 Sep 2026, docs/dissertation/*.tex -> .p
   success. qa_ui + qa_worlds are LOCAL-only gates (Chrome + :8099 server).
 
 ## Gate commands (rerun; do not quote)
+  The counts in brackets below are stale as of 2026-08-15 and are kept only as a
+  rough shape of each gate. Measured live that day: qa_interpreter 180, not 157;
+  pytest 1638 passed 1 skipped at 90.9 percent, not 1024. The others were not
+  re-measured. Rerun, never quote. pytest needs `--basetemp=<fresh dir>` on this
+  host, see `.kodro/ca2-evidence/2026-08-15-suite-reproduction-and-tempdir-defect.md`.
   node scripts/qa_interpreter.mjs  (157) | qa_grader.mjs (34) | qa_physics.mjs (20)
   qa_ai_web.mjs (19) | qa_web.mjs (4/4, Chrome) | qa_worlds.mjs (61, :8099+Chrome)
   qa_ui.mjs (6/6+behaviour+12/12, :8099+Chrome) | python -m pytest -q (1024, >=85% cov)

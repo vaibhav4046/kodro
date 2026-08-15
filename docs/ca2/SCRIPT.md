@@ -146,7 +146,7 @@ beforehand.
 
 This block said "any cell drills down to the pupil and the attempts behind it"
 and "every figure comes from a database file on this machine" until 15 August.
-Neither is true of the app that is in frame. `panels.jsx:280-417` renders a
+Neither is true of the app that is in frame. `panels.jsx:280-421` renders a
 summary strip, the heatmap table, a legend and two CSV buttons, and that is the
 whole modal: the cells are plain `<td>` carrying a tooltip, nothing calls
 `getPupilSummary`, and there are five click handlers in the component, none of
