@@ -1,11 +1,20 @@
 # CA2 script
 
 Master runtime 9:40, built to fit a 10 minute cap. Four expansion blocks are
-marked `[EXPAND-n]`; dropping all four in takes the runtime to roughly 14:30 for
-a 15 minute cap. Which cap applies is not settled, see `BRIEF_VERIFIED.md`.
+marked `[EXPAND-n]`; dropping all four in takes the runtime to 14:30 for a 15
+minute cap. Which cap applies is not settled, see `BRIEF_VERIFIED.md`.
 
 Every number spoken here has a row in `CLAIM_LEDGER.md`. If a line is changed,
 change the ledger too or cut the number.
+
+Until 15 August the four expansion blocks were stage directions with no
+narration written, and this header still offered the 14:30 cut as if it were a
+thing you could record. It was 290 seconds of an assessed video with nothing
+written to say, in a file whose next sentence is the rule above. Taking that cut
+would have meant improvising the exact minutes the ledger exists to prevent
+improvising. All four are now written out, and verifying them against the
+product first cost two of them a claim: see the notes under EXPAND-1 and
+EXPAND-3.
 
 Spoken text is in quotes. Everything else is a stage direction.
 
@@ -62,9 +71,37 @@ parameter edit.
 > "That number moved because the wheel changed. This is the whole point of the
 > tool: change the design, see the consequence, before anything is built."
 
-`[EXPAND-1]` +70s. Open the robot specification, show the sensor gate refusing a
-sensor the chassis cannot carry, and show the KRS file that stores it. Use this
-only if 15 minutes is confirmed.
+`[EXPAND-1]` +70s. Use this only if 15 minutes is confirmed.
+
+Screen: Robot Lab. Take the ultrasonic off the build, go back to Test, and ask
+the assistant for obstacle avoidance.
+
+> "One registry decides which commands a build may use. With no ultrasonic
+> fitted, distance is not in the palette, and the assistant refuses to write
+> obstacle avoidance rather than generating a program around a sensor that is
+> not there. It names the missing part and leaves the code alone."
+
+Fit the sensor, make the same request, and let it succeed. Then open the
+requirements check and give it a brief asking for a two kilogram payload.
+
+> "Where the model cannot answer, it says so instead of guessing. Ask for a two
+> kilogram payload and the requirement comes back unresolved, with the reason on
+> screen: payload capacity is not modelled, so Kodro cannot claim this
+> constraint. Runtime and battery sizing refuse on the same grounds."
+
+Export the build and validate it over MCP.
+
+> "The build saves as a dot krs file, plain JSON, and the MCP server validates
+> that same file, reporting the mass, the wheel count and the degrees of freedom
+> the simulator derives from it."
+
+This block read "the sensor gate refusing a sensor the chassis cannot carry"
+until 15 August. There is no chassis-capacity gate to film. The gate refuses a
+command whose part is not fitted, `bundle.js:15221`, and `RobotLab.jsx:936` says
+in the product's own words that payload capacity is not modelled. Demonstrating
+a capacity refusal would have meant staging one on camera. The disclaimer is the
+stronger shot anyway: a tool that names its own blind spot is worth more here
+than one more thing working.
 
 ---
 
@@ -93,9 +130,30 @@ Open the explanation. Then export the evidence.
 > "The teacher keeps the evidence: the program, the world, the trace and the
 > verdict, exported as one file that opens without Kodro installed."
 
-`[EXPAND-2]` +80s. Open the teacher dashboard, show progress across a class,
-show the reading-age chip and the accessibility mode. Use this only if 15
-minutes is confirmed.
+`[EXPAND-2]` +80s. Use this only if 15 minutes is confirmed.
+
+Screen: More tools, then Teacher progress. Opening it switches the app into
+classroom mode on its own; let that happen on camera rather than setting it up
+beforehand.
+
+> "Classroom mode adds the pupil register and the teacher dashboard. The
+> dashboard is a concept-strength heatmap for the class; any cell drills down to
+> the pupil and the attempts behind it, and the whole thing exports to CSV.
+> Every figure comes from a database file on this machine. Nothing is uploaded,
+> because there is nowhere to upload it to."
+
+Back to the lesson list. Point at a lesson carrying an age chip.
+
+> "Seven of the twenty-four lessons declare a reading age. Where one is declared
+> it does more than print a badge: the error explanations read it, so a six year
+> old and a fifteen year old are not handed the same sentence about the same
+> mistake."
+
+Turn on the readable-text setting.
+
+> "And one setting switches the reading surfaces to a larger hyperlegible face
+> with wider letter and word spacing, across the lesson text, the code editor
+> and the explanations together, without disturbing the layout around them."
 
 ---
 
@@ -159,9 +217,30 @@ Show one successful call, then one refused call.
 Say "real client handshake" only if a named client is on screen doing it. See
 `CLAIM_LEDGER.md`.
 
-`[EXPAND-3]` +60s. Read one resource, show the URI and MIME type coming from the
-authoritative lesson source, and show the schema rejecting an out-of-range run
-length. Use this only if 15 minutes is confirmed.
+`[EXPAND-3]` +60s. Use this only if 15 minutes is confirmed.
+
+Screen: the same terminal. Read `kodro://lessons/00d_fix_the_turn`, the lesson
+already on screen in flow B.
+
+> "Resources come from the lesson files themselves, not from a copy that has to
+> be kept in step. Reading the fix-the-turn lesson resource returns application
+> slash json, generated from the same YAML that the lesson list and the grader
+> read."
+
+Call `prove_contracts` with `runs` set to `0`, then to `"five"`.
+
+> "And the server refuses what it cannot honour. Runs of zero comes back as an
+> error, runs must be at least one, rather than quietly becoming the default of
+> five, because zero is falsey and a careless default would swallow it. A
+> non-number is refused by type. That guard is in the handler, not in the JSON
+> schema, which declares runs as an integer and stops there."
+
+This block read "the schema rejecting an out-of-range run length" until 15
+August, which was wrong twice over. No input schema in the server declares a
+`minimum` or a `maximum`, and `run_program` has no run-length parameter to be
+out of range. The refusals above are real and were run to get their exact
+wording, `tools.py:379`; the sentence naming where the guard lives is in the
+narration because the difference is the interesting part.
 
 ---
 
@@ -211,9 +290,24 @@ and the list of what has been ruled out.
 > whose only job is to stop the product claiming something the evidence does not
 > support."
 
-`[EXPAND-4]` +80s. Show the coverage-floor disclosure and explain why the real
-figure is at least this high, then regenerate the lesson export and show the
-hash matching. Use this only if 15 minutes is confirmed.
+`[EXPAND-4]` +80s. Use this only if 15 minutes is confirmed.
+
+Screen: `docs/eval/test_suite.json`, on the coverage figure.
+
+> "Ninety point nine percent, against a gate of eighty-five. That is a floor
+> rather than a ceiling, and the reason is specific: on this host the harness
+> drops the coverage contribution of the tests that run in a node subprocess
+> while still running them, so the true figure is at least the reported one. The
+> artefact says that in those words rather than rounding up."
+
+Regenerate the lesson export and diff it against the committed file.
+
+> "Generated files are checked against their sources rather than trusted.
+> Regenerating the lesson export from the twenty-four lesson files reproduces
+> the committed file byte for byte, the same sha two five six, twenty-two
+> thousand two hundred and fifty-five bytes. If a lesson changed and the export
+> did not, that comparison is what catches it, rather than someone noticing
+> later."
 
 ---
 
@@ -270,13 +364,18 @@ End on a static frame of the hub. No music sting, no logo animation.
 - If something breaks on camera, say what broke and continue. A recovered
   failure reads better than an obvious cut.
 - Silence during motion is deliberate. Let the rover drive.
-- Total spoken words come to 953, counted from the 79 quoted lines in this file
-  on 15 August. This note used to say "roughly 1,150", which was never counted,
-  and then 925, which was counted correctly at commit `2836f85` and went stale
+- The master cut is 953 spoken words, from the 79 quoted lines outside the
+  `[EXPAND-n]` blocks, counted on 15 August. The file holds 122 quoted lines in
+  total; the other 43 are the 501 words of expansion narration, timed separately
+  below. This note used to say "roughly 1,150", which was never counted, and
+  then 925, which was counted correctly at commit `2836f85` and went stale
   three commits later: `0ef8436` rewrote the failure-and-refine narration to say
   40 rather than 80 and to name all three failed checks, which added one quoted
   line and 28 words. Recount rather than trusting this figure after any edit to a
-  `>` line. Across 580 seconds that is 99 words a minute, well under
+  `>` line, and use a counter that excludes the expansion blocks: they are
+  quoted lines sitting inside the `##` blocks, so a naive count charges their
+  words to a span in which nobody speaks them. Across 580 seconds that is 99
+  words a minute, well under
   conversational pace, and the gap is not slack in the script: it is the rover
   driving, the terminal scrolling and the verdict landing. Do not fill it. If a
   take runs long, cut from the orientation block first and the limits block last.
@@ -315,3 +414,19 @@ End on a static frame of the hub. No music sting, no logo animation.
   contiguous, must sum to 580, and no block should need more than about 140 wpm.
   The four `[EXPAND-n]` blocks add 70, 80, 60 and 80 seconds, which is 290, and
   580 plus 290 is 870, the 14:30 quoted at the top of this file.
+
+- The expansions now carry narration and were paced the same way, on 15 August:
+
+  | block | span | words | wpm |
+  |---|---|---|---|
+  | EXPAND-1 | 70s | 131 | 112 |
+  | EXPAND-2 | 80s | 139 | 104 |
+  | EXPAND-3 | 60s | 107 | 107 |
+  | EXPAND-4 | 80s | 124 | 93 |
+
+  501 words across 290 seconds, 104 wpm. The master cut's blocks run from 64 to
+  136 wpm, so all four sit inside that range and none approaches its ceiling.
+  EXPAND-4 is the slowest at 93 because a file is regenerated on screen
+  mid-block and the diff has to land.
+  None of these words existed before 15 August; all four blocks were stage
+  directions, which is the defect recorded in the header.

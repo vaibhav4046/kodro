@@ -161,6 +161,46 @@ so 40 is the only score it can produce; 80 would mean one failed check. The
 same three criteria and the same penalty constant are in the JavaScript grader,
 so the web verdict panel reads 40 as well. Do not say eighty on camera.
 
+### The expansion blocks
+
+These four blocks only run if the 15 minute cap is confirmed. Until 15 August
+they had no narration, so they had no rows here either, and the header of
+`SCRIPT.md` was offering a 14:30 cut whose extra 290 seconds nobody had written
+a word for. Writing them cost two of them a claim: see the last two rows.
+
+| Claim | Evidence | Command |
+|---|---|---|
+| One registry decides which commands a build may use | `window.KodroCommands` in `RobotLab.jsx`, compiled to `bundle.js:15218`; `check()` gates on whether the part is fitted and `availability()` feeds the palette, the cards and the assistant grounding from the same table | source |
+| With no ultrasonic fitted, `distance()` is refused with a readable reason | `bundle.js:15235` builds "This robot has no Ultrasonic range, so distance() is not available. Fit an Ultrasonic range in the Robot Lab to use it." The label is `SENSORS.ultrasonic.name`, `bundle.js:14762`; read the panel on the day rather than quoting this row, since the label is data | source |
+| The assistant refuses to generate obstacle avoidance without a distance sensor | `app.jsx:1548` refuses the request rather than emitting code for a missing part | source |
+| A payload requirement comes back unresolved, not answered | `RobotLab.jsx:936`: "Payload capacity is not modelled, so Kodro cannot claim this constraint." Runtime and battery requirements carry the same `unresolved` status with their own reasons | source |
+| The build exports as a `.krs` file and MCP validates that same file | `validate_robot_spec` "Validate a robot exported from the Robot Lab (.krs JSON) and report the mass, wheel count and degrees of freedom the simulator derives from it" | `tools.py:552` |
+| The teacher dashboard is a class concept-strength heatmap with per-pupil drill-down and CSV export | `docs/implementation-status.md:26`, reachable at `app.jsx:2582` via More tools, Teacher progress, which forces classroom mode on the way in | source |
+| Dashboard figures come from a local database and nothing is uploaded | `pupil_progress`: "Summarise progress from the local pupil database on this machine ... Nothing leaves the machine." Corroborated by the `privacy-zero-external` gate | `tools.py:597`, `node scripts/qa_web.mjs` |
+| 7 of the 24 lessons declare a reading age | `reading_age` present in 7 of 24 lesson YAMLs: `000_watch_it_go` 5, `00_first_drive` 6, `00a_turn_the_corner` 6, `00b_repeat_square` 9, `00c_look_first` 10, `00d_fix_the_turn` 7, `16_variables` 9 | grep of `src/robolearn/lessons/*.yaml` |
+| The reading age drives the error explanations, not just a badge | `app.jsx:1740` publishes `KODRO_READING_AGE` for the explanation path; the badge at `app.jsx:3126` is the older use | source |
+| The readable-text setting enlarges the reading surfaces without moving the layout | `styles.css:1179` sets Atkinson Hyperlegible with Comic Sans and Verdana fallbacks, wider letter and word spacing, "Scoped to the reading + code surfaces so the fixed app grid is unaffected" | source |
+| Reading a lesson resource returns `application/json` generated from the lesson YAML | live session: `resources/read kodro://lessons/00d_fix_the_turn` returned `application/json`, 2312 bytes, keys including `allowedConstructs`, `concepts`, `curriculumRefs`, `glossary` | `python -m robolearn.mcp.server` driven over stdin, 15 August |
+| `prove_contracts` refuses `runs: 0` rather than defaulting it | live session returned `isError=True`, `'runs' must be at least 1.` The handler comment at `tools.py:367` records why: `params.get("runs") or DEFAULT` would make an explicit 0 silently become 5 | same session |
+| `prove_contracts` refuses a non-numeric `runs` by type | live session returned `isError=True`, `'runs' must be a whole number, got a string.` | same session |
+| That guard is in the handler, not the schema | `tools.py:379`. No `inputSchema` in the server declares a `minimum` or a `maximum`; `runs` is declared as `{"type": "integer"}` and nothing more | source |
+
+Two claims were cut from these blocks rather than filmed.
+
+**"the sensor gate refusing a sensor the chassis cannot carry"** was in EXPAND-1
+until 15 August. No such gate exists. The command gate refuses a command whose
+part is not fitted; nothing anywhere gates on what a chassis can carry, and
+`RobotLab.jsx:936` says in the product's own voice that payload capacity is not
+modelled. Searches for `max_sensors`, `sensor_slots`, `sensor_limit`,
+`allowed_sensors`, `supports_sensor`, `payload`, `can_carry` and
+`compatib` across the package return nothing that gates on capacity. Filming it
+would have meant staging a refusal the product does not perform.
+
+**"the schema rejecting an out-of-range run length"** was in EXPAND-3 until 15
+August, and was wrong twice: no schema declares a bound, and `run_program` has
+no run-length parameter to be out of range. The two real refusals above replaced
+it, and the narration now says where the guard actually lives.
+
 ## Claims that must not be made
 
 These are ordered by how much damage each one does.

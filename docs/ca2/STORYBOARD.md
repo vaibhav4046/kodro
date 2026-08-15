@@ -30,6 +30,30 @@ Target format: 1920 by 1080, 30 fps, no letterboxing, no zoom transitions.
 | 19 | 8:50 | 0:45 | Web app | Full window, static | Hub, held still. Was 0:55 until 15 August |
 | 20 | 9:35 | 0:05 | End card | Full frame | Repository name and date. No animation |
 
+## Expansion inserts
+
+The shot list above is the 9:40 master cut only. If the 15 minute cap is
+confirmed, four inserts from `SCRIPT.md` go in, and all four land exactly on an
+existing shot boundary, so no master shot is cut into.
+
+| Insert | Goes after shot | At | Length | Source | Framing | On screen |
+|---|---|---|---|---|---|---|
+| EXPAND-1 | 6 | 2:15 | 1:10 | Web app, then terminal | Full window; terminal at 16 pt for the last beat | Ultrasonic removed, assistant refusing obstacle avoidance, sensor refitted, requirements check returning an unresolved payload row, `.krs` validated over MCP |
+| EXPAND-2 | 9 | 3:45 | 1:20 | Web app | Full window | More tools to Teacher progress, classroom mode engaging on its own, concept heatmap, one cell drilled down, CSV export, an age chip in the lesson list, readable-text setting on |
+| EXPAND-3 | 14 | 5:45 | 1:00 | Terminal | Full frame, 16 pt minimum, same window as shot 14 | `resources/read` on the fix-the-turn lesson, then `prove_contracts` refusing `runs: 0` and `runs: "five"` |
+| EXPAND-4 | 17 | 7:20 | 1:20 | Editor, then terminal | Full frame | The coverage figure in `test_suite.json`, then the lesson export regenerated and diffed against the committed file |
+
+With all four in, the shots after each insert shift by the running total: shots
+7 to 9 by 70 seconds, 10 to 14 by 150, 15 to 17 by 210, and 18 to 20 by 290.
+Shot 20 then starts at 14:25 and the cut ends at 14:30. Re-derive that rather
+than trusting this paragraph, the same way the master runtime is checked.
+
+Two inserts changed content on 15 August because what they asked for did not
+exist: EXPAND-1 wanted a chassis-capacity refusal the product does not perform,
+and EXPAND-3 wanted a schema bound no schema declares. Both now show real
+behaviour. The reasons are in `SCRIPT.md` under each block and in
+`CLAIM_LEDGER.md`.
+
 ## Retimed 15 August 2026
 
 Four shot lengths changed and eleven start times moved with them. The master
