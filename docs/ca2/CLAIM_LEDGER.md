@@ -103,6 +103,7 @@ session", which is what the evidence supports.
 | Local speech-to-text loads in 1.587 s | `docs/eval/stt_bench.md` and `.json`, 10 clips | the bench script in that document |
 | The 10 clips are synthesised, 5 commands through 2 Windows voices | `docs/eval/stt_clips/`, filenames name the voice | `python scripts/bench_stt.py --synthesize` |
 | Median latency 0.885 s, median real-time factor 0.371 | same | same |
+| Worst-case latency 1.339 s | `worst_latency_seconds` in the same artefact. Quote it whenever the median is quoted: the median alone reads as a cap and it is not one | same |
 | Peak RAM 367.5 MB | same | same |
 | Aggregate word error rate 0.25 across the clip set | same | same |
 | GPU acceleration was unavailable on this machine | recorded verbatim: `RuntimeError: Library cublas64_12.dll is not found or cannot be loaded` | same |

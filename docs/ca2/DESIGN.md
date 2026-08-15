@@ -6,11 +6,14 @@ Every value below is read from `src/robolearn/assets/web/styles.css` unless anot
 file is named.
 
 Every count in this file was re-measured against that stylesheet on 15 August
-2026, and three of them were wrong: the number of focus rules, the number of
-forced-colours blocks, and the size of the elevation scale. All three are
-corrected in place and each correction says what the old number was, because a
-design document that overstates its own accessibility coverage is worse than one
-that omits it. The values that were checked and held: the `:root` block at lines
+2026, and four of them were wrong: the number of focus rules, the number of
+forced-colours blocks, the size of the elevation scale, and the base font size.
+All four are corrected in place and each correction says what the old number
+was, because a design document that overstates its own accessibility coverage is
+worse than one that omits it. The values that were checked and held: the fifteen
+palette hex values in the table below, all four `--fg-*` contrast ratios, the
+three `a11y-readable` spacing values and its `styles.css:1169` scope, the skip
+link at `styles.css:792`, the four display clamps, the `:root` block at lines
 7 to 86, the seven space steps, the four radius tokens, the three durations and
 the ease, the thirteen-step type scale from 9px to 30px, the ten
 `prefers-reduced-motion` blocks, the nine named themes, and the eighteen vendored
@@ -90,10 +93,19 @@ the editor to `--text-2xl`. The app grid does not move, which is the whole reaso
 is scoped rather than global.
 
 Sizes come from a 13-step scale, `--text-2xs` 9px to `--text-8xl` 30px, plus four
-fluid display clamps for the hub, teacher and cockpit headers. The interface is
-deliberately small and dense: 12px is the base. Hierarchy is carried by the jump
-from body to the display clamps, which is 12px to 46px at the top end, not by
-nudging weights.
+fluid display clamps for the hub, teacher and cockpit headers: `--text-display-sm`
+through `--text-display-xl`, topping out at `clamp(28px,4vw,46px)`.
+
+The interface is deliberately small and dense, and this paragraph used to put a
+number on that which the stylesheet does not support. It said "12px is the base".
+No base font size is declared anywhere: there is no `font-size` on `html`, on
+`:root`, or in either `body` rule, and none in `index.html` outside the boot
+splash, so anything not given a token inherits the browser default rather than
+12px. What is measurable is which token the interface actually reaches for, and
+it is not the 12px one. `--text-sm` at 11px is used 87 times, `--text-md` at 12px
+48 times, `--text-xs` at 10px 40 times. The three smallest working sizes carry
+most of the interface. Hierarchy is carried by the jump from those to the display
+clamps, 11px to 46px at the extremes, not by nudging weights.
 
 ## Space, radius, elevation, motion
 

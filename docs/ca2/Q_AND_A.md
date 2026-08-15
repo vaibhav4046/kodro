@@ -106,10 +106,17 @@ a school's IT policy. It is a constraint that turned out to be a feature.
 
 **"Voice control. Where does the audio go?"**
 
-The path I demonstrated runs locally: about one and a half seconds to load the
-model, under a second per command, peak memory under four hundred megabytes, and
-a quarter of words wrong on a ten-clip benchmark. That word error rate is why it
-is scoped to a fixed command vocabulary and not offered as dictation. There is a
+The path I demonstrated runs locally: 1.587 seconds to load the model, a median
+of 0.885 seconds per command with a worst case of 1.339, peak memory of 367.5
+megabytes, and a quarter of words wrong across ten clips. Two things about those
+numbers before anything else. The clips are synthesised, generated through the
+Windows speech engine rather than recorded from a microphone, so there is no room
+noise, no accent, no hesitation and no clipping: 0.25 is a floor on error, not a
+field measurement, and the latencies are optimistic for the same reason. And the
+per-command figure is a median, not a cap; an earlier version of this answer said
+"under a second per command", which the benchmark's own worst case contradicts.
+That word error rate is why it is scoped to a fixed command vocabulary and not
+offered as dictation. There is a
 second path, the browser's own dictation API, which does send the audio off the
 machine. It goes to a transcription service belonging to whoever made the
 browser, and Kodro neither picks it nor can see it, which is what the opt-in
