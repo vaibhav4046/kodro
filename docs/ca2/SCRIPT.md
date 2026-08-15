@@ -172,10 +172,22 @@ Screen: `docs/eval/test_suite.json`, then a terminal with the gate output.
 
 > "The test suite artefact records the commit, a clean working tree, and the
 > counts read from the run's own output rather than typed in by hand. One
-> thousand six hundred and twenty-six tests collect, one thousand six hundred and
-> twenty-five pass, and the one skip is a missing display library on this machine,
-> not a product failure. Branch-aware coverage is ninety point nine percent
-> against an eighty-five percent gate."
+> thousand six hundred and thirty-nine tests collect, one thousand six hundred and
+> thirty-eight pass, and the skip is a desktop-toolkit startup failure on this
+> machine that a fixture degrades to a skip, not a product failure. Branch-aware
+> coverage is ninety point nine percent against an eighty-five percent gate."
+
+Stop at that sentence on the skip. Two things in this block were wrong until 15
+August. It said "one thousand six hundred and twenty-six" collecting and
+"twenty-five" passing, and no other document says that: the artefact, the ledger,
+the checklist, the Q&A and four places in the dissertation all say 1,639 and
+1,638. Spoken over a screenshot of the artefact, that pair would have been the
+worst error available here. It also named a cause, "a missing display library",
+and there is no missing library: the toolkit installs and reports 8.6.15, the
+recorded error is that it cannot find its initialisation script, and why that is
+intermittent has not been established. `CLAIM_LEDGER.md` forbids offering a cause
+on camera for exactly this reason. If a marker asks, `Q_AND_A.md` has the answer
+and the list of what has been ruled out.
 
 > "The honesty gate is the one worth naming. A hundred and twenty-one checks
 > whose only job is to stop the product claiming something the evidence does not
@@ -203,9 +215,17 @@ Do not soften any of this. It is the part that earns the marks.
 > says exactly that, because the shipped desktop build renders in the platform
 > web view and naming one company would be wrong on most of them. The local
 > speech path is the one I demonstrated, and it runs on this machine: one and a
-> half seconds to load, under a second per command, and a quarter of words wrong
-> on a ten-clip benchmark, which makes it usable for a fixed command vocabulary
-> and not for dictation."
+> half seconds to load, a median of nine tenths of a second per command with a
+> worst case of one and a third, and a quarter of words wrong on ten synthesised
+> clips. Synthesised, so that error rate is a floor and not a classroom
+> measurement. It makes the path usable for a fixed command vocabulary and not
+> for dictation."
+
+Say "median" and say "synthesised". Both words are required by
+`CLAIM_LEDGER.md` and this block carried neither until 15 August: it said "under
+a second per command", which the benchmark's own worst case of 1.339 seconds
+contradicts, and it called the clips a ten-clip benchmark without saying they
+came out of a speech synthesiser rather than a microphone.
 
 ---
 
@@ -232,5 +252,9 @@ End on a static frame of the hub. No music sting, no logo animation.
 - If something breaks on camera, say what broke and continue. A recovered
   failure reads better than an obvious cut.
 - Silence during motion is deliberate. Let the rover drive.
-- Total spoken words at this length come to roughly 1,150. If a take runs long,
-  cut from the orientation block first and the limits block last.
+- Total spoken words come to 925, counted from the quoted lines in this file on
+  15 August. This note used to say "roughly 1,150", which was never counted.
+  Across 580 seconds that is 96 words a minute, well under conversational pace,
+  and the gap is not slack in the script: it is the rover driving, the terminal
+  scrolling and the verdict landing. Do not fill it. If a take runs long, cut
+  from the orientation block first and the limits block last.
