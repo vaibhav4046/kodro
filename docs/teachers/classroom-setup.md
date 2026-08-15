@@ -50,11 +50,34 @@ distribute your lessons to other machines.
 
 ## The teacher dashboard
 
-Press `Ctrl+Shift+T` in the desktop app. It shows a class heatmap of concept
-strength per pupil, a per-pupil drill-down, and exports the heatmap as CSV
-for a spreadsheet or as PDF for reporting. Both exports confirm where the
-file was written, and say plainly if the write failed (the usual cause is the
-same file already open in Excel).
+There are two of them and they are not the same. This section used to describe
+only the Tk one and call it "the desktop app", which is wrong for the download
+recommended above.
+
+**In `Kodro-windows.exe` and in the browser.** More tools, then Teacher
+progress. You get three summary tiles (learners, concepts practised, average
+strength), the class heatmap, and a legend. There is no per-pupil drill-down
+and no PDF. In the browser there are also two CSV downloads at the top of the
+panel, `Download markbook (CSV)` and `Download strengths (CSV)`; those two are
+browser-only, because the packaged desktop window keeps its records in the
+Python database rather than in browser storage. What that window has instead is
+Settings, then `Export progress report`, which writes a self-contained HTML
+report next to the database and prints the path it used. That report covers the
+pupil currently signed in, not the class.
+
+**In `robolearn-windows-tk.exe`.** Press `Ctrl+Shift+T`. That shortcut exists
+only in this build; pressing it in the WebView2 one does nothing. This is the
+fuller dashboard: the class heatmap, a per-pupil drill-down with the pupil's
+submissions and score history, and exports of the heatmap as CSV or as PDF to a
+location you pick. Both exports confirm where the file was written, and say
+plainly if the write failed (the usual cause is the same file already open in
+Excel).
+
+The PDF button needs `reportlab`. The released executables are built with it, so
+the button works there. It is declared as a development dependency rather than a
+runtime one, so a plain `pip install` from source does not pull it in; in that
+case the button says the dependency is missing and writes nothing rather than
+failing quietly. `pip install reportlab` fixes it.
 
 A curriculum coverage report for all bundled lessons, mapped to the DfE
 programmes of study they address, can be generated with
@@ -66,8 +89,10 @@ requested from whoever manages your deployment.
 Honest limits, so nothing here surprises you mid-lesson:
 
 - There is no central class server: each machine holds its own records, and
-  the dashboard on a machine shows the pupils who used that machine. Collect
-  CSV exports if you need a whole-class view across machines.
+  the dashboard on a machine shows the pupils who used that machine. There is
+  also no whole-class export in the WebView2 build, so to combine machines
+  either run the Tk build and collect its heatmap CSVs, or copy each machine's
+  `pupil.db` and merge them yourself.
 - The simulation is kinematic. It teaches programming and design trade-offs;
   it does not certify that a physical robot will behave identically.
 - The optional AI companion uses a local model (Ollama) if one is installed,

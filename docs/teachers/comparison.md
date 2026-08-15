@@ -1,8 +1,18 @@
 # How RoboLearn compares
 
 A side-by-side comparison against four widely-used educational
-robotics simulators. All figures are sourced from each vendor's
+robotics simulators. Competitor figures are sourced from each vendor's
 publicly-available documentation as of the project's submission date.
+
+Two notes on this table, because it was written early and the product moved
+under it. The product is now called Kodro; the name RoboLearn below is the old
+one and is kept only where it names a file. And three of the RoboLearn column's
+numbers were stale when they were re-checked on 15 August 2026: the hint count,
+the unlockable count and the install size. They are corrected here to what is
+measurable in the repository. One of the three is a smaller claim than the one
+it replaces, and the install size is a much larger one. A fourth row, the
+teacher dashboard, was not wrong about a number but was wrong about which build
+does what.
 
 | Criterion | **RoboLearn** | VEX VR | CoderZ | Webots | Karel J. Robot |
 | --- | --- | --- | --- | --- | --- |
@@ -10,16 +20,41 @@ publicly-available documentation as of the project's submission date.
 | Internet required | **No** | Yes (browser app) | Yes (cloud IDE) | No | No |
 | KS3 curriculum alignment | **Explicit, per-lesson** | Implicit | Implicit | None | None |
 | KS4 curriculum alignment | **Explicit (recursion, optimisation)** | Limited | Limited | None | None |
-| Built-in hint engine | **24 rules, offline** | None | Cloud-only | None | None |
+| Built-in hint engine | **12 error rules + 48 lesson hints, offline** | None | Cloud-only | None | None |
 | Replay debugger with scrubbing | **Yes (ghost trail)** | No | No | No | No |
-| Teacher dashboard with heatmap | **Yes (CSV export)** | Yes | Yes | No | No |
+| Teacher dashboard with heatmap | **Yes (exports depend on the build)** | Yes | Yes | No | No |
 | Multi-terrain physics | **Earth / Mars / Underwater / Space** | Mars only | None | Configurable (advanced) | None |
 | Open source (MIT) | **Yes** | No | No | Apache 2.0 | Public-domain code samples |
-| Install size | **26 MB single .exe** | Browser-based | Browser-based | 1.2 GB+ | Java JDK + textbook |
+| Install size | **Single .exe: 71 MB Tk build, 188 MB WebView2 build** | Browser-based | Browser-based | 1.2 GB+ | Java JDK + textbook |
 | Supported languages | **Python + blocks** | Python / blocks | Python / blocks / C# | C / C++ / Python / Java | Java |
 | Customisable lessons (pupil-authored) | **Yes (YAML editor)** | No | No | Yes (advanced) | No |
 | Self-improving memory layer | **Yes (EMA per concept)** | Limited progress tracking | Limited progress tracking | None | None |
-| Pupil progression / achievements | **15 unlockables + streaks** | Badges | Levels + badges | None | None |
+| Pupil progression / achievements | **16 unlockables + streaks** | Badges | Levels + badges | None | None |
+
+### Where the corrected numbers come from
+
+Measured on 15 August 2026, so that none of them has to be taken on trust.
+
+- **12 error rules.** `src/robolearn/assets/web/pupil-errors.js` holds a `RULES`
+  array with 12 pattern matchers, each turning a Python error into a plain
+  sentence plus a hint. That is the offline engine. The row said 24, and there
+  is no 24-rule table anywhere in the code; 24 is the number of lesson files,
+  which is probably where it came from.
+- **48 lesson hints.** Separately from the rules, those 24 bundled lesson files
+  carry 48 hand-written hints between them, tied to the specific mission.
+- **16 unlockables.** `robolearn.memory.achievements.CATALOGUE` has 16 entries.
+  The row said 15. No note explains the difference, so treat 16 as the count
+  and 15 as stale.
+- **Install size.** `Kodro.exe` is 196,929,209 bytes and `RoboLearn.exe` is
+  74,824,499 bytes, rounded above in the same binary megabytes the old figure
+  used. The old "26 MB" still matches a file on disk, `RoboLearn-windows-x64.exe`
+  at 27,447,321 bytes, but that is a May 2026 build and not what the releases
+  page hands out now. Why the current builds are larger has not been broken
+  down, so no explanation is offered here.
+
+The dashboard row now says "depend on the build" rather than naming CSV,
+because the two desktop builds do not export the same things.
+[`classroom-setup.md`](classroom-setup.md) sets out which does what.
 
 ## Where RoboLearn wins
 

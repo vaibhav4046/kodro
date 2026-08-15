@@ -29570,9 +29570,13 @@ say("Survey done")`
   }) {
     // The class register is real in BOTH modes now: desktop persists via Python,
     // the browser via the on-device pupil-store (localStorage, same EMA rule).
-    // browserMode only tunes the copy -- "in this browser on this device" vs "on
-    // this computer" -- and the empty-state wording; the heatmap table renders
-    // identically once there are rows.
+    // The heatmap table renders identically once there are rows. browserMode
+    // changes two things below, and it used to say only the first: the copy
+    // ("in this browser on this device" vs "on this computer") plus the
+    // empty-state wording, AND the whole export group at :333, which reads the
+    // browser-only markbook store and so has no desktop equivalent here. The
+    // desktop register exports from Python instead, via Settings ->
+    // "Export progress report" in app.jsx.
     const browserMode = typeof window !== 'undefined' && window.RoboLearn && !window.RoboLearn.isAvailable();
     const hasRows = teacherData && Array.isArray(teacherData.pupils) && teacherData.pupils.length > 0;
     const masteryValues = hasRows ? teacherData.pupils.reduce((all, pupil) => {
