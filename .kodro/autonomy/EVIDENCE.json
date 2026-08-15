@@ -211,6 +211,22 @@
    "defect_class_count": "Eighth instance recorded of a claim written down without the measurement that would support it, and the first one the agent introduced rather than found.",
    "evidence": ".kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md, dated section appended below the original text."
   },
-  "still_not_re_measured": "Unchanged from superseding_measurement_2026_08_15: wheel (hatchling absent offline), store_regression in isolation, qa_web, direct_visual, and the full Python suite at this HEAD. qa_personas and qa_vibe still produce no data without a local model and are still not passes."
+  "full_python_suite_at_head": {
+   "command": "python -m pytest --basetemp=<scratch>/pt -q  (--basetemp is required on this host; the default temp root raises PermissionError WinError 5)",
+   "result": "1637 passed, 2 skipped in 253.71s. TOTAL 7062 statements, 526 missed, 1732 branches, 205 partial. Required test coverage of 85% reached. Total coverage: 90.78%. EXIT=0.",
+   "the_two_skips": "Both are the same guard in tests/unit/test_ai_studio.py, lines 69 and 77: Tk is unavailable on this host because the Python install is missing tcl8.6/auto.tcl. That is a host defect, not a product one, and the suite declares it rather than hiding it. Counting them as passes would be the exact reporting failure this file exists to record.",
+   "supersedes": "gate_matrix.python_local, which reads '1069 passed; 88.96% coverage'. That was a different tree. It is left in place as the historical record of the 2.0.0 release run."
+  },
+  "docs_build_gated_for_the_first_time": {
+   "what_was_believed": "A working note carried 'docs/mkdocs.yml docs_dir: . rejected by mkdocs 1.6.1' as a pending defect. It was never written into a tracked file, so nothing on disk had to be corrected, but it was wrong and it was being acted on.",
+   "what_was_measured": "python -m mkdocs build -f docs/mkdocs.yml exits 0: 'Documentation built in 10.67 seconds', mkdocs 1.6.1 on Python 3.13. docs_dir: . is accepted. Only --strict failed, and on a different cause entirely.",
+   "the_real_defect": "Aborted with 1 warnings in strict mode! EXIT=1, on docs/developers/extending-lessons.md: a link to '../../src/robolearn/lessons/schema.py' resolves outside the docs tree and is not a documentation file. A second link on the same page to the lesson library directory is INFO only and did not abort.",
+   "fix": "The page linked into the source tree; no other page in docs/ does that. docs/developers/architecture.md and the rest reference modules as plain code spans, and there are zero blob URLs anywhere in docs/. The page was rewritten to match that convention, which also closed the second defect in it: it was still a stub reading 'This page is filled in Task 8 of the build plan once the schema lands' for a schema that landed long ago. It now documents all 17 top-level keys, the world block, the eight success-criterion fields with the gt-not-ge reasoning, grading, worked solutions and the export step.",
+   "gate_now": "python -m mkdocs build -f docs/mkdocs.yml --strict -> 'Documentation built in 2.68 seconds', EXIT=0. This is the first time the documentation build has been gated at all; it appears in no earlier gate matrix.",
+   "site_dir_is_safe": "The build prints 'Cleaning site directory'. Checked before running it: git ls-files site returns nothing and git check-ignore -v site/index.html returns .gitignore:47:site/. No tracked file is in the blast radius.",
+   "a_stale_docstring_found_on_the_way": "src/robolearn/lessons/schema.py documented an optional source_path field on Lesson, 'populated by load_lesson and load_library so callers can show this lesson lives at'. No such field exists, no caller sets one, and extra='forbid' means setting one would raise. The module docstring also pointed at build-plan Task 19 and 'Section 6 of the build spec'. Both corrected. Ninth instance of the defect class: a claim recorded without the measurement that would support it.",
+   "verification": "python -m pytest tests/unit/test_lesson_schema.py tests/unit/test_lesson_solutions.py tests/unit/test_lessons_export.py -> 151 passed in 2.38s. Docstring-only change, so the dual-grader guarantee and the export byte-match are the checks that matter and both hold."
+  },
+  "still_not_re_measured": "Unchanged from superseding_measurement_2026_08_15 except the full Python suite, which is now measured above: wheel (hatchling absent offline), store_regression in isolation, qa_web, and direct_visual. qa_personas and qa_vibe still produce no data without a local model and are still not passes."
  }
 }

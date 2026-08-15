@@ -34,9 +34,13 @@ Measured, not assumed:
   real-subprocess MCP smoke runs rather than assumed inert.
 - Counts that grew since July: qa_grader 34 to 55, qa_honesty 91 to 121,
   qa_physics 20 to 25, qa_ai_web 27 to 51, qa_scenario_parity 4 to 8, mypy 66
-  to 73 source files, the Python suite 1,069 to 1,638 passed at 90.90 percent.
-  Gates that did not exist in the July matrix: qa_voice 108, qa_secrets 27,
-  qa_learning_annotations 28, qa_encoding 10, and 66 MCP server unit tests.
+  to 73 source files, the Python suite 1,069 to 1,637 passed at 90.78 percent
+  against an 85 percent gate, with 2 skipped (both the same Tk-unavailable
+  guard in `test_ai_studio.py`; this host's Python is missing `tcl8.6/auto.tcl`).
+  Gates that did not exist in the July matrix: qa_voice 108, qa_secrets 42,
+  qa_learning_annotations 28, qa_encoding 10, 66 MCP server unit tests, and the
+  docs build, gated for the first time on 15 August at
+  `mkdocs build -f docs/mkdocs.yml --strict`.
 
 The bundle SHA-256 `8c3417345b3c...` recorded in the 2026-07-16 checkpoint
 below is historical. The committed bundle is now

@@ -1,14 +1,14 @@
 """Pydantic schema and YAML loader for lesson definitions.
 
-Each lesson lives in a YAML file under
-``src/robolearn/lessons/library/``. Section 6 of the build spec defines
-the schema; this module turns each YAML into a typed :class:`Lesson`
-instance via :mod:`pydantic`. The :func:`load_library` function loads and
-validates every YAML in the bundled library at once.
+Each lesson lives in a YAML file under ``src/robolearn/lessons/library/``.
+This module turns each YAML into a typed :class:`Lesson` instance via
+:mod:`pydantic`. :func:`load_library` loads and validates every YAML in the
+bundled library at once, sorted by file name.
 
-Field-level reference text (e.g. UK programme-of-study citations) is
-authored in Task 19; the schema accepts it as freeform strings so that
-Task 19 only needs to edit YAML, not Python.
+Curriculum reference text (UK programme-of-study citations and the like) is
+accepted as freeform strings, so adding or re-citing a lesson means editing
+YAML rather than Python. ``docs/developers/extending-lessons.md`` documents
+the file format for lesson authors.
 """
 
 from __future__ import annotations
@@ -155,9 +155,8 @@ class HintRules(BaseModel):
 class Lesson(BaseModel):
     """A fully validated lesson definition.
 
-    The optional ``source_path`` field is populated by :func:`load_lesson`
-    and :func:`load_library` so callers can show "this lesson lives at …"
-    in the UI; it is excluded from YAML serialisation.
+    ``extra="forbid"``: an unknown or misspelled key is an error rather than a
+    silently ignored line, so a lesson never boots half-populated.
     """
 
     model_config = ConfigDict(extra="forbid")

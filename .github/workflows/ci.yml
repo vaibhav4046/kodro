@@ -69,6 +69,17 @@ jobs:
       - name: Mypy
         run: mypy src/robolearn
 
+      # Docs build gate: the site under docs/ is published to GitHub Pages, so a
+      # broken cross-reference ships as a dead link for every reader. --strict
+      # promotes MkDocs warnings to a failure, which is the only mode that
+      # catches a link resolving outside the docs tree; a plain build exits 0 on
+      # exactly that. Linux only, because the build is OS-independent and
+      # mkdocs-material is already in the dev extra. It writes to site/, which
+      # is gitignored.
+      - name: Docs build gate (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: python -m mkdocs build -f docs/mkdocs.yml --strict
+
       # Bundle-freshness gate: the shipped bundle.js is prebuilt from the .jsx
       # sources, and build_web.cjs --check exits 1 when the two drift. Without
       # this, a PR that edits a .jsx but forgets to rebuild would land a STALE
