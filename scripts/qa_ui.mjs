@@ -1,6 +1,6 @@
 /* Offline UI regression smoke for the Kodro studio.
  *
- * The interpreter has hard numbers (qa_interpreter.mjs: 21/21) but the React
+ * The interpreter has a hard pass/fail gate (qa_interpreter.mjs) but the React
  * studio itself had no regression net: a broken bundle, a crashing world, or a
  * panel that throws on mount would render a blank canvas and ship silently.
  * This harness closes that gap. It drives the REAL shipped bundle through

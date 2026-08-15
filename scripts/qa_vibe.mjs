@@ -1,6 +1,6 @@
 /* Measured vibe-generation QA.
  *
- * The deterministic engine has hard numbers (21/21 interpreter, 854 pytest) but
+ * The deterministic engine has hard pass/fail gates (qa_interpreter.mjs, pytest) but
  * the AI assistant did not, so its reliability was unproven. This harness gives
  * it one: for a fixed set of realistic non-expert prompts it asks the local
  * model (Ollama, kodro-coder) for rover code, applies the SAME normaliser the

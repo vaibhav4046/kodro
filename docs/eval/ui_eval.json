@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "harness": "qa_ui",
-  "generatedAt": "2026-08-15T13:32:53.206Z",
+  "generatedAt": "2026-08-15T14:29:14.633Z",
   "suite": "all",
   "method": "headless Chrome drives the real shipped bundle through cap.html; every row is an isolated Chrome run whose screenshot, post-action DOM or measured viewport had to match a concrete marker",
   "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -13,7 +13,7 @@
   "artifactHashes": {
     "bundleSha256": "f17ce80efc318032b70aa07a187567619cbc3c4e7df7936ad986f51d27eb06b1",
     "capHtmlSha256": "1bd1575a12fe912c7049c4213e1fdd7713092a21009cfa68ba84170fcb4c9cee",
-    "harnessSha256": "1937f9bb870bffe4ebecb37cbdd7828ff41b36865cde1405c5f4d62c197594b4"
+    "harnessSha256": "ae62517ba1fe3ac43e4656a70ca3a6715f155f1817e026dddff231d7cfc03dc1"
   },
   "measures": "Whether the shipped studio renders and behaves: that each flow paints with no console error, that each assert finds its marker in the real DOM, that no viewport overflows and that every modal opens. Not a measure of whether a person can use, understand or learn from the interface, and not an accessibility, usability or hardware result. Where an exact marker cannot be located an assert falls back to the most specific real signal it can verify, so each row states in its reason what was actually matched.",
   "passed": 66,
@@ -28,7 +28,7 @@
         {
           "label": "studio-earth-run",
           "pass": true,
-          "reason": "ok (288844B)",
+          "reason": "ok (278388B)",
           "determinism": {
             "pass": true,
             "reason": "rover drove 14.0m (>= 3m floor); exact-distance determinism is covered by qa_interpreter/qa_grader"
@@ -37,27 +37,27 @@
         {
           "label": "world-mars",
           "pass": true,
-          "reason": "ok (279655B)"
+          "reason": "ok (280393B)"
         },
         {
           "label": "world-warehouse",
           "pass": true,
-          "reason": "ok (153302B)"
+          "reason": "ok (173633B)"
         },
         {
           "label": "arm-firstrun",
           "pass": true,
-          "reason": "ok (146691B)"
+          "reason": "ok (149197B)"
         },
         {
           "label": "blocks-panel",
           "pass": true,
-          "reason": "ok (160507B)"
+          "reason": "ok (161395B)"
         },
         {
           "label": "onboarding",
           "pass": true,
-          "reason": "ok (392477B)"
+          "reason": "ok (392538B)"
         }
       ]
     },

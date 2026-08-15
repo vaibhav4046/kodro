@@ -393,9 +393,16 @@ End on a static frame of the hub. No music sting, no logo animation.
   failure reads better than an obvious cut.
 - Silence during motion is deliberate. Let the rover drive.
 - The master cut is 953 spoken words, from the 79 quoted lines outside the
-  `[EXPAND-n]` blocks, counted on 15 August. The file holds 122 quoted lines in
-  total; the other 43 are the 501 words of expansion narration, timed separately
-  below. This note used to say "roughly 1,150", which was never counted, and
+  `[EXPAND-n]` blocks, counted on 15 August. The file holds 124 quoted lines in
+  total; the other 45 are the 514 words of expansion narration, timed separately
+  below. Those three figures read 122, 43 and 501 until they were re-measured on
+  15 August. They were correct when written and went stale a few hours later, in
+  the same edit that moved EXPAND-2 from 139 words to 159 and EXPAND-4 from 124
+  to 117: the table below was corrected and this paragraph was not. The two
+  figures either side of them, the 953 and the 79, were unaffected by that edit
+  and re-measured exactly, which is the trap. Part of a paragraph going stale
+  does not announce itself by making the whole paragraph look wrong.
+  This note used to say "roughly 1,150", which was never counted, and
   then 925, which was counted correctly at commit `2836f85` and went stale
   three commits later: `0ef8436` rewrote the failure-and-refine narration to say
   40 rather than 80 and to name all three failed checks, which added one quoted

@@ -50,10 +50,19 @@ confirms 10, nothing changes and nothing needs re-recording.
 
 Until 15 August that sentence said "roughly 14:30" and the four blocks held no
 narration, only stage directions, so the 15 minute option was not actually
-recordable. All four are now written and timed, 501 words across 290 seconds,
+recordable. All four are now written and timed, 514 words across 290 seconds,
 and each lands on an existing shot boundary so no master shot is cut into. Both
 options are now real, and the choice below is a genuine choice rather than one
-route and one intention.
+route and one intention. This sentence read 501 words until 15 August. That was
+the correct total at the moment it was written, and it stopped being correct a
+few hours later when two blocks moved: EXPAND-2 rose from 139 words to 159 when
+it was rewritten around what the web dashboard actually renders, and EXPAND-4
+fell from 124 to 117 when its opening stopped restating a figure the master
+speaks in the preceding frame. `SCRIPT.md` recorded both corrections against its
+own table and this dependent total was not touched, which is the defect: a fix in
+one document strands the claim that was derived from it. Re-measured 15 August by
+counting the blockquoted narration under each of the four markers in `SCRIPT.md`,
+which gives 131, 159, 107 and 117.
 
 This is the safe direction: an over-length video can be rejected outright, an
 under-length one is only a lost opportunity. The master is deliberately built

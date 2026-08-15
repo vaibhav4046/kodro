@@ -16,14 +16,22 @@
 > `aa174cf`, with coverage 90.9 against the 85 gate), that the library holds
 > 10 lessons (it holds 24), and that the dissertation is about 20 pages (it is
 > 50 numbered pages). Those figures are spread across sections 2, 4, 5 and 6, not
-> confined to one place: the `21/21` appears four times (in WHERE EVERYTHING
-> LIVES, in VALIDATED STATE, in the week plan and in the FAST-START "expect"
-> line), the `851` three times, the `10 lessons` in the library path line, and the
+> confined to one place: the `21/21` appears five times (twice in WHERE
+> EVERYTHING LIVES, at the `rover.forward` note and again in the
+> `qa_interpreter.mjs` description, then once each in VALIDATED STATE, in the
+> week plan and in the FAST-START "expect" line), the `851` four times, the
+> `10 lessons` in the library path line, and the
 > `~20 pages` in VALIDATED STATE. An earlier version of this warning scoped
 > itself to "sections 4 and 8", which was wrong twice over: the stale interpreter
 > figure sits in section 2, and this file has no section 8, its headings run 0 to
-> 7. Do not treat the higher live figures as failures. For the current figure on every gate,
-> with the exact summary line it printed, see
+> 7. That same earlier version then undercounted both figures, saying `21/21`
+> appeared four times and `851` three times. It had counted sections rather than
+> occurrences, and WHERE EVERYTHING LIVES carries two of each. Counts re-measured
+> 2026-08-15 by grepping the file below this warning block: five and four. The
+> undercount is worse than no count at all, because it certifies a completeness
+> it does not have and stops a future agent one instance early.
+> Do not treat the higher live figures as failures. For each gate as measured on
+> 14 August 2026, with the exact summary line it printed, see
 > [`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md); for
 > the Python suite see [`docs/eval/test_suite.json`](eval/test_suite.json).
 

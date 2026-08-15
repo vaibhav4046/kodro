@@ -124,14 +124,19 @@
   },
   "assets_now": {
    "bundle.js": {
-    "bytes": 1502665,
-    "sha256": "17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174"
+    "bytes": 1502967,
+    "sha256": "f17ce80efc318032b70aa07a187567619cbc3c4e7df7936ad986f51d27eb06b1",
+    "measured_at_commit": "c0e6382",
+    "supersedes": "1502665 / 17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174, which this key carried until 2026-08-15. That was the bundle at 3c2a851. It moved twice more, at cacf51e (2bbeac6915fef57234b4dda8b67a1ab09ad138f10886df1b608eb126a28962f3) and at dd02cd8, both times inside comment blocks only."
    },
    "styles.css": {
     "bytes": 172179,
-    "sha256": "ac7c9050cbd7b06e2814366ed6c6cc8d868ec10a75ecdaeb0814ba789ba45e0d"
+    "sha256": "ac7c9050cbd7b06e2814366ed6c6cc8d868ec10a75ecdaeb0814ba789ba45e0d",
+    "measured_at_commit": "c0e6382",
+    "note": "Unchanged across all four bundle rebuilds."
    },
-   "note": "The live block above describes the July GitHub Pages deployment of the kodro-identity-pass line. Its hashes are historical. Nothing on the candidate branch has been deployed, so committed_matches_live is not a statement anyone can make about these two files today."
+   "note": "The live block above describes the July GitHub Pages deployment of the kodro-identity-pass line. Its hashes are historical. Nothing on the candidate branch has been deployed, so committed_matches_live is not a statement anyone can make about these two files today.",
+   "how_to_re_measure": "This key is named 'now' and will go stale the next time the bundle is rebuilt, which happened four times during the CA2 pass. Do not read a hash out of it and assume currency. python -c \"import hashlib;print(hashlib.sha256(open('src/robolearn/assets/web/bundle.js','rb').read()).hexdigest())\", then confirm source and generated agree with node scripts/build_web.cjs --check, which prints 'bundle.js is up to date.' and exits 0. The pinned bundleSha256 values inside docs/eval/ui_eval.json and docs/eval/performance_eval*.json are measurement records of the bundle each run actually measured and must never be edited to match a newer file."
   },
   "not_re_measured": {
    "wheel": "blocked offline, hatchling absent. The July row stands unverified rather than re-asserted.",
