@@ -98,6 +98,15 @@ docs/dissertation/pass*.txt
 # scripts/qa_secrets.mjs is what found them.
 docs/dissertation/**/*.log
 
+# Same console output, same leak, different filename. Redirecting a compile to
+# a .txt sidesteps both rules above: `pass*.txt` only covers the ones named
+# pass, and the `.log` rule only covers the extension. Six such captures
+# (compile, doi_compile and final_compile, two passes each) were tracked and
+# carried C:/Users/<name> on 20 paths apiece. They were invisible to
+# scripts/qa_secrets.mjs as well, because PowerShell redirection writes UTF-16
+# and the gate decoded every file as UTF-8; that gate now sniffs the encoding.
+docs/dissertation/*compile*.txt
+
 # Stray QA console capture at the repo root. Same problem, same non-value: it is
 # the terminal output of a headless-Chrome behaviour run, nothing references it,
 # and it names the local account in every browser path it prints.

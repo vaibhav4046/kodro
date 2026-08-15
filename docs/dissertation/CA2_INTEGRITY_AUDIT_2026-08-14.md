@@ -34,17 +34,31 @@ current state; each entry below carries its own evidence.
 | MEDIUM 5, transcript says three artefacts are untracked | RESOLVED. The transcript now carries the correction and the `git log` output that proves it |
 | MEDIUM 6, "four artefacts postdate the tag" | RESOLVED. `.tex:150` now says seven and names all seven |
 | MEDIUM 7, source comment claims 9 figures and 14 tables | RESOLVED. The comment now says 2 figures and 11 tables, which is what the file contains |
-| MEDIUM 8, `huang2023` key against a 2025 label | RESOLVED. The key is now `huang2025`. The DOI is still unverified offline |
+| MEDIUM 8, `huang2023` key against a 2025 label | RESOLVED 15 Aug. The key is now `huang2025`, and Crossref returns the exact title for `10.1145/3703155`. Fully closed |
 | MEDIUM 9, untracked evidence-shaped files | RESOLVED. `stt_bench.json`, `stt_bench.md`, `bench_stt.py` and 10 clips are tracked, and the working tree is clean |
 | MEDIUM 10, overfull boxes and an oversized float | RESOLVED as a side effect, and therefore fragile. Re-check the compile log before submission |
-| LOW 11, Trinket shutdown claim | OPEN, author only. Needs a live source |
+| LOW 11, Trinket shutdown claim | RESOLVED 15 Aug. The announcement page was fetched. All four claims at `.tex:296` are supported, including the 31 August 2026 date verbatim |
 | LOW 12, reflection figure with no artefact | RESOLVED, and the entry was partly wrong when written |
-| LOW 13, `bcscode` placeholder renders bold | OPEN, author only. Do not invent an access date. Same bcs.org trip settles PR 3's BCS table |
+| LOW 13, `bcscode` placeholder renders bold | RESOLVED 15 Aug. Both bcs.org sources fetched with `curl`, placeholder replaced, PR 3's table ported. The Code of Conduct states no version or date, so the entry is `(no date)` |
 | LOW 14, the document's self-descriptions are correct | Not a defect. Keep as is |
 
-Three of the four open items are author actions that cannot be closed from an
-offline machine. None of them is a fabrication risk; all three are the opposite,
-a refusal to assert something unverified.
+**Superseded on 2026-08-15.** The original sentence read: "Three of the four
+open items are author actions that cannot be closed from an offline machine.
+None of them is a fabrication risk; all three are the opposite, a refusal to
+assert something unverified." The refusal to assert was right. The reason given
+for it was not. This machine is not offline: `WebFetch` and `WebSearch` fail
+here, but `curl` through the Bash tool has full network access and was simply
+never tried. Three of those items have now been closed by measurement, LOW 13
+and MEDIUM 8 and LOW 11, and the whole bibliography was verified against live
+registrars in the process. See
+`.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`.
+
+**One item remains open: HIGH 4, the page limit.** It is genuinely the author's
+and no amount of network access closes it, because the authoritative statement
+is in the current Canvas brief and nowhere in this repository. It is not a
+fabrication risk. It is a refusal to assert something unverified, which is the
+correct posture. `docs/ca2/CLAIM_LEDGER.md` item 8 forbids stating the page
+limit or the video duration as settled, and that stands.
 
 Two things the audit confirms as sound and should not be disturbed:
 
@@ -324,6 +338,26 @@ This comment does not render, so it cannot mislead a marker reading the PDF. It 
 
 ### MEDIUM 8. One bibliography entry has a citation key that contradicts its own label
 
+**FULLY RESOLVED on 2026-08-15.** The DOI now resolves and the metadata
+matches. Crossref returns, for `10.1145/3703155`:
+
+```
+A Survey on Hallucination in Large Language Models: Principles, Taxonomy,
+Challenges, and Open Questions            [Huang, Lei, 2025-1-24]
+```
+
+which is the `.tex` title exactly, under this bibliography's sentence-case house
+style, with the first author and year the entry claims. The entry is not
+fabricated and is now positively confirmed rather than merely plausible.
+
+The earlier text below said the DOI could not be resolved "because this machine
+is offline by design". That was wrong. The product is offline by design; this
+workstation is not. `WebFetch` and `WebSearch` fail here for harness reasons and
+that failure was mistaken for an absence of network. `curl` works. The same
+mistake had already been made about the two bcs.org sources.
+
+The original entry:
+
 **RESOLVED as far as an offline machine can take it.** The key is now
 `huang2025` at `.tex:964`, and both call sites, `.tex:284` and `.tex:886`, cite
 `huang2025`. The compile reports zero undefined citations, so the rename is
@@ -405,6 +439,29 @@ Counts: 2 overfull hbox, 17 underfull hbox, 0 overfull vbox, 0 underfull vbox, 6
 
 ### LOW 11. The Trinket shutdown claim is a load-bearing external fact that cannot be checked offline
 
+**RESOLVED on 2026-08-15.** The page was fetched and read. `.tex:296` makes
+four factual claims and the announcement supports all four:
+
+| claim at `.tex:296` | page text at `https://trinket.io/announcement` |
+|---|---|
+| "will shut down on 31 August 2026" | "Trinket will be shutting down on August 31, 2026." |
+| "publishing the source does not preserve the service" | "We have released the Trinket software as open source. We want to be clear about what this means: The trinket.io website will shut down. Open source does not mean the site stays online." |
+| "every pupil loses saved work not exported before the deadline" | "Please download anything you want to keep before the shutdown." |
+| "That date falls eleven days before this dissertation is due" | arithmetic against 11 September, not a source claim, and correct |
+
+The page heading is "Update about the future of Trinket". The `trinket2026`
+entry titles it "Trinket shutdown announcement", which describes rather than
+quotes the page. That is a defensible reference title for an untitled
+announcement and was left as written. The recorded access date of 27 July 2026
+is when the author read it and was also left as written; the check on 15 August
+2026 found the same announcement still posted.
+
+The title of this finding is itself now falsified: the fact *could* be checked,
+it just had not been. Full detail in
+`.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`.
+
+The original entry:
+
 `.tex:296`: Trinket "announced that it will shut down on 31 August 2026 `\citep{trinket2026}`".
 
 This underpins part of the motivation for an offline-first tool. It is a claim about the outside world with a dated deadline eighteen days after this audit. It cannot be verified from repository evidence and was not verified online. Marked UNVERIFIED. See author actions.
@@ -443,6 +500,12 @@ Corroborated independently on 2026-08-14: `node scripts/qa_ui.mjs --suite=behavi
 ```
 \bibitem[BCS(2022)]{bcscode} BCS, The Chartered Institute for IT (2022) ... \textbf{[VERIFY VERSION, URL AND ACCESS DATE BEFORE SUBMISSION]}
 ```
+
+**RESOLVED on 2026-08-15.** The placeholder is gone and both BCS citations are real. What follows is the entry as written on 14 August; the reasoning it gives was sound at the time and its conclusion was overturned by a tool that had not been tried.
+
+The blocker was stated as "`WebFetch` and `WebSearch` both fail", which is still true, and from that it was inferred that bcs.org could not be reached at all. That inference was wrong. `curl` through the Bash tool has full network access. Both sources were fetched on 15 August: the accreditation PDF returns 200 and its cover reads `Guidelines on course accreditation ... January 2020` with abilities 2.1.1 to 2.1.9 enumerated on page 31, so `bcs2020` and the nine-row `tab:bcsmap` were ported; the Code of Conduct page returns 200 and carries all four principles verbatim, but states **no version and no date anywhere**, so `bcscode` is now `BCS (no date)` with a real access date rather than the `(2022)` it asserted. Full output in `.kodro/ca2-evidence/2026-08-15-bcs-citations-and-aux-shadowing.md`.
+
+The original entry:
 
 Confirmed present and confirmed rendering in the PDF as bold text inside the References. This is deliberate and only the author may close it. It is recorded here as an open author action, not as a defect, and it was not removed.
 
@@ -723,6 +786,26 @@ No reference in the list has the signature of a fabricated one. Entries name rea
 
 **No DOI or URL in the bibliography was resolved.** This audit ran offline. Marked UNVERIFIED as a class, not as an accusation.
 
+**Superseded on 2026-08-15.** Both bullets are closed and the paragraph above
+them is no longer true. The whole bibliography has been resolved against live
+sources. Current state:
+
+```
+bibitem entries defined:                     26   (25 at audit time, +1 for bcs2020)
+arXiv DOIs resolved via DataCite:            14   all 200, all titles match
+Crossref DOIs resolved:                       3   all 200, all titles match
+URL-only entries fetched and read:            9   all 200
+print sources with no URL to check:           1   papert1980
+entries whose title did NOT match the source: 1   reza2025, now fixed
+```
+
+The registrar's title, first author and year were compared against the `.tex`
+for every DOI, so this is a citation check rather than a link check. The one
+defect it caught, `reza2025`, was a two-word title error that a link checker
+would have passed. "Marked UNVERIFIED as a class" was the right call at the
+time; it is now replaced by measurement. Detail in
+`.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`.
+
 ---
 
 ## Fabrication sweep
@@ -782,6 +865,13 @@ Nothing about it is weakened or hedged. It must not be removed, softened or move
 
 ## Actions only the author can take
 
+**Status note added 2026-08-15.** Items 6, 7, 8 and 12 turned out not to be
+author actions at all. They were listed here on the belief that this machine had
+no network, which was an inference from `WebFetch` failing rather than a
+measurement. `curl` works. All four are now closed by measurement and are struck
+through below with what was found. Item 3 remains the real one: the page limit
+needs the current Canvas brief and nothing on the web substitutes for it.
+
 1. **Resolve the renderer software rows.** Either re-run `node scripts/qa_performance.mjs --repeat=3` under forced software rasterisation and update `.tex:659`, `.tex:660`, `.tex:648` and `.tex:663` to the new figures, or restore the `f01767e` version of `docs/eval/performance_eval.json` as the committed software evidence. This audit did not choose between them and did not touch the artefact.
 
 2. **Decide what "at the final source state" should say.** Either re-run the Python suite at HEAD and regenerate `docs/eval/test_suite.json`, or rewrite `.tex:633` and `.tex:908` to name commit `02dd047` explicitly rather than claiming the final state.
@@ -792,11 +882,11 @@ Nothing about it is weakened or hedged. It must not be removed, softened or move
 
 5. **Correct or delete the "artefact-tracking gap" section** of `docs/eval/qa_gate_runs_2026-08-14.md`, lines 79 to 93. All three named artefacts are tracked.
 
-6. **Close the `bcscode` placeholder** at `.tex:952`. Verify the BCS Code of Conduct version, URL and access date, then replace `[VERIFY VERSION, URL AND ACCESS DATE BEFORE SUBMISSION]`. This audit deliberately left it in place. It currently renders in bold in the References. While on bcs.org, also settle the BCS traceability table PR 3 carries and this document lacks: the conditions and the exact block to lift are in `.kodro/autonomy/CA2_RECONCILIATION.md` section 10.4.
+6. ~~**Close the `bcscode` placeholder** at `.tex:952`.~~ **DONE 15 Aug.** Both bcs.org sources were fetched with `curl`. The placeholder is gone, the nine-row BCS traceability table from PR 3 is now in the document, and the Code of Conduct page states no version or date so the entry reads `(no date)`. Evidence: `.kodro/ca2-evidence/2026-08-15-bcs-citations-and-aux-shadowing.md`.
 
-7. **Verify the Trinket shutdown claim** at `.tex:296`, and the `trinket2026` reference. It is a dated external fact underpinning part of the motivation and it could not be checked offline.
+7. ~~**Verify the Trinket shutdown claim** at `.tex:296`.~~ **DONE 15 Aug.** The announcement page was fetched and all four claims in that sentence are supported, including "Trinket will be shutting down on August 31, 2026" verbatim. See LOW 11 above for the claim-by-claim table.
 
-8. **Resolve every DOI and URL in the bibliography online.** None was resolved by this audit. Twenty-five entries.
+8. ~~**Resolve every DOI and URL in the bibliography online.**~~ **DONE 15 Aug, and it found a defect.** All 26 entries were checked against live sources: 14 arXiv DOIs through DataCite, 3 through Crossref, 9 URL fetches, 1 print book with no URL to check. Every DOI's registrar title, first author and year were compared against the `.tex` rather than merely pinged. One entry was wrong: `reza2025` said "teacher-centric" where the paper says "educator-centric", and "using RAG and CAG" where the paper says "with RAG and CAG". Fixed at `.tex:1004`. The other 25 matched. Note the count in the original item, twenty-five, was itself one short. Evidence: `.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`.
 
 9. **Fix or accept the two overfull boxes.** The one at `.tex:160` to `.tex:161` overhangs by about 14mm in the abstract, the first body page read.
 
@@ -804,7 +894,7 @@ Nothing about it is weakened or hedged. It must not be removed, softened or move
 
 11. **Fix or delete the stale source comment** at `.tex:175` to `.tex:177`. It claims 9 figures and 14 tables against an actual 2 and 11. It does not render, so this is optional.
 
-12. **Optionally fix the `huang2023` key year** at `.tex:964`, or leave it. It renders correctly either way.
+12. ~~**Optionally fix the `huang2023` key year** at `.tex:964`, or leave it.~~ **DONE.** The key is `huang2025` and the entry now sits at `.tex:990` after the BCS table was inserted. Crossref confirms the DOI, title, author and year.
 
 13. **Confirm the ethics classification** (data category A0, participant category 2) against current department guidance. The repository holds no copy of the classification scheme.
 

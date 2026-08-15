@@ -89,8 +89,8 @@
 \contentsline {section}{\numberline {9.1}Summary}{44}{section.9.1}%
 \contentsline {section}{\numberline {9.2}Reflection}{44}{section.9.2}%
 \contentsline {section}{\numberline {9.3}Future work}{45}{section.9.3}%
-\contentsline {section}{\numberline {9.4}Closing statement}{45}{section.9.4}%
-\contentsline {chapter}{References}{47}{section*.19}%
+\contentsline {section}{\numberline {9.4}Closing statement}{46}{section.9.4}%
+\contentsline {chapter}{References}{47}{section*.20}%
 \contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{49}{appendix.A}%
 \contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{50}{appendix.B}%
 \contentsfinish 

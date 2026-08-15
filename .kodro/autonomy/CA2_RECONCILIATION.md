@@ -106,7 +106,23 @@ Checked this session, not assumed:
 | `src/robolearn/assets/web/bundle.js` | `node scripts/build_web.cjs --check` | `bundle.js is up to date.` exit 0 |
 | `src/robolearn/assets/web/lessons.json` | re-ran `scripts/export_lessons.py`, compared SHA-256 | byte-identical (`f1167f28...`), matches its 24 authoritative YAML lessons |
 | `docs/eval/ui_eval.json` | `node scripts/qa_ui.mjs` full suite | regenerated 2026-08-14T18:20:31Z, 66/66, 100, PASS |
-| `docs/dissertation/Kodro_Dissertation.pdf` | not rebuilt since the `.tex` was edited | **STALE** - must be recompiled before any claim about it |
+| `docs/dissertation/Kodro_Dissertation.pdf` | recompiled 2026-08-15, two clean passes, then synced from `_build` | byte-identical to `_build/Kodro_Dissertation.pdf`: 59 pages, 1,115,505 bytes, sha256 `294103b92657dcd2...` |
+
+**The PDF row is superseded, 2026-08-15 later the same day.** It was correct when
+written. Verifying the bibliography against live sources afterwards turned up a
+wrong title on `reza2025`, and fixing it at `Kodro_Dissertation.tex:1004` changed
+the document. Recompiled and re-measured:
+
+```
+Kodro_Dissertation.pdf         pages= 59 bytes=1115217 sha256=217e7a978d60f573ded832d8a57fcaa255b79d0697f4b4df845e7aecea4553da
+_build/Kodro_Dissertation.pdf  pages= 59 bytes=1115217 sha256=217e7a978d60f573ded832d8a57fcaa255b79d0697f4b4df845e7aecea4553da
+```
+
+Still 59 pages, still byte-identical across the two locations, still two passes
+at exit 0 with zero overfull boxes and zero undefined citations or references.
+The row above is left as written rather than retro-edited, for the same reason
+the list below exists. See `.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`
+and `.kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md`.
 
 Stale documents that must not be silently retro-edited, because they record what
 was measured at a past state:
@@ -254,40 +270,49 @@ references would land correctly here as well: it names Chapter 6 and Chapter 7,
 and in the candidate Evaluation is chapter 6 and Discussion and Limitations is
 chapter 7.
 
-It is still not ported, for one reason. The table's left column asserts what BCS
-publishes and how it is numbered. That assertion is worth exactly as much as the
-citation under it, and the citation cannot be checked from here. PR 3's
-`REFERENCE_AUDIT_2026-08-13.md` states the date was "corrected from 2022 to the
-document's January 2020 date" and stamps an access date of 13 August 2026. That
-is Codex's verification, performed on that branch, not one made here. Both
-`WebFetch` and `WebSearch` fail in this session with `There's an issue with the
-selected model (auto/best-free)`, so neither the accreditation PDF nor the Code
-of Conduct page could be opened to confirm a title, a date or a URL.
+**CLOSED on 2026-08-15. The table is ported and both citations are real.**
 
-Copying a bibliography entry that carries a concrete access date nobody in this
-session verified would make a citation look checked when it is not. The
-candidate's `bcscode` entry instead renders
-`\textbf{[VERIFY VERSION, URL AND ACCESS DATE BEFORE SUBMISSION]}` in the
-bibliography, which is ugly and is logged as audit LOW 13, but which is honest
-and visible. An unverified date that looks clean is worse than a visible marker
-that does not.
+The blocker written here was that "neither the accreditation PDF nor the Code of
+Conduct page could be opened to confirm a title, a date or a URL", because
+`WebFetch` and `WebSearch` fail with `There's an issue with the selected model
+(auto/best-free)`. Those two tools do still fail. The inference drawn from that
+was wrong: `curl` through the Bash tool has full network access and had simply
+never been tried on these two URLs.
 
-**This is an author decision, and it is short once bcs.org can be opened.** The
-work is pre-staged so it does not have to be re-derived:
+What the four pre-staged conditions returned:
 
-1. Open `https://www.bcs.org/media/11ofljxo/course-accreditation-guidelines.pdf`
-   and confirm the title, the publication date and that abilities are numbered
-   2.1.1 to 2.1.9 with the names PR 3's table uses.
-2. If it confirms, take the `bcs2020` bibitem and the `tab:bcsmap` block
-   verbatim from `git show
-   origin/agent/kodro-2-1-completion:docs/dissertation/Kodro_Dissertation.tex`
-   lines 729-750 and 790, insert the table after `.tex:899`, and set a real
-   access date.
-3. Separately resolve `bcscode`, which the candidate cites and which carries the
-   placeholder. The two citations can coexist: the Code of Conduct supports the
-   professional-duty sentence, the accreditation guidelines support the table.
-4. If the PDF does not confirm, the table does not go in. Prose only is a
-   defensible answer to this criterion and is what the candidate ships today.
+1. `https://www.bcs.org/media/11ofljxo/course-accreditation-guidelines.pdf`
+   returns HTTP 200, `application/pdf`, 798,814 bytes, 47 pages. Cover reads
+   `Guidelines on course accreditation` / `Information for universities and
+   colleges` / **January 2020**. Page 31 is `Section 2 / Core requirements for
+   accreditation of honours programmes` and enumerates **2.1.1 through 2.1.9**
+   with the ability wording PR 3's rows use. This independently reproduces PR
+   3's `REFERENCE_AUDIT_2026-08-13.md` rather than trusting it.
+2. Condition met, so the block was taken across, with the access date set to 15
+   August 2026, the date it was actually fetched.
+3. `bcscode` resolved separately, and **downgraded**. The Code of Conduct page
+   returns HTTP 200 and carries all four principles the candidate names at
+   `.tex:899` verbatim, but it states **no version and no date anywhere**: the
+   only `version` strings in the raw HTML belong to the analytics SDK. So
+   `(2022)` was an assertion the source does not make, and the entry now reads
+   `BCS (no date)` with a real access date. The `[VERIFY VERSION, URL AND ACCESS
+   DATE BEFORE SUBMISSION]` placeholder is gone, which closes audit LOW 13.
+4. Not reached.
+
+Two of the nine rows were **not** lifted verbatim, because each asserted
+something this document does not support. Row 2.1.6's "study consent" became
+"the planned study's consent requirements", since the candidate's ethics section
+states no study has happened and one is only planned. Row 2.1.7's "removes
+per-seat fees" became "needs no account or subscription", because `per-seat`
+occurs **zero** times in this dissertation while "no account or subscription"
+and "zero-cost" are its own words. The other seven lift unchanged, and the
+claims embedded in them were each checked here first: Chapter 6 is Evaluation,
+Chapter 7 is Discussion and Limitations, and the objectives really do run O1 to
+O10 because the second `enumerate` at `.tex:242` carries `start=7`.
+
+Full evidence, including the exact `curl` output and the build defect found
+while compiling this change, is in
+`.kodro/ca2-evidence/2026-08-15-bcs-citations-and-aux-shadowing.md`.
 
 ## 11. Actions that still require the student's explicit confirmation
 

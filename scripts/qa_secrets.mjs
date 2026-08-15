@@ -134,6 +134,44 @@ const ALLOWED_FILES = new Set([
   'scripts/qa_secrets.mjs',
 ]);
 
+// --- decoding --------------------------------------------------------------
+
+/* Reading every file as UTF-8 is what let this gate pass over a real leak.
+ * Redirecting a console on Windows writes UTF-16LE, so `C:\Users\<name>\` is
+ * stored as those characters with a NUL between each one. Decoded as UTF-8
+ * that is `C\0:\0\\0U\0...`, which no rule here matches, and the file reports
+ * clean while naming an account on every path it prints. Six tracked LaTeX
+ * console captures sat in the tree that way while this gate printed PASS.
+ *
+ * So the encoding is determined from the bytes rather than assumed. A BOM
+ * settles it outright. Without one, UTF-16 is still recognisable: half of the
+ * bytes are NUL and they all land on the same parity, which never happens in
+ * text that is actually UTF-8. */
+function decodeText(buffer) {
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+    return buffer.subarray(2).toString('utf16le');
+  }
+  if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
+    return Buffer.from(buffer.subarray(2)).swap16().toString('utf16le');
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+    return buffer.subarray(3).toString('utf8');
+  }
+  const probe = buffer.subarray(0, buffer.length - (buffer.length % 2));
+  const window = probe.subarray(0, Math.min(probe.length, 4096));
+  let evenNul = 0;
+  let oddNul = 0;
+  for (let index = 0; index < window.length; index += 1) {
+    if (window[index] !== 0) continue;
+    if (index % 2 === 0) evenNul += 1;
+    else oddNul += 1;
+  }
+  const threshold = window.length / 4;
+  if (oddNul > threshold && evenNul === 0) return probe.toString('utf16le');
+  if (evenNul > threshold && oddNul === 0) return Buffer.from(probe).swap16().toString('utf16le');
+  return buffer.toString('utf8');
+}
+
 // --- the scan --------------------------------------------------------------
 
 const findings = [];
@@ -143,7 +181,7 @@ for (const relativePath of files) {
   if (ALLOWED_FILES.has(relativePath)) continue;
   let text;
   try {
-    text = readFileSync(join(root, relativePath), 'utf8');
+    text = decodeText(readFileSync(join(root, relativePath)));
   } catch {
     continue;
   }
@@ -248,6 +286,43 @@ check('the home-path rule ignores a slash-separated word list', (() => {
   HOME_PATH.lastIndex = 0;
   return HOME_PATH.exec('a companion/home/arm module') === null;
 })(), '');
+
+/* The decoder is what the rules are only as good as. Every case below is a
+ * file this repository has actually produced: a PowerShell redirection writes
+ * UTF-16LE with a BOM, a few tools write it without one, and everything
+ * authored here is UTF-8. The leak line is fabricated, and `jdoe` is not an
+ * account on any machine. */
+const LEAK_LINE = 'Font file: C:\\Users\\jdoe\\AppData\\Local\\Programs\\MiKTeX\\lm.enc\n';
+function matchesHomePath(text) {
+  HOME_PATH.lastIndex = 0;
+  const found = HOME_PATH.exec(text);
+  return Boolean(found) && found[1] === 'jdoe';
+}
+
+check('a UTF-16LE file with a BOM is decoded before it is scanned', matchesHomePath(decodeText(
+  Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(LEAK_LINE, 'utf16le')]),
+)), '');
+
+check('a UTF-16LE file with no BOM is decoded before it is scanned', matchesHomePath(decodeText(
+  Buffer.from(LEAK_LINE, 'utf16le'),
+)), '');
+
+check('a UTF-16BE file with a BOM is decoded before it is scanned', matchesHomePath(decodeText(
+  Buffer.concat([Buffer.from([0xfe, 0xff]), Buffer.from(LEAK_LINE, 'utf16le').swap16()]),
+)), '');
+
+check('a UTF-8 file is left alone by the decoder', decodeText(Buffer.from(LEAK_LINE, 'utf8')) === LEAK_LINE, '');
+
+check('a UTF-8 file with a BOM loses only the BOM', decodeText(
+  Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(LEAK_LINE, 'utf8')]),
+) === LEAK_LINE, '');
+
+/* Reading a UTF-16 file as UTF-8 is the exact failure being guarded against,
+ * so it is asserted to fail. If this check ever passes the guard above has
+ * become pointless and should be removed rather than left as decoration. */
+check('the old UTF-8-only read would have missed it', !matchesHomePath(
+  Buffer.from(LEAK_LINE, 'utf16le').toString('utf8'),
+), '');
 
 // --- result ----------------------------------------------------------------
 

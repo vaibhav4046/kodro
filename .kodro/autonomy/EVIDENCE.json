@@ -1,132 +1,176 @@
 {
-  "schema": "kodro-evidence/1",
-  "generated_for_commit": "93fec9596fe26863d88dd4674254e775757f25ae",
-  "authoritative_repo": "D:\\project\\robolearn",
-  "origin": "github.com/vaibhav4046/robolearn",
-  "branches_synced_at_product_commit": [
-    "main",
-    "kodro-identity-pass",
-    "origin/main",
-    "origin/kodro-identity-pass"
-  ],
-  "live": {
-    "url": "https://vaibhav4046.github.io/robolearn/",
-    "http_status": 200,
-    "ci": {
-      "status": "success",
-      "run_id": 29537982283,
-      "url": "https://github.com/vaibhav4046/robolearn/actions/runs/29537982283",
-      "platforms": ["windows-latest", "macos-latest", "ubuntu-latest"]
-    },
-    "deploy_pages": {
-      "status": "success",
-      "run_id": 29538259855,
-      "url": "https://github.com/vaibhav4046/robolearn/actions/runs/29538259855"
-    },
-    "assets": {
-      "bundle.js": {
-        "bytes": 1103091,
-        "sha256": "8c3417345b3c8caf220baa15d9ddcdb62856a20e12d18d0fba2999119ed3f8fb",
-        "committed_matches_live": true
-      },
-      "styles.css": {
-        "bytes": 121644,
-        "sha256": "3ca2099a24a5f5a713a2708679179e6524bca99d8d3230014f7cff5583801611",
-        "committed_matches_live": true
-      }
-    }
+ "schema": "kodro-evidence/1",
+ "generated_for_commit": "93fec9596fe26863d88dd4674254e775757f25ae",
+ "authoritative_repo": "D:\\project\\robolearn",
+ "origin": "github.com/vaibhav4046/robolearn",
+ "branches_synced_at_product_commit": [
+  "main",
+  "kodro-identity-pass",
+  "origin/main",
+  "origin/kodro-identity-pass"
+ ],
+ "live": {
+  "url": "https://vaibhav4046.github.io/robolearn/",
+  "http_status": 200,
+  "ci": {
+   "status": "success",
+   "run_id": 29537982283,
+   "url": "https://github.com/vaibhav4046/robolearn/actions/runs/29537982283",
+   "platforms": [
+    "windows-latest",
+    "macos-latest",
+    "ubuntu-latest"
+   ]
   },
-  "product_release": {
-    "journey": "Design -> Prove -> Build",
-    "hosted_build": "deterministic local prototype brief; no certification, supplier validation, ordering, or exact physical-equivalence claim",
-    "companion": "Create, Explain, and Check actions with deterministic fallbacks; optional local model adapter",
-    "store_lifecycle": "all owned SQLite handles closed across worker threads and covered by regression tests"
+  "deploy_pages": {
+   "status": "success",
+   "run_id": 29538259855,
+   "url": "https://github.com/vaibhav4046/robolearn/actions/runs/29538259855"
   },
-  "gate_matrix": {
-    "python_local": "1069 passed; 88.96% coverage; zero ResourceWarnings in the release run",
-    "store_regression": "19 passed with ResourceWarning promoted to error",
-    "ruff": "clean",
-    "ruff_format": "clean on 142 files",
-    "mypy": "66 source files clean",
-    "wheel": "robolearn-2.0.0-py3-none-any.whl built",
-    "qa_interpreter": "180/0",
-    "qa_grader": "34/0",
-    "qa_physics": "20/0",
-    "qa_ai_web": "27/0",
-    "qa_parts": "40/0",
-    "qa_memgraph": "22/0",
-    "qa_pupilstore": "23/0",
-    "qa_scenario_parity": "4/0",
-    "qa_interp_fixes": "13/0",
-    "qa_honesty": "91/0",
-    "qa_contrast": "61/0 across 10 themes",
-    "qa_web": "5/5 including real-Chrome boot, studio mount, clean console, and privacy-zero-external",
-    "qa_ui_local": "timed out after 904 seconds with no buffered assertions on the degraded local headless Chrome/SwiftShader host; not counted as pass",
-    "direct_visual": "desktop Design/Prove/Build journey and Build dialog inspected locally at 1280x720 with no horizontal overflow"
-  },
-  "convergence": {
-    "counter": 0,
-    "rounds_run": 14,
-    "latest_round": "R14 accepted two real P2/P3 defects; both fixed",
-    "declared_complete": false,
-    "note": "The release is green and deployed, but the historical two-clean-round convergence condition has not been reached."
-  },
-  "academic": {
-    "dissertation_revision_status": "not started in this product-direction checkpoint",
-    "checkpoint_required": true,
-    "known_external_steps_not_done": ["teacher study with real participants", "Turnitin", "executable signing"]
-  },
-  "superseding_measurement": {
-    "measured_on": "2026-08-14",
-    "commit": "2222e1e865105e2105cce1f1c9932736c0da87f8",
-    "branch": "agent/kodro-ca2-candidate",
-    "relationship_to_the_snapshot_above": "Everything above is the 93fec95 snapshot and is left exactly as it was written. It is not edited, because a faithful full regeneration is impossible on this host: the wheel row needs hatchling, and hatchling is not installed and cannot be fetched offline. Rewriting nineteen rows and leaving the twentieth stale would produce an artefact that looks current and is not. Where a row below contradicts a row above, this section is the later measurement and wins.",
-    "no_generator": "This file has no generator script. git grep -ln 'autonomy/EVIDENCE' over scripts, tools and src returns nothing. It is maintained by hand, which is why it drifted.",
-    "re_measured_at_this_commit": {
-      "ruff": "All checks passed",
-      "ruff_format": "167 files already formatted",
-      "mypy": "no issues found in 73 source files",
-      "qa_interpreter": "180/0",
-      "qa_grader": "55/0",
-      "qa_physics": "25/0",
-      "qa_ai_web": "51/0",
-      "qa_parts": "40/0",
-      "qa_memgraph": "22/0",
-      "qa_pupilstore": "23/0",
-      "qa_scenario_parity": "8/0",
-      "qa_interp_fixes": "13/0",
-      "qa_honesty": "121/0",
-      "qa_voice": "108/0",
-      "qa_secrets": "27/0, 477 of 779 tracked files read against 13 credential rules",
-      "qa_learning_annotations": "28/0",
-      "qa_encoding": "10/0 across 406 files, 100 protected characters"
-    },
-    "re_measured_earlier_in_this_pass": {
-      "python_local": "1,639 collected, 1,638 passed, 1 skipped, 90.90 percent branch-aware coverage against an 85 percent gate; artefact docs/eval/test_suite.json at commit aa174cf with a clean working tree. The skip is a Tk display dependency.",
-      "python_local_host_note": "pytest fails on this host with PermissionError WinError 5 on the pytest-of-lalwa temp root unless --basetemp is passed. That is a harness condition, not a product failure, and it is why the recorded command carries a --basetemp placeholder.",
-      "qa_ui_local": "now a real pass, not a timeout: 325 seconds wall clock, exit 0, nine flows PASS, 41 of 41 behaviour or layout assertions. This is the single largest correction to the matrix above.",
-      "qa_contrast": "61/0 across 10 themes",
-      "test_mcp_server": "66 passed",
-      "mcp_live_session": "initialize returned kodro 2.0.0; tools/list returned 8 tools; resources/list returned 25 resources, all counted at run time",
-      "smoke_mcp": "scripts/smoke_mcp.sh and scripts/smoke_mcp.ps1 each report 2 of 2 entry points clean with no --entry restriction, 14 checks per entry point, including a byte-exact non-ASCII round trip. Both cover the kodro-mcp console script and python -m robolearn.mcp. Re-measured at this commit.",
-      "console_script_note": "kodro-mcp is installed as robolearn.mcp.server:main exactly as pyproject declares. Separately, the installed kodro script still resolves to robolearn.bench:main while pyproject declares robolearn.__main__:main; that is stale install metadata from before hatchling went missing, it clears on the next real install, and it does not touch the MCP path.",
-      "qa_performance": "software-rasterised medians 25.7 FPS low quality and 24.4 high, three samples per tier, verdict MEASURED",
-      "export_lessons": "regenerates byte-identical JSON, sha256 f1167f28...; 24 lessons, 3 KS1, 4 KS2, 9 KS3, 8 KS4",
-      "build_web_check": "bundle.js is up to date"
-    },
-    "assets_now": {
-      "bundle.js": {"bytes": 1502665, "sha256": "17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174"},
-      "styles.css": {"bytes": 172179, "sha256": "ac7c9050cbd7b06e2814366ed6c6cc8d868ec10a75ecdaeb0814ba789ba45e0d"},
-      "note": "The live block above describes the July GitHub Pages deployment of the kodro-identity-pass line. Its hashes are historical. Nothing on the candidate branch has been deployed, so committed_matches_live is not a statement anyone can make about these two files today."
-    },
-    "not_re_measured": {
-      "wheel": "blocked offline, hatchling absent. The July row stands unverified rather than re-asserted.",
-      "store_regression": "not run in isolation with ResourceWarning promoted to error in this pass; the store tests ran inside the full suite.",
-      "qa_web": "not re-run in this pass. The July 5/5 real-Chrome result is not restated as current.",
-      "direct_visual": "not re-run in this pass.",
-      "qa_personas_and_qa_vibe": "both exit 0 with no local model present and produce no data. They are honest skips and must never be counted as passes.",
-      "hardware_renderer_figures": "the 144.5 and 128.2 FPS medians are from a 27 July artefact on a different graphics path and are not current."
-    },
-    "lint_regression_found_and_closed": "ruff check reported 7 errors and ruff format reported 4 unformatted files on this branch while the matrix above claimed both clean. All seven were in files added or edited during this release pass. Fixed in commit 2222e1e, with the reformat of the shipped src/robolearn/mcp/tools.py proved inert by 97 passing tests and two real-subprocess smoke runs."
+  "assets": {
+   "bundle.js": {
+    "bytes": 1103091,
+    "sha256": "8c3417345b3c8caf220baa15d9ddcdb62856a20e12d18d0fba2999119ed3f8fb",
+    "committed_matches_live": true
+   },
+   "styles.css": {
+    "bytes": 121644,
+    "sha256": "3ca2099a24a5f5a713a2708679179e6524bca99d8d3230014f7cff5583801611",
+    "committed_matches_live": true
+   }
   }
+ },
+ "product_release": {
+  "journey": "Design -> Prove -> Build",
+  "hosted_build": "deterministic local prototype brief; no certification, supplier validation, ordering, or exact physical-equivalence claim",
+  "companion": "Create, Explain, and Check actions with deterministic fallbacks; optional local model adapter",
+  "store_lifecycle": "all owned SQLite handles closed across worker threads and covered by regression tests"
+ },
+ "gate_matrix": {
+  "python_local": "1069 passed; 88.96% coverage; zero ResourceWarnings in the release run",
+  "store_regression": "19 passed with ResourceWarning promoted to error",
+  "ruff": "clean",
+  "ruff_format": "clean on 142 files",
+  "mypy": "66 source files clean",
+  "wheel": "robolearn-2.0.0-py3-none-any.whl built",
+  "qa_interpreter": "180/0",
+  "qa_grader": "34/0",
+  "qa_physics": "20/0",
+  "qa_ai_web": "27/0",
+  "qa_parts": "40/0",
+  "qa_memgraph": "22/0",
+  "qa_pupilstore": "23/0",
+  "qa_scenario_parity": "4/0",
+  "qa_interp_fixes": "13/0",
+  "qa_honesty": "91/0",
+  "qa_contrast": "61/0 across 10 themes",
+  "qa_web": "5/5 including real-Chrome boot, studio mount, clean console, and privacy-zero-external",
+  "qa_ui_local": "timed out after 904 seconds with no buffered assertions on the degraded local headless Chrome/SwiftShader host; not counted as pass",
+  "direct_visual": "desktop Design/Prove/Build journey and Build dialog inspected locally at 1280x720 with no horizontal overflow"
+ },
+ "convergence": {
+  "counter": 0,
+  "rounds_run": 14,
+  "latest_round": "R14 accepted two real P2/P3 defects; both fixed",
+  "declared_complete": false,
+  "note": "The release is green and deployed, but the historical two-clean-round convergence condition has not been reached."
+ },
+ "academic": {
+  "dissertation_revision_status": "not started in this product-direction checkpoint",
+  "checkpoint_required": true,
+  "known_external_steps_not_done": [
+   "teacher study with real participants",
+   "Turnitin",
+   "executable signing"
+  ]
+ },
+ "superseding_measurement": {
+  "measured_on": "2026-08-14",
+  "commit": "2222e1e865105e2105cce1f1c9932736c0da87f8",
+  "branch": "agent/kodro-ca2-candidate",
+  "relationship_to_the_snapshot_above": "Everything above is the 93fec95 snapshot and is left exactly as it was written. It is not edited, because a faithful full regeneration is impossible on this host: the wheel row needs hatchling, and hatchling is not installed and cannot be fetched offline. Rewriting nineteen rows and leaving the twentieth stale would produce an artefact that looks current and is not. Where a row below contradicts a row above, this section is the later measurement and wins.",
+  "no_generator": "This file has no generator script. git grep -ln 'autonomy/EVIDENCE' over scripts, tools and src returns nothing. It is maintained by hand, which is why it drifted.",
+  "re_measured_at_this_commit": {
+   "ruff": "All checks passed",
+   "ruff_format": "167 files already formatted",
+   "mypy": "no issues found in 73 source files",
+   "qa_interpreter": "180/0",
+   "qa_grader": "55/0",
+   "qa_physics": "25/0",
+   "qa_ai_web": "51/0",
+   "qa_parts": "40/0",
+   "qa_memgraph": "22/0",
+   "qa_pupilstore": "23/0",
+   "qa_scenario_parity": "8/0",
+   "qa_interp_fixes": "13/0",
+   "qa_honesty": "121/0",
+   "qa_voice": "108/0",
+   "qa_secrets": "27/0, 477 of 779 tracked files read against 13 credential rules",
+   "qa_learning_annotations": "28/0",
+   "qa_encoding": "10/0 across 406 files, 100 protected characters"
+  },
+  "re_measured_earlier_in_this_pass": {
+   "python_local": "1,639 collected, 1,638 passed, 1 skipped, 90.90 percent branch-aware coverage against an 85 percent gate; artefact docs/eval/test_suite.json at commit aa174cf with a clean working tree. The skip is a Tk display dependency.",
+   "python_local_host_note": "pytest fails on this host with PermissionError WinError 5 on the pytest-of-lalwa temp root unless --basetemp is passed. That is a harness condition, not a product failure, and it is why the recorded command carries a --basetemp placeholder.",
+   "qa_ui_local": "now a real pass, not a timeout: 325 seconds wall clock, exit 0, nine flows PASS, 41 of 41 behaviour or layout assertions. This is the single largest correction to the matrix above.",
+   "qa_contrast": "61/0 across 10 themes",
+   "test_mcp_server": "66 passed",
+   "mcp_live_session": "initialize returned kodro 2.0.0; tools/list returned 8 tools; resources/list returned 25 resources, all counted at run time",
+   "smoke_mcp": "scripts/smoke_mcp.sh and scripts/smoke_mcp.ps1 each report 2 of 2 entry points clean with no --entry restriction, 14 checks per entry point, including a byte-exact non-ASCII round trip. Both cover the kodro-mcp console script and python -m robolearn.mcp. Re-measured at this commit.",
+   "console_script_note": "kodro-mcp is installed as robolearn.mcp.server:main exactly as pyproject declares. Separately, the installed kodro script still resolves to robolearn.bench:main while pyproject declares robolearn.__main__:main; that is stale install metadata from before hatchling went missing, it clears on the next real install, and it does not touch the MCP path.",
+   "qa_performance": "software-rasterised medians 25.7 FPS low quality and 24.4 high, three samples per tier, verdict MEASURED",
+   "export_lessons": "regenerates byte-identical JSON, sha256 f1167f28...; 24 lessons, 3 KS1, 4 KS2, 9 KS3, 8 KS4",
+   "build_web_check": "bundle.js is up to date"
+  },
+  "assets_now": {
+   "bundle.js": {
+    "bytes": 1502665,
+    "sha256": "17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174"
+   },
+   "styles.css": {
+    "bytes": 172179,
+    "sha256": "ac7c9050cbd7b06e2814366ed6c6cc8d868ec10a75ecdaeb0814ba789ba45e0d"
+   },
+   "note": "The live block above describes the July GitHub Pages deployment of the kodro-identity-pass line. Its hashes are historical. Nothing on the candidate branch has been deployed, so committed_matches_live is not a statement anyone can make about these two files today."
+  },
+  "not_re_measured": {
+   "wheel": "blocked offline, hatchling absent. The July row stands unverified rather than re-asserted.",
+   "store_regression": "not run in isolation with ResourceWarning promoted to error in this pass; the store tests ran inside the full suite.",
+   "qa_web": "not re-run in this pass. The July 5/5 real-Chrome result is not restated as current.",
+   "direct_visual": "not re-run in this pass.",
+   "qa_personas_and_qa_vibe": "both exit 0 with no local model present and produce no data. They are honest skips and must never be counted as passes.",
+   "hardware_renderer_figures": "the 144.5 and 128.2 FPS medians are from a 27 July artefact on a different graphics path and are not current."
+  },
+  "lint_regression_found_and_closed": "ruff check reported 7 errors and ruff format reported 4 unformatted files on this branch while the matrix above claimed both clean. All seven were in files added or edited during this release pass. Fixed in commit 2222e1e, with the reformat of the shipped src/robolearn/mcp/tools.py proved inert by 97 passing tests and two real-subprocess smoke runs."
+ },
+ "superseding_measurement_2026_08_15": {
+  "measured_on": "2026-08-15",
+  "branch": "agent/kodro-ca2-candidate",
+  "relationship_to_the_sections_above": "Later than superseding_measurement and wins over it on any row it names. Same rule, same reason: the sections above are left exactly as written because they record what was true when measured.",
+  "secret_gate_defect_found_and_closed": {
+   "what": "scripts/qa_secrets.mjs read every file as UTF-8. PowerShell redirection writes UTF-16LE, in which C:/Users/<name>/ is stored with a NUL between every character, so no rule matched and the file reported clean. All thirteen credential rules and the home-path rule were blind to any UTF-16 file.",
+   "what_it_hid": "Six tracked pdflatex console captures under docs/dissertation (compile1, compile2, doi_compile1, doi_compile2, final_compile1, final_compile2) each named the local Windows account on 20 distinct paths. The repository is public.",
+   "proof": "Same HOME_PATH regex, same file: utf8 decode gives 0 matches, utf16le decode gives 20 matches with account 'lalwa'.",
+   "gate_before": "27/0, 477 of 779 tracked files read against 13 credential rules. Green over a real leak.",
+   "gate_with_fix_before_cleanup": "1 failed, 32 passed. 534 findings across the six files.",
+   "gate_after_cleanup": "33/0, 471 of 773 tracked files read against 13 credential rules.",
+   "fix": "Encoding is now sniffed from the bytes (BOM, else NUL parity). Six self-checks added, including one asserting the old UTF-8-only read would have missed it. .gitignore gained docs/dissertation/*compile*.txt. The six files were removed from the index with git rm --cached and remain on disk.",
+   "sweep": "Whole tracked tree re-swept with the gate's own binary filter: 471 non-binary tracked files, 0 UTF-16 text files remaining.",
+   "still_open_and_author_owned": "git rm --cached stops republication; it does not remove the files from commits already pushed to the public remote. Rewriting published history is irreversible and is not an agent decision. The disclosed value is a Windows account name, not a credential, so nothing needs rotating.",
+   "evidence": ".kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md"
+  },
+  "dissertation_now": {
+   "pdf": "59 pages, 1115217 bytes, sha256 217e7a978d60f573ded832d8a57fcaa255b79d0697f4b4df845e7aecea4553da. Byte-identical between docs/dissertation/ and docs/dissertation/_build/.",
+   "supersedes": "The 1115505 / 294103b92657dcd2 hash recorded in .kodro/ca2-evidence/2026-08-15-bcs-citations-and-aux-shadowing.md and .kodro/autonomy/CA2_RECONCILIATION.md:109. Correct when written; the reza2025 bibliography fix changed the document afterwards.",
+   "compile": "Two passes, both EXIT=0. 7 LaTeX warnings, all h float specifier changed to ht. 0 overfull, 0 undefined citations, 0 undefined references.",
+   "warnings_none_was_false": "The 'warnings: none' line in 2026-08-15-bcs-citations-and-aux-shadowing.md was never measured. It came from grepping a UTF-16 log with a byte-oriented tool, which finds nothing in such a file whatever it contains. Decoded correctly that same log held 3 h-float warnings. Same root cause as the gate defect above."
+  },
+  "bibliography_verified": {
+   "result": "26 of 26 entries checked against live sources. 14 arXiv DOIs via DataCite, 3 Crossref DOIs, 9 URL fetches, 1 print source with no URL. All resolved 200. All DOI titles match the .tex after one fix.",
+   "defect_found_and_fixed": "reza2025 carried 'teacher-centric' where the paper says 'educator-centric' and 'using RAG and CAG' where it says 'with RAG and CAG'. Fixed at Kodro_Dissertation.tex:1004. Author list and both body citations were checked separately and were already correct.",
+   "supersedes": "Four documents asserted this check was impossible 'because this machine is offline by design'. That was inferred from WebFetch failing and was never measured. curl through the Bash tool has full network access.",
+   "evidence": ".kodro/ca2-evidence/2026-08-15-bibliography-verification.md"
+  },
+  "still_not_re_measured": "Everything listed in superseding_measurement.not_re_measured remains not re-measured: wheel (hatchling absent offline), store_regression in isolation, qa_web, direct_visual, and the full Python suite at this HEAD. qa_personas and qa_vibe still produce no data without a local model and are still not passes."
+ }
 }
