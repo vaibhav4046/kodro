@@ -1,0 +1,21 @@
+# Waivers for scripts/qa_citations.py.
+#
+# Format:  <citing-file>:<line>   # reason
+#      or  <citing-file>          # reason   (waives the whole document)
+#
+# A waiver is a statement that a citation which looks wrong is actually right,
+# so every entry needs a reason a reader can check. Two situations qualify.
+# First, a document that is explicitly historical: its line numbers described a
+# past commit and are not expected to resolve against the current tree. Second,
+# a document that quotes a known-bad citation on purpose, as an example of the
+# defect. Nothing else belongs here. If a citation is simply wrong, fix the
+# citation.
+#
+# Whole-file waivers are a coverage hole by construction: they also silence
+# every citation added to that file later. The gate prints them on every run so
+# the hole stays visible. Prefer a line waiver unless the whole document is
+# genuinely historical.
+
+docs/KODRO_JUDGE_VERDICT.md  # Superseded snapshot. The banner at the top of the file states that every measurement, line number, score and priority in it describes commit 541941d on 11 July 2026, so its anchors are expected to have drifted. Read as history.
+
+docs/dissertation/CA2_INTEGRITY_AUDIT_2026-08-14.md:338  # Quotes a citation that landed on a bare > as the worked example of why range is not correctness. The bad anchor is the thing being demonstrated.

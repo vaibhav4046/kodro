@@ -15,6 +15,20 @@ qa_ui behaviour and modal totals had all grown, and the lesson count still read
 18. They have grown well beyond the v2.0.2 baseline in ACCEPTANCE.md, which is
 itself now stamped as a dated snapshot rather than a live figure.
 
+Rows 8 and 9 gained their flags on 15 August 2026. Both gates need a fixture:
+headless Chrome, `cap.html` built by `node scripts/build_screenshot_harness.cjs`,
+and `src/robolearn/assets/web` served on `:8099` by `python -m http.server 8099`.
+Without it each one prints SKIP and exits 0, which is the documented default so a
+GPU-less box never breaks a pipeline. That default is wrong for this table: a row
+here pairs a command with an exact expected total, so an agent running the bare
+command with no fixture gets a success exit, no total, and nothing telling it the
+sweep never ran. `qa_worlds.mjs` says so in its own header and ships `--strict`
+(or `KODRO_QA_WORLDS_REQUIRED=1`) for the case where the total is quoted as
+evidence; `qa_ui.mjs` uses `KODRO_QA_UI_REQUIRED=1` and has no flag form. The
+Reproduce column now carries the opt-in on both. `docs/ACCEPTANCE.md` row 8
+already named the fixture and was the model for this fix. Nothing about either
+gate or its counts changed.
+
 Legend: DELIVERED = implemented + gated/verified; DISCLOSED = intentional,
 documented limitation; N/R = not required by the brief.
 
@@ -29,8 +43,8 @@ documented limitation; N/R = not required by the brief.
 | 5 | Simulation physics unit gate | `node scripts/qa_physics.mjs` | 25 passed, 0 failed (was 20) | DELIVERED |
 | 6 | AI facade unit gate | `node scripts/qa_ai_web.mjs` | 51 passed, 0 failed (was 27) | DELIVERED |
 | 7 | Static web boot + privacy | `node scripts/qa_web.mjs` | 5/5 checks incl. privacy-zero-external + studio-mount | DELIVERED |
-| 8 | World/site render sweep | `node scripts/qa_worlds.mjs` | 61 passed, 0 failed | DELIVERED |
-| 9 | UI smoke + modal coverage | `node scripts/qa_ui.mjs` | 6/6 flows, 47/47 behaviour or layout, 13/13 modals (was 38/38 and 12/12) | DELIVERED |
+| 8 | World/site render sweep | `node scripts/qa_worlds.mjs --strict` (needs the fixture below) | 61 passed, 0 failed | DELIVERED |
+| 9 | UI smoke + modal coverage | `KODRO_QA_UI_REQUIRED=1 node scripts/qa_ui.mjs` (needs the fixture below) | 6/6 flows, 47/47 behaviour or layout, 13/13 modals (was 38/38 and 12/12) | DELIVERED |
 | 10 | Python suite + coverage gate | `python -m pytest` | 1638 passed, 1 skipped, coverage 90.9% against the 85% gate, recorded in `docs/eval/test_suite.json` at commit `aa174cf` | DELIVERED |
 | 11 | Lint, format, types | ruff check / ruff format --check / mypy | green on touched code | DELIVERED |
 | 12 | Offline web guard alone | `pytest tests/unit/test_web_offline.py` | passes standalone | DELIVERED |

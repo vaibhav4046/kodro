@@ -315,15 +315,45 @@ complete rounds. When the loop produces findings, refute any that rest on a
 headless artifact (city collision / blank render) and fix only source-grounded
 real defects. Deliver the final report at convergence (or at a user-set cutoff).
 
-**Superseded, 2026-08-15. Do not quote the numbers below as current.** Five of
-them have moved since this checkpoint was written, because gates gained checks:
-qa_honesty is now 121, qa_contrast 61, qa_grader 55, qa_ui 66, qa_scenario_parity
-8. Four are unchanged and still hold: qa_interpreter 180, qa_worlds 61,
-qa_pupilstore 23, qa_web 5/5. The rest were not re-run in the CA2 pass and are
-neither confirmed nor refuted here. The authoritative record of what was run on
-what day is `docs/eval/qa_gate_runs_2026-08-14.md`, and the machine-emitted
-totals are in `docs/eval/test_suite.json`. Earlier counts are kept below as
-historical round checkpoints, the same convention used further up this file.
+**Superseded, 2026-08-15. Do not quote the numbers below as current.** All
+fourteen were re-checked. Seven have moved, because the gates gained checks:
+qa_honesty 63 to 121, qa_contrast 51 to 61, qa_grader 34 to 55, qa_ui 38/38 to
+66 (6 flows, 47 behaviour or layout, 13 modals), qa_scenario_parity 4 to 8,
+qa_physics 20 to 25, qa_ai_web 27 to 51. Seven are unchanged and still hold:
+qa_interpreter 180, qa_worlds 61, qa_pupilstore 23, qa_web 5/5, qa_parts 40,
+qa_memgraph 22, qa_interp_fixes 13. Seven and seven accounts for the whole list,
+so there is no residue of gates that were left unmeasured.
+
+An earlier version of this paragraph said five had moved, four held and "the
+rest were not re-run in the CA2 pass and are neither confirmed nor refuted".
+That undercounted. It left qa_physics and qa_ai_web labelled unrefuted when both
+were known to have moved, in a file whose purpose is to instruct the next agent,
+which is the worst place to understate what is known.
+
+Provenance, because a tally is only as good as the run behind it. Every figure
+above was measured on 15 August 2026; none is inherited from an earlier record.
+qa_physics 25, qa_ai_web 51, qa_parts 40, qa_memgraph 22, qa_interp_fixes 13 and
+qa_contrast 61 (0 failed, over 10 themes) were re-run live at commit `ca91ae6`,
+all rc=0. qa_honesty 121, qa_interpreter 180, qa_web 5/5, qa_grader 55,
+qa_scenario_parity 8 and qa_ui 66 were run earlier in the same session.
+qa_worlds 61 was
+re-run under `--strict` on 15 August and is measured, not inherited, but it took
+two attempts. The first returned 60 passed 1 failed on `underwater x home` with
+`chrome spawn failed: spawnSync ... ETIMEDOUT`, while five other Node gates and
+a Chrome sweep were running concurrently on the same box. That is the
+load-related harness flake `docs/GPT_HANDOFF.md:34` warns about, on the line
+beginning "Known traps to write into the prompt verbatim" ("qa_ui/qa_worlds can
+flake with chrome spawn timeouts under heavy load"). Re-run alone on an idle
+machine it printed `WORLD SWEEP RESULT: 61 passed, 0 failed` with `GATE_RC=0`.
+No threshold was changed and no case was removed to get there; the load was.
+Note also that the first run's *task* exit code was 0 while the gate itself
+printed `worlds strict EXIT=1`, so read the printed RESULT line, never the
+wrapper's status.
+
+The authoritative record of what was run on what day is
+`docs/eval/qa_gate_runs_2026-08-14.md`, and the machine-emitted totals are in
+`docs/eval/test_suite.json`. Earlier counts are kept below as historical round
+checkpoints, the same convention used further up this file.
 
 Gate counts at this checkpoint: qa_honesty 63, qa_contrast 51, qa_web 5/5,
 qa_ui 38/38, qa_worlds 61, qa_interpreter 180, qa_grader 34, qa_physics 20,

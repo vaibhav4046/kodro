@@ -314,12 +314,34 @@ Note that this is an understatement, not an inflation. The gate is stronger than
 
 No authoritative COMP702 brief exists anywhere in the repository. Every statement of the limit is either the author's own note to a tool, or a derivation in a previous audit:
 
-- `docs/GPT_HANDOFF.md:34`: "EXACTLY 50 pages (hard limit)". This is a prompt written by the author, not a brief.
-- `docs/HANDOFF_GPT56_COMPLETE.md:17`, `:60`, `:303`, `:372`: repeat "max 50 pages" and "exactly 50 pages".
-- `.kodro/autonomy/STATE.md:162`: "EXACTLY 50 pages".
+- `docs/GPT_HANDOFF.md:40`: "EXACTLY 50 pages (hard limit)". This is a prompt written by the author, not a brief.
+- `docs/HANDOFF_GPT56_COMPLETE.md:17`, `:60`, `:309`, `:378`: repeat "max 50 pages" and "exactly 50 pages".
+- `.kodro/autonomy/STATE.md:276`: "EXACTLY 50 pages".
 - `.kodro/autonomy/DISSERTATION_TRACEABILITY.md:46`: "the established ~50-page design (no larger target set by the ...)".
-- `docs/dissertation/DIAGNOSTIC_2026-08-14.md:30`: "The module limit is 50 pages *excluding the appendix*". No source cited.
-- `docs/dissertation/INTEGRITY_AUDIT_2026-07-17.md:15`: "The 50-page limit applies to the body". No source cited.
+- `docs/dissertation/DIAGNOSTIC_2026-08-14.md:58`: "The module limit is 50 pages *excluding the appendix*". No source cited.
+- `docs/dissertation/INTEGRITY_AUDIT_2026-07-17.md:15` used to state "The 50-page limit applies to the body, so the current margin is 3 pages", with no source cited. That cell was rewritten on 15 August 2026 and now withdraws the body and appendix split instead of asserting it, on the ground that the split was never re-derived at the current page count. The July audit therefore no longer states the limit at all.
+
+Five of the six line numbers in the list above were corrected on 15 August 2026,
+and one entry was rewritten because the sentence it quoted no longer exists.
+Every one of them resolved to the right line at `3fdebb4`, the commit that added
+this section, so none was wrong when written. They drifted because later commits
+inserted text higher up each file, including the dated staleness disclaimers
+added to the handoff documents on 15 August. The shifts were `GPT_HANDOFF` 34 to
+40, `HANDOFF_GPT56_COMPLETE` 303 to 309 and 372 to 378, `STATE` 162 to 276, and
+`DIAGNOSTIC_2026-08-14` 30 to 58. `HANDOFF_GPT56_COMPLETE:17` and `:60`,
+`DISSERTATION_TRACEABILITY:46` and the `.tex` citation sit above their files'
+insertion points and never moved.
+
+The citation scan reports these as found and in range, because a drifted number
+still lands on a line that exists. In range is not the same as correct: before
+this fix, `STATE.md:162` pointed at a sentence about a deployed commit hash and
+`DIAGNOSTIC_2026-08-14.md:30` pointed at a bare `>`. The scan cannot catch that,
+so any commit that inserts lines into a cited file has to re-resolve the
+citations pointing into it by content, not by exit code.
+
+None of this changes the finding. The July audit withdrawing its own statement of
+the split removes one more piece of apparent repository evidence for the limit,
+which makes the conclusion below stronger rather than weaker.
 - `.tex:113`, on the title page: "The body of this dissertation ends before the appendices, which are excluded from the fifty-page limit." This is the author asserting the rule inside the document being measured against it. It is not independent evidence.
 
 **The limit could not be confirmed from repository evidence. Only the student can confirm it from the current Canvas brief.** No public COMP702 web page was consulted and none would be authoritative here.

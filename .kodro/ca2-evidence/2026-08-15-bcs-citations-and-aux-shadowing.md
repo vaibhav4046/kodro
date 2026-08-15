@@ -170,8 +170,9 @@ was true when written and it is the record of that state.
 
 `_build/current/Kodro_Dissertation.pdf` is a **50**-page snapshot, last touched
 by commit `ac381c6`. Its aux does not contain `bcs2020`, so it predates this
-work. The canonical PDF is **59** pages against `docs/GPT_HANDOFF.md:34`, which
-says "EXACTLY 50 pages (hard limit)".
+work. The canonical PDF is **59** pages against `docs/GPT_HANDOFF.md:40` (the
+line beginning "- File: docs/dissertation/Kodro_Dissertation.tex"), which says
+"EXACTLY 50 pages (hard limit)".
 
 The table did not cause this. The PDF was 59 pages before the edit (sha
 `5344b0aa`) and is 59 pages after: the nine rows absorbed into existing
@@ -182,9 +183,78 @@ has seen the brief. `docs/ca2/CLAIM_LEDGER.md` item 8 forbids stating the page
 limit as settled, and that stands.
 
 Added 15 August, later the same day: "48 body pages" above counts the References
-section as body, which is what `CA2_INTEGRITY_AUDIT_2026-08-14.md:235` means by
+section as body, which is what `CA2_INTEGRITY_AUDIT_2026-08-14.md:360` (the row
+`| Body only, Chapter 1 through References | 48 printed pages |`) means by
 "Chapter 1 through References". Excluding references the body is 46, because
 references occupy printed pages 47 and 48. Stating 48 without saying which of
 the two it is had already produced a wrong row in `docs/ca2/BRIEF_VERIFIED.md`
 and a wrong line in `docs/ca2/FINAL_CHECKLIST.md`, both corrected. The three
 readings and the conclusion are unaffected.
+
+Both line numbers in this file were re-resolved on 15 August 2026 and both had
+drifted. `GPT_HANDOFF.md:34` became `:40` when a dated staleness disclaimer was
+inserted above it earlier the same day. `CA2_INTEGRITY_AUDIT_2026-08-14.md:235`
+became `:360` across three later commits, `ebe629e`, `c0e6382` and `ca91ae6`,
+plus the HIGH 4 rewrite in this same batch. Both were correct at the commit that
+wrote them, `0ef8436`, so neither was wrong when written. Both now carry the
+quoted line beside the number, because a drifted citation still lands on a line
+that exists and the repository citation scan therefore reports it as found and in
+range. Range is not correctness. Cite by content as well as by number, and
+re-resolve inbound citations after any commit that inserts lines into a cited
+file.
+
+## The check is now a tracked gate, and the old figure was wrong
+
+Added 15 August 2026. Everything above was found by hand or by a throwaway
+script in a temp directory. The repository had no citation checker of any kind:
+`git ls-files | grep -i -E "cite|citation"` returned only this evidence file,
+and `ls scripts/` had nothing matching either. Earlier in the same working
+session a range-only sweep reported roughly 140 citations with 138 in range,
+but that came from a command typed at a prompt and was never written into any
+tracked file, so there is no stale figure in the repository to correct. The
+problem was the opposite one: a check that had been run and quoted in
+conversation, with nothing in the tree that would let anyone run it again.
+
+There is now `scripts/qa_citations.py` with `scripts/qa_citations_allow.txt`.
+Run it with `python scripts/qa_citations.py`. It resolves every `path:line` in
+tracked Markdown, hard-fails on a target that is untracked or past end of file,
+and separately reports anchors that are blank or nothing but a brace, plus paths
+that are ambiguous across tracked files. Current result:
+
+    PASS  citations: 146 found across 107 documents, 0 unresolvable,
+          0 needing review, 39 waived (1 by line, 1 by file)
+
+Three things about that number are worth writing down.
+
+It is 146, not 100, and not 140. The ad-hoc scan I ran on 15 August counted 100
+because its extension list omitted `jsx`, so the `hooks.jsx` citation at line
+1220 and every other `.jsx` citation fell outside the regex entirely. `git grep -o -E
+'[A-Za-z0-9_./-]+\.jsx:[0-9]+' -- '*.md' | wc -l` returns 46, and 100 plus 46 is
+146 exactly. So last pass's "content-aware sweep clean" covered 100 of 146
+citations and never looked at the other 46. A sweep that skips a file class and
+reports clean is not a measurement, and the fact that it was my own sweep, run
+specifically to catch this defect class, is the point.
+
+39 citations are waived and therefore unchecked. 38 of them are the whole of
+`docs/KODRO_JUDGE_VERDICT.md`, which is a superseded snapshot whose own banner
+says every line number in it describes commit `541941d` on 11 July 2026. The
+waiver is legitimate but it is a quarter of the corpus, so the gate prints the
+file and the count on every run rather than folding it into a total. A waiver
+that is not counted out loud becomes an unmeasured region that reads as green.
+
+One real defect fell out of the sweep: `docs/ca2/SCRIPT.md:154` cited `app.py`
+by bare basename with a line number, and that basename matches both
+`src/robolearn/app.py` and `src/robolearn/web/app.py`, whose line 171 is an
+unrelated field. The claim was right and the pointer was not
+checkable, in the document that says what to say out loud on an assessed
+recording. Fixed to the full path, the same fix already applied to
+`docs/ca2/CLAIM_LEDGER.md:192`.
+
+The gate was exercised in both directions, because a check that cannot go red is
+not a check. A temporary file citing a missing target, a line past end of file
+and a blank anchor produced `2 unresolvable, 1 needing review` and rc=1. The
+first attempt at that self-test was itself defective: it cited
+`scripts/qa_citations.py`, which was not staged yet and therefore not in `git
+ls-files`, so the past-end and bad-anchor branches never ran and the result still
+looked conclusive. Only files git already knows about are scanned or accepted as
+targets. That limit is written into the script docstring.
