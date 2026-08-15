@@ -6,6 +6,21 @@
 > agents in parallel), validate **everything in the browser**, and drive the
 > product to a genuine, measured 10/10 — without faking any number.
 
+> **STALENESS WARNING, added 15 August 2026. Read this before you trust any
+> number below.** The instructions, paths and constraints in this file are still
+> broadly right. The measurements are not: they are a snapshot from well before
+> the CA2 release pass and every one of them now reads low, because the gates and
+> the library grew, not because anything regressed. Specifically, this file says
+> the interpreter gate is `21/21` (it is 180), that `pytest` is `851 passed`
+> (the last clean full run collected 1639, passed 1638, skipped 1, at commit
+> `aa174cf`, with coverage 90.9 against the 85 gate), that the library holds
+> 10 lessons (it holds 24), and that the dissertation is about 20 pages (it is
+> 50 numbered pages). Do not treat the higher live figures as failures against
+> the "expect" lines in sections 4 and 8. For the current figure on every gate,
+> with the exact summary line it printed, see
+> [`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md); for
+> the Python suite see [`docs/eval/test_suite.json`](eval/test_suite.json).
+
 ---
 
 ## 0. WHO I AM / NON-NEGOTIABLE INTEGRITY RULES (read first, never violate)

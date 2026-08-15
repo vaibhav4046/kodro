@@ -255,7 +255,8 @@ COMPLETION-DIRECTIVE WORK DONE (2026-07-16):
   (4.43:1), FIXED (CTR-01), qa_contrast now 61 (pins --void-on--cyan AA per theme).
 - Dissertation: clean pdflatex build, EXACTLY 50 pages, 0 em/en dashes.
 
-Gate matrix (current): qa_interpreter 180, qa_grader 34, qa_physics 20,
+Gate matrix (as at 2026-07-16, NOT current; for the current figure on every
+gate see docs/eval/qa_gate_runs_2026-08-14.md): qa_interpreter 180, qa_grader 34, qa_physics 20,
 qa_ai_web 27, qa_web 5/5, qa_parts 40, qa_memgraph 22, qa_pupilstore 23,
 qa_scenario_parity 4, qa_interp_fixes 13, qa_honesty 86, qa_contrast 61,
 qa_ui 6/6+38/38+12/12, qa_worlds 61 (isolate to dodge swiftshader-under-load
