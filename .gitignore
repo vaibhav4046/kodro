@@ -43,8 +43,13 @@ ENV/
 *.db-journal
 ~/.robolearn/
 
-# Docs build
+# Kodro Web static build (build_web.cjs --static). This is what
+# deploy-pages.yml uploads to GitHub Pages.
 site/
+
+# MkDocs build output. Deliberately not site/: see the comment on site_dir in
+# docs/mkdocs.yml.
+.docs-site/
 
 # OS junk
 Thumbs.db

@@ -69,13 +69,20 @@ jobs:
       - name: Mypy
         run: mypy src/robolearn
 
-      # Docs build gate: the site under docs/ is published to GitHub Pages, so a
-      # broken cross-reference ships as a dead link for every reader. --strict
-      # promotes MkDocs warnings to a failure, which is the only mode that
-      # catches a link resolving outside the docs tree; a plain build exits 0 on
-      # exactly that. Linux only, because the build is OS-independent and
-      # mkdocs-material is already in the dev extra. It writes to site/, which
-      # is gitignored.
+      # Docs build gate: a broken cross-reference in docs/ ships as a dead link
+      # for every reader. --strict promotes MkDocs warnings to a failure, which
+      # is the only mode that catches a link resolving outside the docs tree; a
+      # plain build exits 0 on exactly that. Linux only, because the build is
+      # OS-independent and mkdocs-material is already in the dev extra.
+      #
+      # site_dir is ../.docs-site, NOT site/. site/ is the Kodro Web static
+      # build that the later qa_web step measures and that deploy-pages.yml
+      # publishes. The two used to share a directory. That was survivable here,
+      # because the qa_web step and the deploy job each run build_web.cjs
+      # --static immediately before reading site/, but it is not survivable
+      # locally: qa_web.mjs reads site/ without building it, so running the
+      # docs build by hand and then qa_web measures the documentation site and
+      # reports a leak against the product. Keep these two outputs apart.
       - name: Docs build gate (Linux only)
         if: matrix.os == 'ubuntu-latest'
         run: python -m mkdocs build -f docs/mkdocs.yml --strict

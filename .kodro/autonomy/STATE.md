@@ -20,9 +20,14 @@ No tag was cut, no release published, no branch merged, nothing pushed to
 Measured, not assumed:
 - The gate matrix in `EVIDENCE.json` had drifted on nine of twenty rows. The
   July snapshot is kept intact and a `superseding_measurement` section was
-  added beside it, because the `wheel` row cannot be faithfully regenerated
-  offline (`hatchling` is absent), so a full rewrite would have produced an
-  artefact that looks current and is not.
+  added beside it rather than rewriting it in place, so that a stale row is
+  visibly superseded instead of quietly replaced.
+- The `wheel` row had been carried as blocked with the reason "`hatchling`
+  absent, cannot be fetched offline". That reason was never tested and it is
+  false: `pip download hatchling` succeeds. The offline constraint binds Kodro
+  the product, not the authoring toolchain. The wheel now builds, installs into
+  a clean venv and passes a 7-check smoke; see `wheel_built_and_exercised` in
+  `EVIDENCE.json`.
 - The biggest correction: `qa_ui_local` was recorded as "timed out after 904
   seconds ... not counted as pass". It now passes for real: 325 seconds, exit
   0, nine flows PASS, 41 of 41 behaviour or layout assertions. The degraded
@@ -32,6 +37,18 @@ Measured, not assumed:
   this release pass. Fixed at `2222e1e`; the reformat of the shipped
   `src/robolearn/mcp/tools.py` was proved inert by 97 passing tests and two
   real-subprocess MCP smoke runs rather than assumed inert.
+- Third correction, and the one real repository defect found in this pass:
+  `docs/mkdocs.yml` declared `site_dir: ../site`, the same directory
+  `build_web.cjs --static` writes the Kodro Web build to and `qa_web.mjs`
+  reads. `qa_web.mjs` reads that directory without building it, so it measures
+  whatever wrote there last; one `mkdocs build` in between made the product's
+  own privacy gate measure the documentation site and report a false
+  `api.github.com` leak. It had never fired before because the docs build had
+  never been run by any gate. It could not have reached Pages: both `ci.yml`
+  and `deploy-pages.yml` rebuild `site/` immediately before reading or
+  uploading it, on fresh runners. The blast radius was local working copies.
+  Now `site_dir: ../.docs-site`, gitignored, with the reason written at the
+  setting and the docs gate ordered before the web gates in CI.
 - Counts that grew since July: qa_grader 34 to 55, qa_honesty 91 to 121,
   qa_physics 20 to 25, qa_ai_web 27 to 51, qa_scenario_parity 4 to 8, mypy 66
   to 73 source files, the Python suite 1,069 to 1,637 passed at 90.78 percent
@@ -56,15 +73,15 @@ Host conditions that will bite the next session:
   product. Any run of a module-scoped `tmp_path_factory` fixture hits it.
 - A subset pytest run always trips the 85 percent project coverage gate. That
   is expected and is not a failure of the tests being run.
-- `hatchling` is not installed and cannot be fetched offline, so the wheel
-  cannot be rebuilt. One consequence is visible in the installed metadata:
-  `kodro` still resolves to `robolearn.bench:main` while `pyproject.toml`
-  declares `robolearn.__main__:main`, so on this machine typing the product
-  name starts the batch runner. That is stale install metadata, not a source
-  defect, and it clears on the next real install. It does not affect the MCP
-  entry point: `kodro-mcp -> robolearn.mcp.server:main` is installed exactly
-  as declared, and the smoke harness passes 2 of 2 entry points on both
-  platforms with no `--entry` restriction.
+- The development install on this machine carries stale entry-point metadata:
+  `kodro` resolves to `robolearn.bench:main` while `pyproject.toml` declares
+  `robolearn.__main__:main`, so typing the product name here starts the batch
+  runner. That was previously recorded as unfixable because the wheel "could
+  not be rebuilt offline". It is now measured rather than predicted: a clean
+  venv installed from the freshly built wheel resolves `kodro ->
+  robolearn.__main__:main`, so it is local install staleness and it does clear
+  on a real install. `kodro-mcp -> robolearn.mcp.server:main` was always
+  installed as declared, in both the stale install and the clean one.
 - `qa_personas` and `qa_vibe` exit 0 without a local model and produce no
   data. They are honest skips and must never be counted as passes.
 
