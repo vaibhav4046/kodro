@@ -9,7 +9,7 @@ Target format: 1920 by 1080, 30 fps, no letterboxing, no zoom transitions.
 
 | # | Time | Length | Source | Framing | On screen |
 |---|---|---|---|---|---|
-| 1 | 0:00 | 0:12 | Title card | Full frame | Product name, module code, student name, date |
+| 1 | 0:00 | 0:12 | Title card | Full frame | Product name, module code, student name, date. Animated since 15 August, see the superseded note below; the 0:12 is the rendered file's exact runtime |
 | 2 | 0:12 | 0:23 | Web app | Full window | Hub, lesson grid, nothing loading |
 | 3 | 0:35 | 0:30 | Web app | Top bar, cropped to upper third | The three stage links, hovered in order |
 | 4 | 1:05 | 0:35 | Web app | Full window | Design stage, chassis and one parameter edit |

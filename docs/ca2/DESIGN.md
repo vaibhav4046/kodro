@@ -5,6 +5,18 @@ new surface stay inside it. This is a description of shipped CSS, not a wish lis
 Every value below is read from `src/robolearn/assets/web/styles.css` unless another
 file is named.
 
+Every count in this file was re-measured against that stylesheet on 15 August
+2026, and three of them were wrong: the number of focus rules, the number of
+forced-colours blocks, and the size of the elevation scale. All three are
+corrected in place and each correction says what the old number was, because a
+design document that overstates its own accessibility coverage is worse than one
+that omits it. The values that were checked and held: the `:root` block at lines
+7 to 86, the seven space steps, the four radius tokens, the three durations and
+the ease, the thirteen-step type scale from 9px to 30px, the ten
+`prefers-reduced-motion` blocks, the nine named themes, and the eighteen vendored
+faces. `site/styles.css` is byte-identical to the source stylesheet, so the served
+copy is the one described here.
+
 ## Where the tokens live
 
 One `:root` block, `styles.css:7` to `styles.css:86`. Nothing outside that block
@@ -90,8 +102,14 @@ nudging weights.
   Pills stay literal at 99px and circles at 50 percent. The pixel theme flattens all
   four tokens to 0 rather than overriding every element, which is the test that the
   scale is real.
-- Elevation, low to high: `--shadow-card`, `--shadow-menu`, `--shadow-modal`. A
-  surface picks the one that matches what it is, never a bespoke shadow.
+- Elevation, low to high: `--shadow-card`, `--shadow-menu`, `--shadow-modal`.
+  There is a fourth token and this bullet used to deny it. `--shadow-3` is defined
+  at `styles.css:36` and used at exactly one site, `.say-bubble` at
+  `styles.css:522`, which is the rover speech bubble. The source says so itself in
+  the token comment at `styles.css:29`: bubbles and one-off overlays keep
+  `--shadow-3`. The rule still holds that a surface picks a token rather than
+  writing a bespoke shadow. The scale is three plus one named exception, not
+  three.
 - Motion: `--duration-fast` 120ms, `--duration-normal` 180ms, `--duration-slow`
   320ms, all on `--ease` `cubic-bezier(0.22,0.61,0.36,1)`. Nothing animates longer
   than 320ms. Nothing loops forever.
@@ -105,10 +123,23 @@ accessibility claim and is worth showing for two seconds, not for a minute.
 
 ## Accessibility rules that must not regress
 
-- 18 `:focus-visible` rules, all a 2px or 3px teal outline with an offset. Focus is
-  never removed, and it is never the browser default.
+- Nine `:focus-visible` rule blocks, covering 22 selectors. Six carry a 2px or 3px
+  teal outline with an offset. The other three carry a teal SVG stroke instead,
+  because the focused thing is a child shape inside an SVG where an outline is not
+  reliably painted: the memory-graph node at `styles.css:2114` and `:2116`, and the
+  lesson-map markers at `:2621`. All nine resolve to `var(--cyan)`. Focus is never
+  removed and it is never the browser default. This bullet used to read "18 rules,
+  all a 2px or 3px teal outline", and eighteen is not the count of anything in the
+  file: not the blocks, not the selectors, not the raw occurrences, not the rules
+  that actually draw an outline.
 - A skip link that becomes visible on focus (`styles.css:792`).
-- Three `forced-colors: active` blocks for Windows high-contrast mode.
+- One `forced-colors: active` block, at `styles.css:271`. It covers the status dots
+  and nothing else: Windows high-contrast flattens backgrounds to system colours,
+  which would make dots that differ only by colour identical, so each state gets a
+  distinct border shape that survives the override. This bullet used to claim three
+  blocks. There is one, and no other surface has a forced-colours override. How the
+  rest of the UI behaves under forced colours has not been measured, so do not
+  present this as coverage.
 - Ten `prefers-reduced-motion: reduce` blocks. Every animated surface has one. A
   reviewer who runs the app with reduced motion on sees a static, complete UI, not a
   broken one.
@@ -130,7 +161,9 @@ temptations when adding a screen under deadline.
    were introduced to fix, and it will pass a casual eye while failing 4.5:1.
 7. No dark text on the HUD. The `--hud-fg-*` split exists for this and gets undone
    by anyone who "simplifies" the theme blocks.
-8. No second elevation system. Three shadows, pick one.
+8. No second elevation system. Four tokens exist, three of them are the scale and
+   `--shadow-3` is the documented bubble exception. Pick one of the four rather
+   than writing a fifth.
 9. No stock hero. The hub is a lesson grid because the product is a lesson product,
    and dressing it as a landing page misrepresents what the marker is about to see.
 10. No dashboard-by-numbers. Panels earn their place by being the thing the user is
