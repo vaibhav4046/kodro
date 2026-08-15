@@ -19,7 +19,7 @@ docs/dissertation/final_compile1.txt
 docs/dissertation/final_compile2.txt
 ```
 
-All six are `pdflatex` console captures. Each contains `C:/Users/lalwa/...`
+All six are `pdflatex` console captures. Each contains `C:/Users/<account>/...`
 on 20 distinct paths by the gate's own `HOME_PATH` rule, all of them MiKTeX
 font and package locations. `git ls-files` confirmed all six were tracked.
 
@@ -43,17 +43,17 @@ redirected to `compile1.txt` is the same bytes under a name that matches
 neither.
 
 **The gate decodes every file as UTF-8.** PowerShell redirection writes
-UTF-16LE. Read as UTF-8, `C:\Users\lalwa\` is stored as those characters with a
-NUL between each one, so the scanner sees `C\0:\0\\0U\0s\0e\0r\0s\0...` and no
-rule matches anything. The file reports clean.
+UTF-16LE. Read as UTF-8, `C:\Users\<account>\` is stored as those characters
+with a NUL between each one, so the scanner sees `C\0:\0\\0U\0s\0e\0r\0s\0...`
+and no rule matches anything. The file reports clean.
 
 Measured directly, same regex, same file, two decodings:
 
 ```
 docs/dissertation/compile1.txt         utf8     HOME_PATH matches =   0
-docs/dissertation/compile1.txt         utf16le  HOME_PATH matches =  20 account='lalwa'
+docs/dissertation/compile1.txt         utf16le  HOME_PATH matches =  20 account='<account>'
 docs/dissertation/final_compile2.txt   utf8     HOME_PATH matches =   0
-docs/dissertation/final_compile2.txt   utf16le  HOME_PATH matches =  20 account='lalwa'
+docs/dissertation/final_compile2.txt   utf16le  HOME_PATH matches =  20 account='<account>'
 ```
 
 This is the more serious half of the finding. The gate's green line was being
@@ -204,3 +204,108 @@ To see the blind spot on any UTF-16 file:
 node -e "const{readFileSync}=require('fs');const f=process.argv[1];
 for(const e of ['utf8','utf16le'])console.log(e,(readFileSync(f,e).match(/Users[\\\\/]([A-Za-z0-9._-]+)[\\\\/]/g)||[]).length)" <file>
 ```
+
+---
+
+## Appended 15 August 2026: a second blind spot, found by this file failing the gate
+
+Everything above is left as it was written. It recorded a true measurement and
+then, within hours, described a tree that no longer existed. This section says
+why, and what the gate does about it now.
+
+### This file broke the gate it was documenting
+
+The write-up above quoted the leaked account name four times while explaining
+the leak. It was committed without re-running the gate afterwards. The next run
+failed on it:
+
+```
+qa_secrets: 1 failed, 32 passed
+FAIL  no tracked file contains a home path naming an account
+      -> .kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md:22
+       | .kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md:46
+```
+
+That is the same shape as the defect described in "The pattern worth keeping":
+a result written down that the state no longer supports. The difference is that
+this one was introduced by the write-up rather than found by it.
+
+### The gate could only see two of the eight
+
+The failure named two lines. A repo-wide search for the token found eight
+tracked occurrences across four files:
+
+```
+.kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md   4
+.kodro/autonomy/EVIDENCE.json                                    2
+.kodro/autonomy/STATE.md                                         1
+(the fourth is the second EVIDENCE.json occurrence)
+```
+
+The `HOME_PATH` rule matches an account name *inside a path*. The two it caught
+were `C:/Users/<account>/...`. The six it could not see were not paths:
+
+```
+pytest-of-<account>          a host note about the pytest temp root
+account='<account>'          the measurement lines in this very file
+```
+
+Same disclosed value, a shape the rule was never written for. A rule that
+matches by shape cannot catch a value that has no shape.
+
+### What changed
+
+**Redaction.** All eight replaced with `<account>`, in this file, in
+`.kodro/autonomy/EVIDENCE.json` and in `.kodro/autonomy/STATE.md`. Every
+measurement survives unchanged: `utf8 = 0` against `utf16le = 20` still reads
+exactly as it was taken. Only the value is gone. This is not a retro-edit of a
+measurement, and it does not touch history already pushed.
+
+**A rule that matches by value.** `scripts/qa_secrets.mjs` now derives the
+account running the scan from `os.userInfo().username` at run time and flags it
+as a bare token. Deriving it at run time is the point: the gate never stores a
+name, so the tracked script still contains no account. The boundary is
+alphanumeric rather than `\b`, so `pytest-of-<name>` is caught while a longer
+word that merely contains the name is not. Names under four characters and
+shared CI accounts (`runner`, `user`, and the rest of the existing placeholder
+set) are declined.
+
+**What this rule honestly is.** Publisher-side, not universal. It catches the
+leak the machine running it can create, which is the only one it is in a
+position to prevent. It is inactive when there is no usable local account name,
+so the summary line now states which:
+
+```
+PASS  secrets: 42 passed (480 of 787 tracked files read, 13 credential rules, bare-name rule live)
+EXIT=0
+```
+
+Nine more checks than the 33 recorded above. The file counts differ from
+471 of 773 because that is a different tree, not a different reading of the
+same one.
+
+### The rule was proved live, not assumed
+
+A green line from a rule that never fired is the failure this whole file is
+about, so the rule was exercised. A probe containing `pytest-of-` plus the real
+account was written and `git add -N`'d so the tracked-set scan would see it:
+
+```
+qa_secrets: 1 failed, 41 passed
+FAIL  no tracked file contains the account name of the machine running the scan
+      -> .kodro/_ruleprobe.txt:1  local account name
+EXIT=1
+```
+
+Probe then removed from the index and from disk, tree confirmed clean, gate back
+to `42 passed`. Eight self-checks were also added inside the script, all against
+the fabricated account `jdoe` so the assertions read the same on any machine and
+the file still names nobody. One of them asserts that `HOME_PATH` does *not*
+match `pytest-of-jdoe` while the new rule does, so the new rule cannot quietly
+become a duplicate of the old one.
+
+### Still the author's decision
+
+Unchanged from the section above. `git rm --cached` and these redactions stop
+the next push from republishing. Neither removes anything from commits already
+pushed to a public remote. That is `HUMAN_TODO.md` section 6.

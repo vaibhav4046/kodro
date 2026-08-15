@@ -59,6 +59,58 @@ infinite repeats, no jump cuts, no animation of layout dimensions, and no
 overlapping track timings. Until then a static card is the honest choice and
 costs nothing on camera.
 
+### Superseded 15 August 2026: the toolchain does work, and the card is animated
+
+Everything above this line is left as written because it records what was true
+when it was measured. It is no longer true. Two of its statements were wrong.
+
+**The install failure was an artefact of how it was invoked.** `npx hyperframes`
+without `--yes` prompts, and a non-interactive shell cancels the prompt, which
+is exactly the error quoted above. With the flag it installs and runs:
+
+```
+npx --yes hyperframes@0.7.109 check
+```
+
+The wider habit is worth naming, because it is the same one that produced three
+other wrong claims this week: a tool was run once, it failed, and the failure
+was written down as a property of the environment rather than of the command.
+
+**All three named results now exist**, plus the current gate that replaced them:
+
+```
+lint                    0 errors, 0 warnings                                EXIT=0
+validate                No console errors, 22 text elements pass WCAG AA    EXIT=0
+inspect --samples 15    0 layout issues across 15 sample(s)                 EXIT=0
+check                   Check passed (Lint 0/0, Runtime 0/0, Layout 0 across
+                        9 samples, Motion 0/0, Contrast 21/21 WCAG AA)      EXIT=0
+```
+
+`validate` and `inspect` are both deprecated in favour of `check`. They are run
+because this document named them; `check` is run because it is current.
+
+Shot 1 is now an animated card rendered to
+`docs/ca2/intro/renders/kodro-intro.mp4`: h264, 1920x1080, 30fps, 360 frames,
+exactly 12.000000s, 774768 bytes, sha256
+`dd12a3b4ee020284f52d82a5b036de400bbe5fc10816c56013ab35313d8f161a`.
+
+Every determinism rule listed above is met, and how each one is met is written
+out element by element in the composition's own comments. Motion is confined to
+`opacity`, `y` and `scaleX`, all of which are compositor properties, so no
+layout dimension is animated. The last element settles at 3.60s and the card
+then holds still for the remaining 8.4s while the cold open is spoken over it.
+It does not dissolve out: the straight-cut rule above still governs, so shot 1
+simply ends.
+
+Two caveats that are part of the record. The eases are GSAP's `power2.out` and
+`power3.out`, which approximate the product's `cubic-bezier(0.22,0.61,0.36,1)`
+without matching it. And `Snapshots disabled` in the check output is not a pass;
+there is no committed baseline for this composition.
+
+Full account, including a font-substitution defect that the green gates hid and
+two layout defects that only showed up on an extracted frame:
+`.kodro/ca2-evidence/2026-08-15-ca2-intro-composition.md`.
+
 ## What must not appear in frame
 
 Check every one of these before recording. Several are visible in the default

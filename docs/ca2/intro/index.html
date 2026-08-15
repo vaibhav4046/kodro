@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+
+    <!-- GSAP is vendored, not pulled from a CDN. The scaffold ships a
+         jsdelivr <script src>, which makes every render depend on a network
+         fetch resolving the same way twice. Kodro is an offline product and
+         this card is the first thing said about it on camera, so the intro
+         builds with no network either. -->
+    <script src="assets/vendor/gsap.min.js"></script>
+
+    <style>
+      /* The three families the product actually ships. Nothing is fetched, so
+         the card cannot drift from the interface it introduces. The hashed
+         filenames and the family/weight mapping come from
+         src/robolearn/assets/web/vendor/fonts.css.
+
+         These four faces are copies, not references. Pointing at the originals
+         up-tree was tried first and the toolchain rejected it:
+
+           invalid_parent_traversal_in_asset_path: Found 4 asset path(s)
+           traversing above the project root with "../"
+
+         The reason given is that renders rewrite such a path per sub-composition
+         while preview resolves against the project root, so the same path
+         resolves two ways. Copying is the supported answer. The cost is that
+         these can now drift from the app's copies, so their sha256 is recorded
+         against the originals in
+         .kodro/ca2-evidence/2026-08-15-ca2-intro-composition.md and is
+         re-checkable with one sha256sum. */
+      /* The family names are deliberately private ones rather than the real
+         ones. Declared as "Cormorant Garamond", "Inter Tight" and "JetBrains
+         Mono" with ordinary fallbacks, the hyperframes compiler recognised the
+         names, went to Google Fonts and injected its own faces over the top:
+
+           Fetched 10 font face(s) for "JetBrains Mono" from Google Fonts
+           Fetched  7 font face(s) for "EB Garamond"    from Google Fonts
+           Fetched 11 font face(s) for "Roboto"         from Google Fonts
+           Injected deterministic @font-face rules for 3 requested font families
+
+         EB Garamond and Roboto are not in this file at all. They are what the
+         compiler substituted for the generic fallbacks. So the card would have
+         been rendered in downloaded fonts that only approximate the product's,
+         and the render would have needed a network. Under private names with no
+         generic fallback there is nothing for it to resolve, and the check log
+         confirms it stops fetching. */
+      @font-face {
+        font-family: 'Kodro Display';
+        font-style: normal;
+        font-weight: 600;
+        src: url(assets/fonts/co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_iE9GnM.ttf) format('truetype');
+      }
+      @font-face {
+        font-family: 'Kodro Body';
+        font-style: normal;
+        font-weight: 400;
+        src: url(assets/fonts/NGSnv5HMAFg6IuGlBNMjxJEL2VmU3NS7Z2mjDw-qXA.ttf) format('truetype');
+      }
+      @font-face {
+        font-family: 'Kodro Body';
+        font-style: normal;
+        font-weight: 500;
+        src: url(assets/fonts/NGSnv5HMAFg6IuGlBNMjxJEL2VmU3NS7Z2mjPQ-qXA.ttf) format('truetype');
+      }
+      @font-face {
+        font-family: 'Kodro Mono';
+        font-style: normal;
+        font-weight: 500;
+        src: url(assets/fonts/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8-qxjPQ.ttf) format('truetype');
+      }
+
+      /* Values are copied from the one :root block in
+         src/robolearn/assets/web/styles.css, lines 7 to 50. Nothing here
+         invents a colour. */
+      :root {
+        --void: #07111b;
+        --navy: #0c1825;
+        --paper: #f5f0e4;
+        --brass: #c9a86a;
+        --fg-2: #d9d3c4;
+        --fg-3: #b3ad9e;
+        --border: rgba(245, 240, 228, 0.12);
+        /* No generic fallback on purpose. See the @font-face note above: a
+           fallback here is what the compiler resolves against Google Fonts.
+           The faces are local files that are always present, so there is
+           nothing for a fallback to catch. */
+        --font-display: 'Kodro Display';
+        --font-body: 'Kodro Body';
+        --font-mono: 'Kodro Mono';
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--void);
+      }
+
+      /* Everything is positioned absolutely against the 1920x1080 frame.
+         A title card has one fixed size forever, so a flow layout would only
+         add a way for the composition to move between renders. */
+      .layer {
+        position: absolute;
+      }
+
+      #ground {
+        inset: 0;
+        background: linear-gradient(158deg, #07111b 0%, #0c1825 58%, #07111b 100%);
+      }
+
+      /* Left-anchored, not centred. The product's own surfaces are read left
+         to right off a rail, and a centred hero would be the one piece of
+         this release that looks like a template. */
+      /* Vertical placement note. The first render put the block at 358..916,
+         centred 97px below the frame's own centre, which reads as a drift
+         rather than a decision. Everything is 72px higher now, which lands the
+         block's centre 27px below frame centre: still low enough to leave the
+         top open, close enough that it looks placed. */
+      #eyebrow {
+        left: 168px;
+        top: 286px;
+        font-family: var(--font-mono);
+        font-weight: 500;
+        font-size: 26px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        /* Brass, because the token means "a label about the learner" and this
+           line is the institution and the module the student is enrolled on.
+           Teal is deliberately absent: in this design system teal means
+           something is clickable, focused or running, and nothing on a title
+           card is any of those. */
+        color: var(--brass);
+      }
+
+      .rule {
+        left: 168px;
+        width: 1584px;
+        height: 1px;
+        background: var(--border);
+        transform-origin: left center;
+      }
+
+      #rule-top {
+        top: 342px;
+      }
+
+      #rule-foot {
+        top: 774px;
+      }
+
+      #wordmark {
+        left: 164px; /* optical, not 168: Cormorant carries left side bearing */
+        top: 372px;
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 188px;
+        line-height: 1;
+        letter-spacing: -0.02em;
+        color: var(--paper);
+      }
+
+      #subtitle {
+        left: 168px;
+        top: 604px;
+        width: 1240px;
+        font-family: var(--font-body);
+        font-weight: 400;
+        font-size: 34px;
+        line-height: 1.45;
+        color: var(--fg-2);
+      }
+
+      #credit {
+        left: 168px;
+        top: 814px;
+        font-family: var(--font-body);
+        font-weight: 500;
+        font-size: 30px;
+        color: var(--paper);
+      }
+
+      #date {
+        left: 168px;
+        top: 818px;
+        width: 1584px;
+        text-align: right;
+        font-family: var(--font-mono);
+        font-weight: 500;
+        font-size: 26px;
+        letter-spacing: 0.06em;
+        color: var(--fg-3);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="12"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- One element per track index. Nothing shares a track, so no two
+           clips can overlap in time on the same track by construction, and
+           every element is present for the whole twelve seconds. The card
+           does not cut, dissolve or leave: the storyboard calls for a straight
+           cut into shot 2, so shot 1 simply ends. -->
+      <div id="ground" class="layer clip" data-start="0" data-duration="12" data-track-index="0"></div>
+
+      <div id="rule-top" class="layer rule clip" data-start="0" data-duration="12" data-track-index="1"></div>
+
+      <div id="rule-foot" class="layer rule clip" data-start="0" data-duration="12" data-track-index="2"></div>
+
+      <div id="eyebrow" class="layer clip" data-start="0" data-duration="12" data-track-index="3">
+        University of Liverpool &middot; COMP702
+      </div>
+
+      <div id="wordmark" class="layer clip" data-start="0" data-duration="12" data-track-index="4">Kodro</div>
+
+      <!-- The break is explicit. Left to wrap at the 1240px box the first
+           render split the line at "disclosed-", which reads as a typo rather
+           than a line break. Breaking here also removes the last thing about
+           this card that depended on a wrapping algorithm. -->
+      <div id="subtitle" class="layer clip" data-start="0" data-duration="12" data-track-index="5">
+        An offline platform for designing robots and testing<br />their
+        behaviour in disclosed-fidelity simulation.
+      </div>
+
+      <div id="credit" class="layer clip" data-start="0" data-duration="12" data-track-index="6">Vaibhav Lalwani</div>
+
+      <div id="date" class="layer clip" data-start="0" data-duration="12" data-track-index="7">August 2026</div>
+    </div>
+
+    <script>
+      /* Determinism rules this timeline is written to, from the CA2 blueprint:
+         no random values, no asynchronous construction, no infinite repeats,
+         no jump cuts, no animation of layout dimensions, no overlapping track
+         timings.
+
+         How each is met:
+         - Every value below is a literal. There is no Math.random anywhere in
+           this file, and no clock is read.
+         - The script is a blocking classic script that runs at parse time, so
+           the timeline is fully built before the runtime ever seeks it. There
+           is no await, no timer and no load handler.
+         - Every tween is a fromTo with an explicit start state, so seeking to
+           any time produces the same frame whether it was reached by playing
+           forward or by jumping straight to it. That is the property a frame
+           renderer actually needs, and `from` alone does not give it.
+         - Nothing repeats. Nothing yoyos.
+         - Only opacity, y and scaleX are touched. Those are transform and
+           compositor properties; no width, height, margin, padding or font
+           size is animated, so nothing reflows mid-render.
+         - Positions are absolute times, given as the third argument, never
+           relative labels, so reordering these lines cannot change the result.
+
+         The eases are GSAP built-ins. The product's own --ease token is
+         cubic-bezier(0.22,0.61,0.36,1); power2.out is close to it but is not
+         the same curve, and matching it exactly would need the CustomEase
+         plugin. That is an approximation and is recorded as one rather than
+         described as a match. */
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+
+      tl.fromTo('#eyebrow', { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.70, ease: 'power2.out' }, 0.30);
+      tl.fromTo('#rule-top', { opacity: 1, scaleX: 0 }, { scaleX: 1, duration: 0.90, ease: 'power2.inOut' }, 0.75);
+      tl.fromTo('#wordmark', { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 1.00, ease: 'power3.out' }, 1.05);
+      tl.fromTo('#subtitle', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.90, ease: 'power2.out' }, 1.85);
+      tl.fromTo('#rule-foot', { opacity: 1, scaleX: 0 }, { scaleX: 1, duration: 0.80, ease: 'power2.inOut' }, 2.45);
+      tl.fromTo('#credit', { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.70, ease: 'power2.out' }, 2.70);
+      tl.fromTo('#date', { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.70, ease: 'power2.out' }, 2.90);
+
+      /* The last tween settles at 3.60 and the card then holds, still, for the
+         remaining 8.4 seconds while the cold open is spoken over it. This set
+         is a no-op on a layer that is already fully opaque; it exists so the
+         timeline's own length is 12 and matches the composition rather than
+         ending early and leaving the tail undescribed. */
+      tl.set('#ground', { opacity: 1 }, 12);
+
+      window.__timelines['main'] = tl;
+    </script>
+  </body>
+</html>

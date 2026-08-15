@@ -111,7 +111,7 @@
   },
   "re_measured_earlier_in_this_pass": {
    "python_local": "1,639 collected, 1,638 passed, 1 skipped, 90.90 percent branch-aware coverage against an 85 percent gate; artefact docs/eval/test_suite.json at commit aa174cf with a clean working tree. The skip is a Tk display dependency.",
-   "python_local_host_note": "pytest fails on this host with PermissionError WinError 5 on the pytest-of-lalwa temp root unless --basetemp is passed. That is a harness condition, not a product failure, and it is why the recorded command carries a --basetemp placeholder.",
+   "python_local_host_note": "pytest fails on this host with PermissionError WinError 5 on the pytest-of-<account> temp root unless --basetemp is passed. That is a harness condition, not a product failure, and it is why the recorded command carries a --basetemp placeholder.",
    "qa_ui_local": "now a real pass, not a timeout: 325 seconds wall clock, exit 0, nine flows PASS, 41 of 41 behaviour or layout assertions. This is the single largest correction to the matrix above.",
    "qa_contrast": "61/0 across 10 themes",
    "test_mcp_server": "66 passed",
@@ -150,14 +150,15 @@
   "secret_gate_defect_found_and_closed": {
    "what": "scripts/qa_secrets.mjs read every file as UTF-8. PowerShell redirection writes UTF-16LE, in which C:/Users/<name>/ is stored with a NUL between every character, so no rule matched and the file reported clean. All thirteen credential rules and the home-path rule were blind to any UTF-16 file.",
    "what_it_hid": "Six tracked pdflatex console captures under docs/dissertation (compile1, compile2, doi_compile1, doi_compile2, final_compile1, final_compile2) each named the local Windows account on 20 distinct paths. The repository is public.",
-   "proof": "Same HOME_PATH regex, same file: utf8 decode gives 0 matches, utf16le decode gives 20 matches with account 'lalwa'.",
+   "proof": "Same HOME_PATH regex, same file: utf8 decode gives 0 matches, utf16le decode gives 20 matches with the local account name.",
    "gate_before": "27/0, 477 of 779 tracked files read against 13 credential rules. Green over a real leak.",
    "gate_with_fix_before_cleanup": "1 failed, 32 passed. 534 findings across the six files.",
-   "gate_after_cleanup": "33/0, 471 of 773 tracked files read against 13 credential rules.",
+   "gate_after_cleanup": "33/0, 471 of 773 tracked files read against 13 credential rules. That was true when measured and stopped being true the same day. Superseded by the entry below; see gate_after_cleanup_went_stale.",
    "fix": "Encoding is now sniffed from the bytes (BOM, else NUL parity). Six self-checks added, including one asserting the old UTF-8-only read would have missed it. .gitignore gained docs/dissertation/*compile*.txt. The six files were removed from the index with git rm --cached and remain on disk.",
    "sweep": "Whole tracked tree re-swept with the gate's own binary filter: 471 non-binary tracked files, 0 UTF-16 text files remaining.",
    "still_open_and_author_owned": "git rm --cached stops republication; it does not remove the files from commits already pushed to the public remote. Rewriting published history is irreversible and is not an agent decision. The disclosed value is a Windows account name, not a credential, so nothing needs rotating.",
-   "evidence": ".kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md"
+   "evidence": ".kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md",
+   "gate_after_cleanup_went_stale": "The evidence file documenting this leak was itself committed after that measurement without re-running the gate, and it quoted the leaked account name four times. At the next run the gate failed on it. A recorded pass describing a tree that no longer exists is the same defect this whole entry is about, produced this time by the agent writing the entry. Closed under ca2_media_2026_08_15.secret_gate_second_blind_spot."
   },
   "dissertation_now": {
    "pdf": "59 pages, 1115217 bytes, sha256 217e7a978d60f573ded832d8a57fcaa255b79d0697f4b4df845e7aecea4553da. Byte-identical between docs/dissertation/ and docs/dissertation/_build/.",
@@ -172,5 +173,44 @@
    "evidence": ".kodro/ca2-evidence/2026-08-15-bibliography-verification.md"
   },
   "still_not_re_measured": "Everything listed in superseding_measurement.not_re_measured remains not re-measured: wheel (hatchling absent offline), store_regression in isolation, qa_web, direct_visual, and the full Python suite at this HEAD. qa_personas and qa_vibe still produce no data without a local model and are still not passes."
+ },
+ "ca2_media_2026_08_15": {
+  "measured_on": "2026-08-15",
+  "branch": "agent/kodro-ca2-candidate",
+  "relationship_to_the_sections_above": "Additive. Covers CA2 media work and the assessment brief, not the product gates. Nothing above is retracted by it.",
+  "intro_card_built_and_gated": {
+   "what": "STORYBOARD.md shot 1 is now an animated 12s title card built with hyperframes 0.7.109 at docs/ca2/intro/, replacing the static card the storyboard had settled for.",
+   "why_it_was_static": "STORYBOARD.md recorded that npx hyperframes 'cannot install non-interactively here'. That was measured without --yes. With the flag it installs and runs. Same defect class as the four before it: a command failed once and the failure was written down as a property of the environment.",
+   "gates": "lint 0 errors 0 warnings EXIT=0; validate no console errors, 22 text elements pass WCAG AA, EXIT=0; inspect --samples 15, 0 layout issues, EXIT=0; check Lint 0/0, Runtime 0/0, Layout 0 across 9 samples, Motion 0/0, Contrast 21/21 WCAG AA, Snapshots disabled, Check passed, EXIT=0. All four re-run after the layout fixes, so they describe the file that shipped.",
+   "render": "docs/ca2/intro/renders/kodro-intro.mp4, h264 1920x1080 yuv420p, 30fps, 360 frames, duration 12.000000, 774768 bytes, sha256 dd12a3b4ee020284f52d82a5b036de400bbe5fc10816c56013ab35313d8f161a.",
+   "stale_hash_do_not_quote": "763383 bytes / 7744c846e7d61cc2bfb4b5f16dd7065d772a1d4c6d3b197b1b8b50858c5a99d6 was the pre-fix render. That file no longer exists.",
+   "two_defects_no_gate_could_see": "All four gates passed on a card whose text block sat 97px below optical centre and whose subtitle wrapped inside the compound word 'disclosed-fidelity'. Neither is a lint error, runtime error, contrast failure or overflow. Both were caught by extracting a frame and looking at it.",
+   "font_substitution_defect": "Declared with real family names and generic fallbacks, the compiler fetched 10 faces for JetBrains Mono, 7 for EB Garamond and 11 for Roboto from Google Fonts and injected them. EB Garamond and Roboto are not in the file; they were substitutions for the fallbacks. A 'Check passed' line would have been recorded as evidence the card used the product's typefaces when it did not. Fixed with private family names and no generic fallback; the fetch lines are absent from every run since.",
+   "caveats": "Snapshots disabled is not a pass, there is no committed baseline. The eases are GSAP power2.out and power3.out, which approximate the product's cubic-bezier(0.22,0.61,0.36,1) rather than matching it.",
+   "evidence": ".kodro/ca2-evidence/2026-08-15-ca2-intro-composition.md"
+  },
+  "brief_claims_sourced": {
+   "what": "The 10-vs-15-minute runtime contradiction in docs/ca2/BRIEF_VERIFIED.md carried no source URL anywhere in the repository, so no reader could re-check it. It now has one.",
+   "source": "https://intranet.csc.liv.ac.uk/~ped/COMP702/Overview.html, HTTP 200, 71517 bytes, Last-Modified 2023-08-23, sha256 98033b96bb3eec9e5d03c96190ac63be12f2163f22a4ca27bf3e95a107a587d5, titled 'MSc Project (COMP702), summer 2023'.",
+   "not_the_2026_brief": "This is 2023 material and does not replace the current Canvas brief. Its own deadline is Sep-01, against 21 August 2026 in the verified table. CLAIM_LEDGER item 8 still stands: neither the page limit nor the video duration is settled.",
+   "contradiction_is_three_way": "10 minutes at L263 (timetable) and L451 (the Final Presentation task statement), 15 minutes at L321 (deliverables list), plus 15 at L260 inside a malformed HTML comment that does not render. The 9:40 master with four expansion blocks is unchanged.",
+   "rejected_outright_was_wrong": "BRIEF_VERIFIED said an over-length video 'can be rejected outright'. The source says markers 'may decide to penalise the student with 5 marks out of 100 if the presentation is in excess of the reserved time', excluding marker questions, and that penalties will not push a mark below the pass mark. Outright non-marking is attached on that page to using a container format other than ZIP, not to runtime.",
+   "three_deliverables_previously_listed_as_unverified": "The Final Presentation component on that page is one ZIP containing a report of approx 5 pages A4 in PDF, a set of presentation slides in PDF, and the presentation video. Submission is through sam.csc.liv.ac.uk, not Canvas. Neither the deck nor the report exists in this repository. Student must confirm against the 2026 brief.",
+   "page_limit_data_point_not_a_resolution": "The same page states the dissertation as 'approx 15 to 25 pages A4 plus references and appendices' twice (L326, L503). The word is approximately, not maximum, it is 2023 material, and it conflicts with the 50 pages recorded in the author's handoff files. The current document is 48 printed body pages excluding references and appendices. Audit HIGH 4 stays OPEN.",
+   "network_claim_corrected": "BRIEF_VERIFIED's preamble said the brief could not be read because this environment has 'no account access and no network path to it'. The Canvas login is a real blocker; the network half is false. Fifth instance of the same defect. Search engines are gated (DuckDuckGo answers HTTP 202 anti-bot, Bing needs JavaScript) but direct URL fetches through curl work.",
+   "files_changed": "docs/ca2/BRIEF_VERIFIED.md (dated correction appended, original text preserved), docs/ca2/FINAL_CHECKLIST.md (duration item sourced, new student item for the deck and report), docs/ca2/STORYBOARD.md (dated supersession block, original preserved)."
+  },
+  "secret_gate_second_blind_spot": {
+   "what": "The home-path rule matches an account name inside a path. It does not match the name standing on its own, and the repository had published it that way six times while the rule reported two: pytest-of-<name> in a host note in this file and in STATE.md, and account='<name>' four times in the evidence file that documented the first leak.",
+   "how_it_surfaced": "node scripts/qa_secrets.mjs failed at HEAD on .kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md:22 and :46. Those two lines were path-shaped so the existing rule caught them. A repo-wide git grep for the account token then found six more that it could not see.",
+   "redaction": "All eight occurrences across four tracked files replaced with <account>: the evidence file (4), this file (2), .kodro/autonomy/STATE.md (1, the pytest temp-root note), and the evidence file's measurement lines. The measurements themselves are unchanged: 20 HOME_PATH matches under utf16le against 0 under utf8 still reads exactly as it was taken. Only the disclosed value is gone.",
+   "rule_added": "A bare-name rule in scripts/qa_secrets.mjs. A bare name has no shape to match, so it is matched by value: the account running the scan, read from os.userInfo() at run time so the gate never stores a name. Guarded on alphanumerics rather than \\b so pytest-of-<name> is caught while a longer word merely containing the name is not. Names shorter than four characters and shared CI accounts are declined.",
+   "honest_limit": "This is a publisher-side check, not a universal one. It catches the leak the machine running it can create, which is the only one it is in a position to prevent. It is inactive when there is no usable local account name, so the PASS line now states 'bare-name rule live' or 'bare-name rule inactive' rather than letting a green line imply a check that did not run.",
+   "gate_now": "PASS  secrets: 42 passed (480 of 787 tracked files read, 13 credential rules, bare-name rule live). EXIT=0. Nine more checks than the 33 recorded above; the file counts differ from 471 of 773 because that tree is not this tree.",
+   "rule_proved_live": "A probe file containing pytest-of-<the real account> was written, git add -N'd so the scan would see it, and the gate failed on it: 1 failed, 41 passed, naming the probe. The probe was then removed and the gate returned to 42/0. The rule is not decoration.",
+   "defect_class_count": "Eighth instance recorded of a claim written down without the measurement that would support it, and the first one the agent introduced rather than found.",
+   "evidence": ".kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md, dated section appended below the original text."
+  },
+  "still_not_re_measured": "Unchanged from superseding_measurement_2026_08_15: wheel (hatchling absent offline), store_regression in isolation, qa_web, direct_visual, and the full Python suite at this HEAD. qa_personas and qa_vibe still produce no data without a local model and are still not passes."
  }
 }

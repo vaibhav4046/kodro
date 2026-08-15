@@ -48,7 +48,7 @@ committed-matches-live claim can be made about either file today.
 
 Host conditions that will bite the next session:
 - `pytest` fails with `PermissionError: [WinError 5]` on the
-  `pytest-of-lalwa` temp root unless `--basetemp` is passed. Harness, not
+  `pytest-of-<account>` temp root unless `--basetemp` is passed. Harness, not
   product. Any run of a module-scoped `tmp_path_factory` fixture hits it.
 - A subset pytest run always trips the 85 percent project coverage gate. That
   is expected and is not a failure of the tests being run.

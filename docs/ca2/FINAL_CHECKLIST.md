@@ -9,8 +9,14 @@ are also the three that can invalidate everything else.
 ## Before recording
 
 - [ ] **STUDENT: confirm the video duration from the current Canvas brief.** The
-      public material says 10 minutes in one place and 15 in another. The master
-      script fits 10 with four expansion blocks for 15. See `BRIEF_VERIFIED.md`.
+      2023 public page says 10 minutes twice and 15 once, all three in the same
+      document. The master script fits 10 with four expansion blocks for 15.
+      Source and exact quotes in `BRIEF_VERIFIED.md`.
+- [ ] **STUDENT: confirm whether a PDF slide deck and a short report are also
+      required, and whether submission is one ZIP.** The 2023 page lists all
+      three as one component and neither the deck nor the report exists in this
+      repository. This is the item most likely to invalidate an otherwise
+      finished submission. See `BRIEF_VERIFIED.md`, section 3 corrected.
 - [ ] Working tree clean, and the commit noted: `git status --porcelain && git log --oneline -1`
 - [ ] Short gate set green on that exact state: `qa_secrets`, `qa_honesty`,
       `qa_interpreter`, `qa_voice`, `smoke_mcp`

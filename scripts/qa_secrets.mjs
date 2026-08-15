@@ -27,6 +27,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
+import { userInfo } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -134,6 +135,47 @@ const ALLOWED_FILES = new Set([
   'scripts/qa_secrets.mjs',
 ]);
 
+/* The rule above matches an account name inside a path. It does not match the
+ * name on its own, and this repository published it that way six times while
+ * the path rule reported two: `pytest-of-<name>` in a host note, and
+ * `account='<name>'` in the evidence file that documented the first leak. Same
+ * disclosed value, a shape the rule was never written for.
+ *
+ * A bare name has no shape to match, so it is matched by value instead: the
+ * account running the scan. That makes this a publisher-side check rather than
+ * a universal one. It catches the leak this machine can create, which is the
+ * only one it is in a position to prevent, and it says so in the summary line
+ * rather than letting a green line imply more than it checked.
+ *
+ * Short names are skipped because a three-character account matches too much
+ * ordinary text to be useful, and shared CI accounts are skipped through the
+ * placeholder set above. */
+function selectAccount(name) {
+  if (typeof name !== 'string') return null;
+  const trimmed = name.trim();
+  if (trimmed.length < 4) return null;
+  if (PLACEHOLDER_ACCOUNTS.has(trimmed) || PLACEHOLDER_ACCOUNTS.has(trimmed.toLowerCase())) return null;
+  return trimmed;
+}
+const localAccount = (() => {
+  try {
+    return selectAccount(userInfo().username);
+  } catch {
+    return null; // no passwd entry, which some containers do not have.
+  }
+})();
+
+/* Not `\b`: a word boundary treats `-` and `_` as separators already, which is
+ * wanted, but it also treats them as word characters on neither side, and the
+ * case that matters here is `pytest-of-<name>`. Guarding on alphanumerics only
+ * flags that and still refuses to fire on a longer word that merely contains
+ * the name. Case-insensitive because Windows paths are. */
+function accountTokenPattern(account) {
+  const quoted = account.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![A-Za-z0-9])${quoted}(?![A-Za-z0-9])`, 'i');
+}
+const ACCOUNT_TOKEN = localAccount ? accountTokenPattern(localAccount) : null;
+
 // --- decoding --------------------------------------------------------------
 
 /* Reading every file as UTF-8 is what let this gate pass over a real leak.
@@ -176,6 +218,7 @@ function decodeText(buffer) {
 
 const findings = [];
 const pathFindings = [];
+const accountFindings = [];
 
 for (const relativePath of files) {
   if (ALLOWED_FILES.has(relativePath)) continue;
@@ -204,6 +247,9 @@ for (const relativePath of files) {
       }
       match = HOME_PATH.exec(line);
     }
+    if (ACCOUNT_TOKEN !== null && ACCOUNT_TOKEN.test(line)) {
+      accountFindings.push(`${relativePath}:${index + 1}  local account name`);
+    }
   }
 }
 
@@ -214,6 +260,11 @@ function report(list) {
 
 check('no tracked file contains a credential', findings.length === 0, report(findings));
 check('no tracked file contains a home path naming an account', pathFindings.length === 0, report(pathFindings));
+check(
+  'no tracked file contains the account name of the machine running the scan',
+  accountFindings.length === 0,
+  report(accountFindings),
+);
 
 // --- file-shaped secrets ---------------------------------------------------
 
@@ -287,6 +338,31 @@ check('the home-path rule ignores a slash-separated word list', (() => {
   return HOME_PATH.exec('a companion/home/arm module') === null;
 })(), '');
 
+/* The bare-name rule is exercised against a fabricated account rather than the
+ * real one, so every assertion below reads the same on any machine and this
+ * file still names no account. `jdoe` is not an account anywhere. */
+const PROBE_ACCOUNT = accountTokenPattern('jdoe');
+
+check('the bare-name rule matches a name standing alone', PROBE_ACCOUNT.test("utf16le 20 matches account='jdoe'"), '');
+
+/* The two shapes this repository actually published. Neither is a path, so
+ * neither was reachable by the rule above it. */
+check('the bare-name rule matches a hyphenated temp root', PROBE_ACCOUNT.test('fails on the pytest-of-jdoe temp root'), '');
+
+check('the bare-name rule adds something the home-path rule cannot', (() => {
+  HOME_PATH.lastIndex = 0;
+  return HOME_PATH.exec('pytest-of-jdoe') === null && PROBE_ACCOUNT.test('pytest-of-jdoe');
+})(), '');
+
+/* The cost of matching by value is false positives on prose, so the guard
+ * against them is asserted too. */
+check('the bare-name rule ignores a longer word containing the name', !PROBE_ACCOUNT.test('jdoerson signed it'), '');
+check('the bare-name rule ignores the name as a word suffix', !PROBE_ACCOUNT.test('overjdoe'), '');
+
+check('a shared CI account is not treated as a personal name', selectAccount('runner') === null, '');
+check('an account too short to match cleanly is declined', selectAccount('ab') === null, '');
+check('an ordinary account name is accepted', selectAccount('jdoe') === 'jdoe', '');
+
 /* The decoder is what the rules are only as good as. Every case below is a
  * file this repository has actually produced: a PowerShell redirection writes
  * UTF-16LE with a BOM, a few tools write it without one, and everything
@@ -331,9 +407,14 @@ if (failed.length) {
   failed.forEach((failureName) => console.error('FAIL  ' + failureName));
   process.exitCode = 1;
 } else {
+  /* The bare-name rule only runs when there is a name to run it with, so the
+   * green line says which it was. A pass that silently checked one thing fewer
+   * is the failure this gate was rewritten to stop reporting. */
   console.log(
     `PASS  secrets: ${pass} passed (${files.length} of ${tracked.length} tracked files read`
     + (skippedLarge.length ? `, ${skippedLarge.length} over the size cap` : '')
-    + `, ${RULES.length} credential rules)`,
+    + `, ${RULES.length} credential rules`
+    + (localAccount ? ', bare-name rule live' : ', bare-name rule inactive: no usable local account name')
+    + ')',
   );
 }
