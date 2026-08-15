@@ -105,7 +105,7 @@ Checked this session, not assumed:
 |---|---|---|
 | `src/robolearn/assets/web/bundle.js` | `node scripts/build_web.cjs --check` | `bundle.js is up to date.` exit 0 |
 | `src/robolearn/assets/web/lessons.json` | re-ran `scripts/export_lessons.py`, compared SHA-256 | byte-identical (`f1167f28...`), matches its 24 authoritative YAML lessons |
-| `docs/eval/ui_eval.json` | `node scripts/qa_ui.mjs` full suite | regenerated 2026-08-14T18:20:31Z, 66/66, 100, PASS |
+| `docs/eval/ui_eval.json` | `node scripts/qa_ui.mjs` full suite | re-run 2026-08-15T12:32:17Z against the current bundle, 66/66, 100, PASS; `artifactHashes.bundleSha256` equals the live `bundle.js` (`2bbeac69...`). The earlier 2026-08-14T18:20:31Z run reported the same totals against the bundle at `706f93d` |
 | `docs/dissertation/Kodro_Dissertation.pdf` | recompiled 2026-08-15, two clean passes, then synced from `_build` | byte-identical to `_build/Kodro_Dissertation.pdf`: 59 pages, 1,115,505 bytes, sha256 `294103b92657dcd2...` |
 
 **The PDF row is superseded, 2026-08-15 later the same day.** It was correct when

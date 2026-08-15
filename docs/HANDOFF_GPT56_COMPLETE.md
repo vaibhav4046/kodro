@@ -128,6 +128,12 @@ hooks, app-data, panels, app
 
 Run from `D:\project\robolearn`.
 
+The commands below are current. The numbers after each `#` are not: they were
+written on 16 July 2026 (commit `2f22487`) and never updated, so several now read
+low because the gates gained checks afterwards. Do not quote them. For the
+current figure on every gate, with the exact summary line it printed, see
+[`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md).
+
 ### Node gates (fast, no browser)
 ```bash
 node scripts/qa_interpreter.mjs      # 180 passed

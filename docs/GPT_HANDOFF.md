@@ -23,6 +23,12 @@ Product rule number one: SIMPLIFY. Every change must make the product simpler an
 
 ## 3. QUALITY GATES (the prompt must keep every one green at every commit)
 
+Counts in this section are a snapshot from 28 July 2026, the date this file was
+last written, and several have grown since. Treat the command names as current
+and the numbers as historical. The current figure for every gate, with the exact
+summary line it printed, is in
+[`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md).
+
 Node gates (node scripts/<name>.mjs): qa_interpreter 180, qa_grader 34, qa_physics 20, qa_ai_web 27, qa_web 4, qa_parts 40, qa_memgraph 22, qa_pupilstore 23, qa_scenario_parity 4, qa_interp_fixes 13. Browser gates (serve src/robolearn/assets/web on :8099 with python -m http.server first): qa_ui (6 flows + 32 behaviour + 12 modals), qa_worlds 61. Ollama-gated: qa_ai_grammar 6. Python: python -m pytest = 1068 passed at 89 percent coverage (85 gate); ruff check; ruff format --check; mypy (66 files, strict; optional extras have overrides). CI runs on ubuntu + macos + windows; deploy fires only on CI success; after deploy, verify the LIVE bundle sha256 equals the committed one before claiming shipped.
 
 Known traps to write into the prompt verbatim: the robolearn editable-install .pth must point at D:\project\robolearn\src; a backslash-n inside the harness generator template must be escaped double or cap.html breaks at parse; qa harness Chrome profiles are wiped per dump because a reused profile serves stale cached assets; qa_ui/qa_worlds can flake with chrome spawn timeouts under heavy load (rerun after cooldown; CI does not run them); always run ruff format, not only ruff check; OLLAMA_ORIGINS must include https://vaibhav4046.github.io for the live site to reach local Ollama.

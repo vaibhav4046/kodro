@@ -6,13 +6,16 @@ publicly-available documentation as of the project's submission date.
 
 Two notes on this table, because it was written early and the product moved
 under it. The product is now called Kodro; the name RoboLearn below is the old
-one and is kept only where it names a file. And three of the RoboLearn column's
-numbers were stale when they were re-checked on 15 August 2026: the hint count,
-the unlockable count and the install size. They are corrected here to what is
-measurable in the repository. One of the three is a smaller claim than the one
-it replaces, and the install size is a much larger one. A fourth row, the
-teacher dashboard, was not wrong about a number but was wrong about which build
-does what.
+one and is kept only where it names a file. And two of the RoboLearn column's
+numbers were stale when they were re-checked on 15 August 2026: the unlockable
+count and the install size. They are corrected here to what is measurable in the
+repository. A third row, the teacher dashboard, was not wrong about a number but
+was wrong about which build does what.
+
+The hint row was corrected twice on the same day, and the first correction was
+wrong. It replaced 24 with 12 on the strength of counting one engine and
+asserting no other existed. There are two engines. The count below now names
+both and says which surface gets which.
 
 | Criterion | **RoboLearn** | VEX VR | CoderZ | Webots | Karel J. Robot |
 | --- | --- | --- | --- | --- | --- |
@@ -20,7 +23,7 @@ does what.
 | Internet required | **No** | Yes (browser app) | Yes (cloud IDE) | No | No |
 | KS3 curriculum alignment | **Explicit, per-lesson** | Implicit | Implicit | None | None |
 | KS4 curriculum alignment | **Explicit (recursion, optimisation)** | Limited | Limited | None | None |
-| Built-in hint engine | **12 error rules + 48 lesson hints, offline** | None | Cloud-only | None | None |
+| Built-in hint engine | **24 error rules on the desktop, 12 in the browser, plus 48 lesson hints everywhere, all offline** | None | Cloud-only | None | None |
 | Replay debugger with scrubbing | **Yes (ghost trail)** | No | No | No | No |
 | Teacher dashboard with heatmap | **Yes (exports depend on the build)** | Yes | Yes | No | No |
 | Multi-terrain physics | **Earth / Mars / Underwater / Space** | Mars only | None | Configurable (advanced) | None |
@@ -35,13 +38,26 @@ does what.
 
 Measured on 15 August 2026, so that none of them has to be taken on trust.
 
-- **12 error rules.** `src/robolearn/assets/web/pupil-errors.js` holds a `RULES`
-  array with 12 pattern matchers, each turning a Python error into a plain
-  sentence plus a hint. That is the offline engine. The row said 24, and there
-  is no 24-rule table anywhere in the code; 24 is the number of lesson files,
-  which is probably where it came from.
-- **48 lesson hints.** Separately from the rules, those 24 bundled lesson files
-  carry 48 hand-written hints between them, tied to the specific mission.
+- **24 error rules on the desktop.** `robolearn.memory.hint_engine.RULES` has 24
+  entries. Both desktop builds use it: the Tk build imports `find_first_hint` at
+  `src/robolearn/app.py:32` and calls it at `:949`, and the WebView2 build ranks
+  the same rules through `best_hint` at `src/robolearn/web/app.py:328`, `:336`
+  and `:431`. So the original 24 was right for the surface most schools install,
+  and an earlier pass on this file wrongly cut it to 12.
+- **12 error rules in the browser.** `src/robolearn/assets/web/pupil-errors.js`
+  declares `var RULES = [` at line 105 with 12 pattern matchers, each turning a
+  Python error into a plain sentence plus a hint. That is the fallback: it runs
+  in the browser and inside WebView2, and it is the only error-rule engine when
+  there is no Python process behind the page, which is the case on the hosted
+  web build. A pupil on the website gets 12; a pupil on either desktop build
+  gets 24.
+- **48 lesson hints, on every surface.** Separately from the rules, the 24
+  bundled lesson files carry 48 hand-written hints between them, two per lesson,
+  tied to the specific mission. The web build does not read the YAML: the same
+  48 are generated into `LESSON_DATA` in
+  `src/robolearn/assets/web/lesson-grader.jsx` (24 lessons, 48 `onFailure`
+  strings, counted in both places), and `scripts/qa_grader.mjs` gates that the
+  generated copy still matches a fresh extraction.
 - **16 unlockables.** `robolearn.memory.achievements.CATALOGUE` has 16 entries.
   The row said 15. No note explains the difference, so treat 16 as the count
   and 15 as stale.

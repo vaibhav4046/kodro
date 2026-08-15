@@ -88,6 +88,39 @@ Software, Low  | 25.7 (25.3 to 32.2) | 48.0 ms | 9.1 ms | Not met
 Software, High | 24.4 (23.3 to 25.0) | 50.8 ms | 13.9 ms | Not met
 ```
 
+**Addendum, 2026-08-15.** The bundle moved a third time, at `cacf51e`, and this
+entry would read as false if checked against HEAD without the following. The
+hash above still names the bundle at `3c2a851`; the file on disk now hashes to
+`2bbeac6915fef57234b4dda8b67a1ab09ad138f10886df1b608eb126a28962f3`. The
+difference between those two bundles was measured rather than assumed:
+
+```
+$ git diff 3c2a851 cacf51e -- src/robolearn/assets/web/bundle.js --stat
+ src/robolearn/assets/web/bundle.js | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+$ git diff 3c2a851 cacf51e -- src/robolearn/assets/web/bundle.js \
+    | grep -E '^[+-]' | grep -v '^[+-][+-][+-]' | grep -vE '^[+-][[:space:]]*//' | wc -l
+0
+```
+
+One hunk, and no changed line that is not a `//` comment. The comment is the
+`browserMode` correction in `panels.jsx` described under loop pass 14. So the
+executable code the renderer gate measured is the executable code that ships,
+and the two software rows above are not restated from a build that no longer
+exists. That is a weaker guarantee than a matching hash and is offered as
+exactly that: the gate was not re-run for a comment, because re-running it would
+have produced a third set of noisy floor readings and invited the table to be
+edited again for no measured change in the product. If the bundle changes for
+any reason that touches code, this entry stops holding and the gate has to run
+again.
+
+One piece of independent support was added on 15 August: the full `qa_ui` gate
+was re-run against the new bundle and returned 66 of 66 with
+`artifactHashes.bundleSha256` equal to `2bbeac69...`, so all 66 behavioural,
+layout and modal checks behave on the shipped bundle exactly as they did on the
+measured one. That corroborates behavioural equivalence only. It says nothing
+about frame rates, and it is not a substitute for re-running the renderer gate.
+
 All three falsified method statements were re-checked against the artefact
 rather than assumed fixed. `samplesPerTier` is 3. Every P95 cell in the table,
 hardware and software alike, is the median of that tier's three per-sample
@@ -309,7 +342,13 @@ All four check out. Tag `v2.0-submission` = `ab8cdb1`. HEAD is 33 commits ahead.
 
 But two more also postdate the tag and are also quoted in the dissertation:
 
-- `docs/eval/ui_eval.json`, added in `706f93d`, `generatedAt` `2026-08-14T18:20:31.495Z`, quoted at `.tex:639`.
+- `docs/eval/ui_eval.json`, added in `706f93d`, quoted at `.tex:639`. It was
+  regenerated on 15 August 2026 (`generatedAt` `2026-08-15T12:32:17.058Z`) so
+  that its `artifactHashes.bundleSha256` is the SHA-256 of the bundle at the
+  commit carrying this entry rather than of the bundle two commits earlier. The
+  figures did not move: 66 of 66, `percent` 100, `verdict` PASS, groups flows
+  6/6, behaviour 41/41, layout 6/6, modals 13/13. The version in `706f93d`
+  carried `generatedAt` `2026-08-14T18:20:31.495Z` and the same totals.
 - `docs/eval/qa_gate_runs_2026-08-14.md`, last committed `44d30e9`, quoted at `.tex:641` and named at `.tex:150` itself.
 
 If "four" is read as an exhaustive list, it is wrong by at least one. Say "at least four", or add the UI artefact to the list.

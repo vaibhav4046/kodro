@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "harness": "qa_ui",
-  "generatedAt": "2026-08-14T18:20:31.495Z",
+  "generatedAt": "2026-08-15T12:32:17.058Z",
   "suite": "all",
   "method": "headless Chrome drives the real shipped bundle through cap.html; every row is an isolated Chrome run whose screenshot, post-action DOM or measured viewport had to match a concrete marker",
   "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -11,7 +11,7 @@
     "node": "v24.12.0"
   },
   "artifactHashes": {
-    "bundleSha256": "bfe3f76cc5c7e08ff3f8fa3989545b3a68afe10ddad8cd6c2e1ce74a3ec18f56",
+    "bundleSha256": "2bbeac6915fef57234b4dda8b67a1ab09ad138f10886df1b608eb126a28962f3",
     "capHtmlSha256": "1bd1575a12fe912c7049c4213e1fdd7713092a21009cfa68ba84170fcb4c9cee",
     "harnessSha256": "1937f9bb870bffe4ebecb37cbdd7828ff41b36865cde1405c5f4d62c197594b4"
   },
@@ -28,7 +28,7 @@
         {
           "label": "studio-earth-run",
           "pass": true,
-          "reason": "ok (291051B)",
+          "reason": "ok (286447B)",
           "determinism": {
             "pass": true,
             "reason": "rover drove 14.0m (>= 3m floor); exact-distance determinism is covered by qa_interpreter/qa_grader"
@@ -37,22 +37,22 @@
         {
           "label": "world-mars",
           "pass": true,
-          "reason": "ok (284096B)"
+          "reason": "ok (277531B)"
         },
         {
           "label": "world-warehouse",
           "pass": true,
-          "reason": "ok (172120B)"
+          "reason": "ok (172195B)"
         },
         {
           "label": "arm-firstrun",
           "pass": true,
-          "reason": "ok (151452B)"
+          "reason": "ok (147566B)"
         },
         {
           "label": "blocks-panel",
           "pass": true,
-          "reason": "ok (161577B)"
+          "reason": "ok (161366B)"
         },
         {
           "label": "onboarding",

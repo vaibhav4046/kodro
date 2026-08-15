@@ -58,7 +58,10 @@ a physical robot, electrical safety, mechanical fit, or safe deployment.
 ## Project status
 
 The hosted app runs in the browser and can work offline after its first
-load. The desktop app uses the same interface with the local Python engine.
+load. `Kodro-windows.exe` puts that same interface in a native window over
+the local Python engine. The `robolearn-windows-tk.exe` fallback shares the
+engine but not the interface: it is a Tk application with its own layout,
+and its feature set differs in places, most visibly the teacher dashboard.
 Core design, coding, simulation, and lesson paths need no account or AI.
 
 > This repository accompanies an MSc research project (COMP702, University
@@ -214,8 +217,11 @@ Download the Kodro app (`Kodro-windows.exe`) from the
 [latest release](https://github.com/vaibhav4046/robolearn/releases/latest)
 and run it. It is a self contained windowed app (WebView2). If WebView2
 is unavailable, use the `robolearn-windows-tk.exe` fallback asset from
-the same release. Core design, coding, kinematic simulation, and lessons
-do not require AI. Companion needs a local model or an explicitly selected
+the same release; it runs the same Python engine behind a Tk interface
+rather than this one, and
+[`docs/teachers/classroom-setup.md`](docs/teachers/classroom-setup.md)
+sets out where the two differ. Core design, coding, kinematic simulation,
+and lessons do not require AI. Companion needs a local model or an explicitly selected
 cloud provider.
 
 ### Option 2: From source (Windows, macOS, Linux)
