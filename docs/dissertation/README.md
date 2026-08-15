@@ -10,11 +10,16 @@ motion model locked across the two engines. The same platform doubles as a
 design studio for a non-expert who has only an idea. The final interface uses
 Simple progressive disclosure by default, follows a Design, Prove, Build
 journey, and keeps an opt-in Expert surface.
-The complete declared Python matrix passes 1,488 tests with one host Tk skip at
-90.97% branch-aware coverage against an 85% gate. That run writes its own
-commit and working-tree status into
-[`../eval/test_suite.json`](../eval/test_suite.json); read the figure there
-rather than from this paragraph, which is only as current as its last edit.
+The complete declared Python matrix passes against an 85% branch-coverage gate.
+The counts are deliberately not repeated here. This paragraph has carried a
+stale figure twice now, at 1,087 and then at 1,488, because a restated number
+goes stale the moment the suite grows and nothing forces it to be updated. The
+run writes its own commit, working-tree status, counts and coverage into
+[`../eval/test_suite.json`](../eval/test_suite.json). Read them there. Note that
+the skip count in that file is not stable on the development host: it comes from
+a fixture that turns an intermittent local Tk startup failure into a skip, the
+cause has not been established, and three runs of the same suite gave one skip,
+then two, then none.
 Four deterministic contracts — straight transit, controlled corner, obstacle
 clearance and battery reserve — pass five seeded runs each, twenty in total,
 and reject an intentionally broken controller; the per-run record is in

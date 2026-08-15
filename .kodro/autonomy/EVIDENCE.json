@@ -110,7 +110,7 @@
    "qa_encoding": "10/0 across 406 files, 100 protected characters"
   },
   "re_measured_earlier_in_this_pass": {
-   "python_local": "1,639 collected, 1,638 passed, 1 skipped, 90.90 percent branch-aware coverage against an 85 percent gate; artefact docs/eval/test_suite.json at commit aa174cf with a clean working tree. The skip is a Tk display dependency.",
+   "python_local": "1,639 collected, 1,638 passed, 1 skipped, 90.90 percent branch-aware coverage against an 85 percent gate; artefact docs/eval/test_suite.json at commit aa174cf with a clean working tree. The skip is a local Tk startup failure, not a display dependency, and the count is not stable across runs; see ca2_media_2026_08_15.skip_count_not_stable.",
    "python_local_host_note": "pytest fails on this host with PermissionError WinError 5 on the pytest-of-<account> temp root unless --basetemp is passed. That is a harness condition, not a product failure, and it is why the recorded command carries a --basetemp placeholder.",
    "qa_ui_local": "now a real pass, not a timeout: 325 seconds wall clock, exit 0, nine flows PASS, 41 of 41 behaviour or layout assertions. This is the single largest correction to the matrix above.",
    "qa_contrast": "61/0 across 10 themes",

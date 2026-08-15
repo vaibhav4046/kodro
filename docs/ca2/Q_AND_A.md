@@ -52,10 +52,26 @@ tests while still running them, so the true figure is at least what is reported.
 
 **"One test skips. Why?"**
 
-The graphics toolkit cannot open a display on this machine. The test is a
-studio-availability check that needs a live window. It runs and passes where a
-display exists. Reporting it as a skip rather than folding it into the pass count
-is deliberate.
+The artefact you are looking at recorded one skip at that commit. The honest
+answer is that the number moves: three runs of the same 1,639 tests on this
+machine gave one skip, then two, then none. They all come from a single fixture
+in the AI studio tests that opens a Tk window. When the toolkit fails to start,
+the fixture catches the error and skips instead of failing, so every test in
+that file skips together and the count depends on which run you took.
+
+I have not root-caused why it is intermittent, and I would rather say that than
+invent a reason. What I did rule out: it is not a virtual environment missing
+its Tcl directory, because the toolkit starts and reports version 8.6.15 in both
+the base interpreter and a clean one; it is not test ordering, because nothing
+in the harness randomises order; and it is not a leaked working directory or
+Tcl environment variable, because nothing in the source or the tests touches
+either. The recorded error is that the toolkit cannot find its initialisation
+script.
+
+The part that is a deliberate design decision is the degradation. A desktop-UI
+dependency that fails to start should not be able to mask a product regression,
+and it should not be quietly folded into the pass count either. Skipping is
+visible in the artefact and in the count.
 
 ---
 
