@@ -213,14 +213,20 @@ The current dashboard offers CSV export only. To add PDF, the
 its `SimpleDocTemplate` usage into a sibling `export_pdf` method on
 `ui.teacher_dashboard.TeacherDashboard`.
 
-## 7. Decide whether to rewrite published history for a leaked account name
+## 7. Decide whether to rewrite published history
 
 > Renumbered from 6 to 7 on 15 August 2026. This file carried two sections
 > numbered 6, so "HUMAN_TODO section 6" was ambiguous. Section 6 is the page
 > limit; this one is the history rewrite.
+>
+> Retitled on 17 August 2026. It used to read "for a leaked account name",
+> which was accurate when there was one reason. There are now two, 7a and 7b,
+> and they share a single decision because they share a single force-push.
 
 **This one is yours because it is irreversible.** Everything that could be fixed
 without your call has been.
+
+### 7a. A leaked local account name
 
 Six tracked files under `docs/dissertation/` were pdflatex console captures that
 named the local Windows account on 20 paths apiece, in a public repository:
@@ -255,3 +261,52 @@ outcome; the point is that it should be a decision rather than an oversight.
 If you do want it gone, that is `git filter-repo --invert-paths` over those six
 paths followed by a force-push, and it is a step to take deliberately when no
 other work is in flight. Do not let an agent do it for you.
+
+### 7b. 186 authorship trailers in the public history
+
+Found 17 August 2026 while removing the branch PR 2 sat on. The commit messages
+already on the public remote carry 186 co-author trailers naming the assistant
+vendor, which is the thing your standing rule forbids in a `vaibhav4046`
+repository. The same rule is enforced going forward by your global `commit-msg`
+hook, so this is history only.
+
+Measured, not assumed. The count comes from the same pattern the hook uses:
+
+```
+git log origin/main --format='%B' \
+  | grep -Eic 'co-authored-by:.*(claude|anthropic)'
+186
+```
+
+They resolve to four distinct model strings, the largest accounting for 104 of
+the 186. The rendered trailers are deliberately not reproduced here, because
+pasting them would put back into the tree the exact text this section exists to
+remove.
+
+Four facts that bound how urgent this is:
+
+- All 186 are dated between 1 June and 15 June 2026. None is later.
+- The count is 186 on every remote branch, including `main`. It is shared
+  history, so no branch introduced it and no branch can be blamed for it.
+- `git log origin/main..origin/agent/kodro-ca2-candidate --grep=... | wc -l`
+  returns **0**. The CA2 candidate's own 52 commits are clean.
+- `core.hooksPath` points at your global hooks directory and both `commit-msg`
+  and `pre-commit` are present there, which is why nothing has been added since.
+  The guard is working; it was installed after these commits existed. The path
+  is not written here on purpose, because it names the local account and
+  `scripts/qa_secrets.mjs` correctly fails on that. It caught this very line on
+  the first run of this edit.
+
+No author or committer field is affected. `git log --format='%an <%ae>%n%cn <%ce>'`
+piped through a case-insensitive match for `claude` or `anthropic` returns 0 on
+every branch. This is message text only.
+
+Same decision as 7a, and deliberately not a separate one, because the repair is
+one operation. Removing the trailers is `git filter-repo` with a message
+callback stripping the matching lines, over all refs, then the same force-push
+that 7a needs. Doing 7a and 7b in one pass costs one force-push instead of two.
+
+Nothing here is a credential and nothing needs rotating. The cost of leaving it
+is that a public repository contradicts a rule you set. The cost of fixing it is
+that every existing clone and PR 3 are invalidated. Decide it; do not let it
+sit as an oversight, and do not let an agent do it for you.
