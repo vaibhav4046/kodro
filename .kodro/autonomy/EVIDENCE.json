@@ -110,7 +110,7 @@
    "qa_encoding": "10/0 across 406 files, 100 protected characters"
   },
   "re_measured_earlier_in_this_pass": {
-   "python_local": "1,639 collected, 1,638 passed, 1 skipped, 90.90 percent branch-aware coverage against an 85 percent gate; artefact docs/eval/test_suite.json at commit aa174cf with a clean working tree. The skip is a local Tk startup failure, not a display dependency, and the count is not stable across runs; see ca2_media_2026_08_15.skip_count_not_stable.",
+   "python_local": "1,641 collected, 1,641 passed, 0 skipped, 90.85 percent branch-aware coverage against an 85 percent gate; artefact docs/eval/test_suite.json at commit e70b98b with a clean working tree, re-run 2026-08-17. It read 1,639 collected, 1,638 passed and 1 skipped at aa174cf before that. A run with no skip is not evidence the intermittency was fixed: the skip count is not stable across runs on this host, and the artefact's own provenanceNote says so. See ca2_media_2026_08_15.skip_count_not_stable.",
    "python_local_host_note": "pytest fails on this host with PermissionError WinError 5 on the pytest-of-<account> temp root unless --basetemp is passed. That is a harness condition, not a product failure, and it is why the recorded command carries a --basetemp placeholder.",
    "qa_ui_local": "now a real pass, not a timeout: 325 seconds wall clock, exit 0, nine flows PASS, 41 of 41 behaviour or layout assertions. This is the single largest correction to the matrix above.",
    "qa_contrast": "61/0 across 10 themes",
@@ -118,7 +118,7 @@
    "mcp_live_session": "initialize returned kodro 2.0.0; tools/list returned 8 tools; resources/list returned 25 resources, all counted at run time",
    "smoke_mcp": "scripts/smoke_mcp.sh and scripts/smoke_mcp.ps1 each report 2 of 2 entry points clean with no --entry restriction, 14 checks per entry point, including a byte-exact non-ASCII round trip. Both cover the kodro-mcp console script and python -m robolearn.mcp. Re-measured at this commit.",
    "console_script_note": "kodro-mcp is installed as robolearn.mcp.server:main exactly as pyproject declares. Separately, the installed kodro script still resolves to robolearn.bench:main while pyproject declares robolearn.__main__:main; that is stale install metadata from before hatchling went missing, it clears on the next real install, and it does not touch the MCP path.",
-   "qa_performance": "software-rasterised medians 25.7 FPS low quality and 24.4 high, three samples per tier, verdict MEASURED",
+   "qa_performance": "software-rasterised medians 18.1 FPS low quality and 13.9 high, three samples per tier, verdict MEASURED. Re-measured 17 August on a quiet machine against the shipped bundle, replacing the 14 August 25.7 and 24.4 pair which pinned a superseded bundle. The two bundles differ in twenty lines, all comment or prose text and none executable, so the drop is not a renderer change and its cause is not established; this host has read 34.4, 22.2, 25.7, 16.4 and 18.1 at Low across five runs.",
    "export_lessons": "regenerates byte-identical JSON, sha256 f1167f28...; 24 lessons, 3 KS1, 4 KS2, 9 KS3, 8 KS4",
    "build_web_check": "bundle.js is up to date"
   },

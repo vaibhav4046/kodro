@@ -151,6 +151,39 @@ only in this paragraph: the committed artefact has been overwritten since, so a
 clean re-measure cannot be compared against a stored file, only against these
 numbers.
 
+**Status, 17 August 2026. Measured on a quiet machine, and the answer is that
+this measurement cannot settle the question.** The gate was run twice, three
+samples per tier each time, with no other agent work in flight, the `:8099`
+fixture server stopped, twelve cores at ten percent load and only idle node and
+python processes alive. Medians were 16.4 Low and 13.4 High, then 18.1 Low and
+13.9 High. Both sit well under 25.7 and 24.4, and further under the 34.4 and
+28.4 named above, so on its face the trigger this request describes has fired.
+
+It should not be acted on, because the comparison points the wrong way. The two
+quietest runs produced the two lowest numbers. Competing load predicts the
+opposite, so load is not what separates these readings. The bundle is not what
+separates them either: the exact bundle the 14 August artefact pinned is still
+on disk as the stale `site/bundle.js` copy, sha256 `17c8d985`, and diffing it
+against the shipped `b23f6974` gives twenty changed lines, every one of them
+comment or docstring prose and none executable. Nothing in the renderer moved
+between a 25.7 reading and an 18.1 reading.
+
+So the honest conclusion is about the instrument, not the glass. Across five
+runs this host has returned 34.4, 22.2, 25.7, 16.4 and 18.1 FPS at Low for the
+same scene. A number that swings by a factor of two cannot decide whether
+translucent surfaces cost frames, and cutting them on the strength of it would
+be changing the product to chase noise. The translucent surfaces stay. Software
+rasterisation is also the no-GPU floor rather than the classroom path: the
+hardware row meets the 4.17 ms budget in every sample, and a visual change
+inside the capture freeze is out of scope regardless.
+
+What would actually answer this: build a glass and a no-glass variant and
+measure them back to back inside one session on one host, so the comparison is
+within-session instead of across days. Nothing else this host produces is
+precise enough to carry the argument. Until someone does that, the question is
+still open, and the dissertation now says the software row is an order of
+magnitude rather than a precise figure.
+
 ## Engine track, for the design track: your in-flight lane and a preserved stash
 
 While committing the lessons batch I twice stashed your uncommitted companion

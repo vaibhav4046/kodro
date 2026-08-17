@@ -8,9 +8,10 @@ The second half of this file is the list of things that must not be said. That
 half matters more. A demonstration loses more marks for one unsupported claim
 than it gains from three extra features.
 
-Measured on 14 August 2026 unless a date is given. Commit `aa174cf` for the
-Python suite artefact, working tree clean; the Node gates, the lint and type
-gates and both MCP smoke scripts re-run at `2222e1e`.
+Measured on 14 August 2026 unless a date is given. The Python suite artefact was
+re-run on 17 August at commit `e70b98b`, working tree clean, and the Testing
+section below carries that run; it stood at `aa174cf` until then. The Node
+gates, the lint and type gates and both MCP smoke scripts re-run at `2222e1e`.
 
 **Re-run the gate rows on the recording day rather than reading them off this
 page.** Two rows in the quality-gates table went stale between 14 and 15 August
@@ -56,31 +57,43 @@ its row.
 
 | Claim | Evidence | Command |
 |---|---|---|
-| 1,639 Python tests collect, 1,638 pass, 1 skips | `docs/eval/test_suite.json` | `python -m pytest --cov-report=json --junitxml=...` |
-| 90.90 percent branch-aware coverage against an 85 percent gate | same | same |
-| The skip is a local Tk startup failure, not a product failure | `skipDetail` in the same file | same |
-| The counts are reproducible from a clean checkout | `source.workingTreeClean: true` at commit `aa174cf` | `git status --porcelain` before the run |
+| 1,641 Python tests collect, all 1,641 pass, none skip | `docs/eval/test_suite.json` | `python -m pytest --cov-report=json --junitxml=...` |
+| 90.85 percent branch-aware coverage against an 85 percent gate | same | same |
+| A run with no skip is not evidence the Tk intermittency is fixed | `source.provenanceNote` in the same file | same |
+| The counts are reproducible from a clean checkout | `source.workingTreeClean: true` at commit `e70b98b` | `git status --porcelain` before the run |
+| The counts and coverage are machine-read, not transcribed | `scripts/gen_test_suite_json.py` reads the run's JUnit XML and coverage JSON | `python scripts/gen_test_suite_json.py --check ...` |
 
-Say "the skip", not "the one skip", and do not name a test or offer a cause on
-camera. The skip count is not stable on this host: three runs of the same 1,639
-tests gave 1, then 2, then 0. Thirteen test files open a Tk window in a fixture
-that catches `tk.TclError` and skips instead of failing, and 169 collected tests
-sit behind those guards, so a bad run takes a whole file with it. The recorded
-reason is "Can't find a usable init.tcl". Why it is intermittent is not
-established: `tk.Tk()` succeeds on demand in both the base interpreter and a
-fresh venv, test order is deterministic, and nothing in the repository touches
-`chdir`, `TCL_LIBRARY` or `TK_LIBRARY`. The defensible sentence is that a
-fixture degrades a local Tk startup failure into a skip so a desktop-UI
-dependency cannot mask a product regression. If asked why it is intermittent,
-the honest answer is that it has not been root-caused.
+Updated 17 August, and the change of subject matters more than the change of
+number. Until now this section told you how to talk about a skip. There is no
+skip in the current run, so it now tells you how to talk about its absence,
+which is the harder job: a clean run invites the claim that the problem went
+away, and that claim is not supported.
 
-Do not read the test name out of `skipDetail` on camera either. That block pairs
-a test name with a reason string that belongs to a different file, because the
-string was carried across by hand at the last regeneration instead of being
-re-read from the run. The artefact now flags the pair as unverified in its own
-`provenance` field. If it comes up, the answer is that the counts and coverage
-are machine-read, that one field was not, and that the file says so rather than
-having been quietly patched to look consistent.
+The skip count is not stable on this host. Four full runs have been taken. Three
+of the same 1,639 tests gave 1, then 2, then 0, and the current 1,641-test run
+gave 0. Thirteen test files open a Tk window in a fixture that catches
+`tk.TclError` and skips instead of failing, and 169 collected tests sit behind
+those guards, so a bad run takes a whole file with it and a good one proves only
+that the toolkit started that time. The recorded reason, when it does fire, is
+"Can't find a usable init.tcl". Why it is intermittent is not established:
+`tk.Tk()` succeeds on demand in both the base interpreter and a fresh venv, test
+order is deterministic, and nothing in the repository touches `chdir`,
+`TCL_LIBRARY` or `TK_LIBRARY`. The defensible sentence is that a fixture
+degrades a local Tk startup failure into a skip so a desktop-UI dependency
+cannot mask a product regression. Do not offer a cause on camera. If asked why
+it is intermittent, the honest answer is that it has not been root-caused.
+
+`skipDetail` is an empty array in the current artefact, so there is nothing to
+read out of it. Do not describe that as the earlier problem being fixed. The
+earlier problem was that the block paired a test name with a reason string
+belonging to a different file, carried across by hand at a regeneration instead
+of being re-read from the run. That pair was never reconciled. It is gone
+because this run produced no skip to describe, and the artefact's
+`provenanceNote` says exactly that rather than letting the empty array imply a
+repair. What did change is that the field can no longer be hand-edited into
+existence: `scripts/gen_test_suite_json.py` writes it straight from the run's
+JUnit XML, so if a later run skips again, the name and the reason both come from
+that run.
 
 The coverage figure is a conservative floor, not a ceiling. `tests/conftest.py`
 drops the coverage contribution of node-subprocess tests on this exact host
@@ -173,7 +186,7 @@ would be the one unsupported claim in an otherwise clean voice section.
 | Encoding is clean across the files the gate reads | `10 passed (411 files, 100 protected characters)` | `node scripts/qa_encoding.mjs` |
 | No tracked file carries a credential, a key file or a local account name | `PASS  secrets: 42 passed (479 of 786 tracked files read, 13 credential rules, bare-name rule live)`, 15 August. The two counts are the gate's scope and move with the tracked set; `42 passed, 0 failed` is the claim | `node scripts/qa_secrets.mjs` |
 | Learning annotations pass 28 checks | 28 passed | `node scripts/qa_learning_annotations.mjs` |
-| Software-rasterised rendering holds the mid twenties in FPS | medians 25.7 low quality, 24.4 high, over three samples per tier | `node scripts/qa_performance.mjs --gl=software --repeat=3`, verdict MEASURED |
+| Software rasterisation is the disclosed floor and misses the 240 Hz work budget | medians 18.1 low quality, 13.9 high, three samples per tier, 17 August, on the shipped bundle. Do not say "mid twenties" on camera: this host has read 34.4, 22.2, 25.7, 16.4 and 18.1 at Low for the same scene across five runs, so the only safe spoken claim is that software rasterisation misses the budget and is the disclosed no-GPU floor | `node scripts/qa_performance.mjs --gl=software --repeat=3`, verdict MEASURED |
 
 ### The failure-and-refine story
 
