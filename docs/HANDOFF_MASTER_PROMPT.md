@@ -134,8 +134,16 @@ All under `src/robolearn/assets/web/`:
 - App icon: `src/robolearn/assets/icon.ico`. Brand SVG: `ORBIT_SVG` in `app.jsx`.
 
 ### Docs / dissertation / report
-- Dissertation HTML (CA3, 70%, due **2026-09-11**, max 50pp, Turnitin):
-  `docs/dissertation/Kodro_Dissertation.html` (+ `.pdf`, + chapter .md files 00–05).
+- Dissertation (CA3, 70%, due **2026-09-11**, max 50pp, Turnitin). The source is
+  LaTeX, not HTML: `docs/dissertation/Kodro_Dissertation.tex`, built with MiKTeX
+  `pdflatex` run twice into `docs/dissertation/Kodro_Dissertation.pdf`. Chapter
+  files `00-introduction.md` through `05-glossary.md` sit alongside it as drafting
+  material and are not part of the build: the `.tex` contains no `\input{`,
+  `\include{` or `\subfile{`, so nothing outside it and `img/` reaches the PDF.
+  There is no longer a `Kodro_Dissertation.html`. It was real once, added in
+  `0790128` when the CA3 scaffold was first written, and removed in `6225db1`
+  ("docs: align dissertation with verified Kodro evidence") when the dissertation
+  moved to LaTeX. This line kept naming it as the source for weeks afterwards.
 - CA1 proposal (marked ~A / 74): `docs/ca1/CA1_Specification_Design_Proposal.html`,
   `docs/ca1/Kodro_CA1_Specification_Design_Proposal.pdf`, text at `docs/ca1/_proposal_text.txt`,
   figures in `docs/ca1/img/`.
@@ -224,7 +232,7 @@ All under `src/robolearn/assets/web/`:
 6. **Package + smoke-test the installed app** (RoboLearn.exe / Kodro.exe), not `python -m`.
 
 **TRACK B — DISSERTATION (parallel, due 2026-09-11)**
-7. Grow `docs/dissertation/Kodro_Dissertation.html` toward the 50pp CA3 spec: tighten
+7. Grow `docs/dissertation/Kodro_Dissertation.tex` toward the 50pp CA3 spec: tighten
    Intro/positioning, Requirements (tables + use cases), Design + architecture,
    Implementation (real, from the actual code), Evaluation (honest measured persona-eval +
    the observed self-refinement loop; mark the teacher study as pending in `HUMAN_TODO.md`),

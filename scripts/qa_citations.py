@@ -45,6 +45,13 @@ once: a self-test cited two paths that were still untracked, so two of the three
 failure classes never fired and the run looked conclusive anyway.
 
 Waived citations are not checked at all. The count is printed on every run.
+
+The first version of this gate read only full `path:line` forms and reported
+PASS over 148 citations while 129 backticked `:N` continuations sat outside its
+regex entirely. Fifteen of those were real citations into real files. A gate
+written to catch citation drift had a blind spot of the same shape as the defect
+it hunts, which is why the summary line now prints the unanchored count instead
+of discarding it: a hole that is not counted out loud reads as green.
 """
 
 from __future__ import annotations
@@ -58,6 +65,16 @@ CITE = re.compile(
     r"`?([A-Za-z0-9_.][A-Za-z0-9_./\-]*"
     r"\.(?:md|tex|py|mjs|cjs|js|jsx|json|yaml|yml|toml)):(\d+)"
 )
+
+# Documents cite several lines of one file as `path/to/f.md:17`, `:60`, `:309`.
+# Only the first is a full citation; the rest inherit the path. CITE cannot see
+# them, so an early version of this gate checked 148 citations while 129 bare
+# continuations went unexamined and it still printed PASS. A continuation is
+# only resolved when a full citation appears earlier on the same line, which is
+# what makes the shorthand readable in the first place. A backticked `:8099`
+# with no citation before it is a port number, not a line reference, and is
+# counted as unanchored rather than guessed at.
+CONT = re.compile(r"`:(\d+)`")
 
 # Anchors that are almost never what a citation meant to point at.
 STRUCTURAL = {"}", "{", ">", "<", "]", "[", ")", "(", "```", "---", "|", "});", "};"}
@@ -142,6 +159,26 @@ class Repo:
         return None, False
 
 
+def line_citations(line: str) -> tuple[list[tuple[str, int]], int]:
+    """Return (citations, unanchored) for one line.
+
+    Continuations inherit the path of the nearest full citation starting before
+    them on the same line. One with nothing before it is not a citation at all
+    and is returned in the unanchored count so the gap is printed rather than
+    dropped.
+    """
+    full = [(m.start(), m.group(1), int(m.group(2))) for m in CITE.finditer(line)]
+    out = [(target, num) for _, target, num in full]
+    unanchored = 0
+    for match in CONT.finditer(line):
+        prior = [f for f in full if f[0] < match.start()]
+        if not prior:
+            unanchored += 1
+            continue
+        out.append((prior[-1][1], int(match.group(1))))
+    return out, unanchored
+
+
 def bad_anchor(text: str) -> str | None:
     stripped = text.strip()
     if not stripped:
@@ -158,9 +195,11 @@ def main() -> int:
     allowed, allowed_files = load_allowlist(root)
 
     hard: list[str] = []
+    waived_hard: list[str] = []
     review: list[str] = []
     resolved = 0
     waived = 0
+    unanchored = 0
     waived_per_file: dict[str, int] = {}
     docs = sorted(p for p in repo.tracked if p.endswith(".md"))
 
@@ -169,17 +208,31 @@ def main() -> int:
         if body is None:
             continue
         for lineno, line in enumerate(body, 1):
-            for match in CITE.finditer(line):
-                target, num = match.group(1), int(match.group(2))
+            cites, loose = line_citations(line)
+            unanchored += loose
+            for target, num in cites:
                 key = f"{doc}:{lineno}"
+                # A hard failure is normally unwaivable, because an unresolvable
+                # citation is always wrong. The exception is a document quoting
+                # this gate's own failure output, where the broken citation is
+                # the evidence. Without this, the only way to get green would be
+                # to edit a recorded result, which is the worse outcome. Waived
+                # hard failures print on their own line so they never go quiet.
+                excused = doc in allowed_files or key in allowed
                 path, ambiguous = repo.resolve(doc, target)
                 if path is None:
-                    hard.append(f"{key} -> {target}:{num}  no such tracked file")
+                    entry = f"{key} -> {target}:{num}  no such tracked file"
+                    (waived_hard if excused else hard).append(entry)
+                    if excused:
+                        waived += 1
                     continue
                 dest = repo.lines(path)
                 if dest is None or not 1 <= num <= len(dest):
                     length = 0 if dest is None else len(dest)
-                    hard.append(f"{key} -> {path}:{num}  past end of file (len={length})")
+                    entry = f"{key} -> {path}:{num}  past end of file (len={length})"
+                    (waived_hard if excused else hard).append(entry)
+                    if excused:
+                        waived += 1
                     continue
                 resolved += 1
                 anchor = dest[num - 1]
@@ -202,9 +255,11 @@ def main() -> int:
                 if why:
                     review.append(f"{key} -> {path}:{num}  {why}")
 
-    total = resolved + len(hard)
+    total = resolved + len(hard) + len(waived_hard)
     for entry in hard:
         print(f"FAIL  {entry}")
+    for entry in waived_hard:
+        print(f"WAIVED-BROKEN {entry}  (allowlisted, see scripts/{ALLOWLIST_NAME})")
     for entry in review:
         print(f"REVIEW {entry}")
     for name, reason in sorted(allowed_files.items()):
@@ -214,7 +269,8 @@ def main() -> int:
     tail = (
         f"{total} found across {len(docs)} documents, {len(hard)} unresolvable, "
         f"{len(review)} needing review, {waived} waived "
-        f"({len(allowed)} by line, {len(allowed_files)} by file)"
+        f"({len(allowed)} by line, {len(allowed_files)} by file), "
+        f"{unanchored} backticked `:N` not a citation"
     )
     if hard or review:
         print(f"FAIL  citations: {tail}")

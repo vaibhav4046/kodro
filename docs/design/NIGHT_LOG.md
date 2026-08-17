@@ -111,7 +111,7 @@ unstaged until the shared-worktree commit boundary is safe.
 
 ## Open cross-track items
 
-See `REQUESTS_FOR_CLAUDE.md`:
+See `docs/design/REQUESTS_FROM_DESIGN.md`:
 
 1. Replace the engine-owned `ORBIT_SVG` with the routed K.
 2. Pause the live render loop and expose `body.kodro-sim-idle` while glass

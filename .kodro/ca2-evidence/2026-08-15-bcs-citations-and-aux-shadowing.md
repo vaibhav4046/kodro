@@ -266,3 +266,91 @@ first attempt at that self-test was itself defective: it cited
 ls-files`, so the past-end and bad-anchor branches never ran and the result still
 looked conclusive. Only files git already knows about are scanned or accepted as
 targets. That limit is written into the script docstring.
+
+## The gate had the same blind spot it was built to find
+
+Added 15 August 2026, later the same day. The gate above shipped reporting `PASS
+citations: 148 found`. That number was wrong in the direction that matters: it
+was not an overcount, it was a count of the only form the regex could see.
+
+Documents cite several lines of one file in a shorthand that drops the repeated
+path, writing the first reference in full and the rest as a bare backticked
+colon-and-number. The pattern the gate matched required a filename with an
+extension in front of the colon, so every one of those continuations was
+invisible to it. Measured rather than guessed: a repo-wide scan for the bare
+backticked form returns 129 occurrences. 114 are not citations at all, mostly
+port numbers like the one in the evidence-capture instructions, and 15 are real
+references into real files that had never once been checked.
+
+So a tool written specifically to catch citation drift shipped with a blind spot
+of exactly the shape of the defect it hunts. This is the second time in two days
+that has happened in this workstream: the throwaway scan before it omitted the
+`jsx` extension and missed 46 citations. The lesson that generalises is not
+"remember jsx" or "remember continuations". It is that a checker's coverage is
+itself a measurement, and an uncounted region reads as green just as loudly as a
+verified one.
+
+The fix resolves a continuation against the nearest full citation earlier on the
+same line, which is the convention that makes the shorthand readable to a person
+in the first place, and refuses to guess when there is no such citation. Those
+refusals are counted and printed rather than dropped, so the summary line now
+ends with the number of backticked colon-forms it declined to treat as
+citations. Coverage went from 148 to 166.
+
+The new branch was proved to fail before it was trusted. A staged temporary file
+citing a real document in full and then continuing past the end of it produced
+
+    FAIL  docs/_selftest_cont.md:2 -> docs/GPT_HANDOFF.md:99999  past end of file (len=64)
+
+with rc=1, which proves both halves at once: the continuation inherited the path
+from the full citation before it, and the past-end branch fired on an inherited
+path. In the same file a backticked port number with no citation before it
+pushed the unanchored count from 114 to 115 instead of being silently resolved
+against something. After removing the file the gate returned to green with no
+residue.
+
+Three real drifted citations were found and fixed as a direct consequence, and
+all three were drifted by the edit made earlier in this same session. Adding a
+correction block to `.kodro/autonomy/STATE.md` pushed the fifty-page claim from
+line 276 to 297, and the audit that cited it still resolved and still passed,
+because a drifted citation lands on a line that exists. Two more in
+`docs/dissertation/CA2_INTEGRITY_AUDIT_2026-08-14.md` were written in the
+continuation shorthand and so were never examined at all; both moved by four
+lines. They are now written as full paths.
+
+The allowlist drifted too, and this is the part worth carrying forward. Its one
+line-keyed waiver was pinned to line 338. Inserting two lines above that point
+moved the waived citation to 340, so the gate reported the worked example as a
+fresh review item while the stale key sat waiving whatever had moved into its
+old place. A line-keyed suppression list carries the identical defect as the
+citations it suppresses, one level up, and nothing checks it. The entry was
+re-pointed to 340 and the file now says so in its header.
+
+## Making a hard failure waivable without making the gate toothless
+
+Recording the section above turned the gate red, which is worth spelling out
+because the fix could easily have been the wrong one. The prose quotes the
+self-test's literal FAIL output, and that output names a file that was deleted
+on purpose and a line number past the end of a real file on purpose. Both are
+citations by the gate's own regex. Hard failures were unwaivable by design, on
+the reasoning that an unresolvable citation is always wrong.
+
+That invariant was actively harmful here. The only way to get green would have
+been to edit quoted tool output, which falsifies a recorded result to satisfy a
+checker. So hard failures became waivable per line, and print as WAIVED-BROKEN
+rather than disappearing into the waived count.
+
+A relaxation like that has to be proved not to have removed the check. Staging
+a fresh document with three unwaived bad citations, one naming a file that does
+not exist and two past the end of a real file, one of those in the continuation
+shorthand:
+
+```
+FAIL  citations: 171 found across 108 documents, 3 unresolvable, 0 needing review, 44 waived (2 by line, 1 by file), 114 backticked `:N` not a citation
+SELFTEST_RC=1
+```
+
+Three, not two, so the continuation branch reaches the past-end check as well as
+the resolve check. After deleting the staged file the gate returns to 168 found,
+0 unresolvable, exit 0, and `git status` shows no residue. The waiver is a
+statement about two specific lines, not a hole in the failure path.

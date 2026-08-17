@@ -238,14 +238,35 @@ LIVE-VERIFIED at commit c8118bb: CI success (3 OSes), Deploy Pages success, live
 bundle sha256 == committed (ff50659b...), live 200. main == kodro-identity-pass
 == origin == c8118bb. Tree clean. This is the durable checkpoint.
 
-EXACT RESUME STEPS when the user says "continue":
+SPENT, 15 August 2026. The numbered block below was written when round 10 was
+the newest ship and round 11 had not run. It has since been consumed: the
+CONVERGENCE COUNTER paragraph immediately underneath records rounds 11, 12 and
+13 as all shipped and live-verified. Do not execute it. It is kept because the
+method it describes is the one to repeat, not because the steps are pending.
+Two of its instructions cannot be followed as written even in principle:
+
+  - step 3 names an absolute path under a Claude Code session directory. That
+    file does not exist. Checked on 15 August 2026:
+    `find "$USERPROFILE/.claude/projects" -name "*kodro-judge-round*"` returns
+    nothing, and the session UUID in the path has no `workflows` directory at
+    all. A different session UUID does, holding the convergence-audit and
+    dissertation-audit workflows, but not this one. Anyone cloning the repo
+    never had it: it was always machine-local and outside the tree.
+  - step 2 names `<scratchpad>/capture_evidence.mjs`, a placeholder for a temp
+    directory that no longer exists either.
+
+Rebuild both from the description in `docs/HANDOFF_GPT56_COMPLETE.md` section 6
+rather than looking for the files.
+
+EXACT RESUME STEPS as they stood at round 10 (historical, do not execute):
 1. (optional sanity) cd /d/project/robolearn && git rev-parse --short HEAD  # expect c8118bb (or later)
 2. Capture fresh evidence for the next round:
    node "<scratchpad>/capture_evidence.mjs"  (server on :8099 serving
    src/robolearn/assets/web; regenerate narrow_mobile at a TRUE 420px CDP
    viewport via scripts/lib/cdp-viewport.mjs so phone layout is judged honestly).
 3. Run judge round 11 with the Workflow tool, scriptPath:
-   %USERPROFILE%\.claude\projects\D--project-robolearn\8de95992-bd5b-4a12-b04f-1b334c9f4674\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js
+   %USERPROFILE%\.claude\projects\D--project-robolearn\<session-uuid>\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js
+   (gone, see the note above)
 4. Parse accepted findings (brace-match the tool result, or reconstruct from the
    run's journal.jsonl + agent-*.jsonl like scratchpad/parse_journal10.js). For
    each accepted P0-P3: reproduce, root-fix, add/extend a gate (qa_honesty /

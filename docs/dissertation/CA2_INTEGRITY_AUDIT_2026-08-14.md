@@ -315,8 +315,10 @@ Note that this is an understatement, not an inflation. The gate is stronger than
 No authoritative COMP702 brief exists anywhere in the repository. Every statement of the limit is either the author's own note to a tool, or a derivation in a previous audit:
 
 - `docs/GPT_HANDOFF.md:40`: "EXACTLY 50 pages (hard limit)". This is a prompt written by the author, not a brief.
-- `docs/HANDOFF_GPT56_COMPLETE.md:17`, `:60`, `:309`, `:378`: repeat "max 50 pages" and "exactly 50 pages".
-- `.kodro/autonomy/STATE.md:276`: "EXACTLY 50 pages".
+- `docs/HANDOFF_GPT56_COMPLETE.md:17`, `docs/HANDOFF_GPT56_COMPLETE.md:60`,
+  `docs/HANDOFF_GPT56_COMPLETE.md:313`, `docs/HANDOFF_GPT56_COMPLETE.md:382`:
+  repeat "max 50 pages" and "exactly 50 pages".
+- `.kodro/autonomy/STATE.md:297`: "EXACTLY 50 pages".
 - `.kodro/autonomy/DISSERTATION_TRACEABILITY.md:46`: "the established ~50-page design (no larger target set by the ...)".
 - `docs/dissertation/DIAGNOSTIC_2026-08-14.md:58`: "The module limit is 50 pages *excluding the appendix*". No source cited.
 - `docs/dissertation/INTEGRITY_AUDIT_2026-07-17.md:15` used to state "The 50-page limit applies to the body, so the current margin is 3 pages", with no source cited. That cell was rewritten on 15 August 2026 and now withdraws the body and appendix split instead of asserting it, on the ground that the split was never re-derived at the current page count. The July audit therefore no longer states the limit at all.

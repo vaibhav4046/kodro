@@ -1,15 +1,23 @@
-"""pywebview launcher for the vendored Claude design.
+"""pywebview launcher for the Kodro web shell.
 
 Renders ``src/robolearn/assets/web/index.html`` in a desktop window
 (Edge WebView2 on Windows, WebKit on macOS, WebKitGTK on Linux) and
-exposes a :class:`BridgeAPI` instance that the design's React shell
-calls through ``window.pywebview.api.*``.
+exposes a :class:`BridgeAPI` instance that the React shell calls
+through ``window.pywebview.api.*``.
 
-Design first, integration later: the bridge intentionally returns
-stubbed-but-real data on day one (the engine's actual lesson library +
-pupil store), so the design renders and the React app can paint its
-panels with live content. Submission, grading and trace replay are
-added as follow-ups once the React app is patched to call into them.
+The bridge is not a stub layer. It runs the same Python engine the Tk
+app does: :meth:`BridgeAPI.submit_attempt` rebuilds the lesson world,
+binds a fresh tracer and rover, executes the pupil's source in the
+sandbox, grades it against the lesson's ``success_criteria`` and
+returns the verdict plus the first matching hint. Lesson library,
+pupil store, scenario run history, report export, robot import and
+export and the local AI helpers are all live through the same object.
+
+This docstring used to describe a first-day state in which grading was
+still a planned follow-up. That stopped being true and the text did not
+move, which is the failure mode the evidence discipline in this
+repository exists to catch, so it is written here as what the module
+does rather than what it was going to do.
 """
 
 from __future__ import annotations
