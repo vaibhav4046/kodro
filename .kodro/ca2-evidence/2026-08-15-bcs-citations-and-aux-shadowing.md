@@ -256,7 +256,7 @@ by bare basename with a line number, and that basename matches both
 unrelated field. The claim was right and the pointer was not
 checkable, in the document that says what to say out loud on an assessed
 recording. Fixed to the full path, the same fix already applied to
-`docs/ca2/CLAIM_LEDGER.md:192`.
+`docs/ca2/CLAIM_LEDGER.md:205`.
 
 The gate was exercised in both directions, because a check that cannot go red is
 not a check. A temporary file citing a missing target, a line past end of file

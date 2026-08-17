@@ -386,7 +386,7 @@ gives: a reader the dissertation sends to that file would otherwise have been
 told the evidence was untracked when it is tracked. The treatment of
 `ui_eval_behaviour.json` was left alone, as this entry recommends.
 
-`docs/eval/qa_gate_runs_2026-08-14.md:79` to `:93`, under the heading "The artefact-tracking gap":
+`docs/eval/qa_gate_runs_2026-08-14.md:87` to `:101`, under the heading "The artefact-tracking gap":
 
 > `git log --all -- <path>` returns no commits at all for `docs/eval/test_suite.json`, `docs/eval/ui_eval.json` and `docs/eval/vibe_eval.json`: they exist on disk and are named in the dissertation, but they have never entered version control.
 
