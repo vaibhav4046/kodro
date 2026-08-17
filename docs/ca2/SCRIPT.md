@@ -241,12 +241,20 @@ Screen: `docs/eval/test_suite.json`, then a terminal with the gate output.
 
 > "The test suite artefact records the commit, a clean working tree, and the
 > counts read from the run's own output rather than typed in by hand. One
-> thousand six hundred and thirty-nine tests collect, one thousand six hundred and
-> thirty-eight pass, and the skip is a desktop-toolkit startup failure on this
-> machine that a fixture degrades to a skip, not a product failure. Branch-aware
-> coverage is ninety point nine percent against an eighty-five percent gate."
+> thousand six hundred and forty-one tests collect and all of them pass. Nothing
+> skipped in this run, and I would not read that as a fix: the same suite on this
+> machine has reported one skip, then two, then none, because thirteen test files
+> open a desktop toolkit window and degrade to a skip when it fails to start.
+> Branch-aware coverage is ninety point eight five percent against an eighty-five
+> percent gate."
 
-Stop at that sentence on the skip. Two things in this block were wrong until 15
+Stop at the end of that. Do not offer a cause for the intermittency on camera,
+and do not present the clean run as the problem being solved. Saying "nothing
+skipped in this run" and then immediately saying why that is weak evidence is
+the whole point of the block: a marker who has read the artefact will already
+know the count moves, and volunteering it is worth more than being asked.
+
+Two things in this block were wrong until 15
 August. It said "one thousand six hundred and twenty-six" collecting and
 "twenty-five" passing, and no other document says that: the artefact, the ledger,
 the checklist, the Q&A and four places in the dissertation all say 1,639 and
@@ -257,6 +265,20 @@ recorded error is that it cannot find its initialisation script, and why that is
 intermittent has not been established. `CLAIM_LEDGER.md` forbids offering a cause
 on camera for exactly this reason. If a marker asks, `Q_AND_A.md` has the answer
 and the list of what has been ruled out.
+
+Updated 17 August. The spoken figures above changed because the suite was re-run
+on a clean tree at `e70b98b`: one thousand six hundred and forty-one collect, all
+of them pass, coverage ninety point eight five percent. The previous run at
+`aa174cf` collected 1,639 and passed 1,638, and the paragraph above about the 15
+August error is left exactly as it was, because it is a record of what this block
+used to say rather than a description of what it says now. Two things are worth
+knowing before reading the new lines aloud. The count rose by two because two
+regression tests were added to `tests/unit/test_mcp_server.py` for the
+sandbox-escape scoring defect, not because the suite was padded. And the skip
+went to zero on its own, which is why the narration now spends a sentence saying
+that a clean run is not a fix. The old line named the skip and explained it; the
+new line has to explain its absence, which is the harder of the two to say
+honestly.
 
 > "The honesty gate is the one worth naming. A hundred and twenty-one checks
 > whose only job is to stop the product claiming something the evidence does not
@@ -292,6 +314,17 @@ which is why the ledger never caught it: a claims ledger checks whether a number
 is true, not whether it has already been said. Checking the inserts against the
 master narration rather than only against the product is what found it, and it
 is the only overlap of the set.
+
+Updated 17 August. The master narration now ends that block on "ninety point
+eight five percent against an eighty-five percent gate", so the two quoted
+figures above are what the block said on 15 August rather than what it says now.
+The overlap finding is unaffected and the insert still opens on the floor rather
+than on the number. The ordering of the spoken lines was kept deliberately when
+the figures were updated: the skip caveat sits in the middle and coverage stays
+last, because this insert is written to land on that block's final frame and
+continue the coverage sentence. Moving coverage off the end would have broken
+the join without changing a single number, which is the kind of edit a claims
+ledger cannot catch.
 
 ---
 

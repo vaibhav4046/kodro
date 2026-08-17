@@ -12,8 +12,8 @@
 > the CA2 release pass and every one of them now reads low, because the gates and
 > the library grew, not because anything regressed. Specifically, this file says
 > the interpreter gate is `21/21` (it is 180), that `pytest` is `851 passed`
-> (the last clean full run collected 1639, passed 1638, skipped 1, at commit
-> `aa174cf`, with coverage 90.9 against the 85 gate), that the library holds
+> (the last clean full run collected 1641, passed 1641, skipped 0, at commit
+> `e70b98b` on 17 August, with coverage 90.85 against the 85 gate), that the library holds
 > 10 lessons (it holds 24), and that the dissertation is about 20 pages (it is
 > 50 numbered pages). Those figures are spread across sections 2, 4, 5 and 6, not
 > confined to one place: the `21/21` appears five times (twice in WHERE

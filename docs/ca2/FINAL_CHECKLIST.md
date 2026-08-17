@@ -58,9 +58,24 @@ are also the three that can invalidate everything else.
       participant data anywhere in tracked files. Run a secret scan
 - [ ] Generated artefacts match their sources: the lesson export hash matches on
       regeneration, and the bundle matches its source
-- [ ] `docs/eval/test_suite.json` reflects a clean-tree run at the commit being
-      submitted, not an older one. It currently pins `aa174cf`. Regenerating it
-      is not a standalone act: the dissertation quotes its commit and its
+- [x] `docs/eval/test_suite.json` reflects a clean-tree run at the commit being
+      submitted, not an older one. Done on 17 August: it now pins `e70b98b`,
+      1,641 collected, 1,641 passed, 0 skipped, 90.85 percent. The nine
+      dependent sites moved with it in the same change, and two more were found
+      that the recorded procedure below does not catch, both in `SCRIPT.md`,
+      where the figures are spelled out as spoken words and no numeric grep can
+      see them. Anyone repeating this must run
+      `git grep -n -i 'thousand six hundred\|ninety point'` as well as the
+      numeric search. The artefact also has a generator now,
+      `scripts/gen_test_suite_json.py`, so the next regeneration is
+      `--capture`, run pytest, then write from the run's own JUnit XML and
+      coverage JSON. The counts can no longer be typed in. The commit stays
+      correct only while nothing under `tests/` or the Python source changes
+      after the run, so check
+      `git diff e70b98b..HEAD -- tests/ 'src/robolearn/**/*.py'` before
+      submitting and re-run if it is not empty. The historical record of the
+      earlier regeneration is below and stays as written. Regenerating is not a
+      standalone act: the dissertation quotes its commit and its
       figures at five separate places and `CLAIM_LEDGER.md` at four more, so
       nine sites move together or the document contradicts the artefact. Do not
       trust the line numbers below, find the sites, because the `.tex` has grown
@@ -87,9 +102,16 @@ are also the three that can invalidate everything else.
       was committed, written as six from memory and corrected to nine by
       running the command the item now offers, which is the only reason that
       command is in there
-- [ ] If that regeneration produces a different skip count, report it as
-      measured. The count is not stable on this host: three runs of the same
-      1,639 tests gave 1 skip, then 2, then 0. Thirteen test files turn an
+- [x] If that regeneration produces a different skip count, report it as
+      measured. It did: the 17 August run recorded 0. That was written up as a
+      run with no skip rather than as the intermittency being resolved, in the
+      artefact's `provenanceNote`, in `CLAIM_LEDGER.md`, in `Q_AND_A.md`, in
+      the narration and at two places in the `.tex`. An empty `skipDetail` and
+      a fixed defect look identical in a diff, and the difference has to be
+      written down or the absence reads as a repair. The count is not stable on
+      this host: four runs have now been taken, three of the same
+      1,639 tests gave 1 skip, then 2, then 0, and the 1,641-test run gave 0.
+      Thirteen test files turn an
       intermittent local Tk initialisation failure into a skip instead of a
       failure, and 169 collected tests sit behind those guards. The cause is not
       established, so do not write one into the document, and do not re-run

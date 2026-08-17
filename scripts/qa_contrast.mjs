@@ -223,5 +223,78 @@ for (const t of Object.keys(themes)) {
   ok(r >= AA, `Run button (--void on --cyan) in "${t}" is ${r.toFixed(2)}:1 (need ${AA})`);
 }
 
+// 12. Every var(--token) in styles.css must name a token this file declares, or
+//     one of the runtime knobs below. A token that is declared nowhere and has
+//     no fallback makes the whole declaration invalid at computed-value time, so
+//     the property inherits instead of taking the value the author intended
+//     (this was `.teacher-export-note { color: var(--text-dim) }`). With a
+//     fallback the paint is correct but frozen: it cannot follow the theme,
+//     which is how `var(--gold, #e0a23a)` shipped a hardcoded amber that matched
+//     no theme's --brass, at 2.0:1 on the light theme's badge text.
+//
+//     RUNTIME is not an allowlist for convenience. Each entry is a token some
+//     JSX sets as an inline style, so styles.css cannot declare it and the
+//     fallback in the stylesheet is the documented default.
+{
+  const RUNTIME = {
+    '--dust': 'Viewport.jsx:78 sets it per dust-kick colour',
+    '--dx': 'Viewport.jsx:80 sets it per debris mote',
+    '--dy': 'Viewport.jsx:80 sets it per debris mote',
+    '--horizon': 'Viewport.jsx:176 sets it per terrain',
+    '--editor-w': 'app.jsx:2726 sets it from the editor splitter',
+    '--tele-w': 'app.jsx:2726 sets it from the telemetry splitter',
+    // .crash-flash parameterises its origin but nothing ever sets it, so the
+    // fallback (50%) is the only value it takes and the flash is always centred.
+    '--cx': 'never set; .crash-flash always uses the 50% fallback',
+    '--cy': 'never set; .crash-flash always uses the 50% fallback',
+  };
+  // Comments first: the type-scale block spells out px values in prose, and a
+  // commented-out rule is not a live use.
+  const live = CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const declared = new Set([...live.matchAll(/(--[\w-]+)\s*:/g)].map((m) => m[1]));
+  const used = new Set([...live.matchAll(/var\(\s*(--[\w-]+)/g)].map((m) => m[1]));
+  const orphans = [...used].filter((t) => !declared.has(t) && !(t in RUNTIME)).sort();
+  ok(orphans.length === 0,
+    'every var(--token) resolves to a declared token or a known runtime knob; '
+    + 'undeclared: ' + (orphans.join(', ') || 'none'));
+  // The knobs have to stay knobs. If one gains a declaration in styles.css the
+  // inline style still wins, but the entry above is then a stale claim.
+  for (const [t, why] of Object.entries(RUNTIME)) {
+    ok(!declared.has(t), `runtime knob ${t} is still set only at runtime (${why})`);
+  }
+}
+
+// 13. The HUD token family is theme-invariant ON PURPOSE and must stay that way.
+//
+//     The HUD is the glass strip over the 3D viewport. The viewport renders a
+//     world, not a themed panel, so it is dark under all ten themes -- and so
+//     the chrome sitting on it has to stay light under all ten themes. That is
+//     why --hud-fg-* exists as a family separate from --fg-*: --fg-1 is
+//     overridden per theme and inverts polarity (#f5f0e4 dark, #181c28 light,
+//     #0d0d0d noir), while --hud-fg-1 is declared once and never overridden.
+//
+//     This also explains the rgba(245,240,228,A) literals still in the file on
+//     .world-tabs, .terrain-btn, .grid-overlay, .ground-grid and friends. They
+//     look like the frozen-palette defect that section 12 exists to catch, and
+//     they are not: they are the HUD parchment on a permanently dark surface,
+//     and rewriting them to follow --fg-1 would put near-black chrome on
+//     near-black glass in the light, mono and noir themes. Leave them.
+//
+//     The failure this guards is silent: someone adds theme eleven, overrides
+//     --hud-fg-1 for consistency with the other fg tokens, and every HUD
+//     surface goes unreadable with no test complaining.
+{
+  const themeBlocks = CSS.split(/:root\[data-theme=/).slice(1).join('\n');
+  const hudInTheme = [...themeBlocks.matchAll(/(--hud-[\w-]+)\s*:/g)].map((m) => m[1]);
+  ok(hudInTheme.length === 0,
+    'the --hud-* family is never overridden inside a [data-theme] block '
+    + '(the viewport glass is dark under every theme); overridden: '
+    + ([...new Set(hudInTheme)].join(', ') || 'none'));
+  for (const t of ['--hud-fg-1', '--hud-fg-2', '--hud-fg-3']) {
+    const n = [...CSS.matchAll(new RegExp(t + '\\s*:', 'g'))].length;
+    ok(n === 1, `${t} is declared exactly once, in :root (found ${n})`);
+  }
+}
+
 console.log((fail === 0 ? 'PASS' : 'FAIL') + '  contrast + responsive: ' + pass + ' passed, ' + fail + ' failed (over ' + Object.keys(themes).length + ' themes)');
 process.exit(fail === 0 ? 0 : 1);

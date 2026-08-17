@@ -29,7 +29,11 @@ for an MSc dissertation (COMP702, due 11 Sep 2026, docs/dissertation/*.tex -> .p
   The counts in brackets below are stale as of 2026-08-15 and are kept only as a
   rough shape of each gate. Measured live that day: qa_interpreter 180, not 157;
   pytest 1638 passed 1 skipped at 90.9 percent, not 1024. The others were not
-  re-measured. Rerun, never quote. pytest needs `--basetemp=<fresh dir>` on this
+  re-measured. pytest was re-run on 2026-08-17 at `e70b98b` on a clean tree:
+  1641 collected, 1641 passed, 0 skipped, 90.85 percent. A run with 0 skipped is
+  not evidence the Tk intermittency is fixed; this host has produced 1, then 2,
+  then 0. Regenerate the artefact with `scripts/gen_test_suite_json.py`, never by
+  hand. Rerun, never quote. pytest needs `--basetemp=<fresh dir>` on this
   host, see `.kodro/ca2-evidence/2026-08-15-suite-reproduction-and-tempdir-defect.md`.
   node scripts/qa_interpreter.mjs  (157) | qa_grader.mjs (34) | qa_physics.mjs (20)
   qa_ai_web.mjs (19) | qa_web.mjs (4/4, Chrome) | qa_worlds.mjs (61, :8099+Chrome)

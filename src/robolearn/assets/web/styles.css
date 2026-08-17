@@ -1075,7 +1075,7 @@ select.terrain-btn:hover {
 .lesson-goals .goal { display:flex; align-items:center; gap:8px; font-size:var(--text-md); color:var(--fg-1); }
 .lesson-goals .goal-mark { flex:none; width:16px; height:16px; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; font-size:11px; font-weight:700; }
 .lesson-goals .goal.todo .goal-mark { border:1.5px solid var(--fg-3); }
-.lesson-goals .goal.done .goal-mark { background:var(--ok, #3ec27a); color:var(--void); }
+.lesson-goals .goal.done .goal-mark { background:var(--success); color:var(--void); }
 .lesson-goals .goal.fail .goal-mark { background:var(--warning); color:var(--void); }
 .lesson-goals .goal.done { color:var(--fg-2); }
 .lesson-goals .goal.fail { color:var(--warning); }
@@ -2081,8 +2081,8 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .mem-layer-btn.is-on .mem-layer-n { color:var(--fg-2); }
 .mem-layer-btn:not(.is-on) { text-decoration:line-through; opacity:0.7; }
 .mem-layer-btn.world.is-on .mem-layer-dot { background:var(--cyan); }
-.mem-layer-btn.robot.is-on .mem-layer-dot { background:var(--gold, #e0a23a); }
-.mem-layer-btn.skill.is-on .mem-layer-dot { background:var(--green, #3ec27a); }
+.mem-layer-btn.robot.is-on .mem-layer-dot { background:var(--brass); }
+.mem-layer-btn.skill.is-on .mem-layer-dot { background:var(--success); }
 .mem-layer-btn.reflection.is-on .mem-layer-dot { background:var(--fg-2); }
 .mem-graph-showall { flex:none; }
 
@@ -2094,7 +2094,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 /* Edges. */
 .mem-graph-edge { stroke:var(--border); stroke-width:1.4; opacity:0.85; transition:opacity var(--duration-fast,150ms) var(--ease,ease); }
 .mem-graph-edge.world { stroke:color-mix(in oklab, var(--cyan) 45%, var(--border)); }
-.mem-graph-edge.robot { stroke:color-mix(in oklab, var(--gold, #e0a23a) 45%, var(--border)); }
+.mem-graph-edge.robot { stroke:color-mix(in oklab, var(--brass) 45%, var(--border)); }
 .mem-graph-edge.is-faded { opacity:0.1; }
 .mem-graph-edge.is-linked { opacity:1; stroke-width:2.2; }
 .mem-graph-edge.is-hidden { display:none; }
@@ -2105,8 +2105,8 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .mem-graph-node text { font-size:12px; fill:var(--fg-2); paint-order:stroke; stroke:var(--navy-2); stroke-width:3px; stroke-linejoin:round; pointer-events:none; }
 .mem-graph-node circle { stroke:var(--void); stroke-width:1.5; }
 .mem-graph-world circle { fill:var(--cyan); }
-.mem-graph-robot circle { fill:var(--gold, #e0a23a); }
-.mem-graph-skill circle { fill:var(--green, #3ec27a); }
+.mem-graph-robot circle { fill:var(--brass); }
+.mem-graph-skill circle { fill:var(--success); }
 .mem-graph-reflection circle { fill:var(--fg-3, #8aa); }
 .mem-graph-reflection.tone-done circle { fill:var(--success); }
 .mem-graph-reflection.tone-crash circle { fill:var(--danger); }
@@ -2138,8 +2138,8 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .mem-detail-head { display:flex; align-items:center; gap:8px; }
 .mem-detail-badge { font-family:var(--font-mono); font-size:var(--text-xs); letter-spacing:0.08em; text-transform:uppercase; padding:2px 7px; border-radius:var(--radius-sm); background:var(--navy-3); color:var(--fg-2); flex:none; }
 .mem-detail-badge.world { color:var(--void); background:var(--cyan); }
-.mem-detail-badge.robot { color:var(--void); background:var(--gold, #e0a23a); }
-.mem-detail-badge.skill { color:var(--void); background:var(--green, #3ec27a); }
+.mem-detail-badge.robot { color:var(--void); background:var(--brass); }
+.mem-detail-badge.skill { color:var(--void); background:var(--success); }
 .mem-detail-badge.tone-done { color:var(--void); background:var(--success); }
 .mem-detail-badge.tone-crash { color:var(--void); background:var(--danger); }
 .mem-detail-badge.tone-flat { color:var(--void); background:var(--warning); }
@@ -2152,7 +2152,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .mem-detail-chips { display:flex; flex-wrap:wrap; gap:6px; }
 .mem-chip { font-size:var(--text-sm); padding:3px 9px; border:1px solid var(--border); border-radius:99px; background:transparent; color:var(--fg-2); cursor:pointer; }
 .mem-chip:hover { border-color:var(--fg-3); color:var(--fg-1); }
-.mem-chip-skill { border-color:color-mix(in oklab, var(--green, #3ec27a) 40%, var(--border)); }
+.mem-chip-skill { border-color:color-mix(in oklab, var(--success) 40%, var(--border)); }
 .mem-chip.tone-done { border-color:color-mix(in oklab, var(--success) 45%, var(--border)); }
 .mem-chip.tone-crash { border-color:color-mix(in oklab, var(--danger) 45%, var(--border)); }
 .mem-chip.tone-flat { border-color:color-mix(in oklab, var(--warning) 45%, var(--border)); }
@@ -2826,7 +2826,7 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 
 /* --- teacher register export --------------------------------------------- */
 .teacher-export { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
-.teacher-export-note { font-size: var(--text-sm); color: var(--text-dim); }
+.teacher-export-note { font-size: var(--text-sm); color: var(--fg-3); }
 
 /* --- KS1 step palette ----------------------------------------------------- */
 /* One-tap buttons for pupils who cannot type yet. Targets are 44px minimum
@@ -2839,7 +2839,10 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 }
 .step-btn {
   min-height: 44px; padding: 8px 16px;
-  font-size: var(--text-base, 1rem); font-weight: 600;
+  /* 16px is deliberately off the px ladder above: this is the one KS1 touch
+     target sized for a five-year-old, and the ladder tops out at 15px for
+     body text. A literal keeps it out of the shared scale. */
+  font-size: 1rem; font-weight: 600;
   background: var(--navy-2); color: var(--fg-1);
   border: 1px solid var(--border); border-radius: var(--radius-md);
   cursor: pointer;
@@ -2970,20 +2973,3 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   .learning-annotation-card { max-height: none; }
   .vibe-project-diff > div { grid-template-columns: 1fr; }
 }
-
-/* --- KS1 step palette ----------------------------------------------------- */
-.step-palette {
-  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
-  margin: 8px 0 2px;
-}
-.step-btn {
-  min-height: 44px; padding: 8px 16px;
-  font-size: var(--text-base, 1rem); font-weight: 600;
-  background: var(--navy-2); color: var(--fg-1);
-  border: 1px solid var(--border); border-radius: var(--radius-md);
-  cursor: pointer;
-}
-.step-btn:hover:not(:disabled) { border-color: var(--cyan); }
-.step-btn:disabled { opacity: .45; cursor: default; }
-.step-btn.step-undo { font-weight: 400; color: var(--fg-3); }
-.step-full-note { font-size: var(--text-sm); color: var(--fg-3); }

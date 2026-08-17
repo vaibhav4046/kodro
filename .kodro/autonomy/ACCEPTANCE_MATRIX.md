@@ -45,16 +45,31 @@ documented limitation; N/R = not required by the brief.
 | 7 | Static web boot + privacy | `node scripts/qa_web.mjs` | 5/5 checks incl. privacy-zero-external + studio-mount | DELIVERED |
 | 8 | World/site render sweep | `node scripts/qa_worlds.mjs --strict` (needs the fixture below) | 61 passed, 0 failed | DELIVERED |
 | 9 | UI smoke + modal coverage | `KODRO_QA_UI_REQUIRED=1 node scripts/qa_ui.mjs` (needs the fixture below) | 6/6 flows, 47/47 behaviour or layout, 13/13 modals (was 38/38 and 12/12) | DELIVERED |
-| 10 | Python suite + coverage gate | `python -m pytest` | 1638 passed, 1 skipped, coverage 90.9% against the 85% gate, recorded in `docs/eval/test_suite.json` at commit `aa174cf` | DELIVERED |
+| 10 | Python suite + coverage gate | `python -m pytest` | 1641 passed, 0 skipped, coverage 90.85% against the 85% gate, recorded in `docs/eval/test_suite.json` at commit `e70b98b` (was 1638/1/90.9 at `aa174cf`) | DELIVERED |
 | 11 | Lint, format, types | ruff check / ruff format --check / mypy | green on touched code | DELIVERED |
 | 12 | Offline web guard alone | `pytest tests/unit/test_web_offline.py` | passes standalone | DELIVERED |
 | 13 | Source app constructs | `python -c "from robolearn.web.app import build_app; ..."` | prints `Kodro` | DELIVERED |
 | 14 | Live hosted web reachable + CI-gated deploy | curl live; gh run list | HTTP 200; CI-gated Deploy Pages; live bundle sha256 == committed | DELIVERED |
 | 15 | Windows installer/release packaging | `python scripts/build_exe.py --clean` | dual-binary release workflow (RoboLearn.exe + robolearn-tk.exe) | DELIVERED (see HUMAN note) |
+| 16 | Recorded MCP values still match the live server | `python scripts/qa_mcp_finale.py` | 30 of 30 documented values matched across the 11 calls of the CA2 finale, 17 August 2026 | DELIVERED |
+
+Row 16 is not an ACCEPTANCE.md criterion and is listed here because it guards a
+claim nothing else can reach. `docs/ca2/MCP_DEMO_PROMPT.md` writes down the score,
+the battery reading and three grader reasons word for word, and those sentences
+get spoken over a screen recording. The document is prose and the server is code,
+so the two can drift apart indefinitely without any existing gate noticing. The
+script drives a real server subprocess through the same eleven calls and exits
+non-zero naming the row that moved. It hardcodes its counts on purpose, which is
+the opposite of what `scripts/smoke_mcp.py` argues for and right for a different
+reason: the numbers are already written down in a document, so the only useful
+question is whether the document is still true.
 
 Extra gates added since the baseline, reconciled 15 August 2026: qa_honesty 121
-(was 86), qa_contrast 61 (was 51; WCAG AA across 10 themes + true-viewport phone
-layout via CDP), qa_parts 40, qa_memgraph 22, qa_pupilstore 23,
+(was 86), qa_contrast 74 (was 61 on 15 August and 51 before that; WCAG AA across
+10 themes + true-viewport phone layout via CDP, plus a section added 17 August
+that locks the `--hud-*` family as theme-invariant so a later pass cannot
+"correct" the HUD by overriding it per theme), qa_parts 40, qa_memgraph 22,
+qa_pupilstore 23,
 qa_scenario_parity 8 (was 4), qa_interp_fixes 13, Python golden-trace + urdf 11.
 Gates that postdate this matrix entirely and are not counted above: qa_voice 108,
 qa_secrets 42, qa_learning_annotations 28, qa_encoding 10, qa_lesson_studio 79,
@@ -75,7 +90,7 @@ qa_fuzz 9, qa_project_storage 16, qa_gpucaps 46, and 66 MCP server unit tests.
 | Robot spec import (KRS) drives measured numbers | specschema.deriveFromPhysical + motion-model | golden-trace 4, qa_interpreter | DELIVERED |
 | Gymnasium env + KodroBench (RL/eval) | envs/kodro_env.py + kodrobench.py | test_kodro_env, KodroBench record | DELIVERED |
 | URDF interop | interop/urdf_io.py | test_urdf_import/export | DELIVERED |
-| Accessibility (contrast, keyboard, readable-text, reduced-motion) | theme tokens + a11y-readable + reduced-motion gates | qa_contrast 61, qa_honesty a11y §§ | DELIVERED |
+| Accessibility (contrast, keyboard, readable-text, reduced-motion) | theme tokens + a11y-readable + reduced-motion gates | qa_contrast 74, qa_honesty a11y §§ | DELIVERED |
 | Responsive phone layout (true 320/375/420) | minmax(0,1fr) grid + wrap rules + CDP-verified gate | qa_ui CDP layout gates | DELIVERED |
 | Sound OFF by default (usability) | muted-by-default + Settings toggle | qa_honesty §25 | DELIVERED (this batch) |
 

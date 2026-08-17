@@ -82,15 +82,17 @@ Key talking points, in priority order:
    before it reaches the user. The model is not trusted alone."
 4. "The system self-refines from usage through reflection memory and a
    skill library. No weight retraining. Honest system-level refinement."
-5. "1,638 tests passing, 90.9 percent coverage against an 85 percent gate,
+5. "1,641 tests passing, 90.85 percent coverage against an 85 percent gate,
    and 180 of 180 on the interpreter conformance gate. CI runs on Linux,
    Windows and macOS; Linux and Windows gate the build, macOS is
    informational."
 
-> Source for the numbers in line 5, checked 15 August 2026. Tests and
+> Source for the numbers in line 5, re-checked 17 August 2026. Tests and
 > coverage: [`docs/eval/test_suite.json`](eval/test_suite.json), which records
-> 1639 collected, 1638 passed, 1 skipped and 90.9 percent at commit `aa174cf`
-> on a clean tree. Interpreter: `node scripts/qa_interpreter.mjs`, logged in
+> 1641 collected, 1641 passed, 0 skipped and 90.85 percent at commit `e70b98b`
+> on a clean tree. It recorded 1639, 1638, 1 skipped and 90.9 percent at
+> `aa174cf` when this line was first checked on 15 August. A run with no skip
+> is not evidence the Tk intermittency was fixed; see `CLAIM_LEDGER.md`. Interpreter: `node scripts/qa_interpreter.mjs`, logged in
 > [`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md).
 > CI legs and the macOS `continue-on-error` exemption: `.github/workflows/ci.yml`
 > lines 18 and 25. Re-check these before saying them out loud; the earlier

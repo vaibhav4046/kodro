@@ -48,6 +48,14 @@ worth recording:
 | `node scripts/qa_worlds.mjs` (with the fixture server up) | `== WORLD SWEEP RESULT: 61 passed, 0 failed ==`, run twice, independently, both clean | yes |
 | `node scripts/qa_ui.mjs` | `== UI ALL: 6/6 flows clean · 47/47 behaviour or layout asserts pass · 13/13 modals render ==`, zero FAIL lines, exit 0; regenerated `docs/eval/ui_eval.json` at 66/66 | yes |
 
+The contrast row is what that gate printed on 14 August and stays as it is. On
+17 August 2026 the gate gained thirteen assertions and now prints
+`PASS  contrast + responsive: 74 passed, 0 failed (over 10 themes)`. Nine of the
+new ones fail if a `var(--token)` in the stylesheet resolves to nothing, which
+had been leaving nine paint sites frozen on a hardcoded fallback under all ten
+themes; four pin the `--hud-*` family as theme-invariant, so a later pass cannot
+"fix" the viewport glass by overriding it per theme. The current figure is 74.
+
 ### The ten classroom gates behind the 303-check table
 
 Each was run from the repository root as `node scripts/<name>.mjs`. All ten

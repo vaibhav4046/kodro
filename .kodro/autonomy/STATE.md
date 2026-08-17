@@ -51,10 +51,11 @@ Measured, not assumed:
   setting and the docs gate ordered before the web gates in CI.
 - Counts that grew since July: qa_grader 34 to 55, qa_honesty 91 to 121,
   qa_physics 20 to 25, qa_ai_web 27 to 51, qa_scenario_parity 4 to 8, mypy 66
-  to 73 source files, and the Python suite 1,069 to 1,639 collected, passing at
-  90.78 percent against an 85 percent gate. The skip count is not stable on this
+  to 73 source files, and the Python suite 1,069 to 1,641 collected, passing at
+  90.85 percent against an 85 percent gate. The skip count is not stable on this
   host and an earlier version of this bullet explained it with a cause I never
-  measured. Three runs of the same 1,639 tests gave 1 skip, then 2, then 0.
+  measured. Three runs of the same 1,639 tests gave 1 skip, then 2, then 0, and
+  the 1,641-test run on 17 August gave 0.
   Thirteen test files open a Tk window in a fixture that catches `tk.TclError`
   and skips rather than fails, and 169 collected tests sit behind those guards,
   so a bad run takes a whole file with it; the recorded reason is "Can't find a
@@ -378,7 +379,7 @@ on 15 August: all fourteen agree.
 
 `docs/eval/test_suite.json` is a different thing and does not cover these gates
 at all. Its `harness` field says `pytest` and it holds one run of the Python
-suite: 1638 passed, 1 skipped, 90.9 per cent coverage at commit `aa174cf`. None
+suite: 1641 passed, 0 skipped, 90.85 per cent coverage at commit `e70b98b`. None
 of the fourteen Node gates appear in it. An earlier version of this paragraph
 called it "the machine-emitted totals" while standing in a paragraph about the
 Node gates, which invites the next reader to go looking there for a number that

@@ -50,14 +50,16 @@ tests while still running them, so the true figure is at least what is reported.
 
 ---
 
-**"One test skips. Why?"**
+**"Nothing skips and nothing fails. Is that the whole picture?"**
 
-The artefact you are looking at recorded one skip at that commit. The honest
-answer is that the number moves: three runs of the same 1,639 tests on this
-machine gave one skip, then two, then none. Thirteen test files open a Tk window
-in a fixture, and 169 collected tests sit behind those guards. When the toolkit
-fails to start, the fixture catches the error and skips instead of failing, so a
-bad run takes a whole file with it and the count depends on which run you took.
+No, and the artefact says so itself. The run you are looking at collected 1,641
+and passed 1,641 with no skip, but I would not offer that as evidence that a
+known problem went away. The skip count moves on this machine. Three runs of the
+same 1,639 tests gave one skip, then two, then none, and this 1,641-test run
+gave none. Thirteen test files open a Tk window in a fixture, and 169 collected
+tests sit behind those guards. When the toolkit fails to start, the fixture
+catches the error and skips instead of failing, so a bad run takes a whole file
+with it and a clean run tells you the toolkit started that time, nothing more.
 
 I have not root-caused why it is intermittent, and I would rather say that than
 invent a reason. What I did rule out: it is not a virtual environment missing
@@ -65,16 +67,20 @@ its Tcl directory, because the toolkit starts and reports version 8.6.15 in both
 the base interpreter and a clean one; it is not test ordering, because nothing
 in the harness randomises order; and it is not a leaked working directory or
 Tcl environment variable, because nothing in the source or the tests touches
-either. The recorded error is that the toolkit cannot find its initialisation
-script.
+either. The recorded error, when it does fire, is that the toolkit cannot find
+its initialisation script.
 
-One more thing I would rather volunteer than have found. The artefact names a
-specific test alongside that error, and the pair is wrong: the wording of the
-error is the format string from a different test file, and it was carried across
-by hand when the artefact was last regenerated rather than re-read from the run.
-The counts either side of it are machine-read and unaffected, one skip out of
-1,639 whichever test it was. The artefact now says so in its own text rather
-than presenting the pair as measured.
+One more thing I would rather volunteer than have found. An earlier version of
+this artefact named a specific test alongside that error and the pair was wrong:
+the wording was the format string from a different test file, carried across by
+hand at a regeneration instead of being re-read from the run. That pair was
+never reconciled. It is absent now because this run produced no skip to
+describe, which is not the same as it having been fixed, and the artefact's own
+text says which of the two happened. What did get fixed is the mechanism: the
+file is now written by `scripts/gen_test_suite_json.py`, which reads the counts,
+the coverage and the skip detail out of the run's JUnit XML and coverage JSON
+and will not run without them. The field that was hand-edited into being wrong
+can no longer be hand-edited at all.
 
 The part that is a deliberate design decision is the degradation. A desktop-UI
 dependency that fails to start should not be able to mask a product regression,

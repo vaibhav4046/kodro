@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "harness": "qa_ui",
-  "generatedAt": "2026-08-15T15:38:28.079Z",
+  "generatedAt": "2026-08-17T14:47:05.793Z",
   "suite": "all",
   "method": "headless Chrome drives the real shipped bundle through cap.html; every row is an isolated Chrome run whose screenshot, post-action DOM or measured viewport had to match a concrete marker",
   "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
@@ -28,7 +28,7 @@
         {
           "label": "studio-earth-run",
           "pass": true,
-          "reason": "ok (282460B)",
+          "reason": "ok (288873B)",
           "determinism": {
             "pass": true,
             "reason": "rover drove 14.0m (>= 3m floor); exact-distance determinism is covered by qa_interpreter/qa_grader"
@@ -37,22 +37,22 @@
         {
           "label": "world-mars",
           "pass": true,
-          "reason": "ok (251303B)"
+          "reason": "ok (277889B)"
         },
         {
           "label": "world-warehouse",
           "pass": true,
-          "reason": "ok (170523B)"
+          "reason": "ok (174906B)"
         },
         {
           "label": "arm-firstrun",
           "pass": true,
-          "reason": "ok (148759B)"
+          "reason": "ok (147773B)"
         },
         {
           "label": "blocks-panel",
           "pass": true,
-          "reason": "ok (161679B)"
+          "reason": "ok (162598B)"
         },
         {
           "label": "onboarding",
@@ -249,7 +249,7 @@
         {
           "label": "first-run-clean",
           "pass": true,
-          "reason": "default city first Run drove 9.0m clean (no HALTED) and printed its report (attempt 1)"
+          "reason": "default city first Run drove 10.0m clean (no HALTED) and printed its report (attempt 1)"
         },
         {
           "label": "revert-apply",

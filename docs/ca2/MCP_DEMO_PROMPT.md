@@ -101,6 +101,23 @@ Travelled 2.0 m (minimum 3.0 m).
 Recorded 1 collision(s); none were expected.
 ```
 
+Every value in that table, and the three reasons above word for word, are checked
+against the live server by:
+
+```bash
+python scripts/qa_mcp_finale.py
+```
+
+Run it on the recording day, before capture. It drives the same eleven calls
+through a real server subprocess and exits non-zero naming the row that moved.
+Nothing else in the repository can catch a stale number here, because this file
+is prose and the server is code, so the two can disagree indefinitely without any
+gate noticing. It passed clean on 17 August, 30 of 30. The counts in it are
+hardcoded on purpose, which is the opposite of what `scripts/smoke_mcp.py`
+argues for and correct for a different reason: the numbers are already written
+down in this document, and the only question worth asking is whether the document
+is still true. If a tool is added, update this table first and the script second.
+
 The edit at step 8 is one token: `turn_right` becomes `turn_left`. If the client
 proposes a bigger rewrite that also passes, keep the take. A larger correct edit
 is a fair answer to "the smallest edit that would pass" being a judgement call,
