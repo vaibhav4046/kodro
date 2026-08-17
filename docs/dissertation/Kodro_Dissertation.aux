@@ -120,7 +120,7 @@
 \@writefile{toc}{\contentsline {section}{\numberline {6.3}Measured renderer evidence}{30}{section.6.3}\protected@file@percent }
 \@writefile{lot}{\contentsline {table}{\numberline {6.2}{\ignorespaces Renderer evidence from Windows headless Chrome, median of three samples per tier with the observed range in brackets; the P95 columns are likewise the median of the three per-sample P95 readings. Hardware rows use the host's integrated Intel GPU through ANGLE; software rows force SwiftShader. On ordinary integrated graphics the render submission work meets the 4.17 ms budget a 240 Hz display would require in all six samples; under software rasterisation all six miss it, and that floor is what the adaptive quality governor exists for. Neither row is a claim about displayed FPS, which the display and browser cap.}}{30}{table.caption.13}\protected@file@percent }
 \newlabel{tab:renderer}{{6.2}{30}{Renderer evidence from Windows headless Chrome, median of three samples per tier with the observed range in brackets; the P95 columns are likewise the median of the three per-sample P95 readings. Hardware rows use the host's integrated Intel GPU through ANGLE; software rows force SwiftShader. On ordinary integrated graphics the render submission work meets the 4.17 ms budget a 240 Hz display would require in all six samples; under software rasterisation all six miss it, and that floor is what the adaptive quality governor exists for. Neither row is a claim about displayed FPS, which the display and browser cap}{table.caption.13}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {6.4}Persona review (formative, language-model personas)}{30}{section.6.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6.4}Persona review (formative, language-model personas)}{31}{section.6.4}\protected@file@percent }
 \@writefile{lot}{\contentsline {table}{\numberline {6.3}{\ignorespaces Persona review trajectory across rounds. \textbf  {Every persona in this table is a language-model construct scored by the author, not a person, and no row is user evidence.} The figures are reported as measured by the analyst-run method, with the threats to validity stated below. This was a formative method run before the evaluation harnesses were committed: the per-persona responses behind these means were not retained as a machine-readable artefact, so unlike every other table in this chapter these rows cannot be re-derived from the repository and should be read as a trend record rather than as reproducible data.}}{31}{table.caption.14}\protected@file@percent }
 \newlabel{tab:persona}{{6.3}{31}{Persona review trajectory across rounds. \textbf {Every persona in this table is a language-model construct scored by the author, not a person, and no row is user evidence.} The figures are reported as measured by the analyst-run method, with the threats to validity stated below. This was a formative method run before the evaluation harnesses were committed: the per-persona responses behind these means were not retained as a machine-readable artefact, so unlike every other table in this chapter these rows cannot be re-derived from the repository and should be read as a trend record rather than as reproducible data}{table.caption.14}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {6.5}Objective persona-task evaluation (language-model personas)}{31}{section.6.5}\protected@file@percent }
@@ -138,46 +138,46 @@
 \newlabel{tab:kodrobench}{{6.6}{35}{KodroBench v0.1 (five tasks, ten seeds per task). success@N is mean seeded task success. Invention rate is the fraction of tasks whose program calls a symbol outside the build's fitted-command set. Syntax errors and collisions are the per-task rates. Values are as recorded in the versioned results file \texttt {results/kodrobench-v0.1.json}, with the human-readable leaderboard alongside it at \texttt {results/kodrobench-leaderboard.md}. One field is deliberately not tabulated and is disclosed here instead: \texttt {llama3.2:3b} records \texttt {gen\_errors: 1}, meaning that on one of its five tasks the model call itself failed and no program was produced. That task is still counted in the denominator, scoring zero success, zero collisions and no syntax error, so the row understates rather than flatters the model. Every other model records zero}{table.caption.17}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {6.8}The classroom gates}{36}{section.6.8}\protected@file@percent }
 \newlabel{sec:classroom-gates}{{6.8}{36}{The classroom gates}{section.6.8}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {6.9}Threats to validity}{36}{section.6.9}\protected@file@percent }
-\newlabel{sec:threats}{{6.9}{36}{Threats to validity}{section.6.9}{}}
 \@writefile{lot}{\contentsline {table}{\numberline {6.7}{\ignorespaces The ten classroom harnesses and their assertion counts. All 303 checks passed on the recorded run.}}{37}{table.caption.18}\protected@file@percent }
 \newlabel{tab:classroom}{{6.7}{37}{The ten classroom harnesses and their assertion counts. All 303 checks passed on the recorded run}{table.caption.18}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6.9}Threats to validity}{37}{section.6.9}\protected@file@percent }
+\newlabel{sec:threats}{{6.9}{37}{Threats to validity}{section.6.9}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {6.10}The planned human evaluation}{38}{section.6.10}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {6.11}Instrumentation}{38}{section.6.11}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {6.12}Summary of the evaluation}{38}{section.6.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {6.12}Summary of the evaluation}{39}{section.6.12}\protected@file@percent }
 \citation{tobin2017}
-\@writefile{toc}{\contentsline {chapter}{\numberline {7}Discussion and Limitations}{39}{chapter.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {7}Discussion and Limitations}{40}{chapter.7}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\@writefile{toc}{\contentsline {section}{\numberline {7.1}Motion is kinematic, not rigid body}{39}{section.7.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.2}The physics engine exists but is not on the hot path}{39}{section.7.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.3}Sensor command coverage is partial}{39}{section.7.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.4}Procedural geometry, with surface shading and a gated post pass}{40}{section.7.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.5}Arena bounds, and what the shared definition does not yet gate}{40}{section.7.5}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.6}The measured-build simulation is the studio only}{40}{section.7.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.1}Motion is kinematic, not rigid body}{40}{section.7.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.2}The physics engine exists but is not on the hot path}{40}{section.7.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.3}Sensor command coverage is partial}{40}{section.7.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.4}Procedural geometry, with surface shading and a gated post pass}{41}{section.7.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.5}Arena bounds, and what the shared definition does not yet gate}{41}{section.7.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.6}The measured-build simulation is the studio only}{41}{section.7.6}\protected@file@percent }
 \citation{shinn2023,wang2023,wu2025}
 \citation{huang2025}
 \citation{khati2026}
-\@writefile{toc}{\contentsline {section}{\numberline {7.7}Memory exists, but improvement is not demonstrated}{41}{section.7.7}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.8}Build guidance is not purchasing or electrical advice}{41}{section.7.8}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.9}Frame rate is measured, not guaranteed}{41}{section.7.9}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {7.10}The small-model ceiling}{41}{section.7.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.7}Memory exists, but improvement is not demonstrated}{42}{section.7.7}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.8}Build guidance is not purchasing or electrical advice}{42}{section.7.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.9}Frame rate is measured, not guaranteed}{42}{section.7.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {7.10}The small-model ceiling}{42}{section.7.10}\protected@file@percent }
 \citation{bcscode}
 \citation{bcs2020}
-\@writefile{toc}{\contentsline {chapter}{\numberline {8}Professional Issues}{42}{chapter.8}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {8}Professional Issues}{43}{chapter.8}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\@writefile{toc}{\contentsline {section}{\numberline {8.1}Ethics}{42}{section.8.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {8.2}BCS professional issues and project criteria}{42}{section.8.2}\protected@file@percent }
-\@writefile{lot}{\contentsline {table}{\numberline {8.1}{\ignorespaces Traceability from BCS published computing abilities to project evidence.}}{43}{table.caption.19}\protected@file@percent }
-\newlabel{tab:bcsmap}{{8.1}{43}{Traceability from BCS published computing abilities to project evidence}{table.caption.19}{}}
-\@writefile{toc}{\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{44}{chapter.9}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {8.1}Ethics}{43}{section.8.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {8.2}BCS professional issues and project criteria}{43}{section.8.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {8.1}{\ignorespaces Traceability from BCS published computing abilities to project evidence.}}{44}{table.caption.19}\protected@file@percent }
+\newlabel{tab:bcsmap}{{8.1}{44}{Traceability from BCS published computing abilities to project evidence}{table.caption.19}{}}
+\@writefile{toc}{\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{45}{chapter.9}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\@writefile{toc}{\contentsline {section}{\numberline {9.1}Summary}{44}{section.9.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {9.2}Reflection}{44}{section.9.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {9.3}Future work}{45}{section.9.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {9.4}Closing statement}{46}{section.9.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.1}Summary}{45}{section.9.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.2}Reflection}{45}{section.9.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.3}Future work}{46}{section.9.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {9.4}Closing statement}{47}{section.9.4}\protected@file@percent }
 \bibcite{trinket2026}{{1}{2026}{{Trinket}}{{}}}
 \bibcite{ahn2022}{{2}{2022}{{Ahn et al.}}{{}}}
 \bibcite{bcs2020}{{3}{2020}{{BCS}}{{}}}
@@ -196,7 +196,7 @@
 \bibcite{papert1980}{{16}{1980}{{Papert}}{{}}}
 \bibcite{reza2025}{{17}{2025}{{Reza et al.}}{{}}}
 \bibcite{shinn2023}{{18}{2023}{{Shinn et al.}}{{}}}
-\@writefile{toc}{\contentsline {chapter}{References}{47}{section*.20}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{References}{48}{section*.20}\protected@file@percent }
 \bibcite{sun2025}{{19}{2025}{{Sun et al.}}{{}}}
 \bibcite{tao2024}{{20}{2024}{{Tao et al.}}{{}}}
 \bibcite{tobin2017}{{21}{2017}{{Tobin et al.}}{{}}}
@@ -205,12 +205,12 @@
 \bibcite{wang2026}{{24}{2026}{{Wang et al.}}{{}}}
 \bibcite{webots2026}{{25}{2026}{{Webots}}{{}}}
 \bibcite{wu2025}{{26}{2025}{{Wu et al.}}{{}}}
-\@writefile{toc}{\contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{49}{appendix.A}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{50}{appendix.A}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
-\@writefile{lot}{\contentsline {table}{\numberline {A.1}{\ignorespaces Glossary of terms as used in this dissertation.}}{49}{table.caption.22}\protected@file@percent }
-\@writefile{toc}{\contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{50}{appendix.B}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {A.1}{\ignorespaces Glossary of terms as used in this dissertation.}}{50}{table.caption.22}\protected@file@percent }
+\@writefile{toc}{\contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{51}{appendix.B}\protected@file@percent }
 \@writefile{lof}{\addvspace {10\p@ }}
 \@writefile{lot}{\addvspace {10\p@ }}
 \ttl@finishall
-\gdef \@abspage@last{59}
+\gdef \@abspage@last{60}

@@ -62,35 +62,35 @@
 \contentsline {section}{\numberline {6.1}Evaluation strategy}{27}{section.6.1}%
 \contentsline {section}{\numberline {6.2}Automated verification}{28}{section.6.2}%
 \contentsline {section}{\numberline {6.3}Measured renderer evidence}{30}{section.6.3}%
-\contentsline {section}{\numberline {6.4}Persona review (formative, language-model personas)}{30}{section.6.4}%
+\contentsline {section}{\numberline {6.4}Persona review (formative, language-model personas)}{31}{section.6.4}%
 \contentsline {section}{\numberline {6.5}Objective persona-task evaluation (language-model personas)}{31}{section.6.5}%
 \contentsline {section}{\numberline {6.6}Adversarial code-verified persona panel}{32}{section.6.6}%
 \contentsline {section}{\numberline {6.7}Measuring grounded code generation (KodroBench)}{34}{section.6.7}%
 \contentsline {section}{\numberline {6.8}The classroom gates}{36}{section.6.8}%
-\contentsline {section}{\numberline {6.9}Threats to validity}{36}{section.6.9}%
+\contentsline {section}{\numberline {6.9}Threats to validity}{37}{section.6.9}%
 \contentsline {section}{\numberline {6.10}The planned human evaluation}{38}{section.6.10}%
 \contentsline {section}{\numberline {6.11}Instrumentation}{38}{section.6.11}%
-\contentsline {section}{\numberline {6.12}Summary of the evaluation}{38}{section.6.12}%
-\contentsline {chapter}{\numberline {7}Discussion and Limitations}{39}{chapter.7}%
-\contentsline {section}{\numberline {7.1}Motion is kinematic, not rigid body}{39}{section.7.1}%
-\contentsline {section}{\numberline {7.2}The physics engine exists but is not on the hot path}{39}{section.7.2}%
-\contentsline {section}{\numberline {7.3}Sensor command coverage is partial}{39}{section.7.3}%
-\contentsline {section}{\numberline {7.4}Procedural geometry, with surface shading and a gated post pass}{40}{section.7.4}%
-\contentsline {section}{\numberline {7.5}Arena bounds, and what the shared definition does not yet gate}{40}{section.7.5}%
-\contentsline {section}{\numberline {7.6}The measured-build simulation is the studio only}{40}{section.7.6}%
-\contentsline {section}{\numberline {7.7}Memory exists, but improvement is not demonstrated}{41}{section.7.7}%
-\contentsline {section}{\numberline {7.8}Build guidance is not purchasing or electrical advice}{41}{section.7.8}%
-\contentsline {section}{\numberline {7.9}Frame rate is measured, not guaranteed}{41}{section.7.9}%
-\contentsline {section}{\numberline {7.10}The small-model ceiling}{41}{section.7.10}%
-\contentsline {chapter}{\numberline {8}Professional Issues}{42}{chapter.8}%
-\contentsline {section}{\numberline {8.1}Ethics}{42}{section.8.1}%
-\contentsline {section}{\numberline {8.2}BCS professional issues and project criteria}{42}{section.8.2}%
-\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{44}{chapter.9}%
-\contentsline {section}{\numberline {9.1}Summary}{44}{section.9.1}%
-\contentsline {section}{\numberline {9.2}Reflection}{44}{section.9.2}%
-\contentsline {section}{\numberline {9.3}Future work}{45}{section.9.3}%
-\contentsline {section}{\numberline {9.4}Closing statement}{46}{section.9.4}%
-\contentsline {chapter}{References}{47}{section*.20}%
-\contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{49}{appendix.A}%
-\contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{50}{appendix.B}%
+\contentsline {section}{\numberline {6.12}Summary of the evaluation}{39}{section.6.12}%
+\contentsline {chapter}{\numberline {7}Discussion and Limitations}{40}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Motion is kinematic, not rigid body}{40}{section.7.1}%
+\contentsline {section}{\numberline {7.2}The physics engine exists but is not on the hot path}{40}{section.7.2}%
+\contentsline {section}{\numberline {7.3}Sensor command coverage is partial}{40}{section.7.3}%
+\contentsline {section}{\numberline {7.4}Procedural geometry, with surface shading and a gated post pass}{41}{section.7.4}%
+\contentsline {section}{\numberline {7.5}Arena bounds, and what the shared definition does not yet gate}{41}{section.7.5}%
+\contentsline {section}{\numberline {7.6}The measured-build simulation is the studio only}{41}{section.7.6}%
+\contentsline {section}{\numberline {7.7}Memory exists, but improvement is not demonstrated}{42}{section.7.7}%
+\contentsline {section}{\numberline {7.8}Build guidance is not purchasing or electrical advice}{42}{section.7.8}%
+\contentsline {section}{\numberline {7.9}Frame rate is measured, not guaranteed}{42}{section.7.9}%
+\contentsline {section}{\numberline {7.10}The small-model ceiling}{42}{section.7.10}%
+\contentsline {chapter}{\numberline {8}Professional Issues}{43}{chapter.8}%
+\contentsline {section}{\numberline {8.1}Ethics}{43}{section.8.1}%
+\contentsline {section}{\numberline {8.2}BCS professional issues and project criteria}{43}{section.8.2}%
+\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{45}{chapter.9}%
+\contentsline {section}{\numberline {9.1}Summary}{45}{section.9.1}%
+\contentsline {section}{\numberline {9.2}Reflection}{45}{section.9.2}%
+\contentsline {section}{\numberline {9.3}Future work}{46}{section.9.3}%
+\contentsline {section}{\numberline {9.4}Closing statement}{47}{section.9.4}%
+\contentsline {chapter}{References}{48}{section*.20}%
+\contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{50}{appendix.A}%
+\contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{51}{appendix.B}%
 \contentsfinish 
