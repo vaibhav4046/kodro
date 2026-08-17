@@ -160,17 +160,30 @@ Risky first, safe last.
 
 | Order | Block | Shots | Why here |
 |---|---|---|---|
-| 1 | MCP session | 14 | A live subprocess session is the most likely thing to misbehave on camera |
-| 2 | Voice | 15 | Depends on a microphone and a model load, both external to the product |
+| 1 | MCP finale | 18 | A live agent session driving a live subprocess is the most likely thing to misbehave on camera. It is the last shot in the cut and the first one recorded |
+| 2 | Voice | 14 | Depends on a microphone and a model load, both external to the product |
 | 3 | Failure and refine | 10 to 13 | The block that carries the most marks, so it gets a fresh recording session |
 | 4 | Classroom loop | 7 to 9 | Long, several steps, easy to fumble the order |
 | 5 | Design and run | 4 to 6 | Stable, mostly mouse work |
-| 6 | Evidence | 16, 17 | Static files and terminal output, near zero risk |
+| 6 | Evidence | 15, 16 | Static files and terminal output, near zero risk |
 | 7 | Orientation and hub | 2, 3, 19 | Cannot fail |
-| 8 | Limits narration | 18 | Audio-led, re-recordable at any point |
+| 8 | Limits narration | 17 | Audio-led, re-recordable at any point |
 | 9 | Title and end card | 1, 20 | Last, because the date on the card should match the recording |
 
-### The four expansion inserts
+Shot numbers in that table moved on 17 August when the MCP block became the
+finale. The recording order did not: it is ordered by risk, and moving a block
+in the cut does not make it safer to film. See the restructure note in
+`STORYBOARD.md` for the old numbering.
+
+**Record order 1 and order 3 in the same sitting, order 3 first.** The finale
+grades `00d_fix_the_turn`, the same lesson the failure-and-refine block fixes on
+screen, and it reads the score back off the server. If the two are recorded days
+apart the presenter has to remember which lesson was on camera. Filming the web
+fix first and the agent grading it second also means the 40 and the 100 in the
+terminal are being checked against a verdict the viewer watched ten seconds of
+video earlier.
+
+### The three expansion inserts
 
 Record these only if the 15 minute cap is confirmed, and record them in this
 order, which is not the order they appear in the cut. Until 15 August this
@@ -179,10 +192,14 @@ and stopped, while the heading below still promised a fallback for every block.
 The inserts became real content when their narration was written and nothing
 here moved with them.
 
+There were four until 17 August. EXPAND-3 was a second MCP insert covering
+`resources/read` and the `runs: 0` refusal, recorded back to back with the old
+shot 14 so a single launch covered both. The finale now has the room to carry
+both beats itself, so the insert is gone and its recording note is gone with it.
+
 | Order | Insert | Goes with | Why here |
 |---|---|---|---|
-| 1a | EXPAND-3 | Same terminal window and session as shot 14 | A second live subprocess session. Record it back to back with shot 14 so the window, font size and prompt match on the cut, and so a single MCP launch covers both |
-| 1b | EXPAND-1 | Web app, ending in the terminal | Ends with a `.krs` validated over MCP, so it wants the terminal already set up. Its web beats are low risk; the MCP beat is not |
+| 1a | EXPAND-1 | Web app, ending in the terminal | Ends with a `.krs` validated over MCP, so it wants the terminal already set up. Record it in the same sitting as order 1, while the server and the font size are still configured. Its web beats are low risk; the MCP beat is not |
 | 4a | EXPAND-2 | Web app, after orders 3 and 4 | Has a state prerequisite, below. It cannot be recorded before the register has been filled |
 | 6a | EXPAND-4 | Editor, then terminal | Regenerates a file on camera and diffs it. Low risk, but the diff has to land, so give it room |
 
@@ -217,17 +234,16 @@ Each row is the answer to "the live take failed twice, now what".
 
 | Block | Fallback |
 |---|---|
-| MCP session | Record the smoke harness output scrolling in a plain terminal. It is the same evidence and it cannot fail interactively |
+| MCP finale | Run `python scripts/smoke_mcp.py` in a plain terminal instead of the agent client, and say on camera that this is the server driven by a test harness rather than by an agent, because the client would not connect. Same JSON-RPC frames, same tool list, same refusals, no interactive risk. Do not say "a real client" over a harness. If the client connects but one tool call misbehaves, keep the take and narrate what happened rather than cutting to a clean rerun |
 | Voice | Show the typed intent path only, and say plainly that the spoken path is demonstrated in the local benchmark rather than live. Do not fake a transcript |
 | Failure and refine | Two still frames, the 40 verdict and the 100 verdict, with the edit shown as a diff. Weaker, but true. This row said 80 until 15 August, which is not a score the shipped grader can return for this lesson; see `CLAIM_LEDGER.md` |
 | Classroom loop | Cut the export step. It is the least load-bearing part of the block |
 | Design and run | Cut the parameter edit and show a pre-built robot running. Say so |
 | Evidence | Screenshot the artefact instead of scrolling it |
-| EXPAND-1 | Cut the closing MCP validation beat and end on the requirements check showing the unresolved payload row. The refusal and the disclaimer are the point of the block; the `.krs` round trip is already covered by shot 14 |
+| EXPAND-1 | Cut the closing MCP validation beat and end on the requirements check showing the unresolved payload row. The refusal and the disclaimer are the point of the block; the `.krs` round trip is already covered by shot 18 |
 | EXPAND-2 | Cut to the two CSV downloads and the on-screen one-combined-record line. If the register is empty and there is no time to fill it, drop the insert entirely rather than showing an empty state and talking over it |
-| EXPAND-3 | Paste the two refused calls from the smoke script output instead of typing them live. Same JSON-RPC frames, same error text, no interactive risk |
 | EXPAND-4 | Show the committed lesson export and the recorded hash side by side instead of regenerating. Weaker, because the point of the block is that regeneration reproduces the file byte for byte, so say that is what is being shown |
-| Any insert | Every one of the four is droppable by construction: each lands on a master shot boundary and none is referenced by the master narration. If an insert will not record cleanly, cut it and lose 60 to 80 seconds rather than filming a bad minute |
+| Any insert | Every one of the three is droppable by construction: each lands on a master shot boundary and none is referenced by the master narration. If an insert will not record cleanly, cut it and lose 70 to 80 seconds rather than filming a bad minute |
 | Any block | If nothing works, say on camera that the block is being described rather than shown. That costs a little. Faking it costs everything |
 
 ## After capture

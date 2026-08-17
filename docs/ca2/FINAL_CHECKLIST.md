@@ -10,8 +10,8 @@ are also the three that can invalidate everything else.
 
 - [ ] **STUDENT: confirm the video duration from the current Canvas brief.** The
       2023 public page says 10 minutes twice and 15 once, all three in the same
-      document. The master script fits 10 with four expansion blocks for 15.
-      Source and exact quotes in `BRIEF_VERIFIED.md`.
+      document. The master script fits 10 with three expansion blocks for 15,
+      taking it to 13:30. Source and exact quotes in `BRIEF_VERIFIED.md`.
 - [ ] **STUDENT: confirm whether a PDF slide deck and a short report are also
       required, and whether submission is one ZIP.** The 2023 page lists all
       three as one component and neither the deck nor the report exists in this

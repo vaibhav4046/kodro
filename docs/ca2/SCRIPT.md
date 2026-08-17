@@ -1,20 +1,20 @@
 # CA2 script
 
-Master runtime 9:40, built to fit a 10 minute cap. Four expansion blocks are
-marked `[EXPAND-n]`; dropping all four in takes the runtime to 14:30 for a 15
+Master runtime 9:40, built to fit a 10 minute cap. Three expansion blocks are
+marked `[EXPAND-n]`; dropping all three in takes the runtime to 13:30 for a 15
 minute cap. Which cap applies is not settled, see `BRIEF_VERIFIED.md`.
 
 Every number spoken here has a row in `CLAIM_LEDGER.md`. If a line is changed,
 change the ledger too or cut the number.
 
-Until 15 August the four expansion blocks were stage directions with no
-narration written, and this header still offered the 14:30 cut as if it were a
-thing you could record. It was 290 seconds of an assessed video with nothing
-written to say, in a file whose next sentence is the rule above. Taking that cut
-would have meant improvising the exact minutes the ledger exists to prevent
-improvising. All four are now written out, and verifying them against the
-product first cost three of them a claim: see the notes under EXPAND-1,
-EXPAND-2 and EXPAND-3.
+Until 15 August the expansion blocks were stage directions with no narration
+written, and this header still offered the longer cut as if it were a thing you
+could record. It was 290 seconds of an assessed video with nothing written to
+say, in a file whose next sentence is the rule above. Taking that cut would have
+meant improvising the exact minutes the ledger exists to prevent improvising.
+All of them are now written out, and verifying them against the product first
+cost three of them a claim: see the notes under EXPAND-1, EXPAND-2, and the MCP
+finale, which is where EXPAND-3 ended up.
 
 Spoken text is in quotes. Everything else is a stage direction.
 
@@ -22,12 +22,14 @@ Spoken text is in quotes. Everything else is a stage direction.
 
 ## 0:00 to 0:35, cold open (35s)
 
-Screen: the animated title card for the first twelve seconds, then the Kodro
-hub, already open, nothing loading. The card is `intro/renders/kodro-intro.mp4`
-and it is exactly 12.000000s, so the hub appears at 0:12 and the narration runs
-across the cut. This direction said "the Kodro hub" alone until 15 August and
-did not mention the card at all, which contradicted `STORYBOARD.md` shot 1 and
-would have cost twelve seconds of narration timing on the first take.
+Screen: the animated title card is the first frame of the video. Nothing
+precedes it, no slate, no black. It runs for the first twelve seconds and then
+cuts straight to the Kodro hub, already open, nothing loading. The card is
+`intro/renders/kodro-intro.mp4` and it is exactly 12.000000s, so the hub appears
+at 0:12 and the narration runs across the cut. This direction said "the Kodro
+hub" alone until 15 August and did not mention the card at all, which
+contradicted `STORYBOARD.md` shot 1 and would have cost twelve seconds of
+narration timing on the first take.
 
 > "A school wants pupils to design a robot, program it, and find out whether the
 > design works before anyone spends money on parts. The usual answer is a
@@ -39,18 +41,18 @@ Do not say "world class", "revolutionary", or "solves". State what it is.
 
 ---
 
-## 0:35 to 1:05, orientation (30s)
+## 0:35 to 1:00, orientation (25s)
 
 Screen: hover the three stage links in the top bar. Design, Test, Prototype.
 
-> "Three stages. Design the robot, test it in a world, and take a concept brief
-> to a prototype. The same three stages exist in the desktop app and in the
-> browser app, and they share the lesson library, the grader and the physics
-> model, so a pupil at home and a pupil in a lab see the same result."
+> "Three stages. Design the robot, test it in a world, take a concept brief to a
+> prototype. Desktop app and browser app both have all three, and they share the
+> lesson library, the grader and the physics model, so a pupil at home and a
+> pupil in a lab get the same result."
 
 ---
 
-## 1:05 to 2:15, flow A: design, program, run, inspect (70s)
+## 1:00 to 2:10, flow A: design, program, run, inspect (70s)
 
 Screen: Design stage. Pick a chassis, change one parameter that visibly matters
 (wheel size or motor power). Move to Test. Type a short program. Run it.
@@ -105,7 +107,7 @@ than one more thing working.
 
 ---
 
-## 2:15 to 3:45, flow B: the classroom loop (90s)
+## 2:10 to 3:35, flow B: the classroom loop (85s)
 
 Screen: Home, then the lesson list. Pick a Key Stage 2 lesson.
 
@@ -175,9 +177,9 @@ Turn on the readable-text setting.
 
 ---
 
-## 3:45 to 4:45, flow C: failure, then refinement (60s)
+## 3:35 to 4:35, flow C: failure, then refinement (60s)
 
-This is the strongest sixty seconds in the video. Do not rush it.
+This is the strongest sixty seconds of product in the video. Do not rush it.
 
 Screen: open lesson `00d_fix_the_turn`. Run the given program. It fails.
 
@@ -210,59 +212,11 @@ the real server: 40 with three reasons, then 100 with none.
 > "That loop, fail, read the reason, change one thing, verify, is the thing being
 > taught. The tool exists to make that loop fast enough to be worth doing."
 
----
-
-## 4:45 to 5:45, MCP (60s)
-
-Screen: a terminal. Run the smoke harness so the JSON-RPC session is visible.
-
-> "Kodro also exposes itself to a coding agent over MCP, locally, over standard
-> input and output."
-
-Show the initialize response, then tools/list.
-
-> "The server is Kodro two point zero. Eight tools and twenty-five resources,
-> counted from the running server, not from a README."
-
-Show one successful call, then one refused call.
-
-> "A valid call returns a structured result. A misspelled argument is refused by
-> name rather than quietly defaulted, which is the failure mode that makes agent
-> tooling untrustworthy."
-
-> "That was a real stdio JSON-RPC session against the server process."
-
-Say "real client handshake" only if a named client is on screen doing it. See
-`CLAIM_LEDGER.md`.
-
-`[EXPAND-3]` +60s. Use this only if 15 minutes is confirmed.
-
-Screen: the same terminal. Read `kodro://lessons/00d_fix_the_turn`, the lesson
-already on screen in flow B.
-
-> "Resources come from the lesson files themselves, not from a copy that has to
-> be kept in step. Reading the fix-the-turn lesson resource returns application
-> slash json, generated from the same YAML that the lesson list and the grader
-> read."
-
-Call `prove_contracts` with `runs` set to `0`, then to `"five"`.
-
-> "And the server refuses what it cannot honour. Runs of zero comes back as an
-> error, runs must be at least one, rather than quietly becoming the default of
-> five, because zero is falsey and a careless default would swallow it. A
-> non-number is refused by type. That guard is in the handler, not in the JSON
-> schema, which declares runs as an integer and stops there."
-
-This block read "the schema rejecting an out-of-range run length" until 15
-August, which was wrong twice over. No input schema in the server declares a
-`minimum` or a `maximum`, and `run_program` has no run-length parameter to be
-out of range. The refusals above are real and were run to get their exact
-wording, `tools.py:379`; the sentence naming where the guard lives is in the
-narration because the difference is the interesting part.
+Remember this lesson. The finale grades the same one, from outside the product.
 
 ---
 
-## 5:45 to 6:30, voice (45s)
+## 4:35 to 5:20, voice (45s)
 
 Screen: the voice panel with the transcript visible.
 
@@ -281,7 +235,7 @@ Say "stop". Show it taking priority.
 
 ---
 
-## 6:30 to 7:20, evidence (50s)
+## 5:20 to 6:10, evidence (50s)
 
 Screen: `docs/eval/test_suite.json`, then a terminal with the gate output.
 
@@ -311,7 +265,7 @@ and the list of what has been ruled out.
 `[EXPAND-4]` +80s. Use this only if 15 minutes is confirmed.
 
 Screen: stay on `docs/eval/test_suite.json`, moving from the counts to the
-coverage figure. This insert lands at 7:20, directly on the end of the evidence
+coverage figure. This insert lands at 6:10, directly on the end of the evidence
 block, so it continues that sentence rather than opening a new subject.
 
 > "That coverage number is a floor rather than a ceiling, and the reason is
@@ -332,16 +286,16 @@ Regenerate the lesson export and diff it against the committed file.
 This block opened "Ninety point nine percent, against a gate of eighty-five"
 until 15 August. The evidence block it attaches to ends on the words "coverage
 is ninety point nine percent against an eighty-five percent gate", and the
-insert goes in at 7:20, which is that block's last frame. In the 15 minute cut
-the same figure would have been spoken twice with nothing between the two. It
-was not wrong, which is why the ledger never caught it: a claims ledger checks
-whether a number is true, not whether it has already been said. Checking the
-inserts against the master narration rather than only against the product is
-what found it, and it is the only overlap of the four.
+insert goes in on that block's last frame. In the longer cut the same figure
+would have been spoken twice with nothing between the two. It was not wrong,
+which is why the ledger never caught it: a claims ledger checks whether a number
+is true, not whether it has already been said. Checking the inserts against the
+master narration rather than only against the product is what found it, and it
+is the only overlap of the set.
 
 ---
 
-## 7:20 to 8:50, limits (90s)
+## 6:10 to 7:40, limits (90s)
 
 Do not soften any of this. It is the part that earns the marks.
 
@@ -377,13 +331,83 @@ quarter for 0.25. `CLAIM_LEDGER.md:127`, `Q_AND_A.md:109` and
 `docs/eval/stt_bench.md:35` all carry 1.587, so this line was the single place
 the number was said loosely, and it was said out loud. It now reads "a second
 and six tenths", which rounds the other way, and it is deliberately the same
-seven words so the limits block stays at 204 and the master cut stays at 953.
-If asked on the day: that 1.587 s is itself a warm-cache figure, recorded in
-`stt_bench.md` under "Cold and warm", and a genuinely cold disk would be slower.
+seven words so the limits block stays at 204 words. If asked on the day: that
+1.587 s is itself a warm-cache figure, recorded in `stt_bench.md` under "Cold
+and warm", and a genuinely cold disk would be slower.
 
 ---
 
-## 8:50 to 9:40, close (50s)
+## 7:40 to 8:55, MCP finale (75s)
+
+The last demonstration, and the only one where something other than a human
+drives the product. Everything before this was Kodro being used. This is Kodro
+being used by an agent that was not written for it.
+
+Screen: Claude Code in a terminal, full frame, 16 pt minimum, inside the
+repository. `.mcp.json` is committed at the project root, so the server is
+already configured; the client launches it. Show the tool-call lines as they
+appear. Do not scroll past them to get to the prose.
+
+It has to be the terminal client, not the claude.ai web app. Kodro's server is
+local stdio, so a browser tab cannot launch it, and there is no hosted endpoint
+to point at. Say "on this machine" and the question does not come up. Do not
+imply the web app is doing this. `MCP_DEMO_PROMPT.md` has the exact prompt.
+
+> "Last one. Kodro also exposes itself to a coding agent over MCP, on this
+> machine, over standard input and output. This is a real client, and it is
+> launching the server itself."
+
+Type the prompt. Let the handshake land.
+
+> "Eight tools, twenty-five resources, counted off the handshake rather than off
+> a README. Watch the tool calls rather than the prose: every number after this
+> came back from the server."
+
+The agent finds the lesson, reads it without the worked solution, runs the
+starter, grades it.
+
+> "Same lesson you just watched me fix, graded from outside the product. Forty
+> out of a hundred, the same three reasons. It changes one word and gets a
+> hundred."
+
+Then the refusals. This is the part worth the seconds.
+
+> "And the failures. A program that breaks the sandbox scores zero, not partial
+> marks for the checks it never reached. A run count of zero is refused instead
+> of quietly becoming the default. A misspelt lesson id comes back as an error
+> naming the near miss. A tool that silently accepts a wrong argument is worse
+> than one that fails, because the agent then reasons about the answer to a
+> different question."
+
+If the client will not connect on the day, fall back to `python scripts/smoke_mcp.py`
+and change one sentence: say "this is the server driven by a test harness rather
+than by an agent, because the client would not connect". Then carry on. Do not
+say "a real client" over a harness. Nothing else in the block changes; the same
+numbers come out of the same server.
+
+This block used to sit at 4:45, between flow C and voice, at 60 seconds, with a
+60 second EXPAND-3 behind it. It was moved here on 17 August and the expansion
+was folded into it, which is why the expansion numbering now skips 3. The
+argument for the old position was that MCP is a technical aside and the video
+should end on the product. The argument that won is that the video ends on the
+limits and the close either way, and putting MCP last makes it the last thing
+demonstrated rather than a detour on the way to the voice panel. It also lets
+flow C hand off to it directly: the finale grades the same lesson the pupil just
+fixed, which is a stronger claim than either block makes alone, and it is only
+available if the two are adjacent in that order.
+
+The sandbox-scores-zero line is new on 17 August and it is new because the
+product was wrong until that day. `grade_program` was returning 60 out of 100
+for a program rejected at line 1: the grader is pure over the trace, an empty
+trace satisfies a "no collisions" criterion for free, and three criteria minus
+two failures at twenty points each is sixty. Every other surface already
+returned zero. The fix is in `runtime/session.py` with two regression tests, and
+the figure spoken above was read off the wire after it. Do not record this beat
+against a build from before that commit.
+
+---
+
+## 8:55 to 9:40, close (45s)
 
 > "Who it is for: a Computing teacher with no lab budget, no reliable network and
 > a class that needs to see cause and effect. Who it is not for: anyone who needs
@@ -395,7 +419,8 @@ If asked on the day: that 1.587 s is itself a warm-cache figure, recorded in
 > has not been done, and it is the first thing I would do with a term of access to
 > a classroom."
 
-End on a static frame of the hub. No music sting, no logo animation.
+End on a static frame of the hub. No music sting, and no second run of the logo
+animation: it is the first frame of the video and it is not the last.
 
 ---
 
@@ -406,79 +431,77 @@ End on a static frame of the hub. No music sting, no logo animation.
 - If something breaks on camera, say what broke and continue. A recovered
   failure reads better than an obvious cut.
 - Silence during motion is deliberate. Let the rover drive.
-- The master cut is 953 spoken words, from the 79 quoted lines outside the
-  `[EXPAND-n]` blocks, counted on 15 August. The file holds 124 quoted lines in
-  total; the other 45 are the 514 words of expansion narration, timed separately
-  below. Those three figures read 122, 43 and 501 until they were re-measured on
-  15 August. They were correct when written and went stale a few hours later, in
-  the same edit that moved EXPAND-2 from 139 words to 159 and EXPAND-4 from 124
-  to 117: the table below was corrected and this paragraph was not. The two
-  figures either side of them, the 953 and the 79, were unaffected by that edit
-  and re-measured exactly, which is the trap. Part of a paragraph going stale
-  does not announce itself by making the whole paragraph look wrong.
-  This note used to say "roughly 1,150", which was never counted, and
-  then 925, which was counted correctly at commit `2836f85` and went stale
-  three commits later: `0ef8436` rewrote the failure-and-refine narration to say
-  40 rather than 80 and to name all three failed checks, which added one quoted
-  line and 28 words. Recount rather than trusting this figure after any edit to a
-  `>` line, and use a counter that excludes the expansion blocks: they are
-  quoted lines sitting inside the `##` blocks, so a naive count charges their
-  words to a span in which nobody speaks them. Across 580 seconds that is 99
-  words a minute, well under
-  conversational pace, and the gap is not slack in the script: it is the rover
-  driving, the terminal scrolling and the verdict landing. Do not fill it. If a
-  take runs long, cut from the orientation block first and the limits block last.
+- Plain speech, not written English read aloud. Short sentences. If a line does
+  not survive being said out loud once, rewrite it rather than practising it.
+- The master cut is 1,034 spoken words, from the 86 quoted lines outside the
+  `[EXPAND-n]` blocks, counted on 17 August. The file holds 122 quoted lines in
+  total; the other 36 are the 407 words of expansion narration, timed separately
+  below. Those figures read 953, 79, 124 and 514 before the 17 August
+  restructure, and 122, 43 and 501 before 15 August: they were correct when
+  written and went stale within hours both times. Recount rather than trusting
+  this figure after any edit to a `>` line, and use a counter that excludes the
+  expansion blocks: they are quoted lines sitting inside the `##` blocks, so a
+  naive count charges their words to a span in which nobody speaks them.
+  Across 580 seconds that is 106 words a minute, under conversational pace, and
+  the gap is not slack in the script: it is the rover driving, the terminal
+  scrolling and the verdict landing. Do not fill it. If a take runs long, cut
+  from the orientation block first and the limits block last.
 
-- The aggregate is the wrong number to trust on its own, and trusting it hid a
-  block that could not be delivered. Per block, before the retiming below:
+- The aggregate is the wrong number to trust on its own, and trusting it once
+  hid a block that could not be delivered. Per block, as the file now stands:
 
   | block | span | words | wpm |
   |---|---|---|---|
   | cold open | 35s | 70 | 120 |
-  | orientation | 30s | 59 | 118 |
-  | flow A | 90s | 75 | 50 |
-  | flow B | 90s | 120 | 80 |
+  | orientation | 25s | 53 | 127 |
+  | flow A | 70s | 75 | 64 |
+  | flow B | 85s | 120 | 85 |
   | flow C | 60s | 92 | 92 |
-  | MCP | 60s | 76 | 76 |
   | voice | 45s | 63 | 84 |
   | evidence | 50s | 103 | 124 |
-  | limits | 60s | 204 | **204** |
-  | close | 60s | 91 | 91 |
+  | limits | 90s | 204 | 136 |
+  | MCP finale | 75s | 163 | 130 |
+  | close | 45s | 91 | 121 |
 
-  Two hundred and four words a minute is not a pace, it is a disclaimer read at
-  auction. Flow A at 50 wpm was carrying it in the average, and flow A is slow on
-  purpose because the rover is driving through it. The limits block is a static
-  frame with no motion to wait for, so every one of its seconds is speech, and it
-  is the block that grew every time a claim was corrected.
+  No block sits above 136 words a minute. That ceiling was set on 15 August,
+  when the limits block was found asking for 204 words in 60 seconds, which is
+  not a pace, it is a disclaimer read at auction. The average had been hiding
+  it: flow A runs at 64 because the rover is driving through it, and that was
+  holding the mean down to 99.
 
-- The blocks were retimed on 15 August inside the same 9:40 master runtime, so
-  nothing downstream of the cap changes. Flow A went from 90s to 70s and the
-  close from 60s to 50s; the limits block took both, 60s to 90s. That puts limits
-  at 136 wpm, flow A at 64 and the close at 109, and no block now sits above 136.
-  Flow A keeps thirty uninterrupted seconds of the rover driving, which was the
-  only silence in it that was ever load-bearing. `STORYBOARD.md` shots 4, 6, 18
-  and 19 carry the same change and every later shot start moved with it.
+- Restructured 17 August 2026. The MCP block moved from 4:45 to the finale at
+  7:40 and grew from 60s to 75s by absorbing EXPAND-3. Three blocks paid for it
+  inside the same 9:40 master runtime, so nothing downstream of the cap changes:
+  orientation 30s to 25s, flow B 90s to 85s, close 50s to 45s. The orientation
+  narration was cut from 59 words to 53 in the same edit, because 59 words in
+  25 seconds is 142 a minute and would have broken the ceiling above. Flow C
+  gained a one-line handoff to the finale, 92 words to 103. `STORYBOARD.md` and
+  `CAPTURE_MANIFEST.md` carry the same change and every shot number after the
+  old MCP position moved with it.
 
 - Re-run the arithmetic rather than eyeballing it. The block spans must be
   contiguous, must sum to 580, and no block should need more than about 140 wpm.
-  The four `[EXPAND-n]` blocks add 70, 80, 60 and 80 seconds, which is 290, and
-  580 plus 290 is 870, the 14:30 quoted at the top of this file.
+  The three `[EXPAND-n]` blocks add 70, 80 and 80 seconds, which is 230, and
+  580 plus 230 is 810, the 13:30 quoted at the top of this file.
 
-- The expansions now carry narration and were paced the same way, on 15 August:
+- The expansions carry narration and were paced the same way:
 
   | block | span | words | wpm |
   |---|---|---|---|
   | EXPAND-1 | 70s | 131 | 112 |
   | EXPAND-2 | 80s | 159 | 119 |
-  | EXPAND-3 | 60s | 107 | 107 |
   | EXPAND-4 | 80s | 117 | 88 |
 
-  514 words across 290 seconds, 106 wpm. The master cut's blocks run from 64 to
-  136 wpm, so all four sit inside that range, and the fastest of them, EXPAND-2
-  at 119, is still slower than the limits block at 136.
-  EXPAND-4 is the slowest at 88 because a file is regenerated on screen
-  mid-block and the diff has to land.
-  None of these words existed before 15 August; all four blocks were stage
+  407 words across 230 seconds, 106 wpm. The master cut's blocks run from 64 to
+  136 wpm, so all three sit inside that range, and the fastest of them, EXPAND-2
+  at 119, is still slower than the limits block at 136. EXPAND-4 is the slowest
+  at 88 because a file is regenerated on screen mid-block and the diff has to
+  land. The numbering skips 3 because EXPAND-3 was folded into the MCP finale on
+  17 August rather than deleted; `CLAIM_LEDGER.md` still refers to it by that
+  name for claims it carried, and renumbering EXPAND-4 would have falsified
+  those references to save one digit.
+
+  None of these words existed before 15 August; all of the blocks were stage
   directions, which is the defect recorded in the header. Two of them moved
   again later the same day, after the narration was checked against the master
   rather than only against the product: EXPAND-2 rose from 139 words to 159 when

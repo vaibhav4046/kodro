@@ -43,10 +43,18 @@ demonstration; a table on the same material states 15. The 2026 Canvas brief is
 the authority and this machine cannot open it.
 
 What has been done about it: `SCRIPT.md` is written as a 9 minute 40 second
-master that fits inside the 10 minute reading, with four named expansion blocks
-marked `[EXPAND-1]` to `[EXPAND-4]`. If the student confirms 15 minutes, the
-four blocks are dropped in and the runtime becomes 14:30 exactly. If the student
-confirms 10, nothing changes and nothing needs re-recording.
+master that fits inside the 10 minute reading, with three named expansion blocks
+marked `[EXPAND-1]`, `[EXPAND-2]` and `[EXPAND-4]`. If the student confirms 15
+minutes, the three blocks are dropped in and the runtime becomes 13:30 exactly.
+If the student confirms 10, nothing changes and nothing needs re-recording.
+
+The numbering skips 3 because EXPAND-3 was folded into the master cut on 17
+August when the MCP block moved to the end of the video and grew by 15 seconds.
+Its two beats are now inside the finale rather than behind a cap the student
+cannot yet confirm, which is the better place for them: they are the strongest
+evidence in the video and they were sitting in an optional block. The master
+still measures 9:40, the expanded cut fell from 14:30 to 13:30, and the three
+surviving blocks measure 407 words across 230 seconds.
 
 Until 15 August that sentence said "roughly 14:30" and the four blocks held no
 narration, only stage directions, so the 15 minute option was not actually
@@ -163,6 +171,12 @@ wrong shape: 10 is in a table and in prose, 15 is in a bulleted list.
 
 The 9:40 master with four expansion blocks was already the right call and it
 does not change. Its justification does, below.
+
+That sentence was written on 15 August, when there were four blocks. There are
+three since 17 August and the master is still 9:40, so the call it defends is
+unchanged and only the count is out of date. Left as written rather than edited,
+because the reasoning is about the master runtime and not about how many
+optional blocks sit behind it.
 
 ### 1 corrected: "rejected outright" is wrong
 

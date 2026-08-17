@@ -107,7 +107,14 @@ should be said out loud if coverage comes up in the Q&A.
 | Bad input is refused, not silently defaulted | four negative cases pass: bad lesson id, unknown tool, misspelled argument, bad URI | same |
 | A malformed frame returns `-32700` and the session survives | that check passes | same |
 | Non-ASCII round trips byte-exact | `café-90°-naïve-✓` check passes | same |
-| 66 unit tests cover the server | 66 passed in 9.80s | `python -m pytest tests/unit/test_mcp_server.py` |
+| 68 unit tests cover the server | 68 passed in 18.74s | `python -m pytest tests/unit/test_mcp_server.py` |
+| A program the sandbox refuses scores 0 over MCP, not partial credit | live session: `grade_program` on `00d_fix_the_turn` with `import os` returned `isError=False` (a graded outcome, not a protocol error), `execution.success=False`, `errorKind=sandbox`, `errorLine=1`, and `verdict.score=0` with the error string as its single reason | `kodro-mcp` driven over stdin, 17 August; regression tests in `tests/unit/test_mcp_server.py` |
+| The zero is for a crash, not for any failure | same lesson, empty program: it runs cleanly, so it is still marked on its criteria and returns 60 with two reasons | same |
+| Reading a lesson resource returns `application/json` generated from the lesson YAML | live session: `resources/read kodro://lessons/00d_fix_the_turn` returned `application/json`, 2312 bytes, keys including `allowedConstructs`, `concepts`, `curriculumRefs`, `glossary` | `python -m robolearn.mcp.server` driven over stdin, 15 August |
+| `prove_contracts` refuses `runs: 0` rather than defaulting it | live session returned `isError=True`, `'runs' must be at least 1.` The handler comment at `tools.py:367` records why: `params.get("runs") or DEFAULT` would make an explicit 0 silently become 5 | same session |
+| `prove_contracts` refuses a non-numeric `runs` by type | live session returned `isError=True`, `'runs' must be a whole number, got a string.` | same session |
+| The **zero** refusal is in the handler, not the schema | `tools.py:379`, `if runs < 1`. No `inputSchema` in the server declares a `minimum` or a `maximum`; `runs` is declared as `{"type": "integer"}` and nothing more | source |
+| The **type** refusal is the other way round: it comes from the schema | `_validate_params` at `tools.py:654` checks the declared `integer` against `_JSON_TYPES` and phrases the received type through `_type_name` at `tools.py:637`, which is where the words `a string` come from. The handler's own type guard at `tools.py:378` would have said `got 'five'.` and never fires for this input, because validation runs first | source, 17 August |
 | The Windows and Unix smoke scripts both pass 14 checks per entry point | `== MCP SMOKE: 2 of 2 entry points clean ==`, exit 0 on both, no `--entry` restriction | `.\scripts\smoke_mcp.ps1`, `bash scripts/smoke_mcp.sh` |
 | The `kodro-mcp` console script is installed exactly as `pyproject.toml` declares it | `kodro-mcp -> robolearn.mcp.server:main` in the installed entry points, and the smoke run drives it | `python -c "from importlib.metadata import entry_points; ..."` then the smoke scripts above |
 
@@ -117,6 +124,20 @@ harness. That is stronger than a mock and weaker than a named client. Say "it
 survives a real client handshake" only if a named client is actually shown doing
 it on camera in the take that ships. Otherwise say "a real stdio JSON-RPC
 session", which is what the evidence supports.
+
+The finale is written for a named client, so that sentence is now a condition
+the take has to meet rather than a warning about wording. If Claude Code is on
+screen launching the server and printing its own tool-call lines, "a real client"
+is accurate. If the fallback runs instead, the narration changes with it;
+`SCRIPT.md` and `CAPTURE_MANIFEST.md` both carry the substitute line.
+
+**The last six rows moved here on 17 August.** They were under "The expansion
+blocks" below, because they were EXPAND-3, which only ran if the 15 minute cap
+was confirmed. The MCP block is now the finale of the master cut and carries
+them, so they are claims the video makes every time it is played rather than
+claims it might make. The evidence did not change; only which cut speaks it did.
+The 0-for-a-crash rows are new: they are a defect found and fixed on 17 August,
+not a re-labelled old row.
 
 ### Voice
 
@@ -174,11 +195,16 @@ so the web verdict panel reads 40 as well. Do not say eighty on camera.
 
 ### The expansion blocks
 
-These four blocks only run if the 15 minute cap is confirmed. Until 15 August
-they had no narration, so they had no rows here either, and the header of
-`SCRIPT.md` was offering a 14:30 cut whose extra 290 seconds nobody had written
-a word for. Writing them cost three of them a claim: see the cut claims under
-the table.
+These blocks only run if the 15 minute cap is confirmed. Until 15 August they
+had no narration, so they had no rows here either, and the header of `SCRIPT.md`
+was offering a 14:30 cut whose extra 290 seconds nobody had written a word for.
+Writing them cost three of them a claim: see the cut claims under the table.
+
+There were four blocks and there are three since 17 August. EXPAND-3 was all
+MCP, and when the MCP block moved to the end of the video it grew by 15 seconds
+and absorbed both of EXPAND-3's beats. Its four rows moved up to the MCP section
+unchanged. Nothing was cut and nothing was re-measured; a claim that used to be
+conditional on a cap is now unconditional, which is the direction that helps.
 
 | Claim | Evidence | Command |
 |---|---|---|
@@ -195,10 +221,6 @@ the table.
 | 7 of the 24 lessons declare a reading age | `reading_age` present in 7 of 24 lesson YAMLs: `000_watch_it_go` 5, `00_first_drive` 6, `00a_turn_the_corner` 6, `00b_repeat_square` 9, `00c_look_first` 10, `00d_fix_the_turn` 7, `16_variables` 9 | `git grep -n '^reading_age:' -- 'src/robolearn/lessons/library/*.yaml'`, which prints those 7 lines and nothing else. An earlier version of this row cited `src/robolearn/lessons/*.yaml`, which matches no file: the library sits one directory down, under `library/`. The claim was right and only the way to check it was broken, which on a ledger whose entire purpose is "here is how to check me" is the more dangerous of the two. |
 | The reading age drives the error explanations, not just a badge | `app.jsx:1740` publishes `KODRO_READING_AGE` for the explanation path; the badge at `app.jsx:3126` is the older use | source |
 | The readable-text setting enlarges the reading surfaces without moving the layout | `styles.css:1179` sets Atkinson Hyperlegible with Comic Sans and Verdana fallbacks, wider letter and word spacing, "Scoped to the reading + code surfaces so the fixed app grid is unaffected" | source |
-| Reading a lesson resource returns `application/json` generated from the lesson YAML | live session: `resources/read kodro://lessons/00d_fix_the_turn` returned `application/json`, 2312 bytes, keys including `allowedConstructs`, `concepts`, `curriculumRefs`, `glossary` | `python -m robolearn.mcp.server` driven over stdin, 15 August |
-| `prove_contracts` refuses `runs: 0` rather than defaulting it | live session returned `isError=True`, `'runs' must be at least 1.` The handler comment at `tools.py:367` records why: `params.get("runs") or DEFAULT` would make an explicit 0 silently become 5 | same session |
-| `prove_contracts` refuses a non-numeric `runs` by type | live session returned `isError=True`, `'runs' must be a whole number, got a string.` | same session |
-| That guard is in the handler, not the schema | `tools.py:379`. No `inputSchema` in the server declares a `minimum` or a `maximum`; `runs` is declared as `{"type": "integer"}` and nothing more | source |
 
 Three claims were cut from these blocks rather than filmed.
 
@@ -229,8 +251,10 @@ of reading the one the code builds. The status doc has been corrected too.
 
 **"the schema rejecting an out-of-range run length"** was in EXPAND-3 until 15
 August, and was wrong twice: no schema declares a bound, and `run_program` has
-no run-length parameter to be out of range. The two real refusals above replaced
-it, and the narration now says where the guard actually lives.
+no run-length parameter to be out of range. The two real refusals that replaced
+it are in the MCP section above, and the narration says where the guard actually
+lives. EXPAND-3 itself stopped existing on 17 August; this paragraph stays
+because the correction is what shaped the narration the finale now speaks.
 
 ## Claims that must not be made
 

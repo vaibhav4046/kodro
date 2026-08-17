@@ -11,55 +11,91 @@ Target format: 1920 by 1080, 30 fps, no letterboxing, no zoom transitions.
 |---|---|---|---|---|---|
 | 1 | 0:00 | 0:12 | Title card | Full frame | Product name, module code, student name, date. Animated since 15 August, see the superseded note below; the 0:12 is the rendered file's exact runtime |
 | 2 | 0:12 | 0:23 | Web app | Full window | Hub, lesson grid, nothing loading |
-| 3 | 0:35 | 0:30 | Web app | Top bar, cropped to upper third | The three stage links, hovered in order |
-| 4 | 1:05 | 0:25 | Web app | Full window | Design stage, chassis and one parameter edit. Was 0:35 until 15 August, see the retiming note below |
-| 5 | 1:30 | 0:30 | Web app | Viewport only, 16:9 crop | The rover driving, uninterrupted. Length untouched by the retiming; this is the silence that is load-bearing |
-| 6 | 2:00 | 0:15 | Web app | Right panel, half frame | Telemetry, one changed value pointed at. Was 0:25 until 15 August |
-| 7 | 2:15 | 0:25 | Web app | Full window | Lesson list, Key Stage 2 lesson opened |
-| 8 | 2:40 | 0:35 | Web app | Split: editor left, viewport right | Starter program running |
-| 9 | 3:15 | 0:30 | Web app | Verdict panel, half frame | Grade, failed check named, explanation |
-| 10 | 3:45 | 0:20 | Web app | Full window | `00d_fix_the_turn` opened, run, fails |
-| 11 | 4:05 | 0:15 | Web app | Verdict panel, tight | `✗ Not yet · 40/100` and the three reasons under it. Was written here as 80 until 15 August; the grader returns 40, see `CLAIM_LEDGER.md` |
-| 12 | 4:20 | 0:15 | Web app | Editor, tight on one line | The single word edited to `turn_left(90)` |
-| 13 | 4:35 | 0:10 | Web app | Verdict panel, tight | `✓ Complete · 100/100` |
-| 14 | 4:45 | 0:60 | Terminal | Full frame, 16 pt font minimum | MCP session: initialize, tools/list, one good call, one refused call |
-| 15 | 5:45 | 0:45 | Web app | Voice panel plus transcript, half frame | Spoken command, transcript, identical typed command, then stop |
-| 16 | 6:30 | 0:25 | Editor | Full frame | `docs/eval/test_suite.json`, scrolled to the counts |
-| 17 | 6:55 | 0:25 | Terminal | Full frame | Gate output, honesty gate line visible |
-| 18 | 7:20 | 1:30 | Talking head or static frame | Full frame | Limits. No UI motion competing with the words. Was 0:60 until 15 August, which demanded 204 words a minute |
-| 19 | 8:50 | 0:45 | Web app | Full window, static | Hub, held still. Was 0:55 until 15 August |
+| 3 | 0:35 | 0:25 | Web app | Top bar, cropped to upper third | The three stage links, hovered in order. Was 0:30 until 17 August |
+| 4 | 1:00 | 0:25 | Web app | Full window | Design stage, chassis and one parameter edit. Was 0:35 until 15 August, see the retiming note below |
+| 5 | 1:25 | 0:30 | Web app | Viewport only, 16:9 crop | The rover driving, uninterrupted. Length untouched by either retiming; this is the silence that is load-bearing |
+| 6 | 1:55 | 0:15 | Web app | Right panel, half frame | Telemetry, one changed value pointed at. Was 0:25 until 15 August |
+| 7 | 2:10 | 0:25 | Web app | Full window | Lesson list, Key Stage 2 lesson opened |
+| 8 | 2:35 | 0:30 | Web app | Split: editor left, viewport right | Starter program running. Was 0:35 until 17 August |
+| 9 | 3:05 | 0:30 | Web app | Verdict panel, half frame | Grade, failed check named, explanation |
+| 10 | 3:35 | 0:20 | Web app | Full window | `00d_fix_the_turn` opened, run, fails |
+| 11 | 3:55 | 0:15 | Web app | Verdict panel, tight | `✗ Not yet · 40/100` and the three reasons under it. Was written here as 80 until 15 August; the grader returns 40, see `CLAIM_LEDGER.md` |
+| 12 | 4:10 | 0:15 | Web app | Editor, tight on one line | The single word edited to `turn_left(90)` |
+| 13 | 4:25 | 0:10 | Web app | Verdict panel, tight | `✓ Complete · 100/100` |
+| 14 | 4:35 | 0:45 | Web app | Voice panel plus transcript, half frame | Spoken command, transcript, identical typed command, then stop |
+| 15 | 5:20 | 0:25 | Editor | Full frame | `docs/eval/test_suite.json`, scrolled to the counts |
+| 16 | 5:45 | 0:25 | Terminal | Full frame | Gate output, honesty gate line visible |
+| 17 | 6:10 | 1:30 | Talking head or static frame | Full frame | Limits. No UI motion competing with the words. Was 0:60 until 15 August, which demanded 204 words a minute |
+| 18 | 7:40 | 1:15 | Claude Code in a terminal | Full frame, 16 pt font minimum | The MCP finale. One prompt, then the client's own tool-call lines: handshake, lesson found and read, starter run and graded at 40, one word changed to 100, then the sandbox program at 0, `runs: 0` refused and a misspelt lesson id refused. Was shot 14 at 0:60 until 17 August |
+| 19 | 8:55 | 0:40 | Web app | Full window, static | Hub, held still. Was 0:55 until 15 August and 0:45 until 17 August |
 | 20 | 9:35 | 0:05 | End card | Full frame | Repository name and date. No animation |
 
 ## Expansion inserts
 
 The shot list above is the 9:40 master cut only. If the 15 minute cap is
-confirmed, four inserts from `SCRIPT.md` go in, and all four land exactly on an
-existing shot boundary, so no master shot is cut into.
+confirmed, three inserts from `SCRIPT.md` go in, and all three land exactly on
+an existing shot boundary, so no master shot is cut into.
 
 | Insert | Goes after shot | At | Length | Source | Framing | On screen |
 |---|---|---|---|---|---|---|
-| EXPAND-1 | 6 | 2:15 | 1:10 | Web app, then terminal | Full window; terminal at 16 pt for the last beat | Ultrasonic removed, assistant refusing obstacle avoidance, sensor refitted, requirements check returning an unresolved payload row, `.krs` validated over MCP |
-| EXPAND-2 | 9 | 3:45 | 1:20 | Web app | Full window | More tools to Teacher progress, classroom mode engaging on its own, the summary strip, the concept heatmap with per-cell scores and colour, the legend, the one-combined-record line, both CSV buttons, an age chip in the lesson list, readable-text setting on |
-| EXPAND-3 | 14 | 5:45 | 1:00 | Terminal | Full frame, 16 pt minimum, same window as shot 14 | `resources/read` on the fix-the-turn lesson, then `prove_contracts` refusing `runs: 0` and `runs: "five"` |
-| EXPAND-4 | 17 | 7:20 | 1:20 | Editor, then terminal | Full frame | The coverage figure in `test_suite.json`, then the lesson export regenerated and diffed against the committed file |
+| EXPAND-1 | 6 | 2:10 | 1:10 | Web app, then terminal | Full window; terminal at 16 pt for the last beat | Ultrasonic removed, assistant refusing obstacle avoidance, sensor refitted, requirements check returning an unresolved payload row, `.krs` validated over MCP |
+| EXPAND-2 | 9 | 3:35 | 1:20 | Web app | Full window | More tools to Teacher progress, classroom mode engaging on its own, the summary strip, the concept heatmap with per-cell scores and colour, the legend, the one-combined-record line, both CSV buttons, an age chip in the lesson list, readable-text setting on |
+| EXPAND-4 | 16 | 6:10 | 1:20 | Editor, then terminal | Full frame | The coverage figure in `test_suite.json`, then the lesson export regenerated and diffed against the committed file |
 
-With all four in, the shots after each insert shift by the running total: shots
-7 to 9 by 70 seconds, 10 to 14 by 150, 15 to 17 by 210, and 18 to 20 by 290.
-Shot 20 then starts at 14:25 and the cut ends at 14:30. Re-derive that rather
-than trusting this paragraph, the same way the master runtime is checked.
+With all three in, the shots after each insert shift by the running total: shots
+7 to 9 by 70 seconds, 10 to 16 by 150, and 17 to 20 by 230. Shot 20 then starts
+at 13:25 and the cut ends at 13:30. Re-derive that rather than trusting this
+paragraph, the same way the master runtime is checked.
 
 Three inserts changed content on 15 August because what they asked for did not
 exist: EXPAND-1 wanted a chassis-capacity refusal the product does not perform,
 EXPAND-2 wanted a heatmap cell drilled down to a pupil, which the web dashboard
 has no handler for, and EXPAND-3 wanted a schema bound no schema declares. All
 three now show real behaviour. The reasons are in `SCRIPT.md` under each block
-and in `CLAIM_LEDGER.md`.
+and in `CLAIM_LEDGER.md`. EXPAND-3 itself no longer exists as a separate insert:
+on 17 August its two beats were folded into the master cut, see the restructure
+note below. The paragraph above is left as written because it records why the
+insert was rewritten, which is still the reason those beats look the way they do
+inside shot 18.
 
 EXPAND-2 also carries a state prerequisite the other three do not: the heatmap
 renders rows only once lessons have been graded on the machine being filmed
 (`bridge.js:214-227`, `hooks.jsx:604-616`), so an untouched register shows the
 empty state instead. `CAPTURE_MANIFEST.md` places it after the blocks that
 generate that history.
+
+## Restructured 17 August 2026
+
+The MCP demonstration moved from the middle of the video to the end, because it
+is the strongest thing in the artefact and it was being spent at 4:45 on an
+audience that had not yet seen the lesson it grades. It was shot 14 at 0:60. It
+is now shot 18 at 1:15, and it is the last thing before the close.
+
+Everything between the old and new position renumbered down by one: voice was
+15 and is 14, the two evidence shots were 16 and 17 and are 15 and 16, limits
+was 18 and is 17. Shots 1 to 13, 19 and 20 keep their numbers.
+
+The extra 15 seconds came from EXPAND-3, which was a separate insert covering
+`resources/read` and the `runs: 0` refusal in the same terminal window as the
+old shot 14. With the finale at the end and 15 more seconds in it, both beats
+fit inside the master cut, so the insert is gone and three remain. That is why
+the insert numbering now reads 1, 2, 4.
+
+The 15 seconds themselves came from three shots: shot 3 gave 5 (0:30 to 0:25),
+shot 8 gave 5 (0:35 to 0:30), and shot 19 gave 5 (0:45 to 0:40). Shot 3's
+narration was rewritten from 59 words to 53 at the same time, because 59 words
+in 25 seconds is 142 a minute and the limits block already established 136 as
+the ceiling this presenter can hold. Shot 5, the rover driving, was left alone
+again, for the same reason it was left alone on 15 August.
+
+The master runtime is unchanged at 9:40. With all three inserts the cut is
+13:30, down from 14:30, which buys an extra minute of headroom against a 15
+minute cap.
+
+The shot numbers quoted in the 15 August section below are the numbering that
+was current when it was written. Read them against that table, not this one:
+its "shots 7 to 18" means today's shots 7 to 17 plus the MCP shot, and its
+"shot 19" is still shot 19.
 
 ## Retimed 15 August 2026
 
