@@ -86,10 +86,12 @@ class RunOutcome:
     Attributes:
         execution: How the pupil's snippet terminated (sandbox / syntax /
             runtime / timeout / clean).
-        verdict: The grade against the lesson's success criteria. Graded even
-            when ``execution.success`` is ``False``, because a program that
-            crashed halfway can still have driven part of the course and the
-            console shows that partial progress.
+        verdict: The grade against the lesson's success criteria, when the
+            program ran. When ``execution.success`` is ``False`` this is a
+            fixed score of 0 carrying the error as its single reason, matching
+            every other Kodro surface; see the note in
+            :func:`run_against_lesson` for why grading the abandoned trace
+            handed out partial credit for criteria the program never reached.
         events: The tracer events emitted during the run, in order.
         tracer: The tracer itself, for callers that need to re-grade or
             serialise the trace.
@@ -145,7 +147,28 @@ def run_against_lesson(
         set_active_world(None)
         set_state_provider(None)
 
-    verdict = grade(lesson, tracer, source or "")
+    if execution.success:
+        verdict = grade(lesson, tracer, source or "")
+    else:
+        # A program that never ran must not be marked on the trace it left
+        # behind. `grade` is pure over the tracer, so a sandbox rejection at
+        # line 1 was still scoring 60/100 on a three-criterion lesson: both
+        # distance criteria failed and "no collisions" was vacuously satisfied.
+        # Every other surface already refuses to do that -- the Tk app returns
+        # before it grades (app.py, the `not result.success` branch of the Run
+        # handler), the web bridge answers score 0 with the error as the single
+        # reason (web/app.py, submit_attempt), and the browser grader mirrors it
+        # (lesson-grader.jsx, gradeSync's run.error branch). Same wording and
+        # same score here, because grade_program promises the pupil's score and
+        # not a second opinion on it.
+        verdict = GradeResult(
+            passed=False,
+            reasons=[
+                f"{execution.error_kind}: {execution.error_message} "
+                f"(line {execution.error_line})"
+            ],
+            score=0,
+        )
     return RunOutcome(
         execution=execution,
         verdict=verdict,

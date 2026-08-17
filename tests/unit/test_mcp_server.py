@@ -336,6 +336,54 @@ def test_sandbox_violations_come_back_as_a_graded_run_not_a_crash(server: Server
     assert payload["verdict"]["passed"] is False
 
 
+def test_a_program_that_never_ran_scores_zero_not_partial_credit(server: Server) -> None:
+    """The score for a crash is 0 everywhere, and it used to be 60 here.
+
+    ``grade`` is pure over the tracer, so a program rejected at line 1 left an
+    empty trace that a "no collisions" criterion satisfies for free: three
+    criteria, two failed, 100 - 20*2 = 60. The Tk app never grades a failed run
+    at all, and both the web bridge (``submit_attempt``) and the browser grader
+    (``lesson-grader.jsx``, ``gradeSync``) return score 0 with the error as the
+    single reason. An assistant reading 60 off this tool would be telling a
+    pupil their sandbox violation earned most of the marks.
+    """
+    payload = structured(
+        call(
+            server,
+            "grade_program",
+            {"lessonId": "00d_fix_the_turn", "source": "import os\nos.system('echo pwned')\n"},
+        )
+    )
+    execution = payload["execution"]
+    assert execution["success"] is False
+    verdict = payload["verdict"]
+    assert verdict["passed"] is False
+    assert verdict["score"] == 0
+    # Byte-for-byte the string web/app.py and lesson-grader.jsx both produce.
+    assert verdict["reasons"] == [
+        f"{execution['errorKind']}: {execution['errorMessage']} (line {execution['errorLine']})"
+    ]
+
+
+def test_a_program_that_ran_and_did_nothing_is_still_marked_on_its_criteria(
+    server: Server,
+) -> None:
+    """The zero above is for a crash, not for any failure.
+
+    An empty program executes cleanly and simply misses the mission, so it must
+    still be scored criterion by criterion -- the same 60/100 the browser gives
+    it. Without this the fix above would flatten every failure to 0 and the
+    pupil would lose the partial credit that tells them how close they were.
+    """
+    payload = structured(
+        call(server, "grade_program", {"lessonId": "00d_fix_the_turn", "source": ""})
+    )
+    assert payload["execution"]["success"] is True
+    assert payload["verdict"]["passed"] is False
+    assert payload["verdict"]["score"] == 60
+    assert len(payload["verdict"]["reasons"]) == 2
+
+
 def test_syntax_errors_report_the_pupil_line(server: Server) -> None:
     payload = structured(
         call(
