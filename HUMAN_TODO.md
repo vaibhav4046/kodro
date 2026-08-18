@@ -176,10 +176,13 @@ on these two URLs. Evidence and exact commands:
    happened), and "removes per-seat fees" became "needs no account or
    subscription" (`per-seat` appears zero times in this document).
 
-Your call, one open point: the canonical PDF is 59 sheets and
-`_build/current/` holds an older 50-sheet snapshot. The table did not cause
-that, the PDF was 59 before and after. It is audit HIGH 4 and it needs the real
-Canvas brief, not another rebuild. See section 6.
+One point was open here: the canonical PDF was 59 sheets while `_build/current/`
+held an older 50-sheet snapshot. The table did not cause that, the PDF was 59
+before and after. It was audit HIGH 4 and it needed the real brief, not another
+rebuild. **Closed 18 August 2026**: the brief arrived, the counting rule is total
+sheets minus appendix sheets, and the canonical PDF now measures 50 of 50 at 61
+sheets with appendices A to G on sheets 51 to 61. See section 6. The stale
+snapshot under `_build/current/` is a separate artefact and is left as it is.
 
 ## 6. Confirm the page limit against the current brief
 
@@ -193,10 +196,27 @@ measures three different ways:
 | All arabic-numbered pages, body plus appendices | exactly 50 |
 | Every sheet in the submitted PDF | 59 |
 
-If the brief counts sheets, nine pages of front matter are the exposure and this
-is urgent. If it counts the body, there are two pages of margin. Only you can
-settle which, and until you do, `docs/ca2/CLAIM_LEDGER.md` forbids stating the
-limit as settled on camera.
+**RESOLVED 18 August 2026 from the CA3 brief text.** No action is left here. The
+three readings above are a record of the uncertainty, not a live question.
+
+The brief says the dissertation must be "at most 50 pages including all the title
+page, acknowledgement, declaration and references, but NOT appendix". So the
+operative count is none of the three above. It is
+
+    total sheets  -  appendix sheets
+
+Front matter counts. References count. Appendices are the sanctioned overflow.
+Measured that way the 17 August PDF was 58 against a limit of 50, over by 8,
+which is worse than the worst reading recorded above and which no reading here
+had detected. The current PDF measures 50 of 50: 61 sheets in total, appendices A
+to G occupying sheets 51 to 61, front matter 6 sheets, body and references 44.
+
+That is at the limit and not under it. Any later addition to the front matter or
+the body now needs a matching cut or a move into an appendix.
+Section 2 of `docs/ca2/BRIEF_VERIFIED.md` records the full reduction, and item 8
+of `docs/ca2/CLAIM_LEDGER.md` now permits stating the limit, provided the
+counting rule is stated with the figure, because "50 pages" on its own invites
+the wrong count.
 
 ## Note for anyone editing the dissertation next
 

@@ -932,6 +932,29 @@ function checkLessonWorldExit(chrome) {
   return { pass: false, reason: `world/lesson ownership mismatch (mars: ${mars}, lessonGone: ${lessonGone})` };
 }
 
+// The mirror of the row above, and the one that caught a real defect. Leaving a
+// lesson is correct when the world actually changes; re-picking the world the
+// lesson is ALREADY in changes nothing, so closing the lesson there destroys
+// pupil context for a no-op. 00_first_drive is an earth lesson and the switch
+// below asks for earth. The select fires change unconditionally (the harness
+// uses the native setter), and the app's handler is a bare
+// `onChange: e => onTerrain(e.target.value)`, so the same-value call really does
+// reach onTerrain rather than being swallowed by React's value diffing.
+function checkLessonWorldSame(chrome) {
+  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&experience=expert&lesson=00_first_drive&lessonswitch=earth`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_world_same', url, { vtime: 20000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const onEarth = /data-active-world="earth"/.test(dom);
+  const lessonKept = /class="lesson-card"/.test(dom);
+  const noClosedToast = !/Lesson closed/.test(dom);
+  if (onEarth && lessonKept && noClosedToast) {
+    return { pass: true, reason: 're-selecting the world the lesson is already in kept the lesson open and raised no exit toast' };
+  }
+  return { pass: false, reason: `a no-op world switch disturbed the lesson (earth: ${onEarth}, lessonKept: ${lessonKept}, noClosedToast: ${noClosedToast})` };
+}
+
 // Collision help must work without a generative model and must remain an
 // explicit Apply/Discard preview instead of silently replacing pupil code.
 function checkVibeRepairPreview(chrome) {
@@ -1331,7 +1354,19 @@ function checkPredictTrace(chrome) {
 // intro, and then reports "unknown lesson" the moment the pupil presses Run.
 function checkAuthoredLesson(chrome) {
   const id = 'authored:qa-crater-hop-0000abcd';
-  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&seedlesson=1&lesson=${encodeURIComponent(id)}`;
+  // No robot= here, deliberately. robot= makes the harness dispatch a
+  // kodro-robot event carrying world=, and the product answers that by
+  // switching terrain, which exits any open lesson on purpose (the behaviour
+  // the lesson-world-exit row covers). This row asks the opposite question, so
+  // commanding a world switch while asserting the lesson survived is a race:
+  // whichever of the async lesson pick and that event lands second wins, and
+  // the loser produced a real red build on ubuntu at 3a6cc4c.
+  //
+  // world=earth stays. It is what gives the mars assert below its teeth: the
+  // page boots on earth, so data-active-world="mars" can only be true if the
+  // lesson genuinely loaded and moved it. Seeding world=mars would satisfy that
+  // assert from the URL alone and hollow the row out.
+  const url = `${BASE}?world=earth&q=low&mode=classroom&seedlesson=1&lesson=${encodeURIComponent(id)}`;
   const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_authored_lesson', url, { vtime: 20000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
@@ -1745,6 +1780,7 @@ function writeArtefact(chrome, passed, groups) {
       ['lesson-goals', checkLessonGoals],
       ['step-palette', checkStepPalette],
       ['lesson-world-exit', checkLessonWorldExit],
+      ['lesson-world-same', checkLessonWorldSame],
       ['stage-journey', checkStageJourney],
       ['authored-lesson', checkAuthoredLesson],
     ];
@@ -1866,6 +1902,10 @@ function writeArtefact(chrome, passed, groups) {
 
   const lessonWorldExit = checkLessonWorldExit(chrome);
   report(behaviour, 'lesson-world-exit', lessonWorldExit);
+  gap();
+
+  const lessonWorldSame = checkLessonWorldSame(chrome);
+  report(behaviour, 'lesson-world-same', lessonWorldSame);
   gap();
 
   const vibeRepair = checkVibeRepairPreview(chrome);

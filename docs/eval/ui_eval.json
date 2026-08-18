@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "harness": "qa_ui",
-  "generatedAt": "2026-08-18T10:08:52.188Z",
+  "generatedAt": "2026-08-18T12:21:21.592Z",
   "suite": "all",
   "method": "headless Chrome drives the real shipped bundle through cap.html; every row is an isolated Chrome run whose screenshot, post-action DOM or measured viewport had to match a concrete marker",
   "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -11,13 +11,13 @@
     "node": "v24.12.0"
   },
   "artifactHashes": {
-    "bundleSha256": "2183c4b29a33b26e8ad6e997bece06566638ae08c0fd5298815b470b54043f84",
+    "bundleSha256": "1da2021df88db3d0779e83ae7474f69ecb1d05f0c6147c6ba2ba6ee90d501fda",
     "capHtmlSha256": "e111cbeb3109a507fdd7d4bff56c454513426e4db4da757cb228d683d6f60451",
-    "harnessSha256": "510f92e904ccf5c92618c663c9d8120f101a12b7e52be4fb1a3533bc73c767c1"
+    "harnessSha256": "b401aea3795eac11d517419ed9aa1194d16fa6fe31300a1c544ebd43d05a74b0"
   },
   "measures": "Whether the shipped studio renders and behaves: that each flow paints with no console error, that each assert finds its marker in the real DOM, that no viewport overflows and that every modal opens. Not a measure of whether a person can use, understand or learn from the interface, and not an accessibility, usability or hardware result. Where an exact marker cannot be located an assert falls back to the most specific real signal it can verify, so each row states in its reason what was actually matched.",
-  "passed": 66,
-  "total": 66,
+  "passed": 67,
+  "total": 67,
   "percent": 100,
   "groups": [
     {
@@ -28,7 +28,7 @@
         {
           "label": "studio-earth-run",
           "pass": true,
-          "reason": "ok (283842B)",
+          "reason": "ok (253990B)",
           "determinism": {
             "pass": true,
             "reason": "rover drove 14.0m (>= 3m floor); exact-distance determinism is covered by qa_interpreter/qa_grader"
@@ -37,34 +37,34 @@
         {
           "label": "world-mars",
           "pass": true,
-          "reason": "ok (288703B)"
+          "reason": "ok (290887B)"
         },
         {
           "label": "world-warehouse",
           "pass": true,
-          "reason": "ok (173176B)"
+          "reason": "ok (179432B)"
         },
         {
           "label": "arm-firstrun",
           "pass": true,
-          "reason": "ok (160438B)"
+          "reason": "ok (146379B)"
         },
         {
           "label": "blocks-panel",
           "pass": true,
-          "reason": "ok (160694B)"
+          "reason": "ok (161685B)"
         },
         {
           "label": "onboarding",
           "pass": true,
-          "reason": "ok (392477B)"
+          "reason": "ok (392537B)"
         }
       ]
     },
     {
       "name": "behaviour",
-      "passed": 41,
-      "total": 41,
+      "passed": 42,
+      "total": 42,
       "results": [
         {
           "label": "blocks-insert",
@@ -162,6 +162,11 @@
           "reason": "world switch selected Mars and atomically left the prior lesson grading context"
         },
         {
+          "label": "lesson-world-same",
+          "pass": true,
+          "reason": "re-selecting the world the lesson is already in kept the lesson open and raised no exit toast"
+        },
+        {
           "label": "chat-repair",
           "pass": true,
           "reason": "offline collision help produced a project-backed, validated sensor repair with explicit Apply/Discard controls"
@@ -249,7 +254,7 @@
         {
           "label": "first-run-clean",
           "pass": true,
-          "reason": "default city first Run drove 9.0m clean (no HALTED) and printed its report (attempt 1)"
+          "reason": "default city first Run drove 8.0m clean (no HALTED) and printed its report (attempt 1)"
         },
         {
           "label": "revert-apply",

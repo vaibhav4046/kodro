@@ -34385,6 +34385,12 @@ say("Survey done")`
     // different free-play world is activated so the label, walls and mark can
     // never describe different places.
     function onTerrain(id) {
+      // Selecting the world you are already in is not a departure. The engine's
+      // own onTerrain opens with the same guard, but this wrapper evicts the
+      // lesson BEFORE delegating, so without this line a no-op switch closes the
+      // lesson for a change that never happens. Reachable from the kodro-robot
+      // event, which carries a world and fires whether or not it differs.
+      if (id === terrainId) return;
       const leavingLesson = !!currentLessonIdRef.current;
       if (leavingLesson) {
         try {

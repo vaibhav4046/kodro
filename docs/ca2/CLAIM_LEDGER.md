@@ -337,8 +337,14 @@ These are ordered by how much damage each one does.
    is the one to demonstrate.
 7. **Do not claim deployment, signing, release, or a Turnitin result.** None
    exist.
-8. **Do not state the page limit or the video duration as settled.** See
-   `BRIEF_VERIFIED.md`. Both are open and both are the student's to confirm.
+8. **Do not state the video duration as settled.** See `BRIEF_VERIFIED.md`. It
+   is open and it is the student's to confirm.
+
+   The page limit is settled as of 18 August 2026 and may be stated: at most 50
+   pages, counting the title page, acknowledgements, declaration and references,
+   excluding appendices, so the operative count is total sheets minus appendix
+   sheets. The dissertation measures exactly 50 under that rule. State the rule
+   with the figure; "50 pages" alone invites the wrong count.
 
 9. **Do not call the city an open world, infinite, procedural, or GTA-like.**
    The 3D city streams scenery chunks around the rover so the skyline stops
