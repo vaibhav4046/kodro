@@ -7,17 +7,17 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.lessons.grader import GradeResult
-from robolearn.lessons.schema import Lesson, WorldDef
-from robolearn.memory.hint_engine import Hint, HintContext, find_all_hints
-from robolearn.memory.hint_learning import (
+from kodro.lessons.grader import GradeResult
+from kodro.lessons.schema import Lesson, WorldDef
+from kodro.memory.hint_engine import Hint, HintContext, find_all_hints
+from kodro.memory.hint_learning import (
     PRIOR_RATE,
     best_hint,
     effectiveness,
     rank_hints,
 )
-from robolearn.memory.store import HintStat, Store
-from robolearn.runtime.tracer import Event
+from kodro.memory.store import HintStat, Store
+from kodro.runtime.tracer import Event
 
 # --- local fixtures (mirror tests/unit/test_hint_engine.py) -----------------
 

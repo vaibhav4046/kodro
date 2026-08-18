@@ -32,14 +32,14 @@ import ast
 
 import pytest
 
-from robolearn.engine.rover import Rover
-from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, Obstacle, Sample, World
-from robolearn.lessons.grader import grade
-from robolearn.lessons.schema import Lesson, load_library
-from robolearn.runtime.binding import binding_lock, set_active_rover, set_active_world
-from robolearn.runtime.executor import execute as run_pupil_code
-from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
+from kodro.engine.rover import Rover
+from kodro.engine.terrain import Terrain
+from kodro.engine.world import ArenaBounds, Obstacle, Sample, World
+from kodro.lessons.grader import grade
+from kodro.lessons.schema import Lesson, load_library
+from kodro.runtime.binding import binding_lock, set_active_rover, set_active_world
+from kodro.runtime.executor import execute as run_pupil_code
+from kodro.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
 
 LESSONS: list[Lesson] = list(load_library())
 IDS = [lesson.id for lesson in LESSONS]

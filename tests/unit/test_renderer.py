@@ -10,7 +10,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 import pygame
 
-from robolearn.engine.renderer import (
+from kodro.engine.renderer import (
     BASE_RADIUS_PX,
     OBSTACLE_COLOUR,
     ROVER_BODY_COLOUR,
@@ -27,14 +27,14 @@ from robolearn.engine.renderer import (
     render,
     transform_for,
 )
-from robolearn.engine.rover import Rover
-from robolearn.engine.sensors import (
+from kodro.engine.rover import Rover
+from kodro.engine.sensors import (
     COLOUR_BASE_INDICATOR,
     COLOUR_SAMPLE_INDICATOR,
     TERRAIN_COLOURS,
 )
-from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, Obstacle, Sample, World
+from kodro.engine.terrain import Terrain
+from kodro.engine.world import ArenaBounds, Obstacle, Sample, World
 
 
 @pytest.fixture(autouse=True)

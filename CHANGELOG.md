@@ -148,7 +148,7 @@ than the gap.
   URLs; pip-audit clean (pip itself patched); sandbox `exec` documented;
   AI prompt/speech length caps.
 - **Standalone desktop app**, the web UI now packages into a single
-  double-clickable `RoboLearn.exe` (PyInstaller spec `robolearn-web.spec`)
+  double-clickable `RoboLearn.exe` (PyInstaller spec `kodro-web.spec`)
   that bundles pywebview, the engine and the vendored design; no Python
   install required. Verified launching + rendering the full UI.
 - **Offline sound design**, `sound.js` synthesises every cue with the Web
@@ -227,12 +227,12 @@ than the gap.
   (WCAG 1.4.10) instead of crushing the viewport off-screen on Chromebooks;
   the API hint bar now lists the real lesson verbs (`move_forward`,
   `obstacle_ahead`, `collect_sample`).
-- **NEW web UI** (`python -m robolearn.web`), the actual rover-simulator
+- **NEW web UI** (`python -m kodro.web`), the actual rover-simulator
   React/CSS design prototype is now vendored under
-  `src/robolearn/assets/web/` (with React 18, Babel standalone, and 14 TTF
+  `src/kodro/assets/web/` (with React 18, Babel standalone, and 14 TTF
   font files vendored locally, fully offline, no CDN) and rendered in a
   desktop window via **pywebview** (Edge WebView2 on Windows). A new
-  `robolearn.web.app.BridgeAPI` exposes the existing lesson library +
+  `kodro.web.app.BridgeAPI` exposes the existing lesson library +
   pupil store to the React shell via `window.pywebview.api.*`, bridged by
   `assets/web/bridge.js`. The Tk app at `python -m robolearn` is unchanged
   and stays as a fallback. This is the *modern, sleek* UI medium the design
@@ -280,7 +280,7 @@ than the gap.
   (idle / running / complete /
   error, in the design's phosphor-cyan palette) wired to the run lifecycle,
   and a **sim-speed slider** that scales playback (0.25× to 4×) via
-  `orbital.scaled_delay`. Tk-free tokens/helpers in `robolearn.ui.orbital`.
+  `orbital.scaled_delay`. Tk-free tokens/helpers in `kodro.ui.orbital`.
 - **Passed-lesson ticks**, the lessons list now shows a ✓ next to lessons
   the pupil has passed (• otherwise), updated after every Run, so progress
   through the curriculum is visible at a glance (`LessonsPanel.set_completed`).
@@ -336,7 +336,7 @@ than the gap.
 - **`13_nested_loops` lesson** (KS4 stretch) — sweep a 2-D field of samples
   by nesting one loop inside another; brings the bundled library to 13.
 - **Teacher progress report** — a top-bar "📄 Report" button writes a
-  self-contained, offline HTML report (`robolearn.memory.report`) to
+  self-contained, offline HTML report (`kodro.memory.report`) to
   `~/.robolearn/progress-report.html`: summary, every submission, per-concept
   strengths and achievements. Tk-free + deterministic, so it is fully
   unit-tested; intended as evidence for the teacher evaluation study.
@@ -356,7 +356,7 @@ than the gap.
   complete 🎉" + confetti burst painted on the sim canvas, cleared by the
   next Run/Reset (no timer, so it can't stall the event loop on any
   platform).
-- **Procedural sound effects** (`robolearn.ui.sounds`): a bright chime on
+- **Procedural sound effects** (`kodro.ui.sounds`): a bright chime on
   pass, a low buzz on fail, a blip on sample-collect and a thud on
   collision. Tones are synthesised at runtime from the standard library
   (no asset files, no network) and the mixer is hard-guarded — on any
@@ -372,7 +372,7 @@ than the gap.
   editor and console to pure black-on-white; both preferences persist offline to
   `~/.robolearn/a11y.toml` and reapply on launch. New keyboard shortcuts:
   `F5` (also `Ctrl+Enter`) run, `Esc` stop, `Ctrl+R` reset. The settings
-  logic is Tk-free and unit-tested (`robolearn.ui.a11y`).
+  logic is Tk-free and unit-tested (`kodro.ui.a11y`).
 - **Pass/fail verdict banner** in the hint card: a green "✅ Mission
   complete! Score N/100" on success, the matching hint (amber) or an
   orange "Not passed yet" nudge on failure. The success case used to just
@@ -389,7 +389,7 @@ than the gap.
 - **P1 polish:** Sun-Valley (`sv-ttk`) theme applied globally so ttk
   widgets pick up a modern look on Windows / macOS / Linux. Splash
   screen displayed for ~250 ms at launch
-  (`robolearn.ui.splash.show_splash`). Per-terrain particle effects
+  (`kodro.ui.splash.show_splash`). Per-terrain particle effects
   (`engine.particles`): grass for Earth, dust for Mars, bubbles for
   Underwater, stars for Space. Particles render under the rover sprite
   in the SimPanel canvas.
@@ -398,13 +398,13 @@ than the gap.
 - Initial repository scaffold: directory tree, `pyproject.toml`, CI workflows,
   governance files, empty module stubs with docstrings.
 - Public, procedural pupil-facing API
-  (`robolearn.rover_api`) with all 16 locked-in signatures from Section 4
+  (`kodro.rover_api`) with all 16 locked-in signatures from Section 4
   of the build spec — driving, sensing, acting, plus a console `log()`.
   Inputs are clamped (NaN / ±inf / out-of-range → safe default, warning
   logged); no function ever raises. Package root re-exports every public
-  symbol so `from robolearn import move_forward` works alongside the
-  explicit `from robolearn.rover_api import move_forward`.
-- Top-level app wiring (`robolearn.app`):
+  symbol so `from kodro import move_forward` works alongside the
+  explicit `from kodro.rover_api import move_forward`.
+- Top-level app wiring (`kodro.app`):
   - `build_app()` wires the `MainWindow` shell to the editor, sim,
     sensors, lessons, console and hint-card panels; registers the
     active `Tracer` + `RoverSnapshot` provider; and binds the
@@ -548,7 +548,7 @@ than the gap.
   - Module-level `set_active` / `get_active` / `clear_active` plus a
     `set_state_provider` hook so the engine can lazily attach
     `RoverSnapshot`s to each event.
-  - `robolearn.rover_api` now emits an event after every public function:
+  - `kodro.rover_api` now emits an event after every public function:
     driving / waiting / beep / log are `call`, sensor functions are
     `sensor_read`, collect / drop are `sample`. Tuple sensor results are
     serialised as lists so the trace round-trips through JSON.
@@ -561,7 +561,7 @@ than the gap.
   - Rover sprite is a grey body circle with a red heading triangle on top
     so even from a distance pupils can see which way the rover faces.
   - Optional grid overlay for the manual visual check.
-  - CLI: `python -m robolearn.engine.renderer --terrain {earth,mars,underwater,space}`
+  - CLI: `python -m kodro.engine.renderer --terrain {earth,mars,underwater,space}`
     opens a demo window. Headless tests use `SDL_VIDEODRIVER=dummy` and
     `Surface.get_at` pixel sampling.
 - Sensor subsystem (`engine.sensors`):

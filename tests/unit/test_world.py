@@ -6,8 +6,8 @@ import math
 
 import pytest
 
-from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, Obstacle, Sample, World
+from kodro.engine.terrain import Terrain
+from kodro.engine.world import ArenaBounds, Obstacle, Sample, World
 
 
 def test_arena_bounds_contains_corners() -> None:

@@ -30,10 +30,10 @@ If Kodro was installed from source rather than as a package, point the client at
 the module instead:
 
 ```json
-{"mcpServers": {"kodro": {"command": "python", "args": ["-m", "robolearn.mcp"]}}}
+{"mcpServers": {"kodro": {"command": "python", "args": ["-m", "kodro.mcp"]}}}
 ```
 
-`robolearn.mcp`, not `robolearn.mcp.server`. Both start the server and both keep
+`kodro.mcp`, not `kodro.mcp.server`. Both start the server and both keep
 stdout clean, but naming the submodule makes runpy emit a `RuntimeWarning` on
 stderr, because `robolearn/mcp/__init__.py` has already imported it by the time
 runpy runs it as `__main__`. It is only noise, and a strict client logs noise on

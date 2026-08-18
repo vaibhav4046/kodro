@@ -1,7 +1,7 @@
 """The desktop app and the website must agree on what a ``.kodro`` file means.
 
 Two implementations of one file format is a promise that decays: the browser's
-``assets/web/project.js`` and Python's :mod:`robolearn.interop.kodro_project`
+``assets/web/project.js`` and Python's :mod:`kodro.interop.kodro_project`
 can drift apart the moment either is edited, and the failure mode is silent --
 a pupil's project opens on one half of the ecosystem and quietly loses its
 programs on the other.
@@ -22,9 +22,9 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.interop import kodro_project as kp
+from kodro.interop import kodro_project as kp
 
-WEB_DIR = Path(__file__).resolve().parents[2] / "src" / "robolearn" / "assets" / "web"
+WEB_DIR = Path(__file__).resolve().parents[2] / "src" / "kodro" / "assets" / "web"
 PROJECT_JS = WEB_DIR / "project.js"
 
 #: Node driver: loads project.js the way the browser does (a bare IIFE against

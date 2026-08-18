@@ -12,7 +12,7 @@ from this log.
 instantiate, versus a procedural module with free functions, versus a hybrid
 where pupils write classes that subclass `RoverBehaviour`.
 
-**What was chosen.** A flat, procedural module — `robolearn.rover_api` — that
+**What was chosen.** A flat, procedural module — `kodro.rover_api` — that
 hides a singleton engine handle. Pupils write `move_forward(50)`; the engine
 is OO internally for state encapsulation.
 
@@ -274,7 +274,7 @@ procedural pupil API: (a) pass an explicit `tracer` argument to every
 function (breaks the locked-in signatures in Section 4), or (b) keep a
 module-level "active tracer" that `emit()` consults.
 
-**What was chosen.** Option (b). `robolearn.runtime.tracer` exposes
+**What was chosen.** Option (b). `kodro.runtime.tracer` exposes
 `set_active`, `get_active` and `clear_active`. `rover_api` calls
 `emit(name, args, result, kind=...)` after each public function; if no
 tracer is active, `emit` returns immediately so pupil code outside the UI
@@ -413,12 +413,12 @@ solve frames the contact spans.
 ## 2026-05-26 — Package-root re-exports of the rover API (Task 2)
 
 **What was considered.** Force pupils to write
-`from robolearn.rover_api import move_forward`, or re-export every public
+`from kodro.rover_api import move_forward`, or re-export every public
 symbol from `robolearn/__init__.py`.
 
 **What was chosen.** Re-export. Pupils can write either
-`from robolearn import move_forward` or
-`from robolearn.rover_api import move_forward`; both bind to the same
+`from kodro import move_forward` or
+`from kodro.rover_api import move_forward`; both bind to the same
 function object (asserted by `test_package_root_reexports_full_api`).
 
 **Why.** Section 3 of the spec literally says

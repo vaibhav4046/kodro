@@ -17,7 +17,7 @@ itself now stamped as a dated snapshot rather than a live figure.
 
 Rows 8 and 9 gained their flags on 15 August 2026. Both gates need a fixture:
 headless Chrome, `cap.html` built by `node scripts/build_screenshot_harness.cjs`,
-and `src/robolearn/assets/web` served on `:8099` by `python -m http.server 8099`.
+and `src/kodro/assets/web` served on `:8099` by `python -m http.server 8099`.
 Without it each one prints SKIP and exits 0, which is the documented default so a
 GPU-less box never breaks a pipeline. That default is wrong for this table: a row
 here pairs a command with an exact expected total, so an agent running the bare
@@ -48,9 +48,9 @@ documented limitation; N/R = not required by the brief.
 | 10 | Python suite + coverage gate | `python -m pytest` | 1641 passed, 0 skipped, coverage 90.85% against the 85% gate, recorded in `docs/eval/test_suite.json` at commit `e70b98b` (was 1638/1/90.9 at `aa174cf`) | DELIVERED |
 | 11 | Lint, format, types | ruff check / ruff format --check / mypy | green on touched code | DELIVERED |
 | 12 | Offline web guard alone | `pytest tests/unit/test_web_offline.py` | passes standalone | DELIVERED |
-| 13 | Source app constructs | `python -c "from robolearn.web.app import build_app; ..."` | prints `Kodro` | DELIVERED |
+| 13 | Source app constructs | `python -c "from kodro.web.app import build_app; ..."` | prints `Kodro` | DELIVERED |
 | 14 | Live hosted web reachable + CI-gated deploy | curl live; gh run list | HTTP 200; CI-gated Deploy Pages; live bundle sha256 == committed | DELIVERED |
-| 15 | Windows installer/release packaging | `python scripts/build_exe.py --clean` | dual-binary release workflow (RoboLearn.exe + robolearn-tk.exe) | DELIVERED (see HUMAN note) |
+| 15 | Windows installer/release packaging | `python scripts/build_exe.py --clean` | dual-binary release workflow (RoboLearn.exe + kodro-tk.exe) | DELIVERED (see HUMAN note) |
 | 16 | Recorded MCP values still match the live server | `python scripts/qa_mcp_finale.py` | 30 of 30 documented values matched across the 11 calls of the CA2 finale, 17 August 2026 | DELIVERED |
 
 Row 16 is not an ACCEPTANCE.md criterion and is listed here because it guards a

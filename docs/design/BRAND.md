@@ -41,11 +41,11 @@ supplied by the system or by print production.
 
 | File | Use |
 | --- | --- |
-| `src/robolearn/assets/web/icon.svg` | Full-colour browser and scalable app icon |
-| `src/robolearn/assets/web/brand-icon-maskable.svg` | Maskable PWA icon |
-| `src/robolearn/assets/web/brand-icon-monochrome.svg` | One-colour and system mask use |
-| `src/robolearn/assets/web/brand-icon-192.png` | 192 px PWA and touch icon |
-| `src/robolearn/assets/web/brand-icon-512.png` | 512 px PWA icon |
+| `src/kodro/assets/web/icon.svg` | Full-colour browser and scalable app icon |
+| `src/kodro/assets/web/brand-icon-maskable.svg` | Maskable PWA icon |
+| `src/kodro/assets/web/brand-icon-monochrome.svg` | One-colour and system mask use |
+| `src/kodro/assets/web/brand-icon-192.png` | 192 px PWA and touch icon |
+| `src/kodro/assets/web/brand-icon-512.png` | 512 px PWA icon |
 
 The in-app mark uses the same geometry on a 64 by 64 grid. It takes the current
 theme accent as its route colour and the current brass token as its decision

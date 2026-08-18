@@ -28,7 +28,7 @@ import vm from 'node:vm';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const WEB = path.join(ROOT, 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(ROOT, 'src', 'kodro', 'assets', 'web');
 
 const ctx = { console, JSON, Math, String, Number, Object, Array, Error, RegExp, Date };
 ctx.window = ctx;
@@ -121,7 +121,7 @@ if (typeof sourceUses === 'function') {
 
 // The Python side must agree case for case. Read as data rather than executed
 // here; tests/unit/test_grader.py runs the Python assertions themselves.
-const pySrc = readFileSync(path.join(ROOT, 'src', 'robolearn', 'lessons', 'grader.py'), 'utf8');
+const pySrc = readFileSync(path.join(ROOT, 'src', 'kodro', 'lessons', 'grader.py'), 'utf8');
 check('python grader has the liveness check', /def _is_live\(/.test(pySrc));
 check('python grader rejects constant-falsy tests', /_is_constant_falsy/.test(pySrc));
 check('python grader rejects empty iterables', /_is_provably_empty_iterable/.test(pySrc));

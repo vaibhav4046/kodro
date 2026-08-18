@@ -3,7 +3,7 @@
 ```mermaid
 flowchart TD
     pupil["Pupil code"]
-    api["robolearn.rover_api\n(procedural surface)"]
+    api["kodro.rover_api\n(procedural surface)"]
     tracer["runtime.tracer\n(event log)"]
     engine["engine.rover / sensors / physics / world / terrain"]
     renderer["engine.renderer\n(pygame surface)"]

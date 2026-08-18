@@ -2,7 +2,7 @@
 
 ## 1. Use the routed K in the persistent mission bar
 
-- File: `src/robolearn/assets/web/app-data.jsx`
+- File: `src/kodro/assets/web/app-data.jsx`
 - Exact change: replace the `ORBIT_SVG` value with the following markup:
 
 ```html
@@ -25,8 +25,8 @@ icon versions.
 
 ## 2. Expose a safe idle state for liquid surfaces
 
-- Files: `src/robolearn/assets/web/app.jsx` and
-  `src/robolearn/assets/web/Viewport3D.jsx`, or the engine-owned module that
+- Files: `src/kodro/assets/web/app.jsx` and
+  `src/kodro/assets/web/Viewport3D.jsx`, or the engine-owned module that
   controls the render loop.
 - Exact change: pause the live viewport animation loop whenever an app modal,
   fixed popover or floating telemetry drawer is open. While the loop is paused,

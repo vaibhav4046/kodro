@@ -15,7 +15,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-const AI = readFileSync(new URL('../src/robolearn/assets/web/ai-web.jsx', import.meta.url), 'utf8');
+const AI = readFileSync(new URL('../src/kodro/assets/web/ai-web.jsx', import.meta.url), 'utf8');
 
 // Minimal window shim: ai-web.jsx only touches these at load / for structured gen.
 const FITTED = ['set_speed', 'wait', 'stop', 'say', 'led', 'beep', 'pen_down', 'pen_up',
@@ -71,7 +71,7 @@ if (!up) {
   try {
     const tags = await (await fetch(OLLAMA + '/api/tags')).json();
     const names = (tags.models || []).map((m) => m.name);
-    model = names.find((n) => /gemma3:1b|llama3.2:3b|robolearn-fast/.test(n)) || names[0] || model;
+    model = names.find((n) => /gemma3:1b|llama3.2:3b|kodro-fast|robolearn-fast/.test(n)) || names[0] || model;
   } catch { /* keep default */ }
   // ai-web's generate() reads window fetch via the module's own fetch binding;
   // wire the real fetch so structuredProgram can reach Ollama.

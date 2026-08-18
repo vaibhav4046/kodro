@@ -13,7 +13,7 @@ the eight tools compose, not whether each one answers on its own.
 ## Why it was re-run
 
 The first version of this chain was driven on 17 August before
-`src/robolearn/runtime/session.py` was fixed, and it is what found the defect:
+`src/kodro/runtime/session.py` was fixed, and it is what found the defect:
 a program the sandbox refused was scoring 60 out of 100, because `grade()` is
 pure over the tracer and a program that never moved trivially satisfied "no
 collisions". The run below is after the fix, so step 10 reads 0.

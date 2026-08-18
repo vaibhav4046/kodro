@@ -1,7 +1,7 @@
 """Divergence regression gate for the shared motion model (PERFECTION_PLAN E-C4).
 
 The physics constants exist in exactly two places: ``assets/web/motion-model.js``
-and ``robolearn/engine/motion_model.py``. Both emit a canonical JSON string of
+and ``kodro/engine/motion_model.py``. Both emit a canonical JSON string of
 their constant table (keys sorted, no whitespace); this test hashes the two
 strings and FAILS the build if they ever differ, so a constant can never again
 change on one side only (the old 11x battery divergence was exactly that).
@@ -17,10 +17,10 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.engine import motion_model
+from kodro.engine import motion_model
 
 ROOT = Path(__file__).resolve().parents[2]
-MODEL_JS = ROOT / "src" / "robolearn" / "assets" / "web" / "motion-model.js"
+MODEL_JS = ROOT / "src" / "kodro" / "assets" / "web" / "motion-model.js"
 FIXTURE = ROOT / "tests" / "fixtures" / "dump_motion_model.cjs"
 _NODE = shutil.which("node")
 _REQUIRE_NODE = os.environ.get("ROBOLEARN_REQUIRE_NODE") == "1"

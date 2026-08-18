@@ -9,13 +9,13 @@ import pytest
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
-from robolearn.engine.rover import Rover
-from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, Sample, World
-from robolearn.lessons.schema import Lesson, WorldDef
-from robolearn.memory.pupil_model import PupilStrength
-from robolearn.ui.lessons_panel import LessonsCallbacks, LessonsPanel
-from robolearn.ui.sensors_panel import SensorsPanel
+from kodro.engine.rover import Rover
+from kodro.engine.terrain import Terrain
+from kodro.engine.world import ArenaBounds, Sample, World
+from kodro.lessons.schema import Lesson, WorldDef
+from kodro.memory.pupil_model import PupilStrength
+from kodro.ui.lessons_panel import LessonsCallbacks, LessonsPanel
+from kodro.ui.sensors_panel import SensorsPanel
 
 
 @pytest.fixture

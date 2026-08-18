@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from robolearn.engine.terrain import Terrain, all_terrains, params_for
+from kodro.engine.terrain import Terrain, all_terrains, params_for
 
 
 def test_enum_has_four_terrains() -> None:

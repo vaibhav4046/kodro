@@ -1,4 +1,4 @@
-/* Offline gate for the GPU capability probe (src/robolearn/assets/web/gpu-caps.js).
+/* Offline gate for the GPU capability probe (src/kodro/assets/web/gpu-caps.js).
  *
  * The first-run quality tier is chosen from what actually rasterises the
  * pixels, not from CPU/RAM proxies. That decision has to keep working without
@@ -13,7 +13,7 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = path.join(ROOT, 'src', 'robolearn', 'assets', 'web', 'gpu-caps.js');
+const SRC = path.join(ROOT, 'src', 'kodro', 'assets', 'web', 'gpu-caps.js');
 
 const ctx = { console };
 ctx.window = ctx;
@@ -116,7 +116,7 @@ eq('detect() reports unknown class without a DOM', d && d.rendererClass, 'unknow
 
 // ---- wiring: the app must actually consult this ---------------------------
 // A perfect classifier nobody calls is worthless, so assert the call site.
-const appSrc = fs.readFileSync(path.join(ROOT, 'src', 'robolearn', 'assets', 'web', 'app.jsx'), 'utf8');
+const appSrc = fs.readFileSync(path.join(ROOT, 'src', 'kodro', 'assets', 'web', 'app.jsx'), 'utf8');
 check('app.jsx calls KodroGpuCaps.detect', /KodroGpuCaps\s*&&\s*window\.KodroGpuCaps\.detect/.test(appSrc));
 check('app.jsx uses recommendedTier for the first-run tier', /KodroGpuCaps\.recommendedTier\(/.test(appSrc));
 
@@ -124,13 +124,13 @@ check('app.jsx uses recommendedTier for the first-run tier', /KodroGpuCaps\.reco
 const orderSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'build_web.cjs'), 'utf8');
 check('gpu-caps.js is in the build ORDER', /'gpu-caps\.js'/.test(orderSrc));
 
-const bundle = fs.readFileSync(path.join(ROOT, 'src', 'robolearn', 'assets', 'web', 'bundle.js'), 'utf8');
+const bundle = fs.readFileSync(path.join(ROOT, 'src', 'kodro', 'assets', 'web', 'bundle.js'), 'utf8');
 check('bundle.js contains KodroGpuCaps', bundle.indexOf('KodroGpuCaps') !== -1);
 
 // ---- honesty: fps figures must carry the renderer class -------------------
 // A software fps number is not comparable to a hardware one. The performance
 // report has to say which it measured, or any quoted figure overstates.
-const vpSrc = fs.readFileSync(path.join(ROOT, 'src', 'robolearn', 'assets', 'web', 'Viewport3D.jsx'), 'utf8');
+const vpSrc = fs.readFileSync(path.join(ROOT, 'src', 'kodro', 'assets', 'web', 'Viewport3D.jsx'), 'utf8');
 check('performance report carries rendererClass', /rendererClass:/.test(vpSrc));
 
 // ---- resilience: a restored GPU context must be recoverable ---------------

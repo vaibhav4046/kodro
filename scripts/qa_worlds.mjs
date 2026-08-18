@@ -29,7 +29,7 @@
  * set KODRO_QA_WORLDS_REQUIRED=1, the same shape as qa_ui.mjs's
  * KODRO_QA_UI_REQUIRED) and a missing fixture becomes a failure, not a skip.
  *
- *   cd src/robolearn/assets/web && python -m http.server 8099   # serve first
+ *   cd src/kodro/assets/web && python -m http.server 8099   # serve first
  *   node scripts/build_screenshot_harness.cjs                   # emit cap.html
  *   node scripts/qa_worlds.mjs                                  # this sweep
  *   node scripts/qa_worlds.mjs --strict                         # no silent skip
@@ -44,7 +44,7 @@ import { resolveChrome } from './lib/resolve-chrome.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
 const TMP = path.join(REPO, 'tmp', 'worlds');
-const CAP = path.join(REPO, 'src', 'robolearn', 'assets', 'web', 'cap.html');
+const CAP = path.join(REPO, 'src', 'kodro', 'assets', 'web', 'cap.html');
 
 const HOST = 'localhost';
 const PORT = 8099;
@@ -192,7 +192,7 @@ function bail(reason, remedy) {
   if (status !== 200) {
     bail(
       `static server not serving cap.html on :${PORT} (got ${status || 'no connection'}).`,
-      'Start it with:  cd src/robolearn/assets/web && python -m http.server 8099',
+      'Start it with:  cd src/kodro/assets/web && python -m http.server 8099',
     );
   }
 

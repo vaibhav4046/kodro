@@ -1,8 +1,8 @@
 """BridgeAPI AI + file-dialog tests: the Ollama-backed and host-dialog surface.
 
-The AI methods on :class:`~robolearn.web.app.BridgeAPI` each build an
+The AI methods on :class:`~kodro.web.app.BridgeAPI` each build an
 ``OllamaClient`` inline. These tests inject a *fake* client (monkeypatching
-``robolearn.ai.ollama_client.OllamaClient``) so the server-up success paths,
+``kodro.ai.ollama_client.OllamaClient``) so the server-up success paths,
 the validate/repair paths and the error paths all run without a live Ollama
 server -- deterministically and fast.
 
@@ -26,9 +26,9 @@ from typing import ClassVar
 
 import pytest
 
-from robolearn.lessons.schema import load_library
-from robolearn.memory.store import Store
-from robolearn.web.app import BridgeAPI
+from kodro.lessons.schema import load_library
+from kodro.memory.store import Store
+from kodro.web.app import BridgeAPI
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ _VALID_BUILD_JSON = json.dumps(
             {"name": "TT motors", "role": "Movement", "cost": 10.0},
         ],
         "steps": ["Mount the motors.", "Wire the driver.", "Flash MicroPython."],
-        "maps": [{"robolearn": "move_forward(1)", "hardware": "Drive both motors."}],
+        "maps": [{"kodro": "move_forward(1)", "hardware": "Drive both motors."}],
         "total": 18.0,
     }
 )
@@ -92,7 +92,7 @@ class FakeOllamaClient:
 
     # generation -----------------------------------------------------------
     def generate(self, prompt: str, **kwargs: object) -> str:
-        from robolearn.ai.ollama_client import OllamaError
+        from kodro.ai.ollama_client import OllamaError
 
         self.calls.append(prompt)
         if type(self).raise_on_generate:
@@ -105,7 +105,7 @@ class FakeOllamaClient:
         return str(resp)
 
     def generate_stream(self, prompt: str, **kwargs: object):  # type: ignore[no-untyped-def]
-        from robolearn.ai.ollama_client import OllamaError
+        from kodro.ai.ollama_client import OllamaError
 
         if type(self).raise_on_generate:
             raise OllamaError("stream boom")
@@ -121,7 +121,7 @@ def fake_ollama(monkeypatch: pytest.MonkeyPatch) -> type[FakeOllamaClient]:
     FakeOllamaClient.responses = "move_forward(2)\n"
     FakeOllamaClient.raise_on_generate = False
     FakeOllamaClient.stream_chunks = ["move_forward", "(2)\n"]
-    monkeypatch.setattr("robolearn.ai.ollama_client.OllamaClient", FakeOllamaClient, raising=True)
+    monkeypatch.setattr("kodro.ai.ollama_client.OllamaClient", FakeOllamaClient, raising=True)
     return FakeOllamaClient
 
 
@@ -142,7 +142,7 @@ class FakeWindow:
 
 def _install_window(monkeypatch: pytest.MonkeyPatch, result: object) -> FakeWindow:
     """Make ``webview.windows[0]`` a FakeWindow returning ``result``."""
-    import robolearn.web.app as appmod
+    import kodro.web.app as appmod
 
     window = FakeWindow(result)
     monkeypatch.setattr(appmod.webview, "windows", [window], raising=False)
@@ -170,14 +170,14 @@ def test_ai_status_reports_models_when_server_up(
 def test_set_ai_model_persists_and_clears_override(
     api: BridgeAPI, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    # Redirect ~/.robolearn so the test never writes to the real home dir.
+    # Redirect ~/.kodro so the test never writes to the real home dir.
     fake_home = tmp_path / "home"
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_home))
 
     set_result = api.set_ai_model("deepseek-coder:6.7b")
     assert set_result == {"ok": True, "model": "deepseek-coder:6.7b"}
     assert api._ai_model_override == "deepseek-coder:6.7b"  # type: ignore[attr-defined]
-    written = json.loads((fake_home / ".robolearn" / "ai_models.json").read_text())
+    written = json.loads((fake_home / ".kodro" / "ai_models.json").read_text())
     assert written == {"model": "deepseek-coder:6.7b"}
 
     # The override short-circuits selection when that model IS installed...

@@ -25,8 +25,8 @@ Before opening a pull request, every one of these must pass:
 ```bash
 ruff check .
 ruff format --check .
-mypy src/robolearn
-pytest --cov=src/robolearn
+mypy src/kodro
+pytest --cov=src/kodro
 ```
 
 CI runs the same checks on Ubuntu, macOS and Windows.

@@ -30,11 +30,11 @@ as uncommitted changes: **53 modified tracked files and 22 untracked paths**.
 
 These untracked paths are the only copy of whole subsystems:
 
-- `src/robolearn/mcp/` - the MCP server package
-- `src/robolearn/assets/web/voice.js` - the voice layer (already wired into the
+- `src/kodro/mcp/` - the MCP server package
+- `src/kodro/assets/web/voice.js` - the voice layer (already wired into the
   bundle: it appears in the `ORDER` list in `scripts/build_web.cjs:24`)
-- `src/robolearn/interop/kodro_project.py` - project interop
-- `src/robolearn/runtime/session.py` - runtime session
+- `src/kodro/interop/kodro_project.py` - project interop
+- `src/kodro/runtime/session.py` - runtime session
 - `scripts/qa_voice.mjs` - the voice gate
 - `docs/developers/mcp-server.md`
 - seven new unit test modules: `test_kodro_project.py`, `test_mcp_server.py`,
@@ -84,16 +84,16 @@ decision): `.kodro/autonomy/{ACCEPTANCE_MATRIX,DISSERTATION_TRACEABILITY,EVIDENC
 `docs/HANDOFF_GPT56_COMPLETE.md`, `docs/PRODUCT_DIRECTION_2026.md`,
 `docs/dissertation/{INTEGRITY_AUDIT,REFERENCE_AUDIT,REVISION_TRACKING,VERIFICATION_REVIEW}_2026-08-13.md`,
 `docs/index.md`, the four `docs/teachers/*.md`, `scripts/qa_honesty.mjs`,
-`src/robolearn/assets/web/{lesson-studio.js,onboarding.jsx,sw.js}`,
+`src/kodro/assets/web/{lesson-studio.js,onboarding.jsx,sw.js}`,
 `tests/unit/{test_docs_match_reality,test_sensors,test_web_interpreter}.py`.
 
 Needs a per-hunk decision (dirty locally and touched by PR 3):
 `.github/workflows/ci.yml`, `README.md`, `docs/HANDOFF_KEITH.md`,
 `docs/dissertation/Kodro_Dissertation.{tex,pdf,aux,log,toc}`,
 `docs/dissertation/README.md`, `pyproject.toml`,
-`src/robolearn/assets/web/{app.jsx,bundle.js,home.jsx,lesson-studio.jsx}`.
+`src/kodro/assets/web/{app.jsx,bundle.js,home.jsx,lesson-studio.jsx}`.
 
-Note `src/robolearn/assets/web/lesson-studio.js` is a hand-written source file
+Note `src/kodro/assets/web/lesson-studio.js` is a hand-written source file
 in the bundle `ORDER` list, not a generated twin of `lesson-studio.jsx`. Both
 exist and both are real sources.
 
@@ -103,8 +103,8 @@ Checked this session, not assumed:
 
 | Artefact | Gate | Result |
 |---|---|---|
-| `src/robolearn/assets/web/bundle.js` | `node scripts/build_web.cjs --check` | `bundle.js is up to date.` exit 0 |
-| `src/robolearn/assets/web/lessons.json` | re-ran `scripts/export_lessons.py`, compared SHA-256 | byte-identical (`f1167f28...`), matches its 24 authoritative YAML lessons |
+| `src/kodro/assets/web/bundle.js` | `node scripts/build_web.cjs --check` | `bundle.js is up to date.` exit 0 |
+| `src/kodro/assets/web/lessons.json` | re-ran `scripts/export_lessons.py`, compared SHA-256 | byte-identical (`f1167f28...`), matches its 24 authoritative YAML lessons |
 | `docs/eval/ui_eval.json` | `node scripts/qa_ui.mjs` full suite | re-run 2026-08-15T13:32:53Z against the current bundle, 66/66, 100, PASS; `artifactHashes.bundleSha256` equals the live `bundle.js` (`f17ce80e...`). Two earlier runs reported the same 66/66 against earlier bundles: 2026-08-15T12:32:17Z against `cacf51e` (`2bbeac69...`) and 2026-08-14T18:20:31Z against `706f93d`. Each rebuild of the bundle invalidates this row until the gate is re-run, so re-run it rather than editing the hash |
 | `docs/dissertation/Kodro_Dissertation.pdf` | recompiled 2026-08-15, two clean passes, then synced from `_build` | byte-identical to `_build/Kodro_Dissertation.pdf`: 59 pages, 1,115,505 bytes, sha256 `294103b92657dcd2...` |
 

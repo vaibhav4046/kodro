@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import robolearn
-from robolearn.ui import orbital
+import kodro
+from kodro.ui import orbital
 
 # Read app.py as text rather than importing it: the mission bar can only be
 # built with a live Tk root, which this host does not have, and a skipped test
 # would not guard the wordmark at all.
-_APP_SOURCE = (Path(robolearn.__file__).parent / "app.py").read_text(encoding="utf-8")
+_APP_SOURCE = (Path(kodro.__file__).parent / "app.py").read_text(encoding="utf-8")
 
 
 def test_status_colour_and_label_known_states() -> None:

@@ -114,8 +114,8 @@ peek on Linux) until P7 is built.
 ### P8 — Web companion (SHIPPED, this entry was stale)
 
 This was written while the web port was still a proposal. It was built. There
-are 92 tracked files under `src/robolearn/assets/web/`, a PyInstaller spec at
-`robolearn-web.spec`, a build and freshness gate at `scripts/build_web.cjs`,
+are 92 tracked files under `src/kodro/assets/web/`, a PyInstaller spec at
+`kodro-web.spec`, a build and freshness gate at `scripts/build_web.cjs`,
 and `tests/unit/test_web_lesson_parity.py` holds the two runtimes to the same
 grading behaviour.
 
@@ -155,12 +155,12 @@ node scripts/build_screenshot_harness.cjs   # writes harness.html + studio_harne
 # onboarding landing + brand mark (no WebGL):
 chrome --headless=new --window-size=1280,800 --virtual-time-budget=2500 \
   --screenshot=docs/img/onboarding_landing.png \
-  file:///.../src/robolearn/assets/web/harness.html
+  file:///.../src/kodro/assets/web/harness.html
 # studio in the City world (WebGL via SwiftShader):
 chrome --headless=new --window-size=1280,800 --use-angle=swiftshader \
   --enable-unsafe-swiftshader --virtual-time-budget=9000 \
   --screenshot=docs/img/studio.png \
-  file:///.../src/robolearn/assets/web/studio_harness.html
+  file:///.../src/kodro/assets/web/studio_harness.html
 ```
 
 `docs/img/onboarding_landing.png` and `docs/img/studio.png` are committed and

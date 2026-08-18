@@ -1,4 +1,4 @@
-"""Create the ``robolearn-fast`` Ollama model (baked prompt, tuned params).
+"""Create the ``kodro-fast`` Ollama model (baked prompt, tuned params).
 
 "Editing the model" the legitimate way: an Ollama Modelfile FROM a small base
 (gemma3:1b) with RoboLearn's full system prompt + few-shot examples BAKED into
@@ -8,8 +8,8 @@ prompts are then just the short conversation transcript, so prompt evaluation
 
 Usage::
 
-    python scripts/make_ai_model.py            # creates/updates robolearn-fast
-    python scripts/make_ai_model.py --base gemma3:4b --name robolearn-quality
+    python scripts/make_ai_model.py            # creates/updates kodro-fast
+    python scripts/make_ai_model.py --base gemma3:4b --name kodro-quality
 """
 
 from __future__ import annotations
@@ -22,13 +22,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from robolearn.web.app import BridgeAPI
+from kodro.web.app import BridgeAPI
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Bake the RoboLearn prompt into an Ollama model.")
     parser.add_argument("--base", default="gemma3:1b", help="base model (default gemma3:1b)")
-    parser.add_argument("--name", default="robolearn-fast", help="created model name")
+    parser.add_argument("--name", default="kodro-fast", help="created model name")
     args = parser.parse_args()
 
     system = BridgeAPI._AI_CHAT_SYSTEM  # single source of truth for the prompt

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 
-from robolearn.interop.urdf_io import build_urdf_from_spec, kodro_spec_from_krs
+from kodro.interop.urdf_io import build_urdf_from_spec, kodro_spec_from_krs
 
 
 def _krs(**over: object) -> dict[str, object]:

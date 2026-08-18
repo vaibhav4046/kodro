@@ -16,6 +16,6 @@ repos:
         args: [--maxkb=512]
         # bundle.js is a generated build product (scripts/build_web.cjs concatenates
         # the .jsx sources); its size is intentional, so exempt it from the gate.
-        exclude: ^src/robolearn/assets/web/bundle\.js$
+        exclude: ^src/kodro/assets/web/bundle\.js$
       - id: mixed-line-ending
         args: [--fix=lf]

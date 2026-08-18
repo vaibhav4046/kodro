@@ -21,7 +21,7 @@ from typing import Any
 import pytest
 import webview
 
-import robolearn.web.app as appmod
+import kodro.web.app as appmod
 
 
 class _RecordingUser32:
@@ -94,7 +94,7 @@ def test_launch_reports_a_bad_bundle_instead_of_crashing(
     calls ``ensure_server()``, and a test that leaves it in place would try to
     start a real Ollama server on the machine running the suite.
     """
-    from robolearn.ai import ollama_client
+    from kodro.ai import ollama_client
 
     monkeypatch.setattr(ollama_client, "ensure_server", lambda *a, **k: None)
 
@@ -115,7 +115,7 @@ def test_launch_reports_a_bad_bundle_instead_of_crashing(
 
 def test_launch_reports_a_webview_start_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     """The original case: the app builds fine, then pywebview will not start."""
-    from robolearn.ai import ollama_client
+    from kodro.ai import ollama_client
 
     monkeypatch.setattr(ollama_client, "ensure_server", lambda *a, **k: None)
 

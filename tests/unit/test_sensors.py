@@ -8,8 +8,8 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from robolearn.engine.rover import Rover
-from robolearn.engine.sensors import (
+from kodro.engine.rover import Rover
+from kodro.engine.sensors import (
     COLOUR_BASE_INDICATOR,
     COLOUR_SAMPLE_INDICATOR,
     LIDAR_MAX_RANGE_M,
@@ -21,8 +21,8 @@ from robolearn.engine.sensors import (
     lidar_distance,
     ultrasonic_distance,
 )
-from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, Obstacle, Sample, World
+from kodro.engine.terrain import Terrain
+from kodro.engine.world import ArenaBounds, Obstacle, Sample, World
 
 
 def _world_empty(terrain: Terrain = Terrain.MARS) -> World:

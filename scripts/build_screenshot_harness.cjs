@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const WEB = path.join(__dirname, '..', 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(__dirname, '..', 'src', 'kodro', 'assets', 'web');
 // Same load order as build_web.cjs, minus 'app' (so nothing auto-mounts).
 // motion-model.js / specschema.js are plain JS (no JSX) but RobotLab and
 // diagnostics read them, so they load first here too.

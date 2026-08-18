@@ -14,7 +14,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SRC = path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'memory-graph.js');
+const SRC = path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'memory-graph.js');
 
 const ctx = { window: {} };
 vm.createContext(ctx);

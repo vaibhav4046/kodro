@@ -15,7 +15,7 @@ Choose one route:
 - Windows release: run `Kodro-windows.exe`. If WebView2 is unavailable, use
   `Kodro-windows-tk.exe`.
 - macOS release: unpack `Kodro-macos.zip`.
-- Installed source checkout: run `python -m robolearn.web` for the current
+- Installed source checkout: run `python -m kodro.web` for the current
   web interface in a desktop window.
 
 ## What pupils see first

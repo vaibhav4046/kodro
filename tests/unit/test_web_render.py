@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB = ROOT / "src" / "robolearn" / "assets" / "web"
+WEB = ROOT / "src" / "kodro" / "assets" / "web"
 FIXTURE = ROOT / "tests" / "fixtures" / "render_app.cjs"
 _NODE = shutil.which("node")
 

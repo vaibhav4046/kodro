@@ -132,18 +132,18 @@ now take the same shape. Verified with the server stopped, run back to back:
 ```
 ### 1. non-strict, fixture down ###
 SKIP: static server not serving cap.html on :8099 (got no connection).
-      Start it with:  cd src/robolearn/assets/web && python -m http.server 8099
+      Start it with:  cd src/kodro/assets/web && python -m http.server 8099
 EXIT=0
 
 ### 2. --strict, fixture down ###
 FAIL: static server not serving cap.html on :8099 (got no connection).
-      Start it with:  cd src/robolearn/assets/web && python -m http.server 8099
+      Start it with:  cd src/kodro/assets/web && python -m http.server 8099
       --strict is on: a missing fixture counts as a failure, because zero assertions ran.
 EXIT=1
 
 ### 3. KODRO_QA_WORLDS_REQUIRED=1, fixture down ###
 FAIL: static server not serving cap.html on :8099 (got no connection).
-      Start it with:  cd src/robolearn/assets/web && python -m http.server 8099
+      Start it with:  cd src/kodro/assets/web && python -m http.server 8099
       --strict is on: a missing fixture counts as a failure, because zero assertions ran.
 EXIT=1
 ```
@@ -157,7 +157,7 @@ same `bail()` call handles all three, and the other two were exercised.
 The fixture still has to be started before a real run:
 
 ```
-cd src/robolearn/assets/web && python -m http.server 8099
+cd src/kodro/assets/web && python -m http.server 8099
 ```
 
 ## The sweep is load-sensitive, and that is not visible from a clean run

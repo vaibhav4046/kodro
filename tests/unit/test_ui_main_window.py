@@ -10,12 +10,12 @@ import tkinter as tk
 
 import pytest
 
-from robolearn.ui.main_window import (
+from kodro.ui.main_window import (
     DEFAULT_GEOMETRY,
     TEACHER_DASHBOARD_SHORTCUT,
     MainWindow,
 )
-from robolearn.ui.theme import ThemeSettings, available_themes, get_palette
+from kodro.ui.theme import ThemeSettings, available_themes, get_palette
 
 
 @pytest.fixture

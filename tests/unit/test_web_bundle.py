@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB = ROOT / "src" / "robolearn" / "assets" / "web"
+WEB = ROOT / "src" / "kodro" / "assets" / "web"
 BUILD = ROOT / "scripts" / "build_web.cjs"
 RENDER = ROOT / "tests" / "fixtures" / "render_bundle.cjs"
 _NODE = shutil.which("node")

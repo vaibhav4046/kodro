@@ -89,7 +89,7 @@ behaviour in a realistic simulated WORLD → the system self-refines from usage.
 **Auto-memory index:** `%USERPROFILE%\.claude\projects\D--\memory\MEMORY.md`
 
 ### Web app source (React JSX, pre-compiled offline — NO build server)
-All under `src/robolearn/assets/web/`:
+All under `src/kodro/assets/web/`:
 - `app.jsx` — main App. EXAMPLES programs (7), host.sensor, animateMove/animateTurn
   kinematics, advance() generator pump, navbar (Robot Lab 🛠 / Memory 🧠), world
   selector, brand mark (`ORBIT_SVG`, lines ~1310). **NO onboarding/landing screen yet.**
@@ -116,15 +116,15 @@ All under `src/robolearn/assets/web/`:
   `node scripts/build_web.cjs`  (vendored Babel, offline; ORDER array sets load order).
 
 ### Python engine + API (metres world; pymunk/pygame-ce)
-- `src/robolearn/rover_api.py` — public API (move_forward in metres, clamp 0-1000 m).
-- `src/robolearn/engine/physics.py` — arena in METRES, walls as pymunk segments.
-- `src/robolearn/engine/` — rover, sensors, terrain, world, renderer, particles.
-- `src/robolearn/app.py`, `__main__.py` — app entry.
-- `src/robolearn/lessons/library/*.yaml` — 10 lessons (00_first_drive … 07_sensors).
+- `src/kodro/rover_api.py` — public API (move_forward in metres, clamp 0-1000 m).
+- `src/kodro/engine/physics.py` — arena in METRES, walls as pymunk segments.
+- `src/kodro/engine/` — rover, sensors, terrain, world, renderer, particles.
+- `src/kodro/app.py`, `__main__.py` — app entry.
+- `src/kodro/lessons/library/*.yaml` — 10 lessons (00_first_drive … 07_sensors).
 
 ### Build / packaging / scripts (`scripts/`)
 - `build_web.cjs` — JSX → bundle.js (run after every web edit).
-- `build_exe.py` + `robolearn-web.spec` — PyInstaller → `dist/RoboLearn.exe` (windowed
+- `build_exe.py` + `kodro-web.spec` — PyInstaller → `dist/RoboLearn.exe` (windowed
   WebView2 app). Also `dist/RoboLearn-windows-x64.exe`. Desktop copy named `Kodro.exe`.
 - `qa_interpreter.mjs` — **offline functional QA harness** (Node). Loads the shipped
   interpreter, drives the generator with the real kinematics + wall ray, asserts command
@@ -133,7 +133,7 @@ All under `src/robolearn/assets/web/`:
   from this line because it survives the date stamp above and reads as a live claim.
 - `make_icon.py`, `make_ai_model.py`, `train_ai.py`, `stress_test_lessons.py`,
   `generate_curriculum_report.py`.
-- App icon: `src/robolearn/assets/icon.ico`. Brand SVG: `ORBIT_SVG` in `app.jsx`.
+- App icon: `src/kodro/assets/icon.ico`. Brand SVG: `ORBIT_SVG` in `app.jsx`.
 
 ### Docs / dissertation / report
 - Dissertation (CA3, 70%, due **2026-09-11**, max 50pp, Turnitin). The source is
@@ -210,7 +210,7 @@ All under `src/robolearn/assets/web/`:
    save → world recommendation, Memory reflections. Capture screenshots as proof. Fan out:
    one agent per example/lesson, one per subsystem.
 2. **New sleek minimal LOGO.** Redesign the Kodro brand mark (`ORBIT_SVG` in `app.jsx`)
-   and `src/robolearn/assets/icon.ico` — modern, minimal, professional. Rebuild bundle +
+   and `src/kodro/assets/icon.ico` — modern, minimal, professional. Rebuild bundle +
    exe. Show before/after in browser.
 3. ~~**Onboarding / landing / home PIPELINE (currently absent).** Add a professional app
    flow like real products: splash/landing → short onboarding (what Kodro is, pick a
@@ -263,8 +263,8 @@ python -m pytest --basetemp=<fresh dir>   # engine tests (expect 0 failed, cover
 node scripts/build_web.cjs                # rebuild bundle.js after any .jsx edit
 python scripts/build_exe.py               # rebuild dist/RoboLearn.exe
 ```
-Web entry: `src/robolearn/assets/web/index.html` (loads bundle.js).
-Brand mark to redesign: `ORBIT_SVG` in `app.jsx` (~line 1311) + `src/robolearn/assets/icon.ico`.
+Web entry: `src/kodro/assets/web/index.html` (loads bundle.js).
+Brand mark to redesign: `ORBIT_SVG` in `app.jsx` (~line 1311) + `src/kodro/assets/icon.ico`.
 
 ---
 

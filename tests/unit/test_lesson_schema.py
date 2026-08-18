@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from robolearn.engine.terrain import Terrain
-from robolearn.lessons.schema import (
+from kodro.engine.terrain import Terrain
+from kodro.lessons.schema import (
     DEFAULT_LIBRARY_DIR,
     HintRules,
     Lesson,
@@ -220,8 +220,8 @@ def test_a_vacuous_criterion_would_pass_an_empty_program() -> None:
     this object can no longer be created through the normal path. An empty
     tracer is a pupil who ran nothing at all; it scores 100.
     """
-    from robolearn.lessons.grader import grade
-    from robolearn.runtime.tracer import Tracer
+    from kodro.lessons.grader import grade
+    from kodro.runtime.tracer import Tracer
 
     payload = _minimal_lesson_payload()
     lesson = Lesson.model_validate(payload)

@@ -6,8 +6,8 @@ import tkinter as tk
 
 import pytest
 
-from robolearn.memory.hint_engine import Hint
-from robolearn.ui.console_panel import ConsolePanel, HintCardArea
+from kodro.memory.hint_engine import Hint
+from kodro.ui.console_panel import ConsolePanel, HintCardArea
 
 
 @pytest.fixture

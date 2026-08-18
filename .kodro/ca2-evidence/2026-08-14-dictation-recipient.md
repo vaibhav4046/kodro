@@ -4,7 +4,7 @@ Date 2026-08-14. Branch `agent/kodro-ca2-candidate`.
 
 ## What was wrong
 
-`DICTATION_NOTICE` in `src/robolearn/assets/web/voice.js` told the user the
+`DICTATION_NOTICE` in `src/kodro/assets/web/voice.js` told the user the
 recorded audio was sent to Google. Nothing in the code establishes that. The
 recogniser is whatever the runtime exposes:
 
@@ -13,7 +13,7 @@ return window.SpeechRecognition || window.webkitSpeechRecognition || null;
 ```
 
 There is no browser detection anywhere in the voice layer, and the shipped
-desktop surface is not Chrome. `src/robolearn/web/app.py` renders the interface
+desktop surface is not Chrome. `src/kodro/web/app.py` renders the interface
 in the platform web view, which is Edge WebView2 on Windows, WebKit on macOS and
 WebKitGTK on Linux. So the notice named the wrong recipient on the product's own
 primary surface.

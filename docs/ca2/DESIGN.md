@@ -2,7 +2,7 @@
 
 What the product already looks like, stated so the video, the screenshots and any
 new surface stay inside it. This is a description of shipped CSS, not a wish list.
-Every value below is read from `src/robolearn/assets/web/styles.css` unless another
+Every value below is read from `src/kodro/assets/web/styles.css` unless another
 file is named.
 
 Every count in this file was re-measured against that stylesheet on 15 August

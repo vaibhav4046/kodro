@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.lessons.schema import load_library
+from kodro.lessons.schema import load_library
 
 ROOT = Path(__file__).resolve().parents[2]
 RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
@@ -36,8 +36,8 @@ LESSON_SURFACES = (
     ROOT / "docs" / "teachers" / "scheme-of-work.md",
     ROOT / "docs" / "teachers" / "answer-key.md",
     ROOT / "docs" / "teachers" / "curriculum-mapping.md",
-    ROOT / "src" / "robolearn" / "assets" / "web" / "home.jsx",
-    ROOT / "src" / "robolearn" / "assets" / "web" / "onboarding.jsx",
+    ROOT / "src" / "kodro" / "assets" / "web" / "home.jsx",
+    ROOT / "src" / "kodro" / "assets" / "web" / "onboarding.jsx",
 )
 
 
@@ -82,7 +82,7 @@ def test_pupil_cheatsheet_documents_every_callable_command() -> None:
     programs. A pupil reading the reference would conclude those commands do
     not exist.
     """
-    import robolearn.rover_api as rover_api
+    import kodro.rover_api as rover_api
 
     page = (ROOT / "docs" / "pupils" / "api-cheatsheet.md").read_text(encoding="utf-8")
     missing = [name for name in sorted(rover_api.__all__) if f"`{name}(" not in page]
@@ -103,9 +103,9 @@ def test_onboarding_advertises_the_number_of_lessons_that_ship() -> None:
     The compiled ``bundle.js`` carries the same sentence; ``test_bundle_is_fresh``
     covers that copy, so this only has to guard the source.
     """
-    from robolearn.lessons import load_library
+    from kodro.lessons import load_library
 
-    page = (ROOT / "src" / "robolearn" / "assets" / "web" / "onboarding.jsx").read_text(
+    page = (ROOT / "src" / "kodro" / "assets" / "web" / "onboarding.jsx").read_text(
         encoding="utf-8"
     )
     claim = re.search(r"Lessons</b>: (\d+) graded missions", page)

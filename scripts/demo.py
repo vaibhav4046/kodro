@@ -19,7 +19,7 @@ import webbrowser
 from pathlib import Path
 
 DEFAULT_PORT = int(os.environ.get("KODRO_PORT", "8080"))
-WEB = (Path(__file__).resolve().parent / ".." / "src" / "robolearn" / "assets" / "web").resolve()
+WEB = (Path(__file__).resolve().parent / ".." / "src" / "kodro" / "assets" / "web").resolve()
 
 
 class Quiet(http.server.SimpleHTTPRequestHandler):

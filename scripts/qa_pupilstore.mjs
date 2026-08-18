@@ -15,7 +15,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const SRC = path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'pupil-store.js');
+const SRC = path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'pupil-store.js');
 
 // Fake window: an in-memory localStorage-shaped store + a no-op event surface.
 const backing = {};

@@ -28,7 +28,7 @@ import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const WEB = path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(HERE, '..', 'src', 'kodro', 'assets', 'web');
 const OUT_DIR = path.join(HERE, '..', 'docs', 'eval');
 const OLLAMA = 'http://localhost:11434';
 const MODEL = process.env.KODRO_PERSONA_MODEL || 'qwen2.5-coder:3b';

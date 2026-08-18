@@ -54,7 +54,7 @@ supported answer.
 The cost of copying is drift. Measured on both sides today:
 
 ```
-copy  docs/ca2/intro/assets/fonts/                    original  src/robolearn/assets/web/vendor/fonts/
+copy  docs/ca2/intro/assets/fonts/                    original  src/kodro/assets/web/vendor/fonts/
 69e7ae35cba23d962227b86f99217c250e642e4c6f6104b4f3ec465039e4e2d8  co3umX5slCNuHLi8bLeY9MK7whWMhyjypVO7abI26QOD_iE9GnM.ttf   Cormorant Garamond 600
 27350bc95b961b9b4e1a80d872f49e903fe727f290f6b2a079e67ceb1685fb1f  NGSnv5HMAFg6IuGlBNMjxJEL2VmU3NS7Z2mjDw-qXA.ttf             Inter Tight 400
 c2a4bdafb30500a3bd0843f95ad659ad38492f025837803e6a8ef8672c575e8e  NGSnv5HMAFg6IuGlBNMjxJEL2VmU3NS7Z2mjPQ-qXA.ttf             Inter Tight 500
@@ -64,11 +64,11 @@ c2a4bdafb30500a3bd0843f95ad659ad38492f025837803e6a8ef8672c575e8e  NGSnv5HMAFg6Iu
 All four hashes are identical on both sides. Re-checkable in one command:
 
 ```bash
-sha256sum docs/ca2/intro/assets/fonts/*.ttf src/robolearn/assets/web/vendor/fonts/*.ttf
+sha256sum docs/ca2/intro/assets/fonts/*.ttf src/kodro/assets/web/vendor/fonts/*.ttf
 ```
 
 The palette is copied from the single `:root` block at
-`src/robolearn/assets/web/styles.css:7-86`. No colour on this card was invented.
+`src/kodro/assets/web/styles.css:7-86`. No colour on this card was invented.
 That range was first written here as `7-50`, which was wrong in a way range
 checking cannot catch: line 50 is a blank line in the middle of the block, so
 the citation resolved without error while truncating the block it named. The

@@ -1,7 +1,7 @@
 # Extending the lesson library
 
-A lesson is a single YAML file under `src/robolearn/lessons/library/`. The
-schema is defined in `src/robolearn/lessons/schema.py` and the loader validates
+A lesson is a single YAML file under `src/kodro/lessons/library/`. The
+schema is defined in `src/kodro/lessons/schema.py` and the loader validates
 every file with Pydantic before the application boots. There is no registry and
 no index file: `load_library()` globs `*.yaml` in that directory and sorts by
 file name, which is why the bundled lessons carry a numeric prefix (`00a_`,
@@ -119,7 +119,7 @@ export is re-run, which is the gate that catches a forgotten regeneration.
 ## Checking your work
 
 ```bash
-python -c "from robolearn.lessons.schema import load_library; print(len(load_library()))"
+python -c "from kodro.lessons.schema import load_library; print(len(load_library()))"
 python -m pytest tests/unit/test_lesson_schema.py tests/unit/test_lesson_solutions.py tests/unit/test_lessons_export.py
 node scripts/qa_grader.mjs
 ```

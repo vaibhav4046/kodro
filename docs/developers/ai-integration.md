@@ -25,7 +25,7 @@ types ever leaves their computer.
 
 The core product never depends on AI:
 
-- `robolearn.ai.is_available()` probes the server with a 2-second
+- `kodro.ai.is_available()` probes the server with a 2-second
   timeout and returns `False` if nothing answers.
 - The AI Studio window shows an install prompt instead of an editor
   when no server is found.

@@ -80,9 +80,9 @@ node scripts/qa_secrets.mjs && node scripts/qa_honesty.mjs && node scripts/qa_in
 | Surface | Command |
 |---|---|
 | Desktop app | `python -m robolearn` |
-| Web app in a desktop window | `python -m robolearn.web` |
+| Web app in a desktop window | `python -m kodro.web` |
 | MCP server, stable entry point | `kodro-mcp` |
-| MCP server, documented fallback | `python -m robolearn.mcp` |
+| MCP server, documented fallback | `python -m kodro.mcp` |
 | MCP smoke harness, for the on-camera session | `python scripts/smoke_mcp.py` |
 
 `kodro` now points at the application in `pyproject.toml`, and `kodro-bench` is
@@ -91,15 +91,15 @@ time, though, so an environment installed before that change still runs the old
 mapping. Check before trusting it:
 
 ```bash
-python -c "import importlib.metadata as m; print([(e.name, e.value) for e in m.distribution('robolearn').entry_points if e.group == 'console_scripts'])"
+python -c "import importlib.metadata as m; print([(e.name, e.value) for e in m.distribution('kodro').entry_points if e.group == 'console_scripts'])"
 ```
 
-If `kodro` still reports `robolearn.bench:main`, do not type `kodro` on camera.
+If `kodro` still reports `kodro.bench:main`, do not type `kodro` on camera.
 Use `python -m robolearn` from the table instead. Measured on 15 August, that is
-the live state: the installed distribution maps `kodro` to `robolearn.bench:main`
+the live state: the installed distribution maps `kodro` to `kodro.bench:main`
 and does not carry `kodro-bench` at all, so the name of the product still starts
 the batch runner in this environment. `kodro-mcp` is installed and correct at
-`robolearn.mcp.server:main`, which is why the MCP block can use it.
+`kodro.mcp.server:main`, which is why the MCP block can use it.
 
 This paragraph used to add that reinstalling was impossible because the build
 backend "is not present offline on this machine". That reason is false and was
@@ -121,25 +121,25 @@ machine, all with an `.exe` shim present under `Python313\Scripts`: `kodro`,
 three until 15 August, listing `kodro`, `robolearn` and `kodro-mcp` and omitting
 `kodro-prove` and `kodrobench`. The omission does not change the conclusion,
 because neither omitted script reaches the application either: `kodro-prove` runs
-`robolearn.prove`, the deterministic contract evidence stage, and `kodrobench`
-runs `robolearn.kodrobench`, which measures how well an LLM writes grounded robot
+`kodro.prove`, the deterministic contract evidence stage, and `kodrobench`
+runs `kodro.kodrobench`, which measures how well an LLM writes grounded robot
 control code and is therefore the one command in the list that cannot run under
 the offline constraint at all. It is corrected anyway, because a count stated as
 a measurement is a measurement, and the same paragraph is the one telling the
 reader what will be visible in frame.
 
 The first draft of this correction called `kodrobench` the batch runner, guessing
-from the name. It is not; `kodro` is, through `robolearn.bench`. Two commands
+from the name. It is not; `kodro` is, through `kodro.bench`. Two commands
 whose names both contain "bench" do different jobs, and the guess was caught only
 because each module's docstring was read instead of trusted. The five entry
 points and what they resolve to:
 
 ```
-kodro         robolearn.bench:main        headless batch runner
-kodro-mcp     robolearn.mcp.server:main   MCP server over stdio
-kodro-prove   robolearn.prove:main        contract evidence
-kodrobench    robolearn.kodrobench:main   LLM code-generation benchmark
-robolearn     robolearn.__main__:main     the application
+kodro         kodro.bench:main        headless batch runner
+kodro-mcp     kodro.mcp.server:main   MCP server over stdio
+kodro-prove   kodro.prove:main        contract evidence
+kodrobench    kodro.kodrobench:main   LLM code-generation benchmark
+robolearn     kodro.__main__:main     the application
 ```
 
 `kodro-mcp` is correct, so the MCP block types the product name. The application

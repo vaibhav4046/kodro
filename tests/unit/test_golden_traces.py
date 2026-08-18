@@ -5,8 +5,8 @@ battery-death run) is executed on BOTH engines:
 
 * JS: the shipped ``interpreter.js`` driven with the shared
   ``motion-model.js`` kinematics (``tests/fixtures/golden_trace.cjs``),
-* Python: the real :mod:`robolearn.runtime.executor` bound to a
-  :class:`~robolearn.engine.rover.Rover` in a 30 x 30 m world (the same
+* Python: the real :mod:`kodro.runtime.executor` bound to a
+  :class:`~kodro.engine.rover.Rover` in a 30 x 30 m world (the same
   +/-15 m span as the JS arena, base at the centre).
 
 The frames differ by construction (JS: centred cm, compass heading; Python:
@@ -29,19 +29,19 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.engine.motion_model import (
+from kodro.engine.motion_model import (
     BATTERY_PCT_PER_COLLISION,
     BATTERY_PCT_PER_DEGREE,
     BATTERY_PCT_PER_METRE,
 )
-from robolearn.engine.rover import Rover
-from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, World
-from robolearn.runtime.binding import set_active_rover, set_active_world
-from robolearn.runtime.executor import execute
+from kodro.engine.rover import Rover
+from kodro.engine.terrain import Terrain
+from kodro.engine.world import ArenaBounds, World
+from kodro.runtime.binding import set_active_rover, set_active_world
+from kodro.runtime.executor import execute
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB = ROOT / "src" / "robolearn" / "assets" / "web"
+WEB = ROOT / "src" / "kodro" / "assets" / "web"
 FIXTURE = ROOT / "tests" / "fixtures" / "golden_trace.cjs"
 _NODE = shutil.which("node")
 _REQUIRE_NODE = os.environ.get("ROBOLEARN_REQUIRE_NODE") == "1"

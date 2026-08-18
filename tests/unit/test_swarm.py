@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import World
-from robolearn.runtime.swarm import MAX_ROVERS, MIN_ROVERS, run_swarm
+from kodro.engine.terrain import Terrain
+from kodro.engine.world import World
+from kodro.runtime.swarm import MAX_ROVERS, MIN_ROVERS, run_swarm
 
 
 def _world() -> World:

@@ -6,14 +6,14 @@ import math
 
 import pytest
 
-from robolearn.engine.physics import (
+from kodro.engine.physics import (
     COLLISION_TYPE_OBSTACLE,
     COLLISION_TYPE_WALL,
     ROVER_RADIUS_M,
     CollisionEvent,
     PhysicsSpace,
 )
-from robolearn.engine.terrain import Terrain, params_for
+from kodro.engine.terrain import Terrain, params_for
 
 
 @pytest.mark.parametrize(

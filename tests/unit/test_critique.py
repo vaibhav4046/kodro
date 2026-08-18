@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from collections.abc import Iterator
 
-from robolearn.ai.critique import CritiqueResult, review_program
-from robolearn.ai.ollama_client import OllamaClient
+from kodro.ai.critique import CritiqueResult, review_program
+from kodro.ai.ollama_client import OllamaClient
 
 
 class _FakeClient(OllamaClient):

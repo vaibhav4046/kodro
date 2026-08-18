@@ -75,7 +75,7 @@ are also the three that can invalidate everything else.
       coverage JSON. The counts can no longer be typed in. The commit stays
       correct only while nothing under `tests/` or the Python source changes
       after the run, so check
-      `git diff e70b98b..HEAD -- tests/ 'src/robolearn/**/*.py'` before
+      `git diff e70b98b..HEAD -- tests/ 'src/kodro/**/*.py'` before
       submitting and re-run if it is not empty. The historical record of the
       earlier regeneration is below and stays as written. Regenerating is not a
       standalone act: the dissertation quotes its commit and its
@@ -97,8 +97,8 @@ are also the three that can invalidate everything else.
       fired and the recommended fix was refused. The release commit `66e8632`
       bumps to 2.1.0 and is the first commit since 17 August to touch Python
       source, so
-      `git diff e70b98b..HEAD -- tests/ 'src/robolearn/**/*.py'` is now
-      non-empty: `src/robolearn/ui/splash.py` +4/-1, where a hardcoded `v2.0.0`
+      `git diff e70b98b..HEAD -- tests/ 'src/kodro/**/*.py'` is now
+      non-empty: `src/kodro/ui/splash.py` +4/-1, where a hardcoded `v2.0.0`
       became a metadata lookup, and `tests/unit/test_splash_and_main.py` +21,
       one regression test pinning it. The artefact was **not** regenerated. The
       warning three paragraphs up is the reason: twenty-nine sites move

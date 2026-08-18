@@ -91,7 +91,7 @@ reason.
 
 Done means exercised, not compiled. Type checking passing is not verification.
 
-Run the command CI runs, not one that resembles it. `mypy src/robolearn` reports
+Run the command CI runs, not one that resembles it. `mypy src/kodro` reports
 success over 73 files; a bare `python -m mypy` sweeps in `tests/` and reports 228
 errors that are not defects. The full CI definition is `.github/workflows/ci.yml`
 and it is the authority.

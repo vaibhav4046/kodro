@@ -8,8 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
-from robolearn.lessons.schema import Lesson
-from robolearn.ui.lesson_editor import LessonEditor, load_custom_lessons
+from kodro.lessons.schema import Lesson
+from kodro.ui.lesson_editor import LessonEditor, load_custom_lessons
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def test_save_writes_yaml_to_custom_dir(root: tk.Tk, tmp_path: Path) -> None:
     saved: list[Lesson] = []
     editor = LessonEditor(root, on_saved=saved.append, custom_dir=tmp_path)
     try:
-        with patch("robolearn.ui.lesson_editor.messagebox.showinfo"):
+        with patch("kodro.ui.lesson_editor.messagebox.showinfo"):
             lesson = editor.save()
         assert isinstance(lesson, Lesson)
         assert lesson.id == "my_lesson"
@@ -43,7 +43,7 @@ def test_save_rejects_invalid_payload(root: tk.Tk, tmp_path: Path) -> None:
     editor = LessonEditor(root, custom_dir=tmp_path)
     try:
         editor._w.max_lines_var.set("-5")  # type: ignore[attr-defined]
-        with patch("robolearn.ui.lesson_editor.messagebox.showerror") as mock_err:
+        with patch("kodro.ui.lesson_editor.messagebox.showerror") as mock_err:
             assert editor.save() is None
             assert mock_err.called
         # Nothing was written when validation fails.
@@ -56,7 +56,7 @@ def test_load_custom_lessons_round_trip(root: tk.Tk, tmp_path: Path) -> None:
     editor = LessonEditor(root, custom_dir=tmp_path)
     try:
         editor._w.id_var.set("loop_demo")  # type: ignore[attr-defined]
-        with patch("robolearn.ui.lesson_editor.messagebox.showinfo"):
+        with patch("kodro.ui.lesson_editor.messagebox.showinfo"):
             editor.save()
     finally:
         editor.destroy()

@@ -18,7 +18,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const WEB = path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(HERE, '..', 'src', 'kodro', 'assets', 'web');
 // Same evidence directory the performance and persona harnesses write to, so a
 // live-model claim has a committed artefact behind it instead of a console line.
 const OUT = path.join(HERE, '..', 'docs', 'eval', 'vibe_eval.json');

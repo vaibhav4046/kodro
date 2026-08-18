@@ -3,7 +3,7 @@
 The unit suites each hold one layer still and check the next. Nothing until
 this module runs a complete mission the way a pupil actually causes one: a
 program in the sandbox, calling the published ``rover_api``, driving a
-:class:`~robolearn.engine.rover.Rover` bound to a Mars :class:`World`, with the
+:class:`~kodro.engine.rover.Rover` bound to a Mars :class:`World`, with the
 tracer recording it and the world mutating underneath.
 
 That end-to-end path is where the interesting failures live. Every one of these
@@ -29,18 +29,18 @@ import math
 
 import pytest
 
-from robolearn.engine.rover import (
+from kodro.engine.rover import (
     BATTERY_PER_COLLISION,
     BATTERY_PER_DEGREE,
     BATTERY_PER_METRE,
     Rover,
 )
-from robolearn.engine.terrain import Terrain, params_for
-from robolearn.engine.world import ArenaBounds, Obstacle, Sample, World
-from robolearn.runtime.binding import binding_lock, set_active_rover, set_active_world
-from robolearn.runtime.executor import ExecutionResult
-from robolearn.runtime.executor import execute as run_pupil_code
-from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
+from kodro.engine.terrain import Terrain, params_for
+from kodro.engine.world import ArenaBounds, Obstacle, Sample, World
+from kodro.runtime.binding import binding_lock, set_active_rover, set_active_world
+from kodro.runtime.executor import ExecutionResult
+from kodro.runtime.executor import execute as run_pupil_code
+from kodro.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
 
 # Base at (1, 1), two samples on a right-angled route, one obstacle parked well
 # off it so the nominal mission is collision-free and a collision assertion

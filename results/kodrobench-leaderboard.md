@@ -1,6 +1,6 @@
 # KodroBench v0.1 leaderboard (5 tasks, 10 seeds)
 
-Lower invention_rate is better (program stays within the build's command set); higher success@N is better. dev/heldout split the same task set by whether it was visible while iterating (see robolearn.kodrobench.Task). Generated from results JSON.
+Lower invention_rate is better (program stays within the build's command set); higher success@N is better. dev/heldout split the same task set by whether it was visible while iterating (see kodro.kodrobench.Task). Generated from results JSON.
 
 | Model | success@N | invention_rate | dev succ | heldout succ | dev inv | heldout inv | collision | syntax_err | gen_err |
 |---|---|---|---|---|---|---|---|---|---|

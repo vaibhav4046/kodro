@@ -78,12 +78,12 @@ dd6cbf5  fix: judge round 13 + sound off by default + Phase-0 reconciliation led
 ## 3. ARCHITECTURE (critical — read before editing)
 
 **The web app is NO-BUILD.** Vendored React + Three.js UMD. 38 IIFE modules in
-`D:\project\robolearn\src\robolearn\assets\web\` are concatenated by
+`D:\project\robolearn\src\kodro\assets\web\` are concatenated by
 `scripts\build_web.cjs` (fixed `ORDER` array, line ~24) into a **COMMITTED**
 `bundle.js`.
 
 ### THE RULE
-> After **ANY** edit to a `.jsx` / `.js` file under `src\robolearn\assets\web\`:
+> After **ANY** edit to a `.jsx` / `.js` file under `src\kodro\assets\web\`:
 > ```
 > node scripts/build_web.cjs
 > ```
@@ -99,10 +99,10 @@ realism, demo, onboarding, ai-providers, ai-web, chat-intent.js, sim-physics.js,
 hooks, app-data, panels, app
 ```
 
-### Key modules (all in `src\robolearn\assets\web\`)
+### Key modules (all in `src\kodro\assets\web\`)
 | File | Role |
 |---|---|
-| `motion-model.js` | **Shared physics constants + closed forms.** Mirrored by `src\robolearn\engine\motion_model.py`; locked by golden-trace parity tests. Exposes `window.KodroMotion`. |
+| `motion-model.js` | **Shared physics constants + closed forms.** Mirrored by `src\kodro\engine\motion_model.py`; locked by golden-trace parity tests. Exposes `window.KodroMotion`. |
 | `diagnostics.jsx` | **Design Check** (`assess`, `afterRun`) — the deterministic "will this build cope" layer. `window.KodroDiagnostics`. |
 | `specschema.js` | KRS robot-spec schema + validator + `deriveFromPhysical` + **FIDELITY** 3-tier disclosure table. |
 | `RobotLab.jsx` | Robot builder, parts catalogue (`ACTUATORS`/`SENSORS`/`BOARDS`), `derive()`. `window.getKodroRobot()`. |
@@ -118,7 +118,7 @@ hooks, app-data, panels, app
 | `cap.html` | **GENERATED** by `scripts\build_screenshot_harness.cjs` — gitignored. **Edit the generator, never cap.html.** |
 
 ### Python side
-`src\robolearn\` — `web\app.py` (pywebview desktop), `engine\motion_model.py`
+`src\kodro\` — `web\app.py` (pywebview desktop), `engine\motion_model.py`
 (JS twin), `envs\kodro_env.py` (Gymnasium `KodroEnv-v0`), `kodrobench.py`,
 `interop\urdf_io.py`, `lessons\`, `memory\`, `ui\` (Tk fallback).
 
@@ -154,7 +154,7 @@ node scripts/qa_web.mjs              # 5/5 (boot + privacy + studio-mount)
 ```bash
 node scripts/build_web.cjs                      # rebuild bundle
 node scripts/build_screenshot_harness.cjs       # regenerate cap.html
-# serve D:\project\robolearn\src\robolearn\assets\web on http://localhost:8099
+# serve D:\project\robolearn\src\kodro\assets\web on http://localhost:8099
 node scripts/qa_ui.mjs        # 6/6 flows, 38/38 behaviour, 12/12 modals
 node scripts/qa_worlds.mjs    # 61 world/site renders
 ```
@@ -188,7 +188,7 @@ git checkout kodro-identity-pass
 
 ### Verify live == committed
 ```bash
-git show HEAD:src/robolearn/assets/web/bundle.js | sha256sum
+git show HEAD:src/kodro/assets/web/bundle.js | sha256sum
 curl -s "https://vaibhav4046.github.io/robolearn/bundle.js?v=$(git rev-parse --short HEAD)" | sha256sum
 # For CSS-only changes bundle hash is UNCHANGED — verify styles.css instead:
 curl -s "https://vaibhav4046.github.io/robolearn/styles.css?v=..." | grep <your-token>
@@ -338,7 +338,7 @@ Classify honestly — never call a flake a pass, never call a flake a product bu
 4. Sanity-check the environment recovered:
    ```bash
    node scripts/build_web.cjs && node scripts/build_screenshot_harness.cjs
-   # serve src/robolearn/assets/web on :8099
+   # serve src/kodro/assets/web on :8099
    node scripts/qa_ui.mjs     # first-run-clean should PASS again (drives ~8 m clean)
    node scripts/qa_worlds.mjs # 61/61
    ```

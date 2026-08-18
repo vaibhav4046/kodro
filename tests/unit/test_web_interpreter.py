@@ -17,9 +17,7 @@ from pathlib import Path
 
 import pytest
 
-INTERP = (
-    Path(__file__).resolve().parents[2] / "src" / "robolearn" / "assets" / "web" / "interpreter.js"
-)
+INTERP = Path(__file__).resolve().parents[2] / "src" / "kodro" / "assets" / "web" / "interpreter.js"
 
 _NODE = shutil.which("node")
 

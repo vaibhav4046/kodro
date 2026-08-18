@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-import robolearn.__main__ as main_mod
-from robolearn import __version__
-from robolearn.ui.splash import SPLASH_DURATION_MS, show_splash
+import kodro.__main__ as main_mod
+from kodro import __version__
+from kodro.ui.splash import SPLASH_DURATION_MS, show_splash
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def test_main_delegates_to_app(monkeypatch: pytest.MonkeyPatch) -> None:
         called.append(1)
         return 0
 
-    import robolearn.app as app_mod
+    import kodro.app as app_mod
 
     monkeypatch.setattr(app_mod, "main", _fake_app_main)
     rc = main_mod.main([])
@@ -50,17 +50,17 @@ def test_main_delegates_to_app(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_main_writes_startup_log(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    import robolearn.app as app_mod
+    import kodro.app as app_mod
 
     monkeypatch.setattr(app_mod, "main", lambda: 0)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     rc = main_mod.main([])
     assert rc == 0
-    assert (tmp_path / ".robolearn" / "startup.log").exists()
+    assert (tmp_path / ".kodro" / "startup.log").exists()
 
 
 def test_main_handles_app_exception(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    import robolearn.app as app_mod
+    import kodro.app as app_mod
 
     def _boom() -> int:
         raise RuntimeError("kaboom")

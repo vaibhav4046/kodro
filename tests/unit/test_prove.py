@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from robolearn.prove import (
+from kodro.prove import (
     build_manifest,
     canonical_manifest,
     compare_manifests,

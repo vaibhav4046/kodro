@@ -47,7 +47,7 @@ weighted to KS3 and KS4" and state the split. I have already corrected
 > 1-2-8-7 split was correct when this request was written and is kept for the
 > record.
 
-    python -c "import sys; sys.path.insert(0,'src'); from robolearn.lessons.schema import load_library; from collections import Counter; print(Counter(l.key_stage for l in load_library()))"
+    python -c "import sys; sys.path.insert(0,'src'); from kodro.lessons.schema import load_library; from collections import Counter; print(Counter(l.key_stage for l in load_library()))"
 
 **I touched `pyproject.toml` to unbreak CI, and it was your files that broke it.**
 Not a complaint, a heads-up about a trap you will hit again.

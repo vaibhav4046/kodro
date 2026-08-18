@@ -30,7 +30,7 @@ plain English. Also the artefact for an MSc dissertation (COMP702, Liverpool).
 
 ## 3. Live links
 - Web app: https://vaibhav4046.github.io/robolearn/
-- Installer: `D:\project\robolearn\dist\Kodro.exe` (PyInstaller from robolearn-web.spec).
+- Installer: `D:\project\robolearn\dist\Kodro.exe` (PyInstaller from kodro-web.spec).
 
 ## 4. Dissertation
 - Source `docs/dissertation/Kodro_Dissertation.tex`; compiled
@@ -45,7 +45,7 @@ plain English. Also the artefact for an MSc dissertation (COMP702, Liverpool).
 
 ## 5. Architecture
 - Web app has NO build tooling, NO npm. Vendored React + Three.js r137 UMD.
-  `src/robolearn/assets/web/*.jsx|*.js` are IIFE modules; `scripts/build_web.cjs`
+  `src/kodro/assets/web/*.jsx|*.js` are IIFE modules; `scripts/build_web.cjs`
   concatenates ~36 modules per a fixed ORDER into `bundle.js`. After ANY web edit,
   rebuild `bundle.js` (`node scripts/build_web.cjs`) and COMMIT it; CI freshness
   gate is `node scripts/build_web.cjs --check`. Static site:
@@ -56,8 +56,8 @@ plain English. Also the artefact for an MSc dissertation (COMP702, Liverpool).
   sim-physics.js, terrains.jsx, styles.css.
 - `cap.html` is a GENERATED test harness (gitignored) from
   `scripts/build_screenshot_harness.cjs` - edit the generator, never cap.html.
-- Desktop: robolearn-web.spec (pywebview -> Kodro.exe), robolearn.spec (Tk).
-  Python package `src/robolearn` (grader, interpreter, engine, ai/ollama_client.py).
+- Desktop: kodro-web.spec (pywebview -> Kodro.exe), kodro.spec (Tk).
+  Python package `src/kodro` (grader, interpreter, engine, ai/ollama_client.py).
 - CI `.github/workflows/ci.yml` (ubuntu+macos+windows). `deploy-pages.yml` deploys
   on workflow_run after CI success. qa_ui and qa_worlds are LOCAL-only gates.
 
@@ -81,12 +81,12 @@ exact printed summary line for each gate, are in
   that were have gone stale; `docs/eval/test_suite.json` pins the authoritative
   run to a commit. The `--basetemp` flag works around a host ACL defect on this
   machine, recorded in `.kodro/ca2-evidence/2026-08-15-suite-reproduction-and-tempdir-defect.md`.
-- Serve for browser gates: `cd src/robolearn/assets/web && python -m http.server 8099`
+- Serve for browser gates: `cd src/kodro/assets/web && python -m http.server 8099`
 - `CHROME_PATH=/c/Program Files/Google/Chrome/Application/chrome.exe`
 - ENV TRAP (fixed, keep fixed): the `robolearn` editable-install .pth at
   `...\Python313\Lib\site-packages\_editable_impl_robolearn.pth` was pointing at a
   stale OneDrive clone; now points at `D:\project\robolearn\src`. Verify with
-  `python -c "import robolearn.ai.ollama_client as m; print(m.__file__)"`.
+  `python -c "import kodro.ai.ollama_client as m; print(m.__file__)"`.
 
 ## 7. Hard constraints (never violate)
 1. Honesty is the product. Never fabricate benchmarks/tests/user-studies/"10/10".
@@ -112,9 +112,9 @@ direction/motion + honesty fixes; light-theme HUD readability (fixed --hud-fg
 tokens; qa_ui light-hud assert; world-switch text luminance 0.87 on dark glass).
 
 ## 9. Gaps / god-tier targets (verified against source at e801511)
-ALREADY SHIPPED (do not list as gaps): KodroBench (src/robolearn/kodrobench.py,
+ALREADY SHIPPED (do not list as gaps): KodroBench (src/kodro/kodrobench.py,
 bench.py, results/kodrobench-v0.1.json), CLI console scripts (robolearn, kodro,
-kodrobench in pyproject.toml), URDF import+export (src/robolearn/interop/urdf_io.py,
+kodrobench in pyproject.toml), URDF import+export (src/kodro/interop/urdf_io.py,
 [interop] extra), seeded domain randomization (bench.py), model picker.
 GENUINELY OPEN, highest leverage first: (1) in-browser pupil records store -- the
 web Teacher Dashboard is a self-admitted empty-state (panels.jsx TeacherModal),

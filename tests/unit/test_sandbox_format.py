@@ -4,7 +4,7 @@
 runtime, so a template like ``"{0.__class__.__init__.__globals__}"`` walks an
 exposed object all the way to the real, unrestricted module globals without ever
 emitting a ``__dunder__`` AST node the sandbox walker could reject. These tests
-lock the fix in :mod:`robolearn.runtime.sandbox`: attribute-access field specs
+lock the fix in :mod:`kodro.runtime.sandbox`: attribute-access field specs
 are blocked while ordinary positional / keyword / format-spec / subscript
 formatting keeps working.
 """
@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from robolearn.runtime import (
+from kodro.runtime import (
     Tracer,
     execute,
     find_violations,

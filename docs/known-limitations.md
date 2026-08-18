@@ -26,7 +26,7 @@ production runtime; see the Pymunk item below and the roadmap.
 ## Pymunk engine exists but is not wired into the production runtime
 
 The Python package ships a `PhysicsSpace` wrapper around `pymunk.Space`
-in `src/robolearn/engine/physics.py` that builds boundary walls, places
+in `src/kodro/engine/physics.py` that builds boundary walls, places
 the rover and obstacles, and records collisions via begin and
 post-solve handlers. It is exercised by the Python test suite and used
 by the Python grader. It is not, however, what the web UI runs. The

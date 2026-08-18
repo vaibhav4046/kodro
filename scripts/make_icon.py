@@ -17,7 +17,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OUT = REPO_ROOT / "src" / "robolearn" / "assets" / "icon.ico"
+OUT = REPO_ROOT / "src" / "kodro" / "assets" / "icon.ico"
 
 NAVY = (15, 18, 32, 255)
 NAVY_EDGE = (31, 36, 64, 255)

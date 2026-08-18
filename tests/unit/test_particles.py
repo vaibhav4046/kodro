@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from robolearn.engine.particles import (
+from kodro.engine.particles import (
     MAX_PARTICLES,
     Particle,
     system_for_terrain,
 )
-from robolearn.engine.terrain import Terrain
+from kodro.engine.terrain import Terrain
 
 
 def test_factory_returns_per_terrain_kind() -> None:

@@ -17,7 +17,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 // --- load the shipped modules with a window shim ---------------------------
 const win = {};
 for (const f of ['motion-model.js', 'interpreter.js', 'lesson-grader.jsx']) {
-  const src = readFileSync(new URL('../src/robolearn/assets/web/' + f, import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../src/kodro/assets/web/' + f, import.meta.url), 'utf8');
   new Function('window', src)(win);
 }
 const G = win.KodroLessonGrader;
@@ -27,7 +27,7 @@ const G = win.KodroLessonGrader;
 // flow [..]/{..}, quoted + bare scalars, "|" literal blocks) and THROWS on
 // anything else, so an exotic YAML edit fails this gate loudly instead of
 // being misparsed silently. Verified against the Python schema loader
-// (robolearn.lessons.schema.load_library): identical output for the full
+// (kodro.lessons.schema.load_library): identical output for the full
 // shipped library.
 function parseYamlSubset(text) {
   const raw = text.replace(/\r\n?/g, '\n').split('\n');
@@ -169,7 +169,7 @@ const CRIT_FIELDS = ['samples_collected', 'max_battery_used', 'no_collisions',
   'calls_in_order'];
 
 function extractLessonData() {
-  const libUrl = new URL('../src/robolearn/lessons/library/', import.meta.url);
+  const libUrl = new URL('../src/kodro/lessons/library/', import.meta.url);
   const out = {};
   for (const f of readdirSync(libUrl).filter((f) => f.endsWith('.yaml')).sort()) {
     const doc = parseYamlSubset(readFileSync(new URL(f, libUrl), 'utf8'));
@@ -455,7 +455,7 @@ console.log('\n== SOLVABILITY: every lesson ships an answer that passes HERE too
   // precisely the divergence this release was spent removing, and it would be
   // invisible to either gate alone. It is also the worst possible bug for a
   // pupil: they would be shown an answer, type it in, and be marked wrong.
-  const raw = JSON.parse(readFileSync(new URL('../src/robolearn/assets/web/lessons.json', import.meta.url), 'utf8'));
+  const raw = JSON.parse(readFileSync(new URL('../src/kodro/assets/web/lessons.json', import.meta.url), 'utf8'));
   const shipped = Array.isArray(raw) ? raw : (raw.lessons || []);
   check('every lesson ships a worked solution',
     shipped.length > 0 && shipped.every((l) => typeof l.solutionCode === 'string' && l.solutionCode.trim()),
@@ -480,14 +480,14 @@ console.log('\n== FADED EXAMPLES: the step between a hint and the answer ==');
   // pupil to make the choice the lesson is about, which is the form the
   // worked-example literature finds actually transfers. So the fading has to
   // remove the DECISION and keep the STRUCTURE, and this asserts it does both.
-  const appSrc = readFileSync(new URL('../src/robolearn/assets/web/app.jsx', import.meta.url), 'utf8');
+  const appSrc = readFileSync(new URL('../src/kodro/assets/web/app.jsx', import.meta.url), 'utf8');
   const start = appSrc.indexOf('    function fadeSolution(code) {');
   const endIdx = appSrc.indexOf('      return { text: out.join(', start);
   const end = appSrc.indexOf('\n    }', endIdx) + '\n    }'.length;
   check('fadeSolution is present in app.jsx', start >= 0 && endIdx > start, '');
   const fade = new Function(appSrc.slice(start, end).trim() + '\nreturn fadeSolution;')();
 
-  const raw = JSON.parse(readFileSync(new URL('../src/robolearn/assets/web/lessons.json', import.meta.url), 'utf8'));
+  const raw = JSON.parse(readFileSync(new URL('../src/kodro/assets/web/lessons.json', import.meta.url), 'utf8'));
   const shipped = Array.isArray(raw) ? raw : (raw.lessons || []);
   const noBlanks = [], sameShape = [], lostComment = [], unchanged = [];
   for (const l of shipped) {

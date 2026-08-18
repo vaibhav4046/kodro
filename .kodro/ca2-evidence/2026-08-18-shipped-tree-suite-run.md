@@ -79,7 +79,7 @@ qa_secrets             42 passed (490 of 797 tracked files read, 13 rules)
 qa_vibe               8/8 through the interpreter, model kodro-coder:latest
 node scripts/build_web.cjs --check     bundle.js is up to date
 python -m mkdocs build --strict        exit 0, 0 warnings
-python -m mypy src/robolearn           no issues in 73 source files
+python -m mypy src/kodro           no issues in 73 source files
 ruff check / ruff format --check       clean, 171 files
 ```
 

@@ -31,10 +31,10 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.lessons.schema import Lesson, load_library
-from robolearn.memory.pupil_model import get_strengths, passing_streak
-from robolearn.memory.store import Store
-from robolearn.web.app import BridgeAPI
+from kodro.lessons.schema import Lesson, load_library
+from kodro.memory.pupil_model import get_strengths, passing_streak
+from kodro.memory.store import Store
+from kodro.web.app import BridgeAPI
 
 # A program that is syntactically fine and runs clean but does not satisfy any
 # lesson's criteria: it must FAIL grading rather than error, because an error

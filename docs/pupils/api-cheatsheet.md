@@ -1,7 +1,7 @@
 # Pupil API cheatsheet
 
 These are the 24 functions in the graded Python lesson API,
-`robolearn.rover_api`. The web editor can also show shorter fitted commands
+`kodro.rover_api`. The web editor can also show shorter fitted commands
 under its command strip.
 
 Inside a lesson these commands act on the lesson's own world, and that is

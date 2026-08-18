@@ -20,8 +20,8 @@ from typing import Any
 
 import pytest
 
-from robolearn.mcp import tools as tool_registry
-from robolearn.mcp.server import (
+from kodro.mcp import tools as tool_registry
+from kodro.mcp.server import (
     INVALID_PARAMS,
     INVALID_REQUEST,
     METHOD_NOT_FOUND,
@@ -32,8 +32,8 @@ from robolearn.mcp.server import (
     main,
     serve_stdio,
 )
-from robolearn.mcp.tools import ToolError
-from robolearn.memory.store import Store
+from kodro.mcp.tools import ToolError
+from kodro.memory.store import Store
 
 # --- helpers ---------------------------------------------------------------
 
@@ -420,7 +420,7 @@ def test_grade_program_agrees_with_the_graders_own_verdict(server: Server) -> No
     the same criteria, so a divergence here would mean an assistant telling a
     pupil they passed something the app fails them on.
     """
-    from robolearn.runtime.session import run_against_lesson
+    from kodro.runtime.session import run_against_lesson
 
     lesson = next(le for le in tool_registry._library() if le.id == "00_first_drive")
     assert lesson.solution_code
@@ -462,7 +462,7 @@ def test_event_trace_is_capped_and_says_so(server: Server, monkeypatch: Any) -> 
 
 
 def test_check_api_is_derived_from_the_sandbox_not_transcribed(server: Server) -> None:
-    from robolearn import rover_api
+    from kodro import rover_api
 
     payload = structured(call(server, "check_api", {}))
     assert {fn["name"] for fn in payload["functions"]} <= set(rover_api.__all__)
