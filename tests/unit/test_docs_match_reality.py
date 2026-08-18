@@ -383,8 +383,7 @@ def test_mcp_finale_doc_quotes_the_gates_real_row_count() -> None:
     claimed = re.search(r"It passed clean on 17 August, (\d+) of (\d+)", doc)
     assert claimed, "MCP_DEMO_PROMPT.md no longer states a pass count for the gate"
     assert claimed.group(1) == claimed.group(2), (
-        f"the document claims {claimed.group(1)} of {claimed.group(2)}, "
-        "which is not a clean run"
+        f"the document claims {claimed.group(1)} of {claimed.group(2)}, which is not a clean run"
     )
     assert int(claimed.group(1)) == passed, (
         f"the gate passes {passed} rows, the document claims {claimed.group(1)}"
