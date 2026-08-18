@@ -241,8 +241,8 @@ for (const t of Object.keys(themes)) {
     '--dx': 'Viewport.jsx:80 sets it per debris mote',
     '--dy': 'Viewport.jsx:80 sets it per debris mote',
     '--horizon': 'Viewport.jsx:176 sets it per terrain',
-    '--editor-w': 'app.jsx:2726 sets it from the editor splitter',
-    '--tele-w': 'app.jsx:2726 sets it from the telemetry splitter',
+    '--editor-w': 'app.jsx:2732 sets it from the editor splitter',
+    '--tele-w': 'app.jsx:2732 sets it from the telemetry splitter',
     // .crash-flash parameterises its origin but nothing ever sets it, so the
     // fallback (50%) is the only value it takes and the flash is always centred.
     '--cx': 'never set; .crash-flash always uses the 50% fallback',

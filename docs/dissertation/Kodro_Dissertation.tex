@@ -35,7 +35,9 @@
 % Chapter and section headings: clean, close to the CA1 look.
 \titleformat{\chapter}[display]
   {\normalfont\bfseries\color{uolblue}}
-  {\filright\large Chapter \thechapter}
+  % \chaptertitlename, not the literal word: it tracks \appendix, so the
+  % appendix headings read "Appendix A" rather than "Chapter A".
+  {\filright\large \chaptertitlename\ \thechapter}
   {4pt}
   {\Huge\filright}
 \titlespacing*{\chapter}{0pt}{0pt}{10pt}
