@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import os
 import sys
 from collections.abc import Iterator
@@ -59,6 +60,49 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         cov_options = getattr(cov_plugin, "options", None)
         if cov_options is not None:
             cov_options.cov_fail_under = 0
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_runtest_teardown() -> None:
+    """Finalise any orphaned Tk interpreter on the main thread, after every test.
+
+    The macOS CI job aborted part-way through the suite with::
+
+        Tcl_AsyncDelete: async handler deleted by the wrong thread
+        Fatal Python error: Aborted
+        Current thread 0x000000016ed97000 (most recent call first):
+          Garbage-collecting
+          File ".../coverage/collector.py", line 295 in _installation_trace
+          File ".../threading.py", line 1001 in run
+
+    ``Tk.destroy()`` tears down the widget tree but not the Tcl interpreter, so
+    the Python ``Tk`` object can outlive the fixture that made it, as garbage.
+    Whatever thread happens to run the collection that frees it ends up calling
+    ``Tcl_DeleteInterp``, and Tcl aborts the process when that is not the thread
+    that created the interpreter. ``concurrency = ["thread"]`` in the coverage
+    config puts a tracer on every thread the pupil-code executor spawns, so a
+    worker thread hitting a collection point is routine here. Every interpreter
+    in this suite is created on the main thread, so collecting here makes the
+    main thread the one that frees them.
+
+    ``trylast`` is load-bearing. ``_pytest/runner.py`` runs the fixture
+    finalisers from its own ``pytest_runtest_teardown``, and pluggy calls
+    ``trylast`` implementations after the normal ones, so this fires after
+    ``root.destroy()`` rather than before it, and after module-scoped finalisers
+    such as the ``app_ctx`` in ``tests/unit/test_app.py``.
+
+    Unconditional on purpose. Thirteen test files build a Tk, through three
+    different fixtures and once with no fixture at all
+    (``test_main_handles_app_exception`` forces ``__main__.main`` into its error
+    handler, which builds a root of its own). A predicate keyed on fixture names
+    misses that fourth shape and would go on missing new ones silently. A full
+    collect measures about 7 ms against this suite's heap, so roughly 12 s over
+    1642 tests. That is the price of not having to guess.
+
+    Windows CI never hit this abort because it has no usable ``tk.tcl`` and skips
+    every Tk fixture, so it creates no interpreters to orphan.
+    """
+    gc.collect()
 
 
 @pytest.fixture(autouse=True)
