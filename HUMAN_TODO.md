@@ -76,6 +76,23 @@ that `2.0.1` and `2.0.2` were point tags cut without entries. No published tag
 was deleted or moved. The splash screen no longer carries a frozen version
 literal, so the three records cannot drift apart the same way again.
 
+**Tagged on 18 August 2026: `v2.1.0` at `8f0b226`.** The trigger was not
+tidiness. The rename moved the release workflow's asset names to `Kodro-*` and
+the docs followed, but the newest release (`v2.0-submission`, 26 July) still
+carried `robolearn-macos.zip` and `robolearn-windows-tk.exe`, so README,
+`getting-started.md` and `classroom-setup.md` were sending macOS users, and
+anyone on a machine without WebView2, to files that were not on the releases
+page. Release run 32188097268 built green on all three runners and published
+`Kodro-windows.exe`, `Kodro-windows-tk.exe`, `Kodro-macos.zip` and
+`Kodro-linux`. Every asset named in those three docs now exists on the release.
+
+Note the gate's remaining blind spot: `tests/unit/test_docs_match_reality.py`
+compares the docs to `release.yml`, not to the published release, so it stays
+green during exactly this window, between a workflow rename and the next tag.
+Closing that would mean a network call from CI, which is worse. The rule to
+carry instead: if a change renames a release asset, cut a release or the docs
+are wrong until you do.
+
 ## 3. Deferred polish (P7 + P8)
 
 The "polish-to-90" sweep deliberately stopped after **P1–P6** and

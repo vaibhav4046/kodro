@@ -28,9 +28,31 @@ than the gap.
 - mkdocs and the web build no longer share `site/`.
 - Nine UI sites that hardcoded one theme now follow the active theme.
 - The splash screen reads its version from package metadata instead of a frozen literal.
+- The repository is now `vaibhav4046/kodro` and the live site is
+  `https://vaibhav4046.github.io/kodro/`. GitHub redirects the old repository
+  URL, but it does not redirect project Pages URLs, so
+  `https://vaibhav4046.github.io/robolearn/` is gone for good.
+- Release assets are named `Kodro-*`. This release is the first to publish
+  `Kodro-windows-tk.exe` and `Kodro-macos.zip` under those names; before it the
+  newest release still carried the `robolearn-*` names the docs had stopped
+  using.
+- The appendices in the dissertation build are labelled "Appendix" rather than
+  "Chapter". `titlesec` hardcoded the word, so `\appendix` alone had no effect.
 
 ### Fixed
 - A program that never ran now scores 0 over MCP rather than partial credit.
+- The post-run screen-reader announcement no longer repeats every measurement.
+  The coaching verdict already ends with its own "Covered N m, closest approach
+  N cm." clause, which was then joined with separately worded distance and
+  proximity phrases, so an `aria-atomic` live region read both numbers twice on
+  every run.
+- The Windows headline binary is copied unconditionally during a release. The
+  old step tested for a `dist/RoboLearn.exe` that had not existed since the
+  rename, inside an `if` that swallowed the miss, so tagged releases shipped
+  only the Tk fallback.
+- `docs/teachers/classroom-setup.md` named three release assets the workflow no
+  longer builds. It is now covered by `tests/unit/test_docs_match_reality.py`,
+  which reads the asset names back out of `release.yml`.
 
 ## [2.0.0] - 2026-07-07
 
