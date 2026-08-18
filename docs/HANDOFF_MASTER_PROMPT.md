@@ -218,10 +218,10 @@ All under `src/robolearn/assets/web/`:
    in localStorage. Verify the whole flow in the browser.~~
    **DONE, and "currently absent" is false as of 15 August 2026. Do not build a
    second one.** The flow ships as `KodroHome` (`home.jsx`, exposed on `window`).
-   `app.jsx:3690` mounts it when `homeOpen || !onboarded`; `app.jsx:703` reads the
+   `app.jsx:3696` mounts it when `homeOpen || !onboarded`; `app.jsx:703` reads the
    seen flag from `localStorage` under `kodro_home_seen` and `app.jsx:713` writes
    it; `canClose={onboarded}` makes it skippable only after the first run; the
-   brand button at `app.jsx:2509` reopens it. Its four doors are Lessons, Design,
+   brand button at `app.jsx:2515` reopens it. Its four doors are Lessons, Design,
    Author and Free play. A separate `onboarding.jsx` also exists and is still in
    the build `ORDER`, but nothing in the app mounts it (only
    `scripts/build_screenshot_harness.cjs`); `app.jsx:711-713` records it as a
