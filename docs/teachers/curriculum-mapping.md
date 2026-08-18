@@ -16,6 +16,10 @@ target in full. Title, key stage, terrain and CT concepts in this table were
 regenerated from `load_library()` on 15 August 2026; every one of the 24
 lessons has a non-empty `curriculum_refs`.
 
+A row here shows curriculum relevance. It is not a claim that one short Kodro
+lesson teaches or assesses an entire statutory requirement, and the in-app score
+is formative practice feedback rather than a predicted grade.
+
 | Lesson | Title | Key stage | Terrain | CT concepts | Programme of study reference |
 | --- | --- | --- | --- | --- | --- |
 | `000_watch_it_go` | Watch It, Then Change It | KS1 | Earth | sequence | DfE-00171-2013 KS1 (algorithms implemented as programs; precise instructions) |
@@ -70,6 +74,12 @@ Each lesson YAML carries its `curriculum_refs` list verbatim in the
 `src/robolearn/lessons/schema.py` validates that every required
 attainment-target field is present at load time; a typo in a YAML key
 fails fast (Section 6 of the build spec).
+
+Two test files hold this honest. `tests/unit/test_curriculum_integrity.py`
+rejects an invented numbered attainment target, requires every lesson to carry a
+checkable reference, and checks that the curriculum report covers every key stage
+in the library. `tests/unit/test_docs_match_reality.py` fails if this mapping,
+the scheme of work or the answer key omits a shipped lesson.
 
 ## Recommended teaching order
 
