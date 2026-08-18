@@ -198,3 +198,63 @@ def test_no_doc_link_escapes_the_published_site() -> None:
                 escapes.append(f"{page.relative_to(ROOT)} links {target}")
 
     assert not escapes, "links escape the documentation site: " + "; ".join(escapes)
+
+
+def test_spoken_test_figures_match_the_record_they_cite() -> None:
+    """The demo script's talking point five is spoken over the running product.
+
+    It has drifted twice. It once said 851 tests, 86 percent and 47 of 47, all
+    true at some point and badly stale by August. It then said 1,642 collected
+    at ``66e8632`` and stayed there while twelve commits and seven tests landed
+    on top, so the presenter would have said 1,642 while the screen said 1,649.
+
+    Nothing here re-runs the suite; a test cannot measure its own run without
+    lying about it. What it checks is the link that actually breaks: the spoken
+    sentence, the source note directly under it, and the evidence record that
+    note names must all carry the same figures, and that record must exist.
+    Re-measure, write the record, and these three move together or fail.
+    """
+    script = (ROOT / "docs" / "ca2-demo-script.md").read_text(encoding="utf-8")
+
+    spoken = re.search(
+        r"All ([\d,]+) tests pass with nothing skipped\..*?"
+        r"Coverage is ([\d.]+) percent",
+        script,
+        re.DOTALL,
+    )
+    assert spoken, "talking point five no longer states a test count and a coverage figure"
+
+    note = re.search(
+        r"logged in\s*>\s*`(\.kodro/ca2-evidence/[^`]+\.md)`.*?"
+        r"([\d,]+) collected, ([\d,]+) passed, (\d+) skipped, ([\d.]+) percent",
+        script,
+        re.DOTALL,
+    )
+    assert note, "the source note under talking point five no longer names a record and its figures"
+
+    record_path, collected, passed, skipped, note_coverage = note.groups()
+    spoken_count, spoken_coverage = spoken.groups()
+
+    assert collected == passed, (
+        f"the note reports {collected} collected but {passed} passed; "
+        "a spoken 'all tests pass' needs those equal"
+    )
+    assert skipped == "0", f"the note reports {skipped} skipped, so 'with nothing skipped' is wrong"
+    assert spoken_count == passed, (
+        f"the spoken line says {spoken_count} tests, the note says {passed} passed"
+    )
+    assert spoken_coverage == note_coverage, (
+        f"the spoken line says {spoken_coverage} percent, the note says {note_coverage}"
+    )
+
+    record = ROOT / record_path
+    assert record.is_file(), f"the note cites {record_path}, which does not exist"
+
+    body = record.read_text(encoding="utf-8")
+    bare = passed.replace(",", "")
+    assert f"{passed} passed" in body or f"{bare} passed" in body, (
+        f"{record_path} does not report {passed} passed"
+    )
+    assert f"{note_coverage} percent" in body or f"{note_coverage}%" in body, (
+        f"{record_path} does not report {note_coverage} percent"
+    )
