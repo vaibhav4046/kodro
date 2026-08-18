@@ -4,7 +4,7 @@ Kodro is an offline robot coding and kinematic simulation app for pupils
 aged 5 to 16, teachers, and beginners. Write or adapt a program, then
 watch a robot try it in a visual test world.
 
-**[Open Kodro in your browser](https://vaibhav4046.github.io/robolearn/)**
+**[Open Kodro in your browser](https://vaibhav4046.github.io/kodro/)**
 
 ![Kodro front door with four routes into learning, design, free play and lesson authoring](docs/design/kodro-home.png)
 
@@ -59,7 +59,7 @@ a physical robot, electrical safety, mechanical fit, or safe deployment.
 
 The hosted app runs in the browser and can work offline after its first
 load. `Kodro-windows.exe` puts that same interface in a native window over
-the local Python engine. The `robolearn-windows-tk.exe` fallback shares the
+the local Python engine. The `Kodro-windows-tk.exe` fallback shares the
 engine but not the interface: it is a Tk application with its own layout,
 and its feature set differs in places, most visibly the teacher dashboard.
 Core design, coding, simulation, and lesson paths need no account or AI.
@@ -69,8 +69,8 @@ Core design, coding, simulation, and lesson paths need no account or AI.
 > [`docs/ca1/`](docs/ca1/) and the dissertation in
 > [`docs/dissertation/`](docs/dissertation/).
 
-[![CI](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/ci.yml)
-[![Deploy Pages](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/vaibhav4046/robolearn/actions/workflows/deploy-pages.yml)
+[![CI](https://github.com/vaibhav4046/kodro/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/kodro/actions/workflows/ci.yml)
+[![Deploy Pages](https://github.com/vaibhav4046/kodro/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/vaibhav4046/kodro/actions/workflows/deploy-pages.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
@@ -121,7 +121,7 @@ journey. Expert mode exposes the full editor, console and evidence rail.
 
 ## Five-minute evidence demo
 
-1. Open [the live build](https://vaibhav4046.github.io/robolearn/) and choose **Design**.
+1. Open [the live build](https://vaibhav4046.github.io/kodro/) and choose **Design**.
 2. Change a part and inspect the resulting capability and fidelity changes.
 3. Choose **Prove**, run the program, then run the five-seed proof.
 4. Inspect the contract metrics and download the evidence manifest.
@@ -214,9 +214,9 @@ regenerate them.
 ### Option 1: Windows executable (no Python needed)
 
 Download the Kodro app (`Kodro-windows.exe`) from the
-[latest release](https://github.com/vaibhav4046/robolearn/releases/latest)
+[latest release](https://github.com/vaibhav4046/kodro/releases/latest)
 and run it. It is a self contained windowed app (WebView2). If WebView2
-is unavailable, use the `robolearn-windows-tk.exe` fallback asset from
+is unavailable, use the `Kodro-windows-tk.exe` fallback asset from
 the same release; it runs the same Python engine behind a Tk interface
 rather than this one, and
 [`docs/teachers/classroom-setup.md`](docs/teachers/classroom-setup.md)
@@ -229,8 +229,8 @@ cloud provider.
 Requires Python 3.12+ and Node.js (Node only if you want to rebuild the UI).
 
 ```bash
-git clone https://github.com/vaibhav4046/robolearn.git
-cd robolearn
+git clone https://github.com/vaibhav4046/kodro.git
+cd kodro
 pip install -e ".[dev]"
 python -m robolearn.web   # modern web UI in a native window (pywebview)
 ```
@@ -258,7 +258,7 @@ to a deterministic rule engine. To enable the assistant:
 
 **Using the hosted web build with Ollama.** The desktop app needs none of
 this. The browser build at
-[vaibhav4046.github.io/robolearn](https://vaibhav4046.github.io/robolearn/)
+[vaibhav4046.github.io/kodro](https://vaibhav4046.github.io/kodro/)
 is served from a different origin than `localhost`, so Ollama must be told
 to accept requests from it. Start Ollama with that origin allowed:
 
