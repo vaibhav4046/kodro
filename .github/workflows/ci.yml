@@ -145,6 +145,13 @@ jobs:
       - name: Web physics gate
         run: node scripts/qa_physics.mjs
 
+      # City chunk streaming: proves the streamed scenery stays out of the
+      # collidable obstacle set and the agent list (so grading and the distance
+      # sensor are unaffected), rebuilds identically when the pupil drives back,
+      # and frees its pooled geometry exactly once at teardown.
+      - name: Web city streaming gate
+        run: node scripts/qa_city_stream.mjs
+
       - name: Web scenario evidence gate
         run: node scripts/qa_scenario_parity.mjs
 

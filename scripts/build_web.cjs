@@ -21,7 +21,7 @@ const WEB = path.join(__dirname, '..', 'src', 'robolearn', 'assets', 'web');
 // before the modules that call them (diagnostics/selftest/RobotLab/scenario/app).
 // sim-physics.js (the pure collision + trapezoid math extracted from
 // useSimEngine) must load before hooks, which calls window.KodroPhysics.
-const ORDER = ['motion-model.js', 'specschema.js', 'parts-db.js', 'project.js', 'runreport.js', 'pupil-store.js', 'markbook.js', 'learning-annotations.js', 'gpu-caps.js', 'icons', 'agents', 'memory', 'memory-graph.js', 'terrains', 'Rover', 'Viewport', 'textures', 'post', 'worldfx', 'ambient', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'selftest', 'RobotLab', 'scenario', 'pupil-errors.js', 'parsons.js', 'lesson-grader', 'lesson-studio.js', 'verify', 'realism', 'demo', 'onboarding', 'home', 'lesson-studio', 'ai-providers', 'ai-web', 'chat-intent.js', 'voice.js', 'sim-physics.js', 'hooks', 'app-data', 'panels', 'app'];
+const ORDER = ['motion-model.js', 'specschema.js', 'parts-db.js', 'project.js', 'runreport.js', 'pupil-store.js', 'markbook.js', 'learning-annotations.js', 'gpu-caps.js', 'icons', 'agents', 'memory', 'memory-graph.js', 'terrains', 'Rover', 'Viewport', 'textures', 'post', 'worldfx', 'ambient', 'city-stream.js', 'Viewport3D', 'Editor', 'Telemetry', 'tweaks-panel', 'diagnostics', 'selftest', 'RobotLab', 'scenario', 'pupil-errors.js', 'parsons.js', 'lesson-grader', 'lesson-studio.js', 'verify', 'realism', 'demo', 'onboarding', 'home', 'lesson-studio', 'ai-providers', 'ai-web', 'chat-intent.js', 'voice.js', 'sim-physics.js', 'hooks', 'app-data', 'panels', 'app'];
 const HEADER = '/* AUTO-GENERATED from the .jsx sources by scripts/build_web.cjs. Do not edit. */\n';
 
 function build() {

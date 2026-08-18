@@ -188,6 +188,8 @@ would be the one unsupported claim in an otherwise clean voice section.
 | Learning annotations pass 28 checks | 28 passed | `node scripts/qa_learning_annotations.mjs` |
 | Software rasterisation is the disclosed floor and misses the 240 Hz work budget | medians 18.1 low quality, 13.9 high, three samples per tier, 17 August, on the shipped bundle. Do not say "mid twenties" on camera: this host has read 34.4, 22.2, 25.7, 16.4 and 18.1 at Low for the same scene across five runs, so the only safe spoken claim is that software rasterisation misses the budget and is the disclosed no-GPU floor | `node scripts/qa_performance.mjs --gl=software --repeat=3`, verdict MEASURED |
 
+| The streamed city scenery is proven scenery by 43 checks | `CITY STREAM QA: 43 passed, 0 failed`. The gate asserts the streamed chunks never reach `terrain.obstacles`, never reach `KodroAgents`, rebuild byte-identically when the pupil drives back, and free their pooled geometry exactly once at teardown | `node scripts/qa_city_stream.mjs` |
+
 ### The failure-and-refine story
 
 Lesson `00d_fix_the_turn` grades `✗ Not yet · 40/100`, one word changes from
@@ -305,6 +307,17 @@ These are ordered by how much damage each one does.
    exist.
 8. **Do not state the page limit or the video duration as settled.** See
    `BRIEF_VERIFIED.md`. Both are open and both are the student's to confirm.
+
+9. **Do not call the city an open world, infinite, procedural, or GTA-like.**
+   The 3D city streams scenery chunks around the rover so the skyline stops
+   ending at a visible wall. Those chunks are painted, not simulated:
+   `qa_city_stream.mjs` proves they never enter the collidable obstacle set,
+   never enter the agent list, and never reach the grader, so nothing streamed
+   can be driven into, sensed by `distance()`, or scored. The ring is five by
+   five chunks, not endless: the streamed footprint measures 476.8 by 484.7
+   units against a 90 unit authored core, and city fog is set to 60 near and
+   220 far, so the camera cannot see to the edge of it anyway. The strongest
+   honest sentence is that the city continues past what the camera can see.
 
 ## Rule for anything not listed
 

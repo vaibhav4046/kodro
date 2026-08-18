@@ -158,6 +158,7 @@
       // allocation failure, in which case tick() renders straight to the canvas
       // exactly as before. Created after the renderer so it shares its context.
       let post = null;
+      let cityStream = null;
       if ((Q === 'cinematic') && !reduce && window.KodroPost && window.KodroPost.create) {
         post = window.KodroPost.create(THREE, renderer, w, h);
       }
@@ -467,7 +468,12 @@
       // Open terrain gets a subdivided, gently displaced surface (dunes, swells)
       // so light grazes real undulations instead of reading as a billiard-flat
       // plane. City and room keep a flat floor.
-      const groundGeo = openWorld ? new THREE.PlaneGeometry(400, 400, 96, 96) : new THREE.PlaneGeometry(400, 400);
+      // The city ground FOLLOWS the robot (see cityStream in the tick loop), so
+      // it has to be wide enough that its edge never reaches the fog-visible
+      // range: 800 units covers the streamed radius in every direction. Room
+      // is a bounded interior and stays at 400.
+      const gSize = id === 'city' ? 800 : 400;
+      const groundGeo = openWorld ? new THREE.PlaneGeometry(400, 400, 96, 96) : new THREE.PlaneGeometry(gSize, gSize);
       // R5: ONE displacement field shared by the ground mesh, the robot, the
       // props, the agents, the trail, the FPV camera and the scenario markers.
       // The plane is authored in XY before its -90deg X rotation, so plane
@@ -513,7 +519,7 @@
           }
           const t = new THREE.CanvasTexture(cv);
           t.wrapS = t.wrapT = THREE.RepeatWrapping;
-          t.repeat.set(id === 'room' ? 6 : 4, id === 'room' ? 6 : 4);
+          t.repeat.set(id === 'room' ? 6 : 8, id === 'room' ? 6 : 8);
           return t;
         })();
         if (ftex) { groundMat.map = ftex; groundMat.needsUpdate = true; }
@@ -1380,7 +1386,25 @@
       if (window.KodroAgents && window.KodroAgents.world() !== _agentWorld) window.KodroAgents.build(_agentWorld);
       const _siteId = terrain && terrain.siteId;
       if (_siteId === 'lab' || _siteId === 'warehouse' || _siteId === 'debug_grid') buildIndoor(_siteId);
-      else if (id === 'city') buildCity();
+      else if (id === 'city') {
+        buildCity();
+        // GTA-style chunk streaming AROUND the authored block, which keeps
+        // chunk (0,0) to itself. Streamed content is scenery only: it never
+        // enters `obstacles`, never enters `agents`, and is never graded, so
+        // collision, sensors and marking are provably unchanged. Guarded so a
+        // streamer failure leaves the authored city exactly as it was.
+        try {
+          if (window.KodroCityStream) {
+            cityStream = window.KodroCityStream.create({
+              THREE: THREE, scene: scene,
+              radius: Q === 'low' ? 1 : 2,
+              budget: Q === 'high' ? 2 : 1,
+              traffic: Q !== 'low',
+              lit: _tod === 'night' || _tod === 'dusk'
+            });
+          }
+        } catch (e) { if (window.console) console.warn('KodroCityStream unavailable; city stays bounded:', e); cityStream = null; }
+      }
       else if (id === 'room') buildRoom();
       else {
         renderAgents(); // open terrain worlds: render the roaming robot fleet
@@ -2012,6 +2036,16 @@
         // update disables itself instead of error-looping every frame.
         const dts = Math.min(0.1, dt / 1000);
         if (agents.length) { const tsec = now / 1000; for (let i = 0; i < agents.length; i++) agents[i].update(tsec, dts); }
+        // Stream city chunks around the robot and snap the ground plane to the
+        // same 100-unit grid, so the horizon is always built and the painted
+        // road markings land back on themselves (one tile == one chunk).
+        if (cityStream) {
+          try {
+            cityStream.update(cur.x, cur.z, reduce ? 0 : dts);
+            ground.position.x = Math.round(cur.x / 100) * 100;
+            ground.position.z = Math.round(cur.z / 100) * 100;
+          } catch (e) { if (window.console) console.warn('KodroCityStream update failed; streaming stopped:', e); cityStream = null; }
+        }
         if (ambient && !reduce) {
           try { ambient.update(now / 1000, dts); }
           catch (e) { if (window.console) console.warn('KodroAmbient update failed; ambient life stopped:', e); ambient = null; }
@@ -2124,6 +2158,10 @@
         // traverse below (the single owner of disposal) frees GPU resources.
         if (ambient) { try { ambient.dispose(); } catch (e) { void e; } ambient = null; }
         if (post) { try { post.dispose(); } catch (e) { void e; } post = null; }
+        // The streamer pools geometry and materials across chunks, and unloaded
+        // chunks are no longer in the scene, so the traverse below cannot reach
+        // them. It frees its own pool, exactly once.
+        if (cityStream) { try { cityStream.dispose(); } catch (e) { void e; } cityStream = null; }
         if (resizeObserver) { try { resizeObserver.disconnect(); } catch (e) { void e; } resizeObserver = null; }
         window.removeEventListener('resize', onResize);
         window.removeEventListener('pointerup', onUp);
