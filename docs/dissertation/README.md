@@ -71,7 +71,7 @@ grown from 23 entries to 26, and all 26 were checked against a live registrar
 record or a fetched page on 15 August 2026, one of them turning up a year that
 its own source does not state. The per-entry results and the reproduction
 commands are in
-[`../../.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`](../../.kodro/ca2-evidence/2026-08-15-bibliography-verification.md).
+`.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`.
 
 The current-state assessment, including the outstanding items that only the
 author can close, is
