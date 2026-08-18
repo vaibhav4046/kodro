@@ -18,6 +18,12 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ["3.12"]
     runs-on: ${{ matrix.os }}
+    # Without this the job inherits GitHub's 360 minute default, which is how a
+    # single hung apt call burned an hour of runner time twice on 18 August
+    # before anyone could read a result. The slowest healthy leg observed is
+    # 11m34s (ubuntu, run 31739916588); Windows does the same work in 6m13s.
+    # 45 gives four times the headroom and still fails fast when a step wedges.
+    timeout-minutes: 45
     # The headless macOS runner has no Aqua window server, so Tk
     # intermittently segfaults under the GUI-heavy suite (a platform
     # limitation, not a product bug). Keep macOS as an informational leg so
@@ -49,11 +55,23 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install xvfb (Linux only)
+      # This used to run apt-get update && apt-get install -y xvfb. It never
+      # installed anything: the ubuntu runner image ships xvfb, and the last
+      # green Linux leg (run 31739916588, 13 August) logged "xvfb is already
+      # the newest version (2:21.1.12-1ubuntu1.6)" and finished the whole step
+      # in 6 seconds. The only work it did was the apt-get update, and that is
+      # what started hanging. Runs 32090805209 and 32094479457 both sat on this
+      # step for over 20 minutes while the Windows leg finished its entire job,
+      # so the network call was pure cost. Check the binary is there instead.
+      # If a future image drops it, this fails here by name rather than 40
+      # steps later inside xvfb-run, and the fix is to install it explicitly
+      # with sudo apt-get -o DPkg::Lock::Timeout=120 install -y xvfb.
+      - name: Check xvfb is present (Linux only)
         if: runner.os == 'Linux'
+        timeout-minutes: 2
         run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb
+          command -v Xvfb
+          command -v xvfb-run
 
       - name: Install dependencies
         run: |
