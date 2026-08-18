@@ -91,7 +91,8 @@ Key talking points, in priority order:
 > Source for the numbers in line 5, re-checked 18 August 2026. Tests and
 > coverage now come from the release run at commit `66e8632`, clean tree,
 > logged in
-> [`.kodro/ca2-evidence/2026-08-18-release-run-and-artefact-divergence.md`](../.kodro/ca2-evidence/2026-08-18-release-run-and-artefact-divergence.md):
+> `.kodro/ca2-evidence/2026-08-18-release-run-and-artefact-divergence.md`
+> (a repository record, deliberately outside the published documentation site):
 > 1,642 collected, 1,641 passed, 1 skipped, 90.78 percent, exit 0.
 > [`docs/eval/test_suite.json`](eval/test_suite.json) still pins the earlier
 > commit `e70b98b` at 1641, 1641, 0 skipped and 90.85 percent, and that is

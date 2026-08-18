@@ -167,3 +167,34 @@ def test_teacher_answer_key_copies_every_verified_solution() -> None:
         if match is None or match.group(1).strip() != lesson.solution_code.strip():
             mismatches.append(lesson.id)
     assert not mismatches, f"Answer key differs from verified solution_code: {mismatches}"
+
+
+def test_no_doc_link_escapes_the_published_site() -> None:
+    """A relative link that climbs out of docs/ is a 404 for every reader.
+
+    ``docs/mkdocs.yml`` sets ``docs_dir: .``, so a target reached through
+    ``../`` is never copied into the build. CI does catch it, but only on the
+    Linux leg and only at step ten: ``ca2-demo-script.md`` linked
+    ``../.kodro/ca2-evidence/2026-08-18-release-run-and-artefact-divergence.md``
+    and cost a full red run to find. Repository records live outside the site
+    on purpose. Name the path in a code span, the way CLAIM_LEDGER.md,
+    FINAL_CHECKLIST.md and SCRIPT.md already do, rather than linking it.
+
+    Containment is the whole check. Whether an in-tree target exists is
+    mkdocs' job and it already fails the build in strict mode.
+    """
+    inline_link = re.compile(r"\]\(([^)]+)\)")
+    has_scheme = re.compile(r"^[a-z][a-z0-9+.\-]*:", re.IGNORECASE)
+    docs = (ROOT / "docs").resolve()
+
+    escapes: list[str] = []
+    for page in sorted(docs.rglob("*.md")):
+        for raw in inline_link.findall(page.read_text(encoding="utf-8")):
+            target = raw.split("#", 1)[0].split(" ", 1)[0].strip()
+            if not target or target.startswith(("/", "#")) or has_scheme.match(target):
+                continue
+            resolved = (page.parent / target).resolve()
+            if docs not in resolved.parents:
+                escapes.append(f"{page.relative_to(ROOT)} links {target}")
+
+    assert not escapes, "links escape the documentation site: " + "; ".join(escapes)
