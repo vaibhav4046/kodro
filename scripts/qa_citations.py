@@ -60,6 +60,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 CITE = re.compile(
     r"`?([A-Za-z0-9_.][A-Za-z0-9_./\-]*"
@@ -83,8 +84,7 @@ ALLOWLIST_NAME = "qa_citations_allow.txt"
 
 
 def repo_root() -> str:
-    here = os.path.dirname(os.path.abspath(__file__))
-    return os.path.dirname(here)
+    return str(Path(__file__).resolve().parent.parent)
 
 
 def load_allowlist(root: str) -> tuple[dict[str, str], dict[str, str]]:
@@ -96,12 +96,12 @@ def load_allowlist(root: str) -> tuple[dict[str, str], dict[str, str]]:
     so in its own text. Per-file waivers are a coverage hole by construction,
     so the gate prints them on every run rather than letting them go quiet.
     """
-    path = os.path.join(root, "scripts", ALLOWLIST_NAME)
+    path = Path(root) / "scripts" / ALLOWLIST_NAME
     per_line: dict[str, str] = {}
     per_file: dict[str, str] = {}
-    if not os.path.exists(path):
+    if not path.exists():
         return per_line, per_file
-    with open(path, "r", encoding="utf-8") as fh:
+    with path.open(encoding="utf-8") as fh:
         for raw in fh:
             line = raw.strip()
             if not line or line.startswith("#"):
@@ -109,7 +109,7 @@ def load_allowlist(root: str) -> tuple[dict[str, str], dict[str, str]]:
             key, _, reason = line.partition("#")
             key = key.strip()
             reason = reason.strip() or "no reason recorded"
-            head, sep, tail = key.rpartition(":")
+            _, sep, tail = key.rpartition(":")
             if sep and tail.isdigit():
                 per_line[key] = reason
             else:
@@ -133,9 +133,7 @@ class Repo:
     def lines(self, rel: str) -> list[str] | None:
         if rel not in self._cache:
             try:
-                with open(
-                    os.path.join(self.root, rel), "r", encoding="utf-8", errors="replace"
-                ) as fh:
+                with (Path(self.root) / rel).open(encoding="utf-8", errors="replace") as fh:
                     self._cache[rel] = fh.read().splitlines()
             except OSError:
                 self._cache[rel] = None
@@ -146,9 +144,9 @@ class Repo:
         then a unique suffix match so shorthand like `engine/foo.py` works."""
         if target in self.tracked:
             return target, False
-        here = os.path.dirname(citing)
+        here = citing.rpartition("/")[0]
         if here:
-            rel = os.path.normpath(os.path.join(here, target)).replace("\\", "/")
+            rel = os.path.normpath(f"{here}/{target}").replace("\\", "/")
             if rel in self.tracked:
                 return rel, False
         hits = sorted(p for p in self.tracked if p.endswith("/" + target))

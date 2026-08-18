@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import tkinter as tk
 
-from .. import __version__
+from robolearn import __version__
 
 #: Number of milliseconds the splash stays on screen.
 SPLASH_DURATION_MS: int = 250

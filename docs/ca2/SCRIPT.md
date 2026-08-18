@@ -99,7 +99,7 @@ Export the build and validate it over MCP.
 
 This block read "the sensor gate refusing a sensor the chassis cannot carry"
 until 15 August. There is no chassis-capacity gate to film. The gate refuses a
-command whose part is not fitted, `bundle.js:15221`, and `RobotLab.jsx:936` says
+command whose part is not fitted, `bundle.js:15821`, and `RobotLab.jsx:936` says
 in the product's own words that payload capacity is not modelled. Demonstrating
 a capacity refusal would have meant staging one on camera. The disclaimer is the
 stronger shot anyway: a tool that names its own blind spot is worth more here

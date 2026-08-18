@@ -164,8 +164,7 @@ def run_against_lesson(
         verdict = GradeResult(
             passed=False,
             reasons=[
-                f"{execution.error_kind}: {execution.error_message} "
-                f"(line {execution.error_line})"
+                f"{execution.error_kind}: {execution.error_message} (line {execution.error_line})"
             ],
             score=0,
         )

@@ -32,7 +32,7 @@ import json
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -42,7 +42,9 @@ TARGET = REPO / "docs" / "eval" / "test_suite.json"
 def git(*args: str) -> str:
     return subprocess.run(
         ["git", "-C", str(REPO), *args],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
 
 
@@ -97,7 +99,7 @@ def capture(path: Path) -> int:
         "commit": git("rev-parse", "HEAD"),
         "describe": git("describe", "--always"),
         "workingTreeClean": git("status", "--porcelain") == "",
-        "capturedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "capturedAt": datetime.now(UTC).replace(microsecond=0).isoformat(),
     }
     path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
     print(f"captured {state['describe']} clean={state['workingTreeClean']} -> {path}")
@@ -128,7 +130,7 @@ def main() -> int:
     # a fresh timestamp would make every check differ and the gate would mean
     # nothing.
     if not args.check:
-        doc["generatedAt"] = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        doc["generatedAt"] = datetime.now(UTC).replace(microsecond=0).isoformat()
     doc["source"]["commit"] = pre["commit"]
     doc["source"]["describe"] = pre["describe"]
     doc["source"]["workingTreeClean"] = pre["workingTreeClean"]
@@ -137,9 +139,7 @@ def main() -> int:
     doc["failureDetail"] = failures
     doc["coverage"] = coverage
     doc["verdict"] = (
-        "PASS"
-        if not failures and coverage["percentCovered"] >= coverage["gate"]
-        else "FAIL"
+        "PASS" if not failures and coverage["percentCovered"] >= coverage["gate"] else "FAIL"
     )
 
     rendered = json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
@@ -155,8 +155,11 @@ def main() -> int:
         f"{coverage['percentCovered']}% covered, verdict {doc['verdict']}"
     )
     if doc["source"]["workingTreeClean"] is False:
-        print("WARNING: the tree was dirty when the run started; the recorded "
-              "commit does not reproduce these counts", file=sys.stderr)
+        print(
+            "WARNING: the tree was dirty when the run started; the recorded "
+            "commit does not reproduce these counts",
+            file=sys.stderr,
+        )
     return 0
 
 
