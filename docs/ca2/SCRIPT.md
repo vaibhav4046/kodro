@@ -239,20 +239,26 @@ Say "stop". Show it taking priority.
 
 Screen: `docs/eval/test_suite.json`, then a terminal with the gate output.
 
-> "The test suite artefact records the commit, a clean working tree, and the
-> counts read from the run's own output rather than typed in by hand. One
-> thousand six hundred and forty-one tests collect and all of them pass. Nothing
-> skipped in this run, and I would not read that as a fix: the same suite on this
-> machine has reported one skip, then two, then none, because thirteen test files
-> open a desktop toolkit window and degrade to a skip when it fails to start.
-> Branch-aware coverage is ninety point eight five percent against an eighty-five
-> percent gate."
+> "The test suite artefact records the commit it was taken at, a clean working
+> tree, and counts read from the run's own output rather than typed in by hand.
+> At that commit, one thousand six hundred and forty-one tests collect and all
+> of them pass. The commit I am shipping is one ahead: there the suite collects
+> one thousand six hundred and forty-two, passes one thousand six hundred and
+> forty-one, and skips one. The extra test is one I added. The skip is a desktop
+> toolkit that does not always start on this machine, and I would not read it
+> either way: the same suite here has reported one skip, then two, then none,
+> then none, then one. Branch-aware coverage is ninety point eight five percent
+> on screen against an eighty-five percent gate, and ninety point seven eight on
+> the commit I am shipping."
 
 Stop at the end of that. Do not offer a cause for the intermittency on camera,
-and do not present the clean run as the problem being solved. Saying "nothing
-skipped in this run" and then immediately saying why that is weak evidence is
-the whole point of the block: a marker who has read the artefact will already
-know the count moves, and volunteering it is worth more than being asked.
+and do not present either count as the problem being solved or as a regression.
+Naming the skip and then immediately saying why it is weak evidence in both
+directions is the whole point of the block: a marker who has read the artefact
+will already know the count moves, and volunteering it is worth more than being
+asked. Say "on screen" for the eighty-five figure only while the artefact is
+actually on screen; if the shot has moved on, drop those two words and name the
+commit instead.
 
 Two things in this block were wrong until 15
 August. It said "one thousand six hundred and twenty-six" collecting and
@@ -279,6 +285,35 @@ went to zero on its own, which is why the narration now spends a sentence saying
 that a clean run is not a fix. The old line named the skip and explained it; the
 new line has to explain its absence, which is the harder of the two to say
 honestly.
+
+Updated 18 August, and this revision adds a commit rather than replacing a
+number. The release commit `66e8632` bumps the package to 2.1.0, and it is the
+first commit since 17 August to touch Python source, so `test_suite.json` no
+longer pins the commit being shipped. It was left pinned on purpose: the
+dissertation quotes its commit and its figures at five places and the ledger at
+four more, and everything all nine of them say about `e70b98b` is still true and
+still reproducible from a checkout. Regenerating would have moved twenty-nine
+sites, two of them in the declaration and the abstract, and forced a rebuild of
+a sixty-page PDF, in order to replace true statements with different true
+statements. The full reasoning and the release run are in
+`.kodro/ca2-evidence/2026-08-18-release-run-and-artefact-divergence.md`.
+
+That leaves this block speaking about two commits, which is why it now names
+both. Do not merge them back into one pair of numbers to make the sentence
+shorter. The artefact on screen says 1,641 and 1,641; the shipped commit
+collects 1,642 and skips one; and a narration that shows the first while saying
+the second is exactly the kind of mismatch a marker notices on a freeze-frame.
+The skip is back after two clean runs, which makes five runs on this host
+reading one, two, none, none, one. It was checked rather than assumed: the test
+passes three times out of three in isolation and only skips inside a full-process
+run. That is another data point for "not root-caused", so the standing
+instruction not to offer a cause on camera is unchanged.
+
+Time this block before recording. It gained roughly twenty words and the slot is
+fifty seconds. If it overruns, cut the sentence "The extra test is one I added"
+and nothing else: the skip caveat and the coverage sentence are both load-bearing,
+the first because it is the honest half of the claim and the second because
+`[EXPAND-4]` joins onto it.
 
 > "The honesty gate is the one worth naming. A hundred and twenty-one checks
 > whose only job is to stop the product claiming something the evidence does not
@@ -319,7 +354,15 @@ Updated 17 August. The master narration now ends that block on "ninety point
 eight five percent against an eighty-five percent gate", so the two quoted
 figures above are what the block said on 15 August rather than what it says now.
 The overlap finding is unaffected and the insert still opens on the floor rather
-than on the number. The ordering of the spoken lines was kept deliberately when
+than on the number.
+
+Updated 18 August. That block's closing sentence now names two coverage figures,
+ending "ninety point eight five percent on screen against an eighty-five percent
+gate, and ninety point seven eight on the commit I am shipping". The join still
+works because coverage is still the last thing said, which is the property this
+insert depends on. The floor disclosure below applies to both figures equally,
+so the insert needs no change: the harness drops the same subprocess
+contribution in either run. The ordering of the spoken lines was kept deliberately when
 the figures were updated: the skip caveat sits in the middle and coverage stays
 last, because this insert is written to land on that block's final frame and
 continue the coverage sentence. Moving coverage off the end would have broken

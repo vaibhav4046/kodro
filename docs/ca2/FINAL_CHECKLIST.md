@@ -58,8 +58,11 @@ are also the three that can invalidate everything else.
       participant data anywhere in tracked files. Run a secret scan
 - [ ] Generated artefacts match their sources: the lesson export hash matches on
       regeneration, and the bundle matches its source
-- [x] `docs/eval/test_suite.json` reflects a clean-tree run at the commit being
-      submitted, not an older one. Done on 17 August: it now pins `e70b98b`,
+- [x] `docs/eval/test_suite.json` pins a clean-tree run at a named commit, and
+      any divergence between that commit and the one being submitted is
+      disclosed rather than left for a marker to find. Read the 18 August note
+      at the end of this item first: as of the release commit the artefact and
+      HEAD are deliberately not the same commit. Done on 17 August: it pins `e70b98b`,
       1,641 collected, 1,641 passed, 0 skipped, 90.85 percent. The nine
       dependent sites moved with it in the same change, and two more were found
       that the recorded procedure below does not catch, both in `SCRIPT.md`,
@@ -89,7 +92,39 @@ are also the three that can invalidate everything else.
       two strings leaves the other sites stale. Procedure and the full edit
       table are in
       `.kodro/ca2-evidence/2026-08-14-test-suite-evidence.md`, which records
-      seven edits and is the authority
+      seven edits and is the authority.
+      Updated 18 August, and the update is that the divergence check above
+      fired and the recommended fix was refused. The release commit `66e8632`
+      bumps to 2.1.0 and is the first commit since 17 August to touch Python
+      source, so
+      `git diff e70b98b..HEAD -- tests/ 'src/robolearn/**/*.py'` is now
+      non-empty: `src/robolearn/ui/splash.py` +4/-1, where a hardcoded `v2.0.0`
+      became a metadata lookup, and `tests/unit/test_splash_and_main.py` +21,
+      one regression test pinning it. The artefact was **not** regenerated. The
+      warning three paragraphs up is the reason: twenty-nine sites move
+      together, five of them inside the dissertation with one in the
+      declaration and one in the abstract, and the PDF would need rebuilding.
+      Every one of those sites names `e70b98b`, and everything they say about
+      `e70b98b` is still true and still reproducible from a checkout, so
+      regenerating would replace true statements with different true statements
+      at the cost of a document-wide edit days before submission. Instead the
+      release run was taken and disclosed: at `66e8632`, clean tree, 1,642
+      collected, 1,641 passed, 1 skipped, 90.78 percent, exit 0. The full run,
+      the skip characterisation and the reasoning are in
+      `.kodro/ca2-evidence/2026-08-18-release-run-and-artefact-divergence.md`.
+      `CLAIM_LEDGER.md` carries both pairs of figures as separate rows,
+      `SCRIPT.md` and `ca2-demo-script.md` speak the release pair, and the
+      dissertation keeps the pinned pair. If a later change makes the two
+      commits diverge on something that actually alters behaviour rather than a
+      version string, that judgement flips and the twenty-nine-site
+      regeneration has to happen. Read the diff before deciding, do not reuse
+      this decision by default.
+      One trap found in the release run, worth more than the decision itself: a
+      leftover coverage JSON at the target path survived and reported the
+      previous day's figures, which happened to match the `e70b98b` artefact
+      exactly. Cross-check `meta.timestamp` in the coverage JSON against the
+      JUnit XML timestamp, or delete the target first. Publishing 90.85 for a
+      run that measured 90.78 was one careless read away
 - [ ] This item read "lines 150, 160 and 633 ... so all four move together"
       until 15 August. Those are exactly the three sites carrying the commit
       name, presented as though they were the sites carrying the figures, which

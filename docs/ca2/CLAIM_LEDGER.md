@@ -57,10 +57,12 @@ its row.
 
 | Claim | Evidence | Command |
 |---|---|---|
-| 1,641 Python tests collect, all 1,641 pass, none skip | `docs/eval/test_suite.json` | `python -m pytest --cov-report=json --junitxml=...` |
-| 90.85 percent branch-aware coverage against an 85 percent gate | same | same |
-| A run with no skip is not evidence the Tk intermittency is fixed | `source.provenanceNote` in the same file | same |
-| The counts are reproducible from a clean checkout | `source.workingTreeClean: true` at commit `e70b98b` | `git status --porcelain` before the run |
+| At commit `e70b98b`, 1,641 Python tests collect, all 1,641 pass, none skip | `docs/eval/test_suite.json` | `git checkout e70b98b`, then `python -m pytest --cov-report=json --junitxml=...` |
+| At that commit, 90.85 percent branch-aware coverage against an 85 percent gate | same | same |
+| At the release commit `66e8632`, 1,642 collect, 1,641 pass, 1 skips, 90.78 percent | `.kodro/ca2-evidence/2026-08-18-release-run-and-artefact-divergence.md` | the same pytest command, run at HEAD |
+| The extra collected test is one added test, not padding | `tests/unit/test_splash_and_main.py::test_splash_shows_package_version` | `git diff e70b98b..HEAD -- tests/` |
+| Neither a run with a skip nor a run without one says anything about the Tk intermittency | `source.provenanceNote` in the artefact, and the skip section of the 18 August log | same |
+| The counts are reproducible from a clean checkout | `source.workingTreeClean: true`, recorded at `e70b98b` and captured again at `66e8632` | `git status --porcelain` before the run |
 | The counts and coverage are machine-read, not transcribed | `scripts/gen_test_suite_json.py` reads the run's JUnit XML and coverage JSON | `python scripts/gen_test_suite_json.py --check ...` |
 
 Updated 17 August, and the change of subject matters more than the change of
@@ -99,6 +101,36 @@ The coverage figure is a conservative floor, not a ceiling. `tests/conftest.py`
 drops the coverage contribution of node-subprocess tests on this exact host
 combination while still running them. That disclosure is in the artefact and
 should be said out loud if coverage comes up in the Q&A.
+
+Updated 18 August, and this time the table gained a row rather than changing
+one. The release commit `66e8632` bumps the package to 2.1.0 and, in doing so,
+becomes the first commit since the artefact was generated to touch Python
+source: `src/robolearn/ui/splash.py` stopped carrying a hardcoded `v2.0.0` and
+now reads the version from package metadata, with one regression test pinning
+that. `FINAL_CHECKLIST.md` says to regenerate the artefact when that happens.
+It has not been regenerated, deliberately, and the reasoning is in
+`.kodro/ca2-evidence/2026-08-18-release-run-and-artefact-divergence.md`. The
+short version is that every site quoting the artefact names commit `e70b98b`,
+every claim about `e70b98b` is still true and still reproducible, and
+regenerating would move five figures inside the dissertation and force a rebuild
+of a sixty-page PDF in order to replace true statements with different true
+statements.
+
+What that costs is a second pair of numbers to keep straight, which is why they
+are separate rows above rather than one row with a caveat. Say the pinned pair
+when the artefact is on screen. Say the release pair if asked what the shipped
+commit does. The difference between them is one added test and one skip, and
+both are accounted for. The one thing that must not be said is the old row as it
+stood until today, "1,641 collect, all 1,641 pass, none skip" with a bare
+`pytest` as its command, because at the release commit that command returns
+1,642, 1,641 and one skip, and a claim that fails its own verification command
+is worse than no claim.
+
+The skip in the release run is the same host intermittency described above, and
+it was checked rather than assumed: the test passes three times out of three in
+isolation and only skips inside a full-process run. That is one more data point
+for "not root-caused", not a new fact. The count of full runs on this host is
+now five: 1 skip, then 2, then 0, then 0, then 1.
 
 ### Lessons
 

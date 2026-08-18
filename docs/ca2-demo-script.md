@@ -82,17 +82,25 @@ Key talking points, in priority order:
    before it reaches the user. The model is not trusted alone."
 4. "The system self-refines from usage through reflection memory and a
    skill library. No weight retraining. Honest system-level refinement."
-5. "1,641 tests passing, 90.85 percent coverage against an 85 percent gate,
-   and 180 of 180 on the interpreter conformance gate. CI runs on Linux,
-   Windows and macOS; Linux and Windows gate the build, macOS is
+5. "1,641 of 1,642 tests pass and the single skip is a known local toolkit
+   flake rather than a failure. Coverage is 90.78 percent against an 85
+   percent gate, and 180 of 180 on the interpreter conformance gate. CI runs
+   on Linux, Windows and macOS; Linux and Windows gate the build, macOS is
    informational."
 
-> Source for the numbers in line 5, re-checked 17 August 2026. Tests and
-> coverage: [`docs/eval/test_suite.json`](eval/test_suite.json), which records
-> 1641 collected, 1641 passed, 0 skipped and 90.85 percent at commit `e70b98b`
-> on a clean tree. It recorded 1639, 1638, 1 skipped and 90.9 percent at
-> `aa174cf` when this line was first checked on 15 August. A run with no skip
-> is not evidence the Tk intermittency was fixed; see `CLAIM_LEDGER.md`. Interpreter: `node scripts/qa_interpreter.mjs`, logged in
+> Source for the numbers in line 5, re-checked 18 August 2026. Tests and
+> coverage now come from the release run at commit `66e8632`, clean tree,
+> logged in
+> [`.kodro/ca2-evidence/2026-08-18-release-run-and-artefact-divergence.md`](../.kodro/ca2-evidence/2026-08-18-release-run-and-artefact-divergence.md):
+> 1,642 collected, 1,641 passed, 1 skipped, 90.78 percent, exit 0.
+> [`docs/eval/test_suite.json`](eval/test_suite.json) still pins the earlier
+> commit `e70b98b` at 1641, 1641, 0 skipped and 90.85 percent, and that is
+> deliberate rather than stale: it stays pinned because the dissertation quotes
+> it at five places and everything it says about `e70b98b` remains true.
+> If the artefact is on screen, speak its figures. Line 5 is spoken over the
+> product, so it speaks the shipped commit. The extra collected test is one
+> added test, not padding. Neither the presence nor the absence of a skip says
+> anything about the Tk intermittency; see `CLAIM_LEDGER.md`. Interpreter: `node scripts/qa_interpreter.mjs`, logged in
 > [`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md).
 > CI legs and the macOS `continue-on-error` exemption: `.github/workflows/ci.yml`
 > lines 18 and 25. Re-check these before saying them out loud; the earlier

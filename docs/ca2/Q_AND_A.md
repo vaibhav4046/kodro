@@ -54,9 +54,12 @@ tests while still running them, so the true figure is at least what is reported.
 
 No, and the artefact says so itself. The run you are looking at collected 1,641
 and passed 1,641 with no skip, but I would not offer that as evidence that a
-known problem went away. The skip count moves on this machine. Three runs of the
-same 1,639 tests gave one skip, then two, then none, and this 1,641-test run
-gave none. Thirteen test files open a Tk window in a fixture, and 169 collected
+known problem went away, and the commit I am shipping proves the point: it
+collected 1,642, passed 1,641 and skipped one. The extra collected test is one
+I added with the version bump, and the skip is the same intermittency. The skip
+count moves on this machine. Five runs now: three of the same 1,639 tests gave
+one skip, then two, then none; the 1,641-test run gave none; and the 1,642-test
+run gave one. Thirteen test files open a Tk window in a fixture, and 169 collected
 tests sit behind those guards. When the toolkit fails to start, the fixture
 catches the error and skips instead of failing, so a bad run takes a whole file
 with it and a clean run tells you the toolkit started that time, nothing more.
@@ -69,6 +72,15 @@ in the harness randomises order; and it is not a leaked working directory or
 Tcl environment variable, because nothing in the source or the tests touches
 either. The recorded error, when it does fire, is that the toolkit cannot find
 its initialisation script.
+
+One more thing was ruled out on 18 August, and it is the useful one. The test
+that skipped is not a broken test: run on its own it passes three times out of
+three. It only skips inside the full run, after other files have already opened
+and closed toolkit windows in the same process. The error text also names a file
+that exists on disk, so the message is misleading about what is missing. That
+narrows where the fault is without establishing it, which is as far as I am
+willing to go. If you want the observation rather than a theory: it looks like
+process state rather than environment, and I have not proven that.
 
 One more thing I would rather volunteer than have found. An earlier version of
 this artefact named a specific test alongside that error and the pair was wrong:
