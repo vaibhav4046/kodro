@@ -114,7 +114,7 @@ should be said out loud if coverage comes up in the Q&A.
 
 | Claim | Evidence | Command |
 |---|---|---|
-| The server is `kodro` version 2.0.0 | initialize response | `python scripts/smoke_mcp.py` |
+| The server is `kodro` version 2.1.0 | initialize response | `python scripts/smoke_mcp.py` |
 | It exposes 8 tools and 25 resources | tools/list and resources/list, counted at run time | same |
 | Both entry points work: the console script and `python -m robolearn.mcp` | 2 of 2 entry points clean | same |
 | Bad input is refused, not silently defaulted | four negative cases pass: bad lesson id, unknown tool, misspelled argument, bad URI | same |

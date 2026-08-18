@@ -5,7 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Untracked point tags
+
+`v2.0.1` and `v2.0.2` were tagged in July 2026 without a version bump or a
+CHANGELOG entry, and `v2.0-submission` is a marker rather than a semver
+release. They are recorded here rather than backfilled, because nobody now
+knows what each one was meant to carry and inventing entries would be worse
+than the gap.
+
 ## [Unreleased]
+
+## [2.1.0] - 2026-08-18
+
+### Added
+- MCP server (`kodro-mcp`) exposing lessons, grading and project interop over stdio JSON-RPC.
+- Voice layer with barge-in for spoken and typed input, and a wake word matched to what a real recogniser returns.
+- Streamed city scenery, so the 3D world no longer ends at a visible wall.
+- Gates: `scripts/qa_city_stream.mjs`, `scripts/qa_secrets.mjs`, and a citation line-anchor check.
+
+### Changed
+- The `kodro` console command launches the studio rather than the batch runner.
+- mkdocs and the web build no longer share `site/`.
+- Nine UI sites that hardcoded one theme now follow the active theme.
+- The splash screen reads its version from package metadata instead of a frozen literal.
+
+### Fixed
+- A program that never ran now scores 0 over MCP rather than partial credit.
 
 ## [2.0.0] - 2026-07-07
 

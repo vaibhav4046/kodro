@@ -69,6 +69,13 @@ git push origin vX.Y.Z
 The `release.yml` workflow then builds the Windows, macOS and Linux
 binaries via PyInstaller and attaches them to the release.
 
+**Settled on 18 August 2026.** The table above is left as measured. What was
+done: `pyproject.toml` bumped to `2.1.0`, a dated `[2.1.0]` CHANGELOG entry
+added for the work on this branch, and a line added to the CHANGELOG recording
+that `2.0.1` and `2.0.2` were point tags cut without entries. No published tag
+was deleted or moved. The splash screen no longer carries a frozen version
+literal, so the three records cannot drift apart the same way again.
+
 ## 3. Deferred polish (P7 + P8)
 
 The "polish-to-90" sweep deliberately stopped after **P1–P6** and

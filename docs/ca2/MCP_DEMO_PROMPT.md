@@ -81,7 +81,7 @@ a correct run produces.
 
 | # | Call | What it returns |
 |---|---|---|
-| 1 | `initialize` | `kodro 2.0.0` |
+| 1 | `initialize` | `kodro 2.1.0` |
 | 2 | `tools/list` | 8 tools |
 | 3 | `list_lessons` `concept=debug` | `00d_fix_the_turn` (KS2), `04a_fix_the_condition` (KS3) |
 | 4 | `get_lesson` `00d_fix_the_turn` | KS2, "Fix the Broken Program", 3 criteria, `hasSolution: true` with the solution itself withheld, starter of 3 lines |
@@ -173,7 +173,7 @@ python scripts/smoke_mcp.py
 Point at these four lines as they scroll:
 
 ```
-PASS  initialize -> kodro 2.0.0
+PASS  initialize -> kodro 2.1.0
 PASS  tools/list -> 8 tools (check_api, get_lesson, grade_program, list_lessons, prove_contracts, pupil_progress, run_program, validate_robot_spec)
 PASS  resources/list -> 25 resources
 PASS  tools/call with a misspelled argument -> isError

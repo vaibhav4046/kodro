@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 import robolearn.__main__ as main_mod
+from robolearn import __version__
 from robolearn.ui.splash import SPLASH_DURATION_MS, show_splash
 
 
@@ -73,3 +74,23 @@ def test_main_handles_app_exception(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     # Guarded top-level: returns 1, never raises.
     rc = main_mod.main([])
     assert rc == 1
+
+
+def _labels(widget: tk.Misc) -> list[str]:
+    """Every label string in the widget subtree."""
+    found = []
+    if isinstance(widget, tk.Label):
+        found.append(str(widget.cget("text")))
+    for child in widget.winfo_children():
+        found.extend(_labels(child))
+    return found
+
+
+def test_splash_shows_package_version(root: tk.Tk) -> None:
+    """Splash must derive its version, not carry a frozen literal.
+
+    It read "v2.0.0" for the whole 2.0.x line and would have kept reading it
+    after the 2.1.0 bump, so the check is that the string tracks metadata.
+    """
+    texts = _labels(show_splash(root))
+    assert any(f"v{__version__}" in t for t in texts), texts

@@ -87,8 +87,8 @@ init = rpc(
 )["result"]
 info = init["serverInfo"]
 ok(
-    info["name"] == "kodro" and info["version"] == "2.0.0",
-    "1  initialize -> kodro 2.0.0",
+    info["name"] == "kodro" and info["version"] == "2.1.0",
+    "1  initialize -> kodro 2.1.0",
     info["name"] + " " + info["version"],
 )
 proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n")
