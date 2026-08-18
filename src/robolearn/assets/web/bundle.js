@@ -32216,7 +32216,7 @@ say("Survey done")`
     function seedLessonWorld(lessonId) {
       const G = window.KodroLessonGrader;
       // getEntry, not LESSON_DATA: the generated table holds only the shipped
-      // 18, and an authored lesson would seed an empty arena and then be
+      // library, and an authored lesson would seed an empty arena and then be
       // ungradable. The fallback keeps this working against an older grader
       // during a partial rebuild.
       const entry = G && G.getEntry ? G.getEntry(lessonId) : G && G.LESSON_DATA ? G.LESSON_DATA[lessonId] : null;
