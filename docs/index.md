@@ -8,7 +8,7 @@
 Kodro is a self-contained desktop studio for a capable non-expert adult who
 wants to design and test robot behaviour without a lab, a kit, or a cloud
 subscription. Try it in the browser, zero install, at
-[vaibhav4046.github.io/robolearn](https://vaibhav4046.github.io/robolearn/);
+[vaibhav4046.github.io/kodro](https://vaibhav4046.github.io/kodro/);
 the full desktop app adds the local Python engine, lesson grading and
 multi-pupil progress.
 

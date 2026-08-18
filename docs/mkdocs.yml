@@ -1,8 +1,8 @@
 site_name: Kodro
 site_description: Offline AI-assisted robotics design and simulation platform. Build a robot, program it, validate it in a 3D world, all on one laptop.
-site_url: https://vaibhav4046.github.io/robolearn
-repo_url: https://github.com/vaibhav4046/robolearn
-repo_name: vaibhav4046/robolearn
+site_url: https://vaibhav4046.github.io/kodro
+repo_url: https://github.com/vaibhav4046/kodro
+repo_name: vaibhav4046/kodro
 docs_dir: .
 # NOT ../site. That directory is the Kodro Web static build (build_web.cjs
 # --static) and it is what deploy-pages.yml uploads to GitHub Pages. Pointing

@@ -12,8 +12,8 @@ KS1 taster. A pupil designs a robot from real parts, writes
 Python to drive it, watches it run in a 3D world, and gets marked on that run.
 It runs in a browser with no install, no account, no server and no API calls.
 
-Live: https://vaibhav4046.github.io/robolearn/
-Repository: https://github.com/vaibhav4046/robolearn
+Live: https://vaibhav4046.github.io/kodro/
+Repository: https://github.com/vaibhav4046/kodro
 
 ## Is it ready
 

@@ -9,12 +9,12 @@ certify a physical robot.
 
 Choose one route:
 
-- Browser: open <https://vaibhav4046.github.io/robolearn/>. The first load
+- Browser: open <https://vaibhav4046.github.io/kodro/>. The first load
   needs internet access. The app can then use its cached files offline.
 - Cloned repository: run `python scripts/demo.py`.
 - Windows release: run `Kodro-windows.exe`. If WebView2 is unavailable, use
-  `robolearn-windows-tk.exe`.
-- macOS release: unpack `robolearn-macos.zip`.
+  `Kodro-windows-tk.exe`.
+- macOS release: unpack `Kodro-macos.zip`.
 - Installed source checkout: run `python -m robolearn.web` for the current
   web interface in a desktop window.
 

@@ -76,8 +76,8 @@ kodro-prove = "robolearn.prove:main"
 kodro-mcp = "robolearn.mcp.server:main"
 
 [project.urls]
-Homepage = "https://github.com/vaibhav4046/robolearn"
-Issues = "https://github.com/vaibhav4046/robolearn/issues"
+Homepage = "https://github.com/vaibhav4046/kodro"
+Issues = "https://github.com/vaibhav4046/kodro/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/robolearn"]

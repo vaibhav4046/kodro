@@ -82,7 +82,7 @@ behaviour in a realistic simulated WORLD → the system self-refines from usage.
 ## 2. WHERE EVERYTHING LIVES
 
 **Project root:** `D:\project\robolearn`  (Windows 11, PowerShell + Bash both available)
-**GitHub:** https://github.com/vaibhav4046/robolearn  (remote `origin`, branch `main`)
+**GitHub:** https://github.com/vaibhav4046/kodro  (remote `origin`, branch `main`)
 **Portfolio site:** repo `vaibhav-portfolio` (static, deployed on Vercel)
 **GitHub profile README:** repo `vaibhav4046` (profile). GH push email is the noreply form.
 **User email:** the account's own address; commits use the GitHub noreply form above.   **Today:** 2026-06-14
@@ -242,7 +242,7 @@ All under `src/robolearn/assets/web/`:
 8. Regenerate the PDF and proof it in the browser/PDF viewer.
 
 **TRACK C — GITHUB / PORTFOLIO (parallel)**
-9. Update `vaibhav4046/robolearn`: polished README with **screenshots** (capture from the
+9. Update `vaibhav4046/kodro`: polished README with **screenshots** (capture from the
    browser), feature list, the design→program→validate→refine loop, build/run instructions,
    architecture diagram, the honest QA numbers (21/21 interpreter, 851 pytest).
 10. Add a Kodro project card to the portfolio (`vaibhav-portfolio`) and the profile README

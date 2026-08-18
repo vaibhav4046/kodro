@@ -15,11 +15,11 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            artifact-name: robolearn-linux
+            artifact-name: Kodro-linux
           - os: windows-latest
-            artifact-name: robolearn-windows
+            artifact-name: Kodro-windows
           - os: macos-latest
-            artifact-name: robolearn-macos
+            artifact-name: Kodro-macos
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -58,15 +58,15 @@ jobs:
             # the headline app. Copy it unconditionally so a missing headline
             # binary fails the release instead of quietly publishing without it.
             cp dist/Kodro.exe out/Kodro-windows.exe
-            cp dist/robolearn-tk.exe out/robolearn-windows-tk.exe
+            cp dist/robolearn-tk.exe out/Kodro-windows-tk.exe
           elif [ "$RUNNER_OS" = "macOS" ]; then
             if [ -d dist/robolearn.app ]; then
-              (cd dist && zip -r -q ../out/robolearn-macos.zip robolearn.app)
+              (cd dist && zip -r -q ../out/Kodro-macos.zip robolearn.app)
             else
-              cp dist/robolearn out/robolearn-macos
+              cp dist/robolearn out/Kodro-macos
             fi
           else
-            cp dist/robolearn out/robolearn-linux
+            cp dist/robolearn out/Kodro-linux
           fi
 
       - name: Upload artifact
