@@ -21,7 +21,9 @@ pip-wheel-metadata/
 # Testing / coverage
 .pytest_cache/
 # Windows-only: the --basetemp escape hatch documented in CONTRIBUTING.md.
-.pytest-tmp/
+# Globbed on purpose: every run that needs the escape hatch invents its own
+# suffix, and this list had grown one literal at a time.
+.pytest-tmp*/
 .coverage
 coverage.xml
 htmlcov/
@@ -89,7 +91,6 @@ docs/eval/ui_eval_*.json
 # latexmk console captures, not the build itself. The evidence that survives a
 # run is docs/eval/*.json and the compiled PDF, both of which ARE tracked.
 .pytest-full.log
-.pytest-tmp-final/
 docs/dissertation/pass*.txt
 
 # The pdflatex console log embeds the absolute MiKTeX install path on whichever

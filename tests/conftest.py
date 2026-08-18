@@ -95,12 +95,32 @@ def pytest_runtest_teardown() -> None:
     different fixtures and once with no fixture at all
     (``test_main_handles_app_exception`` forces ``__main__.main`` into its error
     handler, which builds a root of its own). A predicate keyed on fixture names
-    misses that fourth shape and would go on missing new ones silently. A full
-    collect measures about 7 ms against this suite's heap, so roughly 12 s over
-    1642 tests. That is the price of not having to guess.
+    misses that fourth shape and would go on missing new ones silently.
 
-    Windows CI never hit this abort because it has no usable ``tk.tcl`` and skips
-    every Tk fixture, so it creates no interpreters to orphan.
+    It is not free. Two full runs on this host on the same day put the suite at
+    212.9 s without this hook and 335.6 s with it: about 75 ms a test, 123 s over
+    1645 tests, a 58 percent tax. An earlier version of this note claimed 7 ms,
+    which is what a full collect costs against a 41k-object heap in a standalone
+    probe, not what it costs against a live pytest session holding every collected
+    item, fixture and coverage table.
+
+    A generational collect is genuinely free here (``gc.collect(0)`` and
+    ``gc.collect(1)`` both measure 0.00 ms against that heap) and was still
+    rejected. Objects are promoted when they survive a collection, so the
+    module-scoped root in ``tests/unit/test_app.py`` is already in generation 2 by
+    the time its finaliser drops it, and a long test can push a function-scoped
+    root there too on allocation pressure alone. Only a full collect is guaranteed
+    to reach either. The failure being prevented is a hard abort on a platform
+    this repository cannot reproduce, so two minutes buys not having to guess
+    about it. Revisit if someone reproduces the abort locally.
+
+    The abort is macOS-specific so far, and nothing here explains why. Windows CI
+    ran these same Tk tests on the same commit (1,608 passed, 21 skipped) and
+    stayed green while the macOS job died with exit 134, and the full suite does
+    not abort on the Windows development host either, where Tk is available and
+    all 170 tests across the thirteen root-building files run for real. Since the
+    difference is unexplained rather than understood, the collect is unconditional
+    rather than fenced behind a platform check that would encode a guess.
     """
     gc.collect()
 

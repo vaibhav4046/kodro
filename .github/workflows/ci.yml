@@ -267,7 +267,7 @@ jobs:
       # in headless Chrome to prove two things a green Python/Node CI otherwise
       # cannot: the app actually BOOTS (React mounts, the studio paints) and its
       # default load makes ZERO app-originated external requests (the coded proof
-      # of "nothing leaves your machine"). Those 4 boot+privacy checks are the
+      # of "nothing leaves your machine"). Those boot+privacy checks are the
       # high-value smoke.
       #
       # Chrome is installed explicitly rather than relied on as an incidental
