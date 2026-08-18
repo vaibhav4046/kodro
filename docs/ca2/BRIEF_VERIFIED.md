@@ -116,8 +116,31 @@ strictest reading (59 sheets) has no support in any brief text that has been
 read. If the brief counts every sheet including front matter, the document is
 over by 9 and needs cutting.
 
-**Student action: read the page-limit clause in the current brief, decide which
-of the three counts it means, and record the decision here.**
+**RESOLVED 18 August 2026 from the CA3 brief text. The three readings above are
+superseded.** The brief says: "Please make the dissertation to be at most 50
+pages including all the title page, acknowledgement, declaration and references,
+but NOT appendix." So the operative count is neither of the arabic-only readings
+and neither of the sheet readings recorded above. It is
+
+    total sheets  -  appendix sheets
+
+Front matter counts. References count. Appendices are the sanctioned overflow.
+Measured against that rule on the 17 August PDF the document was 58 of 50, over
+by 8, which no reading recorded here had detected. It now measures 50 of 50: 61
+sheets total, appendices A to G occupying sheets 51 to 61, front matter 6 sheets,
+body and references 44. That is at the limit and not under it, so any later
+addition to the front matter or the body needs a matching cut or a move into an
+appendix.
+
+The reductions that closed the gap were: seven tables and one section-length
+enumeration moved to appendices with pointer prose left behind, margins tightened
+to 20/20/25/20 mm, contents depth capped at one level of nesting per the brief,
+the four preliminary sections packed onto shared pages instead of one page each,
+the duplicated provenance paragraph cut from the Declaration where Section 6.1
+already carries it in full, and a pass of paragraph, list and heading spacing. No
+evidence, caveat or disclosure was dropped; the relocated material carries its
+caveats into the appendix captions so the body still reads correctly without the
+appendices, which the brief requires.
 
 ### 3. Submission mechanics
 
@@ -277,10 +300,10 @@ table in section 2 is unchanged and still correct. What has changed is that the
 "50" in the handoff files is no longer the only number in play, and the two
 cannot both describe the same rule.
 
-**Student action unchanged, and now more pointed: read the page-limit clause in
-the current brief. If the 2026 rule is also "approximately 15 to 25 pages plus
-references and appendices", the dissertation is long by a wide margin and that
-is a content decision, not a formatting one.**
+**RESOLVED 18 August 2026; see section 2 above.** The 2026 CA3 rule is not
+"approximately 15 to 25 pages plus references and appendices". It is at most 50
+pages counting the title page, acknowledgements, declaration and references, and
+excluding appendices only. The document now measures exactly 50 under that rule.
 
 ### Reproducing
 

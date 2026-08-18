@@ -5,7 +5,7 @@
 % Compiles offline with tectonic or pdflatex.
 % House rule: no em-dashes and no en-dashes anywhere in body prose.
 \documentclass[11pt,a4paper]{report}
-\usepackage[a4paper,top=24mm,bottom=22mm,left=27mm,right=22mm]{geometry}
+\usepackage[a4paper,top=20mm,bottom=20mm,left=25mm,right=20mm]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage{microtype}
@@ -27,9 +27,9 @@
 \definecolor{rule}{RGB}{90,90,90}
 
 \captionsetup{font=small,labelfont=bf,labelsep=period,skip=6pt}
-\setlist{leftmargin=1.4em,topsep=3pt,itemsep=2pt,parsep=0pt}
+\setlist{leftmargin=1.3em,topsep=2pt,itemsep=1pt,parsep=0pt}
 \renewcommand{\baselinestretch}{1.0}
-\setlength{\parskip}{4pt}
+\setlength{\parskip}{3pt}
 \setlength{\parindent}{0pt}
 
 % Chapter and section headings: clean, close to the CA1 look.
@@ -38,10 +38,10 @@
   {\filright\large Chapter \thechapter}
   {4pt}
   {\Huge\filright}
-\titlespacing*{\chapter}{0pt}{6pt}{16pt}
+\titlespacing*{\chapter}{0pt}{0pt}{10pt}
 \titleformat{\section}{\normalfont\large\bfseries\color{uolblue}}{\thesection}{0.6em}{}
 \titleformat{\subsection}{\normalfont\bfseries}{\thesubsection}{0.6em}{}
-\titlespacing*{\section}{0pt}{12pt}{4pt}
+\titlespacing*{\section}{0pt}{10pt}{3pt}
 \titlespacing*{\subsection}{0pt}{8pt}{2pt}
 \titlecontents{chapter}
   [0pt]
@@ -145,35 +145,62 @@
 \pagenumbering{roman}
 \setcounter{page}{2}
 
-\chapter*{Declaration}
-\addcontentsline{toc}{chapter}{Declaration}
-I confirm that this dissertation is my own work and that it has not been submitted, in whole or in part, for any other degree or qualification. Where I have drawn on the work or ideas of others, the source is acknowledged in the text and listed in the references. The software described here was built over the project period and is held in a version controlled repository. Product claims in this edition were checked against the repository state tagged \texttt{v2.0-submission}. Every figure quoted here names the harness that produced it. Most of those harnesses write a committed artefact under \texttt{docs/eval} or \texttt{results} that records its own generation time, so the figure is checked by re-running the named command and comparing against that artefact rather than against this text. A small group of offline gates print their totals to standard output and emit no artefact; their commands and printed lines are transcribed into \texttt{docs/eval/qa\_gate\_runs\_2026-08-14.md}, which states on its face that it is a hand-written transcript, and those figures are checked by re-running the command alone. Seven artefacts postdate the tag, because their harnesses were either re-run after it or written for the first time after it: the synthetic-persona evaluation, the software-rasterised renderer run, the local-model generation run, the full Python test suite, the browser interface run, the hand-written gate transcript and the speech-to-text benchmark with its audio clips. Each carries its generation timestamp inside the committed file, and the tables that quote them say which run they come from. The test-suite artefact additionally records the commit it was taken on and the working-tree status at that commit, because the suite grew after tagging and its headline count therefore belongs to the commit named inside the artefact, \texttt{e70b98b}, rather than to \texttt{v2.0-submission}.
+% Front-matter headings that do not force a page break, so the four short
+% preliminary sections pack onto the pages they need rather than one each.
+\newcommand{\frontsection}[1]{%
+  \par\addvspace{12pt}%
+  {\large\bfseries\color{uolblue}#1\par}%
+  \addcontentsline{toc}{chapter}{#1}%
+  \nopagebreak\vspace{1pt}}
+
+\frontsection{Declaration}
+I confirm that this dissertation is my own work and that it has not been submitted, in whole or in part, for any other degree or qualification. Where I have drawn on the work or ideas of others, the source is acknowledged in the text and listed in the references. The software described here was built over the project period and is held in a version controlled repository. Product claims in this edition were checked against the repository state tagged \texttt{v2.0-submission}. Every figure quoted here names the harness that produced it, and Section~6.1 states in full which harness writes which committed artefact, which figures come from a hand-written transcript instead, and which artefacts postdate the tag because their harness was re-run or first written after it.
 
 \paragraph{Use of generative artificial intelligence.} Anthropic Claude and OpenAI Codex assisted with software implementation, debugging, test design, code review, prose revision and document formatting. Their outputs were treated as proposals rather than evidence. I selected the project direction, reviewed the resulting changes and remain responsible for the submitted software and text. Automated assistants also contributed to the simulated persona inspections reported later, which are labelled as synthetic and are not presented as human evidence. Numerical claims are retained only where a committed artefact or repeatable command supports them. No result from a human study is reported because that study has not been run.
 
-\chapter*{Abstract}
-\addcontentsline{toc}{chapter}{Abstract}
+\frontsection{Abstract}
 A person with an idea for a robot needs a cheap way to test the idea before buying hardware. Kodro is an offline-first desktop and static web proving ground for that early design stage. A builder imports a robot specification containing measured motor, battery, body and sensor values, then watches a disclosed-fidelity model of that design in a simulated world. A heavier build accelerates more slowly and drains its battery faster, a stronger motor raises the closed-form top speed, and the available programming commands follow the fitted hardware. The same platform lets a non-expert assemble a catalogue robot and program it in Python or blocks. The result is a design aid and learning environment, not a same-to-same digital twin, electrical design tool or certificate that a physical robot is safe.
 
 The honesty is structural. Every performance figure is badged HONOURED, APPROXIMATED or NOT SIMULATED, and a per-robot report states how each value was derived. JavaScript and Python implementations of the shared closed forms are held together by a constants hash, golden traces and formula-parity tests. Four declarative Prove contracts run over five controlled seeds each and emit canonical manifests containing the source hash, contract, seed, engine identity, conditions, metrics and verdict. Repeating a seed produces byte-identical evidence, and an intentionally broken controller fails the same gate. The assistant prefers a small local model through Ollama and receives the active build's command set. Grounding does not make generation infallible: the model can still invent or misuse a call. Kodro repairs when it can and otherwise withholds the program with the exact validation error, including when the requested sensor is absent. A deterministic fallback keeps the core usable without a model. The model may explain evidence, but it cannot alter a contract verdict. Reflection and skill stores are implemented as system memory, but this evaluation does not demonstrate that they reduce the iterations needed to reach a working design.
 
 At commit \texttt{e70b98b}, recorded with its working-tree status in \texttt{docs/\allowbreak eval/\allowbreak test\_\allowbreak suite.json}, the declared Python matrix collects 1,641 tests and passes all of them at 90.85 percent branch-aware coverage against an 85 percent gate; no test skipped in that run, which is not evidence that the host-dependent Tk intermittency the artefact records has been resolved, and the coverage figure is a floor because the local run discards the contribution of node-subprocess tests that continuous integration counts. The interpreter harness passes 180 of 180 checks. Four Prove contracts pass all twenty seeded runs, reproduce byte-identically and reject a broken controller. The shipped web build passes five boot and privacy checks, 74 contrast and responsive checks, a browser matrix of six rendered flows, 41 behaviours, six layouts and 13 modal surfaces, and a world sweep of 61 checks. Ten further gates hold the teaching half of the product, totalling 303 checks: every one of the twenty-four lessons ships a worked solution that must score 100 out of 100 through \emph{both} marking engines on every change, within the constructs that lesson declares and its own line budget, so a lesson whose own answer fails does not ship. A live-Ollama run compiles and runs eight of eight prompts through the real interpreter against a 60 percent floor, and the synthetic-persona artefact completes its 40 cells; neither is human-usability evidence. Renderer measurements meet the 4.17 ms render-work budget a 240 Hz display would require in every sample on the host's integrated GPU (median 144.5 FPS Low, 128.2 High) and miss it under forced software rasterisation (median 18.1 FPS Low, 13.9 High), the disclosed floor for a machine with no working graphics driver. These are engineering verification results, not evidence that the simulation predicts a physical robot to deployment tolerance or that real users find the product useful. No human study is reported. The contribution is the integration of specification-driven behaviour, disclosed fidelity, build-aware generation and deterministic rejection into a zero-cost early design and learning tool.
 
-\chapter*{Statement of Ethical Compliance}
-\addcontentsline{toc}{chapter}{Statement of Ethical Compliance}
+\frontsection{Statement of Ethical Compliance}
 The reported evaluation uses simulated personas and automated traces only. It involves no human participants and no personal data used as research data, and it therefore sits in ethics data category A0 with participant category 2. No ethics application was required for the work reported here, and none of the evaluation in Chapter~6 draws a conclusion about real users.
 
 The distinction between the research and the artefact matters and is stated separately. The product can store learner names, programs and attainment records on the local machine. Those records are personal data in the hands of a classroom operator, even though the default path sends them nowhere and no network transfer occurs. Chapter~8 sets out the resulting obligations on an operator, and the teacher documentation states them at the point of use.
 
 One human study is specified and has not been run. Its protocol, participant information sheet and consent form are versioned under \texttt{docs/study} and marked \texttt{ETHICS\_PENDING}. No participant has been recruited, no data has been collected, and no figure from that study appears anywhere in this dissertation. Any such study will be approved by the Department's ethics process and agreed with my supervisor before it begins.
 
-\chapter*{Acknowledgements}
-\addcontentsline{toc}{chapter}{Acknowledgements}
+\frontsection{Acknowledgements}
 I thank my supervisor, Keith Dures, for steady guidance and for keeping the scope honest. I thank the maintainers of the open-source libraries this work stands on, named in the implementation chapter. The framing of the project owes a debt to a long line of work on learning by building, on grounding language models in what a system can actually do, and on closing the gap between simulation and reality, all of which is acknowledged in the references.
 
-\tableofcontents
+% The brief asks for major sections to one level of nesting, which is chapter and
+% section; deeper entries are suppressed rather than printed.
+\setcounter{tocdepth}{1}
+\makeatletter
+% The report class leaves a full 1em above every chapter entry, which across
+% sixteen chapters costs most of a page of contents listing.
+\renewcommand*\l@chapter[2]{%
+  \ifnum \c@tocdepth >\m@ne
+    \addpenalty{-\@highpenalty}%
+    \vskip 3\p@
+    \setlength\@tempdima{1.5em}%
+    \begingroup
+      \parindent \z@ \rightskip \@pnumwidth
+      \parfillskip -\@pnumwidth
+      \leavevmode \bfseries
+      \advance\leftskip\@tempdima
+      \hskip -\leftskip
+      #1\nobreak\hfil
+      \nobreak\hb@xt@\@pnumwidth{\hss #2}\par
+      \penalty\@highpenalty
+    \endgroup
+  \fi}
+\makeatother
+{\setlength{\parskip}{0pt}\tableofcontents}
 % Lists of figures and tables are omitted deliberately: the document has 2 figures
-% and 11 tables, all numbered and referenced by number at the point of use, so a
+% and 12 tables, all numbered and referenced by number at the point of use, so a
 % separate index would add front matter without adding navigation.
 
 % ===================================================================
@@ -311,38 +338,11 @@ Its third and now largest user is a school pupil working through the lesson path
 It is not for a team that needs to collaborate over a network on a shared design. The offline, single-machine constraint that makes Kodro safe and private also makes it deliberately solitary. It is not for anyone who needs the model to be brilliant, because the model is small, local and grounded on purpose, and the design never asks it to be clever. Naming these non-users is not modesty. It is the discipline that keeps the rest of the requirements honest.
 
 \section{Functional requirements}
-The functional requirements follow the core objectives. They are stated as testable capabilities.
+The functional requirements follow the core objectives and are stated as testable capabilities, so each one names the evidence that would satisfy it rather than the feature that would implement it. Eleven describe the platform: import or assemble a robot (F1); the specification drives behaviour, so a heavier build accelerates more slowly and drains battery faster (F2); every performance figure carries a fidelity tier (F3); a command appears only when the part it needs is fitted (F4); a text editor and a blocks palette compile to one command surface (F5); programs run in a sandbox that blocks file, network and process access (F6); a run is scored against scenario criteria with a per-criterion reason (F7); one program is validated across several randomised seeds (F8); the assistant is grounded on the fitted-command set and its output is validated against it (F9); a deterministic rule engine keeps the platform usable with no model installed (F10); and the system records a reflection after a run and retrieves similar past material later (F11).
 
-\begin{table}[h]
-\centering\footnotesize
-\renewcommand{\arraystretch}{1.1}
-\begin{tabular}{p{1.2cm}p{4.6cm}p{8.2cm}}
-\toprule
-ID & Requirement & Test of satisfaction \\
-\midrule
-F1 & Import or assemble a robot & The user imports a real specification of measured numbers, or picks a chassis, board, sensors and actuators, and the build derives mass, top speed, battery capacity and the set of runnable commands. \\
-F2 & Specification drives behaviour & Changing the build changes the simulation: a heavier robot accelerates more slowly and drains battery faster. A stronger motor lifts the closed-form top speed. \\
-F3 & Fidelity disclosure & Every performance figure carries a fidelity tier of honoured, approximated or not simulated, in the Lab, the realism dashboard and a per-robot verification report. A value the sim does not drive is never badged honoured. \\
-F4 & Command gating & A command appears only if the part it needs is fitted, and disappears from the editor, the blocks palette and the assistant when the part is removed. \\
-F5 & Two ways to program & A text editor and a blocks palette that compiles to the same program, both driving one command surface. \\
-F6 & Safe execution & A program runs in a sandbox that blocks file, network and process access, and a hostile program cannot reach the disk. \\
-F7 & Scenario scoring & A run is scored against the scenario success criteria, returning a pass or fail, a score, and a per-criterion reason. \\
-F8 & Randomised validation & One program runs across several seeds with varied friction, mass and sensor noise, returning a report of successes, collisions, time and battery. \\
-F9 & Grounded assistant & The model receives the fitted-command set. Generated code is checked against it and is not offered for application when a required capability is absent. \\
-F10 & Deterministic fallback & With no model installed, a rule engine returns code and checks within a fixed time budget, and the platform stays fully usable. \\
-F11 & Self-refinement memory & After a run the system records a reflection and may save a skill, and retrieves similar past material to inform later suggestions. \\
-\midrule
-\multicolumn{3}{l}{\emph{Learner-facing requirements, added when the lesson path became the largest part of the product}} \\
-\midrule
-F12 & Every lesson is finishable & Each lesson ships a worked answer that scores 100 out of 100 through both marking engines, inside the constructs that lesson declares and inside its own line budget. A lesson whose own answer fails does not ship. \\
-F13 & One mark, one run & The mark a learner receives is derived from the run the learner watched, using the world that was on screen and the sensors that read it. Where the desktop build re-runs the program to mark it, that second run is disclosed on screen. \\
-F14 & Graded help, not answers & A learner who stalls receives hints in sequence before the worked answer, and the worked answer is withheld until the hints are exhausted. \\
-F15 & Authored lessons are first-class & A lesson written in the Lesson Studio cannot be saved until its own answer passes the same marker the learner faces, and once saved it is graded by identical code to the bundled lessons and exports to a single file. \\
-F16 & The learner record stays local & Learner names, programs and attainment are written to the local machine only, are readable and deletable by the operator, and are never transmitted. \\
-\bottomrule
-\end{tabular}
-\caption{Functional requirements and their tests of satisfaction.}
-\end{table}
+Five more were added when the lesson path became the largest part of the product: every lesson ships a worked answer that scores full marks through both marking engines, so a lesson whose own answer fails does not ship (F12); the mark a learner receives is derived from the run the learner watched, and any re-run to mark it is disclosed on screen (F13); a learner who stalls receives graded hints before the worked answer, which is withheld until the hints are exhausted (F14); an authored lesson cannot be saved until its own answer passes the marker the learner faces, and is then graded by identical code to the bundled lessons (F15); and learner names, programs and attainment are written to the local machine only and are never transmitted (F16).
+
+Each requirement is stated in full alongside its test of satisfaction in Appendix~\ref{app:requirements}. The chapters that follow cite these identifiers, and Chapter~\ref{ch:evaluation} reports the result of each test.
 
 \section{Non-functional requirements}
 The non-functional requirements are where the project's character lives, because the offline constraint touches every one of them.
@@ -371,31 +371,11 @@ Four goals shaped the architecture, in priority order. First, \textbf{legibility
 The platform is written in Python 3.12 behind a desktop web view, and each choice follows from the offline, low-resource constraint rather than from fashion. The interface is authored in React but precompiled to a single bundle, so the panelled layout and the modern look are kept while the cost of a runtime compiler is paid once at build time and never on the user's machine. The three-dimensional world uses a copy of the Three.js library held inside the project, core only, so the graphics work with the network off and with no asset pipeline. The user's designs and the system's accumulated record are stored in SQLite, a single standard-library file with no server, so a backup is a file copy and nothing leaves the machine, and a whole project, the build, the programs, the world and the accumulated memory, saves to and loads from a single self-contained \texttt{.kodro} file. The assistant calls a local model served by Ollama, which installs as one small application and keeps a model warm with a single command a non-technical user can follow; the reported feasibility of locally deployed models on ordinary institutional hardware \citep{reza2025} is what makes this a practical choice and not only a principled one. The desktop shell is pywebview, which renders the vendored interface in a native window using the platform web view, with a Tkinter interface retained as a guaranteed-offline fallback for machines without a modern web view runtime.
 
 \section{Layered architecture}
-The system is organised in layers with a one-directional dependency flow, so that each layer depends only on the ones below it. Figure~\ref{fig:lab} shows the design surface where this begins, the Robot Lab, and the layering is as follows.
-
-\begin{table}[h]
-\centering\small
-\renewcommand{\arraystretch}{1.25}
-\begin{tabular}{p{3.4cm}p{4.2cm}p{6.4cm}}
-\toprule
-Layer & What it is & Where it lives \\
-\midrule
-Program surface & The Python subset and the blocks palette & \texttt{interpreter.js}, blocks palette \\
-Command registry & The single set of commands the build allows & derived from the robot specification \\
-Robot specification & The single source of truth, imported or designed & \texttt{RobotLab.jsx}, \texttt{specschema.js}, the derive step \\
-Shared motion model & The closed forms and constants both engines obey & \texttt{motion-model.js}, \texttt{engine/motion\_model.py} \\
-Fidelity disclosure & The three-tier badges and verification report & \texttt{specschema.js}, \texttt{realism.jsx}, \texttt{verify.jsx} \\
-Worlds and motion & Worlds, named mission sites, the natural-motion tick & \texttt{Viewport3D.jsx}, \texttt{terrains.jsx}, \texttt{agents.jsx} \\
-Validation and memory & Scoring, randomised runs, reflections, skills & \texttt{memory.jsx}, the Python grader \\
-Python engine & The metres world, physics wrapper, public API & \texttt{engine/}, \texttt{rover\_api.py} \\
-\bottomrule
-\end{tabular}
-\caption{The layered architecture and where each layer lives in the codebase.}
-\end{table}
+The system is organised in eight layers with a one-directional dependency flow, so that each layer depends only on the ones below it. From the top down they are the program surface, which is the Python subset and the blocks palette; the command registry, which holds the single set of commands the current build allows; the robot specification, which is the source of truth those commands are derived from; the shared motion model, which is the set of closed forms and constants both engines obey; the fidelity disclosure, which turns the specification into three-tier badges and a verification report; the worlds and motion layer, holding the worlds, the named mission sites and the natural-motion tick; the validation and memory layer, which scores runs and stores reflections and skills; and the Python engine underneath, which owns the metres world, the physics wrapper and the public API. Table~\ref{tab:layers} in Appendix~\ref{app:arch} names the files each layer lives in. Figure~\ref{fig:lab} shows the design surface where the flow begins, the Robot Lab.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.62\linewidth]{img/simple_design.png}
+\includegraphics[width=0.56\linewidth]{img/simple_design.png}
 \caption{The redesigned Robot Lab in the default Simple experience. Robot type, board, sensors and actuators remain available in one focused surface, while fidelity badges and the next Design-to-Prove action stay visible without exposing every instrument at once.}
 \label{fig:lab}
 \end{figure}
@@ -455,7 +435,7 @@ The validation has to happen somewhere believable, so the design recommends a wo
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.62\linewidth]{img/simple_studio.png}
+\includegraphics[width=0.56\linewidth]{img/simple_studio.png}
 \caption{The default Simple proving surface. The mission cockpit exposes only the robot, world, test, deterministic readiness check and one Run this test action beside the three dimensional City. Program editing and the evidence history are deliberate transitions rather than permanent panels.}
 \label{fig:city}
 \end{figure}
@@ -596,40 +576,18 @@ Marking is implemented twice because the two builds have different jobs. The Pyt
 The engineering difficulty here was not writing the markers. It was discovering, through two adversarial audits, that the learner was watching one simulation and being marked by another, and that several lessons could be passed without doing the thing they taught. Those findings, and the repairs that followed, are what the classroom gate set in Section~\ref{sec:classroom-gates} was built to prevent recurring.
 
 \chapter{Evaluation}
+\label{ch:evaluation}
 
 This chapter records how Kodro was evaluated. It separates what was actually measured, the automated verification and an analyst-run formative review, from what is planned but not yet done, a study with real users. Nothing here reports data from human subjects, because that study has deliberately been left for a point at which it can be run properly under consent.
 
 \section{Evaluation strategy}
-Three complementary methods were chosen, in increasing cost and decreasing frequency.
-
-\begin{table}[h]
-\centering\small
-\renewcommand{\arraystretch}{1.25}
-\begin{tabular}{p{4.0cm}p{5.4cm}p{4.6cm}}
-\toprule
-Method & What it checks & Status \\
-\midrule
-Python test suite & Correctness of every subsystem, regression safety & Done, continuous \\
-Interpreter QA harness & Interpreter, kinematics and product coherence end to end & Done, continuous \\
-World and interface nets & Site identity across worlds, interface flows and modals & Done, continuous \\
-Prove contract replay & Seed reproducibility, metric provenance and regression failure & Done, continuous \\
-Lesson solvability and marking gates & Every lesson finishable, both markers agreeing, authored lessons held to the same criteria & Done, continuous \\
-Learner-record and error-path gates & Local storage, progress records, learner-facing error text and scenario parity & Done, continuous \\
-Persona review \emph{(LLM-simulated, not people)} & Whole-product usability across user types & Done, formative \\
-Persona-task evaluation & Assistant code generation and the self-test safety net, scored by execution & Done, deterministic \\
-Renderer evidence & Observed cadence and render-submission work against a 240 Hz budget & Done, hardware and software floors measured \\
-Adversarial persona panel & Reproducible code defects across simulated makers, verified against source & Done, seven rounds \\
-KodroBench grounding benchmark & Invented-symbol rate and seeded task success of local models & Done, v0.1 measured \\
-User and refinement study & Real efficacy and the refinement loop & Planned, future work \\
-\bottomrule
-\end{tabular}
-\caption{The evaluation strategy and the status of each method. The last row is not yet run.}
-\end{table}
+Twelve methods were used, in increasing cost and decreasing frequency. Six are continuous automated gates that run on every push: the Python test suite, the interpreter QA harness, the world and interface nets, the Prove contract replay, the lesson solvability and marking gates, and the learner-record and error-path gates. Four are periodic measured studies: the formative persona review, the deterministic persona-task evaluation, the renderer evidence and the KodroBench grounding benchmark. One is the seven-round adversarial persona panel. The twelfth, a user and refinement study that would measure real efficacy and the effect of the refinement loop, is planned and has not been run, and no figure in this chapter comes from it. Table~\ref{tab:evalstrategy} in Appendix~\ref{app:evaldata} states what each method checks and its status. The sections below report each in turn.
 
 \subsection*{Where the numbers in this chapter come from}
 Almost every figure reported below is emitted by a harness into a versioned artefact under \texttt{docs/eval} rather than transcribed by hand; the two exceptions are named at the end of this paragraph. The Python matrix and its coverage are written to \texttt{test\_suite.json}, together with the commit and working-tree status of the run. The Prove contracts write \texttt{prove\_baseline.json} and the human-readable \texttt{prove\_report.md}, which carry the contract set, the engine, the seed root, the declared evidence boundary and the overall verdict. The renderer measurements are split across \texttt{performance\_eval.json} and \texttt{performance\_eval\_hardware.json}, one per graphics mode, each recording its method, the browser and platform it ran on, the 240\,Hz frame-time target it is judged against and hashes of the artefacts it measured. The interface gates write \texttt{ui\_eval.json} on the same pattern; a narrowed \texttt{--suite=} run writes its own per-suite file alongside it, and those partial files are deliberately kept out of version control so that a narrowed local run cannot be mistaken for the full one. The live-Ollama run writes \texttt{vibe\_eval.json} with its model, endpoint, per-measure results and totals; the synthetic-persona task evaluation writes \texttt{persona\_eval\_results.json} with its model, base seed, turn limit and cell count. Each of these files carries a schema version and a generation timestamp, so a reader can tell which run produced a number and whether the artefact matches the source state it claims. The first exception is the group of nine offline module gates reported later in this section, which print their totals to standard output and emit no JSON; their commands and printed lines are transcribed into \texttt{qa\_gate\_runs\_2026-08-14.md}, which says on its face that it is a hand-written transcript, so a reader checks those figures by re-running the command in its first column rather than by trusting the file. The second is the adversarial persona panel of Section~\ref{sec:panel}, whose round-by-round tallies were kept in session notes rather than emitted by a harness; that gap is stated again where the method is reported, because it is the one set of figures in this chapter a reader cannot re-run at all.
 
 \section{Automated verification}
+\label{sec:autoverify}
 The primary evidence of correctness is the Python suite, which grew with the codebase and gated every change. At commit \texttt{e70b98b}, the complete declared matrix, including the optional RL and URDF surfaces, collects 1,641 tests at 90.85 percent branch-aware coverage against an 85 percent gate, and passes all of them. No test skipped in that run, and that is not the same as the host's intermittent Tk startup failure being fixed. The same matrix on this machine has reported one skip, then two, then none. Thirteen test files open a Tk window in a fixture that catches the startup error and degrades to a skip rather than a failure, and 169 collected tests sit behind those guards, so a clean run means the toolkit started on that occasion and nothing stronger. Because the cause is not established, the artefact records whatever skip its own run produced and attributes none. Those figures are not transcribed. They are generated from the run's own coverage report and JUnit output into \texttt{docs/eval/test\_suite.json}, which also records the commit and the working-tree status, so the count belongs to that commit and not to the \texttt{v2.0-submission} tag. The percentage is a floor rather than an exact figure, because the harness drops the coverage contribution of node-subprocess tests on this host while still running them and still counting them in the test total; continuous integration, which applies no such exclusion, measures the same suite at or above the quoted number. Unit, property-based and headless integration tests pin the procedural API, deterministic physics and scoring, sandbox rejection, hard timeout, shared-motion conformance and the run, score, hint and persistence loop. The separate interpreter harness passes 180 of 180 checks. Strict lint, format and type checks also pass, and the wheel builds successfully.
 
 Alongside the Python suite, a separate interpreter QA harness drives the shipped interpreter with the real kinematics and the wall ray, and asserts the command semantics, every bundled example program including the three showcases, and a set of product-coherence checks. It passes at one hundred and eighty of one hundred and eighty. Every example terminates, moves, stays inside the arena, never hits a wall and never throws, and the command semantics, the two motion call styles, the turn, the speed clamp, the guarded huge exponent, the loops and the sensor reads, are each asserted, as are the interpreter diagnostics, the honesty of the design-check command list and the absence of emoji glyphs from the interface chrome. This harness is the evidence that the user-facing program surface behaves, independently of the Python engine.
@@ -638,7 +596,7 @@ The deterministic Prove gate covers four declarative contracts: straight transit
 
 Browser evidence is split so that a degraded launcher cannot be mistaken for a product result. The shipped static build passes five of five boot, mount and zero external request checks, and the deterministic stylesheet gate passes 74 contrast and responsive assertions over ten themes. The split headless matrix passes six of six rendered flows, 41 of 41 behaviour assertions, six of six layouts and 13 of 13 modal surfaces. Those checks cover program execution, distinct world identity, the Blocks path, error recovery, capability honesty, lessons, classroom records, replay, deterministic proof evidence, an imported physical specification and layouts down to 320 CSS pixels. The separate world sweep passes 61 of 61 checks across six worlds, six robot choices, three quality tiers, 17 mission sites and weather or time changes. At desktop, tablet and mobile widths the measured document width matched the viewport, the three primary stages did not wrap, the mobile bottom navigation remained usable and the browser error log was empty.
 
-Nine further offline gates cover module surfaces the browser matrix cannot reach, and were re-run on 14 August 2026. The extracted physics module passes 25 of 25 collision, ray, coverage and velocity checks under Node with no browser and no React in the loop. The interpreter regression gate pins nine named hardening fixes and passes 13 of 13. The parts catalogue passes 40 of 40 provenance, unit-conversion and schema-range checks, and the memory-graph builder passes 22 of 22 derivability, determinism and sparse-input checks. Project opening passes 16 of 16 checks that a partial write cannot be reported as success, and the quality-tier classifier passes 46 of 46 checks driven as a pure function without a browser. The browser model facade passes 51 of 51 checks on the pure string logic that turns a local model's raw text into runnable code, including that rewriting an object-style call into the metre-based API cannot change a distance by a factor of one hundred, and that a lesson left incomplete is never written into memory as a successful program. The honesty sweep that enforces the claim boundaries described above passes 121 of 121. The grammar-constraint gate passes four of four offline checks; its live half needs a local model server, which was not running for this measurement, so no live figure is reported.
+Nine further offline gates cover module surfaces the browser matrix cannot reach, and were re-run on 14 August 2026. Eight of them pass 334 of 334 checks between them, over the extracted physics module, the interpreter regression pins, the parts catalogue, the memory-graph builder, project opening, the quality-tier classifier, the browser model facade and the honesty sweep that enforces the claim boundaries described above. Section~\ref{app:gates} gives the per-gate counts and what each one asserts. Two results carry qualifications that belong here rather than in an appendix. The model-facade gate includes the checks that rewriting an object-style call into the metre-based API cannot change a distance by a factor of one hundred, and that a lesson left incomplete is never written into memory as a successful program, which are correctness properties rather than counts. And the ninth gate, on grammar constraints, passes only its four offline checks: its live half needs a local model server, which was not running for this measurement, so no live figure is reported for it and it is excluded from the 334.
 
 A final returning-user check found a persistence defect that clean-profile tests could not expose: corrected coaching text could be shadowed by obsolete prose saved inside an older run report, and a robot display name did not prove that the saved result came from the current configuration. The released fix fingerprints every persisted robot input that can affect behaviour and requires an exact world, robot name, configuration and source match before a saved run can appear as evidence for the open plan. Legacy reports remain available as history but cannot be presented as current proof. The cockpit also regenerates its coaching sentence from the structured measurements and current diagnostic rules instead of trusting persisted prose. The rule is gated rather than merely observed: the honesty sweep asserts that a Simple result is presented only when the world, robot name, robot configuration fingerprint and source all match the current build, that the fingerprint is derived from every persisted input that can change behaviour, and that the cockpit recomputes its coaching sentence rather than reading persisted prose. A manual returning-user pass confirmed the same behaviour after a full reload, with the measured distance, battery use and clearance carried over intact and the obsolete safety wording absent; that pass was a session observation and left no artefact, so its individual readings are not quoted as evidence here.
 
@@ -667,25 +625,7 @@ Software, High & 13.9 (12.7 to 15.1) & 152.2 ms & 133.1 ms & Not met \\
 The interface exposes the same measured cadence, P95 submission time, effective quality and budget verdict in its Evidence rail, and drops to the Low tier only after two sustained miss windows. The pair of results reframes the earlier software-only reading: the application's own render work is comfortably inside the strictest budget measured on commodity hardware, and the low frame rates previously reported are a property of CPU rasterisation on driverless hosts, the disclosed worst case rather than the expected experience.
 
 \section{Persona review (formative, language-model personas)}
-To evaluate the whole product rather than its units, a structured review was conducted across simulated personas spanning the range of makers who might use the tool. Each persona drove a session and returned a mark out of ten with the concrete defects it found. After each round the named defects were fixed and the build was re-rated. Table~\ref{tab:persona} reports the measured trajectory.
-
-\begin{table}[h]
-\centering\small
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{clp{6.8cm}c}
-\toprule
-Round & Personas & Focus & Mean (/10) \\
-\midrule
-1 & 50 & First contact with the build & 5.86 \\
-2 & 12 & After the first round of fixes & 6.50 \\
-3 & 50 & After wiring the model and tools into the app & 7.10 \\
-4 & 50 & After grounded answers were added & 7.36 \\
-5 & 8 & Focused review of the new three-dimensional world & 6.40 \\
-\bottomrule
-\end{tabular}
-\caption{Persona review trajectory across rounds. \textbf{Every persona in this table is a language-model construct scored by the author, not a person, and no row is user evidence.} The figures are reported as measured by the analyst-run method, with the threats to validity stated below. This was a formative method run before the evaluation harnesses were committed: the per-persona responses behind these means were not retained as a machine-readable artefact, so unlike every other table in this chapter these rows cannot be re-derived from the repository and should be read as a trend record rather than as reproducible data.}
-\label{tab:persona}
-\end{table}
+To evaluate the whole product rather than its units, a structured review was conducted across simulated personas spanning the range of makers who might use the tool. Each persona drove a session and returned a mark out of ten with the concrete defects it found. After each round the named defects were fixed and the build was re-rated. Five rounds were run, and the mean rose from 5.86 across fifty personas on first contact to 6.50 after the first round of fixes, 7.10 once the model and tools were wired into the application and 7.36 once grounded answers were added, then fell to 6.40 in a fifth round of eight personas aimed at the newly added three-dimensional world. Table~\ref{tab:persona} in Appendix~\ref{app:evaldata} gives the round-by-round figures. \textbf{Every persona is a language-model construct scored by the author, not a person, and no round is user evidence.} This was a formative method run before the evaluation harnesses were committed: the per-persona responses behind these means were not retained as a machine-readable artefact, so unlike every other result in this chapter they cannot be re-derived from the repository and should be read as a trend record rather than as reproducible data.
 
 The mean falls in Round 5, and that fall is the most informative row in the table, so it is explained rather than smoothed. Rounds 1 to 4 re-score the same product as defects are closed, and the rising mean is what that process is designed to produce. Round 5 does something different: it points eight personas at a newly added three-dimensional world that the earlier rounds had never seen, on a build where that surface was days old. It is a first-contact score for new work, not a re-score of fixed work, and first-contact scores in this table are low by construction. The comparison it invites is with Round 1 at 5.86, not with Round 4 at 7.36.
 
@@ -711,23 +651,7 @@ Completed the task & 40/40 (100\%) \\
 \label{tab:objeval}
 \end{table}
 
-\begin{table}[h]
-\centering\small
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{lc@{\hskip 1.2cm}lc}
-\toprule
-Persona group & Complete & Task & Complete \\
-\midrule
-Beginner and younger learner & 10/10 & Forward & 8/8 \\
-Teacher and maker & 10/10 & Turn and move & 8/8 \\
-Low-vision and EAL & 10/10 & Square & 8/8 \\
-Engineer and skeptic & 10/10 & Obstacle stop & 8/8 \\
- & & Counted loop & 8/8 \\
-\bottomrule
-\end{tabular}
-\caption{Task completion broken down by persona and by task. \textbf{Each persona is a language-model construct; a 10/10 row means ten generated requests were satisfied, not that ten learners succeeded.}}
-\label{tab:objbreakdown}
-\end{table}
+The result is uniform under both decompositions: every persona group completed ten of ten cells and every task completed eight of eight, so no persona profile and no task carries the aggregate. Table~\ref{tab:objbreakdown} in Appendix~\ref{app:evaldata} gives the breakdown. \textbf{Each persona is a language-model construct; a ten-of-ten row means ten generated requests were satisfied, not that ten learners succeeded.}
 
 The 40/40 result establishes one useful but narrow fact: this exact quantised 3.1-billion-parameter model, prompt contract and deterministic evaluator completed these five short tasks under eight phrasing profiles in the committed run. An earlier run against the previous \texttt{kodro-coder} artefact is recorded in the project notes as having scored lower, but that run's results file was not retained, and the model, persona set and harness all changed between the two, so no comparison is drawn from it here. Nor does a perfect result on a small known task set establish open-ended code generation, learning, usability or real-robot safety. The value of the harness is that every accepted reply leaves executable evidence and a reproducible failure path; a model score can never overrule compilation, runtime, arena or task gates.
 
@@ -737,17 +661,9 @@ Three additional role prompts inspected the same summary as an advisory panel. T
 \label{sec:panel}
 The two persona methods above ask about opinion and about task execution. A third method asks a different and more falsifiable question: can a large adversarial panel of simulated makers find real, reproducible defects in the shipped code, and does fixing what it finds converge? Unlike the formative review, nothing here is a mark out of ten, and unlike the objective persona-task evaluation, nothing here is scored by whether a generated program runs. Each persona is instead pointed at the source with a single instruction, to try to break the tool and to distrust every number it prints, and every issue it reports is then put through an adversarial verification pass that defaults to not-real and only accepts a defect that reproduces end to end against the shipped files. The whole panel is run offline as a fan-out of local analysis agents, and its output is a list of confirmed, code-cited defects rather than a score. Each confirmed defect was accepted only with a file-and-line citation that reproduced against the shipped files, and the fixes that closed the confirmed defects are recorded in the project's commit history.
 
-The panel was run in seven rounds, each on the build the previous round's fixes produced, and the arc of the rounds matters more than any single finding. The first round put thirty personas against the v2.0 build and, after adversarial verification and de-duplication, produced four confirmed defects, all in the fidelity-badge disclosure. The strongest was a genuine honesty bug in which a top speed clamped into the simulable band was still labelled ``honoured'' by the live readout and the exported report, even though the schema had computed the correct, lower-confidence tier all along.
+The panel was run in seven rounds, each on the build the previous round's fixes produced, and the arc of the rounds matters more than any single finding. Appendix~\ref{app:panel} gives the round-by-round account; the shape of it is this. Round one put thirty personas against the v2.0 build and produced four confirmed defects, all in the fidelity-badge disclosure, the strongest being a genuine honesty bug in which a top speed clamped into the simulable band was still labelled ``honoured'' by the live readout and the exported report. Because the obvious risk with any find-and-fix pass is that it converges on the one area it happened to look at, round two aimed twenty eight fresh personas deliberately away from the badges, at keyboard, screen-reader, contrast, offline-guarantee, import-fuzzing, determinism, mobile and reduced-motion surfaces; it did not come back empty, returning thirteen further confirmed defects, five of them high severity, led by a persistent boot failure in which a corrupted project file threw at start-up on every reload until browser storage was cleared by hand. Round three widened the aperture to the Python engine and its sandbox, the two engines cross-checked formula by formula, the assistant's grounding path, the memory store and packaging, and found sixteen more, two of them correctness bugs in the grading layer itself: a grader that counted the distance a program commanded rather than the distance the rover actually travelled, so a rover clamped against a wall could pass a distance requirement it never met, and environment sensors hardcoded to Earth values, so a program that branched on gravity or temperature was graded on the wrong world.
 
-Because the obvious risk with any find-and-fix pass is that it converges on the one area it happened to look at, the second round aimed twenty eight fresh personas deliberately away from the badges, at keyboard, screen-reader, contrast, offline-guarantee, import-fuzzing, determinism, mobile and reduced-motion surfaces. It did not come back empty. Thirteen further confirmed defects followed, five of them high severity, led by a persistent boot failure in which a corrupted project file threw at start-up on every reload until browser storage was cleared by hand, alongside a keyboard focus trap and motion that ignored the reduced-motion setting.
-
-A third round widened the aperture to the Python engine and its sandbox, the two engines cross-checked formula by formula, the assistant's grounding path, the memory store and packaging. Sixteen of its thirty lenses came back empty, and the rest produced sixteen further confirmed defects. Two were correctness bugs in the grading layer itself. A grader counted the distance a program commanded rather than the distance the rover actually travelled, so a rover clamped against a wall could pass a distance requirement it never met; and environment sensors were hardcoded to Earth values, so a program that branched on gravity or temperature was graded on the wrong world. Every confirmed defect in these three rounds was fixed and the automated gates were re-run to green.
-
-The fourth and fifth rounds swept the remaining corners with thirty personas each, from the replay dialog and the hint engine to every Tk panel and all eighteen lessons the library held at that point. Half of the fourth round's lenses came back clean, and its twenty-three verified findings were, with one exception, maintainability and polish rather than correctness, the exception being in-progress lesson code that lived only in memory and was lost on refresh. Twenty were fixed, two interpreter language changes were recorded as deliberate limitations of the restricted, golden-trace-gated teaching subset rather than chased, and one reported defect proved on implementation to be intended behaviour. The fifth round returned the most clean lenses yet, twenty of thirty, and most of its fifteen findings were polish, but it corrected any impression that the tail holds only trivia. One finding had been latent since the first commit: the grader was never actually enforcing the no-collisions criterion, because it counted collisions from an event stream the engine does not emit while the real count accumulates on the rover snapshot, so a program that drove into a wall passed a no-collisions lesson with full marks, and four rounds had walked past it because the only tests touching it hand-built synthetic events the engine never produces. Six further findings were deferred with stated reasons and one reported item was already correct.
-
-The sixth round changed tactics: rather than sweep blind, it pointed a third of its thirty personas at a single known bug class, since the round-three commanded-distance bug and the round-five collision bug shared one shape, an aggregate read from the wrong source instead of the real number the engine records. Tracing every metric the grader, hint engine, report and achievements compute back to its source found a third and a fourth copy of the same wrong-source pattern that five rounds had missed, one in the fallback application's own collision count and one in the hint engine's distance, alongside two camera animations still ungated by the reduced-motion contract and an interpreter parity gap. All eight were fixed.
-
-The seventh round audited a new feature on the day it shipped, the optional bring-your-own-key path that lets a user connect their own cloud model alongside the offline default, with sixteen personas weighted toward the security of the new surface. The security verdict was clean: no request can reach a non-local host with the default provider or with no key set, the key is never logged and is sent only to the provider the user picks, and cloud-generated code passes the same deterministic self-test gate as local code before it can reach the learner. Thirteen of the sixteen lenses came back clean, and the six confirmed findings were all honesty of labelling rather than security, panels and documentation that still claimed fully local answers while a cloud key was answering. All six were fixed the same day.
+Rounds four and five swept the remaining corners with thirty personas each and returned mostly maintainability and polish, but with one exception that had been latent since the first commit: the grader was never actually enforcing the no-collisions criterion, because it counted collisions from an event stream the engine does not emit while the real count accumulates on the rover snapshot, so a program that drove into a wall passed a no-collisions lesson with full marks. Four rounds had walked past it because the only tests touching it hand-built synthetic events the engine never produces. Round six therefore changed tactics: rather than sweep blind, it pointed a third of its thirty personas at that single known bug class, since the round-three commanded-distance bug and the round-five collision bug shared one shape, an aggregate read from the wrong source instead of the real number the engine records. Tracing every metric the grader, hint engine, report and achievements compute back to its source found a third and a fourth copy of the same pattern that five rounds had missed. Round seven audited a new feature on the day it shipped, the optional bring-your-own-key path, with sixteen personas weighted toward the security of the new surface; the security verdict was clean, and the six confirmed findings were all honesty of labelling rather than security, panels and documentation that still claimed fully local answers while a cloud key was answering. Every confirmed defect across the seven rounds was either fixed and the automated gates re-run to green, or deferred with a stated reason.
 
 That each pass on a freshly fixed build kept surfacing real defects is the clearest evidence that this method is not a rubber stamp, and it is also a plain reminder that a passing test suite is not the same thing as a sound product. Across the seven rounds, one hundred and ninety four simulated personas found eighty five confirmed defects, of which seventy five were fixed, eight were deferred with stated reasons, and two were reclassified or found already correct.
 
@@ -793,32 +709,7 @@ The threats to validity are stated plainly. Five tasks are a proof of mechanism,
 
 \section{The classroom gates}
 \label{sec:classroom-gates}
-The lesson path became the largest part of the product, so it carries its own gate set rather than relying on the general suite. Ten harnesses run against the shipped bundle and the on-device stores, and together they assert 303 checks. Table~\ref{tab:classroom} records the run captured for this chapter; every row was executed rather than transcribed, and each harness prints its own totals.
-
-\begin{table}[h]
-\centering\small
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{p{4.6cm}p{7.4cm}p{1.6cm}}
-\toprule
-Harness & What it asserts & Checks \\
-\midrule
-\texttt{qa\_grader} & Both marking engines agree, and every lesson's worked answer scores 100 out of 100 inside its declared constructs and line budget & 55 \\
-\texttt{qa\_lesson\_studio} & The authored-lesson document format, its validator and its on-device store, holding authored lessons to the bundled criteria dispatch & 79 \\
-\texttt{qa\_construct\_liveness} & Each lesson actually checks the construct it names, rather than passing on a proxy & 30 \\
-\texttt{qa\_markbook} & Class records, attainment roll-up and the teacher view over local data & 16 \\
-\texttt{qa\_pupilstore} & The local learner store: write, read, clear and survive reload without transmitting & 23 \\
-\texttt{qa\_pupil\_errors} & Learner-facing error text: every interpreter fault has a readable message at the declared reading age & 42 \\
-\texttt{qa\_parsons} & The reordering exercise type, including its distractors and its marking & 13 \\
-\texttt{qa\_learning\_annotations} & Hint sequencing, worked-answer withholding and the annotations shown against a run & 28 \\
-\texttt{qa\_scenario\_parity} & Lesson collision handling identical across the two engines & 8 \\
-\texttt{qa\_fuzz} & Parity over 120 generated cases across three lessons, 120 junk inputs and 30 storage rounds & 9 \\
-\midrule
-\multicolumn{2}{l}{\textbf{Total, all passing}} & \textbf{303} \\
-\bottomrule
-\end{tabular}
-\caption{The ten classroom harnesses and their assertion counts. All 303 checks passed on the recorded run.}
-\label{tab:classroom}
-\end{table}
+The lesson path became the largest part of the product, so it carries its own gate set rather than relying on the general suite. Ten harnesses run against the shipped bundle and the on-device stores, and together they assert 303 checks, all of which passed on the run captured for this chapter: \texttt{qa\_lesson\_studio} (79 checks), \texttt{qa\_grader} (55), \texttt{qa\_pupil\_errors} (42), \texttt{qa\_construct\_liveness} (30), \texttt{qa\_learning\_annotations} (28), \texttt{qa\_pupilstore} (23), \texttt{qa\_markbook} (16), \texttt{qa\_parsons} (13), \texttt{qa\_fuzz} (9) and \texttt{qa\_scenario\_parity} (8). Table~\ref{tab:classroom} in Appendix~\ref{app:evaldata} states what each one asserts. Every row was executed rather than transcribed, and each harness prints its own totals.
 
 Two of these deserve comment because they encode a claim the product makes rather than merely testing code. \texttt{qa\_grader} is what turns ``every lesson is finishable'' from an editorial promise into a gate: each lesson's own worked answer is executed through both marking engines on every change and must score full marks within the constructs that lesson has taught, so a lesson that drifts out of reach of its own answer cannot ship. Writing that gate found eight lessons where the harness itself was wrong, which is the strongest available argument for having built it. \texttt{qa\_construct\_liveness} answers the narrower and harder question of whether a lesson checks the concept it names; it exists because one pathfinding lesson declared iteration, selection and decomposition, checked none of them, and awarded 100 out of 100 to a hard-coded route.
 
@@ -898,29 +789,7 @@ Two further matters belong here. First, the Declaration names the generative sys
 \section{BCS professional issues and project criteria}
 The BCS Code of Conduct binds members to the public interest, professional competence and integrity, duty to the profession and duty to relevant authority \citep{bcscode}, and the degree criteria call for analytical application of degree material, self-management, synthesis beyond routine application and critical self-evaluation. Kodro applies these through a recursive-descent interpreter, mirrored kinematics, property-based and coverage-gated testing, and local model use under retrieval grounding. Its synthesis combines specification import, fidelity disclosure, a sandboxed gate and build-aware assistance without claiming a new algorithm. Version control, three-operating-system integration and the decision records evidence self-management. Failed model outputs, incomplete objective O6, the missed performance target and absent human and physical validation are reported rather than hidden.
 
-The BCS accreditation guidance additionally asks whether graduates can apply computing knowledge, model trade-offs, analyse specifications, evaluate a system against its criteria, use appropriate engineering practices, recognise professional issues, understand economic and management context, and address information security \citep{bcs2020}. Table~\ref{tab:bcsmap} maps those published abilities to evidence in this project rather than merely claiming alignment.
-
-\begin{table}[h]
-\centering\footnotesize
-\renewcommand{\arraystretch}{1.12}
-\begin{tabular}{p{1.4cm}p{4.8cm}p{8.2cm}}
-\toprule
-BCS & Ability & Evidence in Kodro \\
-\midrule
-2.1.1 & Computing knowledge & Interpreter design, kinematics, grading, local persistence and grounded generation are explained and implemented. \\
-2.1.2 & Modelling and trade-offs & The first-order model is chosen for accessibility and cost; fidelity tiers expose what is lost against rigid-body simulation. \\
-2.1.3 & Criteria and strategies & Objectives O1 to O10, KRS constraints, lesson criteria and Prove contracts define testable acceptance conditions. \\
-2.1.4 & Evaluate fitness & Chapter~6 tests the artefact against those conditions; Chapter~7 records the unmet physical, human and memory-efficacy claims. \\
-2.1.5 & Theory, practice and tools & Pure decision cores, property tests, cross-engine parity, CI and reproducible manifests support implementation and evaluation. \\
-2.1.6 & Legal, social and ethical issues & Safety language, privacy boundaries, accessibility gates, the planned study's consent requirements and transparent tool disclosure are explicit. \\
-2.1.7 & Commercial and economic context & The zero-cost, offline architecture needs no account or subscription and reduces exposure to hosted-service withdrawal, while purchasing advice stays provisional. \\
-2.1.8 & Management techniques & Version control, scoped milestones, risk decisions, release gates and an evidence ledger show planning and self-management. \\
-2.1.9 & Information security & The sandbox rejects file, network and process access; core use has no account or telemetry; connected providers require explicit selection. \\
-\bottomrule
-\end{tabular}
-\caption{Traceability from BCS published computing abilities to project evidence.}
-\label{tab:bcsmap}
-\end{table}
+The BCS accreditation guidance additionally asks whether graduates can apply computing knowledge, model trade-offs, analyse specifications, evaluate a system against its criteria, use appropriate engineering practices, recognise professional issues, understand economic and management context, and address information security \citep{bcs2020}. Table~\ref{tab:bcsmap} in Appendix~\ref{app:bcs} maps each of those published abilities to specific evidence in this project rather than merely claiming alignment. The reflection below states where that evidence is strong and where it is thin.
 
 The principal professional safety risk is false confidence. Kodro therefore labels model fidelity, refuses invalid generated commands and states that simulation is not certification. Local-first storage and no default telemetry reduce disclosure, but an operator still has data-protection duties for identifiable classroom records. A configured cloud provider receives prompts only after explicit selection. Accessibility is gated through contrast, keyboard, touch-target, reduced-motion and narrow-viewport checks, with the planned participant study needed for issues automation cannot observe. Security controls reject file, network and process access, bound execution time and keep advisory output separate from deterministic acceptance.
 
@@ -1088,5 +957,204 @@ for step in range(14):
 \end{lstlisting}
 
 Pressing run animates the rover along the path with weight transfer and a draining battery. Pressing step advances one event at a time. Changing the build, a heavier chassis or a weaker motor, changes how the same program behaves, which is the point the whole platform is built to make.
+
+\chapter{Functional Requirements in Full}
+\label{app:requirements}
+Section~3.2 names all sixteen functional requirements and states the two groups they fall into. This appendix gives each one alongside the test that would satisfy it.
+
+\begin{table}[h]
+\centering\footnotesize
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{p{1.2cm}p{4.6cm}p{8.2cm}}
+\toprule
+ID & Requirement & Test of satisfaction \\
+\midrule
+F1 & Import or assemble a robot & The user imports a real specification of measured numbers, or picks a chassis, board, sensors and actuators, and the build derives mass, top speed, battery capacity and the set of runnable commands. \\
+F2 & Specification drives behaviour & Changing the build changes the simulation: a heavier robot accelerates more slowly and drains battery faster. A stronger motor lifts the closed-form top speed. \\
+F3 & Fidelity disclosure & Every performance figure carries a fidelity tier of honoured, approximated or not simulated, in the Lab, the realism dashboard and a per-robot verification report. A value the sim does not drive is never badged honoured. \\
+F4 & Command gating & A command appears only if the part it needs is fitted, and disappears from the editor, the blocks palette and the assistant when the part is removed. \\
+F5 & Two ways to program & A text editor and a blocks palette that compiles to the same program, both driving one command surface. \\
+F6 & Safe execution & A program runs in a sandbox that blocks file, network and process access, and a hostile program cannot reach the disk. \\
+F7 & Scenario scoring & A run is scored against the scenario success criteria, returning a pass or fail, a score, and a per-criterion reason. \\
+F8 & Randomised validation & One program runs across several seeds with varied friction, mass and sensor noise, returning a report of successes, collisions, time and battery. \\
+F9 & Grounded assistant & The model receives the fitted-command set. Generated code is checked against it and is not offered for application when a required capability is absent. \\
+F10 & Deterministic fallback & With no model installed, a rule engine returns code and checks within a fixed time budget, and the platform stays fully usable. \\
+F11 & Self-refinement memory & After a run the system records a reflection and may save a skill, and retrieves similar past material to inform later suggestions. \\
+\midrule
+\multicolumn{3}{l}{\emph{Learner-facing requirements, added when the lesson path became the largest part of the product}} \\
+\midrule
+F12 & Every lesson is finishable & Each lesson ships a worked answer that scores 100 out of 100 through both marking engines, inside the constructs that lesson declares and inside its own line budget. A lesson whose own answer fails does not ship. \\
+F13 & One mark, one run & The mark a learner receives is derived from the run the learner watched, using the world that was on screen and the sensors that read it. Where the desktop build re-runs the program to mark it, that second run is disclosed on screen. \\
+F14 & Graded help, not answers & A learner who stalls receives hints in sequence before the worked answer, and the worked answer is withheld until the hints are exhausted. \\
+F15 & Authored lessons are first-class & A lesson written in the Lesson Studio cannot be saved until its own answer passes the same marker the learner faces, and once saved it is graded by identical code to the bundled lessons and exports to a single file. \\
+F16 & The learner record stays local & Learner names, programs and attainment are written to the local machine only, are readable and deletable by the operator, and are never transmitted. \\
+\bottomrule
+\end{tabular}
+\caption{Functional requirements and their tests of satisfaction.}
+\label{tab:frs}
+\end{table}
+
+\chapter{Architecture Reference}
+\label{app:arch}
+Section~4.3 names the eight layers and the one-directional dependency flow between them. This appendix records where each one lives in the codebase.
+
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{p{3.4cm}p{4.2cm}p{6.4cm}}
+\toprule
+Layer & What it is & Where it lives \\
+\midrule
+Program surface & The Python subset and the blocks palette & \texttt{interpreter.js}, blocks palette \\
+Command registry & The single set of commands the build allows & derived from the robot specification \\
+Robot specification & The single source of truth, imported or designed & \texttt{RobotLab.jsx}, \texttt{specschema.js}, the derive step \\
+Shared motion model & The closed forms and constants both engines obey & \texttt{motion-model.js}, \texttt{engine/motion\_model.py} \\
+Fidelity disclosure & The three-tier badges and verification report & \texttt{specschema.js}, \texttt{realism.jsx}, \texttt{verify.jsx} \\
+Worlds and motion & Worlds, named mission sites, the natural-motion tick & \texttt{Viewport3D.jsx}, \texttt{terrains.jsx}, \texttt{agents.jsx} \\
+Validation and memory & Scoring, randomised runs, reflections, skills & \texttt{memory.jsx}, the Python grader \\
+Python engine & The metres world, physics wrapper, public API & \texttt{engine/}, \texttt{rover\_api.py} \\
+\bottomrule
+\end{tabular}
+\caption{The layered architecture and where each layer lives in the codebase.}
+\label{tab:layers}
+\end{table}
+
+\chapter{Supporting Evaluation Data}
+\label{app:evaldata}
+Chapter~\ref{ch:evaluation} states the result of each method and the limits that qualify it. This appendix holds the strategy overview and the underlying breakdowns for three of the methods. Nothing here is new: every figure below is reported in the body at the point the method is discussed.
+
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{p{4.0cm}p{5.4cm}p{4.6cm}}
+\toprule
+Method & What it checks & Status \\
+\midrule
+Python test suite & Correctness of every subsystem, regression safety & Done, continuous \\
+Interpreter QA harness & Interpreter, kinematics and product coherence end to end & Done, continuous \\
+World and interface nets & Site identity across worlds, interface flows and modals & Done, continuous \\
+Prove contract replay & Seed reproducibility, metric provenance and regression failure & Done, continuous \\
+Lesson solvability and marking gates & Every lesson finishable, both markers agreeing, authored lessons held to the same criteria & Done, continuous \\
+Learner-record and error-path gates & Local storage, progress records, learner-facing error text and scenario parity & Done, continuous \\
+Persona review \emph{(LLM-simulated, not people)} & Whole-product usability across user types & Done, formative \\
+Persona-task evaluation & Assistant code generation and the self-test safety net, scored by execution & Done, deterministic \\
+Renderer evidence & Observed cadence and render-submission work against a 240 Hz budget & Done, hardware and software floors measured \\
+Adversarial persona panel & Reproducible code defects across simulated makers, verified against source & Done, seven rounds \\
+KodroBench grounding benchmark & Invented-symbol rate and seeded task success of local models & Done, v0.1 measured \\
+User and refinement study & Real efficacy and the refinement loop & Planned, future work \\
+\bottomrule
+\end{tabular}
+\caption{The evaluation strategy and the status of each method, for Section~6.1. The last row is not yet run.}
+\label{tab:evalstrategy}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{clp{6.8cm}c}
+\toprule
+Round & Personas & Focus & Mean (/10) \\
+\midrule
+1 & 50 & First contact with the build & 5.86 \\
+2 & 12 & After the first round of fixes & 6.50 \\
+3 & 50 & After wiring the model and tools into the app & 7.10 \\
+4 & 50 & After grounded answers were added & 7.36 \\
+5 & 8 & Focused review of the new three-dimensional world & 6.40 \\
+\bottomrule
+\end{tabular}
+\caption{Persona review trajectory across rounds, for Section~6.4. \textbf{Every persona in this table is a language-model construct scored by the author, not a person, and no row is user evidence.} This was a formative method run before the evaluation harnesses were committed: the per-persona responses behind these means were not retained as a machine-readable artefact, so unlike every other table in this dissertation these rows cannot be re-derived from the repository and should be read as a trend record rather than as reproducible data.}
+\label{tab:persona}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{lc@{\hskip 1.2cm}lc}
+\toprule
+Persona group & Complete & Task & Complete \\
+\midrule
+Beginner and younger learner & 10/10 & Forward & 8/8 \\
+Teacher and maker & 10/10 & Turn and move & 8/8 \\
+Low-vision and EAL & 10/10 & Square & 8/8 \\
+Engineer and skeptic & 10/10 & Obstacle stop & 8/8 \\
+ & & Counted loop & 8/8 \\
+\bottomrule
+\end{tabular}
+\caption{Task completion broken down by persona and by task, for Section~6.5. \textbf{Each persona is a language-model construct; a 10/10 row means ten generated requests were satisfied, not that ten learners succeeded.}}
+\label{tab:objbreakdown}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{p{4.6cm}p{7.4cm}p{1.6cm}}
+\toprule
+Harness & What it asserts & Checks \\
+\midrule
+\texttt{qa\_grader} & Both marking engines agree, and every lesson's worked answer scores 100 out of 100 inside its declared constructs and line budget & 55 \\
+\texttt{qa\_lesson\_studio} & The authored-lesson document format, its validator and its on-device store, holding authored lessons to the bundled criteria dispatch & 79 \\
+\texttt{qa\_construct\_liveness} & Each lesson actually checks the construct it names, rather than passing on a proxy & 30 \\
+\texttt{qa\_markbook} & Class records, attainment roll-up and the teacher view over local data & 16 \\
+\texttt{qa\_pupilstore} & The local learner store: write, read, clear and survive reload without transmitting & 23 \\
+\texttt{qa\_pupil\_errors} & Learner-facing error text: every interpreter fault has a readable message at the declared reading age & 42 \\
+\texttt{qa\_parsons} & The reordering exercise type, including its distractors and its marking & 13 \\
+\texttt{qa\_learning\_annotations} & Hint sequencing, worked-answer withholding and the annotations shown against a run & 28 \\
+\texttt{qa\_scenario\_parity} & Lesson collision handling identical across the two engines & 8 \\
+\texttt{qa\_fuzz} & Parity over 120 generated cases across three lessons, 120 junk inputs and 30 storage rounds & 9 \\
+\midrule
+\multicolumn{2}{l}{\textbf{Total, all passing}} & \textbf{303} \\
+\bottomrule
+\end{tabular}
+\caption{The ten classroom harnesses and their assertion counts, for Section~\ref{sec:classroom-gates}. All 303 checks passed on the recorded run.}
+\label{tab:classroom}
+\end{table}
+
+\section{The nine offline module gates, gate by gate}
+\label{app:gates}
+Section~\ref{sec:autoverify} states the aggregate for these gates and the two results that carry qualifications. This section gives the counts behind that aggregate. All were re-run on 14 August 2026.
+
+The extracted physics module passes 25 of 25 collision, ray, coverage and velocity checks under Node with no browser and no React in the loop. The interpreter regression gate pins nine named hardening fixes and passes 13 of 13. The parts catalogue passes 40 of 40 provenance, unit-conversion and schema-range checks, and the memory-graph builder passes 22 of 22 derivability, determinism and sparse-input checks. Project opening passes 16 of 16 checks that a partial write cannot be reported as success, and the quality-tier classifier passes 46 of 46 checks driven as a pure function without a browser. The browser model facade passes 51 of 51 checks on the pure string logic that turns a local model's raw text into runnable code. The honesty sweep that enforces the claim boundaries stated in Chapter~6 passes 121 of 121. Those eight sum to the 334 quoted in the body. The ninth, the grammar-constraint gate, passes four of four offline checks and is excluded from that total because its live half needs a local model server that was not running for this measurement, so no live figure is reported for it anywhere in this dissertation.
+
+\chapter{The Adversarial Panel, Round by Round}
+\label{app:panel}
+Section~\ref{sec:panel} states the method, the arc across the seven rounds, the aggregate tallies and the provenance limit that applies to all of them. This appendix gives the full account of each round. The provenance caveat stated in the body applies to every count below: the round-by-round tallies were kept in session notes rather than emitted by a harness into a results file, so they are an honest record of what the panel did and not an artefact a reader can re-run.
+
+The first round put thirty personas against the v2.0 build and, after adversarial verification and de-duplication, produced four confirmed defects, all in the fidelity-badge disclosure. The strongest was a genuine honesty bug in which a top speed clamped into the simulable band was still labelled ``honoured'' by the live readout and the exported report, even though the schema had computed the correct, lower-confidence tier all along.
+
+Because the obvious risk with any find-and-fix pass is that it converges on the one area it happened to look at, the second round aimed twenty eight fresh personas deliberately away from the badges, at keyboard, screen-reader, contrast, offline-guarantee, import-fuzzing, determinism, mobile and reduced-motion surfaces. It did not come back empty. Thirteen further confirmed defects followed, five of them high severity, led by a persistent boot failure in which a corrupted project file threw at start-up on every reload until browser storage was cleared by hand, alongside a keyboard focus trap and motion that ignored the reduced-motion setting.
+
+A third round widened the aperture to the Python engine and its sandbox, the two engines cross-checked formula by formula, the assistant's grounding path, the memory store and packaging. Sixteen of its thirty lenses came back empty, and the rest produced sixteen further confirmed defects. Two were correctness bugs in the grading layer itself. A grader counted the distance a program commanded rather than the distance the rover actually travelled, so a rover clamped against a wall could pass a distance requirement it never met; and environment sensors were hardcoded to Earth values, so a program that branched on gravity or temperature was graded on the wrong world. Every confirmed defect in these three rounds was fixed and the automated gates were re-run to green.
+
+The fourth and fifth rounds swept the remaining corners with thirty personas each, from the replay dialog and the hint engine to every Tk panel and all eighteen lessons the library held at that point. Half of the fourth round's lenses came back clean, and its twenty-three verified findings were, with one exception, maintainability and polish rather than correctness, the exception being in-progress lesson code that lived only in memory and was lost on refresh. Twenty were fixed, two interpreter language changes were recorded as deliberate limitations of the restricted, golden-trace-gated teaching subset rather than chased, and one reported defect proved on implementation to be intended behaviour. The fifth round returned the most clean lenses yet, twenty of thirty, and most of its fifteen findings were polish, but it corrected any impression that the tail holds only trivia. One finding had been latent since the first commit: the grader was never actually enforcing the no-collisions criterion, because it counted collisions from an event stream the engine does not emit while the real count accumulates on the rover snapshot, so a program that drove into a wall passed a no-collisions lesson with full marks, and four rounds had walked past it because the only tests touching it hand-built synthetic events the engine never produces. Six further findings were deferred with stated reasons and one reported item was already correct.
+
+The sixth round changed tactics: rather than sweep blind, it pointed a third of its thirty personas at a single known bug class, since the round-three commanded-distance bug and the round-five collision bug shared one shape, an aggregate read from the wrong source instead of the real number the engine records. Tracing every metric the grader, hint engine, report and achievements compute back to its source found a third and a fourth copy of the same wrong-source pattern that five rounds had missed, one in the fallback application's own collision count and one in the hint engine's distance, alongside two camera animations still ungated by the reduced-motion contract and an interpreter parity gap. All eight were fixed.
+
+The seventh round audited a new feature on the day it shipped, the optional bring-your-own-key path that lets a user connect their own cloud model alongside the offline default, with sixteen personas weighted toward the security of the new surface. The security verdict was clean: no request can reach a non-local host with the default provider or with no key set, the key is never logged and is sent only to the provider the user picks, and cloud-generated code passes the same deterministic self-test gate as local code before it can reach the learner. Thirteen of the sixteen lenses came back clean, and the six confirmed findings were all honesty of labelling rather than security, panels and documentation that still claimed fully local answers while a cloud key was answering. All six were fixed the same day.
+
+\chapter{BCS Criteria Traceability}
+\label{app:bcs}
+Section~8.2 lists the published BCS abilities and reflects on where the evidence for them is strong and where it is thin. This appendix is the traceability table behind that reflection.
+
+\begin{table}[h]
+\centering\footnotesize
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{p{1.4cm}p{4.8cm}p{8.2cm}}
+\toprule
+BCS & Ability & Evidence in Kodro \\
+\midrule
+2.1.1 & Computing knowledge & Interpreter design, kinematics, grading, local persistence and grounded generation are explained and implemented. \\
+2.1.2 & Modelling and trade-offs & The first-order model is chosen for accessibility and cost; fidelity tiers expose what is lost against rigid-body simulation. \\
+2.1.3 & Criteria and strategies & Objectives O1 to O10, KRS constraints, lesson criteria and Prove contracts define testable acceptance conditions. \\
+2.1.4 & Evaluate fitness & Chapter~6 tests the artefact against those conditions; Chapter~7 records the unmet physical, human and memory-efficacy claims. \\
+2.1.5 & Theory, practice and tools & Pure decision cores, property tests, cross-engine parity, CI and reproducible manifests support implementation and evaluation. \\
+2.1.6 & Legal, social and ethical issues & Safety language, privacy boundaries, accessibility gates, the planned study's consent requirements and transparent tool disclosure are explicit. \\
+2.1.7 & Commercial and economic context & The zero-cost, offline architecture needs no account or subscription and reduces exposure to hosted-service withdrawal, while purchasing advice stays provisional. \\
+2.1.8 & Management techniques & Version control, scoped milestones, risk decisions, release gates and an evidence ledger show planning and self-management. \\
+2.1.9 & Information security & The sandbox rejects file, network and process access; core use has no account or telemetry; connected providers require explicit selection. \\
+\bottomrule
+\end{tabular}
+\caption{Traceability from BCS published computing abilities to project evidence.}
+\label{tab:bcsmap}
+\end{table}
 
 \end{document}
