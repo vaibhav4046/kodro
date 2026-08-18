@@ -169,8 +169,7 @@ def _result_too_deep(start_ns: int) -> ExecutionResult:
         success=False,
         error_kind="syntax",
         error_message=(
-            "SyntaxError: this program is nested too deeply to read. "
-            "Break it into smaller steps."
+            "SyntaxError: this program is nested too deeply to read. Break it into smaller steps."
         ),
         error_line=None,
         duration_ms=_elapsed_ms(start_ns),
