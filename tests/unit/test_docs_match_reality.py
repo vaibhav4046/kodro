@@ -73,6 +73,34 @@ def test_pupil_cheatsheet_documents_every_callable_command() -> None:
     )
 
 
+def test_onboarding_advertises_the_number_of_lessons_that_ship() -> None:
+    """The first-contact pitch must not advertise a library that shrank away.
+
+    Onboarding step 3 is the only place the product names the learning pillar
+    to a new user, and it said "18 graded missions" long after the library had
+    grown to 24. The count was typed as a literal, so nothing moved it when
+    lessons were added. Derive it from ``load_library`` instead: adding or
+    removing a lesson now fails here until the pitch is updated.
+
+    The compiled ``bundle.js`` carries the same sentence; ``test_bundle_is_fresh``
+    covers that copy, so this only has to guard the source.
+    """
+    from robolearn.lessons import load_library
+
+    page = (ROOT / "src" / "robolearn" / "assets" / "web" / "onboarding.jsx").read_text(
+        encoding="utf-8"
+    )
+    claim = re.search(r"Lessons</b>: (\d+) graded missions", page)
+    assert claim is not None, (
+        "onboarding.jsx no longer names the Lessons pillar in the form this gate "
+        "reads, so the count check below would silently pass without testing anything."
+    )
+    assert int(claim.group(1)) == len(list(load_library())), (
+        f"onboarding.jsx advertises {claim.group(1)} graded missions, "
+        f"but the library ships {len(list(load_library()))}."
+    )
+
+
 def test_pupil_cheatsheet_does_not_promise_unfinished_work() -> None:
     """No build-plan leftovers in a page pupils actually read."""
     page = (ROOT / "docs" / "pupils" / "api-cheatsheet.md").read_text(encoding="utf-8")

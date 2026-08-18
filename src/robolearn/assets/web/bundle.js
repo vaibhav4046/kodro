@@ -21918,7 +21918,7 @@ Object.assign(window, {
       style: {
         marginTop: 10
       }
-    }, "Prefer to learn step by step? The studio also has ", /*#__PURE__*/React.createElement("b", null, "Lessons"), ": 18 graded missions, from first drive to full autopilot, for ages 5 and up. Open them any time from", /*#__PURE__*/React.createElement("b", null, " More Tools \u2192 Lessons"), " in the top bar."), /*#__PURE__*/React.createElement(Steps, {
+    }, "Prefer to learn step by step? The studio also has ", /*#__PURE__*/React.createElement("b", null, "Lessons"), ": 24 graded missions, from first drive to full autopilot, for ages 5 and up. Open them any time from", /*#__PURE__*/React.createElement("b", null, " More Tools \u2192 Lessons"), " in the top bar."), /*#__PURE__*/React.createElement(Steps, {
       current: 2
     }), /*#__PURE__*/React.createElement("div", {
       className: "konb-actions"
