@@ -2474,10 +2474,10 @@
       const batt = r.batteryUsedPct != null ? r.batteryUsedPct + ' percent battery used' : 'battery not recorded';
       const prox = r.minProximityCm != null ? 'closest obstacle ' + r.minProximityCm + ' centimetres' : 'nothing came close';
       const where = (r.robotName || 'Robot') + ' in ' + (r.worldName || r.world || 'the selected world');
-      // Several of these parts already end in a full stop (the coaching verdict
-      // is a written sentence), so strip trailing punctuation before joining or
-      // a screen reader reads "add sensing.. travelled 2.7 metres".
-      const parts = [simpleOutcomeLabel, simpleLatestVerdict || r.detail || '', dist, batt, prox, where]
+      // Strip trailing punctuation (parts are written sentences) and the verdict's own
+      // "Covered N m, closest approach N cm." clause, which dist and prox restate below.
+      const said = String(simpleLatestVerdict || r.detail || '').replace(/\s*(Covered [\d.]+ m)?(, ?closest approach \d+ cm)?\./g, (m, a, b) => (a || b ? '' : m));
+      const parts = [simpleOutcomeLabel, said, dist, batt, prox, where]
         .map((p) => String(p || '').trim().replace(/[.\s]+$/, ''))
         .filter(Boolean);
       return parts.join('. ') + '.';
