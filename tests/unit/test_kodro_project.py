@@ -268,3 +268,29 @@ def test_a_file_written_by_the_desktop_opens_in_the_browser(tmp_path: Path) -> N
     # the build already on screen. That is the correct outcome, not a defect:
     # the pupil's program crosses over, their web-side robot is left alone.
     assert web["warnings"] == ["No robot spec in the project; the current build is kept."]
+
+
+def test_deeply_nested_json_is_refused_not_raised() -> None:
+    """A 120 KB file of nested brackets must be refused, not crash the importer.
+
+    read_text mirrors KodroProject.validate in assets/web/project.js, and that
+    one uses a bare `catch`, so it already refuses whatever JSON.parse throws.
+    json.loads raises RecursionError on deep nesting, which is not a ValueError,
+    so the narrower Python guard let the same file escape as an exception while
+    the browser refused it politely. The docstring promises both halves refuse
+    the same file the same way, so this holds them to it.
+    """
+    for text in ("[" * 60000 + "]" * 60000, '{"a":' * 30000 + "1" + "}" * 30000):
+        assert len(text) < 2 * 1024 * 1024, "must stay under the 2 MB cap to reach json.loads"
+        result = kp.read_text(text)
+        assert result.ok is False
+        assert result.document is None
+        assert result.errors and result.errors[0].startswith("Not valid JSON:")
+
+
+def test_the_nesting_fixture_really_does_exhaust_json_loads() -> None:
+    """Guard the guard: if json.loads stops recursing, the test above is vacuous."""
+    import json
+
+    with pytest.raises(RecursionError):
+        json.loads("[" * 60000 + "]" * 60000)
