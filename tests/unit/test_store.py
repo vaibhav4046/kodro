@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-from robolearn.memory.store import (
+from kodro.memory.store import (
     SCHEMA_SQL,
     ConceptStrength,
     Pupil,

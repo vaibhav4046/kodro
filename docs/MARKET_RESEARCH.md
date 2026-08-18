@@ -25,13 +25,13 @@ user's build, the ground-truth valid set is per-design, a second novelty axis.
 
 **Two credibility bombs, now fixed.** (1) The invention metric existed only in
 docstrings and the CA1 study design (0 hits in src). It is now real:
-`robolearn.grounding.check_grounding` plus the `kodrobench` harness. (2) The QA
+`kodro.grounding.check_grounding` plus the `kodrobench` harness. (2) The QA
 counts disagreed across docs (README 869, status 21, actual 951); the README now
 states the measured 950+.
 
 ### First measured KodroBench results (v0.1: 5 tasks, 10 seeds)
 
-Generated from `results/kodrobench-v0.1.json` by `robolearn.kodrobench`, never
+Generated from `results/kodrobench-v0.1.json` by `kodro.kodrobench`, never
 hand-typed. Lower invention_rate is better.
 
 | Model | success@N | invention_rate |

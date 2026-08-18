@@ -29,8 +29,8 @@ GitHub: https://github.com/vaibhav4046/kodro (branch main).
 
 Read these first to build your mental model:
 - README.md, docs/UPGRADE_AND_DISSERTATION_PLAN.md, docs/implementation-status.md, docs/known-limitations.md, docs/realism-system.md, docs/roadmap.md, docs/HANDOFF_NEXT_AGENT.md.
-- Web app (vendored React + Three.js r137, precompiled to bundle.js), under src/robolearn/assets/web/: app.jsx (main app, editor, run pump, EXAMPLES, world picker, quality selector), interpreter.js (Python subset interpreter, window.RoverLang), Viewport3D.jsx (the 3D scene and robot model), terrains.jsx (worlds and SITES presets, window.resolveSite), RobotLab.jsx (parts catalogue, derive(), WORLD_FOR, window.KodroCommands, window.getKodroRobot, window.KodroRobotFromText), scenario.jsx (window.KodroScenario, domain randomised validation), realism.jsx, demo.jsx, memory.jsx, agents.jsx, bridge.js, sound.js, bundle.js.
-- Python: src/robolearn/engine/, rover_api.py, memory/store.py (SQLite, scenario_runs table), web/app.py (pywebview BridgeAPI), lessons/.
+- Web app (vendored React + Three.js r137, precompiled to bundle.js), under src/kodro/assets/web/: app.jsx (main app, editor, run pump, EXAMPLES, world picker, quality selector), interpreter.js (Python subset interpreter, window.RoverLang), Viewport3D.jsx (the 3D scene and robot model), terrains.jsx (worlds and SITES presets, window.resolveSite), RobotLab.jsx (parts catalogue, derive(), WORLD_FOR, window.KodroCommands, window.getKodroRobot, window.KodroRobotFromText), scenario.jsx (window.KodroScenario, domain randomised validation), realism.jsx, demo.jsx, memory.jsx, agents.jsx, bridge.js, sound.js, bundle.js.
+- Python: src/kodro/engine/, rover_api.py, memory/store.py (SQLite, scenario_runs table), web/app.py (pywebview BridgeAPI), lessons/.
 - Tests: tests/. Dissertation: docs/dissertation/Kodro_Dissertation.tex and .pdf (compiled offline with the vendored tectonic at .tools/tectonic.exe).
 
 =====================================================================

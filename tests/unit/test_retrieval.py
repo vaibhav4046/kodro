@@ -6,14 +6,14 @@ from collections.abc import Iterator
 
 import pytest
 
-from robolearn.ai.ollama_client import OllamaClient, OllamaError
-from robolearn.ai.retrieval import (
+from kodro.ai.ollama_client import OllamaClient, OllamaError
+from kodro.ai.retrieval import (
     Passage,
     build_corpus,
     grounded_answer,
     search,
 )
-from robolearn.lessons.schema import Lesson, WorldDef
+from kodro.lessons.schema import Lesson, WorldDef
 
 
 def _lesson(lid: str, intro: str, glossary: dict[str, str] | None = None) -> Lesson:

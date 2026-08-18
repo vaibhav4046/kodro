@@ -2,7 +2,7 @@
 
 This scheme uses the 24 lessons that ship with Kodro. It does not add or rename
 lessons. Each title below matches a YAML file in
-`src/robolearn/lessons/library/`.
+`src/kodro/lessons/library/`.
 
 Cross-checked against `load_library()` on 18 August 2026: 24 lessons on disk, 24
 titles listed here, and the four blocks below total 7 + 5 + 4 + 8 = 24. The block

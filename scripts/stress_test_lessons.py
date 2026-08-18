@@ -23,14 +23,14 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from robolearn.engine.rover import Rover  # noqa: E402
-from robolearn.engine.terrain import Terrain  # noqa: E402
-from robolearn.engine.world import ArenaBounds, Obstacle, Sample, World  # noqa: E402
-from robolearn.lessons.grader import grade  # noqa: E402
-from robolearn.lessons.schema import Lesson, load_library  # noqa: E402
-from robolearn.runtime.binding import set_active_rover, set_active_world  # noqa: E402
-from robolearn.runtime.executor import execute  # noqa: E402
-from robolearn.runtime.tracer import (  # noqa: E402
+from kodro.engine.rover import Rover  # noqa: E402
+from kodro.engine.terrain import Terrain  # noqa: E402
+from kodro.engine.world import ArenaBounds, Obstacle, Sample, World  # noqa: E402
+from kodro.lessons.grader import grade  # noqa: E402
+from kodro.lessons.schema import Lesson, load_library  # noqa: E402
+from kodro.runtime.binding import set_active_rover, set_active_world  # noqa: E402
+from kodro.runtime.executor import execute  # noqa: E402
+from kodro.runtime.tracer import (  # noqa: E402
     RoverSnapshot,
     Tracer,
     set_active,

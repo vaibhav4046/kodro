@@ -75,13 +75,13 @@ interpreter, so point it at the environment Kodro is installed into:
   "mcpServers": {
     "kodro": {
       "command": "python",
-      "args": ["-m", "robolearn.mcp"]
+      "args": ["-m", "kodro.mcp"]
     }
   }
 }
 ```
 
-Use `robolearn.mcp`, not `robolearn.mcp.server`. Both start the server and both
+Use `kodro.mcp`, not `kodro.mcp.server`. Both start the server and both
 keep the protocol stream clean, but the second emits a `RuntimeWarning` on
 stderr, because the package has already imported the module by the time runpy
 executes it as `__main__`. Harmless, and a strict client will still log it as an
@@ -177,7 +177,7 @@ reasonable thing to be nervous about.
 |---|---|---|
 | `kodro-mcp: command not found` | The console script was never generated, or the environment is not active. | `pip install -e .` in the right environment. |
 | Client shows the server as connected but lists no tools | Usually the client started a different interpreter than the one Kodro is installed in. | Run `python scripts/smoke_mcp.py` to confirm the server itself is fine, then use the absolute path to the correct interpreter in the client config. |
-| `RuntimeWarning: found in sys.modules` on stderr | The config names `robolearn.mcp.server`. | Change it to `robolearn.mcp`. |
+| `RuntimeWarning: found in sys.modules` on stderr | The config names `kodro.mcp.server`. | Change it to `kodro.mcp`. |
 | Accented characters come back as `?` or `�` | The client launched the server with a non-UTF-8 stdio encoding. | Set `PYTHONUTF8=1` in the server's `env` block. The smoke test covers this case. |
 | A tool answers with more rows than you asked for | An argument name is wrong. | The server now refuses these, so upgrade if you see it. `check_api` filters on `nameContains`, not `name`; `list_lessons` on `keyStage`, not `keyStages`. |
 

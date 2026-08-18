@@ -1,4 +1,4 @@
-"""Tests for the headless batch runner (robolearn.bench)."""
+"""Tests for the headless batch runner (kodro.bench)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from robolearn.bench import REPORT_SCHEMA, run_batch, run_seed
+from kodro.bench import REPORT_SCHEMA, run_batch, run_seed
 
 # A program that drives, turns, and drives again: enough to travel and to hit a
 # jittered obstacle on some seeds, so the batch produces a mix of outcomes.

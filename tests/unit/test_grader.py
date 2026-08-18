@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from robolearn.lessons.grader import (
+from kodro.lessons.grader import (
     SCORE_PENALTY_PER_FAILURE,
     GradeResult,
     _has_recursion,
     _source_uses,
     grade,
 )
-from robolearn.lessons.schema import Lesson, SuccessCriterion, WorldDef
-from robolearn.runtime.tracer import Event, RoverSnapshot, Tracer
+from kodro.lessons.schema import Lesson, SuccessCriterion, WorldDef
+from kodro.runtime.tracer import Event, RoverSnapshot, Tracer
 
 # ---------------------------------------------------------------------------
 # Helpers

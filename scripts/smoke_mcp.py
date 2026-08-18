@@ -369,8 +369,8 @@ def entry_points(requested: str) -> list[tuple[str, list[str]]]:
     if requested in {"all", "console"} and console:
         found.append(("kodro-mcp (console script)", [console]))
     if requested in {"all", "module"}:
-        label = f"{Path(sys.executable).name} -m robolearn.mcp"
-        found.append((label, [sys.executable, "-m", "robolearn.mcp"]))
+        label = f"{Path(sys.executable).name} -m kodro.mcp"
+        found.append((label, [sys.executable, "-m", "kodro.mcp"]))
     if not found:
         if requested == "console":
             raise SmokeFailure("kodro-mcp is not on PATH. Reinstall with: pip install -e .")

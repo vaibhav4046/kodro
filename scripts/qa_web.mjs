@@ -239,7 +239,7 @@ async function main() {
     // the committed harness generator and fail on any real console error.
     try {
       const gen = spawnSync(process.execPath, [path.join(HERE, 'build_screenshot_harness.cjs')], { encoding: 'utf8', timeout: 60000 });
-      const capSrc = path.join(ROOT, 'src', 'robolearn', 'assets', 'web', 'cap.html');
+      const capSrc = path.join(ROOT, 'src', 'kodro', 'assets', 'web', 'cap.html');
       if (gen.status !== 0 || !existsSync(capSrc)) {
         results.push(log(false, 'studio-mount', 'cap.html generator failed: ' + ((gen.stderr || '').slice(0, 120))));
       } else {

@@ -3,7 +3,7 @@ requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"
 
 [project]
-name = "robolearn"
+name = "kodro"
 version = "2.1.0"
 description = "Offline AI-assisted robotics design and simulation platform (Kodro): build a robot, program it, validate it in a 3D world, all on one laptop."
 readme = "README.md"
@@ -49,15 +49,15 @@ dev = [
     "pyinstaller>=6.6",
     "mkdocs-material>=9.5",
 ]
-# URDF import/export interop (see src/robolearn/interop/urdf_io.py). Optional so
+# URDF import/export interop (see src/kodro/interop/urdf_io.py). Optional so
 # the core stays light; yourdfpy is the lenient reader, urdf_parser_py the ROS
 # reference parser for the parity check.
 interop = [
     "yourdfpy>=0.0.56",
     "urdf_parser_py>=0.0.4",
 ]
-# Gymnasium RL wrapper (see src/robolearn/envs/kodro_env.py). Optional so the
-# core stays light; importing robolearn.envs registers robolearn/KodroEnv-v0.
+# Gymnasium RL wrapper (see src/kodro/envs/kodro_env.py). Optional so the
+# core stays light; importing kodro.envs registers kodro/KodroEnv-v0.
 rl = [
     "gymnasium>=1.0",
 ]
@@ -66,33 +66,32 @@ rl = [
 # `kodro` is the product name, so it launches the product. It used to launch
 # the headless batch runner, which meant typing the name of the application
 # started something that is not the application. The batch runner now sits in
-# the kodro-* family with the other non-UI tools. `robolearn` is kept as an
-# alias because it is the package name and it is in older documentation.
-kodro = "robolearn.__main__:main"
-robolearn = "robolearn.__main__:main"
-kodro-bench = "robolearn.bench:main"
-kodrobench = "robolearn.kodrobench:main"
-kodro-prove = "robolearn.prove:main"
-kodro-mcp = "robolearn.mcp.server:main"
+# the kodro-* family with the other non-UI tools. The `robolearn` alias is gone
+# with the package of that name; `kodro` is the only launcher.
+kodro = "kodro.__main__:main"
+kodro-bench = "kodro.bench:main"
+kodrobench = "kodro.kodrobench:main"
+kodro-prove = "kodro.prove:main"
+kodro-mcp = "kodro.mcp.server:main"
 
 [project.urls]
 Homepage = "https://github.com/vaibhav4046/kodro"
 Issues = "https://github.com/vaibhav4046/kodro/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/robolearn"]
+packages = ["src/kodro"]
 # The web assets (.jsx/.js/.css/bundle.js) live under the package and are pulled
 # in by `packages` + this `artifacts` glob. The old force-include table re-mapped
 # the SAME files a second time, so hatch tried to add each asset twice and the
 # wheel build failed ("A second file is being added at the same path"). One
 # inclusion mechanism only.
 artifacts = [
-    "src/robolearn/assets/web/**/*",
+    "src/kodro/assets/web/**/*",
 ]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/robolearn",
+    "src/kodro",
     "tests",
     "docs",
     "README.md",
@@ -135,7 +134,7 @@ convention = "google"
 "tests/**" = ["D", "ANN", "S101"]
 "scripts/**" = ["D", "ANN", "INP001"]
 "examples/**" = ["D", "ANN", "INP001"]
-"src/robolearn/__main__.py" = ["D"]
+"src/kodro/__main__.py" = ["D"]
 
 [tool.ruff.format]
 line-ending = "lf"
@@ -184,7 +183,7 @@ ignore_missing_imports = true
 # base class. Permit that one subclassing so mypy stays green with and without
 # the extra installed (CI runs without it).
 [[tool.mypy.overrides]]
-module = ["robolearn.envs.kodro_env"]
+module = ["kodro.envs.kodro_env"]
 disallow_subclassing_any = false
 
 # ---------- pytest ---------------------------------------------------------
@@ -201,7 +200,7 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
-    "--cov=robolearn",
+    "--cov=kodro",
     "--cov-branch",
     "--cov-report=term-missing",
     # Coverage gate progresses per the autonomous-mode override:
@@ -214,7 +213,7 @@ addopts = [
 markers = []
 
 [tool.coverage.run]
-source = ["src/robolearn"]
+source = ["src/kodro"]
 branch = true
 # The sandbox executor (runtime/executor.py) runs pupil code in a daemon thread
 # and can hard-kill it via PyThreadState_SetAsyncExc. Without thread-concurrency

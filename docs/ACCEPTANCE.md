@@ -30,9 +30,9 @@ on each gate, with the exact summary line it printed, see
 | 10 | Python suite + coverage gate | `python -m pytest` | Pass: 1023 passed, 1 skipped; coverage total reported above the 85% gate |
 | 11 | Lint, format, types | `ruff check .`; `ruff format --check .`; `mypy src` | Pass on all three local gates |
 | 12 | Offline web guard can run alone | `python -m pytest tests/unit/test_web_offline.py` | Pass: 4 passed; isolated run no longer fails only because whole-repo coverage is below 85% |
-| 13 | Source app constructs | `python -c "from robolearn.web.app import build_app; app = build_app(); print(app.window.title)"` | Pass: prints `Kodro` |
+| 13 | Source app constructs | `python -c "from kodro.web.app import build_app; app = build_app(); print(app.window.title)"` | Pass: prints `Kodro` |
 | 14 | Live hosted web reachable and CI-gated deploy exists | `Invoke-WebRequest https://vaibhav4046.github.io/robolearn/`; `gh run list --branch main --workflow CI` | Pass: HTTP 200; main/release GitHub Actions remain part of the shipping gate |
-| 15 | Windows installer/release packaging | `python scripts/build_exe.py --clean` | Pass: produced distinct `dist/RoboLearn.exe` and `dist/robolearn-tk.exe`; release workflow now packages the distinct fallback binary |
+| 15 | Windows installer/release packaging | `python scripts/build_exe.py --clean` | Pass: produced distinct `dist/RoboLearn.exe` and `dist/kodro-tk.exe`; release workflow now packages the distinct fallback binary |
 
 ## Release Artifacts
 
@@ -41,7 +41,7 @@ Local Windows build outputs from this pass:
 | File | Size | SHA-256 |
 |---|---:|---|
 | `dist/RoboLearn.exe` | 75,781,082 bytes | `99B3372BC4EC77A4F9C1993968611E7D74BDC71AC14169CD38BAB130C7A8E3F6` |
-| `dist/robolearn-tk.exe` | 75,495,392 bytes | `9FE51DF7ED45A60295D0C99466FA14927B050E7621FA09F9D4E75FDABFD7EF95` |
+| `dist/kodro-tk.exe` | 75,495,392 bytes | `9FE51DF7ED45A60295D0C99466FA14927B050E7621FA09F9D4E75FDABFD7EF95` |
 
 The previous latest GitHub release before this audit was `v2.0.0`, tagged at
 `9ed5f4680c6dab41fa709f529d2477d1de252e6b`, while current `main` had advanced

@@ -9,7 +9,7 @@ This script ships the same lessons as a plain JSON file the browser can
 The serialised shape MUST match ``BridgeAPI.list_lessons()`` byte-for-byte in
 its per-lesson fields, so the browser and desktop paths present identical
 lessons. To guarantee that, this script reuses the *same* serialiser the bridge
-uses: :meth:`robolearn.web.app.BridgeAPI._lesson_to_dict`. If that shape ever
+uses: :meth:`kodro.web.app.BridgeAPI._lesson_to_dict`. If that shape ever
 changes, this export changes with it, and the parity test
 (``tests/unit/test_lessons_export.py``) fails until ``lessons.json`` is
 re-exported.
@@ -36,11 +36,11 @@ if str(SRC) not in sys.path:
 
 # Imported after sys.path is primed so the script runs from a bare checkout
 # (no editable install required), matching the other scripts in this directory.
-from robolearn.lessons.schema import load_library  # noqa: E402
-from robolearn.web.app import BridgeAPI  # noqa: E402
+from kodro.lessons.schema import load_library  # noqa: E402
+from kodro.web.app import BridgeAPI  # noqa: E402
 
 #: Where the shipped web build looks for the lessons (served next to index.html).
-OUTPUT_PATH: Path = SRC / "robolearn" / "assets" / "web" / "lessons.json"
+OUTPUT_PATH: Path = SRC / "kodro" / "assets" / "web" / "lessons.json"
 
 
 def build_lessons_payload() -> list[dict[str, object]]:

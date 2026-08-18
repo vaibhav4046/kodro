@@ -6,14 +6,14 @@ import math
 
 import pytest
 
-from robolearn.engine.rover import (
+from kodro.engine.rover import (
     BATTERY_PER_COLLISION,
     BATTERY_PER_DEGREE,
     BATTERY_PER_METRE,
     Rover,
 )
-from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, Obstacle, Sample, World
+from kodro.engine.terrain import Terrain
+from kodro.engine.world import ArenaBounds, Obstacle, Sample, World
 
 
 def _world() -> World:

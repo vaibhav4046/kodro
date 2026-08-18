@@ -31,9 +31,9 @@ args = []
 #
 #     [mcp_servers.kodro]
 #     command = "python"
-#     args = ["-m", "robolearn.mcp"]
+#     args = ["-m", "kodro.mcp"]
 #
-# Use `robolearn.mcp`, not `robolearn.mcp.server`. Both start the server, but
+# Use `kodro.mcp`, not `kodro.mcp.server`. Both start the server, but
 # the latter emits a RuntimeWarning on stderr because the package has already
 # imported the module by the time runpy executes it as __main__. The warning is
 # harmless and the protocol stream stays clean either way, but a strict client

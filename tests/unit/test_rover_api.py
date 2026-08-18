@@ -7,7 +7,7 @@ import math
 
 import pytest
 
-from robolearn import rover_api
+from kodro import rover_api
 
 # --- Driving: types, defaults, clamps ---------------------------------------
 
@@ -19,25 +19,25 @@ def test_move_forward_accepts_nonneg(dist: float) -> None:
 
 @pytest.mark.parametrize("dist", [-10.0, -0.001])
 def test_move_forward_clamps_negative(caplog: pytest.LogCaptureFixture, dist: float) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.move_forward(dist)
     assert any("clamped to lower bound" in r.getMessage() for r in caplog.records)
 
 
 def test_move_forward_clamps_huge(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.move_forward(1e9)
     assert any("clamped to upper bound" in r.getMessage() for r in caplog.records)
 
 
 def test_move_forward_handles_nan(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.move_forward(float("nan"))
     assert any("NaN" in r.getMessage() for r in caplog.records)
 
 
 def test_move_forward_handles_inf(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.move_forward(float("inf"))
     assert any("non-finite" in r.getMessage() for r in caplog.records)
 
@@ -47,7 +47,7 @@ def test_move_backward_accepts() -> None:
 
 
 def test_move_backward_clamps_negative(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.move_backward(-1.0)
     assert any("clamped" in r.getMessage() for r in caplog.records)
 
@@ -58,13 +58,13 @@ def test_turn_left_returns_none(deg: float) -> None:
 
 
 def test_turn_left_clamps_huge(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.turn_left(1e6)
     assert any("clamped to upper bound" in r.getMessage() for r in caplog.records)
 
 
 def test_turn_left_handles_nan(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.turn_left(float("nan"))
     assert any("NaN" in r.getMessage() for r in caplog.records)
 
@@ -75,7 +75,7 @@ def test_turn_right_returns_none(deg: float) -> None:
 
 
 def test_turn_right_clamps_negative(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.turn_right(-1e9)
     assert any("clamped to lower bound" in r.getMessage() for r in caplog.records)
 
@@ -85,19 +85,19 @@ def test_wait_returns_none() -> None:
 
 
 def test_wait_clamps_negative(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.wait(-1.0)
     assert any("clamped to lower bound" in r.getMessage() for r in caplog.records)
 
 
 def test_wait_clamps_huge(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.wait(1e6)
     assert any("clamped to upper bound" in r.getMessage() for r in caplog.records)
 
 
 def test_wait_handles_inf(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.wait(float("-inf"))
     assert any("non-finite" in r.getMessage() for r in caplog.records)
 
@@ -141,7 +141,7 @@ def test_obstacle_ahead_custom_threshold() -> None:
 
 
 def test_obstacle_ahead_clamps_negative_threshold(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.obstacle_ahead(threshold_m=-1.0)
     assert any("clamped" in r.getMessage() for r in caplog.records)
 
@@ -156,7 +156,7 @@ def test_sample_detected_custom_radius() -> None:
 
 
 def test_sample_detected_clamps_huge_radius(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.sample_detected(radius_m=1e9)
     assert any("clamped" in r.getMessage() for r in caplog.records)
 
@@ -185,19 +185,19 @@ def test_beep_accepts_zero() -> None:
 
 
 def test_beep_clamps_huge_times(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.beep(times=99999)
     assert any("clamped to upper bound" in r.getMessage() for r in caplog.records)
 
 
 def test_beep_clamps_negative_times(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.beep(times=-5)
     assert any("clamped to lower bound" in r.getMessage() for r in caplog.records)
 
 
 def test_log_emits_info_record_for_string(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.INFO, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.INFO, logger="kodro.rover_api"):
         rover_api.log("hello rover")
     assert any("hello rover" in r.getMessage() for r in caplog.records)
 
@@ -216,7 +216,7 @@ class _RaisingObject:
 
 
 def test_log_never_raises_on_str_failure(caplog: pytest.LogCaptureFixture) -> None:
-    with caplog.at_level(logging.INFO, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.INFO, logger="kodro.rover_api"):
         rover_api.log(_RaisingObject())
     assert any("unprintable" in r.getMessage() for r in caplog.records)
 
@@ -225,7 +225,7 @@ def test_log_never_raises_on_str_failure(caplog: pytest.LogCaptureFixture) -> No
 
 
 def test_package_root_reexports_full_api() -> None:
-    import robolearn
+    import kodro
 
     for name in (
         "move_forward",
@@ -245,5 +245,5 @@ def test_package_root_reexports_full_api() -> None:
         "beep",
         "log",
     ):
-        assert hasattr(robolearn, name), f"robolearn.{name} missing"
-        assert getattr(robolearn, name) is getattr(rover_api, name)
+        assert hasattr(kodro, name), f"kodro.{name} missing"
+        assert getattr(kodro, name) is getattr(rover_api, name)

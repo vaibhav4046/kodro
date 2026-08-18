@@ -13,7 +13,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-WEB = Path(__file__).resolve().parents[2] / "src" / "robolearn" / "assets" / "web"
+WEB = Path(__file__).resolve().parents[2] / "src" / "kodro" / "assets" / "web"
 
 #: A URL is allowed only if it points at the local machine.
 _LOCAL = re.compile(r"^(?:https?:)?//(?:localhost|127\.0\.0\.1)\b", re.IGNORECASE)

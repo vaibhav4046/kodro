@@ -142,7 +142,7 @@ sections to KRS import (4.5) and fidelity tiers (4.6); Chapter 5 gives one to KR
 
 What exists in the code archive and is never named in the dissertation:
 
-- `src/robolearn/lessons/library/*.yaml` — 24 lessons carrying `curriculum_refs`
+- `src/kodro/lessons/library/*.yaml` — 24 lessons carrying `curriculum_refs`
   (**DfE-00171-2013** cited verbatim), `key_stage`, `reading_age`, `ct_concepts`
 - `assets/web/markbook.js` — `markbookCsv()` / `strengthsCsv()`, SIMS/Arbor export
 - `assets/web/lesson-studio.js` (28.7 KB) + `.jsx` (32 KB); `lesson-grader.jsx` (52 KB)

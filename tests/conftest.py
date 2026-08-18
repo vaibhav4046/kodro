@@ -16,7 +16,7 @@ import pytest
 # raising, or blocking.
 os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 
-from robolearn.runtime import tracer as _tracer
+from kodro.runtime import tracer as _tracer
 
 _NODE_SUBPROCESS_TESTS = {
     "test_golden_traces.py",

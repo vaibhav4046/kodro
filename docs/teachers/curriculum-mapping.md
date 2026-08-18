@@ -70,8 +70,8 @@ different lessons.
 ## Where the references live in the source
 
 Each lesson YAML carries its `curriculum_refs` list verbatim in the
-`src/robolearn/lessons/library/<id>.yaml` file. The lesson schema in
-`src/robolearn/lessons/schema.py` validates that every required
+`src/kodro/lessons/library/<id>.yaml` file. The lesson schema in
+`src/kodro/lessons/schema.py` validates that every required
 attainment-target field is present at load time; a typo in a YAML key
 fails fast (Section 6 of the build spec).
 

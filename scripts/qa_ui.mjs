@@ -36,7 +36,7 @@
  * with a short gap between them
  * because the dev http.server is single-threaded and stalls if hammered.
  *
- *   cd src/robolearn/assets/web && python -m http.server 8099   # serve first
+ *   cd src/kodro/assets/web && python -m http.server 8099   # serve first
  *   node scripts/build_screenshot_harness.cjs                   # emit cap.html
  *   node scripts/qa_ui.mjs                                      # this harness
  */
@@ -55,9 +55,9 @@ import { measureViewports } from './lib/cdp-viewport.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
 const TMP = path.join(REPO, 'tmp', 'ui');
-const CAP = path.join(REPO, 'src', 'robolearn', 'assets', 'web', 'cap.html');
+const CAP = path.join(REPO, 'src', 'kodro', 'assets', 'web', 'cap.html');
 // cap.html loads this; hashing both pins exactly which build a result belongs to.
-const BUNDLE = path.join(REPO, 'src', 'robolearn', 'assets', 'web', 'bundle.js');
+const BUNDLE = path.join(REPO, 'src', 'kodro', 'assets', 'web', 'bundle.js');
 
 const HOST = 'localhost';
 const PORT = 8099;
@@ -1732,7 +1732,7 @@ function writeArtefact(chrome, passed, groups) {
   const status = await probeServer();
   if (status !== 200) {
     console.log(`SKIP: static server not serving cap.html on :${PORT} (got ${status || 'no connection'}).`);
-    console.log('      Start it with:  cd src/robolearn/assets/web && python -m http.server 8099');
+    console.log('      Start it with:  cd src/kodro/assets/web && python -m http.server 8099');
     process.exit(REQUIRED ? 1 : 0);
   }
 

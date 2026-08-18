@@ -15,15 +15,15 @@ from collections.abc import Iterator
 
 import pytest
 
-from robolearn.app import (
+from kodro.app import (
     App,
     _default_lesson,
     _snapshot,
     _world_from_lesson,
     build_app,
 )
-from robolearn.engine.rover import Rover
-from robolearn.ui.main_window import MainWindow
+from kodro.engine.rover import Rover
+from kodro.ui.main_window import MainWindow
 
 #: The headless GitHub macOS runner intermittently deadlocks inside
 #: ``root.update()`` (a long-standing Aqua-in-CI Tk quirk), so every test that
@@ -40,7 +40,7 @@ _skip_darwin_anim = pytest.mark.skipif(
 @pytest.fixture(scope="module")
 def app_ctx(tmp_path_factory: pytest.TempPathFactory) -> Iterator[App]:
     """Build the full app once for the whole module."""
-    import robolearn.app as app_mod
+    import kodro.app as app_mod
 
     # Achievement toasts spawn a secondary tk.Toplevel. On a headless
     # macOS (Aqua) runner mapping that window blocks root.update() forever,
@@ -336,9 +336,9 @@ def test_welcome_writes_sentinel_and_renames(
     app_ctx: App, tmp_path: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """First-run wizard persists the profile sentinel and renames the pupil."""
-    import robolearn.app as app_mod
-    from robolearn.engine.terrain import Terrain
-    from robolearn.ui.welcome_wizard import WizardResult
+    import kodro.app as app_mod
+    from kodro.engine.terrain import Terrain
+    from kodro.ui.welcome_wizard import WizardResult
 
     sentinel = tmp_path / "config.toml"  # type: ignore[operator]
     monkeypatch.setattr(app_mod, "WELCOME_SENTINEL", sentinel)
@@ -348,7 +348,7 @@ def test_welcome_writes_sentinel_and_renames(
             if on_complete is not None:
                 on_complete(WizardResult("Ada", "13-14", "KS3", Terrain.MARS))
 
-    monkeypatch.setattr("robolearn.ui.welcome_wizard.WelcomeWizard", _FakeWizard)
+    monkeypatch.setattr("kodro.ui.welcome_wizard.WelcomeWizard", _FakeWizard)
     app_mod._maybe_show_welcome(app_ctx)
     assert sentinel.exists()  # type: ignore[attr-defined]
     assert 'display_name = "Ada"' in sentinel.read_text(encoding="utf-8")  # type: ignore[attr-defined]
@@ -362,9 +362,9 @@ def test_welcome_config_is_valid_toml_for_tricky_name(
     """A display name with a quote/newline must still write parseable TOML."""
     import tomllib
 
-    import robolearn.app as app_mod
-    from robolearn.engine.terrain import Terrain
-    from robolearn.ui.welcome_wizard import WizardResult
+    import kodro.app as app_mod
+    from kodro.engine.terrain import Terrain
+    from kodro.ui.welcome_wizard import WizardResult
 
     sentinel = tmp_path / "config.toml"  # type: ignore[operator]
     monkeypatch.setattr(app_mod, "WELCOME_SENTINEL", sentinel)
@@ -375,7 +375,7 @@ def test_welcome_config_is_valid_toml_for_tricky_name(
             if on_complete is not None:
                 on_complete(WizardResult(tricky, "13-14", "KS3", Terrain.MARS))
 
-    monkeypatch.setattr("robolearn.ui.welcome_wizard.WelcomeWizard", _FakeWizard)
+    monkeypatch.setattr("kodro.ui.welcome_wizard.WelcomeWizard", _FakeWizard)
     app_mod._maybe_show_welcome(app_ctx)
     data = tomllib.loads(sentinel.read_text(encoding="utf-8"))  # type: ignore[attr-defined]
     assert data["display_name"] == tricky
@@ -385,7 +385,7 @@ def test_welcome_config_is_valid_toml_for_tricky_name(
 def test_welcome_skips_when_sentinel_exists(
     app_ctx: App, tmp_path: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import robolearn.app as app_mod
+    import kodro.app as app_mod
 
     sentinel = tmp_path / "config.toml"  # type: ignore[operator]
     sentinel.write_text("seen", encoding="utf-8")  # type: ignore[attr-defined]
@@ -396,7 +396,7 @@ def test_welcome_skips_when_sentinel_exists(
         def __init__(self, *_a: object, **_k: object) -> None:
             calls.append(1)
 
-    monkeypatch.setattr("robolearn.ui.welcome_wizard.WelcomeWizard", _FakeWizard)
+    monkeypatch.setattr("kodro.ui.welcome_wizard.WelcomeWizard", _FakeWizard)
     app_mod._maybe_show_welcome(app_ctx)
     assert calls == []  # short-circuited before constructing the wizard
 
@@ -405,8 +405,8 @@ def test_a11y_controls_change_and_persist(
     app_ctx: App, tmp_path: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A-/A+ and the contrast toggle mutate, apply and persist settings."""
-    import robolearn.app as app_mod
-    from robolearn.ui.a11y import A11ySettings
+    import kodro.app as app_mod
+    from kodro.ui.a11y import A11ySettings
 
     monkeypatch.setattr(app_mod, "A11Y_PATH", tmp_path / "a11y.toml")  # type: ignore[operator]
     app_ctx.a11y_settings = A11ySettings()
@@ -422,8 +422,8 @@ def test_a11y_controls_change_and_persist(
 @_skip_darwin_anim  # opening a Toplevel segfaults the headless macOS runner
 def test_trophies_dialog_opens_and_lists_all(app_ctx: App) -> None:
     """The trophy case opens and lists every catalogue entry."""
-    from robolearn.app import _show_trophies
-    from robolearn.memory.achievements import CATALOGUE
+    from kodro.app import _show_trophies
+    from kodro.memory.achievements import CATALOGUE
 
     dialog = _show_trophies(app_ctx)
     try:
@@ -439,7 +439,7 @@ def test_export_report_writes_and_logs(
     app_ctx: App, tmp_path: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The Report button writes an HTML file and logs its path (no dialog)."""
-    import robolearn.app as app_mod
+    import kodro.app as app_mod
 
     out = tmp_path / "r.html"  # type: ignore[operator]
     monkeypatch.setattr(app_mod, "REPORT_PATH", out)
@@ -451,7 +451,7 @@ def test_export_report_writes_and_logs(
 
 def test_replay_last_warns_when_no_run(app_ctx: App) -> None:
     """Replay with an empty tracer warns and opens no dialog (macOS-safe)."""
-    from robolearn.app import _replay_last
+    from kodro.app import _replay_last
 
     app_ctx.tracer.clear()
     assert app_ctx.console is not None
@@ -464,9 +464,9 @@ def test_sound_toggle_flips_persists_and_applies(
     app_ctx: App, tmp_path: object, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The sound toggle mutes effects, persists the choice, and re-applies."""
-    import robolearn.app as app_mod
-    from robolearn.ui import sounds
-    from robolearn.ui.a11y import A11ySettings
+    import kodro.app as app_mod
+    from kodro.ui import sounds
+    from kodro.ui.a11y import A11ySettings
 
     monkeypatch.setattr(app_mod, "A11Y_PATH", tmp_path / "a11y.toml")  # type: ignore[operator]
     app_ctx.a11y_settings = A11ySettings(sound_enabled=True)
@@ -511,7 +511,7 @@ def _editor(app: App):
 
 def test_cancelling_the_save_dialog_writes_nothing(app_ctx: App, tmp_path: object) -> None:
     """A pupil who backs out of the file dialog gets no file and no log noise."""
-    from robolearn.app import _save_project
+    from kodro.app import _save_project
 
     assert app_ctx.console is not None
     mark = _console_mark(app_ctx)
@@ -522,7 +522,7 @@ def test_cancelling_the_save_dialog_writes_nothing(app_ctx: App, tmp_path: objec
 
 
 def test_cancelling_the_open_dialog_leaves_the_editor_alone(app_ctx: App) -> None:
-    from robolearn.app import _open_project
+    from kodro.app import _open_project
 
     assert app_ctx.console is not None
     editor = _editor(app_ctx)
@@ -535,7 +535,7 @@ def test_cancelling_the_open_dialog_leaves_the_editor_alone(app_ctx: App) -> Non
 
 def test_a_saved_project_opens_back_into_the_editor(app_ctx: App, tmp_path: object) -> None:
     """The round trip that matters: what was written is what comes back."""
-    from robolearn.app import _open_project, _save_project
+    from kodro.app import _open_project, _save_project
 
     assert app_ctx.console is not None
     editor = _editor(app_ctx)
@@ -556,7 +556,7 @@ def test_a_saved_project_opens_back_into_the_editor(app_ctx: App, tmp_path: obje
 
 def test_the_suggested_file_name_reaches_the_chooser(app_ctx: App, tmp_path: object) -> None:
     """The dialog is pre-filled, so a pupil is not asked to invent a name."""
-    from robolearn.app import _save_project
+    from kodro.app import _save_project
 
     assert app_ctx.console is not None
     seen: list[str] = []
@@ -573,7 +573,7 @@ def test_the_suggested_file_name_reaches_the_chooser(app_ctx: App, tmp_path: obj
 
 def test_an_unwritable_target_is_reported_not_raised(app_ctx: App, tmp_path: object) -> None:
     """A save that cannot land says so; it does not take the app down."""
-    from robolearn.app import _save_project
+    from kodro.app import _save_project
 
     assert app_ctx.console is not None
     # A real filesystem refusal rather than a patched one: writing over a
@@ -588,7 +588,7 @@ def test_an_unwritable_target_is_reported_not_raised(app_ctx: App, tmp_path: obj
 
 
 def test_a_corrupt_file_is_refused_with_the_shared_wording(app_ctx: App, tmp_path: object) -> None:
-    from robolearn.app import _open_project
+    from kodro.app import _open_project
 
     assert app_ctx.console is not None
     editor = _editor(app_ctx)
@@ -609,7 +609,7 @@ def test_a_project_with_no_program_leaves_the_editor_unchanged(
     """An empty project must not blank the editor a pupil is working in."""
     import json
 
-    from robolearn.app import _open_project
+    from kodro.app import _open_project
 
     assert app_ctx.console is not None
     editor = _editor(app_ctx)
@@ -626,7 +626,7 @@ def test_a_web_only_world_is_named_as_web_only(app_ctx: App, tmp_path: object) -
     """``city`` has no desktop terrain, and the pupil is told rather than moved."""
     import json
 
-    from robolearn.app import _open_project
+    from kodro.app import _open_project
 
     assert app_ctx.console is not None
     editor = _editor(app_ctx)
@@ -649,7 +649,7 @@ def test_a_shared_world_is_named_without_the_web_only_caveat(
     """A world both halves have is reported plainly -- no misleading caveat."""
     import json
 
-    from robolearn.app import SHARED_WORLDS, _open_project
+    from kodro.app import SHARED_WORLDS, _open_project
 
     assert app_ctx.console is not None
     editor = _editor(app_ctx)
@@ -669,7 +669,7 @@ def test_source_for_lesson_resume_vs_starter(app_ctx: App) -> None:
     """A lesson with no history yields its starter; with history, the last code."""
     import dataclasses
 
-    from robolearn.app import _source_for_lesson
+    from kodro.app import _source_for_lesson
 
     pupil = app_ctx.store.create_pupil("resume-test")
     probe = dataclasses.replace(app_ctx, pupil_id=pupil.id)
@@ -694,7 +694,7 @@ def test_source_for_lesson_resume_vs_starter(app_ctx: App) -> None:
 
 def test_restore_starter_resets_editor_code(app_ctx: App) -> None:
     """Restoring puts the current lesson's starter code back in the editor."""
-    from robolearn.app import _restore_starter
+    from kodro.app import _restore_starter
 
     lesson = app_ctx.lessons[0]
     app_ctx.current_lesson = lesson
@@ -706,8 +706,8 @@ def test_restore_starter_resets_editor_code(app_ctx: App) -> None:
 
 def test_mission_bar_status_and_speed(app_ctx: App) -> None:
     """The mission-bar status dot recolours and the speed slider sets the factor."""
-    from robolearn.app import _set_speed, _set_status
-    from robolearn.ui import orbital
+    from kodro.app import _set_speed, _set_status
+    from kodro.ui import orbital
 
     assert app_ctx.status_dot is not None
     _set_status(app_ctx, "run")
@@ -724,7 +724,7 @@ def test_mission_bar_status_and_speed(app_ctx: App) -> None:
 
 def test_progress_strip_reflects_store(app_ctx: App) -> None:
     """The topbar progress strip renders streak / passed / last score."""
-    from robolearn.app import _progress_text, _refresh_progress
+    from kodro.app import _progress_text, _refresh_progress
 
     app_ctx.store.record_submission(
         pupil_id=app_ctx.pupil_id,

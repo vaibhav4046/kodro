@@ -52,7 +52,7 @@ EXIT=0
 
 The artefact now carries
 `bundleSha256 17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174`,
-which is byte-for-byte the SHA-256 of `src/robolearn/assets/web/bundle.js` at
+which is byte-for-byte the SHA-256 of `src/kodro/assets/web/bundle.js` at
 this commit, and `harnessSha256 50681bdc...`, which matches
 `scripts/qa_performance.mjs`. Table rows 659 and 660, the summary figures at
 `.tex:160`, and the ledger row in `docs/ca2/CLAIM_LEDGER.md` were updated to the

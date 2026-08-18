@@ -19,7 +19,7 @@ import vm from 'node:vm';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const WEB = path.join(ROOT, 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(ROOT, 'src', 'kodro', 'assets', 'web');
 
 let pass = 0;
 const fails = [];

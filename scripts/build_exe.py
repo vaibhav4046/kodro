@@ -41,10 +41,10 @@ def main(argv: list[str] | None = None) -> int:
         shutil.rmtree(BUILD_DIR, ignore_errors=True)
 
     pathsep = ";" if sys.platform.startswith("win") else ":"
-    library_src = (REPO_ROOT / "src" / "robolearn" / "lessons" / "library").as_posix()
-    add_data = f"{library_src}{pathsep}robolearn/lessons/library"
+    library_src = (REPO_ROOT / "src" / "kodro" / "lessons" / "library").as_posix()
+    add_data = f"{library_src}{pathsep}kodro/lessons/library"
 
-    tk_binary_name = "robolearn-tk" if sys.platform.startswith("win") else "robolearn"
+    tk_binary_name = "kodro-tk" if sys.platform.startswith("win") else "kodro"
     cmd = [
         sys.executable,
         "-m",
@@ -60,15 +60,15 @@ def main(argv: list[str] | None = None) -> int:
         "--add-data",
         add_data,
         "--collect-submodules",
-        "robolearn",
+        "kodro",
         "--collect-data",
-        "robolearn",
+        "kodro",
         "--hidden-import",
-        "robolearn.app",
+        "kodro.app",
     ]
     if not args.debug:
         cmd.append("--windowed")
-    cmd.append((REPO_ROOT / "src" / "robolearn" / "__main__.py").as_posix())
+    cmd.append((REPO_ROOT / "src" / "kodro" / "__main__.py").as_posix())
 
     sys.stdout.write("Running: " + " ".join(cmd) + "\n")
     result = subprocess.run(cmd, check=False, cwd=REPO_ROOT)
@@ -95,7 +95,7 @@ def _build_web_app() -> int:
     """
     if not sys.platform.startswith("win"):
         return 0
-    spec = REPO_ROOT / "robolearn-web.spec"
+    spec = REPO_ROOT / "kodro-web.spec"
     if not spec.exists():
         return 0
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", spec.as_posix()]
@@ -104,7 +104,7 @@ def _build_web_app() -> int:
     if result.returncode != 0:
         sys.stderr.write(f"Web-app PyInstaller failed with exit code {result.returncode}\n")
         return result.returncode
-    # robolearn-web.spec sets name="Kodro", so the artefact is Kodro.exe. This
+    # kodro-web.spec sets name="Kodro", so the artefact is Kodro.exe. This
     # checked for the pre-rename RoboLearn.exe, so the "Built:" line never
     # printed and a genuinely missing binary looked identical to a good build.
     web_binary = DIST_DIR / "Kodro.exe"
@@ -118,10 +118,10 @@ def _build_web_app() -> int:
 def _resolve_binary_path() -> Path | None:
     """Return the path to the binary PyInstaller produced (if any)."""
     candidates = (
-        DIST_DIR / "robolearn-tk.exe",
-        DIST_DIR / "robolearn.exe",
-        DIST_DIR / "robolearn-tk",
-        DIST_DIR / "robolearn",
+        DIST_DIR / "kodro-tk.exe",
+        DIST_DIR / "kodro.exe",
+        DIST_DIR / "kodro-tk",
+        DIST_DIR / "kodro",
     )
     for candidate in candidates:
         if candidate.exists():

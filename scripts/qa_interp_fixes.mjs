@@ -16,8 +16,8 @@
  */
 import { readFileSync } from 'node:fs';
 
-const SRC = readFileSync(new URL('../src/robolearn/assets/web/interpreter.js', import.meta.url), 'utf8');
-const MM = readFileSync(new URL('../src/robolearn/assets/web/motion-model.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../src/kodro/assets/web/interpreter.js', import.meta.url), 'utf8');
+const MM = readFileSync(new URL('../src/kodro/assets/web/motion-model.js', import.meta.url), 'utf8');
 const win = {};
 new Function('window', MM)(win);
 new Function('window', SRC)(win);

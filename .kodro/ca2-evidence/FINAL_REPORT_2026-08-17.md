@@ -20,7 +20,7 @@ edited to match a later state. Re-measure and write a new file instead.
 
 **Product.** The `kodro` desktop entry point launches the app rather than the
 batch runner. Desktop mission bar and the dictation notice no longer name the
-prototype or a recipient the code cannot know. `src/robolearn/web/app.py` grades
+prototype or a recipient the code cannot know. `src/kodro/web/app.py` grades
 submitted attempts against `success_criteria` and its docstring now says so.
 Project storage round trips between desktop and web. A secret-scan gate exists
 and the tracked account-name leak it found was removed.
@@ -44,7 +44,7 @@ claimed: see the figures below.
 Software-renderer performance re-pinned to the bundle actually shipped rather
 than to a hardware run from July.
 
-**Lessons.** 24 YAML lessons at `src/robolearn/lessons/library/`, split KS1 3 /
+**Lessons.** 24 YAML lessons at `src/kodro/lessons/library/`, split KS1 3 /
 KS2 4 / KS3 9 / KS4 8, of which exactly 7 declare `reading_age`. The exported
 `lessons.json` is byte-identical to a fresh regeneration, so the generated
 bundle matches its source.
@@ -182,7 +182,7 @@ Which version is correct depends on a duration nobody has confirmed.
 - The six leaked compile logs are still in the public history. They are present
   untracked on disk at
   `docs/dissertation/{compile1,compile2,doi_compile1,doi_compile2,final_compile1,final_compile2}.txt`.
-- The installed `kodro.exe` on this machine still embeds `from robolearn.bench
+- The installed `kodro.exe` on this machine still embeds `from kodro.bench
   import main`. The repository is fixed; the installed artefact is stale until
   reinstalled.
 - The pytest base temp directory on this host has an ACL that denies even its

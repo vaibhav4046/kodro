@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.lessons.schema import load_library
-from robolearn.memory.store import Store
-from robolearn.web.app import BridgeAPI
+from kodro.lessons.schema import load_library
+from kodro.memory.store import Store
+from kodro.web.app import BridgeAPI
 
 
 @pytest.fixture
@@ -163,7 +163,7 @@ def test_ai_ask_returns_grounded_lesson_sources_without_a_model(
 ) -> None:
     """With no local model reachable, Ask still returns grounded lesson
     passages from offline retrieval rather than nothing."""
-    import robolearn.ai.ollama_client as oc
+    import kodro.ai.ollama_client as oc
 
     monkeypatch.setattr(oc.OllamaClient, "available", lambda self: False)
     out = api.ai_ask("how do I check for a wall ahead")
@@ -285,7 +285,7 @@ def test_energy_true_battery_still_reflects_the_build(api: BridgeAPI) -> None:
 def test_submit_attempt_drives_the_learner_model(api: BridgeAPI) -> None:
     """The web path (not only the Tk app) updates concept strength, unlocks
     achievements, and returns the adaptive next-lesson pick."""
-    from robolearn.memory.pupil_model import get_strengths
+    from kodro.memory.pupil_model import get_strengths
 
     lessons = api.list_lessons()
     target_id = lessons[0]["id"]
@@ -317,7 +317,7 @@ def test_submit_attempt_with_runtime_error_returns_reason_without_recording(
 
 
 def test_export_report_writes_html(api: BridgeAPI, tmp_path: Path) -> None:
-    import robolearn.web.app as webapp
+    import kodro.web.app as webapp
 
     # Redirect the report next to a temp DB dir so the test doesn't touch ~/.
     original = webapp.DEFAULT_DB_PATH
@@ -353,17 +353,17 @@ def test_log_accepts_known_levels(api: BridgeAPI) -> None:
 
 def test_startup_failure_message_guides_to_webview2() -> None:
     """A pywebview start failure yields actionable guidance, not a raw crash."""
-    from robolearn.web.app import _startup_failure_message
+    from kodro.web.app import _startup_failure_message
 
     msg = _startup_failure_message(RuntimeError("WebView2Runtime not found"))
     assert "WebView2" in msg
     assert "developer.microsoft.com" in msg
-    assert "python -m robolearn" in msg  # offers the Tk fallback
+    assert "python -m kodro" in msg  # offers the Tk fallback
 
 
 def test_report_startup_failure_is_safe_off_windows(monkeypatch) -> None:  # type: ignore[no-untyped-def]
     """Off Windows the handler writes to stderr and never raises."""
-    import robolearn.web.app as appmod
+    import kodro.web.app as appmod
 
     monkeypatch.setattr(appmod.sys, "platform", "linux")
     appmod._report_startup_failure(RuntimeError("boom"))  # must not raise
@@ -392,7 +392,7 @@ def test_ai_generate_rejects_empty_prompt(api: BridgeAPI) -> None:
 
 
 def test_strip_code_fences() -> None:
-    from robolearn.web.app import _strip_code_fences
+    from kodro.web.app import _strip_code_fences
 
     fenced = "```python\nmove_forward(2)\nbeep(1)\n```"
     assert _strip_code_fences(fenced) == "move_forward(2)\nbeep(1)\n"
@@ -446,7 +446,7 @@ def test_save_verification_report_without_window_degrades(api: BridgeAPI) -> Non
 
 def test_drain_scale_for_prefers_energy_true_over_mass_proxy() -> None:
     """Grading a build spec-aware: energy-true per-metre drain wins; else mass."""
-    from robolearn.web.app import _BASELINE_DRAIN_PCT_PER_M, _drain_scale_for
+    from kodro.web.app import _BASELINE_DRAIN_PCT_PER_M, _drain_scale_for
 
     # No build info -> unchanged (the pre-existing fixed drain).
     assert _drain_scale_for(None, None) == pytest.approx(1.0)

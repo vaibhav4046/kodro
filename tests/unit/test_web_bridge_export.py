@@ -23,9 +23,9 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.lessons.schema import load_library
-from robolearn.memory.store import Store
-from robolearn.web.app import BridgeAPI
+from kodro.lessons.schema import load_library
+from kodro.memory.store import Store
+from kodro.web.app import BridgeAPI
 
 # A wheeled build, in the shape the studio's exportKrs() writes.
 ROVER_KRS: dict[str, object] = {

@@ -36,10 +36,10 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.engine import motion_model as mm
+from kodro.engine import motion_model as mm
 
 ROOT = Path(__file__).resolve().parents[2]
-MODEL_JS = ROOT / "src" / "robolearn" / "assets" / "web" / "motion-model.js"
+MODEL_JS = ROOT / "src" / "kodro" / "assets" / "web" / "motion-model.js"
 FIXTURE = ROOT / "tests" / "fixtures" / "dump_phys_trace.cjs"
 _NODE = shutil.which("node")
 _REQUIRE_NODE = os.environ.get("ROBOLEARN_REQUIRE_NODE") == "1"

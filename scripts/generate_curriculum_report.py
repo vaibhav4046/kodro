@@ -44,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write("reportlab is required; install with `pip install reportlab`\n")
         return 1
 
-    from robolearn.lessons.schema import load_library
+    from kodro.lessons.schema import load_library
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     doc = SimpleDocTemplate(str(args.output), pagesize=A4, title="Kodro curriculum coverage")

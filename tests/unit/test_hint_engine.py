@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from robolearn.lessons.grader import GradeResult
-from robolearn.lessons.schema import Lesson, SuccessCriterion, WorldDef
-from robolearn.memory.hint_engine import (
+from kodro.lessons.grader import GradeResult
+from kodro.lessons.schema import Lesson, SuccessCriterion, WorldDef
+from kodro.memory.hint_engine import (
     RULES,
     Hint,
     HintContext,
@@ -19,7 +19,7 @@ from robolearn.memory.hint_engine import (
     find_all_hints,
     find_first_hint,
 )
-from robolearn.runtime.tracer import Event, RoverSnapshot
+from kodro.runtime.tracer import Event, RoverSnapshot
 
 # ---------------------------------------------------------------------------
 # Helpers

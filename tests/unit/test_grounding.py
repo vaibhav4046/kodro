@@ -1,8 +1,8 @@
-"""Tests for the grounding / invention metric (robolearn.grounding)."""
+"""Tests for the grounding / invention metric (kodro.grounding)."""
 
 from __future__ import annotations
 
-from robolearn.grounding import FITTED_DEFAULT, check_grounding
+from kodro.grounding import FITTED_DEFAULT, check_grounding
 
 # A program that uses only fitted commands and allowed builtins.
 _GROUNDED = "for i in range(4):\n    move_forward(1)\n    turn_left(90)\n"
@@ -194,7 +194,7 @@ def test_is_deterministic() -> None:
 
 
 def test_default_fitted_set_matches_rover_api() -> None:
-    from robolearn import rover_api
+    from kodro import rover_api
 
     assert frozenset(rover_api.__all__) == FITTED_DEFAULT
     assert "move_forward" in FITTED_DEFAULT and len(FITTED_DEFAULT) >= 20

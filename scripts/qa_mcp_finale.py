@@ -48,7 +48,7 @@ def ok(cond, label, got=""):
 
 
 proc = subprocess.Popen(
-    [sys.executable, "-m", "robolearn.mcp.server"],
+    [sys.executable, "-m", "kodro.mcp.server"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.DEVNULL,

@@ -26,7 +26,7 @@ jobs:
         id: prove
         continue-on-error: true
         run: >-
-          python -m robolearn.prove
+          python -m kodro.prove
           --runs 5
           --seed-root 4046
           --manifest prove-manifest.json

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from robolearn.ui.a11y import (
+from kodro.ui.a11y import (
     MAX_SCALE,
     MIN_SCALE,
     A11ySettings,

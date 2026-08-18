@@ -41,7 +41,7 @@ jobs:
         run: python scripts/build_exe.py
 
       # Package exactly one clean, platform-named asset per OS. macOS
-      # --windowed emits a robolearn.app *directory*; uploading dist/* would
+      # --windowed emits a kodro.app *directory*; uploading dist/* would
       # flatten it into junk files (Info.plist, CodeResources, ...), so zip
       # the bundle instead. Linux/Windows are single-file binaries.
       - name: Package release asset
@@ -51,22 +51,22 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then
             # Headline: the pywebview desktop app (Kodro web UI). The Tk build
             # ships alongside as a fallback.
-            # robolearn-web.spec emits dist/Kodro.exe. This step used to test
+            # kodro-web.spec emits dist/Kodro.exe. This step used to test
             # for dist/RoboLearn.exe -- a name that has not existed since the
             # rename -- inside an `if` that swallowed the miss, so every
             # tagged release silently shipped ONLY the Tk fallback and dropped
             # the headline app. Copy it unconditionally so a missing headline
             # binary fails the release instead of quietly publishing without it.
             cp dist/Kodro.exe out/Kodro-windows.exe
-            cp dist/robolearn-tk.exe out/Kodro-windows-tk.exe
+            cp dist/kodro-tk.exe out/Kodro-windows-tk.exe
           elif [ "$RUNNER_OS" = "macOS" ]; then
-            if [ -d dist/robolearn.app ]; then
-              (cd dist && zip -r -q ../out/Kodro-macos.zip robolearn.app)
+            if [ -d dist/kodro.app ]; then
+              (cd dist && zip -r -q ../out/Kodro-macos.zip kodro.app)
             else
-              cp dist/robolearn out/Kodro-macos
+              cp dist/kodro out/Kodro-macos
             fi
           else
-            cp dist/robolearn out/Kodro-linux
+            cp dist/kodro out/Kodro-linux
           fi
 
       - name: Upload artifact

@@ -23,7 +23,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const WEB = path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(HERE, '..', 'src', 'kodro', 'assets', 'web');
 
 const ctx = { console, JSON, Math, String, Number, Object, Array, Error, RegExp, Date };
 ctx.window = ctx; ctx.self = ctx;

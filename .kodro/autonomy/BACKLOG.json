@@ -49,8 +49,8 @@
       "severity": "P2",
       "status": "FIXED",
       "owner": "lead",
-      "evidence": "A prior change committed src/robolearn/interop/urdf_io.py but never git-added the package __init__.py (present on disk, so local worked). CI stayed green because Python implicit namespace packages resolve robolearn.interop.urdf_io without it (web/app.py:33 + test_urdf_export.py import that path), but the documented public API (from robolearn.interop import export_urdf, ...) and the package docstring were absent on any clean checkout, and packaging could drop the subpackage. Tracked the init (2ea3b4f); it already executes locally and its re-exports resolve.",
-      "acceptance": "git ls-files shows src/robolearn/interop/__init__.py; CI green.",
+      "evidence": "A prior change committed src/kodro/interop/urdf_io.py but never git-added the package __init__.py (present on disk, so local worked). CI stayed green because Python implicit namespace packages resolve kodro.interop.urdf_io without it (web/app.py:33 + test_urdf_export.py import that path), but the documented public API (from kodro.interop import export_urdf, ...) and the package docstring were absent on any clean checkout, and packaging could drop the subpackage. Tracked the init (2ea3b4f); it already executes locally and its re-exports resolve.",
+      "acceptance": "git ls-files shows src/kodro/interop/__init__.py; CI green.",
       "deps": []
     },
     {
@@ -82,7 +82,7 @@
       "severity": "P2",
       "status": "FIXED",
       "owner": "ai",
-      "evidence": "FIXED: gymnasium KodroEnv-v0 (src/robolearn/envs/kodro_env.py) wrapping the real bench/engine machinery (seeded _world_for_seed, Rover.move/turn, lidar_distance). Discrete(4) actions, Box(5) obs, deterministic reset(seed). pyproject extra rl=[gymnasium>=1.0]. Gate: tests/unit/test_kodro_env.py 8 tests incl. measured golden returns 3.25 / -10.35494935654426; importorskip so CI without gymnasium skips clean.",
+      "evidence": "FIXED: gymnasium KodroEnv-v0 (src/kodro/envs/kodro_env.py) wrapping the real bench/engine machinery (seeded _world_for_seed, Rover.move/turn, lidar_distance). Discrete(4) actions, Box(5) obs, deterministic reset(seed). pyproject extra rl=[gymnasium>=1.0]. Gate: tests/unit/test_kodro_env.py 8 tests incl. measured golden returns 3.25 / -10.35494935654426; importorskip so CI without gymnasium skips clean.",
       "slice": "gymnasium.Env wrapping engine (discrete actions, reset/step, seeded), register KodroEnv-v0; one KodroBench adapter drives through it.",
       "gate": "pytest deterministic episode + golden return.",
       "deps": []
@@ -690,7 +690,7 @@
     },
     {
       "id": "PKG-01",
-      "title": "pip wheel build failed: hatch double-added every web asset (packages=[src/robolearn] already includes assets/web, and a redundant force-include table re-mapped the same files)",
+      "title": "pip wheel build failed: hatch double-added every web asset (packages=[src/kodro] already includes assets/web, and a redundant force-include table re-mapped the same files)",
       "severity": "P2",
       "status": "FIXED",
       "owner": "completion-owner",

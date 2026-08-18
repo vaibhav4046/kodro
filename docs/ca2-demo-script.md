@@ -6,7 +6,7 @@ Designed for a hackathon pitch, a viva, or a GitHub visitor.
 ## Before you start
 
 1. Install Ollama and pull the model: `ollama pull kodro-coder:latest`
-2. Launch Kodro: `python -m robolearn.web` (or run `Kodro.exe`)
+2. Launch Kodro: `python -m kodro.web` (or run `Kodro.exe`)
 3. Confirm the status bar shows "AI: online" (Ollama is up)
 
 If Ollama is not installed, the demo still works. The assistant falls back

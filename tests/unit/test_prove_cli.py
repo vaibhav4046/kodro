@@ -1,4 +1,4 @@
-"""CLI and validation coverage for the Prove evidence tool (robolearn.prove).
+"""CLI and validation coverage for the Prove evidence tool (kodro.prove).
 
 test_prove.py covers the library surface (manifest determinism, comparison,
 report text). This file covers the ``main()`` entry point and the validation
@@ -15,8 +15,8 @@ from typing import Any
 
 import pytest
 
-from robolearn import prove
-from robolearn.prove import (
+from kodro import prove
+from kodro.prove import (
     MANIFEST_SCHEMA,
     build_manifest,
     load_contracts,
@@ -29,7 +29,7 @@ FAST = ["--contract", "straight_transit", "--runs", "1"]
 
 
 def _catalogue() -> dict[str, Any]:
-    raw = files("robolearn").joinpath("prove_contracts.json").read_text(encoding="utf-8")
+    raw = files("kodro").joinpath("prove_contracts.json").read_text(encoding="utf-8")
     document: dict[str, Any] = json.loads(raw)
     return document
 

@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from robolearn import rover_api
-from robolearn.runtime import (
+from kodro import rover_api
+from kodro.runtime import (
     Tracer,
     execute,
     find_violations,
@@ -135,7 +135,7 @@ def test_restricted_globals_contains_rover_api_and_safe_builtins() -> None:
     assert g["__builtins__"]["range"] is range
     assert g["__builtins__"]["len"] is len
     # 'print' is rewired to rover_api.log.
-    from robolearn import rover_api
+    from kodro import rover_api
 
     assert g["__builtins__"]["print"] is rover_api.log
 

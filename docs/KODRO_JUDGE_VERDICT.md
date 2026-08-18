@@ -80,7 +80,7 @@ generation plus an offline parts database, and it becomes a defensible product f
   `heading()`. Live probe of `resolveKodroRobot`: a motors2 build gives massFactor 0.60, runtime
   100 min, speedFactor 1.0; a motors4-plus-sensors build gives 0.72, 83 min, 1.25; battery drain
   scales 0.76 to 1.98 percent per metre with mass. Registry at
-  `src/robolearn/assets/web/RobotLab.jsx:234`, consumed on the move path at
+  `src/kodro/assets/web/RobotLab.jsx:234`, consumed on the move path at
   `hooks.jsx:817-820` and `hooks.jsx:1220-1226`. The adversarial verifier reproduced this and
   confirmed `massFactor` is fetched fresh each move.
 
@@ -354,7 +354,7 @@ GitHub `vaibhav4046/robolearn`, branch `main`.
 
 **Architecture and file map (read before editing).**
 - Web UI, vendored React and Three.js r137, precompiled to one `bundle.js`, under
-  `src/robolearn/assets/web/`. Rebuild with `node scripts/build_web.cjs` (writes `bundle.js`
+  `src/kodro/assets/web/`. Rebuild with `node scripts/build_web.cjs` (writes `bundle.js`
   from 36 sources). Key files:
   - `interpreter.js` (`window.RoverLang`): Python-subset tree-walking generator interpreter,
     sandbox caps at lines 468, 477, 622, 787.
@@ -368,7 +368,7 @@ GitHub `vaibhav4046/robolearn`, branch `main`.
   - `specschema.js`: the HONOURED / APPROXIMATED / NOT SIMULATED fidelity tiers and KRS import.
   - `scenario.jsx` (`window.KodroScenario`): domain-randomised validation.
   - `realism.jsx`, `terrains.jsx`, `agents.jsx`, `Viewport3D.jsx`, `memory.jsx`, `lesson-grader.jsx`.
-- Python engine under `src/robolearn/engine/` (`physics.py` pymunk, `sensors.py`, `motion_model.py`,
+- Python engine under `src/kodro/engine/` (`physics.py` pymunk, `sensors.py`, `motion_model.py`,
   `rover.py`, `world.py`), plus `rover_api.py`, `memory/store.py` (SQLite), `web/app.py`
   (pywebview BridgeAPI), `grounding.py`, `kodrobench.py`, `bench.py`, `interop/urdf_io.py`.
 - Dissertation at `docs/dissertation/Kodro_Dissertation.tex`, compiled offline with

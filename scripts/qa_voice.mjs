@@ -19,7 +19,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-const WEB = new URL('../src/robolearn/assets/web/', import.meta.url);
+const WEB = new URL('../src/kodro/assets/web/', import.meta.url);
 const VOICE = readFileSync(new URL('voice.js', WEB), 'utf8');
 const INTENT = readFileSync(new URL('chat-intent.js', WEB), 'utf8');
 

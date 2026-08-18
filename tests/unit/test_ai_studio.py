@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.ai.ollama_client import OllamaClient
-from robolearn.ui.ai_studio import AIStudio
+from kodro.ai.ollama_client import OllamaClient
+from kodro.ui.ai_studio import AIStudio
 
 
 class _DownClient(OllamaClient):
@@ -128,7 +128,7 @@ def test_studio_on_generate_empty_brief(root: tk.Tk) -> None:
 
 
 def test_lift_helper_does_not_raise(root: tk.Tk) -> None:
-    from robolearn.ui._lift import bring_to_front
+    from kodro.ui._lift import bring_to_front
 
     top = tk.Toplevel(root)
     try:

@@ -6,7 +6,7 @@ import tkinter as tk
 
 import pytest
 
-from robolearn.ui.charts import MAX_POINTS, ArcGauge, Compass, LineChart, MiniMap
+from kodro.ui.charts import MAX_POINTS, ArcGauge, Compass, LineChart, MiniMap
 
 
 @pytest.fixture

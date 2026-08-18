@@ -38,13 +38,13 @@ both and says which surface gets which.
 
 Measured on 15 August 2026, so that none of them has to be taken on trust.
 
-- **24 error rules on the desktop.** `robolearn.memory.hint_engine.RULES` has 24
+- **24 error rules on the desktop.** `kodro.memory.hint_engine.RULES` has 24
   entries. Both desktop builds use it: the Tk build imports `find_first_hint` at
-  `src/robolearn/app.py:32` and calls it at `:949`, and the WebView2 build ranks
-  the same rules through `best_hint` at `src/robolearn/web/app.py:328`, `:336`
+  `src/kodro/app.py:32` and calls it at `:950`, and the WebView2 build ranks
+  the same rules through `best_hint` at `src/kodro/web/app.py:328`, `:336`
   and `:431`. So the original 24 was right for the surface most schools install,
   and an earlier pass on this file wrongly cut it to 12.
-- **12 error rules in the browser.** `src/robolearn/assets/web/pupil-errors.js`
+- **12 error rules in the browser.** `src/kodro/assets/web/pupil-errors.js`
   declares `var RULES = [` at line 105 with 12 pattern matchers, each turning a
   Python error into a plain sentence plus a hint. That is the fallback: it runs
   in the browser and inside WebView2, and it is the only error-rule engine when
@@ -55,10 +55,10 @@ Measured on 15 August 2026, so that none of them has to be taken on trust.
   bundled lesson files carry 48 hand-written hints between them, two per lesson,
   tied to the specific mission. The web build does not read the YAML: the same
   48 are generated into `LESSON_DATA` in
-  `src/robolearn/assets/web/lesson-grader.jsx` (24 lessons, 48 `onFailure`
+  `src/kodro/assets/web/lesson-grader.jsx` (24 lessons, 48 `onFailure`
   strings, counted in both places), and `scripts/qa_grader.mjs` gates that the
   generated copy still matches a fresh extraction.
-- **16 unlockables.** `robolearn.memory.achievements.CATALOGUE` has 16 entries.
+- **16 unlockables.** `kodro.memory.achievements.CATALOGUE` has 16 entries.
   The row said 15. No note explains the difference, so treat 16 as the count
   and 15 as stale.
 - **Install size.** `Kodro.exe` is 196,929,209 bytes and `RoboLearn.exe` is

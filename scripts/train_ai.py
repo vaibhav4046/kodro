@@ -5,7 +5,7 @@ equivalent: run a battery of RoboLearn tasks through the current model at
 high temperature, validate every candidate in the REAL sandbox, score the
 survivors (correct first, then loop-use, then brevity), and bake the winning
 programs back into the model template as exemplars. The model literally
-learns from its own best, verified work -- and ships as ``robolearn-fast``.
+learns from its own best, verified work -- and ships as ``kodro-fast``.
 
 Usage::
 
@@ -23,8 +23,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from robolearn.ai.ollama_client import OllamaClient, OllamaError
-from robolearn.web.app import BridgeAPI, _strip_code_fences
+from kodro.ai.ollama_client import OllamaClient, OllamaError
+from kodro.web.app import BridgeAPI, _strip_code_fences
 
 #: Task battery: one exemplar slot per row -- (request, must-use verb hint).
 BATTERY: list[tuple[str, str]] = [
@@ -49,13 +49,13 @@ def score(code: str) -> tuple[int, int]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Self-distil robolearn-fast.")
+    parser = argparse.ArgumentParser(description="Self-distil kodro-fast.")
     parser.add_argument("--dry", action="store_true", help="show winners, don't rebake")
     parser.add_argument("--base", default="gemma3:1b")
     args = parser.parse_args()
 
-    from robolearn.lessons.schema import load_library
-    from robolearn.memory.store import Store
+    from kodro.lessons.schema import load_library
+    from kodro.memory.store import Store
 
     api = BridgeAPI(
         store=Store(Path(tempfile.mkdtemp()) / "train.db"), lessons=list(load_library())
@@ -74,7 +74,7 @@ def main() -> int:
             try:
                 raw = client.generate(
                     f"Pupil: {request}\nYou:",
-                    system=None if str(model).startswith("robolearn-fast") else api._AI_CHAT_SYSTEM,
+                    system=None if str(model).startswith("kodro-fast") else api._AI_CHAT_SYSTEM,
                     model=model,
                     temperature=0.3 + 0.2 * i,  # widen the search per attempt
                     num_predict=420,
@@ -148,7 +148,7 @@ def main() -> int:
         f.write(modelfile)
         path = f.name
     proc = subprocess.run(
-        ["ollama", "create", "robolearn-fast", "-f", path],
+        ["ollama", "create", "kodro-fast", "-f", path],
         capture_output=True,
         text=True,
         check=False,
@@ -156,7 +156,7 @@ def main() -> int:
     if proc.returncode != 0:
         sys.stderr.write(proc.stderr or proc.stdout)
         return proc.returncode
-    print(f"rebaked robolearn-fast with {len(winners)} self-distilled exemplars")
+    print(f"rebaked kodro-fast with {len(winners)} self-distilled exemplars")
 
     # Holdout check with the NEW model.
     ok = 0
@@ -164,7 +164,7 @@ def main() -> int:
         try:
             raw = client.generate(
                 f"Pupil: {request}\nYou:",
-                model="robolearn-fast",
+                model="kodro-fast",
                 temperature=0.25,
                 num_predict=420,
                 keep_alive="30m",

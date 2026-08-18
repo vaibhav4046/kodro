@@ -13,7 +13,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const WEB = path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(HERE, '..', 'src', 'kodro', 'assets', 'web');
 
 let pass = 0;
 const fails = [];

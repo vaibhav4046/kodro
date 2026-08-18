@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const web = (name) => readFileSync(new URL('../src/robolearn/assets/web/' + name, import.meta.url), 'utf8');
+const web = (name) => readFileSync(new URL('../src/kodro/assets/web/' + name, import.meta.url), 'utf8');
 let pass = 0;
 const failed = [];
 function check(name, condition, detail) {

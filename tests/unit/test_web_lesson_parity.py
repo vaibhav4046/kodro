@@ -19,11 +19,11 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.lessons.schema import load_library
-from robolearn.runtime.executor import execute
+from kodro.lessons.schema import load_library
+from kodro.runtime.executor import execute
 
 ROOT = Path(__file__).resolve().parents[2]
-WEB = ROOT / "src" / "robolearn" / "assets" / "web"
+WEB = ROOT / "src" / "kodro" / "assets" / "web"
 INTERP = WEB / "interpreter.js"
 CHAT_INTENT = WEB / "chat-intent.js"
 BUNDLE = WEB / "bundle.js"

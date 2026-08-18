@@ -6,7 +6,7 @@ import tkinter as tk
 
 import pytest
 
-from robolearn.ui.editor_panel import (
+from kodro.ui.editor_panel import (
     TAG_BUILTIN,
     TAG_COMMENT,
     TAG_KEYWORD,

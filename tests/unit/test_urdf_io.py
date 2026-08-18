@@ -1,4 +1,4 @@
-"""URDF round-trip and honest-conversion edge cases (robolearn.interop.urdf_io).
+"""URDF round-trip and honest-conversion edge cases (kodro.interop.urdf_io).
 
 The module docstring promises a round-trip contract (load -> export -> load
 preserves the structural signature) and that ``krs_from_urdf`` never invents a
@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from robolearn.interop.urdf_io import (
+from kodro.interop.urdf_io import (
     _joint_origin_xyz,
     _wheelbase_cm,
     build_urdf_from_spec,

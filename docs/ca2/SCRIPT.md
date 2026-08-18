@@ -154,8 +154,8 @@ whole modal: the cells are plain `<td>` carrying a tooltip, nothing calls
 `getPupilSummary`, and there are five click handlers in the component, none of
 them on a cell. The drill-down is real, but it is in the legacy Tk dashboard,
 `teacher_dashboard.py:183-190`, reachable only through
-`src/robolearn/app.py:171`, written in full because a bare `app.py` also matches
-`src/robolearn/web/app.py`, whose line 171 is an unrelated field. And in the
+`src/kodro/app.py:172`, written in full because a bare `app.py` also matches
+`src/kodro/web/app.py`, whose line 171 is an unrelated field. And in the
 browser the register is not a database file: it is the localStorage key
 `kodro_pupils_v1` holding one implicit learner named "This device",
 `pupil-store.js`. The claim was sourced to `docs/implementation-status.md`

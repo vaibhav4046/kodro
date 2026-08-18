@@ -232,7 +232,7 @@ Requires Python 3.12+ and Node.js (Node only if you want to rebuild the UI).
 git clone https://github.com/vaibhav4046/kodro.git
 cd kodro
 pip install -e ".[dev]"
-python -m robolearn.web   # modern web UI in a native window (pywebview)
+python -m kodro.web   # modern web UI in a native window (pywebview)
 ```
 
 ### Optional: the local AI assistant (Ollama)
@@ -308,11 +308,11 @@ and watch it drive; press **Step** to advance one event at a time.
 
 | Layer | What | Where |
 | --- | --- | --- |
-| Web UI | Vendored React and Three.js r137, pre compiled to `bundle.js` | `src/robolearn/assets/web/` |
-| Interpreter | Python subset, compiles to a generator of motion and sensor events | `src/robolearn/assets/web/interpreter.js` |
+| Web UI | Vendored React and Three.js r137, pre compiled to `bundle.js` | `src/kodro/assets/web/` |
+| Interpreter | Python subset, compiles to a generator of motion and sensor events | `src/kodro/assets/web/interpreter.js` |
 | Worlds and motion | City, Room and terrains, type aware robots, type-specific visual motion tick | `Viewport3D.jsx`, `terrains.jsx`, `agents.jsx` |
 | Robot Lab and memory | Parts catalogue, world recommendation, self refinement | `RobotLab.jsx`, `memory.jsx` |
-| Python engine | Metres world, pymunk and pygame-ce physics, public rover API | `src/robolearn/engine/`, `rover_api.py` |
+| Python engine | Metres world, pymunk and pygame-ce physics, public rover API | `src/kodro/engine/`, `rover_api.py` |
 
 A fuller diagram and chapter by chapter design are in
 [`docs/dissertation/`](docs/dissertation/).
@@ -397,7 +397,7 @@ Reproduce the benchmark yourself:
 
 ```bash
 kodrobench --help                        # console script
-python -m robolearn.kodrobench --help    # module entry point
+python -m kodro.kodrobench --help    # module entry point
 ```
 
 ## MCP server: an assistant that marks the same way Kodro does

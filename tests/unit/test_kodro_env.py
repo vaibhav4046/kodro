@@ -1,4 +1,4 @@
-"""Tests for the Gymnasium KodroEnv-v0 wrapper (robolearn.envs, OPP-3).
+"""Tests for the Gymnasium KodroEnv-v0 wrapper (kodro.envs, OPP-3).
 
 Skips cleanly when gymnasium is not installed (the ``rl`` extra), so CI
 without the extra collects zero failures from this module.
@@ -15,8 +15,8 @@ pytest.importorskip("gymnasium")
 import gymnasium as gym
 import numpy as np
 
-from robolearn.envs import ENV_ID, KodroEnv, register_env
-from robolearn.envs.kodro_env import (
+from kodro.envs import ENV_ID, KodroEnv, register_env
+from kodro.envs.kodro_env import (
     ACTION_FORWARD,
     ACTION_MEANINGS,
     COLLISION_PENALTY,

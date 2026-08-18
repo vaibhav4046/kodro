@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-STYLES = Path(__file__).resolve().parents[2] / "src" / "robolearn" / "assets" / "web" / "styles.css"
+STYLES = Path(__file__).resolve().parents[2] / "src" / "kodro" / "assets" / "web" / "styles.css"
 
 
 def _tokens() -> dict[str, str]:

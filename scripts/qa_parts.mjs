@@ -10,7 +10,7 @@
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const dir = new URL('../src/robolearn/assets/web/', import.meta.url);
+const dir = new URL('../src/kodro/assets/web/', import.meta.url);
 const ctx = { window: {} };
 vm.createContext(ctx);
 vm.runInContext(readFileSync(new URL('parts-db.js', dir), 'utf8'), ctx);

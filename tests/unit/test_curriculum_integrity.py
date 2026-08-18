@@ -24,7 +24,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
-from robolearn.lessons.schema import load_library
+from kodro.lessons.schema import load_library
 
 LIBRARY = load_library()
 

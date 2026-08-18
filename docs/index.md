@@ -38,7 +38,7 @@ current scope and source-backed roadmap.
   study. The 24 lessons span KS1 to KS4 and are weighted to KS3 and KS4:
   3 are tagged KS1, 4 are KS2, 9 are KS3 and 8 are KS4 stretch. Counted on
   15 August 2026 with
-  `python -c "import sys; sys.path.insert(0,'src'); from robolearn.lessons.schema import load_library; from collections import Counter; lib=load_library(); print(len(lib), Counter(l.key_stage for l in lib))"`.
+  `python -c "import sys; sys.path.insert(0,'src'); from kodro.lessons.schema import load_library; from collections import Counter; lib=load_library(); print(len(lib), Counter(l.key_stage for l in lib))"`.
 - A self-improving memory layer that adapts difficulty per pupil.
 - A teacher dashboard with class-wide strengths and weaknesses.
 - A time-travel debugger that replays any submission frame by frame.

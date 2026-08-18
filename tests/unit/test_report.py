@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from robolearn.lessons.schema import load_library
-from robolearn.memory.report import build_progress_report_html, export_progress_report
-from robolearn.memory.store import Pupil, Store
+from kodro.lessons.schema import load_library
+from kodro.memory.report import build_progress_report_html, export_progress_report
+from kodro.memory.store import Pupil, Store
 
 
 def _seed(store: Store) -> Pupil:

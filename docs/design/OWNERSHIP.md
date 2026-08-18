@@ -7,13 +7,13 @@ work.
 ## The design track owns
 
 ```
-src/robolearn/assets/web/styles.css
-src/robolearn/assets/web/icons.jsx
-src/robolearn/assets/web/home.jsx
-src/robolearn/assets/web/onboarding.jsx
-src/robolearn/assets/web/icon.svg
-src/robolearn/assets/web/manifest.webmanifest
-src/robolearn/assets/web/index.html      (head, meta and favicon only)
+src/kodro/assets/web/styles.css
+src/kodro/assets/web/icons.jsx
+src/kodro/assets/web/home.jsx
+src/kodro/assets/web/onboarding.jsx
+src/kodro/assets/web/icon.svg
+src/kodro/assets/web/manifest.webmanifest
+src/kodro/assets/web/index.html      (head, meta and favicon only)
 docs/pupils/**
 docs/teachers/**
 docs/design/**
@@ -25,23 +25,23 @@ Plus any new `theme-*` or `brand-*` file under `assets/web/`.
 ## The engine track owns
 
 ```
-src/robolearn/assets/web/app.jsx
-src/robolearn/assets/web/hooks.jsx
-src/robolearn/assets/web/panels.jsx
-src/robolearn/assets/web/Viewport.jsx
-src/robolearn/assets/web/Viewport3D.jsx
-src/robolearn/assets/web/terrains.jsx
-src/robolearn/assets/web/Rover.jsx
-src/robolearn/assets/web/Editor.jsx
-src/robolearn/assets/web/RobotLab.jsx
-src/robolearn/assets/web/lesson-grader.jsx
-src/robolearn/assets/web/lesson-studio.js
-src/robolearn/assets/web/lesson-studio.jsx
-src/robolearn/assets/web/interpreter.js
-src/robolearn/assets/web/sim-physics.js
-src/robolearn/assets/web/motion-model.js
-src/robolearn/**/*.py
-src/robolearn/lessons/**
+src/kodro/assets/web/app.jsx
+src/kodro/assets/web/hooks.jsx
+src/kodro/assets/web/panels.jsx
+src/kodro/assets/web/Viewport.jsx
+src/kodro/assets/web/Viewport3D.jsx
+src/kodro/assets/web/terrains.jsx
+src/kodro/assets/web/Rover.jsx
+src/kodro/assets/web/Editor.jsx
+src/kodro/assets/web/RobotLab.jsx
+src/kodro/assets/web/lesson-grader.jsx
+src/kodro/assets/web/lesson-studio.js
+src/kodro/assets/web/lesson-studio.jsx
+src/kodro/assets/web/interpreter.js
+src/kodro/assets/web/sim-physics.js
+src/kodro/assets/web/motion-model.js
+src/kodro/**/*.py
+src/kodro/lessons/**
 tests/**
 scripts/**
 docs/dissertation/**

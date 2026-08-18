@@ -17,9 +17,9 @@ from pathlib import Path
 
 import pytest
 
-import robolearn
+import kodro
 
-_PYPROJECT = Path(robolearn.__file__).resolve().parents[2] / "pyproject.toml"
+_PYPROJECT = Path(kodro.__file__).resolve().parents[2] / "pyproject.toml"
 _SCRIPTS: dict[str, str] = tomllib.loads(_PYPROJECT.read_text(encoding="utf-8"))["project"][
     "scripts"
 ]
@@ -43,18 +43,18 @@ def test_the_product_name_launches_the_product() -> None:
     # Regression: `kodro` used to launch the headless batch runner, so typing
     # the name of the application started something that is not the
     # application.
-    assert _SCRIPTS["kodro"] == "robolearn.__main__:main"
-    assert _SCRIPTS["robolearn"] == "robolearn.__main__:main"
+    assert _SCRIPTS["kodro"] == "kodro.__main__:main"
+    assert _SCRIPTS["kodro"] == "kodro.__main__:main"
 
 
 def test_the_batch_runner_keeps_a_name_of_its_own() -> None:
-    assert _SCRIPTS["kodro-bench"] == "robolearn.bench:main"
+    assert _SCRIPTS["kodro-bench"] == "kodro.bench:main"
 
 
 def test_non_ui_tools_share_one_prefix() -> None:
     # kodro-bench, kodro-mcp and kodro-prove are the headless surfaces. A new
     # tool that skips the prefix makes the command set unguessable.
-    non_ui = {name for name in _SCRIPTS if name not in {"kodro", "robolearn", "kodrobench"}}
+    non_ui = {name for name in _SCRIPTS if name not in {"kodro", "kodrobench"}}
     assert non_ui, "expected at least one headless tool"
     for name in non_ui:
         assert name.startswith("kodro-"), name

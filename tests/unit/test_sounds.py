@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from robolearn.ui import sounds
+from kodro.ui import sounds
 
 
 def test_is_available_with_dummy_driver() -> None:

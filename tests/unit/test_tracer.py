@@ -6,9 +6,9 @@ import json
 
 import pytest
 
-from robolearn import rover_api
-from robolearn.runtime import tracer as tracer_mod
-from robolearn.runtime.tracer import (
+from kodro import rover_api
+from kodro.runtime import tracer as tracer_mod
+from kodro.runtime.tracer import (
     Event,
     RoverSnapshot,
     Tracer,
@@ -203,7 +203,7 @@ def test_rover_api_records_clamped_value_not_raw_input(
 
     t = Tracer()
     set_active(t)
-    with caplog.at_level(logging.WARNING, logger="robolearn.rover_api"):
+    with caplog.at_level(logging.WARNING, logger="kodro.rover_api"):
         rover_api.move_forward(-10.0)  # clamps to 0.0
     assert t.events()[0].args == (0.0,)
 
@@ -236,7 +236,7 @@ def test_emit_no_op_path_does_not_invoke_state_provider() -> None:
 
 def test_tracer_module_singleton_emit_uses_module_state() -> None:
     """Smoke-test the runtime package re-exports work end-to-end."""
-    from robolearn import runtime  # imported separately
+    from kodro import runtime  # imported separately
 
     t = Tracer()
     runtime.set_active(t)

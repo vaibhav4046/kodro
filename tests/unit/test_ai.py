@@ -7,10 +7,10 @@ from collections.abc import Iterator
 
 import pytest
 
-from robolearn.ai.lesson_generator import GenerationError, generate_lesson
-from robolearn.ai.ollama_client import OllamaClient, OllamaError, is_available, list_models
-from robolearn.ai.tutor import explain_code, generate_quiz
-from robolearn.lessons.schema import Lesson, WorldDef
+from kodro.ai.lesson_generator import GenerationError, generate_lesson
+from kodro.ai.ollama_client import OllamaClient, OllamaError, is_available, list_models
+from kodro.ai.tutor import explain_code, generate_quiz
+from kodro.lessons.schema import Lesson, WorldDef
 
 
 class _FakeClient(OllamaClient):
@@ -208,13 +208,13 @@ def test_generate_quiz_skips_malformed_items() -> None:
 
 
 def test_normalize_rover_api_strips_receiver() -> None:
-    from robolearn.web.app import _normalize_rover_api
+    from kodro.web.app import _normalize_rover_api
 
     assert _normalize_rover_api("rover.move_forward(3)") == "move_forward(3)"
 
 
 def test_normalize_rover_api_applies_direction_alias() -> None:
-    from robolearn.web.app import _normalize_rover_api
+    from kodro.web.app import _normalize_rover_api
 
     assert _normalize_rover_api("rover.right(90)") == "turn_right(90)"
     assert _normalize_rover_api("robot.left(45)") == "turn_left(45)"
@@ -223,7 +223,7 @@ def test_normalize_rover_api_applies_direction_alias() -> None:
 
 
 def test_normalize_rover_api_drops_dangling_bare_identifier() -> None:
-    from robolearn.web.app import _normalize_rover_api
+    from kodro.web.app import _normalize_rover_api
 
     # Live failure: model emits rover.x() calls then a stray bare ``rover``.
     code = "rover.set_speed(60)\nrover.move_forward(3)\nrover"
@@ -231,14 +231,14 @@ def test_normalize_rover_api_drops_dangling_bare_identifier() -> None:
 
 
 def test_normalize_rover_api_leaves_legitimate_code_untouched() -> None:
-    from robolearn.web.app import _normalize_rover_api
+    from kodro.web.app import _normalize_rover_api
 
     code = 'set_speed(60)\nfor i in range(3):\n    move_forward(1)\n    turn_right(90)\nsay("done")'
     assert _normalize_rover_api(code) == code
 
 
 def test_strip_code_fences_normalizes_rover_api_end_to_end() -> None:
-    from robolearn.web.app import _strip_code_fences
+    from kodro.web.app import _strip_code_fences
 
     raw = "```python\nrover.set_speed(60)\nrover.move_forward(3)\nrover\n```"
     assert _strip_code_fences(raw) == "set_speed(60)\nmove_forward(3)\n"

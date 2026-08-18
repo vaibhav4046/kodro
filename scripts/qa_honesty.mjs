@@ -26,7 +26,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const WEB = path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(HERE, '..', 'src', 'kodro', 'assets', 'web');
 const read = (f) => readFileSync(path.join(WEB, f), 'utf8');
 
 let pass = 0, fail = 0;
@@ -341,7 +341,7 @@ ok(/Weather: rain, snow and dust storms change the light level and the visuals o
 // 17. Code comments (the teaching text) must clear WCAG AA: .tok-com uses --fg-3
 //     (AA-verified on --void by qa_contrast §3b), not the ~1.8:1 --fg-4 (JR10-01).
 {
-  const css = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'styles.css'), 'utf8');
+  const css = readFileSync(path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'styles.css'), 'utf8');
   ok(/\.tok-com \{ color:var\(--fg-3\)/.test(css), 'code comments use the AA-clearing --fg-3, not --fg-4');
   ok(/\.repl-input::placeholder \{ color:var\(--fg-3\); \}/.test(css), 'the REPL placeholder uses --fg-3');
 }
@@ -476,7 +476,7 @@ ok(/Weather: rain, snow and dust storms change the light level and the visuals o
 //     near-white --navy-2. Pin the dark-glass background + AA of --hud-fg-3 on
 //     it across all themes.
 {
-  const css = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'styles.css'), 'utf8');
+  const css = readFileSync(path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'styles.css'), 'utf8');
   const phone640 = (css.match(/@media \(max-width: 640px\) \{([\s\S]*?)\n\}/) || [])[1] || '';
   const barRule = (phone640.match(/\.view-panel \.terrain-switch \{([\s\S]*?)\}/) || [])[1] || '';
   ok(/background:rgba\(8,9,15,0\.85\)/.test(barRule) && !/background:var\(--navy-2\)/.test(barRule),
@@ -539,7 +539,7 @@ ok(/Weather: rain, snow and dust storms change the light level and the visuals o
 //     also fit on one phone navigation row.
 {
   const app = read('app.jsx');
-  const css = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'styles.css'), 'utf8');
+  const css = readFileSync(path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'styles.css'), 'utf8');
   ok(/const \[simpleCodeOpen, setSimpleCodeOpen\] = useState\(false\)/.test(app),
     'Simple mode opens on the test plan instead of source code');
   ok(/showSimpleCockpit = simpleExperience && activeStage === 'prove' && !simpleCodeOpen/.test(app),

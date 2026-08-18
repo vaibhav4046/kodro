@@ -252,7 +252,7 @@ that is not counted out loud becomes an unmeasured region that reads as green.
 
 One real defect fell out of the sweep: `docs/ca2/SCRIPT.md:154` cited `app.py`
 by bare basename with a line number, and that basename matches both
-`src/robolearn/app.py` and `src/robolearn/web/app.py`, whose line 171 is an
+`src/kodro/app.py` and `src/kodro/web/app.py`, whose line 171 is an
 unrelated field. The claim was right and the pointer was not
 checkable, in the document that says what to say out loud on an assessed
 recording. Fixed to the full path, the same fix already applied to

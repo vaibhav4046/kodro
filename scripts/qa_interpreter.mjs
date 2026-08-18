@@ -8,8 +8,8 @@
  */
 import { readFileSync, readdirSync } from 'node:fs';
 
-const SRC = readFileSync(new URL('../src/robolearn/assets/web/interpreter.js', import.meta.url), 'utf8');
-const MM_SRC = readFileSync(new URL('../src/robolearn/assets/web/motion-model.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../src/kodro/assets/web/interpreter.js', import.meta.url), 'utf8');
+const MM_SRC = readFileSync(new URL('../src/kodro/assets/web/motion-model.js', import.meta.url), 'utf8');
 
 // --- load the IIFEs with a window shim ------------------------------------
 const win = {};
@@ -283,7 +283,7 @@ console.log('\n== GOLDEN TRACES (E-P2: shared motion model pins) ==');
 
 console.log('\n== KRS SPEC SCHEMA (SI0) + PHYSICAL MAPPING (SI2) ==');
 {
-  const SS_SRC = readFileSync(new URL('../src/robolearn/assets/web/specschema.js', import.meta.url), 'utf8');
+  const SS_SRC = readFileSync(new URL('../src/kodro/assets/web/specschema.js', import.meta.url), 'utf8');
   new Function('window', SS_SRC)(win);
   const SS = win.KodroSpecSchema;
   const REF = JSON.parse(readFileSync(new URL('../tests/fixtures/krs_reference_rover.json', import.meta.url), 'utf8'));
@@ -344,7 +344,7 @@ console.log('\n== KRS SPEC SCHEMA (SI0) + PHYSICAL MAPPING (SI2) ==');
   // must carry the motor-derived top speed; with a recorded run present the
   // measured block must state the mean speed AND its ratio to the derived
   // top ("your robot as simulated", cross-checked against evidence).
-  const VF_SRC = readFileSync(new URL('../src/robolearn/assets/web/verify.jsx', import.meta.url), 'utf8');
+  const VF_SRC = readFileSync(new URL('../src/kodro/assets/web/verify.jsx', import.meta.url), 'utf8');
   new Function('window', VF_SRC)(win);
   win.KODRO_LAST_RUN = { distanceCm: 340, wallMs: 4000, battery: 96, speedMul: 1 };
   const robotNow = Object.assign({}, v1.spec, {
@@ -418,7 +418,7 @@ console.log('\n== PHYSICS HONESTY: DESIGN CHECK vs TICK AGREE (H2) ==');
   // build's mobility with the SAME force-ratio model the live tick drives it
   // with (app.jsx:1015-1017 uses KodroMotion.physMobility / physStallVerdict),
   // so the predictive verdict can never contradict what happens on screen.
-  const DIAG_SRC = readFileSync(new URL('../src/robolearn/assets/web/diagnostics.jsx', import.meta.url), 'utf8');
+  const DIAG_SRC = readFileSync(new URL('../src/kodro/assets/web/diagnostics.jsx', import.meta.url), 'utf8');
   new Function('window', DIAG_SRC)(win);
   const SS = win.KodroSpecSchema;
   const D = win.KodroDiagnostics;
@@ -471,7 +471,7 @@ console.log('\n== SHIPPED EXAMPLE PROGRAMS ==');
 // is a plain IIFE that exposes window.KodroExamples (no JSX, no React in the data
 // path), so evaluating it via new Function('window', src) gives us the exact
 // shipped example strings -- no brittle JSX scraping that can silently drop one.
-const APP = readFileSync(new URL('../src/robolearn/assets/web/app-data.jsx', import.meta.url), 'utf8');
+const APP = readFileSync(new URL('../src/kodro/assets/web/app-data.jsx', import.meta.url), 'utf8');
 const dataWin = {};
 new Function('window', APP)(dataWin);
 const EXAMPLES = dataWin.KodroExamples || {};
@@ -588,7 +588,7 @@ console.log('\n== ARM HONESTY (PERFECTION_PLAN P7/A13, bugs D4) ==');
 // KodroCommands registry from RobotLab.jsx with a React/window shim so the
 // module body runs and registers window.KodroCommands.
 {
-  const RL_SRC = readFileSync(new URL('../src/robolearn/assets/web/RobotLab.jsx', import.meta.url), 'utf8');
+  const RL_SRC = readFileSync(new URL('../src/kodro/assets/web/RobotLab.jsx', import.meta.url), 'utf8');
   const shimReact = {
     createElement: () => null, Fragment: 'Fragment',
     useState: (v) => [typeof v === 'function' ? v() : v, () => {}],
@@ -678,7 +678,7 @@ console.log('\n== SPEC MIGRATION (OPP-8) ==');
 // round-trip the real KRS validator (specschema.js), and a modern v2 spec
 // must pass through with only the version stamp.
 {
-  const SS_SRC = readFileSync(new URL('../src/robolearn/assets/web/specschema.js', import.meta.url), 'utf8');
+  const SS_SRC = readFileSync(new URL('../src/kodro/assets/web/specschema.js', import.meta.url), 'utf8');
   new Function('window', SS_SRC)(win);
   const MIG = win.KodroCommands.migrateSpec;
   check('migrateSpec exposed', typeof MIG === 'function', '');
@@ -740,7 +740,7 @@ console.log('\n== DESIGN-CHECK COMMAND HONESTY (product-coherence D6) ==');
 // not exist; this scan fails if any phantom command creeps back in.
 // Strip full-line comments first: an apostrophe inside a comment would let
 // the string matcher pair comment text into a phantom "string".
-const DIAG = readFileSync(new URL('../src/robolearn/assets/web/diagnostics.jsx', import.meta.url), 'utf8')
+const DIAG = readFileSync(new URL('../src/kodro/assets/web/diagnostics.jsx', import.meta.url), 'utf8')
   .split('\n').filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join('\n');
 const KNOWN_COMMANDS = new Set([
   'move_forward', 'move_backward', 'turn_left', 'turn_right', 'set_speed', 'stop', 'wait', 'sleep',
@@ -765,7 +765,7 @@ console.log('\n== BROWSER AI FACADE (bugs D3: review must surface its notes) =='
 // browser review path can be exercised fully offline with a canned model
 // reply. Asserts the review carries at least one issue note alongside a
 // rewrite (the old facade always reported "No problems spotted").
-const AIWEB = readFileSync(new URL('../src/robolearn/assets/web/ai-web.jsx', import.meta.url), 'utf8');
+const AIWEB = readFileSync(new URL('../src/kodro/assets/web/ai-web.jsx', import.meta.url), 'utf8');
 const lsStub = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
 async function mockFetch(url) {
   const u = String(url);
@@ -786,13 +786,13 @@ check('browser review carries at least one issue note',
 console.log('\n== BRAND STRING HYGIENE (product-coherence D13) ==');
 // User-visible strings say Kodro. Exempt by design: the window.RoboLearn API
 // object name (pywebview registers it) and or_*/kodro_* storage keys.
-const BRIDGE_SRC = readFileSync(new URL('../src/robolearn/assets/web/bridge.js', import.meta.url), 'utf8');
+const BRIDGE_SRC = readFileSync(new URL('../src/kodro/assets/web/bridge.js', import.meta.url), 'utf8');
 check('bridge console lines carry no legacy brand',
   !/console\.(warn|error|log)\([^)]*RoboLearn/.test(BRIDGE_SRC), '');
 const WEB_FILES = ['app.jsx', 'app-data.jsx', 'styles.css', 'Telemetry.jsx', 'terrains.jsx', 'Viewport.jsx', 'Viewport3D.jsx', 'Editor.jsx', 'Rover.jsx', 'panels.jsx', 'interpreter.js', 'bridge.js'];
 const branded = [];
 for (const f of WEB_FILES) {
-  const src = readFileSync(new URL('../src/robolearn/assets/web/' + f, import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../src/kodro/assets/web/' + f, import.meta.url), 'utf8');
   if (/orbital rover/i.test(src)) branded.push(f);
 }
 check('no "Orbital Rover" brand string in web sources', branded.length === 0, branded.join(', ') || 'clean');
@@ -804,11 +804,11 @@ console.log('\n== ICON HYGIENE (PERFECTION_PLAN P7/A2) ==');
 // (check/cross marks, plain arrows, the end-block return arrow, wide plus).
 const EMOJI_ALLOW = new Set(['✓', '✕', '✗', '←', '↑', '→', '↓', '↤', '＋']);
 const EMOJI_RE = /[←-⇿⌀-⏿☀-➿⬀-⯿️\u{1F000}-\u{1FAFF}]/gu;
-const CHROME_FILES = readdirSync(new URL('../src/robolearn/assets/web/', import.meta.url))
+const CHROME_FILES = readdirSync(new URL('../src/kodro/assets/web/', import.meta.url))
   .filter((f) => (f.endsWith('.jsx') || f.endsWith('.js')) && f !== 'bundle.js' && f !== 'harness_bundle.js');
 const emojiHits = [];
 for (const f of CHROME_FILES) {
-  const src = readFileSync(new URL('../src/robolearn/assets/web/' + f, import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../src/kodro/assets/web/' + f, import.meta.url), 'utf8');
   const hits = (src.match(EMOJI_RE) || []).filter((ch) => !EMOJI_ALLOW.has(ch));
   if (hits.length) emojiHits.push(f + ' (' + Array.from(new Set(hits)).join(' ') + ')');
 }

@@ -13,7 +13,7 @@ The checklist says the pinned artefact stays correct "only while nothing under
 `tests/` or the Python source changes after the run", and gives the test:
 
 ```
-git diff e70b98b..HEAD -- tests/ 'src/robolearn/**/*.py'
+git diff e70b98b..HEAD -- tests/ 'src/kodro/**/*.py'
 ```
 
 That diff was empty across the entire sixty-one-commit candidate branch up to
@@ -22,7 +22,7 @@ evidence. The bump commit is the first thing to touch Python source since the
 artefact was generated, and it touches exactly two files:
 
 ```
- src/robolearn/ui/splash.py           | 5 ++++-
+ src/kodro/ui/splash.py           | 5 ++++-
  tests/unit/test_splash_and_main.py   | 21 +++++++++++++++++
 ```
 

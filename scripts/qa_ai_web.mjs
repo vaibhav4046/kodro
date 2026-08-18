@@ -28,7 +28,7 @@
 import { readFileSync } from 'node:fs';
 
 // --- load the shipped modules into one shared window shim -----------------
-const web = (f) => readFileSync(new URL('../src/robolearn/assets/web/' + f, import.meta.url), 'utf8');
+const web = (f) => readFileSync(new URL('../src/kodro/assets/web/' + f, import.meta.url), 'utf8');
 
 const win = {};
 // Interpreter + motion model so chatStart's validate() (a real dry-run through

@@ -1,4 +1,4 @@
-"""KodroBench CLI, prompt and generation-failure paths (robolearn.kodrobench).
+"""KodroBench CLI, prompt and generation-failure paths (kodro.kodrobench).
 
 test_kodrobench.py covers the deterministic floor and the pass@k maths. This
 file covers what happens around a real model: the prompt that constrains the
@@ -15,8 +15,8 @@ from typing import Any
 
 import pytest
 
-from robolearn.ai import ollama_client
-from robolearn.kodrobench import (
+from kodro.ai import ollama_client
+from kodro.kodrobench import (
     RESULTS_SCHEMA,
     TASKS,
     Task,

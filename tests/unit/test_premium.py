@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from robolearn.ui.premium import (
+from kodro.ui.premium import (
     ease_in_out_quintic,
     lerp,
     lerp_colour,

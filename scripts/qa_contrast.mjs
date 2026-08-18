@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const CSS = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'styles.css'), 'utf8');
+const CSS = readFileSync(path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'styles.css'), 'utf8');
 const AA = 4.5;
 
 let pass = 0, fail = 0;
@@ -134,7 +134,7 @@ ok(/\.world-pick-row\s*\{[^}]*width\s*:\s*100%[^}]*flex-wrap\s*:\s*wrap/.test(CS
   const files = ['Telemetry.jsx', 'app.jsx', 'panels.jsx'];
   let headings = 0;
   for (const f of files) {
-    const src = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', f), 'utf8');
+    const src = readFileSync(path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', f), 'utf8');
     headings += (src.match(/<span className="eyebrow" role="heading" aria-level="2"/g) || []).length;
   }
   ok(headings >= 15, `panel/modal title eyebrow spans are level-2 headings (found ${headings})`);
@@ -195,19 +195,19 @@ ok(/\.missionbar \.more-tools-trigger \.icon-btn-label \{ display:inline; \}/.te
 
 // 10. Source-level render + a11y pins for judge round 9 fixes.
 {
-  const app = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'app.jsx'), 'utf8');
+  const app = readFileSync(path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'app.jsx'), 'utf8');
   ok(/fmtTimeFull\(r\.ts\)/.test(app) && /(r\.worldName \|\| r\.world \|\| 'the world')/.test(app),
     'compare checkboxes carry unique accessible names (world + seconds)');
   ok(/consoleLines\.slice\(-300\)\.map/.test(app), 'console renders a bounded window, not the whole buffer');
-  const hooks = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'hooks.jsx'), 'utf8');
+  const hooks = readFileSync(path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'hooks.jsx'), 'utf8');
   ok(/CONSOLE_CAP = 1000/.test(hooks), 'console buffer is capped');
-  const editor = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'Editor.jsx'), 'utf8');
+  const editor = readFileSync(path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'Editor.jsx'), 'utf8');
   ok(/useMemo\(\(\) => highlight\(code\), \[code\]\)/.test(editor),
     'editor re-tokenizes only when the code changes, not every telemetry frame');
-  const v3d = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'Viewport3D.jsx'), 'utf8');
+  const v3d = readFileSync(path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'Viewport3D.jsx'), 'utf8');
   ok(/window\.KODRO_QUALITY = 'low';[\s\S]{0,400}weatherFx = null;/.test(v3d),
     'runtime step-down propagates to ambient (KODRO_QUALITY) and kills weather particles');
-  const panels = readFileSync(path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web', 'panels.jsx'), 'utf8');
+  const panels = readFileSync(path.join(HERE, '..', 'src', 'kodro', 'assets', 'web', 'panels.jsx'), 'utf8');
   ok(/\(active\)/.test(panels) && !/\{p\.name\}\{p\.active \? ' ·' : ''\}/.test(panels),
     "teacher register marks the active row in words, not a cryptic middot");
 }

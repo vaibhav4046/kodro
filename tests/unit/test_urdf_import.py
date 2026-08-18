@@ -13,8 +13,8 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.interop.urdf_io import krs_from_urdf
-from robolearn.web.app import BridgeAPI
+from kodro.interop.urdf_io import krs_from_urdf
+from kodro.web.app import BridgeAPI
 
 pytest.importorskip("yourdfpy")
 

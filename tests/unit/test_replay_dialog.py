@@ -6,8 +6,8 @@ import tkinter as tk
 
 import pytest
 
-from robolearn.runtime.tracer import Event, RoverSnapshot, Tracer
-from robolearn.ui.replay_dialog import ReplayDialog
+from kodro.runtime.tracer import Event, RoverSnapshot, Tracer
+from kodro.ui.replay_dialog import ReplayDialog
 
 
 @pytest.fixture

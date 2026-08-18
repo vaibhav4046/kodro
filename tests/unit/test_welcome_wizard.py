@@ -6,8 +6,8 @@ import tkinter as tk
 
 import pytest
 
-from robolearn.engine.terrain import Terrain
-from robolearn.ui.welcome_wizard import (
+from kodro.engine.terrain import Terrain
+from kodro.ui.welcome_wizard import (
     AGE_BANDS,
     KEY_STAGES,
     WelcomeWizard,

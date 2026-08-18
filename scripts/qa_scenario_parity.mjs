@@ -8,7 +8,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-const dir = new URL('../src/robolearn/assets/web/', import.meta.url);
+const dir = new URL('../src/kodro/assets/web/', import.meta.url);
 const win = { addEventListener() {}, dispatchEvent() {}, CustomEvent: function () {}, Date: Date };
 for (const f of ['motion-model.js', 'sim-physics.js', 'interpreter.js', 'scenario.js'.replace('scenario.js', 'scenario.jsx')]) {
   new Function('window', readFileSync(new URL(f, dir), 'utf8'))(win);

@@ -31,7 +31,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const WEB = path.join(ROOT, 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(ROOT, 'src', 'kodro', 'assets', 'web');
 const TMP = path.join(ROOT, 'tmp', 'fuzz');
 
 let pass = 0;

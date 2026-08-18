@@ -80,7 +80,7 @@ dictation-notice fix, so the artefact's `bundleSha256` no longer matched the
 bundle the dissertation describes. The gate was re-run at
 `2026-08-14T21:21:00.915Z`, and its `bundleSha256`
 `17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174` is byte-for-byte
-the SHA-256 of `src/robolearn/assets/web/bundle.js` at the commit that carries
+the SHA-256 of `src/kodro/assets/web/bundle.js` at the commit that carries
 this entry. The table now prints that run:
 
 ```
@@ -95,10 +95,10 @@ hash above still names the bundle at `3c2a851`; the file on disk now hashes to
 difference between those two bundles was measured rather than assumed:
 
 ```
-$ git diff 3c2a851 cacf51e -- src/robolearn/assets/web/bundle.js --stat
- src/robolearn/assets/web/bundle.js | 10 +++++++---
+$ git diff 3c2a851 cacf51e -- src/kodro/assets/web/bundle.js --stat
+ src/kodro/assets/web/bundle.js | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
-$ git diff 3c2a851 cacf51e -- src/robolearn/assets/web/bundle.js \
+$ git diff 3c2a851 cacf51e -- src/kodro/assets/web/bundle.js \
     | grep -E '^[+-]' | grep -v '^[+-][+-][+-]' | grep -vE '^[+-][[:space:]]*//' | wc -l
 0
 ```
@@ -124,8 +124,8 @@ was measured the same way, but the filter used above does not transfer and
 saying so matters more than the result:
 
 ```
-$ git diff --stat cacf51e HEAD -- src/robolearn/assets/web/bundle.js
- src/robolearn/assets/web/bundle.js | 10 +++++-----
+$ git diff --stat cacf51e HEAD -- src/kodro/assets/web/bundle.js
+ src/kodro/assets/web/bundle.js | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
 ```
 
@@ -262,7 +262,7 @@ That artefact records `source.commit` = `02dd047a392884a12ef40f2f4113f217ac5470b
 
 - `tests/unit/test_mcp_server.py` is absent at `02dd047` and present at HEAD.
 - Test file count went from 69 at `02dd047` to 76 at HEAD.
-- `706f93d` added `src/robolearn/mcp/*`, `scripts/qa_voice.mjs` and `src/robolearn/assets/web/voice.js`.
+- `706f93d` added `src/kodro/mcp/*`, `scripts/qa_voice.mjs` and `src/kodro/assets/web/voice.js`.
 - `44d30e9` added `scripts/qa_encoding.mjs` plus further voice code.
 
 So the 1,489-test matrix does not include the MCP subsystem described at `.tex:566` to `.tex:569`, nor the voice layer described at `.tex:552` to `.tex:561`. The dissertation describes subsystems that its headline test count does not cover, while calling that count the final source state.
@@ -687,7 +687,7 @@ Every numerical claim found in the `.tex`, with its evidence and a verdict. "Mea
 | 20 seeded runs | 160, 637, 908 | `prove_report.md`, 4 contracts at 5/5 | 20 | MATCH |
 | All pass, byte-identical replay | 637 | `prove_report.md`, `verdict: pass` | pass | MATCH |
 | Seed root 4046 | 637 context | `prove_baseline.json` `seed_root` | 4046 | MATCH |
-| Broken controller fails all four | 637, 908 | `prove_report.md` | stated in artefact | MATCH against artefact. UNVERIFIABLE-WITHOUT-RERUN: `python -m robolearn.prove --broken` per the report |
+| Broken controller fails all four | 637, 908 | `prove_report.md` | stated in artefact | MATCH against artefact. UNVERIFIABLE-WITHOUT-RERUN: `python -m kodro.prove --broken` per the report |
 
 ### Web and browser figures
 
@@ -754,7 +754,7 @@ Every one of these is UNVERIFIABLE-WITHOUT-RERUN independently of the transcript
 | Software misses budget in all six samples | 648, 663 | same | all 6 submission readings above 4.17 ms | MATCH |
 | "the two runs were captured a day apart" | 648 | both artefacts `generatedAt` | sentence replaced by the two dates, 27 July and 14 August 2026 | RESOLVED, was **DRIFT** |
 | Same harness hash, different bundle hashes | 648 | both artefacts `artifactHashes` | harness `50681bdc...` in both; bundles `23201a39...` and `17c8d985...` | MATCH |
-| Software artefact pins the bundle the text describes | 648 | artefact vs `src/robolearn/assets/web/bundle.js` | both `17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174` | MATCH |
+| Software artefact pins the bundle the text describes | 648 | artefact vs `src/kodro/assets/web/bundle.js` | both `17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174` | MATCH |
 
 The drift was closed by running `node scripts/qa_performance.mjs --gl=software --repeat=3`, twice: once to restore three samples per tier, then again after `3c2a851` regenerated the bundle, so the committed artefact pinned the bundle this dissertation described at that point. It no longer does: the bundle moved twice more, at `cacf51e` and `dd02cd8`, both times inside comments only, and the `.tex` sentence was corrected on 15 August to say that neither artefact pins the final bundle rather than that the software one does. See the two addenda under CRITICAL 1. The audit itself did not run it, because it overwrites a committed evidence artefact; the release pass did, and updated the four numbers and the method sentences to what it produced. See CRITICAL 1 for the resolution and for the honest reading of how noisy these floor figures are.
 
@@ -808,14 +808,14 @@ The panel arithmetic is fully self-consistent across all three dimensions, which
 
 | Claim | .tex line | Evidence source | Measured now | Verdict |
 | --- | --- | --- | --- | --- |
-| 24 lessons | 160, 309 | `src/robolearn/assets/web/lessons.json` | list of length 24 | MATCH |
+| 24 lessons | 160, 309 | `src/kodro/assets/web/lessons.json` | list of length 24 | MATCH |
 | KS split 3 / 4 / 9 / 8 | 309 | same file, `keyStage` field | 3+4+9+8 = 24, consistent with total | MATCH on arithmetic |
 | Every lesson scores 100/100 through both markers | 160 | `qa_gate_runs`, `qa_grader` 55 and `qa_lesson_studio` 79 | gates present and reproduce | UNVERIFIABLE-WITHOUT-RERUN: `node scripts/qa_grader.mjs` and `node scripts/qa_lesson_studio.mjs` |
 | 17 named mission sites | 261, 454 | the enumeration at `.tex:454` | 17 names counted | MATCH, internally consistent |
-| 14 closed forms plus sensor-pose transform | 441 | `src/robolearn/engine/motion_model.py` | 14 functions matching `^def phys_`, plus `sensor_pose` at line 287 | MATCH |
-| Mirrored in the JS model | 441 | `src/robolearn/assets/web/motion-model.js` | `sensorPose` at line 230, exported at 268 | MATCH |
+| 14 closed forms plus sensor-pose transform | 441 | `src/kodro/engine/motion_model.py` | 14 functions matching `^def phys_`, plus `sensor_pose` at line 287 | MATCH |
+| Mirrored in the JS model | 441 | `src/kodro/assets/web/motion-model.js` | `sensorPose` at line 230, exported at 268 | MATCH |
 | `arenaHalfExtentCm` = 1500 | 869 | both motion models | `motion_model.py:27` = 1500, `motion-model.js:33` = 1500 | MATCH |
-| MCP offers 8 tools | 567 | `src/robolearn/mcp/tools.py` `TOOLS` | 8: `list_lessons`, `get_lesson`, `run_program`, `grade_program`, `check_api`, `validate_robot_spec`, `prove_contracts`, `pupil_progress` | MATCH |
+| MCP offers 8 tools | 567 | `src/kodro/mcp/tools.py` `TOOLS` | 8: `list_lessons`, `get_lesson`, `run_program`, `grade_program`, `check_api`, `validate_robot_spec`, `prove_contracts`, `pupil_progress` | MATCH |
 | 25 readable resources | 567 | same, `list_resources()` | 25, being `kodro://api/reference` plus one per lesson | MATCH, and 1 + 24 lessons = 25 reconciles |
 | 108 voice assertions | 559 | `scripts/qa_voice.mjs` | gate prints `PASS voice: 108 passed, 0 failed`; the sentence now reads "One hundred and eight assertions" | MATCH, was **DRIFT** at 47. See HIGH 3 |
 | 14 of those cover the lesson library | 561 | same, lines 131 to 179 | 14 call sites | MATCH |

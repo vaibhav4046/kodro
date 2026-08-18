@@ -17,7 +17,7 @@ import { resolveChrome } from './lib/resolve-chrome.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
-const WEB = path.join(REPO, 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(REPO, 'src', 'kodro', 'assets', 'web');
 // Software evidence keeps its historical name (the dissertation cites it);
 // a hardware run writes alongside it, never over it.
 const _GL_EARLY = (process.argv.find((a) => a.startsWith('--gl=')) || '--gl=software').slice(5);

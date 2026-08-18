@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.lessons.schema import Lesson, WorldDef
-from robolearn.memory.achievements import (
+from kodro.lessons.schema import Lesson, WorldDef
+from kodro.memory.achievements import (
     BUNDLED_LESSON_COUNT,
     CATALOGUE,
     AchievementDef,
@@ -20,7 +20,7 @@ from robolearn.memory.achievements import (
     ensure_schema,
     unlocked_ids,
 )
-from robolearn.memory.store import Store, Submission
+from kodro.memory.store import Store, Submission
 
 
 def _lesson(lid: str = "01_hello_rover", *, key_stage: str = "KS3") -> Lesson:
@@ -146,7 +146,7 @@ def test_three_in_a_row_breaks_on_intervening_fail(tmp_path: Path) -> None:
 def test_bundled_lesson_count_matches_library() -> None:
     # Self-policing: if lessons are added without bumping the constant, the
     # "Curriculum complete" achievement would be wrong -- fail loudly here.
-    from robolearn.lessons.schema import load_library
+    from kodro.lessons.schema import load_library
 
     assert len(load_library()) == BUNDLED_LESSON_COUNT
 

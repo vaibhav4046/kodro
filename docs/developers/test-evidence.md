@@ -4,7 +4,7 @@ One line per demonstrable capability, appended as each task lands. Used by
 the dissertation chapter on verification.
 
 - **2026-06-06** — Packaged-binary smoke check: the PyInstaller one-file
-  build (`dist/robolearn.exe`, v0.59) was launched on Windows 11 and
+  build (`dist/kodro.exe`, v0.59) was launched on Windows 11 and
   confirmed to start cleanly — a process with main-window title
   "RoboLearn" came up using ~73 MB, and `~/.robolearn/startup.log` recorded
   "robolearn package imported OK" with no fatal error. This verifies the
@@ -12,7 +12,7 @@ the dissertation chapter on verification.
   on a real desktop (the automated suite otherwise runs the UI headlessly).
 - **2026-06-01** — Post-QA feature program (driven by the 100-persona
   review) shipped and verified across Linux/macOS/Windows CI:
-  (a) **accessibility** — `robolearn.ui.a11y` text-scaling and
+  (a) **accessibility** — `kodro.ui.a11y` text-scaling and
   high-contrast settings persist to `~/.robolearn/a11y.toml` and reapply
   on launch; `A-`/`A+` and the contrast toggle are covered by Tk-free unit
   tests plus a synchronous app test (`test_a11y.py`, `test_app.py`);
@@ -22,7 +22,7 @@ the dissertation chapter on verification.
   (c) **feedback** — a green pass / orange fail verdict banner and a
   top-bar progress strip (streak / passed / last score) are unit-tested
   (`test_console_panel.py`, `test_app.py`). (d) **audio** —
-  `robolearn.ui.sounds` synthesises pass/fail/collect/collision tones from
+  `kodro.ui.sounds` synthesises pass/fail/collect/collision tones from
   the standard library with a hard-guarded mixer that no-ops on
   audio-less machines, tested under SDL's headless `dummy` driver
   (`test_sounds.py`). A per-test `--timeout=120` was added to CI so a hung
@@ -43,14 +43,14 @@ the dissertation chapter on verification.
   always records its events. Full suite: **621 passed, 1 skipped, 92.53 %
   coverage** (`tests/unit/test_app.py`, `tests/unit/test_store.py`).
 - **2026-05-26** — Repository scaffold installs cleanly and the smoke test
-  asserts that `robolearn.__version__` exists, all subpackages import, and
+  asserts that `kodro.__version__` exists, all subpackages import, and
   CI is green on Ubuntu, macOS and Windows
   (`tests/unit/test_smoke.py::test_package_exposes_version`).
 - **2026-05-26** — All sixteen public rover-API functions return their
   documented safe defaults, never raise on bad input, and clamp
   out-of-range or non-finite values with a logged warning. 51 unit tests
   cover the full API surface and the package-root re-exports; coverage on
-  `src/robolearn/rover_api.py` is 100 %
+  `src/kodro/rover_api.py` is 100 %
   (`tests/unit/test_rover_api.py`).
 - **2026-05-26** — `ui.teacher_dashboard` exposes a class heatmap,
   per-pupil drill-down, and CSV export. 8 unit tests cover empty
@@ -158,7 +158,7 @@ the dissertation chapter on verification.
   obstacle pixel at obstacle centre, rover body grey at the rover
   position, render determinism (two renders produce byte-identical
   output) and the manual visual-check CLI is exposed via
-  `python -m robolearn.engine.renderer --terrain mars`
+  `python -m kodro.engine.renderer --terrain mars`
   (`tests/unit/test_renderer.py`).
 - **2026-05-26** — LIDAR, ultrasonic, colour and IMU sensors are
   implemented and property-tested. 23 unit tests (5 Hypothesis-based)

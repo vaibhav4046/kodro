@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 // No window.KodroAgents is defined, so the moving-agent branch of collisionAt
 // / rayDistance is skipped -- these asserts cover the wall + static-obstacle
 // geometry, which is the deterministic core the live tick shares.
-const SRC = readFileSync(new URL('../src/robolearn/assets/web/sim-physics.js', import.meta.url), 'utf8');
+const SRC = readFileSync(new URL('../src/kodro/assets/web/sim-physics.js', import.meta.url), 'utf8');
 const win = {};
 new Function('window', SRC)(win);
 const P = win.KodroPhysics;
@@ -102,7 +102,7 @@ check('degenerate all-cruise profile: trapCover is linear (0.37 -> 0.37)',
 // rover had executed an instruction. The offset is now derived from the same
 // radii the collision test uses; this asserts that relationship holds.
 {
-  const src = readFileSync(new URL('../src/robolearn/assets/web/agents.jsx', import.meta.url), 'utf8');
+  const src = readFileSync(new URL('../src/kodro/assets/web/agents.jsx', import.meta.url), 'utf8');
   const R = Number((src.match(/const R = (\d+);/) || [])[1]);
   const carR = Number((src.match(/kind: 'car'[^}]*?r: (\d+)/) || [])[1]);
   check('agents.jsx exposes the rover radius', Number.isFinite(R) && R > 0, String(R));

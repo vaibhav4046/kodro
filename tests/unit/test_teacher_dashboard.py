@@ -7,10 +7,10 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.lessons.schema import Lesson, WorldDef
-from robolearn.memory.pupil_model import update_on_submission
-from robolearn.memory.store import Store
-from robolearn.ui.teacher_dashboard import TeacherDashboard
+from kodro.lessons.schema import Lesson, WorldDef
+from kodro.memory.pupil_model import update_on_submission
+from kodro.memory.store import Store
+from kodro.ui.teacher_dashboard import TeacherDashboard
 
 
 @pytest.fixture

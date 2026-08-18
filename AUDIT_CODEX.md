@@ -78,10 +78,10 @@ An 11-year-old cannot tell whether their program worked. A teacher cannot use `C
 
 Source inspection explains the reproduced result:
 
-- lesson selection changes only the generic terrain and code buffer in `src/robolearn/assets/web/app.jsx`
-- the visible browser host has no lesson sample or lesson-base state in `src/robolearn/assets/web/hooks.jsx`
-- visible `sample_detected()` always returns false and visible `collect_sample()` only prints text in `src/robolearn/assets/web/interpreter.js`
-- after the visible run, the program is run again inside a separate hidden lesson world in `src/robolearn/assets/web/lesson-grader.jsx`
+- lesson selection changes only the generic terrain and code buffer in `src/kodro/assets/web/app.jsx`
+- the visible browser host has no lesson sample or lesson-base state in `src/kodro/assets/web/hooks.jsx`
+- visible `sample_detected()` always returns false and visible `collect_sample()` only prints text in `src/kodro/assets/web/interpreter.js`
+- after the visible run, the program is run again inside a separate hidden lesson world in `src/kodro/assets/web/lesson-grader.jsx`
 
 The pupil watches one simulation and receives a verdict from another.
 

@@ -1,4 +1,4 @@
-"""Tests for the KodroBench harness (robolearn.kodrobench).
+"""Tests for the KodroBench harness (kodro.kodrobench).
 
 These use only the deterministic adapter, so they need no model and are fully
 reproducible in CI. The Ollama path is exercised separately when a model is
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from robolearn.kodrobench import (
+from kodro.kodrobench import (
     TASKS,
     _evaluate_program,
     evaluate_model_pass_at_k,

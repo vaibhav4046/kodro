@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from robolearn.lessons.schema import Lesson, WorldDef
-from robolearn.memory.pupil_model import (
+from kodro.lessons.schema import Lesson, WorldDef
+from kodro.memory.pupil_model import (
     STREAK_BEFORE_STRETCH,
     PupilStrength,
     attempted_lesson_ids,
@@ -18,7 +18,7 @@ from robolearn.memory.pupil_model import (
     update_on_submission,
     weakest_concepts,
 )
-from robolearn.memory.store import Store
+from kodro.memory.store import Store
 
 
 def _lesson(lesson_id: str, *, key_stage: str = "KS3", concepts: list[str] | None = None) -> Lesson:

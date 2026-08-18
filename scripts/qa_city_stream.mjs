@@ -26,7 +26,7 @@
  */
 import { readFileSync } from 'node:fs';
 
-const SRC_PATH = new URL('../src/robolearn/assets/web/city-stream.js', import.meta.url);
+const SRC_PATH = new URL('../src/kodro/assets/web/city-stream.js', import.meta.url);
 const SRC = readFileSync(SRC_PATH, 'utf8');
 
 let pass = 0, fail = 0;

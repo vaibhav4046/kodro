@@ -14,7 +14,7 @@ const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
 
-const WEB = path.join(__dirname, '..', 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(__dirname, '..', 'src', 'kodro', 'assets', 'web');
 // Entries ending in '.js' are plain-JS modules (no JSX) bundled verbatim in
 // order; everything else is '<name>.jsx'. motion-model.js (the shared physics
 // model, E-P1) and specschema.js (the KRS import schema, SI0) must load

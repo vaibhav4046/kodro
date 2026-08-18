@@ -25,7 +25,7 @@ import vm from 'node:vm';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const WEB = path.join(ROOT, 'src', 'robolearn', 'assets', 'web');
+const WEB = path.join(ROOT, 'src', 'kodro', 'assets', 'web');
 
 let pass = 0;
 const fails = [];
@@ -333,7 +333,7 @@ check('the grader exposes the authored-lesson seam',
   const missing = S.CRITERION_KEYS.filter((k) => graderSrc.indexOf('criterion.' + k) < 0);
   check('every criterion the Studio offers is implemented by the grader',
     missing.length === 0, missing.join(', '));
-  const pySrc = readFileSync(path.join(ROOT, 'src', 'robolearn', 'lessons', 'grader.py'), 'utf8');
+  const pySrc = readFileSync(path.join(ROOT, 'src', 'kodro', 'lessons', 'grader.py'), 'utf8');
   const missingPy = S.CRITERION_KEYS.filter((k) => pySrc.indexOf('criterion.' + k) < 0);
   check('every criterion the Studio offers is implemented by the Python grader',
     missingPy.length === 0, missingPy.join(', '));
