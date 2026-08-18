@@ -294,7 +294,9 @@ def is_safe(source: str) -> bool:
     """Return True if ``source`` parses and contains no sandbox violations."""
     try:
         return not find_violations(source)
-    except SyntaxError:
+    except (SyntaxError, RecursionError):
+        # Unparseable, or nested past the depth the walker can recurse through.
+        # Either way it is not safe to run, which is what this predicate means.
         return False
 
 

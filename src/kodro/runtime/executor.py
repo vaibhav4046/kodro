@@ -74,6 +74,8 @@ def execute(source: str, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> ExecutionRe
         violations = find_violations(source)
     except SyntaxError as exc:
         return _result_syntax(exc, start_ns)
+    except RecursionError:
+        return _result_too_deep(start_ns)
     if violations:
         first = violations[0]
         return ExecutionResult(
@@ -89,6 +91,8 @@ def execute(source: str, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> ExecutionRe
         compiled = compile(source, "<pupil>", "exec")
     except SyntaxError as exc:
         return _result_syntax(exc, start_ns)
+    except RecursionError:
+        return _result_too_deep(start_ns)
 
     # 3) Execute in a daemon worker thread.
     globals_dict = restricted_globals()
@@ -149,6 +153,28 @@ def execute(source: str, *, timeout_s: float = DEFAULT_TIMEOUT_S) -> ExecutionRe
 
 def _elapsed_ms(start_ns: int) -> int:
     return (time.monotonic_ns() - start_ns) // 1_000_000
+
+
+def _result_too_deep(start_ns: int) -> ExecutionResult:
+    """Source nested past the depth CPython's parser can walk.
+
+    ``ast.parse``, the sandbox walker and ``compile`` all recurse once per
+    nesting level, so a few thousand nested expressions exhaust the interpreter
+    stack. That surfaces as ``RecursionError``, which is not a ``SyntaxError``
+    and so escaped the parse guard, out of a function documented never to
+    raise. Reported as a syntax failure because that is what it is from the
+    pupil's side: the program could not be read.
+    """
+    return ExecutionResult(
+        success=False,
+        error_kind="syntax",
+        error_message=(
+            "SyntaxError: this program is nested too deeply to read. "
+            "Break it into smaller steps."
+        ),
+        error_line=None,
+        duration_ms=_elapsed_ms(start_ns),
+    )
 
 
 def _result_syntax(exc: SyntaxError, start_ns: int) -> ExecutionResult:

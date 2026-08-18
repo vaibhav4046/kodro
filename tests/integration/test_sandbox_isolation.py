@@ -236,3 +236,71 @@ def test_execute_all_hostile_snippets_blocked(snippet: str) -> None:
     result = execute(snippet, timeout_s=2.0)
     assert not result.success
     assert result.error_kind in {"sandbox", "syntax"}
+
+
+# ---------------------------------------------------------------------------
+# Unreadable input must not escape the executor's contract.
+# ---------------------------------------------------------------------------
+
+#: Sources CPython cannot parse, or cannot parse without exhausting its stack.
+#: ``ast.parse``, the sandbox walker and ``compile`` each recurse once per
+#: nesting level, so deep nesting raises ``RecursionError``. That is not a
+#: ``SyntaxError``, so it escaped both parse guards and propagated out of
+#: :func:`execute`, whose docstring promises it never raises.
+UNREADABLE_SNIPPETS: dict[str, str] = {
+    "broken_def": "def (:",
+    "null_byte": "x = 'a\x00b'",
+    "bom_prefix": "﻿move_forward(1)",
+    "indent_x100": "\n".join("    " * i + "if True:" for i in range(100))
+    + "\n"
+    + "    " * 100
+    + "move_forward(1)",
+    "expr_x20000": "x = " + "1+" * 20000 + "1",
+    "parens_x5000": "x = " + "(" * 5000 + "1" + ")" * 5000,
+    "lists_x5000": "x = " + "[" * 5000 + "]" * 5000,
+    "calls_x3000": "x = " + "len(" * 3000 + "[]" + ")" * 3000,
+}
+
+#: Parametrised by name: pytest builds a test id from the parameter, and these
+#: sources run to tens of thousands of characters.
+_UNREADABLE = list(UNREADABLE_SNIPPETS.items())
+_UNREADABLE_IDS = [name for name, _ in _UNREADABLE]
+
+
+@pytest.mark.parametrize(("name", "snippet"), _UNREADABLE, ids=_UNREADABLE_IDS)
+def test_execute_never_raises_on_unreadable_source(name: str, snippet: str) -> None:
+    """The contract is a returned result, not an exception the caller must catch."""
+    result = execute(snippet, timeout_s=2.0)
+    assert not result.success
+    assert result.error_kind == "syntax"
+    assert result.error_message
+
+
+@pytest.mark.parametrize(("name", "snippet"), _UNREADABLE, ids=_UNREADABLE_IDS)
+def test_is_safe_is_false_rather_than_raising(name: str, snippet: str) -> None:
+    """A source that cannot be read is not a source that is safe to run."""
+    assert is_safe(snippet) is False
+
+
+def test_the_deep_snippets_really_do_exhaust_the_parser() -> None:
+    """Guard the guard.
+
+    If CPython ever raises its recursion limit, these inputs stop being
+    pathological and the two tests above would pass for the wrong reason.
+    """
+    import ast
+
+    deep = [s for s in UNREADABLE_SNIPPETS.values() if "1+" in s or s.count("(") > 100]
+    assert deep, "no deep-nesting snippet left in the corpus"
+    exhausted = 0
+    for snippet in deep:
+        try:
+            ast.parse(snippet)
+        except RecursionError:
+            exhausted += 1
+        except SyntaxError:
+            pass
+    assert exhausted, (
+        "no snippet still exhausts the parser, so the RecursionError path is "
+        "no longer covered by this corpus"
+    )
