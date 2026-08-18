@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "harness": "qa_ui",
-  "generatedAt": "2026-08-18T00:31:42.295Z",
+  "generatedAt": "2026-08-18T07:57:08.153Z",
   "suite": "all",
   "method": "headless Chrome drives the real shipped bundle through cap.html; every row is an isolated Chrome run whose screenshot, post-action DOM or measured viewport had to match a concrete marker",
   "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -11,7 +11,7 @@
     "node": "v24.12.0"
   },
   "artifactHashes": {
-    "bundleSha256": "6ee25604c66bbfe0bb2353b4c927b6d8e7e8d4d55af4272cc68f38b4f1d6b4a8",
+    "bundleSha256": "2183c4b29a33b26e8ad6e997bece06566638ae08c0fd5298815b470b54043f84",
     "capHtmlSha256": "1bd1575a12fe912c7049c4213e1fdd7713092a21009cfa68ba84170fcb4c9cee",
     "harnessSha256": "ae62517ba1fe3ac43e4656a70ca3a6715f155f1817e026dddff231d7cfc03dc1"
   },
@@ -28,7 +28,7 @@
         {
           "label": "studio-earth-run",
           "pass": true,
-          "reason": "ok (289836B)",
+          "reason": "ok (281794B)",
           "determinism": {
             "pass": true,
             "reason": "rover drove 14.0m (>= 3m floor); exact-distance determinism is covered by qa_interpreter/qa_grader"
@@ -37,22 +37,22 @@
         {
           "label": "world-mars",
           "pass": true,
-          "reason": "ok (285725B)"
+          "reason": "ok (289170B)"
         },
         {
           "label": "world-warehouse",
           "pass": true,
-          "reason": "ok (166466B)"
+          "reason": "ok (184007B)"
         },
         {
           "label": "arm-firstrun",
           "pass": true,
-          "reason": "ok (148856B)"
+          "reason": "ok (137772B)"
         },
         {
           "label": "blocks-panel",
           "pass": true,
-          "reason": "ok (161028B)"
+          "reason": "ok (160414B)"
         },
         {
           "label": "onboarding",
@@ -249,7 +249,7 @@
         {
           "label": "first-run-clean",
           "pass": true,
-          "reason": "default city first Run drove 9.0m clean (no HALTED) and printed its report (attempt 1)"
+          "reason": "default city first Run drove 8.0m clean (no HALTED) and printed its report (attempt 1)"
         },
         {
           "label": "revert-apply",
