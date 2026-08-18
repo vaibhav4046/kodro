@@ -20,8 +20,8 @@ Two options, both offline once fetched:
 1. **Desktop app.** Download `Kodro-windows.exe` from the releases page and
    copy it to each machine (a shared drive or USB stick is fine). It needs no
    admin rights and no installer. On machines without WebView2, use
-   `robolearn-windows-tk.exe` instead; it is the same engine with a simpler
-   interface. macOS uses `robolearn-macos.zip` (unzip, drag the app into
+   `Kodro-windows-tk.exe` instead; it is the same engine with a simpler
+   interface. macOS uses `Kodro-macos.zip` (unzip, drag the app into
    Applications).
 2. **Browser build.** Serve the static site from any local web server, or
    open the hosted copy once while online; it installs a service worker and
@@ -65,7 +65,7 @@ Settings, then `Export progress report`, which writes a self-contained HTML
 report next to the database and prints the path it used. That report covers the
 pupil currently signed in, not the class.
 
-**In `robolearn-windows-tk.exe`.** Press `Ctrl+Shift+T`. That shortcut exists
+**In `Kodro-windows-tk.exe`.** Press `Ctrl+Shift+T`. That shortcut exists
 only in this build; pressing it in the WebView2 one does nothing. This is the
 fuller dashboard: the class heatmap, a per-pupil drill-down with the pupil's
 submissions and score history, and exports of the heatmap as CSV or as PDF to a

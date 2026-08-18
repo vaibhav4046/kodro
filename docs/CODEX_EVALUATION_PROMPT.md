@@ -25,7 +25,7 @@ Central design claim to test: the robot the user assembles drives the simulation
 2. THE REPOSITORY
 =====================================================================
 Root: D:\project\robolearn (Windows 11; both PowerShell and Bash are available).
-GitHub: https://github.com/vaibhav4046/robolearn (branch main).
+GitHub: https://github.com/vaibhav4046/kodro (branch main).
 
 Read these first to build your mental model:
 - README.md, docs/UPGRADE_AND_DISSERTATION_PLAN.md, docs/implementation-status.md, docs/known-limitations.md, docs/realism-system.md, docs/roadmap.md, docs/HANDOFF_NEXT_AGENT.md.
