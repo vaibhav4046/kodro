@@ -61,6 +61,8 @@ const SPAWN_TIMEOUT_MS = Number.isFinite(TIMEOUT_ENV) && TIMEOUT_ENV > 0
   ? TIMEOUT_ENV
   : (process.platform === 'win32' ? 300_000 : 60_000);
 const FIRST_SPAWN_TIMEOUT_MS = Math.round(SPAWN_TIMEOUT_MS * 1.5);
+// The ceiling above was not enough on its own. See drive() for the measurement.
+const SPAWN_ATTEMPTS = 3;
 
 const WORLDS = ['city', 'room', 'earth', 'mars', 'underwater', 'space'];
 // null = the default saved build; the rest are the Robot Lab archetypes.
@@ -108,26 +110,48 @@ function drive(chrome, tag, url, opts = {}) {
     wantDom ? '--dump-dom' : `--screenshot=${shot}`,
     url,
   ];
-  const res = spawnSync(chrome, args, {
-    encoding: 'utf8',
-    timeout: opts.timeout || SPAWN_TIMEOUT_MS,
-    windowsHide: true,
-    maxBuffer: 64 * 1024 * 1024,
-  });
+  // Chrome's cold spawn on Windows still ETIMEDOUTs intermittently with the
+  // platform-aware ceiling already applied. Two full sweeps on 18 August 2026
+  // each lost exactly one row this way, and it was a different row each time
+  // (city x home, then site kenya), with each row passing in the run that lost
+  // the other. A launcher missing its deadline is not a world failing to
+  // render, and raising the ceiling again would only make a stuck launch take
+  // longer to report. qa_web hit this first and fixed it by retrying the boot
+  // spawn; the same fix belongs here.
+  //
+  // Only a hard spawn error is retried. A console error or a blank render is a
+  // product verdict and gets exactly one attempt, because retrying those would
+  // convert a real defect into a green row.
+  let res;
+  let attempts = 0;
+  while (attempts < SPAWN_ATTEMPTS) {
+    attempts += 1;
+    // A timed-out launch can leave the profile half-written; start each retry clean.
+    if (attempts > 1) { try { rmSync(udd, { recursive: true, force: true }); } catch { /* noop */ } }
+    res = spawnSync(chrome, args, {
+      encoding: 'utf8',
+      timeout: opts.timeout || SPAWN_TIMEOUT_MS,
+      windowsHide: true,
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    if (!res.error) break;
+  }
   const stderr = (res.stderr || '') + (res.error ? `\nSPAWN_ERROR: ${res.error.message}` : '');
   try { writeFileSync(log, stderr); } catch { /* best effort */ }
-  if (res.error) return { pass: false, reason: `chrome spawn failed: ${res.error.message}`, dom: '' };
+  if (res.error) return { pass: false, reason: `chrome spawn failed after ${attempts} attempts: ${res.error.message}`, dom: '' };
+  // Name the attempt that won, so a retried pass never reads as a clean first launch.
+  const retried = attempts > 1 ? ` (attempt ${attempts} of ${SPAWN_ATTEMPTS})` : '';
   const bad = stderr.split(/\r?\n/).filter((l) => l && !NOISE.test(l) && FAIL.test(l));
   if (bad.length) return { pass: false, reason: `console error: ${bad[0].slice(0, 160)}`, dom: res.stdout || '' };
   if (wantDom) {
     if (!res.stdout) return { pass: false, reason: 'dump-dom produced no DOM', dom: '' };
-    return { pass: true, reason: 'ok', dom: res.stdout };
+    return { pass: true, reason: `ok${retried}`, dom: res.stdout };
   }
   let bytes = 0;
   if (existsSync(shot)) { try { bytes = statSync(shot).size; } catch { bytes = 0; } }
   if (bytes === 0) return { pass: false, reason: 'no screenshot written (page never painted)', dom: '' };
   if (bytes < MIN_PNG_BYTES) return { pass: false, reason: `blank/tiny render (${bytes}B < ${MIN_PNG_BYTES}B)`, dom: '' };
-  return { pass: true, reason: `ok (${bytes}B)`, dom: '' };
+  return { pass: true, reason: `ok (${bytes}B)${retried}`, dom: '' };
 }
 
 function warmUpChrome(chrome) {

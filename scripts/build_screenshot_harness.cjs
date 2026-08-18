@@ -550,12 +550,13 @@ const CAP = `<!DOCTYPE html>
         // appears, bridges window.KODRO_RUN_TRACE into a hidden probe div so a
         // DOM dump can assert the trace was recorded. The dump tool sees DOM,
         // not window, so the bridge is the only honest way to gate the trace.
-        var predictDone = false, predictRan = false;
+        var predictDone = false, predictRan = false, predictStage = 'the predict input';
         var tryPredict = function () {
           if (predictDone) return;
           if (!predictRan) {
             var pi = document.querySelector('.lesson-predict input');
             if (!pi) return;
+            predictStage = 'the Run button';
             var iset = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
             iset.call(pi, String(C.predict));
             pi.dispatchEvent(new Event('input', { bubbles: true }));
@@ -568,6 +569,7 @@ const CAP = `<!DOCTYPE html>
             if (!runBtn) return;
             runBtn.click();
             predictRan = true;
+            predictStage = 'the comparison line';
             return;
           }
           if (!document.querySelector('.lesson-predict-out')) return;
@@ -594,7 +596,7 @@ const CAP = `<!DOCTYPE html>
           if (predictDone || predictTries >= 60) {
             clearInterval(predictTimer);
             if (predictObs) predictObs.disconnect();
-            if (!predictDone) must(false, 'predict=' + C.predict + ' (predict input, Run, or the comparison line never appeared)');
+            if (!predictDone) must(false, 'predict=' + C.predict + ' (' + predictStage + ' never appeared)');
           }
         }, 400);
       }

@@ -53,14 +53,15 @@ tests while still running them, so the true figure is at least what is reported.
 **"Nothing skips and nothing fails. Is that the whole picture?"**
 
 No, and the artefact says so itself. The run you are looking at collected 1,641
-and passed 1,641 with no skip, but I would not offer that as evidence that a
-known problem went away, and the commit I am shipping proves the point: it
-collected 1,642, passed 1,641 and skipped one. The extra collected test is one
-I added with the version bump, and the skip is the same intermittency. The skip
-count moves on this machine. Five runs now: three of the same 1,639 tests gave
-one skip, then two, then none; the 1,641-test run gave none; and the 1,642-test
-run gave one. Thirteen test files open a Tk window in a fixture, and 169 collected
-tests sit behind those guards. When the toolkit fails to start, the fixture
+and passed 1,641 with no skip, and the commit I am shipping collects 1,649 and
+passes all of them with no skip either, but I would not offer either run as
+evidence that a known problem went away. What carries the point is the sequence
+rather than any single run. Six runs on this machine: three of the same 1,639
+tests gave one skip, then two, then none; the 1,641-test run gave none; the
+1,642-test run at the version bump gave one; and the 1,649-test run I am
+shipping gave none. It has read zero before and gone back up. Thirteen test
+files open a Tk window in a fixture, and 169 collected tests sit behind those
+guards. When the toolkit fails to start, the fixture
 catches the error and skips instead of failing, so a bad run takes a whole file
 with it and a clean run tells you the toolkit started that time, nothing more.
 

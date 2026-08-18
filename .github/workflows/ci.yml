@@ -299,11 +299,16 @@ jobs:
       # availability and headless-GL behaviour, so gating them would add flake for
       # no extra signal. qa_ui runs below on the same Linux leg; qa_worlds is
       # deliberately NOT in CI -- it drives 36+ world/robot combos through a
-      # static server, and runtime alone keeps it out of the gate. The spawn
-      # flake it used to show was root-caused (a 60s Chrome-launch ceiling that
-      # a loaded Windows host cannot meet: one flow measured 2m56s) and fixed by
-      # the platform-aware SPAWN_TIMEOUT_MS, so slowness is now the only reason.
-      # It stays local + pre-deploy and passes 61/61 there.
+      # static server, and runtime alone keeps it out of the gate. Its spawn
+      # flake was first blamed on a 60s Chrome-launch ceiling that a loaded
+      # Windows host cannot meet (one flow measured 2m56s). The platform-aware
+      # SPAWN_TIMEOUT_MS raised that ceiling but did not end the flake: two full
+      # sweeps on 18 August 2026 each still lost exactly one row to a spawn
+      # ETIMEDOUT, a different row each time (city x home, then site kenya),
+      # the second of them on a host with no other Chrome running. The fix was
+      # the one qa_web already used -- retry the boot spawn, see SPAWN_ATTEMPTS
+      # in qa_worlds.mjs -- rather than raise the ceiling again. It stays local
+      # + pre-deploy and passed 61/61 there on 18 August 2026 after that change.
       - name: Setup Chrome (Linux only, for qa_web)
         if: matrix.os == 'ubuntu-latest'
         id: setup-chrome

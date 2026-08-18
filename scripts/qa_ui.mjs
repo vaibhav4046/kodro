@@ -89,6 +89,19 @@ const VTIME_MS = 12_000;
 // forward moves. Give it more headroom than the paint pass so the odometer has
 // actually accumulated distance by the time we dump the DOM.
 const BEHAVIOUR_VTIME_MS = 16_000;
+// INVARIANT for every per-row `vtime:` below. A row's budget must OUTLIVE the
+// give-up window of every cap.html driver its URL starts, or the driver never
+// reaches its own must(false) branch: Chrome retires the budget and dumps the
+// DOM first, so the row fails with empty fields and NO console error and the
+// log cannot say what went wrong. Windows are (tick interval x max tries), and
+// they live in scripts/build_screenshot_harness.cjs, which GENERATES cap.html
+// (the .html itself is gitignored, so edit the generator):
+//   lesson= 350x40=14000   lessonswitch= 300x40=12000   vibeapply= 300x40=12000
+//   describe= 350x40=14000   predict= 400x60=24000      palette= 400x60=24000
+// lesson= starts the lesson driver ON TOP of the row's own driver, so the
+// requirement is the MAX of the windows, not the row's headline driver alone.
+// Raising a budget is free in wall clock: virtual time fast-forwards while the
+// task queue is idle (measured 4-7s wall, flat, from budget 400 to 30000).
 // Hard ceiling on a single Chrome invocation in case it wedges. The FIRST
 // headless launch builds a fresh --user-data-dir profile and JITs the WebGL
 // stack from cold, which can run long; later launches are warm. We do a cheap
@@ -116,39 +129,65 @@ const BEHAVIOUR_FLOW = 'studio-earth-run';
 // spawnSync itself wait forever. Capture to ordinary files instead: the hard
 // timeout can then return, and a timed-out Windows process tree is removed
 // before the next isolated flow starts.
+// A cold Chrome launch on Windows still misses its deadline intermittently with
+// the platform-aware ceiling already applied. Two qa_worlds sweeps on 18 August
+// 2026 each lost exactly one row to a spawn ETIMEDOUT, a different row each
+// time, and this runner uses the same spawnSync pattern. Here the consequence is
+// worse: the artefact below is written with verdict PASS or FAIL whatever
+// happens, so one launcher transient would bake a false FAIL into a tracked
+// evidence file. Retry the launch, the way qa_web and qa_worlds already do.
+//
+// Only a hard spawn error is retried. A blank render or a console error is a
+// product verdict and still gets exactly one attempt, because retrying those
+// would convert a real defect into a green row.
+const SPAWN_ATTEMPTS = 3;
+const UDD_FLAG = '--user-data-dir=';
+
 function spawnChromeCaptured(chrome, args, tag, timeoutMs) {
   const outPath = path.join(TMP, `capture_${tag}.out.txt`);
   const errPath = path.join(TMP, `capture_${tag}.err.txt`);
-  let outFd;
-  let errFd;
+  const uddArg = args.find((a) => a.startsWith(UDD_FLAG));
   let result;
-  try {
-    outFd = openSync(outPath, 'w');
-    errFd = openSync(errPath, 'w');
-    result = spawnSync(chrome, args, {
-      timeout: timeoutMs,
-      windowsHide: true,
-      killSignal: 'SIGKILL',
-      stdio: ['ignore', outFd, errFd],
-    });
-  } finally {
-    if (outFd !== undefined) try { closeSync(outFd); } catch { /* noop */ }
-    if (errFd !== undefined) try { closeSync(errFd); } catch { /* noop */ }
-  }
+  let attempts = 0;
+  while (attempts < SPAWN_ATTEMPTS) {
+    attempts += 1;
+    // A timed-out launch can leave the profile half-written; start each retry clean.
+    if (attempts > 1 && uddArg) {
+      try { rmSync(uddArg.slice(UDD_FLAG.length), { recursive: true, force: true }); } catch { /* noop */ }
+    }
+    let outFd;
+    let errFd;
+    try {
+      outFd = openSync(outPath, 'w');
+      errFd = openSync(errPath, 'w');
+      result = spawnSync(chrome, args, {
+        timeout: timeoutMs,
+        windowsHide: true,
+        killSignal: 'SIGKILL',
+        stdio: ['ignore', outFd, errFd],
+      });
+    } finally {
+      if (outFd !== undefined) try { closeSync(outFd); } catch { /* noop */ }
+      if (errFd !== undefined) try { closeSync(errFd); } catch { /* noop */ }
+    }
 
-  if (result?.error?.code === 'ETIMEDOUT' && process.platform === 'win32' && result.pid) {
-    spawnSync('taskkill', ['/PID', String(result.pid), '/T', '/F'], {
-      timeout: 10_000,
-      windowsHide: true,
-      stdio: 'ignore',
-    });
+    // Reap the timed-out tree before the retry, or the orphans stack up.
+    if (result?.error?.code === 'ETIMEDOUT' && process.platform === 'win32' && result.pid) {
+      spawnSync('taskkill', ['/PID', String(result.pid), '/T', '/F'], {
+        timeout: 10_000,
+        windowsHide: true,
+        stdio: 'ignore',
+      });
+    }
+
+    if (!result.error) break;
   }
 
   let stdout = '';
   let stderr = '';
   try { stdout = readFileSync(outPath, 'utf8'); } catch { /* noop */ }
   try { stderr = readFileSync(errPath, 'utf8'); } catch { /* noop */ }
-  return { ...result, stdout, stderr };
+  return { ...result, stdout, stderr, attempts };
 }
 
 // RUN DETERMINISM: the default starter program on world=earth/robot=rover at
@@ -881,7 +920,7 @@ function checkLearningAnnotation(chrome) {
 // first. Otherwise the new label is paired with the old lesson walls and grade.
 function checkLessonWorldExit(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&experience=expert&lesson=00_first_drive&lessonswitch=mars`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_world_exit', url, { vtime: 14000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_world_exit', url, { vtime: 20000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
@@ -996,7 +1035,7 @@ function checkLightHud(chrome) {
 // goal strings are asserted, not just the container.
 function checkLessonGoals(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&lesson=00_first_drive`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_goals', url, { vtime: 12000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_goals', url, { vtime: 20000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   // DOM truth first: the lessons list arrives over a real fetch that virtual
@@ -1023,7 +1062,7 @@ function checkLessonGoals(chrome) {
 // the adult api-hint strip is suppressed at this key stage.
 function checkStepPalette(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&lesson=000_watch_it_go&palette=1`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_step_palette', url, { vtime: 14000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_step_palette', url, { vtime: 30000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
@@ -1231,7 +1270,7 @@ function checkLessonsEntry(chrome) {
 // (3,1), so those exact numbers must appear.
 function checkNarration(chrome) {
   const url = `${BASE}?world=mars&robot=rover&q=low&mode=classroom&experience=expert&lesson=04_selection&describe=1`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_narration', url, { vtime: 14000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_narration', url, { vtime: 20000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 140)}` };
@@ -1262,7 +1301,7 @@ function checkNarration(chrome) {
 // travels exactly 1 m, so both the comparison and its direction are checkable.
 function checkPredictTrace(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&experience=expert&lesson=00_first_drive&predict=2`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_predict_trace', url, { vtime: 20000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_predict_trace', url, { vtime: 30000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 140)}` };
@@ -1536,7 +1575,11 @@ function runFlow(chrome, flow, timeoutMs = SPAWN_TIMEOUT_MS) {
   const stderr = (res.stderr || '') + (res.error ? `\nSPAWN_ERROR: ${res.error.message}` : '');
   try { writeFileSync(log, stderr); } catch { /* best effort */ }
 
-  if (res.error) return { pass: false, reason: `chrome spawn failed: ${res.error.message}`, bytes: 0 };
+  if (res.error) {
+    return { pass: false, reason: `chrome spawn failed after ${res.attempts} attempts: ${res.error.message}`, bytes: 0 };
+  }
+  // Name the attempt that won, so a retried pass never reads as a clean first launch.
+  const retried = res.attempts > 1 ? ` (attempt ${res.attempts} of ${SPAWN_ATTEMPTS})` : '';
 
   // (a) blank-render check
   let bytes = 0;
@@ -1556,7 +1599,7 @@ function runFlow(chrome, flow, timeoutMs = SPAWN_TIMEOUT_MS) {
     return { pass: false, reason: `console error: ${first}`, bytes };
   }
 
-  return { pass: true, reason: `ok (${bytes}B)`, bytes };
+  return { pass: true, reason: `ok (${bytes}B)${retried}`, bytes };
 }
 
 // One cheap cold launch to about:blank. The first headless Chrome on a box pays
