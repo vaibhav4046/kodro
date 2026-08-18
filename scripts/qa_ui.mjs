@@ -89,6 +89,19 @@ const VTIME_MS = 12_000;
 // forward moves. Give it more headroom than the paint pass so the odometer has
 // actually accumulated distance by the time we dump the DOM.
 const BEHAVIOUR_VTIME_MS = 16_000;
+// INVARIANT for every per-row `vtime:` below. A row's budget must OUTLIVE the
+// give-up window of every cap.html driver its URL starts, or the driver never
+// reaches its own must(false) branch: Chrome retires the budget and dumps the
+// DOM first, so the row fails with empty fields and NO console error and the
+// log cannot say what went wrong. Windows are (tick interval x max tries), and
+// they live in scripts/build_screenshot_harness.cjs, which GENERATES cap.html
+// (the .html itself is gitignored, so edit the generator):
+//   lesson= 350x40=14000   lessonswitch= 300x40=12000   vibeapply= 300x40=12000
+//   describe= 350x40=14000   predict= 400x60=24000      palette= 400x60=24000
+// lesson= starts the lesson driver ON TOP of the row's own driver, so the
+// requirement is the MAX of the windows, not the row's headline driver alone.
+// Raising a budget is free in wall clock: virtual time fast-forwards while the
+// task queue is idle (measured 4-7s wall, flat, from budget 400 to 30000).
 // Hard ceiling on a single Chrome invocation in case it wedges. The FIRST
 // headless launch builds a fresh --user-data-dir profile and JITs the WebGL
 // stack from cold, which can run long; later launches are warm. We do a cheap
@@ -907,7 +920,7 @@ function checkLearningAnnotation(chrome) {
 // first. Otherwise the new label is paired with the old lesson walls and grade.
 function checkLessonWorldExit(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&experience=expert&lesson=00_first_drive&lessonswitch=mars`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_world_exit', url, { vtime: 14000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_world_exit', url, { vtime: 20000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
@@ -1022,7 +1035,7 @@ function checkLightHud(chrome) {
 // goal strings are asserted, not just the container.
 function checkLessonGoals(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&lesson=00_first_drive`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_goals', url, { vtime: 12000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_goals', url, { vtime: 20000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   // DOM truth first: the lessons list arrives over a real fetch that virtual
@@ -1049,7 +1062,7 @@ function checkLessonGoals(chrome) {
 // the adult api-hint strip is suppressed at this key stage.
 function checkStepPalette(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&lesson=000_watch_it_go&palette=1`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_step_palette', url, { vtime: 14000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_step_palette', url, { vtime: 30000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
@@ -1257,7 +1270,7 @@ function checkLessonsEntry(chrome) {
 // (3,1), so those exact numbers must appear.
 function checkNarration(chrome) {
   const url = `${BASE}?world=mars&robot=rover&q=low&mode=classroom&experience=expert&lesson=04_selection&describe=1`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_narration', url, { vtime: 14000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_narration', url, { vtime: 20000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 140)}` };
@@ -1288,7 +1301,7 @@ function checkNarration(chrome) {
 // travels exactly 1 m, so both the comparison and its direction are checkable.
 function checkPredictTrace(chrome) {
   const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&experience=expert&lesson=00_first_drive&predict=2`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_predict_trace', url, { vtime: 20000 });
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_predict_trace', url, { vtime: 30000 });
   if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
   if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
   if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 140)}` };

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "harness": "qa_ui",
-  "generatedAt": "2026-08-18T09:14:00.478Z",
+  "generatedAt": "2026-08-18T10:08:52.188Z",
   "suite": "all",
   "method": "headless Chrome drives the real shipped bundle through cap.html; every row is an isolated Chrome run whose screenshot, post-action DOM or measured viewport had to match a concrete marker",
   "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
@@ -12,8 +12,8 @@
   },
   "artifactHashes": {
     "bundleSha256": "2183c4b29a33b26e8ad6e997bece06566638ae08c0fd5298815b470b54043f84",
-    "capHtmlSha256": "1bd1575a12fe912c7049c4213e1fdd7713092a21009cfa68ba84170fcb4c9cee",
-    "harnessSha256": "1a930b23e4bf9cdf2c49b7d17cafd3f539453ab07b2622d29cb04ce1dd5241d4"
+    "capHtmlSha256": "e111cbeb3109a507fdd7d4bff56c454513426e4db4da757cb228d683d6f60451",
+    "harnessSha256": "510f92e904ccf5c92618c663c9d8120f101a12b7e52be4fb1a3533bc73c767c1"
   },
   "measures": "Whether the shipped studio renders and behaves: that each flow paints with no console error, that each assert finds its marker in the real DOM, that no viewport overflows and that every modal opens. Not a measure of whether a person can use, understand or learn from the interface, and not an accessibility, usability or hardware result. Where an exact marker cannot be located an assert falls back to the most specific real signal it can verify, so each row states in its reason what was actually matched.",
   "passed": 66,
@@ -28,7 +28,7 @@
         {
           "label": "studio-earth-run",
           "pass": true,
-          "reason": "ok (288249B)",
+          "reason": "ok (283842B)",
           "determinism": {
             "pass": true,
             "reason": "rover drove 14.0m (>= 3m floor); exact-distance determinism is covered by qa_interpreter/qa_grader"
@@ -37,27 +37,27 @@
         {
           "label": "world-mars",
           "pass": true,
-          "reason": "ok (284970B)"
+          "reason": "ok (288703B)"
         },
         {
           "label": "world-warehouse",
           "pass": true,
-          "reason": "ok (171444B)"
+          "reason": "ok (173176B)"
         },
         {
           "label": "arm-firstrun",
           "pass": true,
-          "reason": "ok (153583B)"
+          "reason": "ok (160438B)"
         },
         {
           "label": "blocks-panel",
           "pass": true,
-          "reason": "ok (161962B)"
+          "reason": "ok (160694B)"
         },
         {
           "label": "onboarding",
           "pass": true,
-          "reason": "ok (392538B)"
+          "reason": "ok (392477B)"
         }
       ]
     },
