@@ -112,7 +112,14 @@ Run it on the recording day, before capture. It drives the same eleven calls
 through a real server subprocess and exits non-zero naming the row that moved.
 Nothing else in the repository can catch a stale number here, because this file
 is prose and the server is code, so the two can disagree indefinitely without any
-gate noticing. It passed clean on 17 August, 30 of 30. The counts in it are
+gate noticing. It passed clean on 17 August, 29 of 29, and again on 18 August
+after the version bump. This line read 30 of 30 until 18 August, which was wrong
+the day it was written: the gate has carried 29 assertions since it was added at
+`537eac1`, and `f92f92f` above is the commit whose server behaviour the numbers
+were measured against, not a commit the gate ever ran at. A stale number in the
+file whose whole job is catching stale numbers is worth naming rather than
+quietly correcting, so `tests/unit/test_docs_match_reality.py` now runs the gate
+and holds this sentence to the count it actually prints. The counts in it are
 hardcoded on purpose, which is the opposite of what `scripts/smoke_mcp.py`
 argues for and correct for a different reason: the numbers are already written
 down in this document, and the only question worth asking is whether the document

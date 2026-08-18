@@ -15,6 +15,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -347,4 +348,44 @@ def test_spoken_honesty_count_matches_the_gate() -> None:
     assert claimed == count, f"the ledger claims {claimed} checks, the gate passes {count}"
     assert f"{count} passed, 0 failed" in evidence, (
         f"the ledger's evidence string does not quote '{count} passed, 0 failed'"
+    )
+
+
+def test_mcp_finale_doc_quotes_the_gates_real_row_count() -> None:
+    """MCP_DEMO_PROMPT.md claims a pass count for its own verifier. Hold it to one.
+
+    The file says of itself that "nothing else in the repository can catch a
+    stale number here", and then carried one: it claimed the finale gate passed
+    "30 of 30" when the gate has had 29 assertions since it was added. The 30
+    was never real, so no re-run would have surfaced it.
+
+    This runs the gate and holds the sentence to what it prints. The count only
+    moves when someone edits the gate deliberately, which is exactly when this
+    document has to move with it.
+    """
+    gate = ROOT / "scripts" / "qa_mcp_finale.py"
+    assert gate.is_file(), f"the finale gate is gone from {gate}"
+
+    proc = subprocess.run(
+        [sys.executable, str(gate)],
+        capture_output=True,
+        text=True,
+        timeout=180,
+        check=False,
+        cwd=str(ROOT),
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+    passed = len(re.findall(r"^PASS\b", proc.stdout, flags=re.MULTILINE))
+    assert passed, f"the gate printed no PASS rows: {proc.stdout!r}"
+
+    doc = (ROOT / "docs" / "ca2" / "MCP_DEMO_PROMPT.md").read_text(encoding="utf-8")
+    claimed = re.search(r"It passed clean on 17 August, (\d+) of (\d+)", doc)
+    assert claimed, "MCP_DEMO_PROMPT.md no longer states a pass count for the gate"
+    assert claimed.group(1) == claimed.group(2), (
+        f"the document claims {claimed.group(1)} of {claimed.group(2)}, "
+        "which is not a clean run"
+    )
+    assert int(claimed.group(1)) == passed, (
+        f"the gate passes {passed} rows, the document claims {claimed.group(1)}"
     )
