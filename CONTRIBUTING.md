@@ -1,8 +1,12 @@
-# Contributing to RoboLearn
+# Contributing to Kodro
 
 Thank you for your interest. This project is part of a UK honours-year
 dissertation and is graded on code quality, so contributions are held to a high
 standard.
+
+If you are working here with an AI assistant, read [AGENTS.md](AGENTS.md) first.
+It carries the operating rules and the traps in this codebase that have already
+cost real time, and it applies to human contributors too.
 
 ## Local setup
 
@@ -21,7 +25,7 @@ Before opening a pull request, every one of these must pass:
 ```bash
 ruff check .
 ruff format --check .
-mypy src/
+mypy src/robolearn
 pytest --cov=src/robolearn
 ```
 
