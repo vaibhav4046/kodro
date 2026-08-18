@@ -27,6 +27,7 @@ RELEASE_WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
 USER_FACING_DOCS = (
     ROOT / "README.md",
     ROOT / "docs" / "teachers" / "getting-started.md",
+    ROOT / "docs" / "teachers" / "classroom-setup.md",
 )
 
 LESSON_SURFACES = (
