@@ -335,6 +335,14 @@ def read_text(text: Any) -> ValidationResult:
         raw = json.loads(text)
     except ValueError as exc:
         return ValidationResult(False, None, (f"Not valid JSON: {exc}",), ())
+    except RecursionError as exc:
+        # project.js catches every throw from JSON.parse, including the
+        # RangeError deep nesting raises there. json.loads raises
+        # RecursionError, which is not a ValueError, so the narrower Python
+        # guard let a 120 KB file of nested brackets crash the importer while
+        # the browser refused the same file politely. Same refusal sentence, so
+        # the two halves of the ecosystem stay in step.
+        return ValidationResult(False, None, (f"Not valid JSON: {exc}",), ())
     if not _is_plain_object(raw):
         return ValidationResult(False, None, ("Project file must be a JSON object.",), ())
     if raw.get("kodroProject") != VERSION or isinstance(raw.get("kodroProject"), bool):
