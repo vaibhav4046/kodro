@@ -10,11 +10,23 @@ motion model locked across the two engines. The same platform doubles as a
 design studio for a non-expert who has only an idea. The final interface uses
 Simple progressive disclosure by default, follows a Design, Prove, Build
 journey, and keeps an opt-in Expert surface.
-The complete declared Python matrix passes 1,087 tests with zero skips at
-88.21% branch-aware coverage. Four deterministic contracts pass twenty seeded
-runs and reject an intentionally broken controller. Synthetic-persona and renderer results are
-reported as engineering evidence only, with their human-study and hardware
-boundaries explicit.
+The complete declared Python matrix passes against an 85% branch-coverage gate.
+The counts are deliberately not repeated here. This paragraph has carried a
+stale figure twice now, at 1,087 and then at 1,488, because a restated number
+goes stale the moment the suite grows and nothing forces it to be updated. The
+run writes its own commit, working-tree status, counts and coverage into
+[`../eval/test_suite.json`](../eval/test_suite.json). Read them there. Note that
+the skip count in that file is not stable on the development host: thirteen test
+files turn an intermittent local Tk startup failure into a skip rather than a
+failure, the cause has not been established, and three runs of the same suite
+gave one skip, then two, then none. The `skipDetail` pair in that file is
+flagged in the file itself as unverified, for the reason given there.
+Four deterministic contracts — straight transit, controlled corner, obstacle
+clearance and battery reserve — pass five seeded runs each, twenty in total,
+and reject an intentionally broken controller; the per-run record is in
+[`../eval/prove_baseline.json`](../eval/prove_baseline.json). Synthetic-persona
+and renderer results are reported as engineering evidence only, with their
+human-study and hardware boundaries explicit.
 
 The previously tracked HTML dissertation was an obsolete early draft and has
 been removed. It contradicted the canonical LaTeX on ethics, evaluation and
@@ -48,7 +60,19 @@ or on the not-yet-run human study, the text says so explicitly rather than
 asserting an unsupported result. No result from a study with real users is
 reported anywhere, because that study has not been run.
 
-The final evidence trail is recorded in
+The July evidence trail is recorded in
 [`INTEGRITY_AUDIT_2026-07-17.md`](INTEGRITY_AUDIT_2026-07-17.md), and the
 item-by-item bibliography check is recorded in
-[`REFERENCE_AUDIT_2026-07-17.md`](REFERENCE_AUDIT_2026-07-17.md).
+[`REFERENCE_AUDIT_2026-07-17.md`](REFERENCE_AUDIT_2026-07-17.md). **Both are
+dated snapshots, not the current state.** Each now opens with a note listing
+what has moved since; the integrity audit's figures in particular were measured
+against a 49-page PDF and a smaller test matrix. The bibliography has since
+grown from 23 entries to 26, and all 26 were checked against a live registrar
+record or a fetched page on 15 August 2026, one of them turning up a year that
+its own source does not state. The per-entry results and the reproduction
+commands are in
+`.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`.
+
+The current-state assessment, including the outstanding items that only the
+author can close, is
+[`DIAGNOSTIC_2026-08-14.md`](DIAGNOSTIC_2026-08-14.md).

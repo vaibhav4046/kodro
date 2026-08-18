@@ -103,10 +103,14 @@ the dissertation chapter on verification.
     `weakest_concepts`, `suggest_next_lesson` (with stretch-lesson
     promotion after `STREAK_BEFORE_STRETCH=5` consecutive passes) and
     a class-wide `class_heatmap` (14 unit tests).
-  - `memory.hint_engine`: 24 rules and 78 hint-engine tests (three per
-    rule plus six sanity checks). Coverage gate raised from 60 to 75 per
+  - `memory.hint_engine`: 24 rules and 77 hint-engine tests (three per
+    rule plus five sanity checks). Coverage gate raised from 60 to 75 per
     the autonomous-mode override after Task 10. Total suite: 434 tests,
-    93.8 % coverage.
+    93.8 % coverage. The count read 78 with "six sanity checks" until
+    2026-08-15; `tests/unit/test_hint_engine.py` has held exactly 77 `def
+    test_` functions since it was first committed at `eec5837`, checked at
+    every commit that has touched it, so the 78 was arithmetic rather than
+    a removed test.
 - **2026-05-26** — The auto-grader turns a recorded `Tracer` plus a
   `Lesson` plus the pupil source into a `GradeResult(passed, reasons,
   score)`. Aggregates pulled from the trace cover samples collected,

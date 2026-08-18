@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "harness": "pytest",
+  "generatedAt": "2026-08-17T13:29:28+00:00",
+  "command": "python -m pytest --basetemp=<tmp> -q --cov-report=json:<cov> --junitxml=<junit>",
+  "note": "Coverage settings (source, branch mode, --cov-fail-under=85) come from pyproject.toml addopts and are not repeated on the command line. Counts and coverage are read from the run's own JUnit XML and coverage JSON, not transcribed by hand. That is now enforced rather than promised: this file is written by scripts/gen_test_suite_json.py, which reads both artefacts and refuses to run without them. The prose fields are the only ones a human still edits.",
+  "source": {
+    "commit": "e70b98b5b75f80853ffa39550733dd45bc04dcba",
+    "describe": "v2.0-submission-86-ge70b98b",
+    "workingTreeClean": true,
+    "untrackedTestFiles": [],
+    "provenanceNote": "This run was taken on a clean working tree at the commit above. The commit, the describe string and an empty git status --porcelain were captured before pytest started and read back when this file was written, never re-measured afterwards, so the counts are reproducible by checking out that commit. It supersedes the run at aa174cf, which was also clean, 42 commits earlier. Two test files changed in between (tests/unit/test_app.py and tests/unit/test_mcp_server.py) and ten source files. The headline moved from 1,639 to 1,641 because two regression tests were added to tests/unit/test_mcp_server.py, which now collects 68; they pin the sandbox-escape scoring defect fixed on 17 August. The skip count here is zero, and that is not evidence the Tk intermittency was resolved. The same suite on this host has reported one skip, then two, then zero. Thirteen test files guard on Tk startup and 169 collected tests sit behind those guards, so a run with no skip means Tk started this time and nothing more. The UNVERIFIED PAIR disclosure that used to sit in skipDetail is gone because this run recorded no skip to describe, not because the mismatched test name and reason string were ever reconciled. If a later run skips again, both fields come out of that run's JUnit XML, which is what the generator now does."
+  },
+  "platform": {
+    "python": "3.13.3",
+    "platform": "win32"
+  },
+  "tests": {
+    "collected": 1641,
+    "passed": 1641,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "durationSeconds": 253.66
+  },
+  "skipDetail": [],
+  "failureDetail": [],
+  "coverage": {
+    "percentCovered": 90.85,
+    "gate": 85,
+    "statements": 7064,
+    "missingLines": 520,
+    "coveredLines": 6544,
+    "branches": 1734,
+    "partialBranches": 205,
+    "branchMode": true
+  },
+  "measures": "Whether the declared Python matrix passes and how much of the package its lines and branches reach. Not a measure of whether the product is useful, usable, or physically accurate.",
+  "coverageFloorDisclosure": "tests/conftest.py applies pytest.mark.no_cover to node-subprocess test files on Windows + Python >= 3.13 outside CI, which is exactly this host. Those tests still RUN and still count in the test totals, but their coverage contribution is dropped. The percentage here is therefore a conservative floor: CI, which does not apply the marker, measures the same suite at or above this figure.",
+  "verdict": "PASS"
+}

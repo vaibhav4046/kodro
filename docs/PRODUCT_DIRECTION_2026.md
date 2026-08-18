@@ -101,7 +101,7 @@ inputs until deterministic compatibility and safety checks pass.
 - A simplified Robot Lab with measured parts and exports under an advanced menu.
 - A hosted Build stage with a deterministic concept bill of materials, evidence
   boundary, safe prototype sequence, and downloadable local brief.
-- An eighteen lesson library and a readable local teacher progress dashboard.
+- A twenty-four lesson library and a readable local teacher progress dashboard.
 
 ### Next engineering milestones
 

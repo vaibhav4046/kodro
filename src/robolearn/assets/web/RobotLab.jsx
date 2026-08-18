@@ -280,8 +280,9 @@
   const DRIVE_ACTUATORS = ['motors2', 'motors4', 'servos'];
   // Only commands the interpreter actually implements are gated, keyed by the
   // internal name host.sensor receives (after the lesson-alias mapping). The
-  // camera/gps/bumper/line/gripper commands are not implemented, so they are
-  // not listed (they would never reach this gate) and are not advertised.
+  // camera/gps/bumper/gripper commands are not implemented, so they are not
+  // listed (they would never reach this gate) and are not advertised. The line
+  // follower IS implemented and is listed below as `on_line`.
   const COMMAND_PART = {
     distance: 'ultrasonic', read_distance: 'ultrasonic', scan: 'ultrasonic',
     heading: 'imu', read_heading: 'imu', tilt: 'imu',

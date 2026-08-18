@@ -58,7 +58,10 @@ a physical robot, electrical safety, mechanical fit, or safe deployment.
 ## Project status
 
 The hosted app runs in the browser and can work offline after its first
-load. The desktop app uses the same interface with the local Python engine.
+load. `Kodro-windows.exe` puts that same interface in a native window over
+the local Python engine. The `robolearn-windows-tk.exe` fallback shares the
+engine but not the interface: it is a Tk application with its own layout,
+and its feature set differs in places, most visibly the teacher dashboard.
 Core design, coding, simulation, and lesson paths need no account or AI.
 
 > This repository accompanies an MSc research project (COMP702, University
@@ -153,10 +156,10 @@ What currently ships in this repository:
 - **Procedural sound effects.** Every cue (drive, turn, scan, LED,
   speech, pass, fail, crash) is synthesised at runtime with the Web
   Audio API or the standard library. No audio files, no network.
-- **Curriculum lessons.** Eighteen bundled lessons mapped to the UK
+- **Curriculum lessons.** Twenty-four bundled lessons mapped to the UK
   DfE / BCS computing programme of study, spanning KS1 through KS4
-  and weighted to KS3 and KS4: 1 lesson is tagged KS1, 2 are KS2, 8 are
-  KS3 and 7 are KS4 stretch. Each has stated goals and offline hints. Each lesson is graded on
+  and weighted to KS3 and KS4: 3 lessons are tagged KS1, 4 are KS2, 9 are
+  KS3 and 8 are KS4 stretch. Each has stated goals and offline hints. Each lesson is graded on
   the run you watch, in the lesson's own world. The independent audit that
   found the earlier visible-world and grading mismatches is kept as a dated
   record in [`AUDIT_CODEX.md`](AUDIT_CODEX.md).
@@ -214,8 +217,11 @@ Download the Kodro app (`Kodro-windows.exe`) from the
 [latest release](https://github.com/vaibhav4046/robolearn/releases/latest)
 and run it. It is a self contained windowed app (WebView2). If WebView2
 is unavailable, use the `robolearn-windows-tk.exe` fallback asset from
-the same release. Core design, coding, kinematic simulation, and lessons
-do not require AI. Companion needs a local model or an explicitly selected
+the same release; it runs the same Python engine behind a Tk interface
+rather than this one, and
+[`docs/teachers/classroom-setup.md`](docs/teachers/classroom-setup.md)
+sets out where the two differ. Core design, coding, kinematic simulation,
+and lessons do not require AI. Companion needs a local model or an explicitly selected
 cloud provider.
 
 ### Option 2: From source (Windows, macOS, Linux)
@@ -329,16 +335,28 @@ python -m pytest                  # Python engine test suite
   rounding, range validation) and malformed input handling are all
   asserted.
 - **UI regression net.** `node scripts/qa_ui.mjs` drives the real
-  bundle in headless Chrome: six rendered flows, 33 behavior assertions,
-  six responsive layouts and 12 modal surfaces. `qa_worlds.mjs` adds 61
-  world, robot, quality, site and weather identity checks.
-- **Python matrix.** The 26 July 2026 audit run passed 1,204 tests with one
-  Tcl-environment skip and 87.80 percent branch-aware coverage, above the
-  85 percent repository gate.
+  bundle in headless Chrome: six rendered flows, 41 behaviour assertions,
+  six responsive layouts and 13 modal surfaces, written to
+  [`docs/eval/ui_eval.json`](docs/eval/ui_eval.json) with the SHA-256 of the
+  bundle they ran against. Run it with nothing else competing for the
+  machine: the flows are driven against a single-threaded dev server on
+  wall-clock timers, so concurrent load can time out an assert that passes
+  on its own. `qa_worlds.mjs` adds 61 world, robot, quality, site and
+  weather identity checks.
+- **Python matrix.** Gated at 85 percent branch-aware coverage. The counts
+  are not restated here, because a restated count goes stale the moment the
+  suite grows: this bullet has carried a figure that the suite had already
+  outgrown. They come out of the run's own coverage and JUnit output into
+  [`docs/eval/test_suite.json`](docs/eval/test_suite.json), which records the
+  commit and working-tree state they belong to. Read them there. The
+  percentage is a floor: the harness drops the coverage contribution of
+  node-subprocess tests on Windows outside CI while still running them, so
+  CI measures the same suite at or above that figure. The skip count in that
+  file is not stable on the development machine, and the file explains what
+  is and is not established about it rather than offering a cause.
 - **Deterministic Prove.** Four contracts pass 20 of 20 seeded runs,
   reproduce byte-identically and reject the deliberately broken controller.
-- **Python engine and CLI: 950+ tests passing**, coverage gated at
-  `--cov-fail-under=85` on every push.
+- **Coverage gate.** `--cov-fail-under=85` on every push.
 
 ## KodroBench: measuring grounded code
 
@@ -381,6 +399,36 @@ Reproduce the benchmark yourself:
 kodrobench --help                        # console script
 python -m robolearn.kodrobench --help    # module entry point
 ```
+
+## MCP server: an assistant that marks the same way Kodro does
+
+`kodro-mcp` is a Model Context Protocol server that exposes the lesson library,
+the sandboxed interpreter and the grader to any MCP client. An assistant helping
+a pupil can therefore run their program in the real world model and mark it with
+the real grader instead of guessing, and a guess that contradicts the grader is
+worse than no help at all.
+
+```bash
+kodro-mcp --list-tools     # the eight tools, printed to stderr
+kodro-mcp                  # start the server (JSON-RPC 2.0 over stdio)
+```
+
+Register it with a client:
+
+```json
+{"mcpServers": {"kodro": {"command": "kodro-mcp"}}}
+```
+
+Eight tools: `list_lessons`, `get_lesson`, `run_program`, `grade_program`,
+`check_api`, `validate_robot_spec`, `prove_contracts`, `pupil_progress`. Plus
+resources for the API reference and every lesson brief.
+
+It runs offline like everything else here. The transport is hand-rolled on the
+standard library, because an MCP server that needed `pip install mcp` to start
+would put a hole in the no-network claim. There is a test that monkeypatches
+`socket` to raise and then calls every tool.
+
+Details in [`docs/developers/mcp-server.md`](docs/developers/mcp-server.md).
 
 ## Documentation
 

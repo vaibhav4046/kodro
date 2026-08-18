@@ -11,6 +11,8 @@ intro: |
   Draw a square spiral by calling a function that calls itself with a
   smaller step. Recursion lets you describe an infinite-looking pattern
   with just a few lines of code -- the base case stops the spiral.
+  Call pen_down() first if you want the rover to leave a trail as it goes.
+  The spiral drives the same shape either way, so the pen is yours to choose.
 starter_code: |
   def spiral(step):
       if step < 0.5:

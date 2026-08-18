@@ -750,6 +750,16 @@
       "owner": "product-direction-release",
       "evidence": "FIXED by removing the environment-specific pytest-asyncio option. CI run 29537982283 passed Windows, macOS, and Ubuntu; Pages run 29538259855 deployed the exact public assets.",
       "deps": []
+    },
+    {
+      "id": "K-006",
+      "title": "onboarding.jsx is bundled but mounted by nothing in the app",
+      "severity": "P3",
+      "status": "WONTFIX",
+      "owner": "release",
+      "evidence": "onboarding.jsx (502 lines) defines KodroOnboarding and exposes it on window at :501, and 'onboarding' is in the build ORDER at scripts/build_web.cjs:24, so it ships inside bundle.js. No call site exists in app.jsx; the only mount is scripts/build_screenshot_harness.cjs:64-66. The live front door is KodroHome (home.jsx), mounted at app.jsx:3690 with the kodro_home_seen flag read at :703 and written at :713. app.jsx:711-713 already documents onboarding.jsx as a screen no longer shipped.",
+      "acceptance": "Deliberately not removed during the CA2 release pass. Deleting it would change bundle.js, invalidating the pinned artifactHashes.bundleSha256 in docs/eval/ui_eval.json and forcing a re-run of the UI and renderer gates, and it would break build_screenshot_harness.cjs. Dead weight only, no user-visible effect. Remove after the CA2 capture freeze, in one commit that also fixes the harness and re-runs qa_ui.",
+      "deps": []
     }
   ]
 }

@@ -1,0 +1,31 @@
+# Waivers for scripts/qa_citations.py.
+#
+# Format:  <citing-file>:<line>   # reason
+#      or  <citing-file>          # reason   (waives the whole document)
+#
+# A waiver is a statement that a citation which looks wrong is actually right,
+# so every entry needs a reason a reader can check. Two situations qualify.
+# First, a document that is explicitly historical: its line numbers described a
+# past commit and are not expected to resolve against the current tree. Second,
+# a document that quotes a known-bad citation on purpose, as an example of the
+# defect. Nothing else belongs here. If a citation is simply wrong, fix the
+# citation.
+#
+# Whole-file waivers are a coverage hole by construction: they also silence
+# every citation added to that file later. The gate prints them on every run so
+# the hole stays visible. Prefer a line waiver unless the whole document is
+# genuinely historical.
+
+docs/KODRO_JUDGE_VERDICT.md  # Superseded snapshot. The banner at the top of the file states that every measurement, line number, score and priority in it describes commit 541941d on 11 July 2026, so its anchors are expected to have drifted. Read as history.
+
+# Line-keyed waivers drift. Editing text ABOVE a waived line moves the citation
+# out from under its waiver, and the gate then reports it as a fresh review item
+# while the stale key silently waives whatever moved into its place. That is the
+# same defect the gate exists to catch, one level up. The entry below was keyed
+# to :338 and had to be re-pointed to :340 on 15 August 2026 after two lines were
+# inserted above it. Re-read the cited line whenever this file reports something
+# unexpected, and prefer fixing a citation over waiving it.
+
+docs/dissertation/CA2_INTEGRITY_AUDIT_2026-08-14.md:340  # Quotes a citation that landed on a bare > as the worked example of why range is not correctness. The bad anchor is the thing being demonstrated.
+
+.kodro/ca2-evidence/2026-08-15-bcs-citations-and-aux-shadowing.md:303  # Verbatim FAIL output from the gate's own self-test, quoting a deliberately missing file and a deliberately past-end line. Both citations are invalid on purpose: that is what the self-test proved. Editing them to satisfy the gate would falsify a recorded result, so the line is waived instead. Not skipped because it sits in a code block; the gate deliberately does not skip code blocks, since that would create an uncounted region, and a printed waiver is more honest than a silent exemption.

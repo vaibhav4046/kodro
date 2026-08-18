@@ -362,6 +362,22 @@
       // textarea, so a click event can never become "[object Object]" in chat.
       const text = (typeof overrideText === 'string' ? overrideText : vibePrompt).trim();
       if (vibeBusy || !text) return;
+      // "Stop" is an interruption, not a message, and the same sentence has to
+      // mean the same thing whether it was said or typed. Spoken, voice.js
+      // silences the reply before the transcript is even final; typed, it is
+      // caught here, before the model, the world and the busy flag. It is
+      // answered on-device: a request to stop that waits for a generation to
+      // come back has not stopped anything.
+      const voice = window.KodroVoice;
+      if (voice && typeof voice.isBargeIn === 'function' && voice.isBargeIn(text)) {
+        voice.bargeIn();
+        setVibeMsgs(m => [...m,
+          { role: 'user', kind: 'text', text },
+          { role: 'ai', kind: 'action', text: 'Stopped. Nothing was sent.' },
+        ]);
+        setVibePrompt(''); setVibeError(null); setVibeLive('');
+        return;
+      }
       const editScope = opts.getEditScope ? opts.getEditScope() : null;
       const next = [...vibeMsgs, { role: 'user', kind: 'text', text }];
       setVibeMsgs(next); setVibePrompt(''); setVibeBusy(true); setVibeError(null); setVibeLive(''); vibeCancelRef.current = false;
@@ -502,7 +518,7 @@
             role: 'ai', kind: 'code', text: r.code, model: r.model,
             validated: r.validated, validationError: r.validationError,
             scope: editScope || null,
-            summary: editScope ? 'Changes only lines ' + editScope.startLine + 'â€“' + editScope.endLine + '; the surrounding program is protected.' : null,
+            summary: editScope ? 'Changes only lines ' + editScope.startLine + '–' + editScope.endLine + '; the surrounding program is protected.' : null,
           }]);
         } else {
           setVibeError((r && r.reason) || 'Generation failed.');

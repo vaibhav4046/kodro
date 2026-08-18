@@ -51,3 +51,10 @@ always opaque.
   balanced coverage. The count comes directly from the 18 lesson YAML files.
   The owned README has been corrected, but `docs/index.md` is outside the
   design-track ownership list.
+
+> **DONE, and the exact change above is superseded.** Applied when requested,
+> re-checked 15 August 2026. The library has grown from 18 lessons to 24 and
+> the split is now 3 KS1, 4 KS2, 9 KS3, 8 KS4, so pasting the literal string
+> in "Exact change" would now write four wrong numbers into `docs/index.md`.
+> The live wording in that file is current. The reasoning in "Why" still
+> stands and is why the qualified form is used at all.

@@ -39,6 +39,14 @@ removing. Please reword to something like "18 lessons spanning KS1 to KS4,
 weighted to KS3 and KS4" and state the split. I have already corrected
 `docs/HANDOFF_KEITH.md`. Verify the numbers yourself with:
 
+> **DONE, and the figures above are superseded.** Applied 27 July, re-checked
+> 15 August 2026. The library has since grown from 18 lessons to 24 and the
+> split is now 3 KS1, 4 KS2, 9 KS3, 8 KS4. `README.md`, `docs/index.md` and
+> `docs/HANDOFF_KEITH.md` all carry the current numbers. Do not copy the
+> 18 / 1-2-8-7 wording out of this entry; run the command below instead. The
+> 1-2-8-7 split was correct when this request was written and is kept for the
+> record.
+
     python -c "import sys; sys.path.insert(0,'src'); from robolearn.lessons.schema import load_library; from collections import Counter; print(Counter(l.key_stage for l in load_library()))"
 
 **I touched `pyproject.toml` to unbreak CI, and it was your files that broke it.**
@@ -131,6 +139,51 @@ none spare, and the honest response is to cut the number of translucent surfaces
 rather than to ship it and hope. This is the one part of the visual work that can
 fail a real classroom rather than merely look different.
 
+**Status, 14 August 2026.** Still open, and still not measured on a quiet
+machine. The gate was re-run twice that day to re-pin the bundle hash the
+dissertation cites, both times with agent work in flight: medians 22.2 Low and
+21.1 High at 12:21, then 25.7 Low and 24.4 High at 21:21. Both sit under the
+34.4 and 28.4 named above, but the second run's own Low samples were 25.3, 25.7
+and 32.2, a 27 percent spread across three consecutive samples on one machine,
+so the gap between 25.7 and 34.4 is inside the noise this host produces and is
+not evidence that the glass costs frames. The 34.4 and 28.4 baseline now exists
+only in this paragraph: the committed artefact has been overwritten since, so a
+clean re-measure cannot be compared against a stored file, only against these
+numbers.
+
+**Status, 17 August 2026. Measured on a quiet machine, and the answer is that
+this measurement cannot settle the question.** The gate was run twice, three
+samples per tier each time, with no other agent work in flight, the `:8099`
+fixture server stopped, twelve cores at ten percent load and only idle node and
+python processes alive. Medians were 16.4 Low and 13.4 High, then 18.1 Low and
+13.9 High. Both sit well under 25.7 and 24.4, and further under the 34.4 and
+28.4 named above, so on its face the trigger this request describes has fired.
+
+It should not be acted on, because the comparison points the wrong way. The two
+quietest runs produced the two lowest numbers. Competing load predicts the
+opposite, so load is not what separates these readings. The bundle is not what
+separates them either: the exact bundle the 14 August artefact pinned is still
+on disk as the stale `site/bundle.js` copy, sha256 `17c8d985`, and diffing it
+against the shipped `b23f6974` gives twenty changed lines, every one of them
+comment or docstring prose and none executable. Nothing in the renderer moved
+between a 25.7 reading and an 18.1 reading.
+
+So the honest conclusion is about the instrument, not the glass. Across five
+runs this host has returned 34.4, 22.2, 25.7, 16.4 and 18.1 FPS at Low for the
+same scene. A number that swings by a factor of two cannot decide whether
+translucent surfaces cost frames, and cutting them on the strength of it would
+be changing the product to chase noise. The translucent surfaces stay. Software
+rasterisation is also the no-GPU floor rather than the classroom path: the
+hardware row meets the 4.17 ms budget in every sample, and a visual change
+inside the capture freeze is out of scope regardless.
+
+What would actually answer this: build a glass and a no-glass variant and
+measure them back to back inside one session on one host, so the comparison is
+within-session instead of across days. Nothing else this host produces is
+precise enough to carry the argument. Until someone does that, the question is
+still open, and the dissertation now says the software row is an order of
+magnitude rather than a precise figure.
+
 ## Engine track, for the design track: your in-flight lane and a preserved stash
 
 While committing the lessons batch I twice stashed your uncommitted companion
@@ -195,3 +248,19 @@ your scheme of work and curriculum mapping were written:
 strengths record, so your teacher dashboard docs may want a line on it.
 Please add rows for these four to docs/teachers/scheme-of-work.md and
 curriculum-mapping.md when you next touch the teacher docs.
+
+> **DONE. Do not action this again.** Checked 15 August 2026. Both teacher
+> docs were regenerated from the live library and now carry all 24 lessons,
+> not just these four. `scheme-of-work.md` gives each of the six lessons added
+> after it was written a row with placement guidance rather than a block
+> number, because they are entry and fault-finding lessons that slot beside
+> the blocks rather than into the sequence. `curriculum-mapping.md` has a row
+> per lesson plus a concept index, and `Debugging | 00d, 04a` is in that index,
+> which answers the dashboard line asked for above. `answer-key.md` also
+> covers all six. Verify before acting on this entry:
+>
+>     grep -c '000_watch_it_go' docs/teachers/scheme-of-work.md docs/teachers/curriculum-mapping.md docs/teachers/answer-key.md
+>
+> Two more lessons arrived after this request was written, `16_variables`
+> (KS2) and `17_lists` (KS4). They are in all three documents too. The list of
+> four above is what was new on 28 July and is kept as the record of that day.

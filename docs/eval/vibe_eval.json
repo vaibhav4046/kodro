@@ -1,0 +1,77 @@
+{
+  "harness": "qa_vibe",
+  "generatedAt": "2026-08-14T09:00:02.135Z",
+  "model": {
+    "name": "kodro-coder:latest",
+    "digest": "60d11d6b1d6d3a04e51340521e6a5676f892aec72cd5e50944bf4102ec676f0c",
+    "size": 2019379306,
+    "modified": "2026-06-15T01:46:11.205841+01:00"
+  },
+  "endpoint": "http://localhost:11434",
+  "options": {
+    "temperature": 0.2,
+    "num_predict": 200
+  },
+  "measures": "Whether locally generated code compiles and runs in the real vendored interpreter. Not a measure of whether a person found the answer useful.",
+  "passed": 8,
+  "total": 8,
+  "percent": 100,
+  "results": [
+    {
+      "prompt": "drive forward 3 metres then stop",
+      "ok": true,
+      "stage": "interpret",
+      "error": null,
+      "code": "set_speed(50)\nfor i in range(4):\n    move_forward(3)\n    if distance() < 40:\n        stop()"
+    },
+    {
+      "prompt": "turn right 90 degrees then move forward 2 metres",
+      "ok": true,
+      "stage": "interpret",
+      "error": null,
+      "code": "turn_right(90)\nmove_forward(2)"
+    },
+    {
+      "prompt": "drive in a square, 2 metres a side",
+      "ok": true,
+      "stage": "interpret",
+      "error": null,
+      "code": "set_speed(50)\nfor s in range(4):\n    move_forward(2)\n    turn_right(90)"
+    },
+    {
+      "prompt": "set the speed to 50 and move forward 5 metres",
+      "ok": true,
+      "stage": "interpret",
+      "error": null,
+      "code": "set_speed(50)\nfor i in range(8):\n    move_forward(5)"
+    },
+    {
+      "prompt": "spin around 360 degrees",
+      "ok": true,
+      "stage": "interpret",
+      "error": null,
+      "code": "for i in range(4):\n    turn_left(90)"
+    },
+    {
+      "prompt": "move forward 2, say hello, then move back 1",
+      "ok": true,
+      "stage": "interpret",
+      "error": null,
+      "code": "set_speed(50)\nmove_forward(2)\nsay(\"hello\")\nmove_backward(1)"
+    },
+    {
+      "prompt": "go forward until close to an obstacle using distance()",
+      "ok": true,
+      "stage": "interpret",
+      "error": null,
+      "code": "for i in range(20):\n    d = distance()\n    if d < 40:\n        turn_right(45)\n    else:\n        move_forward(30)"
+    },
+    {
+      "prompt": "draw a triangle with the pen down",
+      "ok": true,
+      "stage": "interpret",
+      "error": null,
+      "code": "set_speed(50)\nfor s in range(3):\n    move_forward(60)\n    turn_right(120)"
+    }
+  ]
+}

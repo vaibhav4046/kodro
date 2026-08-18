@@ -193,11 +193,15 @@
       (isPywebview() ? Promise.resolve([]) : searchLessonNotesBrowser(query, limit, preferredLessonId)),
     submitAttempt: (lessonId, source, traceJson) =>
       (isPywebview()
-        // Grade against the fitted build, not spec-blind: send its mass factor,
-        // and -- for an imported energy-true build -- its measured per-metre
-        // drain (phys.drainPctPerCmNominal is %/cm, so x100 -> %/m), which the
-        // grader prefers over the mass proxy. The browser path already runs the
-        // spec-aware JS engine, so it needs nothing extra.
+        // Send the fitted build's mass factor and -- for an imported
+        // energy-true build -- its measured per-metre drain
+        // (phys.drainPctPerCmNominal is %/cm, so x100 -> %/m), which the
+        // desktop prefers over the mass proxy. These are INFORMATIONAL: the
+        // desktop reports back energyTrueBatteryPct and grades on the reference
+        // rover, because lesson thresholds are authored against it and the
+        // browser grader strips build scaling out too (hooks.jsx). Sending them
+        // must never make the same program grade differently on the two
+        // surfaces; see submit_attempt in web/app.py for the full reasoning.
         ? call("submit_attempt", lessonId, source, traceJson,
             (typeof window !== "undefined" && window.KODRO_ROBOT && typeof window.KODRO_ROBOT.massFactor === "number")
               ? window.KODRO_ROBOT.massFactor : null,

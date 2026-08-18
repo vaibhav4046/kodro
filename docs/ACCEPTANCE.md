@@ -5,8 +5,14 @@ adversarial judge-panel score: these gates ask whether the build is correct,
 honest, reproducible and shippable; the judge panel scores subjective product
 quality and should not be forced to 10/10.
 
-Last measured locally on 2026-07-09 from the current release-readiness
-checkout. The release vehicle for this pass is `v2.0.2`.
+Last measured locally on 2026-07-09 from the then-current release-readiness
+checkout. The release vehicle for that pass was `v2.0.2`.
+
+Every number in the table below is from that date and several are now low,
+because the gates gained checks afterwards rather than because anything
+regressed. The criteria still stand; the counts do not. For the current figure
+on each gate, with the exact summary line it printed, see
+[`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md).
 
 ## Criteria
 

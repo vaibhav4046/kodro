@@ -1,5 +1,33 @@
 # Dissertation verification re-review
 
+> **Dated snapshot, 18 July 2026. The recommendation below was made against a
+> 49-page document that no longer exists in that form.** Treat "Ready for MSc
+> submission" as a statement about the 18 July draft, not about the current one.
+> Four presentation facts in this file have since changed and should not be
+> quoted from here:
+>
+> - **Citations.** "All 23 in-text citation keys" is now 25. The two added
+>   entries, `trinket2026` and `bcscode`, are unchecked; see the addendum to
+>   `REFERENCE_AUDIT_2026-07-17.md`.
+> - **Length.** "The final PDF is 49 pages" is now 58 pages, of which the body
+>   is 47 against a 50-page body limit.
+> - **Boxes.** "builds twice without undefined references or overfull boxes" is
+>   now half true. Undefined references and citations: still none. Overfull and
+>   underfull boxes: 19.
+> - **One section reference has moved.** The ethics-pending human pilot was
+>   Section 6.9 when this review was written; it is now Section 6.10, and 6.9 is
+>   Threats to validity. The other section numbers cited in this file (4.4, 6.1,
+>   6.2, 6.11, Chapter 8) still point where the review says they do.
+>
+> Two chapters were added to the document after this review and were therefore
+> never seen by it: the lesson-path design section and the lesson-implementation
+> section that cover the schools half of the product. The claim-and-evidence
+> audit below does not extend to them.
+>
+> What has **not** changed: no human participant study has been run, the
+> simulation has no physical calibration, and the four residual actions at the
+> foot of this file are all still outstanding.
+
 ## Review configuration
 
 | Field | Value |

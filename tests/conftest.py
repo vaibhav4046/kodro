@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import os
 import sys
 from collections.abc import Iterator
@@ -59,6 +60,69 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
         cov_options = getattr(cov_plugin, "options", None)
         if cov_options is not None:
             cov_options.cov_fail_under = 0
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_runtest_teardown() -> None:
+    """Finalise any orphaned Tk interpreter on the main thread, after every test.
+
+    The macOS CI job aborted part-way through the suite with::
+
+        Tcl_AsyncDelete: async handler deleted by the wrong thread
+        Fatal Python error: Aborted
+        Current thread 0x000000016ed97000 (most recent call first):
+          Garbage-collecting
+          File ".../coverage/collector.py", line 295 in _installation_trace
+          File ".../threading.py", line 1001 in run
+
+    ``Tk.destroy()`` tears down the widget tree but not the Tcl interpreter, so
+    the Python ``Tk`` object can outlive the fixture that made it, as garbage.
+    Whatever thread happens to run the collection that frees it ends up calling
+    ``Tcl_DeleteInterp``, and Tcl aborts the process when that is not the thread
+    that created the interpreter. ``concurrency = ["thread"]`` in the coverage
+    config puts a tracer on every thread the pupil-code executor spawns, so a
+    worker thread hitting a collection point is routine here. Every interpreter
+    in this suite is created on the main thread, so collecting here makes the
+    main thread the one that frees them.
+
+    ``trylast`` is load-bearing. ``_pytest/runner.py`` runs the fixture
+    finalisers from its own ``pytest_runtest_teardown``, and pluggy calls
+    ``trylast`` implementations after the normal ones, so this fires after
+    ``root.destroy()`` rather than before it, and after module-scoped finalisers
+    such as the ``app_ctx`` in ``tests/unit/test_app.py``.
+
+    Unconditional on purpose. Thirteen test files build a Tk, through three
+    different fixtures and once with no fixture at all
+    (``test_main_handles_app_exception`` forces ``__main__.main`` into its error
+    handler, which builds a root of its own). A predicate keyed on fixture names
+    misses that fourth shape and would go on missing new ones silently.
+
+    It is not free. Two full runs on this host on the same day put the suite at
+    212.9 s without this hook and 335.6 s with it: about 75 ms a test, 123 s over
+    1645 tests, a 58 percent tax. An earlier version of this note claimed 7 ms,
+    which is what a full collect costs against a 41k-object heap in a standalone
+    probe, not what it costs against a live pytest session holding every collected
+    item, fixture and coverage table.
+
+    A generational collect is genuinely free here (``gc.collect(0)`` and
+    ``gc.collect(1)`` both measure 0.00 ms against that heap) and was still
+    rejected. Objects are promoted when they survive a collection, so the
+    module-scoped root in ``tests/unit/test_app.py`` is already in generation 2 by
+    the time its finaliser drops it, and a long test can push a function-scoped
+    root there too on allocation pressure alone. Only a full collect is guaranteed
+    to reach either. The failure being prevented is a hard abort on a platform
+    this repository cannot reproduce, so two minutes buys not having to guess
+    about it. Revisit if someone reproduces the abort locally.
+
+    The abort is macOS-specific so far, and nothing here explains why. Windows CI
+    ran these same Tk tests on the same commit (1,608 passed, 21 skipped) and
+    stayed green while the macOS job died with exit 134, and the full suite does
+    not abort on the Windows development host either, where Tk is available and
+    all 170 tests across the thirteen root-building files run for real. Since the
+    difference is unexplained rather than understood, the collect is unconditional
+    rather than fenced behind a platform check that would encode a guess.
+    """
+    gc.collect()
 
 
 @pytest.fixture(autouse=True)

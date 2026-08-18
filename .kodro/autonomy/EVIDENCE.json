@@ -1,79 +1,276 @@
 {
-  "schema": "kodro-evidence/1",
-  "generated_for_commit": "93fec9596fe26863d88dd4674254e775757f25ae",
-  "authoritative_repo": "D:\\project\\robolearn",
-  "origin": "github.com/vaibhav4046/robolearn",
-  "branches_synced_at_product_commit": [
-    "main",
-    "kodro-identity-pass",
-    "origin/main",
-    "origin/kodro-identity-pass"
-  ],
-  "live": {
-    "url": "https://vaibhav4046.github.io/robolearn/",
-    "http_status": 200,
-    "ci": {
-      "status": "success",
-      "run_id": 29537982283,
-      "url": "https://github.com/vaibhav4046/robolearn/actions/runs/29537982283",
-      "platforms": ["windows-latest", "macos-latest", "ubuntu-latest"]
-    },
-    "deploy_pages": {
-      "status": "success",
-      "run_id": 29538259855,
-      "url": "https://github.com/vaibhav4046/robolearn/actions/runs/29538259855"
-    },
-    "assets": {
-      "bundle.js": {
-        "bytes": 1103091,
-        "sha256": "8c3417345b3c8caf220baa15d9ddcdb62856a20e12d18d0fba2999119ed3f8fb",
-        "committed_matches_live": true
-      },
-      "styles.css": {
-        "bytes": 121644,
-        "sha256": "3ca2099a24a5f5a713a2708679179e6524bca99d8d3230014f7cff5583801611",
-        "committed_matches_live": true
-      }
-    }
+ "schema": "kodro-evidence/1",
+ "generated_for_commit": "93fec9596fe26863d88dd4674254e775757f25ae",
+ "authoritative_repo": "D:\\project\\robolearn",
+ "origin": "github.com/vaibhav4046/robolearn",
+ "branches_synced_at_product_commit": [
+  "main",
+  "kodro-identity-pass",
+  "origin/main",
+  "origin/kodro-identity-pass"
+ ],
+ "live": {
+  "url": "https://vaibhav4046.github.io/robolearn/",
+  "http_status": 200,
+  "ci": {
+   "status": "success",
+   "run_id": 29537982283,
+   "url": "https://github.com/vaibhav4046/robolearn/actions/runs/29537982283",
+   "platforms": [
+    "windows-latest",
+    "macos-latest",
+    "ubuntu-latest"
+   ]
   },
-  "product_release": {
-    "journey": "Design -> Prove -> Build",
-    "hosted_build": "deterministic local prototype brief; no certification, supplier validation, ordering, or exact physical-equivalence claim",
-    "companion": "Create, Explain, and Check actions with deterministic fallbacks; optional local model adapter",
-    "store_lifecycle": "all owned SQLite handles closed across worker threads and covered by regression tests"
+  "deploy_pages": {
+   "status": "success",
+   "run_id": 29538259855,
+   "url": "https://github.com/vaibhav4046/robolearn/actions/runs/29538259855"
   },
-  "gate_matrix": {
-    "python_local": "1069 passed; 88.96% coverage; zero ResourceWarnings in the release run",
-    "store_regression": "19 passed with ResourceWarning promoted to error",
-    "ruff": "clean",
-    "ruff_format": "clean on 142 files",
-    "mypy": "66 source files clean",
-    "wheel": "robolearn-2.0.0-py3-none-any.whl built",
-    "qa_interpreter": "180/0",
-    "qa_grader": "34/0",
-    "qa_physics": "20/0",
-    "qa_ai_web": "27/0",
-    "qa_parts": "40/0",
-    "qa_memgraph": "22/0",
-    "qa_pupilstore": "23/0",
-    "qa_scenario_parity": "4/0",
-    "qa_interp_fixes": "13/0",
-    "qa_honesty": "91/0",
-    "qa_contrast": "61/0 across 10 themes",
-    "qa_web": "5/5 including real-Chrome boot, studio mount, clean console, and privacy-zero-external",
-    "qa_ui_local": "timed out after 904 seconds with no buffered assertions on the degraded local headless Chrome/SwiftShader host; not counted as pass",
-    "direct_visual": "desktop Design/Prove/Build journey and Build dialog inspected locally at 1280x720 with no horizontal overflow"
-  },
-  "convergence": {
-    "counter": 0,
-    "rounds_run": 14,
-    "latest_round": "R14 accepted two real P2/P3 defects; both fixed",
-    "declared_complete": false,
-    "note": "The release is green and deployed, but the historical two-clean-round convergence condition has not been reached."
-  },
-  "academic": {
-    "dissertation_revision_status": "not started in this product-direction checkpoint",
-    "checkpoint_required": true,
-    "known_external_steps_not_done": ["teacher study with real participants", "Turnitin", "executable signing"]
+  "assets": {
+   "bundle.js": {
+    "bytes": 1103091,
+    "sha256": "8c3417345b3c8caf220baa15d9ddcdb62856a20e12d18d0fba2999119ed3f8fb",
+    "committed_matches_live": true
+   },
+   "styles.css": {
+    "bytes": 121644,
+    "sha256": "3ca2099a24a5f5a713a2708679179e6524bca99d8d3230014f7cff5583801611",
+    "committed_matches_live": true
+   }
   }
+ },
+ "product_release": {
+  "journey": "Design -> Prove -> Build",
+  "hosted_build": "deterministic local prototype brief; no certification, supplier validation, ordering, or exact physical-equivalence claim",
+  "companion": "Create, Explain, and Check actions with deterministic fallbacks; optional local model adapter",
+  "store_lifecycle": "all owned SQLite handles closed across worker threads and covered by regression tests"
+ },
+ "gate_matrix": {
+  "python_local": "1069 passed; 88.96% coverage; zero ResourceWarnings in the release run",
+  "store_regression": "19 passed with ResourceWarning promoted to error",
+  "ruff": "clean",
+  "ruff_format": "clean on 142 files",
+  "mypy": "66 source files clean",
+  "wheel": "robolearn-2.0.0-py3-none-any.whl built",
+  "qa_interpreter": "180/0",
+  "qa_grader": "34/0",
+  "qa_physics": "20/0",
+  "qa_ai_web": "27/0",
+  "qa_parts": "40/0",
+  "qa_memgraph": "22/0",
+  "qa_pupilstore": "23/0",
+  "qa_scenario_parity": "4/0",
+  "qa_interp_fixes": "13/0",
+  "qa_honesty": "91/0",
+  "qa_contrast": "61/0 across 10 themes",
+  "qa_web": "5/5 including real-Chrome boot, studio mount, clean console, and privacy-zero-external",
+  "qa_ui_local": "timed out after 904 seconds with no buffered assertions on the degraded local headless Chrome/SwiftShader host; not counted as pass",
+  "direct_visual": "desktop Design/Prove/Build journey and Build dialog inspected locally at 1280x720 with no horizontal overflow"
+ },
+ "convergence": {
+  "counter": 0,
+  "rounds_run": 14,
+  "latest_round": "R14 accepted two real P2/P3 defects; both fixed",
+  "declared_complete": false,
+  "note": "The release is green and deployed, but the historical two-clean-round convergence condition has not been reached."
+ },
+ "academic": {
+  "dissertation_revision_status": "not started in this product-direction checkpoint",
+  "checkpoint_required": true,
+  "known_external_steps_not_done": [
+   "teacher study with real participants",
+   "Turnitin",
+   "executable signing"
+  ]
+ },
+ "superseding_measurement": {
+  "measured_on": "2026-08-14",
+  "commit": "2222e1e865105e2105cce1f1c9932736c0da87f8",
+  "branch": "agent/kodro-ca2-candidate",
+  "relationship_to_the_snapshot_above": "Everything above is the 93fec95 snapshot and is left exactly as it was written. It is not edited, because a faithful full regeneration is impossible on this host: the wheel row needs hatchling, and hatchling is not installed and cannot be fetched offline. Rewriting nineteen rows and leaving the twentieth stale would produce an artefact that looks current and is not. Where a row below contradicts a row above, this section is the later measurement and wins.",
+  "no_generator": "This file has no generator script. git grep -ln 'autonomy/EVIDENCE' over scripts, tools and src returns nothing. It is maintained by hand, which is why it drifted.",
+  "re_measured_at_this_commit": {
+   "ruff": "All checks passed",
+   "ruff_format": "167 files already formatted",
+   "mypy": "no issues found in 73 source files",
+   "qa_interpreter": "180/0",
+   "qa_grader": "55/0",
+   "qa_physics": "25/0",
+   "qa_ai_web": "51/0",
+   "qa_parts": "40/0",
+   "qa_memgraph": "22/0",
+   "qa_pupilstore": "23/0",
+   "qa_scenario_parity": "8/0",
+   "qa_interp_fixes": "13/0",
+   "qa_honesty": "121/0",
+   "qa_voice": "108/0",
+   "qa_secrets": "27/0, 477 of 779 tracked files read against 13 credential rules",
+   "qa_learning_annotations": "28/0",
+   "qa_encoding": "10/0 across 406 files, 100 protected characters"
+  },
+  "re_measured_earlier_in_this_pass": {
+   "python_local": "1,641 collected, 1,641 passed, 0 skipped, 90.85 percent branch-aware coverage against an 85 percent gate; artefact docs/eval/test_suite.json at commit e70b98b with a clean working tree, re-run 2026-08-17. It read 1,639 collected, 1,638 passed and 1 skipped at aa174cf before that. A run with no skip is not evidence the intermittency was fixed: the skip count is not stable across runs on this host, and the artefact's own provenanceNote says so. See ca2_media_2026_08_15.skip_count_not_stable.",
+   "python_local_host_note": "pytest fails on this host with PermissionError WinError 5 on the pytest-of-<account> temp root unless --basetemp is passed. That is a harness condition, not a product failure, and it is why the recorded command carries a --basetemp placeholder.",
+   "qa_ui_local": "now a real pass, not a timeout: 325 seconds wall clock, exit 0, nine flows PASS, 41 of 41 behaviour or layout assertions. This is the single largest correction to the matrix above.",
+   "qa_contrast": "61/0 across 10 themes",
+   "test_mcp_server": "66 passed",
+   "mcp_live_session": "initialize returned kodro 2.0.0; tools/list returned 8 tools; resources/list returned 25 resources, all counted at run time",
+   "smoke_mcp": "scripts/smoke_mcp.sh and scripts/smoke_mcp.ps1 each report 2 of 2 entry points clean with no --entry restriction, 14 checks per entry point, including a byte-exact non-ASCII round trip. Both cover the kodro-mcp console script and python -m robolearn.mcp. Re-measured at this commit.",
+   "console_script_note": "kodro-mcp is installed as robolearn.mcp.server:main exactly as pyproject declares. Separately, the installed kodro script still resolves to robolearn.bench:main while pyproject declares robolearn.__main__:main; that is stale install metadata from before hatchling went missing, it clears on the next real install, and it does not touch the MCP path.",
+   "qa_performance": "software-rasterised medians 18.1 FPS low quality and 13.9 high, three samples per tier, verdict MEASURED. Re-measured 17 August on a quiet machine against the shipped bundle, replacing the 14 August 25.7 and 24.4 pair which pinned a superseded bundle. The two bundles differ in twenty lines, all comment or prose text and none executable, so the drop is not a renderer change and its cause is not established; this host has read 34.4, 22.2, 25.7, 16.4 and 18.1 at Low across five runs.",
+   "export_lessons": "regenerates byte-identical JSON, sha256 f1167f28...; 24 lessons, 3 KS1, 4 KS2, 9 KS3, 8 KS4",
+   "build_web_check": "bundle.js is up to date"
+  },
+  "assets_now": {
+   "bundle.js": {
+    "bytes": 1502967,
+    "sha256": "f17ce80efc318032b70aa07a187567619cbc3c4e7df7936ad986f51d27eb06b1",
+    "measured_at_commit": "c0e6382",
+    "supersedes": "1502665 / 17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174, which this key carried until 2026-08-15. That was the bundle at 3c2a851. It moved twice more, at cacf51e (2bbeac6915fef57234b4dda8b67a1ab09ad138f10886df1b608eb126a28962f3) and at dd02cd8, both times inside comment blocks only."
+   },
+   "styles.css": {
+    "bytes": 172179,
+    "sha256": "ac7c9050cbd7b06e2814366ed6c6cc8d868ec10a75ecdaeb0814ba789ba45e0d",
+    "measured_at_commit": "c0e6382",
+    "note": "Unchanged across all four bundle rebuilds."
+   },
+   "note": "The live block above describes the July GitHub Pages deployment of the kodro-identity-pass line. Its hashes are historical. Nothing on the candidate branch has been deployed, so committed_matches_live is not a statement anyone can make about these two files today.",
+   "how_to_re_measure": "This key is named 'now' and will go stale the next time the bundle is rebuilt, which happened four times during the CA2 pass. Do not read a hash out of it and assume currency. python -c \"import hashlib;print(hashlib.sha256(open('src/robolearn/assets/web/bundle.js','rb').read()).hexdigest())\", then confirm source and generated agree with node scripts/build_web.cjs --check, which prints 'bundle.js is up to date.' and exits 0. The pinned bundleSha256 values inside docs/eval/ui_eval.json and docs/eval/performance_eval*.json are measurement records of the bundle each run actually measured and must never be edited to match a newer file."
+  },
+  "not_re_measured": {
+   "wheel": "blocked offline, hatchling absent. The July row stands unverified rather than re-asserted.",
+   "store_regression": "not run in isolation with ResourceWarning promoted to error in this pass; the store tests ran inside the full suite.",
+   "qa_web": "not re-run in this pass. The July 5/5 real-Chrome result is not restated as current.",
+   "direct_visual": "not re-run in this pass.",
+   "qa_personas_and_qa_vibe": "both exit 0 with no local model present and produce no data. They are honest skips and must never be counted as passes.",
+   "hardware_renderer_figures": "the 144.5 and 128.2 FPS medians are from a 27 July artefact on a different graphics path and are not current."
+  },
+  "lint_regression_found_and_closed": "ruff check reported 7 errors and ruff format reported 4 unformatted files on this branch while the matrix above claimed both clean. All seven were in files added or edited during this release pass. Fixed in commit 2222e1e, with the reformat of the shipped src/robolearn/mcp/tools.py proved inert by 97 passing tests and two real-subprocess smoke runs."
+ },
+ "superseding_measurement_2026_08_15": {
+  "measured_on": "2026-08-15",
+  "branch": "agent/kodro-ca2-candidate",
+  "relationship_to_the_sections_above": "Later than superseding_measurement and wins over it on any row it names. Same rule, same reason: the sections above are left exactly as written because they record what was true when measured.",
+  "secret_gate_defect_found_and_closed": {
+   "what": "scripts/qa_secrets.mjs read every file as UTF-8. PowerShell redirection writes UTF-16LE, in which C:/Users/<name>/ is stored with a NUL between every character, so no rule matched and the file reported clean. All thirteen credential rules and the home-path rule were blind to any UTF-16 file.",
+   "what_it_hid": "Six tracked pdflatex console captures under docs/dissertation (compile1, compile2, doi_compile1, doi_compile2, final_compile1, final_compile2) each named the local Windows account on 20 distinct paths. The repository is public.",
+   "proof": "Same HOME_PATH regex, same file: utf8 decode gives 0 matches, utf16le decode gives 20 matches with the local account name.",
+   "gate_before": "27/0, 477 of 779 tracked files read against 13 credential rules. Green over a real leak.",
+   "gate_with_fix_before_cleanup": "1 failed, 32 passed. 534 findings across the six files.",
+   "gate_after_cleanup": "33/0, 471 of 773 tracked files read against 13 credential rules. That was true when measured and stopped being true the same day. Superseded by the entry below; see gate_after_cleanup_went_stale.",
+   "fix": "Encoding is now sniffed from the bytes (BOM, else NUL parity). Six self-checks added, including one asserting the old UTF-8-only read would have missed it. .gitignore gained docs/dissertation/*compile*.txt. The six files were removed from the index with git rm --cached and remain on disk.",
+   "sweep": "Whole tracked tree re-swept with the gate's own binary filter: 471 non-binary tracked files, 0 UTF-16 text files remaining.",
+   "still_open_and_author_owned": "git rm --cached stops republication; it does not remove the files from commits already pushed to the public remote. Rewriting published history is irreversible and is not an agent decision. The disclosed value is a Windows account name, not a credential, so nothing needs rotating.",
+   "evidence": ".kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md",
+   "gate_after_cleanup_went_stale": "The evidence file documenting this leak was itself committed after that measurement without re-running the gate, and it quoted the leaked account name four times. At the next run the gate failed on it. A recorded pass describing a tree that no longer exists is the same defect this whole entry is about, produced this time by the agent writing the entry. Closed under ca2_media_2026_08_15.secret_gate_second_blind_spot."
+  },
+  "dissertation_now": {
+   "pdf": "59 sheets, exactly 50 arabic-numbered pages, 1115334 bytes, sha256 1d717df82e80f2bcd6d9e06f637005e07651a45a7741d0293711d737e5e28589. Byte-identical between docs/dissertation/ and docs/dissertation/_build/. Rebuilt 2026-08-15 after the .tex:648 correction described in supersedes.",
+   "supersedes": "Two earlier hashes, both correct when written. First the 1115505 / 294103b92657dcd2 recorded in .kodro/ca2-evidence/2026-08-15-bcs-citations-and-aux-shadowing.md and .kodro/autonomy/CA2_RECONCILIATION.md:109, invalidated by the reza2025 bibliography fix. Then the 1115217 / 217e7a978d60f573 recorded in .kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md, invalidated by correcting Kodro_Dissertation.tex:648, which had claimed the software performance artefact pins the bundle this dissertation describes. That was true at 3c2a851 and false once the bundle was rebuilt at cacf51e and dd02cd8. Do not retro-edit either dated evidence file; both record what was measured at the time.",
+   "compile": "Two passes, both EXIT=0. 7 LaTeX warnings, all h float specifier changed to ht. 0 overfull, 0 undefined citations, 0 undefined references.",
+   "warnings_none_was_false": "The 'warnings: none' line in 2026-08-15-bcs-citations-and-aux-shadowing.md was never measured. It came from grepping a UTF-16 log with a byte-oriented tool, which finds nothing in such a file whatever it contains. Decoded correctly that same log held 3 h-float warnings. Same root cause as the gate defect above."
+  },
+  "bibliography_verified": {
+   "result": "26 of 26 entries checked against live sources. 14 arXiv DOIs via DataCite, 3 Crossref DOIs, 9 URL fetches, 1 print source with no URL. All resolved 200. All DOI titles match the .tex after one fix.",
+   "defect_found_and_fixed": "reza2025 carried 'teacher-centric' where the paper says 'educator-centric' and 'using RAG and CAG' where it says 'with RAG and CAG'. Fixed at Kodro_Dissertation.tex:1004. Author list and both body citations were checked separately and were already correct.",
+   "supersedes": "Four documents asserted this check was impossible 'because this machine is offline by design'. That was inferred from WebFetch failing and was never measured. curl through the Bash tool has full network access.",
+   "evidence": ".kodro/ca2-evidence/2026-08-15-bibliography-verification.md"
+  },
+  "still_not_re_measured": "Everything listed in superseding_measurement.not_re_measured remains not re-measured: wheel (hatchling absent offline), store_regression in isolation, qa_web, direct_visual, and the full Python suite at this HEAD. qa_personas and qa_vibe still produce no data without a local model and are still not passes."
+ },
+ "ca2_media_2026_08_15": {
+  "measured_on": "2026-08-15",
+  "branch": "agent/kodro-ca2-candidate",
+  "relationship_to_the_sections_above": "Additive. Covers CA2 media work and the assessment brief, not the product gates. Nothing above is retracted by it.",
+  "intro_card_built_and_gated": {
+   "what": "STORYBOARD.md shot 1 is now an animated 12s title card built with hyperframes 0.7.109 at docs/ca2/intro/, replacing the static card the storyboard had settled for.",
+   "why_it_was_static": "STORYBOARD.md recorded that npx hyperframes 'cannot install non-interactively here'. That was measured without --yes. With the flag it installs and runs. Same defect class as the four before it: a command failed once and the failure was written down as a property of the environment.",
+   "gates": "lint 0 errors 0 warnings EXIT=0; validate no console errors, 22 text elements pass WCAG AA, EXIT=0; inspect --samples 15, 0 layout issues, EXIT=0; check Lint 0/0, Runtime 0/0, Layout 0 across 9 samples, Motion 0/0, Contrast 21/21 WCAG AA, Snapshots disabled, Check passed, EXIT=0. All four re-run after the layout fixes, so they describe the file that shipped.",
+   "render": "docs/ca2/intro/renders/kodro-intro.mp4, h264 1920x1080 yuv420p, 30fps, 360 frames, duration 12.000000, 774768 bytes, sha256 dd12a3b4ee020284f52d82a5b036de400bbe5fc10816c56013ab35313d8f161a.",
+   "stale_hash_do_not_quote": "763383 bytes / 7744c846e7d61cc2bfb4b5f16dd7065d772a1d4c6d3b197b1b8b50858c5a99d6 was the pre-fix render. That file no longer exists.",
+   "two_defects_no_gate_could_see": "All four gates passed on a card whose text block sat 97px below optical centre and whose subtitle wrapped inside the compound word 'disclosed-fidelity'. Neither is a lint error, runtime error, contrast failure or overflow. Both were caught by extracting a frame and looking at it.",
+   "font_substitution_defect": "Declared with real family names and generic fallbacks, the compiler fetched 10 faces for JetBrains Mono, 7 for EB Garamond and 11 for Roboto from Google Fonts and injected them. EB Garamond and Roboto are not in the file; they were substitutions for the fallbacks. A 'Check passed' line would have been recorded as evidence the card used the product's typefaces when it did not. Fixed with private family names and no generic fallback; the fetch lines are absent from every run since.",
+   "caveats": "Snapshots disabled is not a pass, there is no committed baseline. The eases are GSAP power2.out and power3.out, which approximate the product's cubic-bezier(0.22,0.61,0.36,1) rather than matching it.",
+   "evidence": ".kodro/ca2-evidence/2026-08-15-ca2-intro-composition.md"
+  },
+  "brief_claims_sourced": {
+   "what": "The 10-vs-15-minute runtime contradiction in docs/ca2/BRIEF_VERIFIED.md carried no source URL anywhere in the repository, so no reader could re-check it. It now has one.",
+   "source": "https://intranet.csc.liv.ac.uk/~ped/COMP702/Overview.html, HTTP 200, 71517 bytes, Last-Modified 2023-08-23, sha256 98033b96bb3eec9e5d03c96190ac63be12f2163f22a4ca27bf3e95a107a587d5, titled 'MSc Project (COMP702), summer 2023'.",
+   "not_the_2026_brief": "This is 2023 material and does not replace the current Canvas brief. Its own deadline is Sep-01, against 21 August 2026 in the verified table. CLAIM_LEDGER item 8 still stands: neither the page limit nor the video duration is settled.",
+   "contradiction_is_three_way": "10 minutes at L263 (timetable) and L451 (the Final Presentation task statement), 15 minutes at L321 (deliverables list), plus 15 at L260 inside a malformed HTML comment that does not render. The 9:40 master with four expansion blocks is unchanged.",
+   "rejected_outright_was_wrong": "BRIEF_VERIFIED said an over-length video 'can be rejected outright'. The source says markers 'may decide to penalise the student with 5 marks out of 100 if the presentation is in excess of the reserved time', excluding marker questions, and that penalties will not push a mark below the pass mark. Outright non-marking is attached on that page to using a container format other than ZIP, not to runtime.",
+   "three_deliverables_previously_listed_as_unverified": "The Final Presentation component on that page is one ZIP containing a report of approx 5 pages A4 in PDF, a set of presentation slides in PDF, and the presentation video. Submission is through sam.csc.liv.ac.uk, not Canvas. Neither the deck nor the report exists in this repository. Student must confirm against the 2026 brief.",
+   "page_limit_data_point_not_a_resolution": "The same page states the dissertation as 'approx 15 to 25 pages A4 plus references and appendices' twice (L326, L503). The word is approximately, not maximum, it is 2023 material, and it conflicts with the 50 pages recorded in the author's handoff files. The current document is 46 printed body pages excluding references and appendices, or 48 counting references as body. This field said 48 for the excluding-references reading until it was corrected on 15 August; references occupy printed pages 47 and 48, so excluding them the body ends at 46. Audit HIGH 4 stays OPEN.",
+   "network_claim_corrected": "BRIEF_VERIFIED's preamble said the brief could not be read because this environment has 'no account access and no network path to it'. The Canvas login is a real blocker; the network half is false. Fifth instance of the same defect. Search engines are gated (DuckDuckGo answers HTTP 202 anti-bot, Bing needs JavaScript) but direct URL fetches through curl work.",
+   "files_changed": "docs/ca2/BRIEF_VERIFIED.md (dated correction appended, original text preserved), docs/ca2/FINAL_CHECKLIST.md (duration item sourced, new student item for the deck and report), docs/ca2/STORYBOARD.md (dated supersession block, original preserved)."
+  },
+  "secret_gate_second_blind_spot": {
+   "what": "The home-path rule matches an account name inside a path. It does not match the name standing on its own, and the repository had published it that way six times while the rule reported two: pytest-of-<name> in a host note in this file and in STATE.md, and account='<name>' four times in the evidence file that documented the first leak.",
+   "how_it_surfaced": "node scripts/qa_secrets.mjs failed at HEAD on .kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md:22 and :46. Those two lines were path-shaped so the existing rule caught them. A repo-wide git grep for the account token then found six more that it could not see.",
+   "redaction": "All eight occurrences across four tracked files replaced with <account>: the evidence file (4), this file (2), .kodro/autonomy/STATE.md (1, the pytest temp-root note), and the evidence file's measurement lines. The measurements themselves are unchanged: 20 HOME_PATH matches under utf16le against 0 under utf8 still reads exactly as it was taken. Only the disclosed value is gone.",
+   "rule_added": "A bare-name rule in scripts/qa_secrets.mjs. A bare name has no shape to match, so it is matched by value: the account running the scan, read from os.userInfo() at run time so the gate never stores a name. Guarded on alphanumerics rather than \\b so pytest-of-<name> is caught while a longer word merely containing the name is not. Names shorter than four characters and shared CI accounts are declined.",
+   "honest_limit": "This is a publisher-side check, not a universal one. It catches the leak the machine running it can create, which is the only one it is in a position to prevent. It is inactive when there is no usable local account name, so the PASS line now states 'bare-name rule live' or 'bare-name rule inactive' rather than letting a green line imply a check that did not run.",
+   "gate_now": "PASS  secrets: 42 passed (480 of 787 tracked files read, 13 credential rules, bare-name rule live). EXIT=0. Nine more checks than the 33 recorded above; the file counts differ from 471 of 773 because that tree is not this tree.",
+   "rule_proved_live": "A probe file containing pytest-of-<the real account> was written, git add -N'd so the scan would see it, and the gate failed on it: 1 failed, 41 passed, naming the probe. The probe was then removed and the gate returned to 42/0. The rule is not decoration.",
+   "defect_class_count": "Eighth instance recorded of a claim written down without the measurement that would support it, and the first one the agent introduced rather than found.",
+   "evidence": ".kodro/ca2-evidence/2026-08-15-secret-gate-utf16-blind-spot.md, dated section appended below the original text."
+  },
+  "full_python_suite_at_head": {
+   "command": "python -m pytest --basetemp=<scratch>/pt -q  (--basetemp is required on this host; the default temp root raises PermissionError WinError 5)",
+   "result": "1637 passed, 2 skipped in 253.71s. TOTAL 7062 statements, 526 missed, 1732 branches, 205 partial. Required test coverage of 85% reached. Total coverage: 90.78%. EXIT=0.",
+   "the_two_skips_SUPERSEDED": "SUPERSEDED, and it was wrong. It read: 'Both are the same guard in tests/unit/test_ai_studio.py, lines 69 and 77: Tk is unavailable on this host because the Python install is missing tcl8.6/auto.tcl.' The guard was identified correctly; the cause was asserted without being measured, and the count is not stable. A later run of the same 1,639 tests gave zero skips. See skip_count_not_stable below for the three measured counts and the list of what was ruled out.",
+   "supersedes": "gate_matrix.python_local, which reads '1069 passed; 88.96% coverage'. That was a different tree. It is left in place as the historical record of the 2.0.0 release run."
+  },
+  "docs_build_gated_for_the_first_time": {
+   "what_was_believed": "A working note carried 'docs/mkdocs.yml docs_dir: . rejected by mkdocs 1.6.1' as a pending defect. It was never written into a tracked file, so nothing on disk had to be corrected, but it was wrong and it was being acted on.",
+   "what_was_measured": "python -m mkdocs build -f docs/mkdocs.yml exits 0: 'Documentation built in 10.67 seconds', mkdocs 1.6.1 on Python 3.13. docs_dir: . is accepted. Only --strict failed, and on a different cause entirely.",
+   "the_real_defect": "Aborted with 1 warnings in strict mode! EXIT=1, on docs/developers/extending-lessons.md: a link to '../../src/robolearn/lessons/schema.py' resolves outside the docs tree and is not a documentation file. A second link on the same page to the lesson library directory is INFO only and did not abort.",
+   "fix": "The page linked into the source tree; no other page in docs/ does that. docs/developers/architecture.md and the rest reference modules as plain code spans, and there are zero blob URLs anywhere in docs/. The page was rewritten to match that convention, which also closed the second defect in it: it was still a stub reading 'This page is filled in Task 8 of the build plan once the schema lands' for a schema that landed long ago. It now documents all 17 top-level keys, the world block, the eight success-criterion fields with the gt-not-ge reasoning, grading, worked solutions and the export step.",
+   "gate_now": "python -m mkdocs build -f docs/mkdocs.yml --strict -> 'Documentation built in 2.68 seconds', EXIT=0. This is the first time the documentation build has been gated at all; it appears in no earlier gate matrix.",
+   "site_dir_is_safe": "The build prints 'Cleaning site directory'. Checked before running it: git ls-files site returns nothing and git check-ignore -v site/index.html returns .gitignore:47:site/. No tracked file is in the blast radius.",
+   "a_stale_docstring_found_on_the_way": "src/robolearn/lessons/schema.py documented an optional source_path field on Lesson, 'populated by load_lesson and load_library so callers can show this lesson lives at'. No such field exists, no caller sets one, and extra='forbid' means setting one would raise. The module docstring also pointed at build-plan Task 19 and 'Section 6 of the build spec'. Both corrected. Ninth instance of the defect class: a claim recorded without the measurement that would support it.",
+   "verification": "python -m pytest tests/unit/test_lesson_schema.py tests/unit/test_lesson_solutions.py tests/unit/test_lessons_export.py -> 151 passed in 2.38s. Docstring-only change, so the dual-grader guarantee and the export byte-match are the checks that matter and both hold."
+  },
+  "site_dir_collision": {
+   "how_it_surfaced": "node scripts/qa_web.mjs came back 2 of 5 with 'FAIL privacy-zero-external LEAKED to: api.github.com'. Kodro Web makes zero external requests by design, so the honest move was to check the premise before reporting a privacy regression.",
+   "what_site_actually_contained": "The MkDocs documentation site, not the Kodro Web static build. The api.github.com request was Material for MkDocs fetching the repository star count. The product was never leaking; the gate was measuring the wrong directory.",
+   "the_real_defect": "docs/mkdocs.yml declared site_dir: ../site. That is the same directory scripts/build_web.cjs --static writes the Kodro Web static build to and that scripts/qa_web.mjs reads (const SITE = path.join(ROOT, 'site')). Two tools owned one output directory, and qa_web.mjs reads it without building it, so it measures whatever wrote there last. A `mkdocs build` in between makes the product's own privacy gate measure the documentation site instead. That is not hypothetical: it is what produced the api.github.com report above.",
+   "what_it_could_NOT_do": "It could not have shipped the documentation site to GitHub Pages, and an earlier draft of this entry claimed it could. Checked rather than assumed: .github/workflows/deploy-pages.yml runs `node scripts/build_web.cjs --static` at line 43 and uploads `path: site` at line 49, in a fresh checkout on a fresh runner, so site/ is always rebuilt immediately before upload. ci.yml does the same inside the qa_web step itself. The blast radius is local working copies, which is where it went off. Recording the correction because overstating a defect is the same reporting failure as understating one.",
+   "why_it_had_never_fired": "The documentation build had never been run in CI or in any gate matrix. It was added as a gate on 15 August (see docs_build_gated_for_the_first_time), which is the same change that would have made this collision fire on every CI run on main.",
+   "fix": "docs/mkdocs.yml now uses site_dir: ../.docs-site, with the reason written at the setting so nobody moves it back. .gitignore gains .docs-site/ and an explanatory comment on site/. The docs gate in ci.yml carries the same explanation and is ordered before the web gates.",
+   "verification": "python -m mkdocs build -f docs/mkdocs.yml --strict -> 'Documentation built in 4.66 seconds', EXIT=0, with site/ intact afterwards. site/ rebuilt with node scripts/build_web.cjs --static (52 files; the tracked bundle.js unchanged at 1,502,665 bytes). node scripts/qa_web.mjs -> '5/5 checks passed', EXIT=0: static-build, boot-mount, app-content, privacy-zero-external ('no app-originated external requests') and studio-mount all PASS."
+  },
+  "wheel_built_and_exercised": {
+   "the_false_reason": "The wheel gate had been carried as blocked with the recorded reason 'hatchling absent, cannot be fetched offline'. Measured: pip download hatchling succeeds. The reason was never tested. Eleventh instance of the defect class this file exists to record. The offline constraint binds Kodro the product; a build backend from PyPI is ordinary authoring toolchain and was never covered by it.",
+   "build": "python -m build --wheel --outdir <scratch>/wheel -> 'Successfully built robolearn-2.0.0-py3-none-any.whl'. 4,705,551 bytes, sha256 7ad56c8f03ba020f45cffc507c217e7efdbcecbe8a2a029b0076f71ed8e9262a, 200 members, 24 lesson YAMLs. Built to a scratch outdir on purpose: dist/ holds the author's PyInstaller executables and is not a build target.",
+   "installed_and_smoked": "Installed into a clean venv and exercised from a scratch directory, with every path resolved from the installed package so a file missing from the wheel fails rather than being satisfied by the checkout next door. 7 of 7 checks passed: import (2.0.0 from site-packages); 16 rover_api symbols re-exported; 24 lessons loaded (KS1 3, KS2 4, KS3 9, KS4 8); all 24 worked solutions RUN and graded 100/100 through the same world, rover, tracer, state-provider and executor construction the desktop submit path uses; web assets byte-identical to the tracked sources (bundle.js 1,502,665, styles.css 172,179, index.html 7,760, interpreter.js 60,034, lesson-grader.jsx 51,956); 6 console scripts declared with kodro-mcp -> robolearn.mcp.server:main loading; 8 MCP tools, 25 resources, list_lessons returning 24 and all 25 resources read.",
+   "mcp_from_the_wheel": "Separately drove the pip-generated kodro-mcp.exe over real stdio with cwd set to a temp directory outside the repository. exit=0, 0 stderr lines, 6 of 6 calls clean: initialize -> kodro 2.0.0; tools/list -> 8 tools, every one carrying an inputSchema; resources/list -> 25; resources/read of kodro://api/reference -> 1 content block with text; tools/call list_lessons -> isError=False; and tools/call get_lesson with a nonexistent id correctly REJECTED with \"No lesson with id 'does_not_exist'. Call list_lessons for the full list.\" The repo's own smoke_mcp scripts run the server from the source tree; this is the first measurement of the installed artefact.",
+   "two_wrong_guesses_of_mine_on_the_way": "The first smoke script died on 'No module named robolearn.engine.interpreter', which I had written from memory. There is no such module: the interpreter is assets/web/interpreter.js. The second failed on read_resource returning no 'text' key, also my assumption: read_resource returns the raw payload and server.py builds the MCP contents envelope around it. Both were my errors, not packaging defects, and both were resolved by reading the source rather than by adjusting the claim."
+  },
+  "remaining_gates_closed": {
+   "store_regression": "python -m pytest tests/unit/test_store.py -q -W error::ResourceWarning -> 19 passed in 1.75s, EXIT=0. Run with ResourceWarning promoted to an error on purpose, because the failure this gate exists for is an unclosed sqlite handle, which is invisible in a normal run.",
+   "secret_gate_after_these_edits": "node scripts/qa_secrets.mjs -> 'PASS secrets: 42 passed (480 of 787 tracked files read, 13 credential rules, bare-name rule live)', EXIT=0, re-run after the .gitignore, mkdocs.yml and ci.yml changes rather than relying on the earlier run.",
+   "what_is_still_not_a_pass": "qa_personas and qa_vibe exit 0 but produce no data without a local model, so they are not passes and are not counted as any. direct_visual is manual desktop inspection and has not been re-run at this HEAD."
+  },
+  "skip_count_not_stable": {
+   "the_claim_under_test": "STATE.md carried, in the counts bullet: 'with 2 skipped (both the same Tk-unavailable guard in test_ai_studio.py; this host's Python is missing tcl8.6/auto.tcl)'. The guard attribution was right. The cause was not measured, and the count is not stable.",
+   "what_three_runs_actually_gave": "Same 1,639 tests, three runs: docs/eval/test_suite.json at aa174cf recorded 1,638 passed with 1 skipped; a run earlier in this session gave 1,637 passed with 2 skipped; the run at this HEAD gave '1639 passed in 214.27s', EXIT=0, zero skips. Running tests/unit/test_ai_studio.py alone gave '6 passed in 3.91s', also zero skips. The total is 1,639 every time, so nothing is being deselected; the same tests pass or skip run to run.",
+   "what_was_ruled_out": "Not a venv without a tcl directory: tk.Tk() plus tk.call('info','patchlevel') succeeds and reports 8.6.15 in both the base interpreter and the clean venv built for the wheel smoke. Not test-order variance: pytest 8.3.4 with pytest-asyncio, pytest-cov and pytest-timeout only, no pytest-randomly and no xdist, so collection order is deterministic. Not a leaked working directory or a clobbered Tcl environment variable: TCL_LIBRARY and TK_LIBRARY are both unset in this shell, and grepping tests/ and src/ for chdir, TCL_LIBRARY and TK_LIBRARY returns nothing outside a vendored babel.min.js line. tests/conftest.py touches only SDL_AUDIODRIVER, tkinter.messagebox stubs and tracer globals.",
+   "conclusion": "An intermittent local Tk initialisation failure that the fixture degrades into a skip. The cause is NOT established and no cause is now asserted anywhere. This is the thirteenth instance of the defect class this file exists to record, and the second in two passes where the false artefact was one I wrote myself.",
+   "what_was_corrected": "STATE.md counts bullet rewritten to give the three measured counts, the fixture, and an explicit 'the cause is not established' with the ruled-out list. docs/ca2/CLAIM_LEDGER.md row changed from 'The one skip is a Tk display dependency' to 'The skip is a local Tk startup failure' (it is a library-path error, not a display error) and a paragraph added telling the student not to offer a cause on camera. docs/ca2/FINAL_CHECKLIST.md gains the coupling that was missing: regenerating docs/eval/test_suite.json also moves Kodro_Dissertation.tex lines 150, 160 and 633 and the claim-ledger row, and a changed skip count must be reported as measured rather than re-run until it looks tidier.",
+   "where_the_skip_comes_from_SUPERSEDED": "tests/unit/test_ai_studio.py:48-58, the `root` fixture: it calls tk.Tk() and catches (tk.TclError, RuntimeError), then pytest.skip(f'Tk unavailable: {exc}'). It is fixture-level and every test in the file requests it, so one bad run skips several tests rather than one. The reason recorded in test_suite.json is \"Can't find a usable init.tcl\", with the host Tcl path elided.",
+   "where_the_skip_comes_from": "Corrected. The superseded text above named tests/unit/test_ai_studio.py as the sole source. The source tree does not support that. Thirteen test files guard Tk startup the same way (test_ai_studio, test_app, test_charts, test_console_panel, test_editor_panel, test_lesson_editor, test_replay_dialog, test_sensors_panel, test_sim_panel, test_splash_and_main, test_teacher_dashboard, test_ui_main_window, test_welcome_wizard), each catching (tk.TclError, RuntimeError) in a fixture and calling pytest.skip. `python -m pytest --collect-only -q` across those thirteen files collects 169 tests, so an intermittent Tk startup failure can convert up to 169 tests into skips rather than failures. Which file fired in any given run has not been established.",
+   "skip_detail_pair_is_unverified": {
+    "what_was_found": "The skipDetail block in docs/eval/test_suite.json pairs 'tests.unit.test_ai_studio::test_studio_available_when_server_up' with the reason \"Tk unavailable in this environment: Can't find a usable init.tcl ...\". Those two cannot belong to the same skip. 'Tk unavailable in this environment: ' is the literal format string at tests/unit/test_ui_main_window.py:27. tests/unit/test_ai_studio.py:54 emits 'Tk unavailable: ' with no such phrase.",
+    "proof_it_was_never_otherwise": "`git log -L 40,60:tests/unit/test_ai_studio.py` returns exactly one commit, eb3a75b, and the line it added is `pytest.skip(f\"Tk unavailable: {exc}\")`. The file has never emitted the other wording.",
+    "how_the_mismatch_was_introduced": "`git show 41150d8 -- docs/eval/test_suite.json` replaces 'tests.unit.test_ui_main_window::test_apply_theme_changes_palette' with the test_ai_studio name and leaves the reason string untouched. b8c5bda later edited 'tk.tcl' to 'init.tcl' inside that same inherited string. So the name was updated at least twice without the reason ever being re-derived from a run.",
+    "why_it_survived": "The artefact's own top-level note says counts and coverage are read from the run's JUnit XML and coverage JSON rather than transcribed. That is true, and it is scoped to counts and coverage. skipDetail sat inside the same document and inherited its credibility without ever being machine-derived. .kodro/ca2-evidence/2026-08-14-test-suite-evidence.md lines 48-51 record the decision to keep the existing elided reason string rather than re-read it, which is the moment the carry-over became deliberate.",
+    "what_was_done": "Not silently patched. A `provenance` field was added to the skipDetail entry stating that the pair is unverified, naming both format strings, naming 41150d8 and b8c5bda, and saying that which test skipped has not been established. The counts and coverage are untouched and unaffected: one skip out of 1,639 whichever test it was, so no dissertation figure moves and the aa174cf pin still holds. FINAL_CHECKLIST.md gains a line requiring a regeneration to read both fields from the JUnit XML and to delete the provenance field when it does.",
+    "classification": "Same defect class this file exists to record, and the third in two passes where the false artefact was one I produced. No new ordinal is claimed: the ordinal series in this file (fifth, eighth, ninth, eleventh, thirteenth) skips numbers and is not a complete tally, so extending it would itself be an unmeasured claim. Distinct from the thirteenth entry above, which was an invented cause; this one is a field copied forward across two edits without anyone checking it still described the run."
+   },
+   "documents_corrected_in_this_second_pass": "README.md (stale 1,489/1,488/90.97 with an asserted Tcl-environment cause, replaced with a pointer to the artefact), docs/developers/evaluation.md (stale 1,087 at 88.21 percent), docs/HANDOFF_KEITH.md, docs/ca2/Q_AND_A.md, docs/ca2/CLAIM_LEDGER.md, docs/ca2/FINAL_CHECKLIST.md, docs/dissertation/README.md and .kodro/autonomy/STATE.md (all of which had just been given the single-fixture attribution and now give thirteen files and 169 tests), and docs/dissertation/INTEGRITY_AUDIT_2026-07-17.md, whose superseding-figures table had itself gone stale on the test matrix, the page count and the bibliography."
+  },
+  "still_not_re_measured": "direct_visual only: manual desktop inspection, not re-run at this HEAD. The wheel, store_regression and qa_web entries that previously sat here are now measured above. qa_personas and qa_vibe still produce no data without a local model and are still not passes."
+ }
 }

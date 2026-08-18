@@ -72,7 +72,11 @@ def _snap(
 
 
 def test_grade_returns_gradeable_object() -> None:
-    lesson = _lesson(criteria=[SuccessCriterion(samples_collected=0)])
+    # Any valid criterion will do; this test asserts the shape of GradeResult,
+    # not the verdict. It used to pass ``samples_collected=0``, which the schema
+    # now rejects because the grader tests ``collected < required`` and so a
+    # criterion of zero can never fail. See test_lesson_schema.py.
+    lesson = _lesson(criteria=[SuccessCriterion(samples_collected=1)])
     result = grade(lesson, Tracer(), "")
     assert isinstance(result, GradeResult)
     assert isinstance(result.passed, bool)

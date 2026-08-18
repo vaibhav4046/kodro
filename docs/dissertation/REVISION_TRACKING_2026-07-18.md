@@ -1,5 +1,23 @@
 # Dissertation revision tracking
 
+> **Closed change log for the 18 July 2026 revision round. Not a current-state
+> document.** The ten rows below record what that round changed and are left as
+> written. Three things in the file no longer describe the document:
+>
+> - **The pilot's location.** Rows 4 and 8 point at Section 6.9. The
+>   ethics-pending pilot is now Section 6.10; 6.9 is Threats to validity.
+> - **A dead cross-reference.** Row 10 points at Section 1.3.1, which does not
+>   exist. Chapter 1 has no subsections under 1.3; the objectives, O6 among them,
+>   are in 1.4.1 and 1.4.2.
+> - **Two final checks no longer pass as written.** The build still produces no
+>   undefined reference or citation, but it now reports 19 overfull and underfull
+>   boxes. The PDF is 58 pages rather than "no more than 50" — the 50-page limit
+>   applies to the body, which ends with the References at page 47, so the
+>   document still complies, but the check as phrased is now misleading.
+>
+> The three DELIBERATE_LIMITATION rows all still stand. Later rounds added the
+> lesson-path design and implementation sections, which this log does not cover.
+
 ## Paper information
 
 | Field | Value |

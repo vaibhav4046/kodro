@@ -20,6 +20,10 @@ pip-wheel-metadata/
 
 # Testing / coverage
 .pytest_cache/
+# Windows-only: the --basetemp escape hatch documented in CONTRIBUTING.md.
+# Globbed on purpose: every run that needs the escape hatch invents its own
+# suffix, and this list had grown one literal at a time.
+.pytest-tmp*/
 .coverage
 coverage.xml
 htmlcov/
@@ -41,8 +45,13 @@ ENV/
 *.db-journal
 ~/.robolearn/
 
-# Docs build
+# Kodro Web static build (build_web.cjs --static). This is what
+# deploy-pages.yml uploads to GitHub Pages.
 site/
+
+# MkDocs build output. Deliberately not site/: see the comment on site_dir in
+# docs/mkdocs.yml.
+.docs-site/
 
 # OS junk
 Thumbs.db
@@ -68,6 +77,50 @@ src/robolearn/assets/web/cap.html
 # (qa_performance.mjs, qa_ui.mjs). Thousands of files; never source.
 tmp/
 
+# Partial qa_ui runs. `--suite=paint` and friends write ui_eval_<suite>.json so
+# a narrowed local run can never overwrite the full-run ui_eval.json the docs
+# cite; those per-suite files are local scratch, so only the full one is tracked.
+docs/eval/ui_eval_*.json
+
 # Local tool binaries and editor/agent config (machine-specific, never shipped).
 .claude/
 .tools/
+
+# Scratch output from full local verification runs. The pytest log and its
+# basetemp are machine-specific and megabytes wide; the LaTeX pass logs are
+# latexmk console captures, not the build itself. The evidence that survives a
+# run is docs/eval/*.json and the compiled PDF, both of which ARE tracked.
+.pytest-full.log
+docs/dissertation/pass*.txt
+
+# The pdflatex console log embeds the absolute MiKTeX install path on whichever
+# machine built it, which means it carries a local username. The .aux, .toc and
+# .out files do not, and one of them is cited by a diagnostic, so those stay
+# tracked. Regenerate the log by rebuilding; it is never evidence.
+#
+# The pattern covers every pass log under the build directory, not just the one
+# named after the document. Nine such logs had been committed before this rule
+# existed (p1, p2, q1, q2, pass1, pass2 and two copies of the document log);
+# scripts/qa_secrets.mjs is what found them.
+docs/dissertation/**/*.log
+
+# Same console output, same leak, different filename. Redirecting a compile to
+# a .txt sidesteps both rules above: `pass*.txt` only covers the ones named
+# pass, and the `.log` rule only covers the extension. Six such captures
+# (compile, doi_compile and final_compile, two passes each) were tracked and
+# carried C:/Users/<name> on 20 paths apiece. They were invisible to
+# scripts/qa_secrets.mjs as well, because PowerShell redirection writes UTF-16
+# and the gate decoded every file as UTF-8; that gate now sniffs the encoding.
+docs/dissertation/*compile*.txt
+
+# Stray QA console capture at the repo root. Same problem, same non-value: it is
+# the terminal output of a headless-Chrome behaviour run, nothing references it,
+# and it names the local account in every browser path it prints.
+/beh.log
+
+# latexmk's dependency database and file list, for the same reason and worse:
+# they are nothing but absolute paths. Measured on the current build, the
+# .fdb_latexmk carries 127 lines naming C:/Users/<name> and the .fls carries
+# 246. Both are rebuilt on every compile and neither is evidence of anything.
+docs/dissertation/*.fdb_latexmk
+docs/dissertation/*.fls

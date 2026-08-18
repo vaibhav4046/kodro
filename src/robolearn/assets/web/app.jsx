@@ -380,7 +380,7 @@
     function seedLessonWorld(lessonId) {
       const G = window.KodroLessonGrader;
       // getEntry, not LESSON_DATA: the generated table holds only the shipped
-      // 18, and an authored lesson would seed an empty arena and then be
+      // library, and an authored lesson would seed an empty arena and then be
       // ungradable. The fallback keeps this working against an older grader
       // during a partial rebuild.
       const entry = (G && G.getEntry) ? G.getEntry(lessonId)
@@ -1328,7 +1328,7 @@
           return;
         }
         nextCode = result.code;
-        addConsole('AI (' + (model || aiInfo.model) + ') changed only lines ' + result.startLine + 'â€“' + result.endLine + '. Read it, then press Run.', 'sys');
+        addConsole('AI (' + (model || aiInfo.model) + ') changed only lines ' + result.startLine + '–' + result.endLine + '. Read it, then press Run.', 'sys');
       } else {
         addConsole('AI (' + (model || aiInfo.model) + ') wrote a program. Read it, then press Run.', 'sys');
       }
@@ -1437,6 +1437,22 @@
       if (!window.KodroChatIntent) return null;
       const intent = window.KodroChatIntent.parse(text);
       if (!intent || !intent.isCommand) return null;
+      // Opening a lesson is navigation, not a project mutation: each lesson
+      // keeps its own program buffer, so nothing the learner wrote is
+      // overwritten and there is nothing for an Apply gate to protect. It acts
+      // straight away, the way clicking the lesson in the library does.
+      if (intent.lesson) {
+        const target = lessons.find(l => l.id === intent.lesson.id);
+        if (!target) {
+          return {
+            handled: true,
+            kind: 'evidence',
+            message: 'I could not find the ' + intent.lesson.label + ' lesson in this library, so nothing was opened.',
+          };
+        }
+        loadLesson(target);
+        return { handled: true, kind: 'action', message: 'Opened ' + (target.title || intent.lesson.label) + '.' };
+      }
       // Robot, world and environment changes are project-level mutations. Show
       // one connected before/after preview and require an explicit Apply rather
       // than changing the simulator while the learner is still reading chat.
@@ -1483,7 +1499,7 @@
         return {
           handled: true,
           preview: preview,
-          previewTitle: changes.length ? 'Proposed: ' + changes.join(' Â· ') : 'Review this project change.',
+          previewTitle: changes.length ? 'Proposed: ' + changes.join(' · ') : 'Review this project change.',
         };
       }
       const parts = [];
@@ -1823,7 +1839,20 @@
         // since rewritten, and said 'Complete' about a program never run.
         const verdictHash = (window.KodroScenario && window.KodroScenario.codeHash)
           ? window.KodroScenario.codeHash(source) : null;
-        setLessonVerdict({ passed: !!r.passed, score: r.score, reasons: r.reasons || [], hint: r.hint || null, codeHash: verdictHash });
+        // batteryUsedPct / energyTrueBatteryPct come from the desktop grade
+        // only (the browser grader returns neither), so the build note below
+        // renders on the desktop and is simply absent in browser mode rather
+        // than guessed at. Both are undefined on a restored verdict too: they
+        // are facts about a run that just happened, not about a stored score.
+        setLessonVerdict({
+          passed: !!r.passed,
+          score: r.score,
+          reasons: r.reasons || [],
+          hint: r.hint || null,
+          codeHash: verdictHash,
+          batteryUsedPct: typeof r.batteryUsedPct === 'number' ? r.batteryUsedPct : null,
+          energyTrueBatteryPct: typeof r.energyTrueBatteryPct === 'number' ? r.energyTrueBatteryPct : null,
+        });
         // The quiet catastrophe on a school Chromebook: everything here lives
         // in localStorage, shared and ephemeral profiles wipe it at sign-out,
         // and the pupil finds out next lesson. Nothing forced a save and
@@ -2349,9 +2378,9 @@
         lessonId: currentLessonId,
         context: lesson ? lesson.title : (EXAMPLES[activeTab] ? EXAMPLES[activeTab].label : 'Current program'),
         failure: liveVerdict && !liveVerdict.passed ? (liveVerdict.reasons || []).join(' ') : null,
-        failureSource: 'Lesson grader Â· last attempt',
+        failureSource: 'Lesson grader · last attempt',
         hint: (liveVerdict && liveVerdict.hint && liveVerdict.hint.message) || fallbackHint,
-        hintSource: 'Active lesson Â· authored hint',
+        hintSource: 'Active lesson · authored hint',
       });
       setLearningCard(card);
       setLearningNote('');
@@ -2370,7 +2399,7 @@
       }
       const scope = window.KodroAnnotations.makeEditScope(code, editorSelection);
       selectionEditScopeRef.current = scope;
-      setVibePrompt('Change only lines ' + scope.startLine + 'â€“' + scope.endLine + ': ');
+      setVibePrompt('Change only lines ' + scope.startLine + '–' + scope.endLine + ': ');
       setVibeOpen(true);
     }
 
@@ -2952,7 +2981,7 @@
                   ? <span className="learning-selection-label">
                     {editorSelection.startLine === editorSelection.endLine
                       ? 'Line ' + editorSelection.startLine
-                      : 'Lines ' + editorSelection.startLine + 'â€“' + editorSelection.endLine}
+                      : 'Lines ' + editorSelection.startLine + '–' + editorSelection.endLine}
                   </span>
                   : <span className="learning-selection-empty">Select code to explain it, inspect recorded values, or change only that section.</span>}
                 <button type="button" className="btn-mini" disabled={!editorSelection} onClick={() => openLearningAction('explain')}>Explain selection</button>
@@ -2966,10 +2995,10 @@
                 <section className="learning-annotation-card" aria-label={learningCard.title}>
                   <div className="learning-annotation-head">
                     <div>
-                      <span className="eyebrow">{learningCard.context} Â· evidence-grounded</span>
+                      <span className="eyebrow">{learningCard.context} · evidence-grounded</span>
                       <h3>{learningCard.title}</h3>
                     </div>
-                    <button type="button" className="btn-mini" aria-label="Close annotation" onClick={() => setLearningCard(null)}>âœ•</button>
+                    <button type="button" className="btn-mini" aria-label="Close annotation" onClick={() => setLearningCard(null)}>✕</button>
                   </div>
                   <pre className="learning-excerpt">{learningCard.excerpt}</pre>
                   <ol className="learning-claims">
@@ -3064,6 +3093,22 @@
                 const nextLesson = (liveVerdict && liveVerdict.passed)
                   ? nextConnectedLesson(lesson.id)
                   : null;
+                // The mark is earned on the reference rover, on purpose: lesson
+                // battery limits are fixed YAML numbers authored against it, so
+                // grading the pupil's own build would mark a design-bench choice
+                // as a programming mistake. That decision is invisible unless we
+                // say it, and saying it is also the honest place to report what
+                // their build WOULD have cost. Shown only when the two differ by
+                // enough to round differently at one decimal place -- a pupil on
+                // the reference rover is told nothing they need.
+                const gradedBattery = liveVerdict ? liveVerdict.batteryUsedPct : null;
+                const buildBattery = liveVerdict ? liveVerdict.energyTrueBatteryPct : null;
+                const buildEnergyNote = (gradedBattery != null && buildBattery != null
+                  && Math.abs(buildBattery - gradedBattery) >= 0.05)
+                  ? 'Marked on the reference rover, which used ' + gradedBattery.toFixed(1)
+                    + '% battery. The robot you designed would have used '
+                    + buildBattery.toFixed(1) + '% for this program.'
+                  : null;
                 return (
                   <section className="lesson-card" aria-label="Current lesson">
                     <div className="lesson-card-head">
@@ -3136,6 +3181,9 @@
                           </div>
                         ))}
                       </dl>
+                    )}
+                    {buildEnergyNote && (
+                      <p className="lesson-build-energy">{buildEnergyNote}</p>
                     )}
                     {liveVerdict && !liveVerdict.passed && liveVerdict.reasons.length > 0 && (
                       <ul className="lesson-reasons">

@@ -1,0 +1,40 @@
+# Kodro MCP server, for Codex.
+#
+# Copy the block below into your Codex config (`~/.codex/config.toml`), or copy
+# this whole file to `.codex/config.toml` if you want the registration to live
+# with the checkout. Nothing in the repository reads this file; it exists so the
+# working configuration is version-controlled rather than reconstructed from
+# memory on the next machine.
+#
+# Verify the registration before trusting it:
+#
+#     python scripts/smoke_mcp.py
+#
+# That runs the server as a real subprocess and exercises the same handshake
+# Codex performs, which is a faster way to find a broken install than watching a
+# client fail silently.
+
+[mcp_servers.kodro]
+command = "kodro-mcp"
+args = []
+
+# If `kodro-mcp` is not found, the console script has not been generated. It is
+# created at install time, so a checkout that was never installed (or was
+# installed before the entry point existed) will not have it:
+#
+#     pip install -e .
+#
+# If you would rather not depend on the console script at all, name the module
+# instead. This form needs no reinstall and works from any checkout, but it
+# hardcodes an interpreter, so point it at the environment Kodro is installed
+# into:
+#
+#     [mcp_servers.kodro]
+#     command = "python"
+#     args = ["-m", "robolearn.mcp"]
+#
+# Use `robolearn.mcp`, not `robolearn.mcp.server`. Both start the server, but
+# the latter emits a RuntimeWarning on stderr because the package has already
+# imported the module by the time runpy executes it as __main__. The warning is
+# harmless and the protocol stream stays clean either way, but a strict client
+# will log it as an error and send you looking for a fault that is not there.

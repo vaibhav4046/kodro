@@ -20,6 +20,7 @@ pywebview wire.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
 from typing import ClassVar
 
@@ -31,9 +32,16 @@ from robolearn.web.app import BridgeAPI
 
 
 @pytest.fixture
-def api(tmp_path: Path) -> BridgeAPI:
+def api(tmp_path: Path) -> Iterator[BridgeAPI]:
+    # Own the store's lifetime: ``Store`` opens a connection per thread and only
+    # ``close()`` releases the ones opened off the constructing thread.  Without
+    # this the handles survive until ``__del__`` runs, which on Windows keeps a
+    # file lock on the temp DB for an arbitrary stretch of the session.
     store = Store(tmp_path / "pupil.db")
-    return BridgeAPI(store=store, lessons=list(load_library()))
+    try:
+        yield BridgeAPI(store=store, lessons=list(load_library()))
+    finally:
+        store.close()
 
 
 # --- fake Ollama client ----------------------------------------------------

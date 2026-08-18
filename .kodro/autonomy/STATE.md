@@ -2,9 +2,124 @@
 
 Last updated by: Fable 5 lead agent
 Repo: D:\project\robolearn | origin https://github.com/vaibhav4046/robolearn.git
-Branch flow: work on `kodro-identity-pass`, ff `main`, push BOTH, CI-gated Pages deploy.
+Branch flow (current): work on `agent/kodro-ca2-candidate`. Nothing is
+fast-forwarded to `main` and nothing is deployed during the CA2 release pass.
+Branch flow (historical, up to 2026-07-16): work on `kodro-identity-pass`, ff
+`main`, push BOTH, CI-gated Pages deploy. Everything below the CA2 checkpoint
+describes that older flow and should be read as history.
+
+## CA2 release-candidate checkpoint (2026-08-14)
+
+Commit `2222e1e865105e2105cce1f1c9932736c0da87f8` on
+`agent/kodro-ca2-candidate`. Working tree clean at the time of writing.
+
+What this checkpoint is for: the CA2 assessment candidate, not a deployment.
+No tag was cut, no release published, no branch merged, nothing pushed to
+`main`, and the Pages site still serves the July build.
+
+Measured, not assumed:
+- The gate matrix in `EVIDENCE.json` had drifted on nine of twenty rows. The
+  July snapshot is kept intact and a `superseding_measurement` section was
+  added beside it rather than rewriting it in place, so that a stale row is
+  visibly superseded instead of quietly replaced.
+- The `wheel` row had been carried as blocked with the reason "`hatchling`
+  absent, cannot be fetched offline". That reason was never tested and it is
+  false: `pip download hatchling` succeeds. The offline constraint binds Kodro
+  the product, not the authoring toolchain. The wheel now builds, installs into
+  a clean venv and passes a 7-check smoke; see `wheel_built_and_exercised` in
+  `EVIDENCE.json`.
+- The biggest correction: `qa_ui_local` was recorded as "timed out after 904
+  seconds ... not counted as pass". It now passes for real: 325 seconds, exit
+  0, nine flows PASS, 41 of 41 behaviour or layout assertions. The degraded
+  headless box described further down this file recovered.
+- Second correction: the lint gate was red while the artefact claimed clean.
+  7 ruff errors and 4 unformatted files, all in files added or edited during
+  this release pass. Fixed at `2222e1e`; the reformat of the shipped
+  `src/robolearn/mcp/tools.py` was proved inert by 97 passing tests and two
+  real-subprocess MCP smoke runs rather than assumed inert.
+- Third correction, and the one real repository defect found in this pass:
+  `docs/mkdocs.yml` declared `site_dir: ../site`, the same directory
+  `build_web.cjs --static` writes the Kodro Web build to and `qa_web.mjs`
+  reads. `qa_web.mjs` reads that directory without building it, so it measures
+  whatever wrote there last; one `mkdocs build` in between made the product's
+  own privacy gate measure the documentation site and report a false
+  `api.github.com` leak. It had never fired before because the docs build had
+  never been run by any gate. It could not have reached Pages: both `ci.yml`
+  and `deploy-pages.yml` rebuild `site/` immediately before reading or
+  uploading it, on fresh runners. The blast radius was local working copies.
+  Now `site_dir: ../.docs-site`, gitignored, with the reason written at the
+  setting and the docs gate ordered before the web gates in CI.
+- Counts that grew since July: qa_grader 34 to 55, qa_honesty 91 to 121,
+  qa_physics 20 to 25, qa_ai_web 27 to 51, qa_scenario_parity 4 to 8, mypy 66
+  to 73 source files, and the Python suite 1,069 to 1,641 collected, passing at
+  90.85 percent against an 85 percent gate. The skip count is not stable on this
+  host and an earlier version of this bullet explained it with a cause I never
+  measured. Three runs of the same 1,639 tests gave 1 skip, then 2, then 0, and
+  the 1,641-test run on 17 August gave 0.
+  Thirteen test files open a Tk window in a fixture that catches `tk.TclError`
+  and skips rather than fails, and 169 collected tests sit behind those guards,
+  so a bad run takes a whole file with it; the recorded reason is "Can't find a
+  usable init.tcl". A second correction on top of the first: an earlier version
+  of this bullet also named `tests/unit/test_ai_studio.py` as the sole source,
+  which the source tree does not support. The cause is not established. It is not the
+  fixed host defect the earlier text claimed: `tk.Tk()` succeeds on demand in
+  both the base interpreter and a fresh venv, test order is deterministic (no
+  `pytest-randomly`, no `xdist`), and nothing in `tests/` or `src/` touches
+  `chdir`, `TCL_LIBRARY` or `TK_LIBRARY`. Treat it as an intermittent local Tk
+  initialisation failure that the fixture degrades into a skip. The current
+  measurement at this HEAD is `1639 passed in 214.27s`, exit 0, zero skips.
+  Gates that did not exist in the July matrix: qa_voice 108, qa_secrets 42,
+  qa_learning_annotations 28, qa_encoding 10, 66 MCP server unit tests, and the
+  docs build, gated for the first time on 15 August at
+  `mkdocs build -f docs/mkdocs.yml --strict`.
+
+The bundle SHA-256 `8c3417345b3c...` recorded in the 2026-07-16 checkpoint
+below is historical, and so is
+`17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174`
+(1,502,665 bytes), which this paragraph called the committed bundle until
+15 August. The committed bundle at `dd02cd8` is
+`f17ce80efc318032b70aa07a187567619cbc3c4e7df7936ad986f51d27eb06b1`
+(1,502,967 bytes). The CSS has not moved:
+`ac7c9050cbd7b06e2814366ed6c6cc8d868ec10a75ecdaeb0814ba789ba45e0d`
+(172,179 bytes). Since nothing on this branch is deployed, no
+committed-matches-live claim can be made about either file today.
+
+Do not read a bundle hash out of this file. It goes stale every time the bundle
+is rebuilt, which happened four times during the CA2 pass. Measure it:
+
+    python -c "import hashlib;print(hashlib.sha256(open('src/robolearn/assets/web/bundle.js','rb').read()).hexdigest())"
+
+and check the source agrees with the generated file using
+`node scripts/build_web.cjs --check`, which prints "bundle.js is up to date."
+and exits 0 when they match.
+
+Host conditions that will bite the next session:
+- `pytest` fails with `PermissionError: [WinError 5]` on the
+  `pytest-of-<account>` temp root unless `--basetemp` is passed. Harness, not
+  product. Any run of a module-scoped `tmp_path_factory` fixture hits it.
+- A subset pytest run always trips the 85 percent project coverage gate. That
+  is expected and is not a failure of the tests being run.
+- The development install on this machine carries stale entry-point metadata:
+  `kodro` resolves to `robolearn.bench:main` while `pyproject.toml` declares
+  `robolearn.__main__:main`, so typing the product name here starts the batch
+  runner. That was previously recorded as unfixable because the wheel "could
+  not be rebuilt offline". It is now measured rather than predicted: a clean
+  venv installed from the freshly built wheel resolves `kodro ->
+  robolearn.__main__:main`, so it is local install staleness and it does clear
+  on a real install. `kodro-mcp -> robolearn.mcp.server:main` was always
+  installed as declared, in both the stale install and the clean one.
+- `qa_personas` and `qa_vibe` exit 0 without a local model and produce no
+  data. They are honest skips and must never be counted as passes.
 
 ## Current objective
+
+**The heading is stale, 2026-08-15.** The loop below is still the working
+method and is kept for that reason, but the brief it names is not the live one.
+Since the CA2 release pass opened, the governing brief is the CA2 ultimatum and
+the criteria that close it are the CA2 checkpoint above plus the open rows of
+`BACKLOG.json`. A resuming agent that reads the word "Current" here and starts
+executing the Codex master prompt is working to a superseded objective.
+
 Execute the Codex master prompt: drive Kodro toward an honestly-accepted release
 via the loop Measure -> Judge -> Reproduce -> Prioritise -> Patch -> Regress ->
 Integrate -> Verify -> Rejudge -> Record. No audit-only stop.
@@ -69,7 +184,7 @@ shipped judge rounds: ...c8118bb(JR10) -> 19027e3 -> 75db527(JR11) ->
 and live bundle sha256 == committed each round. The old tag e1df641/v2.0.2 IS an
 ancestor here (git rev-parse e1df641 resolves). The "other inspection saw main at
 e1df641/v2.0.2, could not resolve c8118bb" was the STALE clone at
-`C:\Users\lalwa\OneDrive\Desktop\codex fix\robolearn` (HEAD e1df641, CLEAN tree,
+`%USERPROFILE%\OneDrive\Desktop\codex fix\robolearn` (HEAD e1df641, CLEAN tree,
 no un-lost user work). Nothing to integrate from OneDrive. Ledger files created:
 FINDINGS.jsonl (73 findings, 72 FIXED + 1 DISCLOSED, all 54 JR fixed),
 ACCEPTANCE_MATRIX.md, DISSERTATION_TRACEABILITY.md, EVIDENCE.json.
@@ -124,14 +239,35 @@ LIVE-VERIFIED at commit c8118bb: CI success (3 OSes), Deploy Pages success, live
 bundle sha256 == committed (ff50659b...), live 200. main == kodro-identity-pass
 == origin == c8118bb. Tree clean. This is the durable checkpoint.
 
-EXACT RESUME STEPS when the user says "continue":
+SPENT, 15 August 2026. The numbered block below was written when round 10 was
+the newest ship and round 11 had not run. It has since been consumed: the
+CONVERGENCE COUNTER paragraph immediately underneath records rounds 11, 12 and
+13 as all shipped and live-verified. Do not execute it. It is kept because the
+method it describes is the one to repeat, not because the steps are pending.
+Two of its instructions cannot be followed as written even in principle:
+
+  - step 3 names an absolute path under a Claude Code session directory. That
+    file does not exist. Checked on 15 August 2026:
+    `find "$USERPROFILE/.claude/projects" -name "*kodro-judge-round*"` returns
+    nothing, and the session UUID in the path has no `workflows` directory at
+    all. A different session UUID does, holding the convergence-audit and
+    dissertation-audit workflows, but not this one. Anyone cloning the repo
+    never had it: it was always machine-local and outside the tree.
+  - step 2 names `<scratchpad>/capture_evidence.mjs`, a placeholder for a temp
+    directory that no longer exists either.
+
+Rebuild both from the description in `docs/HANDOFF_GPT56_COMPLETE.md` section 6
+rather than looking for the files.
+
+EXACT RESUME STEPS as they stood at round 10 (historical, do not execute):
 1. (optional sanity) cd /d/project/robolearn && git rev-parse --short HEAD  # expect c8118bb (or later)
 2. Capture fresh evidence for the next round:
    node "<scratchpad>/capture_evidence.mjs"  (server on :8099 serving
    src/robolearn/assets/web; regenerate narrow_mobile at a TRUE 420px CDP
    viewport via scripts/lib/cdp-viewport.mjs so phone layout is judged honestly).
 3. Run judge round 11 with the Workflow tool, scriptPath:
-   C:\Users\lalwa\.claude\projects\D--project-robolearn\8de95992-bd5b-4a12-b04f-1b334c9f4674\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js
+   %USERPROFILE%\.claude\projects\D--project-robolearn\<session-uuid>\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js
+   (gone, see the note above)
 4. Parse accepted findings (brace-match the tool result, or reconstruct from the
    run's journal.jsonl + agent-*.jsonl like scratchpad/parse_journal10.js). For
    each accepted P0-P3: reproduce, root-fix, add/extend a gate (qa_honesty /
@@ -161,7 +297,8 @@ COMPLETION-DIRECTIVE WORK DONE (2026-07-16):
   (4.43:1), FIXED (CTR-01), qa_contrast now 61 (pins --void-on--cyan AA per theme).
 - Dissertation: clean pdflatex build, EXACTLY 50 pages, 0 em/en dashes.
 
-Gate matrix (current): qa_interpreter 180, qa_grader 34, qa_physics 20,
+Gate matrix (as at 2026-07-16, NOT current; for the current figure on every
+gate see docs/eval/qa_gate_runs_2026-08-14.md): qa_interpreter 180, qa_grader 34, qa_physics 20,
 qa_ai_web 27, qa_web 5/5, qa_parts 40, qa_memgraph 22, qa_pupilstore 23,
 qa_scenario_parity 4, qa_interp_fixes 13, qa_honesty 86, qa_contrast 61,
 qa_ui 6/6+38/38+12/12, qa_worlds 61 (isolate to dodge swiftshader-under-load
@@ -199,6 +336,58 @@ proactively exhausted (300-measurement audit clean). NEED two consecutive clean
 complete rounds. When the loop produces findings, refute any that rest on a
 headless artifact (city collision / blank render) and fix only source-grounded
 real defects. Deliver the final report at convergence (or at a user-set cutoff).
+
+**Superseded, 2026-08-15. Do not quote the numbers below as current.** All
+fourteen were re-checked. Seven have moved, because the gates gained checks:
+qa_honesty 63 to 121, qa_contrast 51 to 61, qa_grader 34 to 55, qa_ui 38/38 to
+66 (6 flows, 47 behaviour or layout, 13 modals), qa_scenario_parity 4 to 8,
+qa_physics 20 to 25, qa_ai_web 27 to 51. Seven are unchanged and still hold:
+qa_interpreter 180, qa_worlds 61, qa_pupilstore 23, qa_web 5/5, qa_parts 40,
+qa_memgraph 22, qa_interp_fixes 13. Seven and seven accounts for the whole list,
+so there is no residue of gates that were left unmeasured.
+
+An earlier version of this paragraph said five had moved, four held and "the
+rest were not re-run in the CA2 pass and are neither confirmed nor refuted".
+That undercounted. It left qa_physics and qa_ai_web labelled unrefuted when both
+were known to have moved, in a file whose purpose is to instruct the next agent,
+which is the worst place to understate what is known.
+
+Provenance, because a tally is only as good as the run behind it. Every figure
+above was measured on 15 August 2026; none is inherited from an earlier record.
+qa_physics 25, qa_ai_web 51, qa_parts 40, qa_memgraph 22, qa_interp_fixes 13 and
+qa_contrast 61 (0 failed, over 10 themes) were re-run live at commit `ca91ae6`,
+all rc=0. qa_honesty 121, qa_interpreter 180, qa_web 5/5, qa_grader 55,
+qa_scenario_parity 8 and qa_ui 66 were run earlier in the same session.
+qa_worlds 61 was
+re-run under `--strict` on 15 August and is measured, not inherited, but it took
+two attempts. The first returned 60 passed 1 failed on `underwater x home` with
+`chrome spawn failed: spawnSync ... ETIMEDOUT`, while five other Node gates and
+a Chrome sweep were running concurrently on the same box. That is the
+load-related harness flake `docs/GPT_HANDOFF.md:34` warns about, on the line
+beginning "Known traps to write into the prompt verbatim" ("qa_ui/qa_worlds can
+flake with chrome spawn timeouts under heavy load"). Re-run alone on an idle
+machine it printed `WORLD SWEEP RESULT: 61 passed, 0 failed` with `GATE_RC=0`.
+No threshold was changed and no case was removed to get there; the load was.
+Note also that the first run's *task* exit code was 0 while the gate itself
+printed `worlds strict EXIT=1`, so read the printed RESULT line, never the
+wrapper's status.
+
+The authoritative record of what was run on what day is
+`docs/eval/qa_gate_runs_2026-08-14.md`, which carries all fourteen of the
+figures above verbatim in its result column, and they were checked against it
+on 15 August: all fourteen agree.
+
+`docs/eval/test_suite.json` is a different thing and does not cover these gates
+at all. Its `harness` field says `pytest` and it holds one run of the Python
+suite: 1641 passed, 0 skipped, 90.85 per cent coverage at commit `e70b98b`. None
+of the fourteen Node gates appear in it. An earlier version of this paragraph
+called it "the machine-emitted totals" while standing in a paragraph about the
+Node gates, which invites the next reader to go looking there for a number that
+was never in the file. The pointer was true about the file and wrong about the
+scope, which is the harder kind to spot.
+
+Earlier counts are kept below as historical round checkpoints, the same
+convention used further up this file.
 
 Gate counts at this checkpoint: qa_honesty 63, qa_contrast 51, qa_web 5/5,
 qa_ui 38/38, qa_worlds 61, qa_interpreter 180, qa_grader 34, qa_physics 20,

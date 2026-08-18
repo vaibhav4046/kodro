@@ -4,9 +4,9 @@ Prepared 27 July 2026. Everything below was measured at commit `b33e5b8`.
 
 ## What this is
 
-Kodro is an offline robot design and simulation studio for UK Computing. The 18
+Kodro is an offline robot design and simulation studio for UK Computing. The 24
 lessons span Key Stage 1 to Key Stage 4 but are weighted to the top of that
-range: 1 at KS1, 2 at KS2, 8 at KS3, 7 at KS4. "KS1 to KS4" is true and
+range: 3 at KS1, 4 at KS2, 9 at KS3, 8 at KS4. "KS1 to KS4" is true and
 misleading on its own, so the honest description is upper KS2 through KS4 with a
 KS1 taster. A pupil designs a robot from real parts, writes
 Python to drive it, watches it run in a 3D world, and gets marked on that run.
@@ -22,20 +22,39 @@ and I am not going to pretend otherwise.
 
 ### Ready and verified
 
-Every number here reproduces by checking out the tagged commit and running the
-named command. Nothing is estimated.
+Every number here comes from running the named command. Nothing is estimated.
+The Python row was measured on the final source state rather than on the tag,
+because test files were added after tagging; that run writes its own commit and
+working-tree status into `docs/eval/test_suite.json`, so check the figure there
+rather than assuming a tag checkout reproduces it. The two browser rows want a
+quiet machine: they drive a single-threaded dev server on wall-clock timers, so
+running them alongside other harnesses can time an assert out and report a
+failure that passes on its own.
 
 | What | Result | Command |
 |---|---|---|
-| Python test matrix | 1,296 pass, 87.80% branch coverage against an 85% gate | `pytest tests/` |
+| Python test matrix | Counts and coverage are read from `docs/eval/test_suite.json`, not repeated here: the figure in this row went stale twice. Coverage gate is 85% branch-aware. The skip count is unstable on the development host, see the note under this table | `pytest tests/` |
 | Interpreter harness | 180 of 180 | `node scripts/qa_interpreter.mjs` |
-| Grader parity and solvability | 45 of 45 | `node scripts/qa_grader.mjs` |
-| Lesson Studio document and store | 56 of 56 | `node scripts/qa_lesson_studio.mjs` |
-| Construct liveness | 27 of 27 | `node scripts/qa_construct_liveness.mjs` |
-| Browser behaviour, real bundle in headless Chrome | 34 of 34 | `node scripts/qa_ui.mjs --suite=behaviour` |
+| Grader parity and solvability | 55 of 55 | `node scripts/qa_grader.mjs` |
+| Lesson Studio document and store | 79 of 79 | `node scripts/qa_lesson_studio.mjs` |
+| Construct liveness | 30 of 30 | `node scripts/qa_construct_liveness.mjs` |
+| Browser behaviour, real bundle in headless Chrome | 41 of 41 | `node scripts/qa_ui.mjs --suite=behaviour` |
 | Browser paint / layout / modals | 6 of 6, 6 of 6, 13 of 13 | `node scripts/qa_ui.mjs --suite=paint` etc |
 | World sweep | 61 of 61 | `node scripts/qa_worlds.mjs` |
 | Web boot and privacy | 5 of 5 | `node scripts/qa_web.mjs` |
+
+On the skip count in the Python row: it is not stable on the development host.
+Three runs of the same suite gave one skip, then two, then none. Thirteen test
+files open a Tk window in a fixture, and 169 collected tests sit behind those
+guards; when the toolkit fails to start, the fixture catches the error and skips
+rather than fails, so a bad run can skip several tests together. Which test
+skipped in a given run is recorded in `docs/eval/test_suite.json`, and the pair
+recorded there is flagged in that file as unverified, because the reason string
+was carried over by hand and belongs to a different file from the test it names.
+Why the failure is intermittent has not been established, so no cause is
+asserted here. The degradation itself is deliberate: a desktop-UI dependency
+that will not start should not be able to mask a product regression, and it
+should not be folded into the pass count either.
 
 The 24 lessons map to named DfE programme of study statements and BCS
 computational thinking concepts. Each lesson states its success criteria on

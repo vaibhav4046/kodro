@@ -1,0 +1,387 @@
+{
+  "schemaVersion": 1,
+  "harness": "qa_ui",
+  "generatedAt": "2026-08-18T00:31:42.295Z",
+  "suite": "all",
+  "method": "headless Chrome drives the real shipped bundle through cap.html; every row is an isolated Chrome run whose screenshot, post-action DOM or measured viewport had to match a concrete marker",
+  "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "platform": {
+    "platform": "win32",
+    "arch": "x64",
+    "node": "v24.12.0"
+  },
+  "artifactHashes": {
+    "bundleSha256": "6ee25604c66bbfe0bb2353b4c927b6d8e7e8d4d55af4272cc68f38b4f1d6b4a8",
+    "capHtmlSha256": "1bd1575a12fe912c7049c4213e1fdd7713092a21009cfa68ba84170fcb4c9cee",
+    "harnessSha256": "ae62517ba1fe3ac43e4656a70ca3a6715f155f1817e026dddff231d7cfc03dc1"
+  },
+  "measures": "Whether the shipped studio renders and behaves: that each flow paints with no console error, that each assert finds its marker in the real DOM, that no viewport overflows and that every modal opens. Not a measure of whether a person can use, understand or learn from the interface, and not an accessibility, usability or hardware result. Where an exact marker cannot be located an assert falls back to the most specific real signal it can verify, so each row states in its reason what was actually matched.",
+  "passed": 66,
+  "total": 66,
+  "percent": 100,
+  "groups": [
+    {
+      "name": "flows",
+      "passed": 6,
+      "total": 6,
+      "results": [
+        {
+          "label": "studio-earth-run",
+          "pass": true,
+          "reason": "ok (289836B)",
+          "determinism": {
+            "pass": true,
+            "reason": "rover drove 14.0m (>= 3m floor); exact-distance determinism is covered by qa_interpreter/qa_grader"
+          }
+        },
+        {
+          "label": "world-mars",
+          "pass": true,
+          "reason": "ok (285725B)"
+        },
+        {
+          "label": "world-warehouse",
+          "pass": true,
+          "reason": "ok (166466B)"
+        },
+        {
+          "label": "arm-firstrun",
+          "pass": true,
+          "reason": "ok (148856B)"
+        },
+        {
+          "label": "blocks-panel",
+          "pass": true,
+          "reason": "ok (161028B)"
+        },
+        {
+          "label": "onboarding",
+          "pass": true,
+          "reason": "ok (392538B)"
+        }
+      ]
+    },
+    {
+      "name": "behaviour",
+      "passed": 41,
+      "total": 41,
+      "results": [
+        {
+          "label": "blocks-insert",
+          "pass": true,
+          "reason": "blocks inserted code (editor textarea now contains \"move_forward\")"
+        },
+        {
+          "label": "error-path",
+          "pass": true,
+          "reason": "error path surfaced a \"cline err\" console line: \"Line 1: Kodro does not know a command called nope_undefined_var.\""
+        },
+        {
+          "label": "world-earth",
+          "pass": true,
+          "reason": "earth -> \"Deployed on Earth\" (matches \"Earth\")"
+        },
+        {
+          "label": "world-lab",
+          "pass": true,
+          "reason": "lab -> \"Deployed on Robotics Lab - Test Bay\" (matches \"Robotics Lab\")"
+        },
+        {
+          "label": "world-warehouse",
+          "pass": true,
+          "reason": "warehouse -> \"Deployed on Warehouse Test Zone\" (matches \"Warehouse Test Zone\")"
+        },
+        {
+          "label": "site-switch",
+          "pass": true,
+          "reason": "scene rebuilt for the site (marker data-world=\"earth:japan\" present)"
+        },
+        {
+          "label": "repl-recovery",
+          "pass": true,
+          "reason": "REPL error surfaced AND the next editor run still printed \"Program finished.\""
+        },
+        {
+          "label": "repl-no-halt",
+          "pass": true,
+          "reason": "REPL error surfaced with no Halted pill and no editor line highlight"
+        },
+        {
+          "label": "realism-live-world",
+          "pass": true,
+          "reason": "Environment card names the on-screen world (Abyssal / underwater preset)"
+        },
+        {
+          "label": "agents-at-site",
+          "pass": true,
+          "reason": "Realism reports 3 moving agents at the Sahara site (site-keyed gate agrees)"
+        },
+        {
+          "label": "build-honesty",
+          "pass": true,
+          "reason": "sensorless build: telemetry shows NO RANGE SENSOR, hint greys distance(), base commands stay live"
+        },
+        {
+          "label": "status-agree",
+          "pass": true,
+          "reason": "after a crash both surfaces show the same label (mission bar \"Halted\", telemetry \"HALTED\")"
+        },
+        {
+          "label": "nothing-ran",
+          "pass": true,
+          "reason": "empty program yields the honest \"Nothing ran\" verdict"
+        },
+        {
+          "label": "vibe-memory-chip",
+          "pass": true,
+          "reason": "Vibe shows the seeded reflection as a visible Memory context chip"
+        },
+        {
+          "label": "memory-export",
+          "pass": true,
+          "reason": "Memory panel carries the wired Export control (and its Import twin)"
+        },
+        {
+          "label": "memory-graph",
+          "pass": true,
+          "reason": "Memory graph rendered from seeded memory (3 nodes, 2 edges, world hub present)"
+        },
+        {
+          "label": "chat-build",
+          "pass": true,
+          "reason": "build stayed unchanged through preview, disclosed unresolved constraints, then Apply fitted the robot and switched the live project to Mars"
+        },
+        {
+          "label": "learning-note",
+          "pass": true,
+          "reason": "selected code opened a claim-level source card and refused to invent runtime values before a run"
+        },
+        {
+          "label": "lesson-world-exit",
+          "pass": true,
+          "reason": "world switch selected Mars and atomically left the prior lesson grading context"
+        },
+        {
+          "label": "chat-repair",
+          "pass": true,
+          "reason": "offline collision help produced a project-backed, validated sensor repair with explicit Apply/Discard controls"
+        },
+        {
+          "label": "chat-lesson",
+          "pass": true,
+          "reason": "a typed or spoken \"open the loops lesson\" opened lesson 05 directly, with no Apply gate and the lesson grading context live"
+        },
+        {
+          "label": "lesson-goals",
+          "pass": true,
+          "reason": "lesson card shows the grader criteria as a goal checklist pre-run, with help on request"
+        },
+        {
+          "label": "step-palette",
+          "pass": true,
+          "reason": "turn_left/forward/undo clicks built the right program text and the adult hint strip stayed hidden at KS1"
+        },
+        {
+          "label": "light-hud",
+          "pass": true,
+          "reason": "light-theme HUD text stays light on the dark glass (world-switch luminance 0.87)"
+        },
+        {
+          "label": "goal-marker",
+          "pass": true,
+          "reason": "goal beacon built into the live scene (data-goal marker present)"
+        },
+        {
+          "label": "studio-mode",
+          "pass": true,
+          "reason": "studio mode: Mode control present, zero classroom strings (teacher/report/novelty themes hidden)"
+        },
+        {
+          "label": "classroom-mode",
+          "pass": true,
+          "reason": "classroom mode restores the teacher dashboard row and the novelty themes"
+        },
+        {
+          "label": "stage-journey",
+          "pass": true,
+          "reason": "Design → Test → Build navigation is stateful and hosted Build requires saved evidence before exporting its prototype brief"
+        },
+        {
+          "label": "pupil-records",
+          "pass": true,
+          "reason": "browser register renders a real heatmap row (\"This device\") with a non-zero concept cell (sequence 80%)"
+        },
+        {
+          "label": "tweaks-panel",
+          "pass": true,
+          "reason": "Scene tweaks row opens the tweaks panel (panel + close control rendered)"
+        },
+        {
+          "label": "run-replay",
+          "pass": true,
+          "reason": "two seeded replays reproduce distance+battery exactly (1.3 m|1% batt), random()-dependent program"
+        },
+        {
+          "label": "predict-trace",
+          "pass": true,
+          "reason": "prediction is marked against the odometer with its direction, and the run recorded a per-instruction trace ending at 1 m"
+        },
+        {
+          "label": "narration",
+          "pass": true,
+          "reason": "the arena is described out loud before any run, and matches the world the grader marks"
+        },
+        {
+          "label": "authored-lesson",
+          "pass": true,
+          "reason": "a lesson authored on this device opens by title, is badged, renders its own goals, and seeds its own arena (1 rock on mars)"
+        },
+        {
+          "label": "custom-world",
+          "pass": true,
+          "reason": "custom world renders; density drives the obstacle field (sparse 5 -> dense 18)"
+        },
+        {
+          "label": "lessons-entry",
+          "pass": true,
+          "reason": "More Tools then Lessons opens the curriculum library with mission cards, progress and the quick-switch picker"
+        },
+        {
+          "label": "first-run-clean",
+          "pass": true,
+          "reason": "default city first Run drove 9.0m clean (no HALTED) and printed its report (attempt 1)"
+        },
+        {
+          "label": "revert-apply",
+          "pass": true,
+          "reason": "Revert restored the pre-apply starter program after a blocks insert"
+        },
+        {
+          "label": "spec-import",
+          "pass": true,
+          "reason": "imported KRS spec shows the Measured build banner (1.02 m/s motor-derived top speed, HONOURED badge)"
+        },
+        {
+          "label": "fidelity-card",
+          "pass": true,
+          "reason": "Realism dashboard lists all three fidelity tiers (SI4 disclosure card)"
+        },
+        {
+          "label": "encore-run",
+          "pass": true,
+          "reason": "encore.py tab opened and the show ran (Act I console line printed)"
+        }
+      ]
+    },
+    {
+      "name": "layout",
+      "passed": 6,
+      "total": 6,
+      "results": [
+        {
+          "label": "layout-1280x800",
+          "pass": true,
+          "reason": "no horizontal overflow at 1280x800 (scrollWidth 1262 <= innerWidth 1262)"
+        },
+        {
+          "label": "layout-1366x768",
+          "pass": true,
+          "reason": "no horizontal overflow at 1366x768 (scrollWidth 1348 <= innerWidth 1348)"
+        },
+        {
+          "label": "layout-420w",
+          "pass": true,
+          "reason": "no overflow at true 420px viewport (scrollW 420 <= 420)"
+        },
+        {
+          "label": "layout-375w",
+          "pass": true,
+          "reason": "no overflow at true 375px viewport (scrollW 375 <= 375)"
+        },
+        {
+          "label": "layout-320w",
+          "pass": true,
+          "reason": "no overflow at true 320px viewport (scrollW 320 <= 320)"
+        },
+        {
+          "label": "layout-classroom-320",
+          "pass": true,
+          "reason": "no overflow at true 320px classroom viewport (scrollW 320)"
+        }
+      ]
+    },
+    {
+      "name": "modals",
+      "passed": 13,
+      "total": 13,
+      "results": [
+        {
+          "label": "modal-vibe",
+          "pass": true,
+          "reason": "Vibe (Code with AI) modal opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-blocks",
+          "pass": true,
+          "reason": "Blocks (visual block editor) modal opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-review",
+          "pass": true,
+          "reason": "Review (second-agent) modal opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-realism",
+          "pass": true,
+          "reason": "Realism dashboard modal opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-demo",
+          "pass": true,
+          "reason": "Guided Demo modal (no aria-label; eyebrow text) opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-ask",
+          "pass": true,
+          "reason": "Ask (lesson Q&A) modal opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-robotlab",
+          "pass": true,
+          "reason": "Robot Lab modal opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-memory",
+          "pass": true,
+          "reason": "Memory and skills modal opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-build",
+          "pass": true,
+          "reason": "Build a real robot modal opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-help",
+          "pass": true,
+          "reason": "Keyboard shortcuts modal opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-settings",
+          "pass": true,
+          "reason": "Settings popover opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-lessonstudio",
+          "pass": true,
+          "reason": "Lesson Studio (author your own lesson) modal opened and rendered (marker present, no console error)"
+        },
+        {
+          "label": "modal-validate",
+          "pass": true,
+          "reason": "Validate (5-seed run; console line, not a modal) — validated the on-screen world; 0% carries its explanation"
+        }
+      ]
+    }
+  ],
+  "verdict": "PASS"
+}

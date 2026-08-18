@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import tkinter as tk
 
+from robolearn import __version__
+
 #: Number of milliseconds the splash stays on screen.
 SPLASH_DURATION_MS: int = 250
 
@@ -43,7 +45,7 @@ def show_splash(parent: tk.Misc | None = None) -> tk.Toplevel:
     ).pack(pady=(20, 4))
     tk.Label(
         inner,
-        text="v2.0.0 loading lessons…",
+        text=f"v{__version__} loading lessons…",
         fg="#8b949e",
         bg="#161b22",
     ).pack()

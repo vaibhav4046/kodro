@@ -1,6 +1,6 @@
 /* Measured vibe-generation QA.
  *
- * The deterministic engine has hard numbers (21/21 interpreter, 854 pytest) but
+ * The deterministic engine has hard pass/fail gates (qa_interpreter.mjs, pytest) but
  * the AI assistant did not, so its reliability was unproven. This harness gives
  * it one: for a fixed set of realistic non-expert prompts it asks the local
  * model (Ollama, kodro-coder) for rover code, applies the SAME normaliser the
@@ -19,6 +19,9 @@ import { fileURLToPath } from 'url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const WEB = path.join(HERE, '..', 'src', 'robolearn', 'assets', 'web');
+// Same evidence directory the performance and persona harnesses write to, so a
+// live-model claim has a committed artefact behind it instead of a console line.
+const OUT = path.join(HERE, '..', 'docs', 'eval', 'vibe_eval.json');
 const OLLAMA = 'http://localhost:11434';
 const MODEL = process.env.KODRO_VIBE_MODEL || 'kodro-coder:latest';
 
@@ -76,24 +79,53 @@ async function gen(prompt) {
   return (await r.json()).response || '';
 }
 
+// The artefact is the point of a live-model gate: a console line is not evidence
+// a reader can audit, so every non-SKIP run writes the model identity, each
+// prompt, the code the model actually produced and why it passed or failed.
+function writeArtefact(report) {
+  fs.mkdirSync(path.dirname(OUT), { recursive: true });
+  fs.writeFileSync(OUT, JSON.stringify(report, null, 2));
+  console.log('wrote ' + path.relative(path.join(HERE, '..'), OUT).replace(/\\/g, '/'));
+}
+
 (async function () {
+  let entry = null;
   try {
     const tags = await fetch(OLLAMA + '/api/tags').then((r) => r.json());
-    const have = (tags.models || []).some((m) => m.name === MODEL);
-    if (!have) { console.log('SKIP: model ' + MODEL + ' not installed. Pull it or set KODRO_VIBE_MODEL.'); process.exit(0); }
+    entry = (tags.models || []).find((m) => m.name === MODEL) || null;
+    if (!entry) { console.log('SKIP: model ' + MODEL + ' not installed. Pull it or set KODRO_VIBE_MODEL.'); process.exit(0); }
   } catch (e) {
     console.log('SKIP: Ollama not reachable at ' + OLLAMA + ' (' + ((e && e.message) || e) + ')'); process.exit(0);
   }
   let pass = 0;
+  const results = [];
   for (const p of PROMPTS) {
     let raw = '';
-    try { raw = await gen(p); } catch (e) { console.log('FAIL (gen) ', p, '->', (e && e.message) || e); continue; }
+    try { raw = await gen(p); } catch (e) {
+      const msg = (e && e.message) || String(e);
+      console.log('FAIL (gen) ', p, '->', msg);
+      results.push({ prompt: p, ok: false, stage: 'generate', error: msg, code: null });
+      continue;
+    }
     const code = normalizeApi(extractCode(raw));
     const v = validate(code);
+    results.push({ prompt: p, ok: v.ok, stage: 'interpret', error: v.ok ? null : v.error, code });
     if (v.ok) { pass++; console.log('PASS  ', p); }
     else { console.log('FAIL  ', p, '->', v.error); }
   }
   const pct = Math.round((pass / PROMPTS.length) * 100);
+  writeArtefact({
+    harness: 'qa_vibe',
+    generatedAt: new Date().toISOString(),
+    model: { name: MODEL, digest: entry.digest || null, size: entry.size || null, modified: entry.modified_at || null },
+    endpoint: OLLAMA,
+    options: { temperature: 0.2, num_predict: 200 },
+    measures: 'Whether locally generated code compiles and runs in the real vendored interpreter. Not a measure of whether a person found the answer useful.',
+    passed: pass,
+    total: PROMPTS.length,
+    percent: pct,
+    results,
+  });
   console.log('\n== VIBE QA: ' + pass + '/' + PROMPTS.length + ' (' + pct + '%) ran clean through the interpreter, model ' + MODEL + ' ==');
   // Pass floor: a real (non-SKIP) run must clear 60% of prompts or it fails CI.
   if (pass < Math.ceil(PROMPTS.length * 0.6)) process.exit(1);

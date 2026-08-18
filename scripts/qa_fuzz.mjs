@@ -128,7 +128,13 @@ check('browser compiler loaded', !!RL && typeof RL.compile === 'function');
 
 // --- attack 1: cross-engine grading parity -----------------------------------
 const N = Math.max(10, Math.min(200, Number((process.argv.find((a) => a.startsWith('--n=')) || '').slice(4)) || 40));
-const LESSONS = ['00_first_drive', '04_selection', '13_nested_loops'];
+// 01 and 05 are here because they declare max_battery_used. Without a
+// battery-gated lesson in this list the cross-engine fuzz never compared a
+// battery-gated verdict at all, which is precisely where the two graders had
+// drifted: the desktop was charging drain by the pupil's build mass and the
+// browser was not, so the same program passed in one and failed in the other.
+// A parity fuzz that skips the gated lessons cannot see that class of bug.
+const LESSONS = ['00_first_drive', '01_hello_rover', '04_selection', '05_iteration', '13_nested_loops'];
 const rndProg = mulberry32(20260726);
 const programs = [];
 for (let i = 0; i < N; i++) programs.push(genValidProgram(rndProg, (s) => RL.compile(s)));

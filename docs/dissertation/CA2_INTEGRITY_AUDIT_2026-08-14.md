@@ -1,0 +1,1089 @@
+# CA2 academic integrity audit, Kodro dissertation
+
+Audit date: 14 August 2026.
+Target: `docs/dissertation/Kodro_Dissertation.tex` (1066 lines) and `docs/dissertation/Kodro_Dissertation.pdf`.
+Repository state audited: branch `agent/kodro-ca2-candidate`, HEAD `44d30e97587ce7a3643440ccf48c13160f1f60a7`.
+Working tree at audit time: 3 untracked paths, nothing modified or staged.
+
+This file is the only artefact this audit created. The `.tex`, the `.pdf` and every `.aux`, `.log`, `.toc` beside them were not touched. All compiling was done on copies in a scratch directory. `scripts/qa_personas.mjs` and `scripts/qa_vibe.mjs` were not run, and `docs/eval/vibe_eval.json` and `docs/eval/persona_eval_results.json` were read only.
+
+---
+
+## Bottom line
+
+| Severity | Count |
+| --- | --- |
+| CRITICAL | 1 |
+| HIGH | 3 |
+| MEDIUM | 6 |
+| LOW | 4 |
+
+**The single most important author action:** the software-rasteriser rows of the renderer table (`.tex:659`, `.tex:660`) and three method statements about them (`.tex:648`, `.tex:663`) are no longer supported by `docs/eval/performance_eval.json` as it exists at HEAD. That artefact was regenerated on 14 August as a single-sample run reading 14.2 and 12.9 FPS. The dissertation prints 18.7 and 17.1 with three-sample ranges. A marker who opens the named file finds different numbers and a sample count that contradicts the caption. Either restore the three-sample software run, or re-run it at `--repeat=3` and update the four numbers and the three sentences.
+
+### Status after the release pass, 14 August 2026
+
+Every finding above was worked after the audit was written. This table is the
+current state; each entry below carries its own evidence.
+
+| Finding | State |
+| --- | --- |
+| CRITICAL 1, renderer rows unsupported | RESOLVED. Gate re-run at `--repeat=3`, artefact re-pinned to the shipped bundle hash |
+| HIGH 2, "at the final source state" | RESOLVED. Suite re-run at HEAD, artefact regenerated, every anchor now names the commit |
+| HIGH 3, stale voice assertion count | RESOLVED. `.tex:559` reads 108, matching `PASS voice: 108 passed, 0 failed` |
+| HIGH 4, page-limit rule | OPEN, author only. Cannot be settled offline. See the author actions section |
+| MEDIUM 5, transcript says three artefacts are untracked | RESOLVED. The transcript now carries the correction and the `git log` output that proves it |
+| MEDIUM 6, "four artefacts postdate the tag" | RESOLVED. `.tex:150` now says seven and names all seven |
+| MEDIUM 7, source comment claims 9 figures and 14 tables | RESOLVED. The comment now says 2 figures and 11 tables, which is what the file contains |
+| MEDIUM 8, `huang2023` key against a 2025 label | RESOLVED 15 Aug. The key is now `huang2025`, and Crossref returns the exact title for `10.1145/3703155`. Fully closed |
+| MEDIUM 9, untracked evidence-shaped files | RESOLVED. `stt_bench.json`, `stt_bench.md`, `bench_stt.py` and 10 clips are tracked, and the working tree is clean |
+| MEDIUM 10, overfull boxes and an oversized float | RESOLVED as a side effect, and therefore fragile. Re-check the compile log before submission |
+| LOW 11, Trinket shutdown claim | RESOLVED 15 Aug. The announcement page was fetched. All four claims at `.tex:296` are supported, including the 31 August 2026 date verbatim |
+| LOW 12, reflection figure with no artefact | RESOLVED, and the entry was partly wrong when written |
+| LOW 13, `bcscode` placeholder renders bold | RESOLVED 15 Aug. Both bcs.org sources fetched with `curl`, placeholder replaced, PR 3's table ported. The Code of Conduct states no version or date, so the entry is `(no date)` |
+| LOW 14, the document's self-descriptions are correct | Not a defect. Keep as is |
+
+**Superseded on 2026-08-15.** The original sentence read: "Three of the four
+open items are author actions that cannot be closed from an offline machine.
+None of them is a fabrication risk; all three are the opposite, a refusal to
+assert something unverified." The refusal to assert was right. The reason given
+for it was not. This machine is not offline: `WebFetch` and `WebSearch` fail
+here, but `curl` through the Bash tool has full network access and was simply
+never tried. Three of those items have now been closed by measurement, LOW 13
+and MEDIUM 8 and LOW 11, and the whole bibliography was verified against live
+registrars in the process. See
+`.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`.
+
+**One item remains open: HIGH 4, the page limit.** It is genuinely the author's
+and no amount of network access closes it, because the authoritative statement
+is in the current Canvas brief and nowhere in this repository. It is not a
+fabrication risk. It is a refusal to assert something unverified, which is the
+correct posture. `docs/ca2/CLAIM_LEDGER.md` item 8 forbids stating the page
+limit or the video duration as settled, and that stands.
+
+Two things the audit confirms as sound and should not be disturbed:
+
+- The generative AI disclosure is present, intact and prominent at `.tex:152`. It is quoted in full below.
+- The fabrication sweep found nothing. No fake user study, no fake teacher result, no fake physical validation, no fake benchmark, no fake Turnitin figure. The document disclaims human evidence at 23 separate lines and volunteers its own two weakest evidence sources unprompted.
+
+---
+
+## Findings
+
+### CRITICAL 1. The renderer table's software rows have no supporting evidence in the repository at HEAD
+
+**RESOLVED 2026-08-14 by the first of the two routes below, then re-resolved once
+the bundle changed.** `node scripts/qa_performance.mjs --gl=software --repeat=3`
+was run twice. The first run (`generatedAt` `2026-08-14T19:59:18.155Z`) restored
+three samples per tier and the table was updated to its medians. That run then
+went stale within the same day: commit `3c2a851` regenerated `bundle.js` for the
+dictation-notice fix, so the artefact's `bundleSha256` no longer matched the
+bundle the dissertation describes. The gate was re-run at
+`2026-08-14T21:21:00.915Z`, and its `bundleSha256`
+`17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174` is byte-for-byte
+the SHA-256 of `src/robolearn/assets/web/bundle.js` at the commit that carries
+this entry. The table now prints that run:
+
+```
+Software, Low  | 25.7 (25.3 to 32.2) | 48.0 ms | 9.1 ms | Not met
+Software, High | 24.4 (23.3 to 25.0) | 50.8 ms | 13.9 ms | Not met
+```
+
+**Addendum, 2026-08-15.** The bundle moved a third time, at `cacf51e`, and this
+entry would read as false if checked against HEAD without the following. The
+hash above still names the bundle at `3c2a851`; the file on disk now hashes to
+`2bbeac6915fef57234b4dda8b67a1ab09ad138f10886df1b608eb126a28962f3`. The
+difference between those two bundles was measured rather than assumed:
+
+```
+$ git diff 3c2a851 cacf51e -- src/robolearn/assets/web/bundle.js --stat
+ src/robolearn/assets/web/bundle.js | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+$ git diff 3c2a851 cacf51e -- src/robolearn/assets/web/bundle.js \
+    | grep -E '^[+-]' | grep -v '^[+-][+-][+-]' | grep -vE '^[+-][[:space:]]*//' | wc -l
+0
+```
+
+One hunk, and no changed line that is not a `//` comment. The comment is the
+`browserMode` correction in `panels.jsx` described under loop pass 14. So the
+executable code the renderer gate measured is the executable code that ships,
+and the two software rows above are not restated from a build that no longer
+exists. That is a weaker guarantee than a matching hash and is offered as
+exactly that: the gate was not re-run for a comment, because re-running it would
+have produced a third set of noisy floor readings and invited the table to be
+edited again for no measured change in the product. If the bundle changes for
+any reason that touches code, this entry stops holding and the gate has to run
+again.
+
+**Second addendum, 2026-08-15.** The bundle moved a fourth time, at `dd02cd8`,
+a commit that corrected stale "eighteen lessons" claims across fourteen files.
+Two of those sites are comment blocks in `lesson-studio.jsx`, so the bundle was
+regenerated to keep generated and source in agreement. The file on disk now
+hashes to
+`f17ce80efc318032b70aa07a187567619cbc3c4e7df7936ad986f51d27eb06b1`. That move
+was measured the same way, but the filter used above does not transfer and
+saying so matters more than the result:
+
+```
+$ git diff --stat cacf51e HEAD -- src/robolearn/assets/web/bundle.js
+ src/robolearn/assets/web/bundle.js | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+```
+
+Note the flag position. With `--stat` written after the pathspec, git treats it
+as a path and prints the full patch instead, which is how the wrong figures got
+into a draft of this paragraph in the first place.
+
+The `grep -vE '^[+-][[:space:]]*//'` filter used for the third move returns 10,
+not 0, on this diff. It is anchored on `//` line comments and these lines are
+prose inside `/* */` blocks, so the filter reports all ten changed lines as code
+and the figure is an artefact of the wrong tool rather than a finding. The claim
+was therefore re-established with a comment-state scanner that tracks code,
+block comment, line comment, string and template state, so a `/*` inside a
+string cannot be miscounted. Run against the five added lines plus one control:
+
+```
+line 19182: state=block
+line 19183: state=block
+line 19184: state=block
+line 19185: state=block
+line 21745: state=block
+line 19236: state=code   <- control: the CT_CONCEPTS array, must read as code
+```
+
+Every changed line sits inside one of the two documentation blocks at
+`bundle.js:19179` and `bundle.js:21729`, and the control line confirms the
+scanner distinguishes the two states rather than answering "block" to
+everything.
+
+The second of those two block numbers was written here as `21742` and corrected
+to `21729` on 15 August 2026. This is not drift. The bundle at the commit that
+added this file already carried the banner at `21729`, and `21742` was already a
+blank line inside the block, so the number was wrong when it was first written.
+It resolved without error because it landed inside the file, which is why range
+checking alone did not catch it. The scan result above is unaffected: the six
+scanned lines and their states were measured directly and are unchanged.
+
+The generated file also agrees with what it was generated from:
+
+```
+$ node scripts/build_web.cjs --check
+bundle.js is up to date.
+``` The edits replace "shipped 18 lessons and no way to write a
+nineteenth" and "Every one of the 18 built-in lessons" with wording that carries
+no count, because the library now holds 24 and a hardcoded number in a comment
+goes stale the next time a lesson lands.
+
+One piece of independent support was re-established on 15 August: the full
+`qa_ui` gate was re-run against the current bundle at 13:32:53Z and returned 66
+of 66 with `artifactHashes.bundleSha256` equal to
+`f17ce80efc318032b70aa07a187567619cbc3c4e7df7936ad986f51d27eb06b1`, which is
+the live file. So all 66 behavioural, layout and modal checks behave on the
+shipped bundle exactly as they did on the measured one. That corroborates
+behavioural equivalence only. It says nothing about frame rates, and it is not
+a substitute for re-running the renderer gate.
+
+The pattern across these four moves is worth stating once, because it is the
+thing most likely to go wrong next. `ui_eval.json` and the two
+`performance_eval*.json` files each pin the hash of the bundle their run
+actually measured. Those pins are correct and must never be hand-edited to
+match a newer bundle: doing so would turn a measurement record into a false
+one. What goes stale is prose like this section, which asserts that a pin still
+equals the live file. The repair for that is always to re-run the gate, never
+to bump the number.
+
+All three falsified method statements were re-checked against the artefact
+rather than assumed fixed. `samplesPerTier` is 3. Every P95 cell in the table,
+hardware and software alike, is the median of that tier's three per-sample
+readings: software Low frame `[35.7, 48, 50.7]` median 48, submission
+`[12.5, 9.1, 4.7]` median 9.1; software High frame `[47.5, 50.8, 54.9]` median
+50.8, submission `[34, 6.2, 13.9]` median 13.9; hardware Low frame
+`[7.4, 7.5, 8.1]` median 7.5, submission `[1.8, 1.9, 2.5]` median 1.9; hardware
+High frame `[8.5, 7.5, 7.8]` median 7.8, submission `[3.1, 2.4, 2.9]` median
+2.9. The caption's budget claim also holds in the strong form it states: all six
+hardware submission readings are under 4.17 ms and all six software readings are
+over it. The "a day apart" sentence was replaced with the two capture dates
+before this pass; see the note under that bullet.
+
+A consequence worth stating plainly rather than burying: the software figures
+moved from 18.7 and 17.1 in the `f01767e` artefact to 22.2 and 21.1 at 12:21 and
+25.7 and 24.4 at 21:21, all on the same host under CPU rasterisation. The
+21:21 run's own Low samples were 25.3, 25.7 and 32.2, a 27 percent spread across
+three consecutive samples. These are noisy floor measurements on a loaded
+machine, and the dissertation should not be read as claiming better than that.
+The prose already says so.
+
+The original finding follows unchanged.
+
+`.tex:659` and `.tex:660` print:
+
+```
+Software, Low  | 18.7 (18.5 to 20.0) | 77.2 ms | 23.7 ms | Not met
+Software, High | 17.1 (16.9 to 18.2) | 77.6 ms | 30.4 ms | Not met
+```
+
+`docs/eval/performance_eval.json` at HEAD (`generatedAt` `2026-08-14T12:21:04.837Z`, committed in `706f93d`) contains:
+
+```
+samplesPerTier: 1
+low  fps=[14.2]  p95frame=[137.6]  p95sub=[127.0]
+high fps=[12.9]  p95frame=[150.0]  p95sub=[139.7]
+```
+
+The printed figures match exactly one historical version of that file, the one committed at `f01767e` (`generatedAt` `2026-07-28T12:46:46.287Z`, `samplesPerTier: 3`):
+
+```
+low  fps=[18.5, 18.7, 20.0] median 18.7  p95frame median 77.2  p95sub median 23.7
+high fps=[16.9, 17.1, 18.2] median 17.1  p95frame median 77.6  p95sub median 30.4
+```
+
+This is provenance drift, not fabrication. Every number was really measured, and the measurement is still recoverable with `git show f01767e:docs/eval/performance_eval.json`. But three separate method statements are falsified by the artefact as shipped:
+
+- `.tex:648`: "Each run is three independent samples per tier (`--repeat=3`)". The software artefact at HEAD has one sample per tier.
+- `.tex:663` caption: "median of three samples per tier with the observed range in brackets; the P95 columns are likewise the median of the three per-sample P95 readings". There are no three readings to take a median of.
+- `.tex:648`: "the two runs were captured a day apart". Hardware is `2026-07-27T21:12`, software at HEAD is `2026-08-14T12:21`. That is 18 days. Under the `f01767e` software artefact it was about 15 hours, which is what the sentence was written against. **RESOLVED.** The sentence now names both capture dates outright, 27 July 2026 and 14 August 2026, so the reader computes the gap instead of being told a wrong one, and it states which of the two artefacts pins the current bundle.
+
+The hardware rows are clean. `.tex:657` and `.tex:658` match `docs/eval/performance_eval_hardware.json` exactly, including the per-sample spread quoted in prose at `.tex:648` ("144.5, 144.9 and 116.8 FPS"), which is the literal `all` array in that file.
+
+Fix by one of two routes. Either re-run `node scripts/qa_performance.mjs --repeat=3` with software rasterisation forced and update the four numbers and three sentences to whatever it produces, or restore the `f01767e` artefact as the committed software evidence so the file and the table agree again. Do not leave the table as it stands.
+
+---
+
+### HIGH 2. "At the final source state" is not the final source state
+
+**RESOLVED 2026-08-14 by both routes at once, and the phrase has been removed
+from the document.** The suite was re-run at HEAD on a clean tree, the artefact
+was regenerated from that run, and every anchor now names the commit instead of
+claiming finality. Detail at the end of this entry.
+
+The finding as written: `.tex:633` and `.tex:908` both anchored the headline test
+figures to "the final source state", naming `docs/eval/test_suite.json`.
+
+That artefact records `source.commit` = `02dd047a392884a12ef40f2f4113f217ac5470b1`, describe `v2.0-submission-31-g02dd047-dirty`. HEAD is `44d30e9`, two commits later. Verified by direct comparison of the two trees:
+
+- `tests/unit/test_mcp_server.py` is absent at `02dd047` and present at HEAD.
+- Test file count went from 69 at `02dd047` to 76 at HEAD.
+- `706f93d` added `src/robolearn/mcp/*`, `scripts/qa_voice.mjs` and `src/robolearn/assets/web/voice.js`.
+- `44d30e9` added `scripts/qa_encoding.mjs` plus further voice code.
+
+So the 1,489-test matrix does not include the MCP subsystem described at `.tex:566` to `.tex:569`, nor the voice layer described at `.tex:552` to `.tex:561`. The dissertation describes subsystems that its headline test count does not cover, while calling that count the final source state.
+
+The Declaration partly anticipates this at `.tex:150` ("the suite grew after tagging and its headline count therefore belongs to the final source state rather than to `v2.0-submission`"), but that sentence resolves the tag question, not the HEAD question. The count belongs to `02dd047`, which is neither the tag nor the final state.
+
+Two honest fixes: re-run the suite at HEAD and update the numbers, or change the phrase "at the final source state" to name the commit the artefact actually records. The first is preferable because the artefact already carries a `provenanceWarning` about dirty-tree runs.
+
+Command a human can run to settle it: `python -m pytest -q` from the repository root, then regenerate `docs/eval/test_suite.json` through its usual harness. This audit did not run it, because it would overwrite a committed evidence artefact.
+
+**What the release pass did.** The command the audit declined to run was run, twice over. An intermediate pass had already re-run the suite at `139a2c8` on a clean tree, giving 1,626 collected and 1,625 passed, and that artefact was committed. HEAD then moved eight commits further, changing two test files and seven source files, so the anchor overstated again by exactly the same mechanism. The suite was therefore re-run at `aa174cf`, on a clean tree, with `git status --porcelain` empty before the run:
+
+```
+1638 passed, 1 skipped in 170.54s (0:02:50)
+Required test coverage of 85% reached. Total coverage: 90.90%
+```
+
+`docs/eval/test_suite.json` was rebuilt from that run's own `junit.xml` (`tests="1639" failures="0" errors="0" skipped="1" time="170.527"`) and `coverage.json` (`totals.percent_covered` 90.90288833295429, 7062 statements, 516 missing, 1732 branches, 206 partial). No figure was transcribed by hand. There is no generator script for this artefact: `git grep -ln "test_suite.json" -- scripts tools src` returns nothing, so the schema was preserved field by field and the `note`, `measures` and `coverageFloorDisclosure` strings were carried over unchanged. The `provenanceNote` was rewritten because it described the older comparison.
+
+Both fixes were applied rather than one. The counts moved to 1,639 and 1,638 at `.tex:160`, `.tex:633`, `.tex:850` and `.tex:908`, and the phrase "at the final source state" was removed from the document entirely: those four places now say "at commit `aa174cf`" or "at the commit recorded in `docs/eval/test_suite.json`". The rendered PDF contains four instances of 1,639, three of 1,638, three of `aa174cf`, zero of 1,626, zero of 1,625 and zero of "final source state".
+
+Two further sentences were corrected in passing, because they carried the same defect in a quieter form. `.tex:150` claimed the artefact records "the test files added since the tag"; it does not, and never had such a field, so it now says it records the working-tree status, which it does. `.tex:641` said the nine offline module gates "were re-run at the final source state"; they were re-run on 14 August 2026 at `13c0997`, which is what it now says.
+
+The honest limit of this fix: naming a commit is stable, but it is not a promise that HEAD will not move again. Any later commit touching `src/` or `tests/` invalidates the count in the same way, and the only safe procedure before submission is to re-run the suite and regenerate the artefact one final time on the tree that ships. That is a mechanical repeat of what is written above.
+
+---
+
+### HIGH 3. The voice assertion count in the dissertation is stale
+
+`.tex:559`: "Forty-seven assertions hold the layer, run in Node against its pure functions with no browser present".
+
+Measured at HEAD:
+
+```
+$ node scripts/qa_voice.mjs
+PASS  voice: 86 passed, 0 failed
+EXIT=0
+```
+
+Static call-site count in `scripts/qa_voice.mjs` at HEAD is 61 (the runtime total is higher because some assertions sit inside loops). At `706f93d` the static count was exactly 47, which is where the sentence came from. Commit `44d30e9` ("add spoken and typed barge-in") grew the gate to 288 lines and did not update the prose.
+
+The companion sentence at `.tex:561` is still correct. The lesson-library section of that file (lines 131 to 179) holds exactly 14 assertion call sites, matching "Fourteen of those assertions". But "fourteen of those" now refers to a total that is wrong, so both sentences need one edit between them.
+
+Note that this is an understatement, not an inflation. The gate is stronger than the dissertation claims.
+
+---
+
+### HIGH 4. The page limit cannot be confirmed from repository evidence, and the measurement depends on which rule applies
+
+No authoritative COMP702 brief exists anywhere in the repository. Every statement of the limit is either the author's own note to a tool, or a derivation in a previous audit:
+
+- `docs/GPT_HANDOFF.md:40`: "EXACTLY 50 pages (hard limit)". This is a prompt written by the author, not a brief.
+- `docs/HANDOFF_GPT56_COMPLETE.md:17`, `docs/HANDOFF_GPT56_COMPLETE.md:60`,
+  `docs/HANDOFF_GPT56_COMPLETE.md:313`, `docs/HANDOFF_GPT56_COMPLETE.md:382`:
+  repeat "max 50 pages" and "exactly 50 pages".
+- `.kodro/autonomy/STATE.md:297`: "EXACTLY 50 pages".
+- `.kodro/autonomy/DISSERTATION_TRACEABILITY.md:46`: "the established ~50-page design (no larger target set by the ...)".
+- `docs/dissertation/DIAGNOSTIC_2026-08-14.md:58`: "The module limit is 50 pages *excluding the appendix*". No source cited.
+- `docs/dissertation/INTEGRITY_AUDIT_2026-07-17.md:15` used to state "The 50-page limit applies to the body, so the current margin is 3 pages", with no source cited. That cell was rewritten on 15 August 2026 and now withdraws the body and appendix split instead of asserting it, on the ground that the split was never re-derived at the current page count. The July audit therefore no longer states the limit at all.
+
+Five of the six line numbers in the list above were corrected on 15 August 2026,
+and one entry was rewritten because the sentence it quoted no longer exists.
+Every one of them resolved to the right line at `3fdebb4`, the commit that added
+this section, so none was wrong when written. They drifted because later commits
+inserted text higher up each file, including the dated staleness disclaimers
+added to the handoff documents on 15 August. The shifts were `GPT_HANDOFF` 34 to
+40, `HANDOFF_GPT56_COMPLETE` 303 to 309 and 372 to 378, `STATE` 162 to 276, and
+`DIAGNOSTIC_2026-08-14` 30 to 58. `HANDOFF_GPT56_COMPLETE:17` and `:60`,
+`DISSERTATION_TRACEABILITY:46` and the `.tex` citation sit above their files'
+insertion points and never moved.
+
+The citation scan reports these as found and in range, because a drifted number
+still lands on a line that exists. In range is not the same as correct: before
+this fix, `STATE.md:162` pointed at a sentence about a deployed commit hash and
+`DIAGNOSTIC_2026-08-14.md:30` pointed at a bare `>`. The scan cannot catch that,
+so any commit that inserts lines into a cited file has to re-resolve the
+citations pointing into it by content, not by exit code.
+
+None of this changes the finding. The July audit withdrawing its own statement of
+the split removes one more piece of apparent repository evidence for the limit,
+which makes the conclusion below stronger rather than weaker.
+- `.tex:113`, on the title page: "The body of this dissertation ends before the appendices, which are excluded from the fifty-page limit." This is the author asserting the rule inside the document being measured against it. It is not independent evidence.
+
+**The limit could not be confirmed from repository evidence. Only the student can confirm it from the current Canvas brief.** No public COMP702 web page was consulted and none would be authoritative here.
+
+What was measured directly, from `pdfinfo` and per-page `pdftotext` on a clean scratch rebuild:
+
+| Measure | Value |
+| --- | --- |
+| Total PDF sheets | 59 |
+| Front matter (title through contents), roman numbered | sheets 1 to 9 |
+| Arabic page 1 (Chapter 1 Introduction) | sheet 10 |
+| References heading | printed page 47, sheet 56 |
+| References end | printed page 48, sheet 57 |
+| Appendix A opens | printed page 49, sheet 58 |
+| Appendix B opens | printed page 50, sheet 59 |
+| Body only, Chapter 1 through References | 48 printed pages |
+| All arabic-numbered pages, body plus appendices | exactly 50 |
+| Whole submitted PDF | 59 pages |
+
+Three readings of the same document, and they diverge:
+
+1. Body excluding appendices: 48. Two pages of margin under 50.
+2. All arabic-numbered pages: exactly 50. Zero margin. This is what the handoff files' "EXACTLY 50 pages" describes.
+3. Every page in the file a marker opens: 59. Nine pages over.
+
+Reading 3 is the risk. A brief that says "no more than 50 pages" and is enforced by opening the PDF counts 59. Nine sheets of front matter is a large exposure to leave resting on an unverified interpretation.
+
+**Correction, 15 August 2026, to two labels in that table.** The measurements are unchanged and none of the three readings moves. The row reading "Front matter (title through contents), roman numbered | sheets 1 to 9" is two facts run together: there are nine front-matter sheets, and seven of them are roman-numbered. Sheets 1 and 2, the title page and the anonymous-copy notice, carry no page number at all, so the roman run is sheets 3 to 9, labelled ii to viii. Re-measured by reading the last non-empty line off every page of the committed PDF: `none: n=2 sheets=[1, 2]`, `roman: n=7 sheets=[3..9]`, `arabic: n=50 sheets=[10..59]`. Second, "Body only, Chapter 1 through References | 48 printed pages" is correct as labelled and was quoted elsewhere without its label, as "48 body pages excluding references and appendices", which is a different and smaller thing: excluding references the body ends at printed page 46. `docs/ca2/BRIEF_VERIFIED.md` and `docs/ca2/FINAL_CHECKLIST.md` both carried the mislabelled figure and both were corrected on 15 August.
+
+---
+
+### MEDIUM 5. The repository's own evidence transcript contains a claim that is now false
+
+**RESOLVED.** `docs/eval/qa_gate_runs_2026-08-14.md` now carries a section headed
+"The artefact-tracking gap, now closed", which states that the earlier paragraph
+was true when written and is no longer true, and pastes the `git log --oneline -1`
+output showing all three artefacts entering version control in `706f93d`. The
+paragraph was corrected in place rather than deleted, for the reason this entry
+gives: a reader the dissertation sends to that file would otherwise have been
+told the evidence was untracked when it is tracked. The treatment of
+`ui_eval_behaviour.json` was left alone, as this entry recommends.
+
+`docs/eval/qa_gate_runs_2026-08-14.md:87` to `:101`, under the heading "The artefact-tracking gap":
+
+> `git log --all -- <path>` returns no commits at all for `docs/eval/test_suite.json`, `docs/eval/ui_eval.json` and `docs/eval/vibe_eval.json`: they exist on disk and are named in the dissertation, but they have never entered version control.
+
+and
+
+> The remaining three should be tracked before submission.
+
+Measured at HEAD. All three are tracked, and all three entered version control in the same commit:
+
+```
+docs/eval/test_suite.json -> 706f93d feat: MCP server, voice layer, project interop and CA2 evidence
+docs/eval/ui_eval.json    -> 706f93d feat: MCP server, voice layer, project interop and CA2 evidence
+docs/eval/vibe_eval.json  -> 706f93d feat: MCP server, voice layer, project interop and CA2 evidence
+```
+
+`git ls-files --error-unmatch` confirms tracked status for all three. The author evidently committed them after writing that paragraph and did not go back.
+
+The net effect works against the document. The dissertation's claim at `.tex:630` that figures come from versioned artefacts under `docs/eval` is **true**. The repository's own transcript, which the dissertation directs the reader to, says it is false. A marker who follows the pointer is told the evidence is untracked when it is tracked. Update or strike that section.
+
+The same section's treatment of `ui_eval_behaviour.json` is correct and should stay: `.gitignore:76` ignores `docs/eval/ui_eval_*.json`, and four such partial files sit on disk untracked (`ui_eval_behaviour.json`, `ui_eval_layout.json`, `ui_eval_modals.json`, `ui_eval_paint.json`), exactly as described.
+
+---
+
+### MEDIUM 6. "Four artefacts postdate the tag" is an undercount
+
+**RESOLVED by the second route this entry offers, adding the missing artefacts
+rather than weakening "four" to "at least four".** `.tex:150` now reads "Seven
+artefacts postdate the tag" and names all seven: the synthetic-persona
+evaluation, the software-rasterised renderer run, the local-model generation
+run, the full Python test suite, the browser interface run, the hand-written
+gate transcript and the speech-to-text benchmark with its audio clips. That is
+the original four plus `ui_eval.json` and `qa_gate_runs_2026-08-14.md`, which
+this entry identified, plus the STT benchmark, which became quotable when
+MEDIUM 9 was closed by committing it. The list is exhaustive again, so reading
+it as exhaustive is now safe.
+
+`.tex:150` names four artefacts that postdate `v2.0-submission`: the synthetic-persona evaluation, the software-rasterised renderer run, the local-model generation run and the full Python test suite.
+
+All four check out. Tag `v2.0-submission` = `ab8cdb1`. HEAD is 33 commits ahead.
+
+| Artefact | Last commit | In tag tree |
+| --- | --- | --- |
+| `persona_eval_results.json` | `f01767e` 2026-07-28 | yes, modified after |
+| `performance_eval.json` | `706f93d` 2026-08-14 | yes, modified after |
+| `vibe_eval.json` | `706f93d` 2026-08-14 | no, added after |
+| `test_suite.json` | `706f93d` 2026-08-14 | no, added after |
+
+But two more also postdate the tag and are also quoted in the dissertation:
+
+- `docs/eval/ui_eval.json`, added in `706f93d`, quoted at `.tex:639`. It was
+  regenerated on 15 August 2026 (`generatedAt` `2026-08-15T12:32:17.058Z`) so
+  that its `artifactHashes.bundleSha256` is the SHA-256 of the bundle at the
+  commit carrying this entry rather than of the bundle two commits earlier. The
+  figures did not move: 66 of 66, `percent` 100, `verdict` PASS, groups flows
+  6/6, behaviour 41/41, layout 6/6, modals 13/13. The version in `706f93d`
+  carried `generatedAt` `2026-08-14T18:20:31.495Z` and the same totals.
+- `docs/eval/qa_gate_runs_2026-08-14.md`, last committed `44d30e9`, quoted at `.tex:641` and named at `.tex:150` itself.
+
+If "four" is read as an exhaustive list, it is wrong by at least one. Say "at least four", or add the UI artefact to the list.
+
+---
+
+### MEDIUM 7. A source comment claims a figure and table count that is wrong by a wide margin
+
+**RESOLVED.** The comment now reads "the document has 2 figures and 11 tables".
+Re-measured at HEAD: `grep -c 'begin{figure}'` returns 2, `begin{table}`
+returns 11, `begin{lstlisting}` returns 3. The justification sentence was left
+as it was, for the reason this entry gives: it still holds at two figures, and
+only the numbers were false.
+
+`.tex:175` to `.tex:177`, a LaTeX comment:
+
+```
+% Lists of figures and tables are omitted deliberately: the document has 9 figures
+% and 14 tables, all numbered and referenced by number at the point of use, so a
+% separate index would add front matter without adding navigation.
+```
+
+Measured in the same file: 2 `figure` environments, 11 `table` environments, 3 `lstlisting` environments.
+
+This comment does not render, so it cannot mislead a marker reading the PDF. It matters for two reasons. First, anyone auditing the source is told something false about the source. Second, the gap of seven figures suggests figures were removed at some point, most likely for page count, and the justification for omitting the list of figures was never revisited. The justification still holds at 2 figures, so only the numbers are wrong.
+
+---
+
+### MEDIUM 8. One bibliography entry has a citation key that contradicts its own label
+
+**FULLY RESOLVED on 2026-08-15.** The DOI now resolves and the metadata
+matches. Crossref returns, for `10.1145/3703155`:
+
+```
+A Survey on Hallucination in Large Language Models: Principles, Taxonomy,
+Challenges, and Open Questions            [Huang, Lei, 2025-1-24]
+```
+
+which is the `.tex` title exactly, under this bibliography's sentence-case house
+style, with the first author and year the entry claims. The entry is not
+fabricated and is now positively confirmed rather than merely plausible.
+
+The earlier text below said the DOI could not be resolved "because this machine
+is offline by design". That was wrong. The product is offline by design; this
+workstation is not. `WebFetch` and `WebSearch` fail here for harness reasons and
+that failure was mistaken for an absence of network. `curl` works. The same
+mistake had already been made about the two bcs.org sources.
+
+The original entry:
+
+**RESOLVED as far as an offline machine can take it.** The key is now
+`huang2025` at `.tex:964`, and both call sites, `.tex:284` and `.tex:886`, cite
+`huang2025`. The compile reports zero undefined citations, so the rename is
+consistent across the document. What is *not* resolved is the underlying
+question this entry raised: the DOI `10.1145/3703155` has still never been
+resolved, because this machine is offline by design. It is labelled here as
+unverified rather than quietly treated as checked, and it stays in the author
+actions list below.
+
+`.tex:964`:
+
+```
+\bibitem[Huang et al.(2025)]{huang2023} Huang, L., Yu, W., Ma, W. et al. (2025) A survey on hallucination in large language models ... ACM Transactions on Information Systems, 43(2), Article 42, pp. 1 to 55.
+```
+
+The key is `huang2023`, the label and the in-text year are both 2025. This renders correctly, because natbib uses the bracketed label, not the key. It is a cosmetic inconsistency visible only in source. It is flagged here because in an audit of reference integrity a year mismatch is exactly the shape of a fabricated citation, and this one is not fabricated. ACM TOIS 43(2) Article 42 is a plausible and specific venue reference for that survey. **Not verified against the live DOI**, because this audit ran offline. See the author actions section.
+
+---
+
+### MEDIUM 9. Three untracked evidence-shaped files sit in the working tree
+
+**RESOLVED by the commit route, not the delete route.** All thirteen files are
+now tracked: `scripts/bench_stt.py`, `docs/eval/stt_bench.json`,
+`docs/eval/stt_bench.md` and the ten clips under `docs/eval/stt_clips/`. The
+benchmark is now explained rather than orphaned: `.tex:150` names it among the
+seven artefacts that postdate the tag, and `docs/ca2/CLAIM_LEDGER.md` carries a
+row per figure it produces. `git status --porcelain docs/eval scripts` reports
+no untracked files at HEAD. The clips are five command phrases rendered by two
+Windows voices, `Microsoft David Desktop` and `Microsoft Zira Desktop`, through
+`System.Speech.Synthesis.SpeechSynthesizer` in `scripts/bench_stt.py`. Nobody
+was recorded, so committing them raises no participant-data question.
+
+One consequence of that has to travel with the numbers wherever they are
+quoted. A word error rate measured on synthesised speech is a floor on error
+and a ceiling on audio quality: no microphone noise, no accent variation, no
+room, no hesitation. `scripts/bench_stt.py` says this in its own header
+comment. The claim ledger did not, and now does.
+
+```
+?? docs/eval/stt_bench.json
+?? docs/eval/stt_clips/
+?? scripts/bench_stt.py
+```
+
+None of these is referenced anywhere in the `.tex`. Grep for `stt_bench`, `stt`, `speech-to-text`, `word error` and `WER` returns only `.tex:553`, which is prose about the voice route being removed and rebuilt and quotes no figure. So there is no unsupported claim here.
+
+They are flagged because they are a speech-to-text benchmark and its audio clips, sitting untracked in the evidence directory. Either commit them or remove them before the repository is submitted, so that nobody inspecting `docs/eval` finds a benchmark that the dissertation neither uses nor explains.
+
+---
+
+### MEDIUM 10. Two overfull boxes and one oversized float survive in the final build
+
+**RESOLVED, and not by anything aimed at it.** Three separate two-pass compiles
+on 2026-08-14, after the privacy paragraph, the reflection sentence and the
+renderer table were rewritten, each report `Overfull: 0`, `Float too large: 0`,
+`Undefined: 0`, `LaTeX Warning: Citation: 0` and `LaTeX Warning: Reference: 0`,
+at 59 pages. Both overfull boxes were in paragraphs this pass rewrote, `.tex:160`
+and `.tex:869`, so the reflow that removed them was a side effect of correcting
+the numbers rather than a typographic fix. Recorded as such, since a fix nobody
+aimed at can regress the moment either paragraph is edited again. Re-check the
+compile log for `Overfull` before the final PDF is submitted rather than trusting
+this entry.
+
+The original finding follows unchanged.
+
+From a clean three-pass scratch build, all three passes exit 0:
+
+```
+Overfull \hbox (41.00305pt too wide) in paragraph at lines 160--161     [log:585]
+Overfull \hbox (28.24223pt too wide) in paragraph at lines 795 context   [log:795, .tex lines 869--870]
+LaTeX Warning: Float too large for page by 53.00719pt on input line 345. [log:666]
+```
+
+Counts: 2 overfull hbox, 17 underfull hbox, 0 overfull vbox, 0 underfull vbox, 6 instances of "`h` float specifier changed to `ht`".
+
+41pt is roughly 14mm of text past the right margin. `.tex:160` is the abstract, the first body page a marker reads. `.tex:869` is in the limitations chapter. Underfull boxes are cosmetic and not worth acting on. The two overfull ones are visible.
+
+---
+
+### LOW 11. The Trinket shutdown claim is a load-bearing external fact that cannot be checked offline
+
+**RESOLVED on 2026-08-15.** The page was fetched and read. `.tex:296` makes
+four factual claims and the announcement supports all four:
+
+| claim at `.tex:296` | page text at `https://trinket.io/announcement` |
+|---|---|
+| "will shut down on 31 August 2026" | "Trinket will be shutting down on August 31, 2026." |
+| "publishing the source does not preserve the service" | "We have released the Trinket software as open source. We want to be clear about what this means: The trinket.io website will shut down. Open source does not mean the site stays online." |
+| "every pupil loses saved work not exported before the deadline" | "Please download anything you want to keep before the shutdown." |
+| "That date falls eleven days before this dissertation is due" | arithmetic against 11 September, not a source claim, and correct |
+
+The page heading is "Update about the future of Trinket". The `trinket2026`
+entry titles it "Trinket shutdown announcement", which describes rather than
+quotes the page. That is a defensible reference title for an untitled
+announcement and was left as written. The recorded access date of 27 July 2026
+is when the author read it and was also left as written; the check on 15 August
+2026 found the same announcement still posted.
+
+The title of this finding is itself now falsified: the fact *could* be checked,
+it just had not been. Full detail in
+`.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`.
+
+The original entry:
+
+`.tex:296`: Trinket "announced that it will shut down on 31 August 2026 `\citep{trinket2026}`".
+
+This underpins part of the motivation for an offline-first tool. It is a claim about the outside world with a dated deadline eighteen days after this audit. It cannot be verified from repository evidence and was not verified online. Marked UNVERIFIED. See author actions.
+
+---
+
+### LOW 12. One reflection figure is a session observation with no artefact
+
+**RESOLVED 2026-08-14, and this entry was partly wrong when written.**
+
+`.tex:915`: "Timing one flow end to end instead settled it, at 2 minutes 56 seconds against a 60 second ceiling, with a valid screenshot at the end of it".
+
+The original finding said no artefact records the timing. That is not correct. `scripts/qa_ui.mjs:98-105` records it in the gate itself, contemporaneously with the fix it justifies:
+
+```js
+// The ceiling is platform-aware because the two platforms are not close. On the
+// Linux CI runner a flow finishes in a few seconds. On a loaded Windows laptop
+// the same flow was measured at 2m56s end-to-end -- Defender scans every file
+// of the fresh profile as Chrome writes it, and SwiftShader JITs on a box with
+// ~1.5GB free. A 60s ceiling there does not report a broken product, it reports
+// a busy machine
+```
+
+and the ceiling that observation produced is at `qa_ui.mjs:109`, `process.platform === 'win32' ? 300_000 : 60_000`. So the 60 second figure is a literal in the shipped source and the 2m56s figure is a dated engineering record, not an unsupported number.
+
+What was fair in the finding is that the sentence read like a controlled measurement. `.tex:915` now says the observation is recorded in the gate source rather than in a separate evaluation artefact, and that it was a debugging measurement rather than an experiment.
+
+Corroborated independently on 2026-08-14: `node scripts/qa_ui.mjs --suite=behaviour` on this Windows laptop took 325 seconds wall clock for nine flows and passed 41 of 41 asserts, exit 0. That does not reproduce the 2m56s figure, which was a single flow on a different day, but it confirms the magnitude the reflection turns on, which is that a 60 second per-flow ceiling on this platform measures the host and not the product.
+
+---
+
+### LOW 13. The `bcscode` placeholder renders in the PDF
+
+`.tex:952`:
+
+```
+\bibitem[BCS(2022)]{bcscode} BCS, The Chartered Institute for IT (2022) ... \textbf{[VERIFY VERSION, URL AND ACCESS DATE BEFORE SUBMISSION]}
+```
+
+**RESOLVED on 2026-08-15.** The placeholder is gone and both BCS citations are real. What follows is the entry as written on 14 August; the reasoning it gives was sound at the time and its conclusion was overturned by a tool that had not been tried.
+
+The blocker was stated as "`WebFetch` and `WebSearch` both fail", which is still true, and from that it was inferred that bcs.org could not be reached at all. That inference was wrong. `curl` through the Bash tool has full network access. Both sources were fetched on 15 August: the accreditation PDF returns 200 and its cover reads `Guidelines on course accreditation ... January 2020` with abilities 2.1.1 to 2.1.9 enumerated on page 31, so `bcs2020` and the nine-row `tab:bcsmap` were ported; the Code of Conduct page returns 200 and carries all four principles verbatim, but states **no version and no date anywhere**, so `bcscode` is now `BCS (no date)` with a real access date rather than the `(2022)` it asserted. Full output in `.kodro/ca2-evidence/2026-08-15-bcs-citations-and-aux-shadowing.md`.
+
+The original entry:
+
+Confirmed present and confirmed rendering in the PDF as bold text inside the References. This is deliberate and only the author may close it. It is recorded here as an open author action, not as a defect, and it was not removed.
+
+Re-examined on 14 August against PR 3, which cites a **different** BCS document. PR 3 has no `bcscode`. It has `bcs2020`, the course accreditation guidelines PDF, with a date its own reference audit describes as corrected from 2022 to January 2020 and an access date of 13 August 2026. That entry was not adopted here. `WebFetch` and `WebSearch` both fail in this session with `There's an issue with the selected model (auto/best-free)`, so neither the accreditation PDF nor the Code of Conduct page could be opened, and importing a citation with a concrete access date that nobody in this session verified would make it look checked when it is not.
+
+The two are not alternatives. The Code of Conduct supports the professional-duty sentence at `.tex:899`; the accreditation guidelines support a nine-row BCS traceability table that PR 3 has and this document does not. That table, and the conditions under which it can be brought across, are written up in `.kodro/autonomy/CA2_RECONCILIATION.md` section 10.4. Closing this placeholder and deciding the table are one trip to bcs.org, not two.
+
+---
+
+### LOW 14. The document's own descriptions of its two weakest evidence sources are correct, and should be kept
+
+Recorded as a finding so that nobody removes them during tidy-up:
+
+- `.tex:686` caption, on the persona review means: "the per-persona responses behind these means were not retained as a machine-readable artefact, so unlike every other table in this chapter these rows cannot be re-derived from the repository". Verified. No such artefact exists.
+- `.tex:754`, on the adversarial panel round tallies: "kept in session notes rather than emitted by a harness". Verified. No such artefact exists.
+- `.tex:643`, on a manual returning-user pass: "that pass was a session observation and left no artefact, so its individual readings are not quoted as evidence here". Verified. No readings are quoted.
+- `.tex:630` names both gaps again in one place.
+
+These are the strongest integrity signals in the document. They are unforced disclosures of the exact weaknesses an auditor would otherwise have to find.
+
+---
+
+## Numerical claim traceability
+
+Every numerical claim found in the `.tex`, with its evidence and a verdict. "Measured now" means measured or read directly during this audit.
+
+### Test and coverage figures
+
+| Claim | .tex line | Evidence source | Measured now | Verdict |
+| --- | --- | --- | --- | --- |
+| 1,639 tests collected | 160, 633, 908 | `docs/eval/test_suite.json` `tests.collected` | 1639, from the run's own JUnit `tests` attribute | MATCH, was **DRIFT** at 1,489 then at 1,626 |
+| 1,638 passed | 160, 633, 908 | same, `tests.passed` | 1638 = 1639 collected minus 1 skipped, 0 failures, 0 errors | MATCH, was **DRIFT** |
+| 1 skip, host Tk | 160, 633, 908 | same, `skipDetail` | 1, `tests.unit.test_ai_studio::test_studio_available_when_server_up`, "Tk unavailable: Can't find a usable init.tcl" | MATCH |
+| 90.90 percent branch-aware coverage | 160, 633 | same, `coverage.percentCovered` | 90.90288833295429 from `coverage.json` `totals.percent_covered` | MATCH |
+| 85 percent gate | 160, 526, 633 | same, `coverage.gate` | 85, and the run printed "Required test coverage of 85% reached" | MATCH |
+| The artefact's commit is the one the text names | 150, 160, 633, 850, 908 | `source.commit` vs the `.tex` | both `aa174cf`, working tree clean before the run | MATCH, was **DRIFT**. See HIGH 2 |
+| 180 of 180 interpreter checks | 160, 908 | `qa_gate_runs_2026-08-14.md:45` | transcript records `== RESULT: 180 passed, 0 failed ==` | MATCH against transcript. UNVERIFIABLE-WITHOUT-RERUN independently: `node scripts/qa_interpreter.mjs` |
+
+### Prove contract figures
+
+| Claim | .tex line | Evidence source | Measured now | Verdict |
+| --- | --- | --- | --- | --- |
+| 4 contracts | 160, 637, 908 | `docs/eval/prove_report.md`, `prove_baseline.json` `contracts` | 4 | MATCH |
+| 20 seeded runs | 160, 637, 908 | `prove_report.md`, 4 contracts at 5/5 | 20 | MATCH |
+| All pass, byte-identical replay | 637 | `prove_report.md`, `verdict: pass` | pass | MATCH |
+| Seed root 4046 | 637 context | `prove_baseline.json` `seed_root` | 4046 | MATCH |
+| Broken controller fails all four | 637, 908 | `prove_report.md` | stated in artefact | MATCH against artefact. UNVERIFIABLE-WITHOUT-RERUN: `python -m robolearn.prove --broken` per the report |
+
+### Web and browser figures
+
+| Claim | .tex line | Evidence source | Measured now | Verdict |
+| --- | --- | --- | --- | --- |
+| 5 boot and privacy checks | 160, 639 | `qa_gate_runs:46` `== QA_WEB: 5/5 checks passed ==` | 5 | MATCH |
+| 61 contrast and responsive checks over 10 themes | 160, 639 | `qa_gate_runs:47` | 61 | MATCH |
+| 6 rendered flows | 160, 639 | `ui_eval.json` group `flows` | 6/6 | MATCH |
+| 41 behaviours | 160, 639 | `ui_eval.json` group `behaviour` | 41/41 | MATCH |
+| 6 layouts | 160, 639 | `ui_eval.json` group `layout` | 6/6 | MATCH |
+| 13 modal surfaces | 160, 639 | `ui_eval.json` group `modals` | 13/13 | MATCH |
+| Implied UI total 66 | 639 arithmetic | `ui_eval.json` `passed`/`total` | 66/66, `percent` 100, `verdict` PASS | MATCH |
+| World sweep 61 checks | 160, 639 | `qa_gate_runs:48`, run twice | 61 | MATCH. Load-sensitive, disclosed in the transcript |
+
+### The nine offline gates
+
+Source for all: `docs/eval/qa_gate_runs_2026-08-14.md`, first table, which declares itself a hand-written transcript. Each was checked line by line against `.tex:641`.
+
+| Gate | .tex 641 | Transcript | Verdict |
+| --- | --- | --- | --- |
+| physics | 25 | `== RESULT: 25 passed, 0 failed ==` | MATCH |
+| interpreter regression | 13 | `13 passed, 0 failed` | MATCH |
+| parts | 40 | `40 passed, 0 failed` | MATCH |
+| memory graph | 22 | `22 passed, 0 failed` | MATCH |
+| project opening | 16 | `16 passed` | MATCH |
+| quality tier | 46 | `46 passed` | MATCH |
+| browser model facade | 51 | `51 passed, 0 failed` | MATCH |
+| honesty | 121 | `121 passed, 0 failed` | MATCH |
+| grammar constraint, offline half | 4 | `4 passed, 0 failed`, live half SKIP | MATCH, and the skip is disclosed in both places |
+
+Every one of these is UNVERIFIABLE-WITHOUT-RERUN independently of the transcript. The commands are in the transcript's first column, each of the form `node scripts/<name>.mjs`. This audit did not re-run them; the transcript is the evidence and it names itself as such.
+
+### The ten classroom gates
+
+| Gate | .tex 798 to 821 | Transcript | Verdict |
+| --- | --- | --- | --- |
+| `qa_grader` | 55 | 55 | MATCH |
+| `qa_lesson_studio` | 79 | 79 | MATCH |
+| `qa_construct_liveness` | 30 | 30 | MATCH |
+| `qa_markbook` | 16 | 16 | MATCH |
+| `qa_pupilstore` | 23 | 23 | MATCH |
+| `qa_pupil_errors` | 42 | 42 | MATCH |
+| `qa_parsons` | 13 | 13 | MATCH |
+| `qa_learning_annotations` | 28 | 28 | MATCH |
+| `qa_scenario_parity` | 8 | 8 | MATCH |
+| `qa_fuzz` | 9 | 9 | MATCH |
+| **Total 303** | 160, 821 | `55 + 79 + 30 + 16 + 23 + 42 + 13 + 28 + 8 + 9 = 303` | MATCH, arithmetic re-checked independently |
+
+### Renderer figures
+
+| Claim | .tex line | Evidence source | Measured now | Verdict |
+| --- | --- | --- | --- | --- |
+| 4.17 ms budget for 240 Hz | 160, 648, 657 to 660 | both performance artefacts, `target240HzFrameMs` | 4.17 | MATCH |
+| Hardware Low 144.5 (116.8 to 144.9) | 160, 657 | `performance_eval_hardware.json` | median 144.5, all `[116.8, 144.5, 144.9]` | MATCH |
+| Hardware Low P95 frame 7.5 ms, submission 1.9 ms | 657 | same | medians 7.5 and 1.9 | MATCH |
+| Hardware High 128.2 (127.0 to 143.3) | 160, 658 | same | median 128.2, all `[127.0, 128.2, 143.3]` | MATCH |
+| Hardware High P95 frame 7.8 ms, submission 2.9 ms | 658 | same | medians 7.8 and 2.9 | MATCH |
+| Hardware meets budget in all six samples | 648, 663 | same | `highRefreshSubmissionReady` true in all 6 | MATCH |
+| Software Low 25.7 (25.3 to 32.2) | 160, 659 | `performance_eval.json`, re-run 21:21 | median 25.7, all `[25.3, 25.7, 32.2]` | MATCH, was **DRIFT** at 18.7 |
+| Software Low P95 frame 48.0 ms, submission 9.1 ms | 659 | same | medians of `[35.7, 48, 50.7]` and `[12.5, 9.1, 4.7]` | MATCH, was **DRIFT** |
+| Software High 24.4 (23.3 to 25.0) | 160, 660 | same | median 24.4, all `[23.3, 24.4, 25.0]` | MATCH, was **DRIFT** at 17.1 |
+| Software High P95 frame 50.8 ms, submission 13.9 ms | 660 | same | medians of `[47.5, 50.8, 54.9]` and `[34, 6.2, 13.9]` | MATCH, was **DRIFT** |
+| "three independent samples per tier" | 648, 663 | same | `samplesPerTier: 3` for both artefacts | MATCH, was **DRIFT** at 1 |
+| Software misses budget in all six samples | 648, 663 | same | all 6 submission readings above 4.17 ms | MATCH |
+| "the two runs were captured a day apart" | 648 | both artefacts `generatedAt` | sentence replaced by the two dates, 27 July and 14 August 2026 | RESOLVED, was **DRIFT** |
+| Same harness hash, different bundle hashes | 648 | both artefacts `artifactHashes` | harness `50681bdc...` in both; bundles `23201a39...` and `17c8d985...` | MATCH |
+| Software artefact pins the bundle the text describes | 648 | artefact vs `src/robolearn/assets/web/bundle.js` | both `17c8d98582b431807fb4971b6a43743f0f3d48040380e72aea4b40035b48c174` | MATCH |
+
+The drift was closed by running `node scripts/qa_performance.mjs --gl=software --repeat=3`, twice: once to restore three samples per tier, then again after `3c2a851` regenerated the bundle, so the committed artefact pinned the bundle this dissertation described at that point. It no longer does: the bundle moved twice more, at `cacf51e` and `dd02cd8`, both times inside comments only, and the `.tex` sentence was corrected on 15 August to say that neither artefact pins the final bundle rather than that the software one does. See the two addenda under CRITICAL 1. The audit itself did not run it, because it overwrites a committed evidence artefact; the release pass did, and updated the four numbers and the method sentences to what it produced. See CRITICAL 1 for the resolution and for the honest reading of how noisy these floor figures are.
+
+### Local model figures
+
+| Claim | .tex line | Evidence source | Measured now | Verdict |
+| --- | --- | --- | --- | --- |
+| Live Ollama 8 of 8 prompts | 160 | `docs/eval/vibe_eval.json` `passed`/`total` | 8/8, `percent` 100 | MATCH |
+| 60 percent floor | 160 | `scripts/qa_vibe.mjs:130` to `:131` | `if (pass < Math.ceil(PROMPTS.length * 0.6)) process.exit(1)` | MATCH |
+| Model `kodro-coder` | context | `vibe_eval.json` `model.name` | `kodro-coder:latest`, digest `60d11d6b...` | MATCH |
+| Synthetic-persona artefact completes 40 cells | 160, 697 to 730 | `persona_eval_results.json` `cellCount` | 40, and `cells` array length 40 | MATCH |
+| Funnel 40/40 compiled, ran, safe, task-complete | 697 to 730 | same, `funnel` | `{compiled: 40, ran: 40, safe: 40, taskComplete: 40}` | MATCH |
+| Per-group 10/10 four times | 697 to 730 | same, `byPersona` | 8 personas at 5/5 each | MATCH in total (40), see note |
+| Per-task 8/8 five times | 697 to 730 | same, `byTask` | 5 tasks at 8/8 each | MATCH |
+| Mean turns 1.0 | 697 to 730 | same, `meanTurnsToSuccess` | 1, and every cell's `turns` is 1 | MATCH |
+| Base seed 4046, temperature zero, up to three correction turns | 697 to 730 | same | `baseSeed` 4046, `maxTurns` 3 | MATCH |
+| Model `qwen2.5-coder:3b` | 697 to 730 | same, `model` | `qwen2.5-coder:3b`, 3.1B, Q4_K_M | MATCH |
+
+Note on the per-group row: the artefact groups by 8 named personas at 5 tasks each, not by 4 groups of 10. If `.tex` presents four rows of 10/10, that is a re-grouping of the same 40 cells rather than a different measurement. The totals reconcile exactly. Worth one glance by the author to confirm the grouping labels match the artefact's persona names.
+
+Neither of these two artefacts was regenerated. Both are pinned and were read only, per instruction.
+
+### KodroBench figures
+
+Source: `results/kodrobench-leaderboard.md` and `results/kodrobench-v0.1.json`, both named in the `.tex` caption.
+
+| Model | .tex 769 to 786 | Leaderboard | Verdict |
+| --- | --- | --- | --- |
+| Deterministic floor | 0.22 / 0.00 / 0.00 / 1.24 | 0.22 / 0.00 / 0.00 / 1.24 | MATCH |
+| `gemma3:4b` | 0.24 / 0.00 / 0.20 / 0.56 | 0.24 / 0.00 / 0.20 / 0.56 | MATCH |
+| `gemma3:1b` | 0.02 / 0.00 / 0.20 / 0.18 | 0.02 / 0.00 / 0.20 / 0.18 | MATCH |
+| `llama3.2:3b` | 0.00 / 0.00 / 0.00 / 1.44 | 0.00 / 0.00 / 0.00 / 1.44 | MATCH |
+| `kodro-fast` | 0.00 / 0.60 / 0.40 / 0.00 | 0.00 / 0.60 / 0.40 / 0.00 | MATCH |
+| `kodro-coder` | 0.00 / 1.00 / 0.00 / 0.00 | 0.00 / 1.00 / 0.00 / 0.00 | MATCH |
+| `llama3.2:3b` `gen_errors: 1` disclosed | caption | leaderboard `gen_err` column, 1 | MATCH |
+
+All six rows match on all four quoted columns. This is the cleanest table in the document.
+
+### Persona review and adversarial panel
+
+| Claim | .tex line | Evidence source | Measured now | Verdict |
+| --- | --- | --- | --- | --- |
+| Round means 5.86, 6.50, 7.10, 7.36, 6.40 over 50, 12, 50, 50, 8 personas | 672 to 688 | none. The caption says so itself | no artefact exists | **UNVERIFIABLE, and the document says so** |
+| 194 simulated personas across 7 rounds | 752 | `.tex:736` to `:758` round table | 30+28+30+30+30+30+16 = 194 | Internally consistent. No artefact |
+| 85 confirmed defects | 752 | same | 4+13+16+23+15+8+6 = 85 | Internally consistent. No artefact |
+| 75 fixed, 8 deferred, 2 reclassified | 752 | same | 33+20+8+8+6 = 75; 2+6 = 8; 1+1 = 2; 75+8+2 = 85 | Internally consistent. No artefact |
+
+The panel arithmetic is fully self-consistent across all three dimensions, which is worth stating because it is the kind of table where invented numbers usually fail to add up. But it rests on session notes only, and `.tex:630` and `.tex:754` both say so. These figures cannot be re-derived by any command. That is a disclosed limitation, not a defect.
+
+### Product and content counts
+
+| Claim | .tex line | Evidence source | Measured now | Verdict |
+| --- | --- | --- | --- | --- |
+| 24 lessons | 160, 309 | `src/robolearn/assets/web/lessons.json` | list of length 24 | MATCH |
+| KS split 3 / 4 / 9 / 8 | 309 | same file, `keyStage` field | 3+4+9+8 = 24, consistent with total | MATCH on arithmetic |
+| Every lesson scores 100/100 through both markers | 160 | `qa_gate_runs`, `qa_grader` 55 and `qa_lesson_studio` 79 | gates present and reproduce | UNVERIFIABLE-WITHOUT-RERUN: `node scripts/qa_grader.mjs` and `node scripts/qa_lesson_studio.mjs` |
+| 17 named mission sites | 261, 454 | the enumeration at `.tex:454` | 17 names counted | MATCH, internally consistent |
+| 14 closed forms plus sensor-pose transform | 441 | `src/robolearn/engine/motion_model.py` | 14 functions matching `^def phys_`, plus `sensor_pose` at line 287 | MATCH |
+| Mirrored in the JS model | 441 | `src/robolearn/assets/web/motion-model.js` | `sensorPose` at line 230, exported at 268 | MATCH |
+| `arenaHalfExtentCm` = 1500 | 869 | both motion models | `motion_model.py:27` = 1500, `motion-model.js:33` = 1500 | MATCH |
+| MCP offers 8 tools | 567 | `src/robolearn/mcp/tools.py` `TOOLS` | 8: `list_lessons`, `get_lesson`, `run_program`, `grade_program`, `check_api`, `validate_robot_spec`, `prove_contracts`, `pupil_progress` | MATCH |
+| 25 readable resources | 567 | same, `list_resources()` | 25, being `kodro://api/reference` plus one per lesson | MATCH, and 1 + 24 lessons = 25 reconciles |
+| 108 voice assertions | 559 | `scripts/qa_voice.mjs` | gate prints `PASS voice: 108 passed, 0 failed`; the sentence now reads "One hundred and eight assertions" | MATCH, was **DRIFT** at 47. See HIGH 3 |
+| 14 of those cover the lesson library | 561 | same, lines 131 to 179 | 14 call sites | MATCH |
+| Physical golden-trace tolerance 1e-12 relative or 1e-9 absolute | 503 | not re-measured | not checked | UNVERIFIABLE-WITHOUT-RERUN: the golden-trace parity gate named in Chapter 5 |
+| F1 to F16 requirement counts | 316 to 345 | the tables themselves | internally consistent | MATCH |
+
+### Study and ethics figures
+
+| Claim | .tex line | Evidence source | Measured now | Verdict |
+| --- | --- | --- | --- | --- |
+| Protocol versioned under `docs/study`, marked `ETHICS_PENDING` | 168, 844 | `docs/study/` | 10 files present: README, protocol, consent form, information sheet, task script, measures, ethics draft, analysis script, 2 CSV templates | MATCH |
+| Templates contain no participant rows | 844 | the two CSVs | `data_collection_template.csv` 1 line, header only. `participant_log_template.csv` 1 line, header only | MATCH |
+| 12 participants target, 10 to 15 accepted | 842 | `docs/study/study_protocol.md` | figures appear in the `.tex`; protocol pack present | MATCH on presence. Not cross-read line by line |
+| 6 condition sequences by 3 mission rotations, 3 missions | 842 | same | as above | MATCH on presence |
+| Data category A0, participant category 2 | 164, 892 | department classification | no repository evidence exists for the classification scheme | UNVERIFIABLE from the repository. Author confirms against department guidance |
+
+### Document self-measurements
+
+| Claim | .tex line | Evidence source | Measured now | Verdict |
+| --- | --- | --- | --- | --- |
+| Body ends before the appendices | 113 | the PDF | body ends printed 48, Appendix A opens printed 49 | MATCH |
+| Appendices excluded from the fifty-page limit | 113 | none in the repository | no authoritative brief exists | **UNVERIFIABLE.** See HIGH 4 |
+| Document has 9 figures and 14 tables | 175 to 177, comment only | the `.tex` itself | 2 figures, 11 tables, 3 listings | **DRIFT.** See MEDIUM 7 |
+| Zero em dashes and zero en dashes | `docs/GPT_HANDOFF.md:34` constraint | the `.tex` | 0 of each. The only `--` sequences are at lines 630 and 648 inside `\texttt{--suite=}` and `\texttt{--repeat=3}`, where the ligature is suppressed | **PASS** |
+| 2 minutes 56 seconds against a 60 second ceiling | 915 | `scripts/qa_ui.mjs:98-105` records the timing, `:109` carries the 60000 ms ceiling | the ceiling is a literal in the shipped source; the timing is a dated record in the gate comment, corroborated in magnitude by a 325 s nine-flow suite run on 2026-08-14 | **SOURCED.** See LOW 12, which was wrong as first written |
+| Trinket shuts down 31 August 2026 | 296 | external, `\citep{trinket2026}` | offline, not checked | UNVERIFIED. See LOW 11 |
+
+---
+
+## Compile health
+
+Compiled three times with `pdflatex` from a clean scratch directory, using copies of the `.tex` and `img/*.png`. The repository PDF and its auxiliary files were never written to.
+
+```
+pass 1: Output written on Kodro_Dissertation.pdf (57 pages, 1025773 bytes).
+pass 2: Output written on Kodro_Dissertation.pdf (59 pages, 1105463 bytes).
+pass 3: Output written on Kodro_Dissertation.pdf (59 pages, 1105463 bytes).
+```
+
+All three passes exited 0. Pass 1 at 57 pages is normal: cross-references were unresolved. Passes 2 and 3 converged, which confirms the "run pdflatex twice" instruction in `docs/GPT_HANDOFF.md:34` is sufficient.
+
+Engine: MiKTeX-pdfTeX 4.23, pdfTeX 1.40.28. No external `.bib`, so no bibtex or biber pass is needed; the bibliography is an inline `thebibliography` at `.tex:945`.
+
+| Check | Result |
+| --- | --- |
+| Exit status, all passes | 0 |
+| Final page count | 59 |
+| Undefined citations | 0 |
+| Undefined references | 0 |
+| Missing files or images | 0 |
+| LaTeX errors | 0 |
+| Overfull `\hbox` | 2 |
+| Underfull `\hbox` | 17 |
+| Overfull `\vbox` | 0 |
+| Underfull `\vbox` | 0 |
+| "Float too large for page" | 1, at input line 345, by 53.00719pt |
+| "`h` float specifier changed to `ht`" | 6 |
+
+Re-measured after the three text corrections of 2026-08-14, two passes, both exit
+0: 59 pages, 0 overfull `\hbox`, 0 "Float too large", 0 undefined citations or
+references. The two overfull boxes sat in paragraphs those corrections rewrote.
+See MEDIUM 10.
+
+---
+
+## Canonical source and build currency
+
+Canonical source: `docs/dissertation/Kodro_Dissertation.tex`, 1066 lines, 189591 bytes. It has no `\input` or `\include`. Its only external inputs are `img/*.png`.
+
+Canonical output: `docs/dissertation/Kodro_Dissertation.pdf`, 1105463 bytes, 59 pages, A4, producer MiKTeX pdfTeX-1.40.28, CreationDate Fri Aug 14 19:28:18 2026.
+
+Both are committed at HEAD in `706f93d`. The `.tex` mtime is 19:21:13 and the PDF mtime is 19:28:20, so the PDF was built after the source was last edited.
+
+**The shipped PDF matches the shipped source.** Three independent proofs:
+
+1. The scratch rebuild converged at 59 pages and 1105463 bytes, byte-identical in size to the committed PDF.
+2. `pdftotext` on both files produced identical text layers. Diff returned nothing.
+3. Both `.toc` files are 96 lines and identical.
+
+No other `.tex` or dissertation PDF competes for canonical status in `docs/dissertation/`.
+
+**Every figure in this section is superseded, 2026-08-15.** The section is kept
+because the reasoning holds and the three proofs are the right three; only the
+numbers moved. The heading says "build currency", which is precisely the kind of
+claim that expires, so leaving it unmarked would be the defect this whole audit
+is about. What changed, and what was re-measured rather than re-asserted:
+
+| Figure | This section says | Measured 2026-08-15 |
+|---|---|---|
+| `.tex` size | 1066 lines, 189591 bytes | 1092 lines, 193364 bytes |
+| PDF size | 1105463 bytes | 1115334 bytes |
+| PDF sheets | 59 | 59, unchanged |
+| Commit | `706f93d` | `dd02cd8` plus the uncommitted pass-18 edits |
+
+The 189591 figure was taken from the file on disk when it still carried CRLF
+endings; `.gitattributes` normalises to LF and the working copy is LF now, which
+accounts for exactly 1066 of that difference. The rest is real editing since 14
+August.
+
+The equality claim was re-established, not carried over. Compiled twice from an
+empty scratch directory, then twice into `_build`, then synced to the source
+directory:
+
+```
+scratch rebuild   1115334 bytes   sha256 c4f042f8...
+Kodro_Dissertation.pdf         1115334 bytes   sha256 1d717df82e80f2bc...
+_build/Kodro_Dissertation.pdf  1115334 bytes   sha256 1d717df82e80f2bc...
+```
+
+Note what the first row does and does not say. The scratch rebuild matches in
+size but not in hash, because a PDF embeds a creation timestamp and a document
+ID that differ on every run. The original claim above was worded "byte-identical
+in size" for that reason, and the wording is worth preserving. The two shipped
+copies are byte-identical to each other, which is the claim that matters.
+
+Proof two and proof three still hold on the new files. `pdftotext` on the
+committed PDF and on the scratch rebuild produced identical 192356-byte text
+layers, `cmp` returned nothing. Both `.toc` files are 96 lines and `cmp`
+reports them identical.
+
+Compile health at this build: both passes exit 0, zero overfull boxes, zero
+undefined citations, zero undefined references, and seven LaTeX warnings all of
+which are `` `h' float specifier changed to `ht' ``. The page structure is
+unchanged: 59 sheets, 7 roman-numbered, exactly 50 arabic-numbered, and 2
+unnumbered front sheets. References begins on arabic page 47.
+
+The reason the document moved at all is recorded under CRITICAL 1: the sentence
+at `.tex:648` asserted that the software performance artefact carries the
+SHA-256 of the bundle this dissertation describes. That was true when it was
+written and stopped being true when the bundle was rebuilt at `cacf51e` and
+again at `dd02cd8`. Correcting a false claim in the assessed document is worth a
+recompile; the recompile is what put every number in this section out of date,
+which is the whole pattern in one move.
+
+---
+
+## Citations and references
+
+Audited with a regex pass over `\cite`, `\citep`, `\citet`, `\citealp`, `\citeyear` and `\citeauthor` against `\bibitem`.
+
+```
+distinct cite keys used:        25
+total cite command occurrences: 41
+bibitem entries defined:        25
+duplicate bibitem keys:         {}
+ORPHAN cite keys (cited, no bibitem):   0
+UNUSED bibitem entries (defined, never cited): 0
+```
+
+Clean. Every key resolves, every entry is reachable, nothing is defined twice. The compile log independently confirms 0 undefined citations.
+
+No reference in the list has the signature of a fabricated one. Entries name real venues with specific volume, issue, article and page detail. Two are flagged for author attention rather than as defects:
+
+- `bcscode` at `.tex:952` carries the deliberate `[VERIFY VERSION, URL AND ACCESS DATE BEFORE SUBMISSION]` placeholder. Left in place.
+- `huang2023` at `.tex:964` has a key year that contradicts its 2025 label. Cosmetic. See MEDIUM 8.
+
+**No DOI or URL in the bibliography was resolved.** This audit ran offline. Marked UNVERIFIED as a class, not as an accusation.
+
+**Superseded on 2026-08-15.** Both bullets are closed and the paragraph above
+them is no longer true. The whole bibliography has been resolved against live
+sources. Current state:
+
+```
+bibitem entries defined:                     26   (25 at audit time, +1 for bcs2020)
+arXiv DOIs resolved via DataCite:            14   all 200, all titles match
+Crossref DOIs resolved:                       3   all 200, all titles match
+URL-only entries fetched and read:            9   all 200
+print sources with no URL to check:           1   papert1980
+entries whose title did NOT match the source: 1   reza2025, now fixed
+```
+
+The registrar's title, first author and year were compared against the `.tex`
+for every DOI, so this is a citation check rather than a link check. The one
+defect it caught, `reza2025`, was a two-word title error that a link checker
+would have passed. "Marked UNVERIFIED as a class" was the right call at the
+time; it is now replaced by measurement. Detail in
+`.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`.
+
+---
+
+## Fabrication sweep
+
+Searched the `.tex` for every pattern implying human participants, teacher trials, classroom deployment, physical robot validation, safety certification or real deployment: `participant`, `pupils used/tested/tried`, `teachers used/tested/tried/reported/said`, `classroom trial/deployment/pilot`, `school trial/deployment/pilot`, `user study`, `usability study`, `real robot test`, `physical robot validation`, `deployed in a school`, `certif`, `survey of`, `interview`, `focus group`, `field trial`, `in production`, `real users`, `actual users`.
+
+**Result: no fabricated human evidence, no fabricated hardware validation, no fabricated benchmark, no fabricated certification claim, no Turnitin figure of any kind.**
+
+Every single hit is one of three things: a disclaimer, a description of the study that has not been run, or a boundary statement. The strongest of them:
+
+- `.tex:164`: "It involves no human participants and no personal data used as research data".
+- `.tex:168`: "No participant has been recruited, no data has been collected, and no figure from that study appears anywhere in this dissertation."
+- `.tex:222`: "This dissertation does not ask whether Kodro teaches anybody anything, because answering that requires learners, and no human study was run."
+- `.tex:600`: "Nothing here reports data from human subjects, because that study has deliberately been left for a point at which it can be run properly under consent."
+- `.tex:734`: the advisory panel's methodology role "returned FAIL for the correct reason: synthetic personas are not human participants and must be treated cautiously ... The methodology failure is therefore not averaged away."
+- `.tex:844`: "the study has not recruited anyone and the templates contain no participant rows." Verified directly. Both CSVs are header-only.
+- `.tex:892`: "No human participant took part in any study reported in this dissertation ... The evaluation personas are language-model constructs, not people."
+- `.tex:910`: "Whether that reduces a real builder's uncertainty is a claim about a person, and no person was measured."
+- `.tex:936`: "Physical predictive validity, memory-driven improvement, learning gain and usefulness to real users all remain open evaluation questions."
+- `.tex:833`, under threats to validity: "Every gate in this chapter was specified by the person whose work it certifies. A gate can only fail in a way its author imagined."
+
+Every persona table caption states at the point of use that the rows are language-model constructs and not user evidence. The count of such disclaimers across the document is 23 separate lines. `.tex:236` concedes objective O6 outright: "the causal efficacy criterion has not been demonstrated."
+
+This is the opposite of the failure mode the sweep was looking for.
+
+---
+
+## Boundary claims
+
+The product must never be framed as a replacement for Gazebo, Webots, Isaac Sim or a physical validation rig. Checked and clean.
+
+- `.tex:250`, explicit refusal: "Kodro also does not aim to replace the established heavyweight simulators such as Isaac Sim, Gazebo, Webots or MuJoCo. The useful relationship with those tools is a research bridge on the roadmap, not a claim of equivalence."
+- `.tex:307`, user boundary: "Kodro is not for a professional roboticist ... does not pretend to compete with them."
+- `.tex:156`: "a design aid and learning environment, not a same-to-same digital twin, electrical design tool or certificate that a physical robot is safe."
+- `.tex:210`: "It does not mean that Kodro certifies software for deployment on physical hardware."
+- `.tex:637`: "The human-readable companion report states that the evidence comes from a kinematic simulation and cannot certify a physical robot." Verified in `prove_report.md`, which carries that paragraph.
+- `.tex:857` to `.tex:886`: an entire limitations chapter, ten sections, including "Frame rate is measured, not guaranteed" and "The measured-build simulation is the studio only".
+- `.tex:880`: refuses to give purchasing or electrical advice.
+- `.tex:901`: "The principal professional safety risk is false confidence."
+- `.tex:910` and `.tex:936`: both narrow the strongest claim to the mechanical one.
+
+**No overreach found.** The framing is consistently an offline-first learning and early-design test studio with disclosed fidelity boundaries, which is what it should be. Do not weaken any of these sentences.
+
+---
+
+## AI-assistance disclosure
+
+**Located, intact, prominent.** It sits at `.tex:152`, inside the Declaration, immediately after the main declaration paragraph and before the Abstract, under its own `\paragraph` heading. It is on printed page 2, the first page after the title page. Quoted in full:
+
+> **Use of generative artificial intelligence.** Anthropic Claude and OpenAI Codex assisted with software implementation, debugging, test design, code review, prose revision and document formatting. Their outputs were treated as proposals rather than evidence. I selected the project direction, reviewed the resulting changes and remain responsible for the submitted software and text. Automated assistants also contributed to the simulated persona inspections reported later, which are labelled as synthetic and are not presented as human evidence. Numerical claims are retained only where a committed artefact or repeatable command supports them. No result from a human study is reported because that study has not been run.
+
+It names both systems, names what they did, assigns responsibility to the author, extends the disclosure to the persona evaluations, and states the evidence rule the rest of the document operates under. It is reinforced at `.tex:896`: "the Declaration names the generative systems used and assigns responsibility to the author rather than to those systems."
+
+Nothing about it is weakened or hedged. It must not be removed, softened or moved further back in the document.
+
+---
+
+## Actions only the author can take
+
+**Status note added 2026-08-15.** Items 6, 7, 8 and 12 turned out not to be
+author actions at all. They were listed here on the belief that this machine had
+no network, which was an inference from `WebFetch` failing rather than a
+measurement. `curl` works. All four are now closed by measurement and are struck
+through below with what was found. Item 3 remains the real one: the page limit
+needs the current Canvas brief and nothing on the web substitutes for it.
+
+1. **Resolve the renderer software rows.** Either re-run `node scripts/qa_performance.mjs --repeat=3` under forced software rasterisation and update `.tex:659`, `.tex:660`, `.tex:648` and `.tex:663` to the new figures, or restore the `f01767e` version of `docs/eval/performance_eval.json` as the committed software evidence. This audit did not choose between them and did not touch the artefact.
+
+2. **Decide what "at the final source state" should say.** Either re-run the Python suite at HEAD and regenerate `docs/eval/test_suite.json`, or rewrite `.tex:633` and `.tex:908` to name commit `02dd047` explicitly rather than claiming the final state.
+
+3. **Confirm the page limit against the current Canvas brief.** The repository contains no authoritative statement of it. Confirm whether the limit counts every page in the submitted PDF (59), all arabic-numbered pages (50), or the body excluding appendices (48). If it counts every page, nine sheets of front matter need addressing and this is urgent.
+
+4. **Update the voice assertion count** at `.tex:559` from forty-seven to whatever the gate prints at the submitted commit, and check that "Fourteen of those" at `.tex:561` still reads correctly against the new total.
+
+5. **Correct or delete the "artefact-tracking gap" section** of `docs/eval/qa_gate_runs_2026-08-14.md`, lines 79 to 93. All three named artefacts are tracked.
+
+6. ~~**Close the `bcscode` placeholder** at `.tex:952`.~~ **DONE 15 Aug.** Both bcs.org sources were fetched with `curl`. The placeholder is gone, the nine-row BCS traceability table from PR 3 is now in the document, and the Code of Conduct page states no version or date so the entry reads `(no date)`. Evidence: `.kodro/ca2-evidence/2026-08-15-bcs-citations-and-aux-shadowing.md`.
+
+7. ~~**Verify the Trinket shutdown claim** at `.tex:296`.~~ **DONE 15 Aug.** The announcement page was fetched and all four claims in that sentence are supported, including "Trinket will be shutting down on August 31, 2026" verbatim. See LOW 11 above for the claim-by-claim table.
+
+8. ~~**Resolve every DOI and URL in the bibliography online.**~~ **DONE 15 Aug, and it found a defect.** All 26 entries were checked against live sources: 14 arXiv DOIs through DataCite, 3 through Crossref, 9 URL fetches, 1 print book with no URL to check. Every DOI's registrar title, first author and year were compared against the `.tex` rather than merely pinged. One entry was wrong: `reza2025` said "teacher-centric" where the paper says "educator-centric", and "using RAG and CAG" where the paper says "with RAG and CAG". Fixed at `.tex:1004`. The other 25 matched. Note the count in the original item, twenty-five, was itself one short. Evidence: `.kodro/ca2-evidence/2026-08-15-bibliography-verification.md`.
+
+9. **Fix or accept the two overfull boxes.** The one at `.tex:160` to `.tex:161` overhangs by about 14mm in the abstract, the first body page read.
+
+10. **Decide what to do with the three untracked files**: `docs/eval/stt_bench.json`, `docs/eval/stt_clips/`, `scripts/bench_stt.py`. Nothing in the dissertation cites them.
+
+11. **Fix or delete the stale source comment** at `.tex:175` to `.tex:177`. It claims 9 figures and 14 tables against an actual 2 and 11. It does not render, so this is optional.
+
+12. ~~**Optionally fix the `huang2023` key year** at `.tex:964`, or leave it.~~ **DONE.** The key is `huang2025` and the entry now sits at `.tex:990` after the BCS table was inserted. Crossref confirms the DOI, title, author and year.
+
+13. **Confirm the ethics classification** (data category A0, participant category 2) against current department guidance. The repository holds no copy of the classification scheme.
+
+14. **Glance at the persona table grouping** at `.tex:697` to `.tex:730`. The artefact groups 40 cells as 8 personas by 5 tasks. Confirm the table's row labels describe the same grouping. Totals reconcile exactly either way.

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -22,7 +23,10 @@ from robolearn.lessons.schema import load_library
 from robolearn.runtime.executor import execute
 
 ROOT = Path(__file__).resolve().parents[2]
-INTERP = ROOT / "src" / "robolearn" / "assets" / "web" / "interpreter.js"
+WEB = ROOT / "src" / "robolearn" / "assets" / "web"
+INTERP = WEB / "interpreter.js"
+CHAT_INTENT = WEB / "chat-intent.js"
+BUNDLE = WEB / "bundle.js"
 FIXTURE = ROOT / "tests" / "fixtures" / "run_interp.cjs"
 _NODE = shutil.which("node")
 # CI sets ROBOLEARN_REQUIRE_NODE=1 so a missing Node is a hard failure, not a
@@ -36,6 +40,62 @@ _LESSONS = list(load_library())
 
 def test_library_is_non_empty() -> None:
     assert len(_LESSONS) >= 10
+
+
+# ---------------------------------------------------------------------------
+# Voice / chat lesson-routing parity
+# ---------------------------------------------------------------------------
+#
+# chat-intent.js carries its own table of lesson ids so that "open the loops
+# lesson" resolves without shipping the whole YAML library to the parser. That
+# table is a second copy of a fact the library already owns, so it can rot: add
+# a lesson and the mic silently cannot reach it; rename one and the dispatcher
+# hits its not-found branch instead of opening anything. These tests fail the
+# moment the two fall out of step, in both directions.
+
+_LESSON_ID_RE = re.compile(r"id:\s*'([^']+)'")
+
+
+def _chat_intent_lesson_ids() -> set[str]:
+    src = CHAT_INTENT.read_text(encoding="utf-8")
+    start = src.index("var LESSONS = [")
+    end = src.index("];", start)
+    return set(_LESSON_ID_RE.findall(src[start:end]))
+
+
+def test_every_voice_lesson_id_exists_in_the_library() -> None:
+    """No entry in the parser's table points at a lesson that is not shipped."""
+    library_ids = {lesson.id for lesson in _LESSONS}
+    unknown = sorted(_chat_intent_lesson_ids() - library_ids)
+    assert not unknown, f"chat-intent.js routes to lessons that do not exist: {unknown}"
+
+
+def test_every_shipped_lesson_is_reachable_by_voice() -> None:
+    """Every lesson the library ships can be opened by speaking or typing.
+
+    The stronger half of the guard. Adding a lesson YAML without adding a
+    phrase for it leaves it reachable only by mouse, which contradicts the
+    claim that the voice path is as capable as the typed one.
+    """
+    library_ids = {lesson.id for lesson in _LESSONS}
+    unreachable = sorted(library_ids - _chat_intent_lesson_ids())
+    assert not unreachable, f"lessons with no voice phrase in chat-intent.js: {unreachable}"
+
+
+def test_bundle_carries_the_current_lesson_table() -> None:
+    """build_web.cjs inlines chat-intent.js, so a stale bundle serves an old parser.
+
+    Editing the module without rebuilding is invisible in the browser: the page
+    loads bundle.js, not the module. Checking one id per lesson is enough to
+    catch the common case of forgetting the rebuild.
+    """
+    if not BUNDLE.exists():  # pragma: no cover - bundle is a build artefact
+        pytest.skip("bundle.js not built")
+    bundle = BUNDLE.read_text(encoding="utf-8")
+    missing = sorted(i for i in _chat_intent_lesson_ids() if f"'{i}'" not in bundle)
+    assert not missing, (
+        f"bundle.js is stale, missing lesson ids {missing}: run node scripts/build_web.cjs"
+    )
 
 
 @pytest.mark.parametrize("lesson", _LESSONS, ids=[lesson.id for lesson in _LESSONS])

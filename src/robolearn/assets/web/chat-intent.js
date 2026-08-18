@@ -52,8 +52,53 @@
     { re: /\bclear\b|\bclear weather\b|\bno weather\b|\bdry weather\b/, id: 'clear', label: 'clear weather' },
   ];
 
+  // Natural-language -> lesson id. Ordered SPECIFIC BEFORE GENERIC for the same
+  // reason WORLDS is: "nested loops" must not stop at the plain loops lesson,
+  // "functions with parameters" must not stop at functions, and "counting" must
+  // not stop at variables (the counting lesson's own title contains the word
+  // "variable"). The ids are the filenames in lessons/library, and a unit test
+  // asserts every id here still exists there.
+  var LESSONS = [
+    { re: /\bbroken program\b|\bfix the turn\b|\bfix the broken\b/, id: '00d_fix_the_turn', label: 'Fix the Broken Program' },
+    { re: /\bbackwards test\b|\bfix the condition\b|\bbackward test\b/, id: '04a_fix_the_condition', label: 'Fix the Backwards Test' },
+    { re: /\blook before you move\b|\blook first\b/, id: '00c_look_first', label: 'Look Before You Move' },
+    { re: /\bsquare\b/, id: '00b_repeat_square', label: 'Make a Square' },
+    { re: /\bnested loops?\b|\bloop inside a loop\b|\bloops? in(?:side)? loops?\b/, id: '13_nested_loops', label: 'Nested loops' },
+    { re: /\bparameters?\b|\barguments?\b/, id: '15_parameters', label: 'Functions with parameters' },
+    { re: /\bfunctions?\b|\bsubroutines?\b|\bprocedures?\b/, id: '06_functions', label: 'Functions' },
+    { re: /\bcounting\b|\bcounter\b|\bcount up\b/, id: '14_counting', label: 'Counting with a variable' },
+    { re: /\bvariables?\b|\bone name used twice\b/, id: '16_variables', label: 'One name, used twice' },
+    { re: /\blists?\b|\barrays?\b/, id: '17_lists', label: 'A list drives the route' },
+    { re: /\brecursion\b|\brecursive\b/, id: '09_recursion', label: 'Recursion' },
+    { re: /\boptimisation\b|\boptimization\b|\boptimis|\boptimiz/, id: '10_optimisation', label: 'Optimisation' },
+    { re: /\bdecomposition\b|\bdecompose\b|\bbreak(?:ing)? (?:it|the problem) down\b/, id: '11_decomposition', label: 'Decomposition' },
+    { re: /\babstraction\b|\babstract\b/, id: '12_abstraction', label: 'Abstraction' },
+    { re: /\bpathfinding\b|\bpath finding\b|\bmaze\b|\bshortest path\b/, id: '08_pathfinding', label: 'Pathfinding basics' },
+    { re: /\bsensors?\b|\bsensing\b/, id: '07_sensors', label: 'Reading sensors' },
+    { re: /\biteration\b|\bwhile[- ]loops?\b|\bloops?\b|\blooping\b|\brepeat\b|\brepeating\b/, id: '05_iteration', label: 'Iteration with while-loops' },
+    { re: /\bselection\b|\bif ?\/ ?else\b|\bif[- ]else\b|\bif statements?\b|\bconditionals?\b|\bcondition\b/, id: '04_selection', label: 'Selection (if / else)' },
+    { re: /\bsequence\b|\bsequencing\b|\bin order\b/, id: '03_sequence', label: 'Sequence' },
+    { re: /\bmove and turn\b|\bmoving and turning\b/, id: '02_move_turn', label: 'Move and turn' },
+    { re: /\bturn the corner\b|\bcorner\b/, id: '00a_turn_the_corner', label: 'Turn the Corner' },
+    { re: /\bhello,? rover\b|\bfirst programme?\b/, id: '01_hello_rover', label: 'Hello, Rover!' },
+    { re: /\bdrive to the flag\b|\bfirst drive\b|\bflag\b/, id: '00_first_drive', label: 'Drive to the Flag' },
+    { re: /\bwatch it,? then change it\b|\bwatch it go\b/, id: '000_watch_it_go', label: 'Watch It, Then Change It' },
+  ];
+
   // A message that clearly asks a question is never treated as a command.
   var QUESTION_RE = /^\s*(how|what|why|when|where|which|who|can|could|should|would|does|do|is|are|will|explain|tell me)\b/i;
+  // Lesson gating, kept as conservative as the rest of the file. A bare topic
+  // word is NOT enough: "my loop is broken" must stay a coding question. Either
+  // the learner names the thing ("lesson", "exercise") or asks to be taught it.
+  var LESSON_MARK = /\blessons?\b|\btutorials?\b|\bexercises?\b|\bactivit(?:y|ies)\b|\bchallenges?\b/;
+  var LESSON_VERB = /\b(?:teach|learn|learning|practi[sc]e|practi[sc]ing|study|revise)\b/;
+  var OPEN_VERB = /\b(?:open|start|begin|load|launch|resume|continue|do|go to|take me to|switch to|jump to|show me|next)\b/;
+  // "how do I finish the loops lesson" and "should I start the loops lesson"
+  // are asking ABOUT a lesson. Opening one would answer a question the learner
+  // did not ask, so both interrogative shapes are refused outright.
+  var WH_RE = /^\s*(?:how|what|why|when|where|which|who)\b/;
+  var HYPOTHETICAL_RE = /^\s*(?:should|would|is|are|will|does|did|has|have|am|was)\b/;
+  var LESSON_NUM_RE = /\blessons?\s*(?:number\s*)?(\d{1,2})\b/;
   // A request for code may legitimately mention a world, speed, collision or
   // weather as program context. Let the model draft and validate that program
   // instead of firing one of the immediate project-control shortcuts.
@@ -75,6 +120,43 @@
     return null;
   }
 
+  /* "lesson 5" -> the lesson whose filename starts 05_. Only the two-digit
+   * prefixes are addressable this way: 00a/00b/00c/00d and 000 are the
+   * pre-numbered starter lessons and are reached by name, not by number.
+   */
+  function lessonByNumber(t) {
+    var m = t.match(LESSON_NUM_RE);
+    if (!m) return null;
+    var n = parseInt(m[1], 10);
+    if (isNaN(n)) return null;
+    var prefix = (n < 10 ? '0' : '') + n + '_';
+    for (var i = 0; i < LESSONS.length; i++) {
+      if (LESSONS[i].id.indexOf(prefix) === 0) return { id: LESSONS[i].id, label: LESSONS[i].label };
+    }
+    return null;
+  }
+
+  /* Decide whether the text asks to OPEN a lesson, and which one.
+   *
+   * Two ways in. Either the learner names the artefact ("open the loops
+   * lesson", "lesson 5") or asks to be taught the topic ("teach me
+   * recursion"). Naming a lesson without a verb that opens it ("this lesson is
+   * hard") is not a command, and neither is any question about a lesson.
+   */
+  function findLesson(t) {
+    if (WH_RE.test(t) || HYPOTHETICAL_RE.test(t)) return null;
+    var marked = LESSON_MARK.test(t);
+    var teaching = LESSON_VERB.test(t);
+    if (!marked && !teaching) return null;
+    if (marked && !teaching && !OPEN_VERB.test(t)) return null;
+    var numbered = marked ? lessonByNumber(t) : null;
+    if (numbered) return numbered;
+    for (var i = 0; i < LESSONS.length; i++) {
+      if (LESSONS[i].re.test(t)) return { id: LESSONS[i].id, label: LESSONS[i].label };
+    }
+    return null;
+  }
+
   function findPreset(rows, text) {
     for (var i = 0; i < rows.length; i++) {
       if (rows[i].re.test(text)) return { id: rows[i].id, label: rows[i].label };
@@ -82,25 +164,36 @@
     return null;
   }
 
-  // parse(text) -> { build, world, isCommand }
+  // parse(text) -> { build, world, lesson, environment, diagnose, repair, speed, isCommand }
   //   build: true when the text is an imperative to build/create a robot.
   //   world: {id,label} when the text names a place to move to, else null.
-  //   isCommand: build || !!world  (whether any world/robot action should run).
+  //   lesson: {id,label} when the text asks to open a lesson, else null. Wins
+  //     over build and world, which it suppresses.
+  //   isCommand: true when any of the above should run.
   function parse(text) {
     var raw = String(text || '');
     var t = raw.toLowerCase();
     var isQuestion = QUESTION_RE.test(raw);
     var isCodeRequest = CODE_REQUEST_RE.test(t);
 
+    // Lesson navigation runs its own, narrower question test rather than the
+    // blanket one. "Can you open the loops lesson" opens with an interrogative
+    // but is a request, and refusing it would leave the mic unable to reach the
+    // one thing the platform is for. "Write me the code for the loops lesson"
+    // stays a code request: the model drafts, the library is not touched.
+    var lesson = !isCodeRequest ? findLesson(t) : null;
+
     var named = findWorld(t);
     // Never act on a question ("how do I make the rover faster?", "why crash on mars?").
-    var build = !isQuestion && !isCodeRequest && BUILD_CMD_RE.test(t);
+    // Opening a lesson also swaps the world and the program buffer, so it wins
+    // outright: one sentence must not trigger two competing project changes.
+    var build = !lesson && !isQuestion && !isCodeRequest && BUILD_CMD_RE.test(t);
 
     // Honour a named world when the message either moves explicitly ("go to
     // mars", "on the moon") OR is itself a build command ("build a mars rover"
     // -> put it on Mars). A bare place phrase ("on/to/in <place>") also counts.
     var explicitMove = !!named && (MOVE_VERB.test(t) || /\b(on|to|in)\s+(the\s+)?[a-z]/.test(t));
-    var world = (!isQuestion && !isCodeRequest && named && (explicitMove || build)) ? named : null;
+    var world = (!lesson && !isQuestion && !isCodeRequest && named && (explicitMove || build)) ? named : null;
 
     // Weather and time changes are deterministic app controls, not model
     // guesses. A bare mention such as "does rain affect grip?" remains a
@@ -121,13 +214,14 @@
     return {
       build: build,
       world: world,
+      lesson: lesson,
       environment: environment,
       diagnose: diagnose,
       repair: repair,
       speed: speed,
-      isCommand: build || !!world || !!environment || diagnose || repair || speed !== null,
+      isCommand: build || !!world || !!lesson || !!environment || diagnose || repair || speed !== null,
     };
   }
 
-  window.KodroChatIntent = { parse: parse, findWorld: findWorld };
+  window.KodroChatIntent = { parse: parse, findWorld: findWorld, findLesson: findLesson, LESSONS: LESSONS };
 })();

@@ -61,7 +61,14 @@ plain English. Also the artefact for an MSc dissertation (COMP702, Liverpool).
 - CI `.github/workflows/ci.yml` (ubuntu+macos+windows). `deploy-pages.yml` deploys
   on workflow_run after CI success. qa_ui and qa_worlds are LOCAL-only gates.
 
-## 6. Gate commands (all green every commit; counts verified this session)
+## 6. Gate commands (counts as at 10 July 2026, not current)
+
+The commands below are still the right commands. The numbers beside them are a
+snapshot from when this file was written on 10 July 2026 and several have since
+grown, so do not treat a mismatch as a regression. The current figures, with the
+exact printed summary line for each gate, are in
+[`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md).
+
 - `node scripts/qa_interpreter.mjs` -> 157
 - `node scripts/qa_grader.mjs` -> 34
 - `node scripts/qa_physics.mjs` -> 20
@@ -69,7 +76,11 @@ plain English. Also the artefact for an MSc dissertation (COMP702, Liverpool).
 - `node scripts/qa_web.mjs` -> 4/4 (Chrome)
 - `node scripts/qa_ui.mjs` -> 6/6 flows, 28/28 behaviour, 12/12 modals (:8099 + Chrome)
 - `node scripts/qa_worlds.mjs` -> 61/61 (:8099 + Chrome)
-- `python -m pytest -q` -> 1024 passed (>= 85% coverage)
+- `python -m pytest -q --basetemp=<fresh dir>` -> 0 failed, coverage over the 85
+  percent gate. Pass counts are deliberately not restated here, because the ones
+  that were have gone stale; `docs/eval/test_suite.json` pins the authoritative
+  run to a commit. The `--basetemp` flag works around a host ACL defect on this
+  machine, recorded in `.kodro/ca2-evidence/2026-08-15-suite-reproduction-and-tempdir-defect.md`.
 - Serve for browser gates: `cd src/robolearn/assets/web && python -m http.server 8099`
 - `CHROME_PATH=/c/Program Files/Google/Chrome/Application/chrome.exe`
 - ENV TRAP (fixed, keep fixed): the `robolearn` editable-install .pth at

@@ -39,9 +39,12 @@ coverage), `ruff`, `ruff format --check`, and `mypy --strict`. The suite
 grew with the codebase and is the primary evidence of correctness.
 
 - **Python suite:** the complete declared matrix, including optional RL and
-  URDF surfaces, is gated at a minimum of **85%** line+branch coverage.
-  Measured on the candidate release state on Windows:
-  **1,087 passed, zero skipped, 88.21% coverage**.
+  URDF surfaces, is gated at a minimum of **85%** line+branch coverage. The
+  counts are not restated here. This bullet carried 1,087 passed at 88.21%,
+  measured against a suite the repository has since grown well past, and a
+  restated number goes stale the moment that happens. The run writes its own
+  commit, working-tree status, counts and coverage into
+  [`../eval/test_suite.json`](../eval/test_suite.json). Read them there.
 - **Cross-platform:** Linux (under `xvfb`) and Windows are hard gates on
   every push. macOS is an *informational* leg: its headless runner has no
   Aqua window server, so Tk intermittently segfaults under the GUI-heavy

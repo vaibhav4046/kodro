@@ -368,7 +368,14 @@ class Store:
         if lesson_id is not None:
             sql += " AND lesson_id = ?"
             params.append(lesson_id)
-        sql += " ORDER BY ts ASC"
+        # Tie-break on the autoincrement id. ``ts`` is millisecond-resolution and
+        # the Windows clock is coarser than that, so two submissions made in
+        # quick succession routinely share a timestamp; without the tie-break
+        # their relative order is whatever SQLite happens to return. Callers do
+        # care: ``passing_streak`` walks this list backwards and the achievement
+        # predicates append the current submission to it, so a reordered tie can
+        # flip a "three in a row" verdict.
+        sql += " ORDER BY ts ASC, id ASC"
         rows = self._conn.execute(sql, params).fetchall()
         return [_row_to_submission(r) for r in rows]
 

@@ -41,7 +41,7 @@ state below.
 | Known limitations | `D:\project\robolearn\docs\known-limitations.md` |
 | Human-only tasks | `D:\project\robolearn\HUMAN_TODO.md` |
 
-**WARNING — stale clone**: `C:\Users\lalwa\OneDrive\Desktop\codex fix\robolearn`
+**WARNING — stale clone**: `%USERPROFILE%\OneDrive\Desktop\codex fix\robolearn`
 is a **STALE** copy pinned at `e1df641` / tag `v2.0.2` with a clean tree.
 **Ignore it.** All real work is in `D:\project\robolearn`.
 
@@ -128,6 +128,12 @@ hooks, app-data, panels, app
 
 Run from `D:\project\robolearn`.
 
+The commands below are current. The numbers after each `#` are not: they were
+written on 16 July 2026 (commit `2f22487`) and never updated, so several now read
+low because the gates gained checks afterwards. Do not quote them. For the
+current figure on every gate, with the exact summary line it printed, see
+[`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md).
+
 ### Node gates (fast, no browser)
 ```bash
 node scripts/qa_interpreter.mjs      # 180 passed
@@ -199,13 +205,17 @@ curl -s "https://vaibhav4046.github.io/robolearn/styles.css?v=..." | grep <your-
 
 ## 6. THE ADVERSARIAL JUDGE LOOP (the convergence engine)
 
-**Workflow script** (a Claude-Code "Workflow"; port the idea if you lack that tool):
-```
-C:\Users\lalwa\.claude\projects\D--project-robolearn\8de95992-bd5b-4a12-b04f-1b334c9f4674\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js
-```
-It runs **6 judges in parallel** over an evidence pack, dedups, then **independently
-refutes every finding** (refuter defaults to REJECT if uncertain), returning
-`{accepted, rejected, rawCount}`.
+**Workflow script — this file is gone, rebuild it from the description below.**
+It lived at a Claude-Code "Workflow" path of the shape
+`%USERPROFILE%\.claude\projects\D--project-robolearn\<session-uuid>\workflows\scripts\kodro-judge-round-wf_08492b6b-dff.js`,
+which was always machine-local and outside this repository, so it never reached
+anyone who cloned it. Confirmed absent on the authoring machine too, 15 August
+2026: a `find` for `*kodro-judge-round*` under `.claude/projects` returns
+nothing. Treat the paragraph below as the specification, not the path.
+
+It ran **6 judges in parallel** over an evidence pack, dedupped, then
+**independently refuted every finding** (refuter defaults to REJECT if
+uncertain), returning `{accepted, rejected, rawCount}`.
 
 **Judge lenses**: first-timer, teacher, budget-builder, accessibility, performance,
 honesty-auditor.

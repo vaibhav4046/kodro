@@ -16,7 +16,7 @@ ROOT = SPECPATH.replace(os.sep, "/")
 
 datas = [
     (f"{ROOT}/src/robolearn/lessons/library", "robolearn/lessons/library"),
-    # The vendored Claude design (HTML/CSS/JS/JSX + React/Babel + fonts).
+    # The vendored web design (HTML/CSS/JS/JSX + React/Babel + fonts).
     (f"{ROOT}/src/robolearn/assets/web", "robolearn/assets/web"),
 ]
 # Package data (assets/web, fonts, etc.) + pywebview's injected bridge JS.

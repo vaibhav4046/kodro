@@ -6,6 +6,37 @@
 > agents in parallel), validate **everything in the browser**, and drive the
 > product to a genuine, measured 10/10 — without faking any number.
 
+> **STALENESS WARNING, added 15 August 2026. Read this before you trust any
+> number below.** The instructions, paths and constraints in this file are still
+> broadly right. The measurements are not: they are a snapshot from well before
+> the CA2 release pass and every one of them now reads low, because the gates and
+> the library grew, not because anything regressed. Specifically, this file says
+> the interpreter gate is `21/21` (it is 180), that `pytest` is `851 passed`
+> (the last clean full run collected 1642, passed 1641, skipped 1, at commit
+> `66e8632` on 18 August, with coverage 90.78 against the 85 gate; the pinned
+> artefact still records the 17 August run at `e70b98b`, 1641/1641/0 and 90.85,
+> and that divergence is deliberate and disclosed in `CLAIM_LEDGER.md`), that the library holds
+> 10 lessons (it holds 24), and that the dissertation is about 20 pages (it is
+> 50 numbered pages). Those figures are spread across sections 2, 4, 5 and 6, not
+> confined to one place: the `21/21` appears five times (twice in WHERE
+> EVERYTHING LIVES, at the `rover.forward` note and again in the
+> `qa_interpreter.mjs` description, then once each in VALIDATED STATE, in the
+> week plan and in the FAST-START "expect" line), the `851` four times, the
+> `10 lessons` in the library path line, and the
+> `~20 pages` in VALIDATED STATE. An earlier version of this warning scoped
+> itself to "sections 4 and 8", which was wrong twice over: the stale interpreter
+> figure sits in section 2, and this file has no section 8, its headings run 0 to
+> 7. That same earlier version then undercounted both figures, saying `21/21`
+> appeared four times and `851` three times. It had counted sections rather than
+> occurrences, and WHERE EVERYTHING LIVES carries two of each. Counts re-measured
+> 2026-08-15 by grepping the file below this warning block: five and four. The
+> undercount is worse than no count at all, because it certifies a completeness
+> it does not have and stops a future agent one instance early.
+> Do not treat the higher live figures as failures. For each gate as measured on
+> 14 August 2026, with the exact summary line it printed, see
+> [`docs/eval/qa_gate_runs_2026-08-14.md`](eval/qa_gate_runs_2026-08-14.md); for
+> the Python suite see [`docs/eval/test_suite.json`](eval/test_suite.json).
+
 ---
 
 ## 0. WHO I AM / NON-NEGOTIABLE INTEGRITY RULES (read first, never violate)
@@ -54,8 +85,8 @@ behaviour in a realistic simulated WORLD → the system self-refines from usage.
 **GitHub:** https://github.com/vaibhav4046/robolearn  (remote `origin`, branch `main`)
 **Portfolio site:** repo `vaibhav-portfolio` (static, deployed on Vercel)
 **GitHub profile README:** repo `vaibhav4046` (profile). GH push email is the noreply form.
-**User email:** vaibhavlalwani26969@gmail.com   **Today:** 2026-06-14
-**Auto-memory index:** `C:\Users\lalwa\.claude\projects\D--\memory\MEMORY.md`
+**User email:** the account's own address; commits use the GitHub noreply form above.   **Today:** 2026-06-14
+**Auto-memory index:** `%USERPROFILE%\.claude\projects\D--\memory\MEMORY.md`
 
 ### Web app source (React JSX, pre-compiled offline — NO build server)
 All under `src/robolearn/assets/web/`:
@@ -97,23 +128,43 @@ All under `src/robolearn/assets/web/`:
   WebView2 app). Also `dist/RoboLearn-windows-x64.exe`. Desktop copy named `Kodro.exe`.
 - `qa_interpreter.mjs` — **offline functional QA harness** (Node). Loads the shipped
   interpreter, drives the generator with the real kinematics + wall ray, asserts command
-  semantics + all 7 examples. Run: `node scripts/qa_interpreter.mjs`. Currently 21/21.
+  semantics + all 7 examples. Run: `node scripts/qa_interpreter.mjs`. Was 21/21 when
+  this file was written; 180 as of 14 August 2026. The word "currently" was removed
+  from this line because it survives the date stamp above and reads as a live claim.
 - `make_icon.py`, `make_ai_model.py`, `train_ai.py`, `stress_test_lessons.py`,
   `generate_curriculum_report.py`.
 - App icon: `src/robolearn/assets/icon.ico`. Brand SVG: `ORBIT_SVG` in `app.jsx`.
 
 ### Docs / dissertation / report
-- Dissertation HTML (CA3, 70%, due **2026-09-11**, max 50pp, Turnitin):
-  `docs/dissertation/Kodro_Dissertation.html` (+ `.pdf`, + chapter .md files 00–05).
+- Dissertation (CA3, 70%, due **2026-09-11**, max 50pp, Turnitin). The source is
+  LaTeX, not HTML: `docs/dissertation/Kodro_Dissertation.tex`, built with MiKTeX
+  `pdflatex` run twice into `docs/dissertation/Kodro_Dissertation.pdf`. Chapter
+  files `00-introduction.md` through `05-glossary.md` sit alongside it as drafting
+  material and are not part of the build: the `.tex` contains no `\input{`,
+  `\include{` or `\subfile{`, so nothing outside it and `img/` reaches the PDF.
+  There is no longer a `Kodro_Dissertation.html`. It was real once, added in
+  `0790128` when the CA3 scaffold was first written, and removed in `6225db1`
+  ("docs: align dissertation with verified Kodro evidence") when the dissertation
+  moved to LaTeX. This line kept naming it as the source for weeks afterwards.
 - CA1 proposal (marked ~A / 74): `docs/ca1/CA1_Specification_Design_Proposal.html`,
   `docs/ca1/Kodro_CA1_Specification_Design_Proposal.pdf`, text at `docs/ca1/_proposal_text.txt`,
   figures in `docs/ca1/img/`.
-- `HUMAN_TODO.md` — the 3 things only a human can finish (the teacher study etc.).
+- `HUMAN_TODO.md` — the things only a human can finish. It held three when this
+  file was written; as of 15 August 2026 five numbered sections are open (teacher
+  study, release tag, deferred polish, the page limit against the current brief,
+  and the published-history decision) plus one optional item, with sections 4 and
+  5 marked DONE. Count the open headings rather than trusting a number here.
 - `README.md`, `CHANGELOG.md`, mkdocs site under `docs/`.
 
 ### Test suite
-- `tests/` — 851 pytest tests, 1 skipped (Tk env), ~86% coverage, gate `--cov-fail-under=85`.
-  Run: `python -m pytest`.
+- `tests/` runs under the `--cov-fail-under=85` gate from `pyproject.toml`.
+  Run: `python -m pytest`. Do not trust a pass count written here; the counts in
+  this file have gone stale before. The authoritative record is
+  `docs/eval/test_suite.json`, which pins the commit it was measured at, and the
+  reproduction note is `.kodro/ca2-evidence/2026-08-15-suite-reproduction-and-tempdir-defect.md`.
+- On this machine the plain command errors at setup for every `tmp_path` test,
+  because pytest's base temp directory has an ACL that denies even its owner.
+  Add `--basetemp=<a fresh empty dir>`. That is a host defect, not a test failure.
 
 ---
 
@@ -161,10 +212,20 @@ All under `src/robolearn/assets/web/`:
 2. **New sleek minimal LOGO.** Redesign the Kodro brand mark (`ORBIT_SVG` in `app.jsx`)
    and `src/robolearn/assets/icon.ico` — modern, minimal, professional. Rebuild bundle +
    exe. Show before/after in browser.
-3. **Onboarding / landing / home PIPELINE (currently absent).** Add a professional app
+3. ~~**Onboarding / landing / home PIPELINE (currently absent).** Add a professional app
    flow like real products: splash/landing → short onboarding (what Kodro is, pick a
    robot or a world) → home/dashboard → main IDE. Smooth, beautiful, skippable, remembered
-   in localStorage. Verify the whole flow in the browser.
+   in localStorage. Verify the whole flow in the browser.~~
+   **DONE, and "currently absent" is false as of 15 August 2026. Do not build a
+   second one.** The flow ships as `KodroHome` (`home.jsx`, exposed on `window`).
+   `app.jsx:3690` mounts it when `homeOpen || !onboarded`; `app.jsx:703` reads the
+   seen flag from `localStorage` under `kodro_home_seen` and `app.jsx:713` writes
+   it; `canClose={onboarded}` makes it skippable only after the first run; the
+   brand button at `app.jsx:2509` reopens it. Its four doors are Lessons, Design,
+   Author and Free play. A separate `onboarding.jsx` also exists and is still in
+   the build `ORDER`, but nothing in the app mounts it (only
+   `scripts/build_screenshot_harness.cjs`); `app.jsx:711-713` records it as a
+   screen no longer shipped. Read that comment before touching either file.
 4. **Motion + environment realism pass.** Make movement natural and worlds accurate across
    city/room/terrains. Give rover and home-bot the same detail pass the car already has.
 5. **Code quality / complexity audit.** White-box review of interpreter, app.jsx,
@@ -173,7 +234,7 @@ All under `src/robolearn/assets/web/`:
 6. **Package + smoke-test the installed app** (RoboLearn.exe / Kodro.exe), not `python -m`.
 
 **TRACK B — DISSERTATION (parallel, due 2026-09-11)**
-7. Grow `docs/dissertation/Kodro_Dissertation.html` toward the 50pp CA3 spec: tighten
+7. Grow `docs/dissertation/Kodro_Dissertation.tex` toward the 50pp CA3 spec: tighten
    Intro/positioning, Requirements (tables + use cases), Design + architecture,
    Implementation (real, from the actual code), Evaluation (honest measured persona-eval +
    the observed self-refinement loop; mark the teacher study as pending in `HUMAN_TODO.md`),
@@ -197,8 +258,8 @@ browser before claiming done.
 
 ```
 cd D:\project\robolearn
-node scripts/qa_interpreter.mjs          # interpreter functional QA (expect 21/21)
-python -m pytest                          # engine tests (expect 851 passed)
+node scripts/qa_interpreter.mjs          # interpreter functional QA (expect 0 failed)
+python -m pytest --basetemp=<fresh dir>   # engine tests (expect 0 failed, coverage over 85)
 node scripts/build_web.cjs                # rebuild bundle.js after any .jsx edit
 python scripts/build_exe.py               # rebuild dist/RoboLearn.exe
 ```

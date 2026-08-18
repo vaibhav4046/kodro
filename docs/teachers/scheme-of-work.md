@@ -1,8 +1,14 @@
 # Kodro scheme of work
 
-This scheme uses the 18 lessons that ship with Kodro. It does not add or rename
+This scheme uses the 24 lessons that ship with Kodro. It does not add or rename
 lessons. Each title below matches a YAML file in
 `src/robolearn/lessons/library/`.
+
+Cross-checked against `load_library()` on 18 August 2026: 24 lessons on disk, 24
+titles listed here, and the four blocks below total 7 + 5 + 4 + 8 = 24. The block
+key stages match the library's own tags, which are 3 KS1, 4 KS2, 9 KS3 and 8 KS4
+(Block A is the 3 KS1 plus the 4 KS2, Blocks B and C split the 9 KS3, Block D is
+the 8 KS4).
 
 Times are planning allowances for one pupil on one device. Add 10 minutes the
 first time a class opens the app, or when devices must be shared. A pair can use
@@ -16,20 +22,21 @@ understands.
 
 | Block | Intended use | Shipped lessons | Suggested timetable |
 | --- | --- | ---: | --- |
-| A. First programs | KS2, with one KS1 entry lesson | 3 | 3 sessions of 35 to 45 minutes |
-| B. Routes and decisions | KS3 foundation | 4 | 4 sessions of 45 to 55 minutes |
+| A. First programs | KS1 and KS2 foundations | 7 | 7 sessions of 30 to 45 minutes |
+| B. Routes and decisions | KS3 foundation | 5 | 5 sessions of 45 to 55 minutes |
 | C. Control and sensing | KS3 core | 4 | 4 sessions of 50 to 60 minutes |
-| D. From patterns to general solutions | KS3 extension and KS4 bridge | 7 | 7 sessions of 50 to 60 minutes |
+| D. From patterns to general solutions | KS3 extension and KS4 bridge | 8 | 8 sessions of 50 to 60 minutes |
 
-Block D contains the seven lessons labelled `KS4 stretch` in the source. They
-are listed here so all 18 shipped lessons have a place, but they should not be
+Block D contains the eight lessons labelled `KS4 stretch` in the source. They
+are listed here so all 24 shipped lessons have a place, but they should not be
 presented as core KS3 content. In a six-week half-term, choose the lessons that
 match the class curriculum and keep the others for extension.
 
 ## Block A: First programs
 
-Recommended for KS2. `Drive to the Flag` is tagged KS1 and provides a gentle
-entry point for pupils who have not used a text program before.
+Recommended for KS1 and KS2. The three KS1 lessons begin by watching and
+changing one instruction before introducing a turn. The four KS2 lessons then
+add repetition, sensor-led selection, debugging and variables.
 
 ### Block outcomes
 
@@ -43,9 +50,13 @@ Pupils will:
 
 | Lesson | Objective | Prior knowledge | Allow |
 | --- | --- | --- | ---: |
+| `000_watch_it_go`, Watch It, Then Change It | Run one instruction, predict the result, then change one number so the rover travels 2 metres. | None. Read one short instruction with an adult if needed. | 30 minutes |
 | `00_first_drive`, Drive to the Flag | Change or repeat `move_forward` so the rover travels 3 metres to the flag. Explain that instructions run from top to bottom. | None. Pupils should be able to read a one-line instruction and change a number. | 35 minutes |
+| `00a_turn_the_corner`, Turn the Corner | Arrange drive, quarter-turn and drive instructions in the required order. | Complete Drive to the Flag. Recognise a quarter turn as 90 degrees. | 35 minutes |
 | `00b_repeat_square`, Make a Square | Use a `for` loop to repeat a move and a 90 degree turn four times. Explain why repetition is better than four copied blocks. | Complete Drive to the Flag. Know that a square has four equal sides and four right angles. | 45 minutes |
 | `00c_look_first`, Look Before You Move | Ask `obstacle_ahead()` before moving and use `if` to turn only when the answer is true. | Complete Make a Square. Recognise a sensor as an input and keep indented code inside an `if`. | 45 minutes |
+| `00d_fix_the_turn`, Fix the Broken Program | Observe a collision, locate the wrong turn and correct one command. | Complete Turn the Corner. Understand that debugging means finding and correcting an error. | 35 minutes |
+| `16_variables`, One name, used twice | Change one stored distance and explain why both movements change when the variable is used twice. | Complete Sequence. Recognise assignment as giving a value a name. | 45 minutes |
 
 ### Suggested teaching sequence
 
@@ -79,6 +90,7 @@ Pupils will:
 | `02_move_turn`, Move and turn | Combine movement, a left turn and sample collection to reach the patch at `(4, 4)`. | Complete Hello, Rover! Know that a turn changes heading rather than position. | 50 minutes |
 | `03_sequence`, Sequence | Plan and debug a U-shaped route, then collect the sample at the far end. | Complete Move and turn. Trace a program line by line and sketch a route on a grid. | 50 minutes |
 | `04_selection`, Selection (if / else) | Use the existing sensor decision and add the action that completes the mission. Explain what `obstacle_ahead(2.0)` asks. | Complete Sequence. Know that a Boolean question is either true or false. | 55 minutes |
+| `04a_fix_the_condition`, Fix the Backwards Test | Run a faulty Boolean condition, explain why it is backwards and remove the negation so the rover avoids the obstacle. | Complete Selection. Read `not` as reversing a Boolean value. | 45 minutes |
 
 ### Suggested teaching sequence
 
@@ -139,6 +151,7 @@ Pupils will:
 - treat a sensor as an abstract interface;
 - use nested iteration and an accumulator;
 - generalise a function with a parameter.
+- store route data in a list and traverse it with a loop.
 
 | Lesson | Objective | Prior knowledge | Allow |
 | --- | --- | --- | ---: |
@@ -149,6 +162,7 @@ Pupils will:
 | `13_nested_loops`, Nested loops (KS4 stretch) | Put a row sweep inside an outer loop so the rover covers two rows and collects six samples. | Complete Iteration. Trace one complete inner loop before moving to the next outer pass. | 60 minutes |
 | `14_counting`, Counting with a variable (KS4 stretch) | Use an accumulator in a `while` loop and stop when the count reaches three. | Complete Iteration. Assign a value, update it and compare it with a target. | 50 minutes |
 | `15_parameters`, Functions with parameters (KS4 stretch) | Add a `distance` parameter to `hop()` and call one function with three different values. | Complete Functions. Distinguish a parameter in a definition from an argument in a call. | 50 minutes |
+| `17_lists`, A list drives the route | Correct a list of three distances while leaving the loop unchanged, showing how data can describe a route. | Complete Iteration and One name, used twice. Read a list and trace a `for` loop over its values. | 50 minutes |
 
 ### Suggested teaching sequence
 
@@ -160,7 +174,8 @@ This block does not need to be taught in numeric order. A practical order is:
 4. Counting with a variable
 5. Nested loops
 6. Recursion
-7. Optimisation
+7. A list drives the route
+8. Optimisation
 
 That order moves from familiar functions to more demanding tracing and
 evaluation. Optimisation works well as the final open comparison.

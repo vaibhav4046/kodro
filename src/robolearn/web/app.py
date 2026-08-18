@@ -1,15 +1,23 @@
-"""pywebview launcher for the vendored Claude design.
+"""pywebview launcher for the Kodro web shell.
 
 Renders ``src/robolearn/assets/web/index.html`` in a desktop window
 (Edge WebView2 on Windows, WebKit on macOS, WebKitGTK on Linux) and
-exposes a :class:`BridgeAPI` instance that the design's React shell
-calls through ``window.pywebview.api.*``.
+exposes a :class:`BridgeAPI` instance that the React shell calls
+through ``window.pywebview.api.*``.
 
-Design first, integration later: the bridge intentionally returns
-stubbed-but-real data on day one (the engine's actual lesson library +
-pupil store), so the design renders and the React app can paint its
-panels with live content. Submission, grading and trace replay are
-added as follow-ups once the React app is patched to call into them.
+The bridge is not a stub layer. It runs the same Python engine the Tk
+app does: :meth:`BridgeAPI.submit_attempt` rebuilds the lesson world,
+binds a fresh tracer and rover, executes the pupil's source in the
+sandbox, grades it against the lesson's ``success_criteria`` and
+returns the verdict plus the first matching hint. Lesson library,
+pupil store, scenario run history, report export, robot import and
+export and the local AI helpers are all live through the same object.
+
+This docstring used to describe a first-day state in which grading was
+still a planned follow-up. That stopped being true and the text did not
+move, which is the failure mode the evidence discipline in this
+repository exists to catch, so it is written here as what the module
+does rather than what it was going to do.
 """
 
 from __future__ import annotations
@@ -30,7 +38,7 @@ import webview
 
 from robolearn.engine.rover import BATTERY_PER_METRE, Rover
 from robolearn.engine.terrain import Terrain
-from robolearn.engine.world import ArenaBounds, World
+from robolearn.engine.world import World
 from robolearn.interop.urdf_io import build_urdf_from_spec, kodro_spec_from_krs
 from robolearn.lessons.grader import grade
 from robolearn.lessons.schema import Lesson, load_library
@@ -42,7 +50,7 @@ from robolearn.memory.pupil_model import (
     suggest_next_lesson,
     update_on_submission,
 )
-from robolearn.memory.store import Store
+from robolearn.memory.store import DEFAULT_DB_PATH, Store
 from robolearn.runtime.binding import (
     active_engine,
     binding_lock,
@@ -50,13 +58,13 @@ from robolearn.runtime.binding import (
     set_active_world,
 )
 from robolearn.runtime.executor import execute as run_pupil_code
-from robolearn.runtime.tracer import RoverSnapshot, Tracer, set_active, set_state_provider
+from robolearn.runtime.session import snapshot, world_from_lesson
+from robolearn.runtime.tracer import Tracer, set_active, set_state_provider
 
 LOG = logging.getLogger("robolearn.web")
 
 ASSETS_DIR: Path = Path(__file__).resolve().parent.parent / "assets" / "web"
 INDEX_HTML: Path = ASSETS_DIR / "index.html"
-DEFAULT_DB_PATH: Path = Path.home() / ".robolearn" / "pupil.db"
 DEFAULT_TITLE: str = "Kodro"
 DEFAULT_GEOMETRY: tuple[int, int] = (1400, 900)
 
@@ -239,14 +247,31 @@ class BridgeAPI:
         sandbox, grade against the lesson's success_criteria, and surface
         the first matching hint -- all the same code paths the Tk app uses.
 
-        ``robot_mass_factor`` is the fitted build's mass factor (the client
-        sends ``KODRO_ROBOT.massFactor``); it scales per-metre battery drain so
-        a heavier build grades as it runs instead of spec-blind.
-        ``robot_drain_pct_per_m`` is the ENERGY-TRUE per-metre drain of an
-        imported measured build (the client sends phys.drainPctPerCmNominal x
-        100, derived from the pack's real energyWh); when present and valid it
-        WINS over the mass-factor proxy. Omitted or invalid, drain stays at the
-        default (mass factor 1).
+        ``robot_mass_factor`` (the client sends ``KODRO_ROBOT.massFactor``) and
+        ``robot_drain_pct_per_m`` (the ENERGY-TRUE per-metre drain of an
+        imported measured build, sent as phys.drainPctPerCmNominal x 100 and
+        preferred over the mass proxy) describe the pupil's BUILD. They are
+        reported back as ``energyTrueBatteryPct``, next to the graded
+        ``batteryUsedPct`` the lesson panel prints it against, and they do NOT
+        move the verdict.
+
+        That last part is the whole point and it used to be the other way
+        round. The graded rover ran at the build's drain scale, so a heavy build
+        was charged more battery for the same program. Lesson thresholds are
+        fixed numbers in YAML authored against the reference rover -- there is
+        no per-build calibration of ``max_battery_used`` -- and the browser
+        grader deliberately strips build scaling back out before grading
+        (hooks.jsx, "correct for the design surface and wrong for a lesson
+        threshold"). So the two surfaces disagreed: the same correct program
+        passed in the browser and failed on the desktop, and the failure
+        message named the battery, which blamed the program for a choice the
+        pupil made on the design bench. 01_hello_rover shows how little it took:
+        its own shipped solution travels 2.00 m, which at 1.1 %/m is 2.20%
+        against a 5% limit, so any mass factor above ~2.3 failed lesson one. At
+        10 the message read "Battery used 22.0% (limit 5.0%)", score 80.
+
+        A mark has to measure the thing being taught. Build mass belongs on the
+        design surface, where the live battery gauge already reflects it.
         """
         _ = trace_json  # currently unused; reserved for client-side trace
         lesson = self._find_lesson(lesson_id)
@@ -260,10 +285,12 @@ class BridgeAPI:
         # handling states and relies on exactly this rule).
         pupil_id = self._pupil_id
 
+        # Resolved for the informational figure below, NOT for the graded run.
         drain_scale = _drain_scale_for(robot_mass_factor, robot_drain_pct_per_m)
 
         world = _world_from_lesson(lesson)
-        rover = Rover(world, drain_scale=drain_scale)
+        # Reference rover (drain_scale 1.0), matching lesson-grader.jsx.
+        rover = Rover(world)
         tracer = Tracer()
         # Hold the binding lock for the whole bind -> run -> detach window so a
         # concurrent AI-validation or swarm run on another thread cannot rebind
@@ -354,6 +381,21 @@ class BridgeAPI:
         if recommended is not None and recommended.id != lesson.id:
             rec = {"id": recommended.id, "title": recommended.title}
 
+        # What this program would have cost the pupil's ACTUAL build, reported
+        # alongside the verdict and never inside it. drain_scale multiplies the
+        # distance term only (rover.py), so turning and collision charges carry
+        # over from the graded ledger unscaled.
+        #
+        # Both figures go out, because one without the other says nothing: the
+        # lesson panel prints them as a pair ("marked on the reference rover at
+        # X%, your build would have used Y%") and can only tell whether the
+        # build changed anything by comparing them.
+        energy_true_battery = min(
+            100.0,
+            ctx.battery_used
+            + rover.state.distance_travelled_m * BATTERY_PER_METRE * (drain_scale - 1.0),
+        )
+
         return {
             "ok": True,
             "lessonId": lesson_id,
@@ -365,6 +407,8 @@ class BridgeAPI:
             "events": _events_to_dicts(events),
             "achievements": achievements,
             "recommended": rec,
+            "batteryUsedPct": ctx.battery_used,
+            "energyTrueBatteryPct": energy_true_battery,
         }
 
     def get_hint(
@@ -1625,33 +1669,11 @@ def _drain_scale_for(mass_factor: float | None, drain_pct_per_m: float | None) -
     return 1.0
 
 
-def _world_from_lesson(lesson: Lesson) -> World:
-    """Build a fresh :class:`World` from the lesson's ``WorldDef``."""
-    from robolearn.engine.world import Obstacle, Sample
-
-    wd = lesson.world
-    return World(
-        terrain=Terrain(lesson.terrain),
-        base=tuple(wd.base),  # type: ignore[arg-type]
-        samples=[Sample(s[0], s[1]) for s in wd.samples],
-        obstacles=[Obstacle(o.x, o.y, o.r) for o in wd.obstacles],
-        bounds=ArenaBounds(width=wd.width, height=wd.height),
-    )
-
-
-def _snapshot(rover: Rover) -> RoverSnapshot:
-    """Capture the rover's current state for tracer events."""
-    s = rover.state
-    return RoverSnapshot(
-        x=s.x,
-        y=s.y,
-        heading_deg=s.heading_deg,
-        battery_pct=s.battery_pct,
-        samples_held=s.samples_held,
-        samples_collected=s.samples_collected,
-        collisions=s.collisions,
-        distance_travelled_m=s.distance_travelled_m,
-    )
+# Single definition lives in robolearn.runtime.session; the Tk app, this bridge
+# and the MCP server all delegate to it rather than keeping private copies that
+# can drift apart.
+_world_from_lesson = world_from_lesson
+_snapshot = snapshot
 
 
 def _hint_to_dict(hint: Any) -> dict[str, str] | None:

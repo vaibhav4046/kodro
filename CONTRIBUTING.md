@@ -1,8 +1,12 @@
-# Contributing to RoboLearn
+# Contributing to Kodro
 
 Thank you for your interest. This project is part of a UK honours-year
 dissertation and is graded on code quality, so contributions are held to a high
 standard.
+
+If you are working here with an AI assistant, read [AGENTS.md](AGENTS.md) first.
+It carries the operating rules and the traps in this codebase that have already
+cost real time, and it applies to human contributors too.
 
 ## Local setup
 
@@ -21,11 +25,34 @@ Before opening a pull request, every one of these must pass:
 ```bash
 ruff check .
 ruff format --check .
-mypy src/
+mypy src/robolearn
 pytest --cov=src/robolearn
 ```
 
 CI runs the same checks on Ubuntu, macOS and Windows.
+
+### Two Windows-only pytest gotchas
+
+If `pytest` fails at *setup* on roughly 200 tests with
+`PermissionError: [WinError 5] Access is denied`, the culprit is the default
+temp root, not the tests: `%TEMP%\pytest-of-<user>` can be left with an ACL the
+current user cannot traverse (a stale directory from an elevated run does it).
+Point pytest somewhere it definitely owns:
+
+```bash
+pytest --basetemp=.pytest-tmp
+```
+
+Do **not** pass `--no-cov` to speed a run up. `tests/conftest.py` applies
+pytest-cov's `no_cover` marker to the node-subprocess suites, and with coverage
+disabled that marker's context manager has nothing to pause, so pytest-cov 7.1
+raises `AttributeError: 'NoneType' object has no attribute 'pause'` and three
+tests in `tests/unit/test_web_bundle.py` fail for reasons unrelated to the code.
+To relax only the gate, use `--cov-fail-under=0` and leave coverage running.
+
+Note that the same `conftest.py` skips coverage for those subprocess suites on
+Windows + Python >= 3.13 outside CI, so a local coverage percentage is a
+conservative floor: CI measures higher, never lower.
 
 ## Style guide
 

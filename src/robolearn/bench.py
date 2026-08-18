@@ -7,7 +7,7 @@ versioned per-run JSON report. This is the CI-friendly, no-UI surface a
 researcher or a CI job drives:
 
     python -m robolearn.bench --code prog.py --seeds 20 --json out.json
-    kodro --code prog.py --seeds 20            # console script
+    kodro-bench --code prog.py --seeds 20      # console script
 
 Determinism is a contract: a given (code, seed) always produces the identical
 run record, because the engine is deterministic and the randomisation is seeded.

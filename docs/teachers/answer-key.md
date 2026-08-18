@@ -1,8 +1,10 @@
 # Teacher answer key
 
-These are the `solution_code` fields from the 18 shipped lesson YAML files.
+These are the `solution_code` fields from all 24 shipped lesson YAML files.
 They are copied verbatim. Do not simplify or replace them without running the
-lesson solution gates in both grading engines.
+lesson solution gates in both grading engines. Checked against
+`load_library()` on 15 August 2026: 24 sections, 24 lessons, every code block
+byte-identical to its source field.
 
 Use an answer after pupils have predicted, run, read the goal feedback and used
 the available hints. A worked program is one valid route, not the only possible
@@ -10,12 +12,26 @@ program unless the lesson criteria require that exact structure.
 
 ## Block A: First programs
 
+### `000_watch_it_go`: Watch It, Then Change It
+
+```python
+move_forward(2)
+```
+
 ### `00_first_drive`: Drive to the Flag
 
 ```python
 move_forward(1)
 move_forward(1)
 move_forward(1)
+```
+
+### `00a_turn_the_corner`: Turn the Corner
+
+```python
+move_forward(2)
+turn_left(90)
+move_forward(2)
 ```
 
 ### `00b_repeat_square`: Make a Square
@@ -32,6 +48,25 @@ for side in range(4):
 if obstacle_ahead():
     turn_left(90)
 move_forward(3)
+```
+
+### `00d_fix_the_turn`: Fix the Broken Program
+
+```python
+move_forward(1)
+turn_left(90)
+move_forward(2)
+```
+
+### `16_variables`: One name, used twice
+
+```python
+step = 2
+move_forward(step)
+collect_sample()
+turn_left(90)
+move_forward(step)
+collect_sample()
 ```
 
 ## Block B: Routes and decisions
@@ -75,6 +110,14 @@ if obstacle_ahead(2.0):
     turn_right(90)
     move_forward(1)
     collect_sample()
+```
+
+### `04a_fix_the_condition`: Fix the Backwards Test
+
+```python
+if obstacle_ahead():
+    turn_left(90)
+move_forward(2)
 ```
 
 ## Block C: Control and sensing
@@ -253,6 +296,15 @@ def hop(distance):
 hop(2)
 hop(3)
 hop(2)
+```
+
+### `17_lists`: A list drives the route
+
+```python
+steps = [2, 1, 3]
+for step in steps:
+    move_forward(step)
+    collect_sample()
 ```
 
 ## How these answers are checked

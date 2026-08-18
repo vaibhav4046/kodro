@@ -1,9 +1,13 @@
 """Canvas-based mini-charts for the sensors panel (P2 polish task).
 
-Matplotlib would balloon the PyInstaller bundle from 26 MB to ~120 MB.
-For a classroom estate that's a real cost; we draw simple line charts
-directly onto a :class:`tk.Canvas` instead. Same teaching value, zero
-new dependencies. The chart auto-downsamples past 200 datapoints.
+Matplotlib is deliberately not a dependency here. When this was written the
+PyInstaller bundle was 26 MB and the estimate for adding matplotlib was
+roughly 120 MB; neither figure describes the current builds, which are 71 MB
+(Tk) and 188 MB (WebView2), and the 120 MB was never measured. The reasoning
+stands whatever the baseline: a classroom estate pays for every megabyte, so
+we draw simple line charts directly onto a :class:`tk.Canvas` instead. Same
+teaching value, zero new dependencies. The chart auto-downsamples past 200
+datapoints.
 """
 
 from __future__ import annotations

@@ -307,9 +307,18 @@ ok(/Weather: rain, snow and dust storms change the light level and the visuals o
     'Build states the live-price and electrical-evidence boundary');
 }
 
-// 15. The learning pillar is named at first contact (judge round 9).
-ok(/Lessons<\/b>: 18 graded missions/.test(read('onboarding.jsx')),
-  'onboarding step 3 introduces the Lessons pillar');
+// 15. The learning pillar is named at first contact (judge round 9), and the
+//     count it advertises is the count the product actually ships. The literal
+//     that used to sit here said 18 while the library had grown to 24, so the
+//     number is now read from lessons.json (which test_lessons_export pins
+//     byte-for-byte to the YAML library) instead of being retyped.
+{
+  const shipped = JSON.parse(read('lessons.json')).length;
+  const claim = /Lessons<\/b>: (\d+) graded missions/.exec(read('onboarding.jsx'));
+  ok(claim !== null, 'onboarding step 3 introduces the Lessons pillar');
+  ok(claim !== null && Number(claim[1]) === shipped,
+    `onboarding advertises ${shipped} graded missions, matching the shipped library`);
+}
 
 // 16. Catalogue no-load top speed must NOT scale with drive-part count or type
 //     (judge round 10): every drive/actuator part shares one nominal speed, so

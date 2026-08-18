@@ -6,10 +6,23 @@ ct_concepts: [sequence, abstraction]
 curriculum_refs:
   - "DfE 'Computing programmes of study: Key Stages 1 and 2' (DfE-00171-2013), KS2: work with variables and various forms of input and output."
   - "DfE 'Computing programmes of study: Key Stages 3 and 4' (DfE-00191-2013), KS3 subject content: use ... variables ... appropriately."
-prereqs: [03_sequence]
+# 00a_turn_the_corner, not 03_sequence. This is a KS2 lesson, and 03_sequence is
+# KS3, so requiring it pointed a KS2 pupil at a lesson outside their own section
+# of the browser and kept this lesson out of the recommender until they attempted
+# a KS3 one. 00a is also the better teacher for it on the merits: its solution is
+# move_forward(2) / turn_left(90) / move_forward(2), the exact shape of the
+# program below, so the pupil has already written the same number twice by hand.
+# Naming it is then a fix for something they felt, not a rule they were told.
+prereqs: [00a_turn_the_corner]
 terrain: earth
 glossary:
   variable: "A name that remembers a value. Use the name and you get the value."
+  # collect_sample() is in the starter code and no KS1 or KS2 lesson before this
+  # one uses it -- 03_sequence did, which is what the old KS3 prereq was quietly
+  # covering. Repointing the prereq without this would have swapped a broken
+  # ordering for unexplained jargon, so the call is defined here instead.
+  sample: "A marker on the ground for the rover to pick up. The flags in this lesson are samples."
+  collect_sample: "Picks up the sample the rover is standing on. It is already written for you here."
 intro: |
   Two flags, and both are the same distance away: 2 metres east, then
   2 metres north.

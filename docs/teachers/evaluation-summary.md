@@ -6,7 +6,8 @@
 > study: it involved **no participants, no measurements, and no model-generated scores**.
 > Nothing below is a finding. The measured evidence for the assistant is the objective
 > persona-task evaluation (`docs/developers/evaluation.md`, section 4: 40/40 narrow
-> executable cells, scored by the shipped interpreter and self-test). The real classroom
+> executable cells in one seeded synthetic run, scored by the shipped interpreter and
+> self-test). The real classroom
 > questions are answered only by the planned human study (`HUMAN_TODO.md`).
 
 **Status:** Design-review artefact. No study has been conducted with teachers, simulated or otherwise, and this document approves nothing.

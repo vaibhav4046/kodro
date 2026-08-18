@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "kodro": {
+      "type": "stdio",
+      "command": "kodro-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}

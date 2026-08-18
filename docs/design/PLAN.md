@@ -7,7 +7,7 @@ Prepared 27 July 2026 for the parallel design track.
 - Edit only the design-track files listed in `docs/design/OWNERSHIP.md`.
 - Do not hand-edit `bundle.js`. Rebuild it with `node scripts/build_web.cjs`.
 - Do not stage or alter the engine-track changes already present in the shared worktree.
-- Put any required engine-track change in `docs/design/REQUESTS_FOR_CLAUDE.md`.
+- Put any required engine-track change in `docs/design/REQUESTS_FROM_DESIGN.md`.
 
 ## Design direction
 

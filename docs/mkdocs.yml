@@ -4,7 +4,12 @@ site_url: https://vaibhav4046.github.io/robolearn
 repo_url: https://github.com/vaibhav4046/robolearn
 repo_name: vaibhav4046/robolearn
 docs_dir: .
-site_dir: ../site
+# NOT ../site. That directory is the Kodro Web static build (build_web.cjs
+# --static) and it is what deploy-pages.yml uploads to GitHub Pages. Pointing
+# mkdocs at it means one `mkdocs build` silently replaces the product with the
+# documentation site, and the next deploy ships that. Kept out of the way here
+# and gitignored; nothing publishes from it.
+site_dir: ../.docs-site
 
 theme:
   name: material
@@ -41,6 +46,8 @@ nav:
   - For developers:
       - Architecture: developers/architecture.md
       - Extending lessons: developers/extending-lessons.md
+      - Connect an assistant (MCP): mcp.md
+      - MCP internals: developers/mcp-server.md
       - Decision log: developers/decision-log.md
       - Test evidence: developers/test-evidence.md
       - Evaluation: developers/evaluation.md

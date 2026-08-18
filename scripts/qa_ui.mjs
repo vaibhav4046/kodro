@@ -1,6 +1,6 @@
 /* Offline UI regression smoke for the Kodro studio.
  *
- * The interpreter has hard numbers (qa_interpreter.mjs: 21/21) but the React
+ * The interpreter has a hard pass/fail gate (qa_interpreter.mjs) but the React
  * studio itself had no regression net: a broken bundle, a crashing world, or a
  * panel that throws on mount would render a blank canvas and ship silently.
  * This harness closes that gap. It drives the REAL shipped bundle through
@@ -41,6 +41,7 @@
  *   node scripts/qa_ui.mjs                                      # this harness
  */
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   mkdirSync, existsSync, statSync, rmSync, writeFileSync, copyFileSync,
   openSync, closeSync, readFileSync,
@@ -55,6 +56,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
 const TMP = path.join(REPO, 'tmp', 'ui');
 const CAP = path.join(REPO, 'src', 'robolearn', 'assets', 'web', 'cap.html');
+// cap.html loads this; hashing both pins exactly which build a result belongs to.
+const BUNDLE = path.join(REPO, 'src', 'robolearn', 'assets', 'web', 'bundle.js');
 
 const HOST = 'localhost';
 const PORT = 8099;
@@ -68,6 +71,11 @@ const RUN_BEHAVIOUR = SUITE === 'all' || SUITE === 'behaviour';
 const RUN_LAYOUT = SUITE === 'all' || SUITE === 'layout';
 const RUN_MODALS = SUITE === 'all' || SUITE === 'modals';
 const REQUIRED = process.env.KODRO_QA_UI_REQUIRED === '1';
+// Same evidence directory the performance, persona and vibe harnesses write to.
+// A restricted --suite= run writes ALONGSIDE the full-run file rather than over
+// it, so narrowing a local run can never quietly replace the artefact that
+// backs the full four-suite claim.
+const OUT = path.join(REPO, 'docs', 'eval', SUITE === 'all' ? 'ui_eval.json' : `ui_eval_${SUITE}.json`);
 
 // A real studio render fills a 1280x800 canvas; anything under this is a blank
 // page or a partial paint, which is exactly the regression we are hunting.
@@ -86,8 +94,20 @@ const BEHAVIOUR_VTIME_MS = 16_000;
 // stack from cold, which can run long; later launches are warm. We do a cheap
 // about:blank warm-up before the flows AND give the first real spawn more
 // headroom so a cold box does not flake the very first flow.
-const SPAWN_TIMEOUT_MS = 60_000;
-const FIRST_SPAWN_TIMEOUT_MS = 90_000;
+//
+// The ceiling is platform-aware because the two platforms are not close. On the
+// Linux CI runner a flow finishes in a few seconds. On a loaded Windows laptop
+// the same flow was measured at 2m56s end-to-end -- Defender scans every file
+// of the fresh profile as Chrome writes it, and SwiftShader JITs on a box with
+// ~1.5GB free. A 60s ceiling there does not report a broken product, it reports
+// a busy machine, and the difference matters: an ETIMEDOUT tells you nothing
+// about the page, so a gate that fires it is a gate that has stopped measuring.
+// Override with KODRO_QA_UI_TIMEOUT_MS when neither default fits.
+const TIMEOUT_ENV = Number.parseInt(process.env.KODRO_QA_UI_TIMEOUT_MS || '', 10);
+const SPAWN_TIMEOUT_MS = Number.isFinite(TIMEOUT_ENV) && TIMEOUT_ENV > 0
+  ? TIMEOUT_ENV
+  : (process.platform === 'win32' ? 300_000 : 60_000);
+const FIRST_SPAWN_TIMEOUT_MS = Math.round(SPAWN_TIMEOUT_MS * 1.5);
 // The flow whose Run we verify actually moved the rover.
 const BEHAVIOUR_FLOW = 'studio-earth-run';
 
@@ -241,6 +261,14 @@ function probeServer() {
   });
 }
 
+// Block for ms. This runner is deliberately synchronous end to end (spawnSync
+// throughout) so the suites cannot interleave and fight over the one dev
+// server, which means a real sleep is a busy wait. Dependency-free on purpose.
+function pauseMs(ms) {
+  const until = Date.now() + ms;
+  while (Date.now() < until) { /* dep-free pause */ }
+}
+
 // Drive a URL in headless Chrome and dump the post-action DOM (not a
 // screenshot). Returns { dom, stderr, consoleError, error }. The behaviour
 // asserts below all read concrete DOM markers from the dumped HTML; the console
@@ -297,45 +325,85 @@ function readOdometer(dom) {
 }
 
 // (1) RUN DETERMINISM — drive the run flow a SECOND time (--dump-dom) and assert
-// the rover moved AND landed on the exact deterministic odometer reading. A
-// green screenshot proves the studio painted; this proves the simulation ran
-// and ran the SAME way it always does. Asserting equality (not just > 0) catches
-// run-pump drift: a dropped step, a doubled advance, a physics tweak that nudges
-// the distance. Falls back to a labelled weaker check only if the odometer span
-// drifts out of the DOM. Returns { pass, reason, value }.
-function checkRoverMoved(chrome, flow) {
-  const { dom, consoleError, error } = dumpDom(chrome, `behaviour_${flow.name}`, `${BASE}?${flow.url}`);
-  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}`, value: null };
-  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)', value: null };
+// the rover moved a substantial distance. A green screenshot proves the studio
+// painted; this proves the simulation ran. Falls back to a labelled weaker check
+// only if the odometer span drifts out of the DOM.
+// Returns { pass, reason, value, retryable }.
+function attemptRoverMoved(chrome, flow, attempt, vtime) {
+  const tag = attempt === 0 ? `behaviour_${flow.name}` : `behaviour_${flow.name}_retry${attempt}`;
+  const { dom, consoleError, error } = dumpDom(chrome, tag, `${BASE}?${flow.url}`, { vtime });
+  // A spawn failure or a page that never rendered is not a slow snapshot, it is
+  // a broken launch: retrying it would only relabel the same failure.
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}`, value: null, retryable: false };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)', value: null, retryable: false };
 
   const odo = readOdometer(dom);
   // Shared status vocabulary (F11): telemetry prints RUNNING while driving.
   const driving = /RUNNING/.test(dom);
 
   if (odo !== null && odo > 0) {
-    const tag = driving ? ', status RUNNING' : '';
+    const status = driving ? ', status RUNNING' : '';
     if (odo >= MIN_DRIVE_M) {
-      return { pass: true, reason: `rover drove ${odo.toFixed(1)}m (>= ${MIN_DRIVE_M}m floor${tag}); exact-distance determinism is covered by qa_interpreter/qa_grader`, value: odo };
+      return { pass: true, reason: `rover drove ${odo.toFixed(1)}m (>= ${MIN_DRIVE_M}m floor${status}); exact-distance determinism is covered by qa_interpreter/qa_grader`, value: odo, retryable: false };
     }
-    // It registered on the odometer but barely moved: a stalled or broken run.
-    return { pass: false, reason: `rover barely moved (${odo.toFixed(1)}m < ${MIN_DRIVE_M}m floor)`, value: odo };
+    // It registered on the odometer but is short of the floor. Either the run
+    // stalled or this snapshot landed early in the choreography; more budget
+    // separates the two.
+    return { pass: false, reason: `rover barely moved (${odo.toFixed(1)}m < ${MIN_DRIVE_M}m floor)`, value: odo, retryable: true };
   }
 
-  // Odometer found but zero: the rover did NOT move — a genuine behaviour fail.
+  // Odometer found but zero: the rover did NOT move — either a genuine
+  // behaviour fail or a snapshot taken before Run was even clicked (~1.4s in).
   if (odo !== null && odo === 0) {
-    return { pass: false, reason: 'rover did NOT move (odometer 0.0m after Run)', value: 0 };
+    return { pass: false, reason: 'rover did NOT move (odometer 0.0m after Run)', value: 0, retryable: !consoleError };
   }
 
   // FALLBACK: odometer span not locatable (markup drift). Don't fake a pass —
   // assert the weaker-but-real signal and LABEL it as the fallback.
   const haveTelemetry = /Distance driven/.test(dom) && /(RUNNING|STANDBY|PAUSED|COMPLETE|HALTED)/.test(dom);
   if (haveTelemetry && driving && !consoleError) {
-    return { pass: true, reason: 'rover moved (FALLBACK: odometer value not parseable, telemetry mounted + status=RUNNING; exact-value check skipped)', value: null };
+    return { pass: true, reason: 'rover moved (FALLBACK: odometer value not parseable, telemetry mounted + status=RUNNING; exact-value check skipped)', value: null, retryable: false };
   }
   const why = consoleError ? `console error during run: ${consoleError.slice(0, 120)}`
     : !haveTelemetry ? 'telemetry panel/odometer not found in DOM'
     : 'odometer not > 0 and status not RUNNING';
-  return { pass: false, reason: `could not confirm rover moved (${why})`, value: odo };
+  // A console error is a real defect; markup drift is not something a longer
+  // budget fixes. Only the "nothing conclusive yet" shape is worth another look.
+  return { pass: false, reason: `could not confirm rover moved (${why})`, value: odo, retryable: !consoleError && haveTelemetry };
+}
+
+// What one --dump-dom snapshot reads is load-dependent. Measured on this
+// machine, same commit, same bundle, same deterministic program: 14.0m idle,
+// 4.3m with the pytest suite running alongside, 2.0m with three other UI suites
+// competing for the box (8.1m and 13.8m historically). 14.0m is where the
+// program ENDS, not how far the budget carried it -- forcing all three attempts
+// with an unreachable floor read 14.0m at 16000ms, 14.0m at 32000ms and 14.0m at
+// 64000ms. So the low readings are a run TRUNCATED before it finished: under
+// contention Chrome retires the virtual-time budget with real work still queued.
+//
+// A below-floor snapshot is therefore ambiguous on its own -- truncated capture,
+// or a rover that genuinely stalled -- and retrying separates them on both
+// levers at once: the contention may have passed, and a larger budget buys more
+// of the run while it has not. A stalled rover climbs on neither, so it still
+// fails (verified: with the floor forced to 999m the check failed through all
+// three attempts rather than passing). Every earlier reading is printed, so a
+// pass that needed retries can never be misread as a first-try pass.
+const DRIVE_ATTEMPT_VTIMES = [BEHAVIOUR_VTIME_MS, BEHAVIOUR_VTIME_MS * 2, BEHAVIOUR_VTIME_MS * 4];
+
+function checkRoverMoved(chrome, flow) {
+  const earlier = [];
+  let last = { pass: false, reason: 'no attempt ran', value: null };
+  for (let i = 0; i < DRIVE_ATTEMPT_VTIMES.length; i++) {
+    const vtime = DRIVE_ATTEMPT_VTIMES[i];
+    last = attemptRoverMoved(chrome, flow, i, vtime);
+    if (last.pass || !last.retryable || i === DRIVE_ATTEMPT_VTIMES.length - 1) break;
+    earlier.push(`${last.value === null ? 'no reading' : last.value.toFixed(1) + 'm'} at ${vtime}ms budget`);
+    pauseMs(GAP_MS);  // the dev server is single-threaded; let it recover
+  }
+  const result = { pass: last.pass, reason: last.reason, value: last.value };
+  if (!earlier.length) return result;
+  result.reason = `${last.reason} (attempt ${earlier.length + 1}; earlier snapshots: ${earlier.join(', ')})`;
+  return result;
 }
 
 // (2) BLOCKS INSERT -> editor gets code. Drive panel=blocks&blockstest=1: the
@@ -465,19 +533,61 @@ function checkModalRenders(chrome, modal) {
 // swallow the next run's "Program finished." line (plus its toast, memory
 // record, verdict and grading), so this asserts BOTH the REPL error surfaced
 // AND the following editor run still announced its completion.
-function checkReplRecovery(chrome) {
+//
+// This check drives TWO runs in one capture (the REPL line, then the editor
+// program on a 3200ms delay), so it needs more of the run to survive the budget
+// than any single-run check does, and it is the one most exposed to the
+// truncation described above checkRoverMoved: under contention Chrome retires
+// the virtual-time budget with real work still queued. Measured, same commit:
+// the exact URL below at the exact budget passed 8/8 standalone (5 repeats
+// replicating this function's own flags and stdio, plus 3 at 1x/2x/4x budget)
+// while failing inside a loaded full-suite run. A single-shot assert on a
+// two-run capture reports contention as a product defect, so it escalates the
+// budget like its neighbours and reports every earlier attempt.
+const REPL_ATTEMPT_VTIMES = [BEHAVIOUR_VTIME_MS, BEHAVIOUR_VTIME_MS * 2, BEHAVIOUR_VTIME_MS * 4];
+
+function attemptReplRecovery(chrome, attempt, vtime) {
+  const tag = attempt === 0 ? 'behaviour_repl_recovery' : `behaviour_repl_recovery_retry${attempt}`;
   const url = `${BASE}?world=earth&robot=rover&q=low&repl=${encodeURIComponent('print(1/0)')}&run=1`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_repl_recovery', url);
-  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
-  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
-  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const { dom, consoleError, error } = dumpDom(chrome, tag, url, { vtime });
+  // A capture that never came back tells you nothing about the page, so it is
+  // worth another look; a console error is a real defect and is not.
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}`, note: 'no capture', retryable: true };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)', note: 'no DOM', retryable: true };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}`, note: 'console error', retryable: false };
   const errShown = /division by zero/.test(dom);
   const finished = /Program finished\./.test(dom);
   if (errShown && finished) {
-    return { pass: true, reason: 'REPL error surfaced AND the next editor run still printed "Program finished."' };
+    return { pass: true, reason: 'REPL error surfaced AND the next editor run still printed "Program finished."', retryable: false };
   }
-  if (!errShown) return { pass: false, reason: 'REPL error line ("division by zero") never surfaced in the console' };
-  return { pass: false, reason: 'run after a REPL error SWALLOWED its "Program finished." line (replRef leak)' };
+  // Neither half is conclusive alone. "Deployed on" prints the moment a run
+  // STARTS, so it separates the two live readings of a missing completion: a
+  // run that started and was cut off mid-flight (truncated capture), versus a
+  // Run that never started at all. Both are shapes a longer budget can change,
+  // so neither is reported as a cause here -- only as what was seen.
+  const started = /Deployed on/.test(dom);
+  const seen = `error line ${errShown ? 'shown' : 'absent'}, run ${started ? 'started' : 'never started'}, completion ${finished ? 'printed' : 'absent'}`;
+  const why = !errShown
+    ? `REPL error line ("division by zero") never surfaced in the console (${seen})`
+    : `the editor run after a REPL error did not print "Program finished." (${seen})`;
+  return { pass: false, reason: why, note: seen, retryable: true };
+}
+
+function checkReplRecovery(chrome) {
+  const earlier = [];
+  let last = { pass: false, reason: 'no attempt ran' };
+  for (let i = 0; i < REPL_ATTEMPT_VTIMES.length; i++) {
+    const vtime = REPL_ATTEMPT_VTIMES[i];
+    last = attemptReplRecovery(chrome, i, vtime);
+    if (last.pass || !last.retryable || i === REPL_ATTEMPT_VTIMES.length - 1) break;
+    earlier.push(`${last.note} at ${vtime}ms budget`);
+    pauseMs(GAP_MS);  // the dev server is single-threaded; let it recover
+  }
+  if (!earlier.length) return { pass: last.pass, reason: last.reason };
+  // A pass that needed retries must never read as a first-try pass, and a
+  // failure must carry what the shorter budgets saw so a real swallow (which
+  // never completes at any budget) stays distinguishable from truncation.
+  return { pass: last.pass, reason: `${last.reason} (attempt ${earlier.length + 1}; earlier: ${earlier.join(', ')})` };
 }
 
 // REPL ERRORS STAY IN THE TERMINAL (F5) — a live-terminal error must not mark
@@ -713,9 +823,13 @@ function checkVibeBuild(chrome) {
   const previewRun = dumpDom(chrome, 'behaviour_vibe_build_preview', previewUrl, { vtime: 12000 });
   if (previewRun.error) return { pass: false, reason: `preview dump-dom failed: ${previewRun.error.message}` };
   if (!previewRun.dom) return { pass: false, reason: 'preview produced no DOM (page never rendered)' };
+  // Anchored on the rendered button element, not the bare phrase: cap.html's own
+  // driver script contains the string 'Apply project change' (it clicks the
+  // button by text), and --dump-dom serialises inline <script> bodies, so a bare
+  // phrase test is true on every page and asserts nothing.
   if (!/class="vibe-msg ai project-preview"/.test(previewRun.dom)
       || !/Preview .* nothing changed/.test(previewRun.dom)
-      || !/Apply project change/.test(previewRun.dom)
+      || !/>Apply project change<\/button>/.test(previewRun.dom)
       || !/data-active-world="earth"/.test(previewRun.dom)) {
     return { pass: false, reason: 'build request did not remain an explicit, non-mutating project preview' };
   }
@@ -800,6 +914,46 @@ function checkVibeRepairPreview(chrome) {
     return { pass: false, reason: 'the built-in collision repair draft failed Kodro self-validation' };
   }
   return { pass: true, reason: 'offline collision help produced a project-backed, validated sensor repair with explicit Apply/Discard controls' };
+}
+
+// SPEAKING OR TYPING YOUR WAY INTO A LESSON — the platform is a lesson library
+// first, so the companion is only as useful as its ability to reach one. The
+// parser side is covered by qa_voice; what is asserted here is the half only a
+// real page can prove: the intent reaches the dispatcher, the dispatcher calls
+// the same loadLesson the library tile calls, and the lesson grading context is
+// actually live afterwards.
+//
+// Opening a lesson is deliberately NOT gated behind Apply, unlike a build or a
+// world move. Each lesson owns its own program buffer, so nothing the pupil
+// wrote is destroyed and there is no pending mutation for a gate to protect.
+// The assert encodes that decision: an action message, not a preview.
+function checkVibeLesson(chrome) {
+  // mode=classroom is load-bearing, not decoration: the lesson card is
+  // classroom furniture (app.jsx returns null for the whole block otherwise), so
+  // without it the "is the lesson actually live" half of this check could never
+  // be true no matter how well the intent routed.
+  const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&vibe=${encodeURIComponent('open the loops lesson')}`;
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_vibe_lesson', url, { vtime: 14000 });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 140)}` };
+  const acted = /class="vibe-msg ai action"/.test(dom) && /Opened /.test(dom);
+  // The preview branch is identified by its own rendered class. Testing for the
+  // phrase "Apply project change" instead would always fire, because cap.html's
+  // driver script quotes that phrase and --dump-dom serialises script bodies.
+  const noPreview = !/class="vibe-msg ai project-preview"/.test(dom);
+  const lessonLive = /class="lesson-card"/.test(dom);
+  // Read the lesson NUMBER off the card, not the title off the chat: the action
+  // message is literally "Opened Iteration with while-loops.", so a title test
+  // would pass on the message alone and prove nothing about the live lesson.
+  const rightLesson = /class="lesson-num">05_iteration/.test(dom);
+  if (acted && noPreview && lessonLive && rightLesson) {
+    return { pass: true, reason: 'a typed or spoken "open the loops lesson" opened lesson 05 directly, with no Apply gate and the lesson grading context live' };
+  }
+  return {
+    pass: false,
+    reason: `lesson intent did not reach the lesson (action: ${acted}, no-apply-gate: ${noPreview}, lesson-card: ${lessonLive}, correct-lesson: ${rightLesson})`,
+  };
 }
 
 // LIGHT-THEME HUD READABILITY (F-light) — the viewport HUD is a fixed
@@ -1424,6 +1578,67 @@ function cleanup() {
   try { rmSync(TMP, { recursive: true, force: true }); } catch { /* noop */ }
 }
 
+// Provenance the same way qa_performance does it, so the artefact pins the exact
+// build it measured instead of leaving a reader to guess. A missing file yields
+// null rather than throwing: the artefact is written at the end of a run that
+// takes minutes, and losing every recorded result to a hashing error would be
+// the worst possible outcome of a missing file.
+function sha256(file) {
+  try { return createHash('sha256').update(readFileSync(file)).digest('hex'); } catch { return null; }
+}
+
+// One recorder for every assert. The printed line and the artefact row come out
+// of the SAME result object here, so the counts a reader audits in docs/eval
+// cannot drift from the counts the console printed.
+function report(group, label, result) {
+  group.push({ label, pass: result.pass, reason: result.reason });
+  console.log(`${result.pass ? 'PASS' : 'FAIL'}  ${label.padEnd(20)} ${result.reason}`);
+}
+
+// Counts are derived from the rows, never written down separately, so a suite
+// that gains or loses an assert changes the artefact by itself.
+function tally(name, results) {
+  return { name, passed: results.filter((r) => r.pass).length, total: results.length, results };
+}
+
+// Every other evidence harness leaves a committed artefact; this one printed its
+// four counts and forgot them, so the numbers the dissertation cites had nothing
+// behind them a reader could check. Written from the same arrays that produce
+// the summary line and the exit code, and written on failing runs too, because a
+// failing run's artefact is the one worth reading.
+function writeArtefact(chrome, passed, groups) {
+  const total = groups.reduce((sum, g) => sum + g.total, 0);
+  const clean = groups.reduce((sum, g) => sum + g.passed, 0);
+  const artefact = {
+    schemaVersion: 1,
+    harness: 'qa_ui',
+    generatedAt: new Date().toISOString(),
+    suite: SUITE,
+    method: 'headless Chrome drives the real shipped bundle through cap.html; every row is an isolated Chrome run whose screenshot, post-action DOM or measured viewport had to match a concrete marker',
+    chrome,
+    platform: { platform: process.platform, arch: process.arch, node: process.version },
+    artifactHashes: {
+      bundleSha256: sha256(BUNDLE),
+      capHtmlSha256: sha256(CAP),
+      harnessSha256: sha256(fileURLToPath(import.meta.url)),
+    },
+    measures: 'Whether the shipped studio renders and behaves: that each flow paints with no console error, that each assert finds its marker in the real DOM, that no viewport overflows and that every modal opens. Not a measure of whether a person can use, understand or learn from the interface, and not an accessibility, usability or hardware result. Where an exact marker cannot be located an assert falls back to the most specific real signal it can verify, so each row states in its reason what was actually matched.',
+    passed: clean,
+    total,
+    percent: total ? Math.round((clean / total) * 100) : 0,
+    groups,
+    verdict: passed ? 'PASS' : 'FAIL',
+  };
+  try {
+    mkdirSync(path.dirname(OUT), { recursive: true });
+    writeFileSync(OUT, JSON.stringify(artefact, null, 2));
+    console.log('wrote ' + path.relative(REPO, OUT).replace(/\\/g, '/'));
+  } catch (e) {
+    // Never let a write problem change the verdict a real run just measured.
+    console.error(`could not write ${OUT}: ${e.message}`);
+  }
+}
+
 (async function main() {
   if (!existsSync(CAP)) {
     console.log('SKIP: cap.html missing — run `node scripts/build_screenshot_harness.cjs` first.');
@@ -1471,7 +1686,7 @@ function cleanup() {
     return;
   }
 
-  const gap = () => { const until = Date.now() + GAP_MS; while (Date.now() < until) { /* dep-free pause */ } };
+  const gap = () => pauseMs(GAP_MS);
 
   // A bounded release gate for the connected journey added after the original
   // behaviour suite grew beyond a useful local feedback loop.
@@ -1482,6 +1697,7 @@ function cleanup() {
     ] : [
       ['chat-repair', checkVibeRepairPreview],
       ['chat-build', checkVibeBuild],
+      ['chat-lesson', checkVibeLesson],
       ['learning-note', checkLearningAnnotation],
       ['lesson-goals', checkLessonGoals],
       ['step-palette', checkStepPalette],
@@ -1503,13 +1719,16 @@ function cleanup() {
   }
 
   // ---- Phase 1: paint + console smoke across the core flows (unchanged) -----
-  let clean = 0;
+  // These print at a narrower pad than the suites below, so they record their
+  // rows directly instead of going through report().
+  const flows = [];
   if (RUN_PAINT) for (let i = 0; i < FLOWS.length; i++) {
     const flow = FLOWS[i];
     // The very first real flow still warms WebGL for the full app; give it room.
     const r = runFlow(chrome, flow, i === 0 ? FIRST_SPAWN_TIMEOUT_MS : SPAWN_TIMEOUT_MS);
     let flowPass = r.pass;
     console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${flow.name.padEnd(18)} ${r.reason}`);
+    const row = { label: flow.name, pass: flowPass, reason: r.reason };
 
     // For the run flow, also assert the rover actually MOVED to its deterministic
     // mark, not just that the studio painted. A second --dump-dom pass reads the
@@ -1518,11 +1737,16 @@ function cleanup() {
       const b = checkRoverMoved(chrome, flow);
       flowPass = flowPass && b.pass;
       console.log(`${b.pass ? 'PASS' : 'FAIL'}  ${'  └ determinism'.padEnd(18)} ${b.reason}`);
+      // Recorded on the row it decides rather than as an extra flow, because no
+      // printed count treats it as one.
+      row.determinism = { pass: b.pass, reason: b.reason };
     }
 
-    if (flowPass) clean++;
+    row.pass = flowPass;
+    flows.push(row);
     gap(); // let the single-threaded dev server recover before the next hit
   }
+  const clean = flows.filter((r) => r.pass).length;
 
   // ---- Phase 2: per-concern behaviour asserts (deterministic, no Ollama) -----
   // Each drives a concrete action and asserts a concrete DOM marker. These run
@@ -1532,195 +1756,161 @@ function cleanup() {
   console.log('\n== UI BEHAVIOUR: per-concern asserts on the real bundle ==');
 
   const blocks = checkBlocksInsert(chrome);
-  behaviour.push(blocks.pass);
-  console.log(`${blocks.pass ? 'PASS' : 'FAIL'}  ${'blocks-insert'.padEnd(20)} ${blocks.reason}`);
+  report(behaviour, 'blocks-insert', blocks);
   gap();
 
   const errPath = checkErrorPath(chrome);
-  behaviour.push(errPath.pass);
-  console.log(`${errPath.pass ? 'PASS' : 'FAIL'}  ${'error-path'.padEnd(20)} ${errPath.reason}`);
+  report(behaviour, 'error-path', errPath);
   gap();
 
   for (const w of WORLD_IDENTITY) {
     const wi = checkWorldIdentity(chrome, w.world, w.expect);
-    behaviour.push(wi.pass);
-    console.log(`${wi.pass ? 'PASS' : 'FAIL'}  ${('world-' + w.world).padEnd(20)} ${wi.reason}`);
+    report(behaviour, 'world-' + w.world, wi);
     gap();
   }
 
   const siteSwitch = checkSiteSwitch(chrome);
-  behaviour.push(siteSwitch.pass);
-  console.log(`${siteSwitch.pass ? 'PASS' : 'FAIL'}  ${'site-switch'.padEnd(20)} ${siteSwitch.reason}`);
+  report(behaviour, 'site-switch', siteSwitch);
   gap();
 
   const replRec = checkReplRecovery(chrome);
-  behaviour.push(replRec.pass);
-  console.log(`${replRec.pass ? 'PASS' : 'FAIL'}  ${'repl-recovery'.padEnd(20)} ${replRec.reason}`);
+  report(behaviour, 'repl-recovery', replRec);
   gap();
 
   const replHalt = checkReplNoHalt(chrome);
-  behaviour.push(replHalt.pass);
-  console.log(`${replHalt.pass ? 'PASS' : 'FAIL'}  ${'repl-no-halt'.padEnd(20)} ${replHalt.reason}`);
+  report(behaviour, 'repl-no-halt', replHalt);
   gap();
 
   const realismWorld = checkRealismLiveWorld(chrome);
-  behaviour.push(realismWorld.pass);
-  console.log(`${realismWorld.pass ? 'PASS' : 'FAIL'}  ${'realism-live-world'.padEnd(20)} ${realismWorld.reason}`);
+  report(behaviour, 'realism-live-world', realismWorld);
   gap();
 
   const siteAgents = checkAgentsAtSite(chrome);
-  behaviour.push(siteAgents.pass);
-  console.log(`${siteAgents.pass ? 'PASS' : 'FAIL'}  ${'agents-at-site'.padEnd(20)} ${siteAgents.reason}`);
+  report(behaviour, 'agents-at-site', siteAgents);
   gap();
 
   const honesty = checkBuildHonesty(chrome);
-  behaviour.push(honesty.pass);
-  console.log(`${honesty.pass ? 'PASS' : 'FAIL'}  ${'build-honesty'.padEnd(20)} ${honesty.reason}`);
+  report(behaviour, 'build-honesty', honesty);
   gap();
 
   const statusAgree = checkStatusAgree(chrome);
-  behaviour.push(statusAgree.pass);
-  console.log(`${statusAgree.pass ? 'PASS' : 'FAIL'}  ${'status-agree'.padEnd(20)} ${statusAgree.reason}`);
+  report(behaviour, 'status-agree', statusAgree);
   gap();
 
   const nothingRan = checkNothingRan(chrome);
-  behaviour.push(nothingRan.pass);
-  console.log(`${nothingRan.pass ? 'PASS' : 'FAIL'}  ${'nothing-ran'.padEnd(20)} ${nothingRan.reason}`);
+  report(behaviour, 'nothing-ran', nothingRan);
   gap();
 
   const vibeChip = checkVibeMemoryChip(chrome);
-  behaviour.push(vibeChip.pass);
-  console.log(`${vibeChip.pass ? 'PASS' : 'FAIL'}  ${'vibe-memory-chip'.padEnd(20)} ${vibeChip.reason}`);
+  report(behaviour, 'vibe-memory-chip', vibeChip);
   gap();
 
   const memExport = checkMemoryExport(chrome);
-  behaviour.push(memExport.pass);
-  console.log(`${memExport.pass ? 'PASS' : 'FAIL'}  ${'memory-export'.padEnd(20)} ${memExport.reason}`);
+  report(behaviour, 'memory-export', memExport);
   gap();
 
   const memGraph = checkMemoryGraph(chrome);
-  behaviour.push(memGraph.pass);
-  console.log(`${memGraph.pass ? 'PASS' : 'FAIL'}  ${'memory-graph'.padEnd(20)} ${memGraph.reason}`);
+  report(behaviour, 'memory-graph', memGraph);
   gap();
 
   const vibeBuild = checkVibeBuild(chrome);
-  behaviour.push(vibeBuild.pass);
-  console.log(`${vibeBuild.pass ? 'PASS' : 'FAIL'}  ${'chat-build'.padEnd(20)} ${vibeBuild.reason}`);
+  report(behaviour, 'chat-build', vibeBuild);
   gap();
 
   const learningAnnotation = checkLearningAnnotation(chrome);
-  behaviour.push(learningAnnotation.pass);
-  console.log(`${learningAnnotation.pass ? 'PASS' : 'FAIL'}  ${'learning-note'.padEnd(20)} ${learningAnnotation.reason}`);
+  report(behaviour, 'learning-note', learningAnnotation);
   gap();
 
   const lessonWorldExit = checkLessonWorldExit(chrome);
-  behaviour.push(lessonWorldExit.pass);
-  console.log(`${lessonWorldExit.pass ? 'PASS' : 'FAIL'}  ${'lesson-world-exit'.padEnd(20)} ${lessonWorldExit.reason}`);
+  report(behaviour, 'lesson-world-exit', lessonWorldExit);
   gap();
 
   const vibeRepair = checkVibeRepairPreview(chrome);
-  behaviour.push(vibeRepair.pass);
-  console.log(`${vibeRepair.pass ? 'PASS' : 'FAIL'}  ${'chat-repair'.padEnd(20)} ${vibeRepair.reason}`);
+  report(behaviour, 'chat-repair', vibeRepair);
+  gap();
+
+  const vibeLesson = checkVibeLesson(chrome);
+  report(behaviour, 'chat-lesson', vibeLesson);
   gap();
 
   const lessonGoals = checkLessonGoals(chrome);
-  behaviour.push(lessonGoals.pass);
-  console.log(`${lessonGoals.pass ? 'PASS' : 'FAIL'}  ${'lesson-goals'.padEnd(20)} ${lessonGoals.reason}`);
+  report(behaviour, 'lesson-goals', lessonGoals);
   gap();
 
   const stepPalette = checkStepPalette(chrome);
-  behaviour.push(stepPalette.pass);
-  console.log(`${stepPalette.pass ? 'PASS' : 'FAIL'}  ${'step-palette'.padEnd(20)} ${stepPalette.reason}`);
+  report(behaviour, 'step-palette', stepPalette);
   gap();
 
   const lightHud = checkLightHud(chrome);
-  behaviour.push(lightHud.pass);
-  console.log(`${lightHud.pass ? 'PASS' : 'FAIL'}  ${'light-hud'.padEnd(20)} ${lightHud.reason}`);
+  report(behaviour, 'light-hud', lightHud);
   gap();
 
   const goalMarker = checkGoalMarker(chrome);
-  behaviour.push(goalMarker.pass);
-  console.log(`${goalMarker.pass ? 'PASS' : 'FAIL'}  ${'goal-marker'.padEnd(20)} ${goalMarker.reason}`);
+  report(behaviour, 'goal-marker', goalMarker);
   gap();
 
   const studioMode = checkStudioMode(chrome);
-  behaviour.push(studioMode.pass);
-  console.log(`${studioMode.pass ? 'PASS' : 'FAIL'}  ${'studio-mode'.padEnd(20)} ${studioMode.reason}`);
+  report(behaviour, 'studio-mode', studioMode);
   gap();
 
   const classroomMode = checkClassroomMode(chrome);
-  behaviour.push(classroomMode.pass);
-  console.log(`${classroomMode.pass ? 'PASS' : 'FAIL'}  ${'classroom-mode'.padEnd(20)} ${classroomMode.reason}`);
+  report(behaviour, 'classroom-mode', classroomMode);
   gap();
 
   const stageJourney = checkStageJourney(chrome);
-  behaviour.push(stageJourney.pass);
-  console.log(`${stageJourney.pass ? 'PASS' : 'FAIL'}  ${'stage-journey'.padEnd(20)} ${stageJourney.reason}`);
+  report(behaviour, 'stage-journey', stageJourney);
   gap();
 
   const pupilRecords = checkPupilRecords(chrome);
-  behaviour.push(pupilRecords.pass);
-  console.log(`${pupilRecords.pass ? 'PASS' : 'FAIL'}  ${'pupil-records'.padEnd(20)} ${pupilRecords.reason}`);
+  report(behaviour, 'pupil-records', pupilRecords);
   gap();
 
   const tweaksPanel = checkTweaksPanel(chrome);
-  behaviour.push(tweaksPanel.pass);
-  console.log(`${tweaksPanel.pass ? 'PASS' : 'FAIL'}  ${'tweaks-panel'.padEnd(20)} ${tweaksPanel.reason}`);
+  report(behaviour, 'tweaks-panel', tweaksPanel);
   gap();
 
   const replay = checkReplay(chrome);
-  behaviour.push(replay.pass);
-  console.log(`${replay.pass ? 'PASS' : 'FAIL'}  ${'run-replay'.padEnd(20)} ${replay.reason}`);
+  report(behaviour, 'run-replay', replay);
   gap();
 
   const predictTrace = checkPredictTrace(chrome);
-  behaviour.push(predictTrace.pass);
-  console.log(`${predictTrace.pass ? 'PASS' : 'FAIL'}  ${'predict-trace'.padEnd(20)} ${predictTrace.reason}`);
+  report(behaviour, 'predict-trace', predictTrace);
   gap();
 
   const narration = checkNarration(chrome);
-  behaviour.push(narration.pass);
-  console.log(`${narration.pass ? 'PASS' : 'FAIL'}  ${'narration'.padEnd(20)} ${narration.reason}`);
+  report(behaviour, 'narration', narration);
   gap();
 
   const authored = checkAuthoredLesson(chrome);
-  behaviour.push(authored.pass);
-  console.log(`${authored.pass ? 'PASS' : 'FAIL'}  ${'authored-lesson'.padEnd(20)} ${authored.reason}`);
+  report(behaviour, 'authored-lesson', authored);
   gap();
 
   const customWorld = checkCustomWorld(chrome);
-  behaviour.push(customWorld.pass);
-  console.log(`${customWorld.pass ? 'PASS' : 'FAIL'}  ${'custom-world'.padEnd(20)} ${customWorld.reason}`);
+  report(behaviour, 'custom-world', customWorld);
   gap();
 
   const lessonsEntry = checkLessonsEntry(chrome);
-  behaviour.push(lessonsEntry.pass);
-  console.log(`${lessonsEntry.pass ? 'PASS' : 'FAIL'}  ${'lessons-entry'.padEnd(20)} ${lessonsEntry.reason}`);
+  report(behaviour, 'lessons-entry', lessonsEntry);
   gap();
 
   const firstRunClean = checkFirstRunClean(chrome);
-  behaviour.push(firstRunClean.pass);
-  console.log(`${firstRunClean.pass ? 'PASS' : 'FAIL'}  ${'first-run-clean'.padEnd(20)} ${firstRunClean.reason}`);
+  report(behaviour, 'first-run-clean', firstRunClean);
   gap();
 
   const revertApply = checkRevertApply(chrome);
-  behaviour.push(revertApply.pass);
-  console.log(`${revertApply.pass ? 'PASS' : 'FAIL'}  ${'revert-apply'.padEnd(20)} ${revertApply.reason}`);
+  report(behaviour, 'revert-apply', revertApply);
   gap();
 
   const specImport = checkSpecImport(chrome);
-  behaviour.push(specImport.pass);
-  console.log(`${specImport.pass ? 'PASS' : 'FAIL'}  ${'spec-import'.padEnd(20)} ${specImport.reason}`);
+  report(behaviour, 'spec-import', specImport);
   gap();
 
   const fidelity = checkFidelityCard(chrome);
-  behaviour.push(fidelity.pass);
-  console.log(`${fidelity.pass ? 'PASS' : 'FAIL'}  ${'fidelity-card'.padEnd(20)} ${fidelity.reason}`);
+  report(behaviour, 'fidelity-card', fidelity);
   gap();
 
   const encore = checkEncoreRuns(chrome);
-  behaviour.push(encore.pass);
-  console.log(`${encore.pass ? 'PASS' : 'FAIL'}  ${'encore-run'.padEnd(20)} ${encore.reason}`);
+  report(behaviour, 'encore-run', encore);
   gap();
 
   }
@@ -1728,12 +1918,12 @@ function cleanup() {
   // Layout at LAPTOP widths: the studio must fit with zero horizontal overflow
   // (bugs D1: 1280x800 clipped the Settings button offscreen). --window-size is
   // fine here because both widths are above Chrome's ~482px window floor.
+  const layout = [];
   if (RUN_LAYOUT) {
   console.log('\n== UI LAYOUT: laptop and true mobile viewport checks ==');
   for (const [w, h] of [[1280, 800], [1366, 768]]) {
     const lr = checkLayout(chrome, w, h);
-    behaviour.push(lr.pass);
-    console.log(`${lr.pass ? 'PASS' : 'FAIL'}  ${('layout-' + w + 'x' + h).padEnd(20)} ${lr.reason}`);
+    report(layout, 'layout-' + w + 'x' + h, lr);
     gap();
   }
   // Layout at PHONE widths via CDP device emulation. --window-size CANNOT test
@@ -1746,28 +1936,36 @@ function cleanup() {
     const phone = await measureViewports(chrome, base,
       [{ w: 420, h: 900, label: '420' }, { w: 375, h: 812, label: '375' }, { w: 320, h: 800, label: '320' }]);
     for (const x of phone) {
-      behaviour.push(!x.overflow);
-      console.log(`${!x.overflow ? 'PASS' : 'FAIL'}  ${('layout-' + x.label + 'w').padEnd(20)} ${!x.overflow
-        ? `no overflow at true ${x.width}px viewport (scrollW ${x.scrollW} <= ${x.innerW})`
-        : `OVERFLOWS at ${x.width}px: body scrollWidth ${x.scrollW} > ${x.innerW} (${x.extra}px clipped)`}`);
+      report(layout, 'layout-' + x.label + 'w', {
+        pass: !x.overflow,
+        reason: !x.overflow
+          ? `no overflow at true ${x.width}px viewport (scrollW ${x.scrollW} <= ${x.innerW})`
+          : `OVERFLOWS at ${x.width}px: body scrollWidth ${x.scrollW} > ${x.innerW} (${x.extra}px clipped)`,
+      });
       gap();
     }
     // Classroom at 320: the nowrap .api-hint strip used to inflate the page the
     // moment the lesson picker opened (judge round 9).
     const cls = await measureViewports(chrome, `${base}&mode=classroom`, [{ w: 320, h: 800, label: 'cls-320' }]);
-    behaviour.push(!cls[0].overflow);
-    console.log(`${!cls[0].overflow ? 'PASS' : 'FAIL'}  ${'layout-classroom-320'.padEnd(20)} ${!cls[0].overflow
-      ? `no overflow at true 320px classroom viewport (scrollW ${cls[0].scrollW})`
-      : `OVERFLOWS at classroom 320px: ${cls[0].extra}px clipped`}`);
+    report(layout, 'layout-classroom-320', {
+      pass: !cls[0].overflow,
+      reason: !cls[0].overflow
+        ? `no overflow at true 320px classroom viewport (scrollW ${cls[0].scrollW})`
+        : `OVERFLOWS at classroom 320px: ${cls[0].extra}px clipped`,
+    });
     gap();
   } catch (e) {
-    behaviour.push(false);
-    console.log(`FAIL  ${'layout-phone-cdp'.padEnd(20)} CDP viewport probe failed: ${e.message}`);
+    report(layout, 'layout-phone-cdp', { pass: false, reason: `CDP viewport probe failed: ${e.message}` });
     gap();
   }
   }
 
-  const behClean = behaviour.filter(Boolean).length;
+  // The printed summary has always merged the two suites into one number, and
+  // the gate below counts them together; keep both exactly as they were and let
+  // the artefact split them so a reader can see which rows are behaviour and
+  // which are layout.
+  const asserts = behaviour.concat(layout);
+  const behClean = asserts.filter((r) => r.pass).length;
 
   // ---- Phase 3: modals render — open EVERY toolbar modal/popover, one at a
   // time, and assert each renders cleanly. This closes the gap where the harness
@@ -1781,23 +1979,30 @@ function cleanup() {
   console.log('\n== UI MODALS: open and verify every toolbar modal/popover renders ==');
   for (const m of MODALS) {
     const mr = checkModalRenders(chrome, m);
-    modals.push(mr.pass);
-    console.log(`${mr.pass ? 'PASS' : 'FAIL'}  ${('modal-' + m.name).padEnd(20)} ${mr.reason}`);
+    report(modals, 'modal-' + m.name, mr);
     gap();
   }
   // Validate is a console-line action, not a modal — assert it on its own marker.
   const val = checkValidateRuns(chrome, VALIDATE);
-  modals.push(val.pass);
-  console.log(`${val.pass ? 'PASS' : 'FAIL'}  ${('modal-' + VALIDATE.name).padEnd(20)} ${val.reason}`);
+  report(modals, 'modal-' + VALIDATE.name, val);
   gap();
   }
 
-  const modalsClean = modals.filter(Boolean).length;
+  const modalsClean = modals.filter((r) => r.pass).length;
 
   cleanup();
-  console.log(`\n== UI ${SUITE.toUpperCase()}: ${clean}/${RUN_PAINT ? FLOWS.length : 0} flows clean · ${behClean}/${behaviour.length} behaviour or layout asserts pass · ${modalsClean}/${modals.length} modals render ==`);
+  console.log(`\n== UI ${SUITE.toUpperCase()}: ${clean}/${RUN_PAINT ? FLOWS.length : 0} flows clean · ${behClean}/${asserts.length} behaviour or layout asserts pass · ${modalsClean}/${modals.length} modals render ==`);
   const passed = (!RUN_PAINT || clean === FLOWS.length)
-    && behClean === behaviour.length
+    && behClean === asserts.length
     && modalsClean === modals.length;
+  // Written before the exit so a failing run still leaves its evidence, and fed
+  // the same `passed` the exit code uses so the artefact verdict cannot disagree
+  // with what the gate did.
+  writeArtefact(chrome, passed, [
+    tally('flows', flows),
+    tally('behaviour', behaviour),
+    tally('layout', layout),
+    tally('modals', modals),
+  ]);
   process.exit(passed ? 0 : 1);
 })();
