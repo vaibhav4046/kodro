@@ -242,14 +242,14 @@ Screen: `docs/eval/test_suite.json`, then a terminal with the gate output.
 > "The test suite artefact records the commit it was taken at, a clean working
 > tree, and counts read from the run's own output rather than typed in by hand.
 > At that commit, one thousand six hundred and forty-one tests collect and all
-> of them pass. The commit I am shipping is one ahead: there the suite collects
-> one thousand six hundred and forty-two, passes one thousand six hundred and
-> forty-one, and skips one. The extra test is one I added. The skip is a desktop
-> toolkit that does not always start on this machine, and I would not read it
-> either way: the same suite here has reported one skip, then two, then none,
-> then none, then one. Branch-aware coverage is ninety point eight five percent
-> on screen against an eighty-five percent gate, and ninety point seven eight on
-> the commit I am shipping."
+> of them pass. The commit I am shipping is further on: there the suite collects
+> one thousand six hundred and forty-nine, and all of those pass with nothing
+> skipped. The extra tests are ones I added. What sometimes skips is a desktop
+> toolkit that does not always start on this machine, and I would not read a
+> clean run as that being fixed: the same suite here has reported one skip, then
+> two, then none, then none, then one, and now none again. Branch-aware coverage
+> is ninety point eight five percent on screen against an eighty-five percent
+> gate, and the shipped commit rounds to the same figure on a different tree."
 
 Stop at the end of that. Do not offer a cause for the intermittency on camera,
 and do not present either count as the problem being solved or as a regression.
@@ -315,7 +315,35 @@ and nothing else: the skip caveat and the coverage sentence are both load-bearin
 the first because it is the honest half of the claim and the second because
 `[EXPAND-4]` joins onto it.
 
-> "The honesty gate is the one worth naming. A hundred and twenty-one checks
+Updated 18 August, after the merge, and this revision replaces the shipped
+figures instead of adding a commit. PR 4 merged, so the commit being shipped is
+`cc5fb3c` rather than `66e8632`, twelve commits further on, and at that tree the
+suite collects 1,649, passes 1,649, skips nothing, and reaches 90.85 percent.
+The run is logged in
+`.kodro/ca2-evidence/2026-08-18-shipped-tree-suite-run.md`. Both paragraphs
+above are left as they stand, because they are a record of what this block used
+to say.
+
+Two traps in the new numbers. Coverage now reads 90.85 at both commits, where on
+18 August it read 90.85 on screen and 90.78 shipped. That is a rounding
+coincidence on two trees with different test counts, 1,641 against 1,649, not
+the two commits agreeing, so the standing instruction not to merge them into one
+pair of numbers holds harder now that one pair looks identical. And the skip is
+absent again, which makes six runs on this host reading one, two, none, none,
+one, none. Absence is not a fix, the spoken line now says so in those terms, and
+the instruction not to offer a cause on camera is unchanged.
+
+The honesty figure moved as well. The gate reads 122 passed, 0 failed at this
+revision rather than the 121 it read on 15 August, because claims were added to
+it, so `[EXPAND-4]` below now says a hundred and twenty-two.
+
+Re-time the evidence block against this version rather than the one the
+paragraph above timed. It is slightly shorter, so the fifty-second slot has more
+room and not less, and the sentence named there as the cut no longer exists: if
+it overruns, cut "The extra tests are ones I added" and nothing else. The reason
+is unchanged. The skip caveat and the coverage sentence are both load-bearing.
+
+> "The honesty gate is the one worth naming. A hundred and twenty-two checks
 > whose only job is to stop the product claiming something the evidence does not
 > support."
 

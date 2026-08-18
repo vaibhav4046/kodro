@@ -213,7 +213,7 @@ would be the one unsupported claim in an otherwise clean voice section.
 
 | Claim | Evidence | Command |
 |---|---|---|
-| The honesty gate passes 121 checks | `PASS honesty: 121 passed, 0 failed` | `node scripts/qa_honesty.mjs` |
+| The honesty gate passes 122 checks | `PASS  honesty: 122 passed, 0 failed`, 18 August. It read 121 on 15 August, which is what the dated prose earlier on this page records; the count rises as claims are added to the gate, so re-run the command rather than reading the number off this page | `node scripts/qa_honesty.mjs` |
 | The interpreter gate passes 180 checks | `180 passed, 0 failed` | `node scripts/qa_interpreter.mjs` |
 | Encoding is clean across the files the gate reads | `10 passed (411 files, 100 protected characters)` | `node scripts/qa_encoding.mjs` |
 | No tracked file carries a credential, a key file or a local account name | `PASS  secrets: 42 passed (479 of 786 tracked files read, 13 credential rules, bare-name rule live)`, 15 August. The two counts are the gate's scope and move with the tracked set; `42 passed, 0 failed` is the claim | `node scripts/qa_secrets.mjs` |

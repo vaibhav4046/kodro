@@ -13,7 +13,11 @@ renaming a release asset forces the docs to move with it.
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 from robolearn.lessons.schema import load_library
 
@@ -257,4 +261,90 @@ def test_spoken_test_figures_match_the_record_they_cite() -> None:
     )
     assert f"{note_coverage} percent" in body or f"{note_coverage}%" in body, (
         f"{record_path} does not report {note_coverage} percent"
+    )
+
+
+_UNITS = [
+    "zero",
+    "one",
+    "two",
+    "three",
+    "four",
+    "five",
+    "six",
+    "seven",
+    "eight",
+    "nine",
+    "ten",
+    "eleven",
+    "twelve",
+    "thirteen",
+    "fourteen",
+    "fifteen",
+    "sixteen",
+    "seventeen",
+    "eighteen",
+    "nineteen",
+]
+_TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+
+
+def _spoken(n: int) -> str:
+    """Render 100..199 the way the narration says it: "a hundred and twenty-two"."""
+    assert 100 <= n <= 199, (
+        f"the honesty gate now reports {n}, outside the range this helper spells; "
+        "extend it and re-read the narration"
+    )
+    rest = n - 100
+    if rest < 20:
+        tail = _UNITS[rest]
+    else:
+        tens, unit = divmod(rest, 10)
+        tail = _TENS[tens] + (f"-{_UNITS[unit]}" if unit else "")
+    return f"a hundred and {tail}"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="Node.js not available")
+def test_spoken_honesty_count_matches_the_gate() -> None:
+    """The narration says the honesty count out loud, so it has to be the real one.
+
+    ``SCRIPT.md`` said "a hundred and twenty-one checks" while the gate had
+    already grown to 122, and nothing caught it: the number is spelled out in
+    words inside a quotation, so no search for ``121`` in the obvious form finds
+    it. The ledger row carrying the same figure had drifted too.
+
+    This runs the gate and holds both surfaces to what it actually prints.
+    """
+    proc = subprocess.run(
+        [str(shutil.which("node")), str(ROOT / "scripts" / "qa_honesty.mjs")],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+
+    measured = re.search(r"honesty:\s*(\d+)\s+passed", proc.stdout)
+    assert measured, f"could not read a count out of the gate output: {proc.stdout!r}"
+    count = int(measured.group(1))
+
+    script = (ROOT / "docs" / "ca2" / "SCRIPT.md").read_text(encoding="utf-8")
+    spoken = re.search(
+        r"The honesty gate is the one worth naming\. (A hundred and [a-z-]+) checks",
+        script,
+    )
+    assert spoken, "SCRIPT.md no longer speaks a check count for the honesty gate"
+    phrase = _spoken(count)
+    assert spoken.group(1).lower() == phrase, (
+        f"the gate passes {count} checks, so the narration should say "
+        f"'{phrase} checks', not '{spoken.group(1).lower()} checks'"
+    )
+
+    ledger = (ROOT / "docs" / "ca2" / "CLAIM_LEDGER.md").read_text(encoding="utf-8")
+    row = re.search(r"\|\s*The honesty gate passes (\d+) checks\s*\|([^|]*)\|", ledger)
+    assert row, "CLAIM_LEDGER.md no longer carries a claim row for the honesty gate"
+    claimed, evidence = int(row.group(1)), row.group(2)
+    assert claimed == count, f"the ledger claims {claimed} checks, the gate passes {count}"
+    assert f"{count} passed, 0 failed" in evidence, (
+        f"the ledger's evidence string does not quote '{count} passed, 0 failed'"
     )
