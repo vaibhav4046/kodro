@@ -244,11 +244,25 @@ def test_nonfinite_distance_via_power_clamps_to_lower_bound() -> None:
 
 
 def test_adversarial_turn_magnitude_is_clamped() -> None:
-    """A huge turn clamps to +/-3600 deg (10 full turns) so animateTurn, which
-    has no collision early-exit, cannot spin for hours (turn_left(1e9) was
-    ~1000 h). Non-finite -> lower bound, exactly as Python turn_left/right do."""
-    assert abs(_drive("turn_left(10 ** 400)")["turnDeg"]) == 3600
+    """A huge *finite* turn clamps to +/-3600 deg (10 full turns) so animateTurn,
+    which has no collision early-exit, cannot spin for hours (turn_left(1e9) was
+    ~1000 h)."""
     assert abs(_drive("turn_right(999999999)")["turnDeg"]) == 3600
+    assert abs(_drive("turn_left(999999999)")["turnDeg"]) == 3600
+
+
+def test_an_overflowing_turn_does_nothing_rather_than_spinning() -> None:
+    """``10 ** 400`` overflows a double to Infinity, which is not an angle.
+
+    This used to resolve to the lower bound, so an overflowing turn spun the
+    rover ten full rotations. Worse, the lower bound is negative, so an
+    overflowing turn_LEFT turned the rover RIGHT. A value that carries no
+    instruction now does nothing, in both runtimes: see
+    kodro.rover_api._clamp_finite and RoverLang.clampNum.
+    """
+    assert _drive("turn_left(10 ** 400)")["turnDeg"] == 0
+    assert _drive("turn_right(10 ** 400)")["turnDeg"] == 0
+    assert _drive("move_forward(10 ** 400)")["moveDist"] == 0
 
 
 def _frame_progress() -> dict:
