@@ -82,18 +82,27 @@ _MAX_BEEP_TIMES: int = 16
 
 
 def _clamp_finite(value: float, low: float, high: float, *, name: str) -> float:
-    """Clamp ``value`` into ``[low, high]``, replacing NaN/inf with ``low``."""
+    """Clamp ``value`` into ``[low, high]``; a non-finite value does nothing.
+
+    NaN and the infinities are not instructions, so they resolve to the nearest
+    no-op the range allows rather than to a bound. This used to return ``low``,
+    which is 0.0 for the unsigned ranges but -3600.0 for a turn: a pupil whose
+    arithmetic produced NaN watched the rover spin ten times backwards instead
+    of standing still, which is the loudest possible response to a value that
+    means nothing.
+    """
+    no_op = min(max(0.0, low), high)
     if value != value:  # NaN
-        logger.warning("rover_api: %s received NaN, clamping to %s", name, low)
-        return low
+        logger.warning("rover_api: %s received NaN, ignoring (using %s)", name, no_op)
+        return no_op
     if value == float("inf") or value == float("-inf"):
         logger.warning(
-            "rover_api: %s received non-finite value %r, clamping to %s",
+            "rover_api: %s received non-finite value %r, ignoring (using %s)",
             name,
             value,
-            low,
+            no_op,
         )
-        return low
+        return no_op
     if value < low:
         logger.warning("rover_api: %s=%r clamped to lower bound %s", name, value, low)
         return low

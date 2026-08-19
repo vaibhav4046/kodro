@@ -1055,16 +1055,19 @@
 
   // Clamp a pupil-supplied magnitude into [lo, hi]. A *missing* argument
   // (undefined) falls back to `dflt`; a *present* but non-finite value (NaN or
-  // +/-Infinity) maps to the lower bound `lo`. A pupil can reach non-finite two
-  // ways: an overflowing power such as `forward(10 ** 400)`, or an e-notation
-  // literal the tokenizer accepts but that overflows a double (e.g. `1e309`
-  // parses to Infinity). The clamp handles both. This mirrors the Python
-  // engine's rover_api._clamp_finite so the animated and graded paths agree,
-  // and guarantees a finite magnitude so the value can never overflow app.jsx's
+  // +/-Infinity) carries no instruction, so it resolves to the nearest no-op
+  // the range allows rather than to a bound. It used to return `lo`, which is 0
+  // for the unsigned ranges but -3600 for a turn, so NaN spun the rover ten
+  // times backwards. A pupil can reach non-finite two ways: an overflowing
+  // power such as `forward(10 ** 400)`, or an e-notation literal the tokenizer
+  // accepts but that overflows a double (e.g. `1e309` parses to Infinity). The
+  // clamp handles both. This mirrors the Python engine's
+  // rover_api._clamp_finite so the animated and graded paths agree, and
+  // guarantees a finite magnitude so the value can never overflow app.jsx's
   // animation duration and soft-hang the UI.
   function clampNum(v, lo, hi, dflt) {
     const n = (v === undefined) ? dflt : Number(v);
-    if (!isFinite(n)) return lo;            // NaN / +/-Infinity -> lower bound
+    if (!isFinite(n)) return Math.min(Math.max(0, lo), hi);  // NaN / +/-Inf -> no-op
     return Math.max(lo, Math.min(hi, n));
   }
   // Frame-loop progress guard shared with app.jsx animateMove/animateTurn:
