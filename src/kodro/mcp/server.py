@@ -212,7 +212,9 @@ def serve_stdio(
             continue
         try:
             message = json.loads(stripped)
-        except json.JSONDecodeError as exc:
+        except (json.JSONDecodeError, RecursionError) as exc:
+            # RecursionError is not a JSONDecodeError, so one deeply nested line
+            # used to kill the whole server rather than fail one request.
             _write(sink, _rpc_error(None, PARSE_ERROR, f"Invalid JSON: {exc}"))
             continue
         if not isinstance(message, dict):

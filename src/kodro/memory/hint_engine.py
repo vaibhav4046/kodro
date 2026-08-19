@@ -41,7 +41,9 @@ _CONSTRUCT_NODE_TYPES: dict[str, tuple[type[ast.AST], ...]] = {
 def _parse(source: str) -> ast.AST | None:
     try:
         return ast.parse(source)
-    except SyntaxError:
+    except (SyntaxError, RecursionError):
+        # Nesting deep enough to exhaust the parser is unreadable, same as a
+        # syntax error, and a hint engine must never raise into a Run.
         return None
 
 
