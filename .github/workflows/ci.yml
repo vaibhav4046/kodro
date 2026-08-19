@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
 
+# CI only reads the repository and runs tests. Without this block the workflow
+# inherits the repository default, which can be read/write; `pull_request` runs
+# from forks, so the token this job hands to third-party code should be the
+# smallest one that works.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -312,7 +319,7 @@ jobs:
       - name: Setup Chrome (Linux only, for qa_web)
         if: matrix.os == 'ubuntu-latest'
         id: setup-chrome
-        uses: browser-actions/setup-chrome@v1
+        uses: browser-actions/setup-chrome@c785b87e244131f27c9f19c1a33e2ead956ab7ce  # v1
         with:
           chrome-version: stable
 
