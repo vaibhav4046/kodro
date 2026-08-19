@@ -711,7 +711,7 @@ class BridgeAPI:
             return None
         try:
             data = json.loads(text[start : end + 1])
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError, RecursionError):
             return None
         if not isinstance(data, dict):
             return None
@@ -1032,7 +1032,7 @@ class BridgeAPI:
             return None
         try:
             tree = ast.parse(code, mode="exec")
-        except SyntaxError:
+        except (SyntaxError, RecursionError):
             return None  # the sandbox reports the more useful syntax error
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):
@@ -1542,7 +1542,10 @@ class BridgeAPI:
         """
         try:
             data = json.loads(json_text or "{}")
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, RecursionError):
+            # Deep nesting exhausts the decoder's stack, which is a
+            # RecursionError rather than a ValueError, so an imported spec
+            # could crash the bridge instead of being refused.
             return {"ok": False, "reason": "robot spec is not valid JSON"}
         if not isinstance(data, dict):
             return {"ok": False, "reason": "robot spec is not an object"}

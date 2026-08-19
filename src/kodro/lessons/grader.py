@@ -254,7 +254,9 @@ def _calls_in_order(source: str, names: list[str]) -> bool:
     """
     try:
         tree = ast.parse(source)
-    except SyntaxError:
+    except (SyntaxError, RecursionError):
+        # Deep nesting exhausts the parser's stack, which is a RecursionError,
+        # not a SyntaxError. Unreadable source cannot satisfy the criterion.
         return False
     called: list[tuple[int, int, str]] = []
     for node in ast.walk(tree):
@@ -354,7 +356,9 @@ def _source_uses(source: str, construct: str) -> bool:
         return False
     try:
         tree = ast.parse(source)
-    except SyntaxError:
+    except (SyntaxError, RecursionError):
+        # Deep nesting exhausts the parser's stack, which is a RecursionError,
+        # not a SyntaxError. Unreadable source cannot satisfy the criterion.
         return False
     if construct == "recursion":
         return _has_recursion(tree)
