@@ -45,6 +45,16 @@ MAX_EVENTS_RETURNED: Final[int] = 200
 #: the committed manifest, so a verdict from this tool is comparable with it.
 DEFAULT_CONTRACT_RUNS: Final[int] = 5
 
+#: Largest seeds-per-contract an MCP caller may ask for. There was a lower bound
+#: and no upper one, so `runs: 1000000000` was accepted and simply executed: at
+#: roughly a millisecond per seed per contract set that is about eleven days of
+#: compute, with the session unresponsive for all of it and no way to cancel.
+#: This server is driven by a language model, which can emit a wrong number for
+#: any reason, so the bound has to be enforced here rather than assumed of the
+#: caller. A thousand is two hundred times the CI default and still finishes in
+#: about a second, so it constrains only requests that were never deliberate.
+MAX_CONTRACT_RUNS: Final[int] = 1000
+
 _LESSON_CACHE: list[Lesson] | None = None
 
 
@@ -378,6 +388,12 @@ def prove_contracts(params: dict[str, Any]) -> dict[str, Any]:
             raise ToolError(f"'runs' must be a whole number, got {raw_runs!r}.") from exc
     if runs < 1:
         raise ToolError("'runs' must be at least 1.")
+    if runs > MAX_CONTRACT_RUNS:
+        raise ToolError(
+            f"'runs' must be at most {MAX_CONTRACT_RUNS}, got {runs}. "
+            "Each seed runs every contract, so a larger number is a long "
+            "computation rather than a fast query."
+        )
     manifest = build_manifest(contracts, runs=runs)
     rows = manifest.get("contracts", [])
     return {
@@ -587,7 +603,12 @@ TOOLS: Final[tuple[dict[str, Any], ...]] = (
                 },
                 "runs": {
                     "type": "integer",
-                    "description": "Seeds per contract (default 5, matching CI).",
+                    "minimum": 1,
+                    "maximum": MAX_CONTRACT_RUNS,
+                    "description": (
+                        f"Seeds per contract (default {DEFAULT_CONTRACT_RUNS}, matching CI; "
+                        f"maximum {MAX_CONTRACT_RUNS})."
+                    ),
                 },
             },
         },
