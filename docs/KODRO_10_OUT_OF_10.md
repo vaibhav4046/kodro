@@ -54,8 +54,10 @@ leak, severe cross-runtime disagreement.
 | K-5 | P1 | Hint engine raised into a Run | narrow guard in `_parse` | same | widen guard | same |
 | K-6 | P1 | One malformed line killed the whole MCP session instead of failing one request | `except json.JSONDecodeError` in the read loop | no malformed-line test | widen guard, answer `-32700`, keep reading | same |
 | K-7 | P1 | `turn_right(nan)` turned the rover 3600 degrees, and `+Infinity` resolved to the **negative** bound so an overflowing `turn_left` turned **right** | `_clamp_finite` mapped non-finite to `low`, which is 0.0 for unsigned ranges but -3600.0 for a signed one | no non-finite numeric tests; an existing test pinned the buggy behaviour | non-finite resolves to the nearest no-op, in both runtimes | `test_rover_api_nonfinite.py`, `test_web_interpreter.py` |
+| K-8 | P1 | `prove_contracts` accepted `runs: 1000000000` and started executing it, about eleven days of compute with the MCP session dead and no cancel | bounded below (`runs >= 1`) with no upper bound; the lower edge had a comment explaining it, the upper edge was never considered | no test sent a large value; the adversarial harness that found it hung for eight minutes before being killed and bisected | cap at 1000, measured from the linear ~1 ms/seed cost, and advertise `minimum`/`maximum` in the JSON schema | `test_mcp_runs_is_bounded.py` |
+| K-9 | P2 | Every numeric success criterion could have its comparison inverted without any test noticing: battery, steps, distance and returns-to-base | boundary cases were never asserted; a pupil exactly on a limit is the untested case | grading tests used values comfortably inside or outside each limit, never on it | tests at the exact boundary, constructed rather than simulated | `test_criterion_boundaries.py` |
 
-Seven defects, all P1, all fixed and pinned. No P0 found so far.
+Nine defects, eight P1 and one P2, all fixed and pinned. No P0 found so far.
 
 Defect classes now fenced structurally rather than case by case:
 
@@ -90,6 +92,30 @@ and was validated by sabotage: removing `esc()` from the operator branch, which
 handles `<`, `>` and `&`, makes it fail; removing `esc()` from the fallthrough,
 which cannot receive those characters, correctly does not.
 
+## Mutation testing on the grader
+
+Coverage says a line ran. It does not say an assertion would notice the line
+being wrong. Measured with a harness that verifies its baseline against git HEAD
+before starting, after two earlier runs produced numbers measured against a
+baseline an interrupted run had already rewritten. Both of those were discarded.
+
+| Test set | Score |
+| --- | --- |
+| Before the boundary tests | 55.7% (49 of 88) |
+| After `test_grader_boundaries.py` | 78.4% (69 of 88) |
+
+The 19 survivors were classified by hand against pristine source: 7 equivalent
+(dataclass decorator flips and field defaults, which no test can kill), 4 real
+holes now closed by `test_criterion_boundaries.py`, and 8 still to classify.
+
+One survivor turned out to be unkillable for an interesting reason. The
+returns-to-base tolerance is 0.4 and every shipped lesson base is a value like
+1.0, and `1.0 + 0.4 - 1.0` is 0.3999999999999999 in binary floating point. No
+lesson has a base from which a point at exactly the tolerance is representable,
+so the `<=` to `<` flip is equivalent for the product as it ships. The test
+states the intended semantics using a synthetic origin-based lesson, and carries
+a guard-the-guard assertion so it cannot go vacuous if that ever changes.
+
 ## Remaining blockers
 
 Honest list of what stands between here and a defensible 10/10.
@@ -98,8 +124,8 @@ Honest list of what stands between here and a defensible 10/10.
    sessions. The React UI is not. A browser probe in a hidden pane produces
    throttled `setTimeout` and paused `requestAnimationFrame`, so its numbers are
    an artifact rather than a measurement.
-2. **Mutation testing has not been run** on the grader, interpreter or
-   simulator.
+2. **Mutation testing covers the grader only.** The interpreter and the
+   simulator have not been measured, and 8 grader survivors are unclassified.
 3. **No accessibility audit tool** has been run against the shipped build;
    structural checks only.
 4. **Browser matrix is Chromium only.**
