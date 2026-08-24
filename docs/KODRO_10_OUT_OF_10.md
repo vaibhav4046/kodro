@@ -101,12 +101,26 @@ baseline an interrupted run had already rewritten. Both of those were discarded.
 
 | Test set | Score |
 | --- | --- |
-| Before the boundary tests | 55.7% (49 of 88) |
+| Before any mutant-killing tests | 55.7% (49 of 88) |
 | After `test_grader_boundaries.py` | 78.4% (69 of 88) |
+| After `test_criterion_boundaries.py` | 84.1% (74 of 88) |
+| After `test_construct_detection.py` | 87.5% (77 of 88) |
 
-The 19 survivors were classified by hand against pristine source: 7 equivalent
-(dataclass decorator flips and field defaults, which no test can kill), 4 real
-holes now closed by `test_criterion_boundaries.py`, and 8 still to classify.
+Every survivor has now been classified against pristine source. The 11 that
+remain are equivalent mutants, not gaps: four dataclass `frozen=True, slots=True`
+decorator flips; three field defaults never reached in production, because the
+aggregates are always fully populated from the trace; a filter made redundant by
+the all-int-constant guard on the line above it; and two negative-step range
+branches that are unreachable, because a negative literal is an `ast.UnaryOp` and
+disqualifies the whole range analysis at that same guard. Flipping any of the 11
+changes nothing a test could observe, so every mutant that changes behaviour is
+now caught.
+
+The three real holes the last pass found and closed were in the construct
+detector: the `_is_live` catch-all that credits while/if/return/arithmetic/
+logical constructs, the tuple-and-subscript assignment target, and a `_has_recursion`
+`and` whose flip made the grader raise on a method-style call. Each was verified
+by reintroducing the mutant and confirming the new test fails.
 
 One survivor turned out to be unkillable for an interesting reason. The
 returns-to-base tolerance is 0.4 and every shipped lesson base is a value like
@@ -124,8 +138,9 @@ Honest list of what stands between here and a defensible 10/10.
    sessions. The React UI is not. A browser probe in a hidden pane produces
    throttled `setTimeout` and paused `requestAnimationFrame`, so its numbers are
    an artifact rather than a measurement.
-2. **Mutation testing covers the grader only.** The interpreter and the
-   simulator have not been measured, and 8 grader survivors are unclassified.
+2. **Mutation testing covers the grader only.** Every behavioural grader mutant
+   is killed (87.5%, 11 equivalent). The interpreter and the simulator have not
+   been measured.
 3. **No accessibility audit tool** has been run against the shipped build;
    structural checks only.
 4. **Browser matrix is Chromium only.**
