@@ -918,18 +918,59 @@ function checkLearningAnnotation(chrome) {
 
 // Switching the visible world while a lesson is open must leave the lesson
 // first. Otherwise the new label is paired with the old lesson walls and grade.
-function checkLessonWorldExit(chrome) {
+//
+// Under CI contention (xvfb, single-threaded dev server) Chrome can retire the
+// virtual-time budget after the switch has left the lesson but before the new
+// world attribute is stamped, which reads as `mars:false, lessonGone:true`.
+// That one shape is the budget-retired-early flake, and is the only failure
+// worth a larger budget. An ownership BUG reads `mars:true, lessonGone:false`
+// (world moved, lesson stayed) and a dead page reads both false; neither
+// improves with more time, so both fail through every attempt. This mirrors
+// checkRoverMoved's escalation, with the retry scoped to the flake shape so a
+// real defect can never be retried into a pass.
+const LESSON_EXIT_VTIMES = [20_000, 40_000, 80_000];
+
+function attemptLessonWorldExit(chrome, vtime) {
   const url = `${BASE}?world=earth&robot=rover&q=low&mode=classroom&experience=expert&lesson=00_first_drive&lessonswitch=mars`;
-  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_world_exit', url, { vtime: 20000 });
-  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}` };
-  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)' };
-  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}` };
+  const { dom, consoleError, error } = dumpDom(chrome, 'behaviour_lesson_world_exit', url, { vtime });
+  if (error) return { pass: false, reason: `dump-dom spawn failed: ${error.message}`, retryable: false };
+  if (!dom) return { pass: false, reason: 'dump-dom produced no DOM (page never rendered)', retryable: true };
+  if (consoleError) return { pass: false, reason: `console error: ${consoleError.slice(0, 120)}`, retryable: false };
   const mars = /data-active-world="mars"/.test(dom);
   const lessonGone = !/class="lesson-card"/.test(dom);
   if (mars && lessonGone) {
-    return { pass: true, reason: 'world switch selected Mars and atomically left the prior lesson grading context' };
+    return {
+      pass: true,
+      reason: 'world switch selected Mars and atomically left the prior lesson grading context',
+      retryable: false,
+    };
   }
-  return { pass: false, reason: `world/lesson ownership mismatch (mars: ${mars}, lessonGone: ${lessonGone})` };
+  // Only the mid-switch snapshot (lesson already left, world not yet stamped)
+  // earns another, larger budget. `mars:true` with the lesson still present is
+  // the real ownership bug and must fail; both-false is a dead page and must
+  // fail. Neither is retryable.
+  const retryable = lessonGone && !mars;
+  return {
+    pass: false,
+    reason: `world/lesson ownership mismatch (mars: ${mars}, lessonGone: ${lessonGone})`,
+    retryable,
+  };
+}
+
+function checkLessonWorldExit(chrome) {
+  const earlier = [];
+  let last = { pass: false, reason: 'no attempt ran', retryable: false };
+  for (let i = 0; i < LESSON_EXIT_VTIMES.length; i++) {
+    last = attemptLessonWorldExit(chrome, LESSON_EXIT_VTIMES[i]);
+    if (last.pass || !last.retryable || i === LESSON_EXIT_VTIMES.length - 1) break;
+    earlier.push(`${last.reason} at ${LESSON_EXIT_VTIMES[i]}ms budget`);
+    pauseMs(GAP_MS); // the dev server is single-threaded; let it recover
+  }
+  if (!earlier.length) return { pass: last.pass, reason: last.reason };
+  return {
+    pass: last.pass,
+    reason: `${last.reason} (attempt ${earlier.length + 1}; earlier: ${earlier.join('; ')})`,
+  };
 }
 
 // The mirror of the row above, and the one that caught a real defect. Leaving a
