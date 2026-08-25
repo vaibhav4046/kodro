@@ -34,6 +34,7 @@ these assertions quietly testing the wrong number.
 from __future__ import annotations
 
 from kodro.runtime.sandbox import (
+    _MAX_TEMPLATE_SNIPPET,
     MAX_LITERAL_REPEAT,
     MAX_POW_EXP,
     find_violations,
@@ -216,3 +217,83 @@ def test_non_integer_constants_still_do_not_fold() -> None:
     """Floats and strings are not integers and must stay unfoldable."""
     assert kinds("y = 2 ** 1.5") == []
     assert kinds("y = 2 ** 'x'") == []
+
+
+# --------------------------------------------------------------------------
+# reporting: a violation must name the thing it refused
+# --------------------------------------------------------------------------
+
+
+def names(source: str) -> list[str]:
+    return [v.name for v in find_violations(source)]
+
+
+def test_a_relative_import_is_named_rather_than_reported_as_empty() -> None:
+    """Kills `node.module or "<relative>"` -> `and`.
+
+    ``from . import x`` has no module name. Under the mutant the violation is
+    named with the empty module instead of the placeholder, so the message a
+    pupil reads loses the only clue about what was refused.
+    """
+    assert names("from . import x") == ["<relative>"]
+    assert names("from os import path") == ["os"]
+
+
+def test_a_leading_or_trailing_underscore_pair_is_not_a_dunder() -> None:
+    """Kills `startswith("__") and endswith("__")` -> `or`.
+
+    The mutant is over-restrictive rather than unsafe: it would refuse ordinary
+    names like ``__total`` that begin with two underscores but are not dunders.
+    A sandbox that refuses valid pupil code is still a broken sandbox.
+    """
+    assert find_violations("__foo = 1") == []
+    assert find_violations("foo__ = 1") == []
+    # And the real thing must still be caught, so the above is not passing
+    # because dunder detection stopped working altogether.
+    assert "dunder-attr" in [v.kind for v in find_violations("y = x.__class__")]
+
+
+def test_a_format_template_without_attribute_access_is_allowed() -> None:
+    """Kills the walker's final `return False` -> `return True`.
+
+    Under the mutant every string literal that parses as a template is reported,
+    so ordinary formatting is refused. Subscripting is explicitly legitimate per
+    the function's own docstring.
+    """
+    assert find_violations('y = "{0}".format(a)') == []
+    assert find_violations('y = "{0[0]}".format(a)') == []
+    assert find_violations('y = "plain text"') == []
+    # The escape it exists to catch must still be caught.
+    assert "format-attr" in [v.kind for v in find_violations('y = "{0.__class__}".format(a)')]
+
+
+def test_a_quoted_template_is_truncated_only_when_it_is_too_long() -> None:
+    """Kills `len(text) <= _MAX_TEMPLATE_SNIPPET` -> `<` and the `- 1` offset.
+
+    A template exactly at the limit is quoted whole; one past it is cut to
+    exactly the limit with an ellipsis as the final character, so the message
+    never grows past the width it promises.
+    """
+    exact = "{0." + "a" * (_MAX_TEMPLATE_SNIPPET - 4) + "}"
+    assert len(exact) == _MAX_TEMPLATE_SNIPPET
+    assert names(f'y = "{exact}".format(a)') == [exact], "at the limit, quote it whole"
+
+    longer = "{0." + "a" * (_MAX_TEMPLATE_SNIPPET + 10) + "}"
+    reported = names(f'y = "{longer}".format(a)')[0]
+    assert len(reported) == _MAX_TEMPLATE_SNIPPET, "past the limit, cut to exactly the limit"
+    assert reported.endswith("…"), "the cut must be visible as an ellipsis"
+    assert reported[:-1] == longer[: _MAX_TEMPLATE_SNIPPET - 1]
+
+
+def test_a_malformed_template_is_not_reported_as_an_attribute_walk() -> None:
+    """Kills the `except ValueError` branch's `return False` -> `return True`.
+
+    A template the formatter cannot parse has no field to walk, and
+    ``str.format`` raises at runtime rather than leaking anything. Refusing it
+    would fail ordinary pupil code containing a stray brace, which is a typo,
+    not an escape attempt. This is a different `return False` from the one at
+    the end of the function, and needed its own witness: the first version of
+    this file killed that one and left this one alive.
+    """
+    for malformed in ('y = "{".format(a)', 'y = "}".format(a)', 'y = "{0".format(a)'):
+        assert find_violations(malformed) == [], f"a typo is not an escape: {malformed}"
