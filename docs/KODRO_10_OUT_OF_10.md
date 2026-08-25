@@ -223,6 +223,40 @@ Nothing in the suite had ever asserted that a size guard *fires*, only that
 ordinary programs pass. That asymmetry is what let the bypass sit undetected
 next to a guard everyone assumed was working.
 
+## Mutation testing on the executor
+
+`runtime/executor.py` runs the pupil's program on a worker thread and enforces
+the wall clock. It scored **56.2%**, with the survivors concentrated in
+`_force_kill_thread`, because nothing asserted what that function does with the
+C API's return value.
+
+One survivor was a real defect rather than a nicety:
+
+```python
+if res > 1:      #  ->  if res >= 1:
+```
+
+`res == 1` is the success case: exactly one thread received the exception. Under
+the mutant a successful kill is read as "more than one thread affected", rolled
+back immediately, and the function returns. The runaway thread is never killed
+and the timeout reports a timeout while doing nothing about it.
+
+`daemon=True` on the pupil thread survived too. That flag is what makes the
+best-effort kill acceptable: `_force_kill_thread` gives up after three attempts
+and the C API may decline, and a daemon thread does not keep the process alive.
+Without it a pupil whose program will not die holds the interpreter open at
+shutdown, which is the exact failure the kill path exists to prevent.
+
+Now **87.5%**. The two survivors are the `@dataclass(frozen=True, slots=True)`
+decorator flips, the same equivalent class left on the grader and the sandbox.
+
+The three interesting C API return values cannot be produced on demand from real
+pupil code, so those tests drive the function directly with a stubbed C API. The
+thread is stubbed too: starting a real runaway thread to test the code that
+kills runaway threads would be its own hazard. The daemon test wraps the real
+`Thread` rather than replacing it, so the program still runs and the assertion
+cannot pass against a stub.
+
 ## Remaining blockers
 
 Honest list of what stands between here and a defensible 10/10.
@@ -231,11 +265,22 @@ Honest list of what stands between here and a defensible 10/10.
    See [React full-app soak](#react-full-app-soak). The original obstacle was
    that a browser probe in a hidden pane produces throttled `setTimeout` and
    paused `requestAnimationFrame`. A driven Playwright page has neither problem.
-2. ~~**Mutation testing covers the grader only.**~~ **Closed.** Grader 87.5%,
-   motion model 92.6%, sandbox 86.2%, and in all three every mutant that
-   changes behaviour is killed. The remaining survivors are equivalent mutants
-   in each case. See [Mutation testing on the simulator](#mutation-testing-on-the-simulator)
-   and [Mutation testing on the sandbox](#mutation-testing-on-the-sandbox).
+2. ~~**Mutation testing covers the grader only.**~~ **Closed.** All four
+   decision-making modules are measured, and in every one of them each mutant
+   that changes behaviour is killed.
+
+   | Module | What it decides | Before | After |
+   | --- | --- | --- | --- |
+   | `lessons/grader.py` | a pupil's mark | 55.7% | **87.5%** |
+   | `engine/motion_model.py` | what the rover does | 11.1% | **92.6%** |
+   | `runtime/sandbox.py` | what pupil code may do | 30.0% | **86.2%** |
+   | `runtime/executor.py` | running it, and stopping it | 56.2% | **87.5%** |
+
+   Every remaining survivor is an equivalent mutant or provably unreachable,
+   classified individually rather than assumed. See
+   [the simulator](#mutation-testing-on-the-simulator),
+   [the sandbox](#mutation-testing-on-the-sandbox) and
+   [the executor](#mutation-testing-on-the-executor).
 3. ~~**No accessibility audit tool** has been run against the shipped build;
    structural checks only.~~ **Closed.** See [Accessibility audit](#accessibility-audit).
 4. **Browser matrix is Chromium only.** *Partially closed:* the accessibility
