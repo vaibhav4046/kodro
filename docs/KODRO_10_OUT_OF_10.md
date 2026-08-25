@@ -134,10 +134,10 @@ a guard-the-guard assertion so it cannot go vacuous if that ever changes.
 
 Honest list of what stands between here and a defensible 10/10.
 
-1. **React full-app soak is not closed.** The engines are proven clean over long
-   sessions. The React UI is not. A browser probe in a hidden pane produces
-   throttled `setTimeout` and paused `requestAnimationFrame`, so its numbers are
-   an artifact rather than a measurement.
+1. ~~**React full-app soak is not closed.**~~ **Closed for DOM and listeners.**
+   See [React full-app soak](#react-full-app-soak). The original obstacle was
+   that a browser probe in a hidden pane produces throttled `setTimeout` and
+   paused `requestAnimationFrame`. A driven Playwright page has neither problem.
 2. **Mutation testing covers the grader only.** Every behavioural grader mutant
    is killed (87.5%, 11 equivalent). The interpreter and the simulator have not
    been measured.
@@ -216,6 +216,65 @@ because both of these would have been plausible bug reports.
 | WebKit throws an uncaught page error on the localhost Ollama probe that Chromium and Firefox do not | not a defect | Three-case experiment: `.catch()`, `try`/`await`, and a deliberately uncaught control. WebKit reports the failure that way **even when the rejection is handled**, and the product does handle it. Engine reporting behaviour |
 | `.editor-tools-menu` renders 140px off the left edge of the viewport at 1440 and wider | not a defect | The layout probe read `display`, `visibility` and `opacity`, none of which capture a closed `<details>`. `checkVisibility()` returned false and `details.open` was false. Opening it measured `left: 0, right: 280` at 1280, 1440 and 1920: fully on screen |
 
+## React full-app soak
+
+40 cycles of the loop a pupil repeats: switch to Test, run the program, stop it,
+move through Design and Build, open and close a tool panel. 240 interactions.
+Counters come from CDP `Performance.getMetrics`, which reports what the browser
+itself keeps, after an explicit `HeapProfiler.collectGarbage` so heap samples are
+comparable.
+
+| | cycle 5 | cycle 40 | change |
+| --- | --- | --- | --- |
+| listeners | 219 | 219 | **0** |
+| DOM nodes | 1,028 | 1,036 | +8 |
+| documents | 1 | 1 | 0 |
+| heap | 10.94 MB | 11.44 MB | +0.50 MB |
+
+Uncaught page errors: 0. Console errors: 1, the known localhost Ollama probe.
+
+Listeners and documents are exactly flat, and nodes move by 0.8% with the count
+sitting at 1,028 for cycles 5 through 35. The heap figure is not monotonic
+(11.22, 11.20, 11.48, 11.52, 11.44), so it reads as collection timing plus the
+run history the app deliberately retains, not as a leak. Cycle 0 is excluded
+throughout because first-mount cost is not a leak.
+
+### Why the first three attempts were worthless
+
+Recorded because the failure mode is the interesting part, and because the first
+version produced a *better looking* result than the real one.
+
+**Attempt 1** reported listeners and nodes perfectly flat across 60 cycles. It
+was meaningless. Every click was wrapped in `.catch(() => {})`, so an action that
+never landed was indistinguishable from one that did. A check afterwards found
+**3 of 15 clicks succeeded**. The flat line was an idle page.
+
+The three separate causes, none of which a swallowed exception would ever show:
+
+- `Run this test` does not exist in the view the soak started in. That view's
+  control is `Run`. The label belongs to the *other* sub-view.
+- Clicking `1 Design` opens the Robot Lab panel over the stage nav, so every
+  later click in the cycle hit a covered element and timed out.
+- The cycle ended in the Build stage, where no run control exists at all, so
+  even the correct label was missing from cycle 2 onward.
+
+**Attempt 2** added a per-action tally and a rule that refuses to print a verdict
+below an 80% success rate. It scored 68.8% and correctly refused.
+
+**Attempt 3** reached 77.1% and still refused. Its numbers showed a step from
+1,061 to 1,404 nodes between cycles 15 and 20 and then a flat line, which looks
+like a leak and is not one: the app had drifted into the other sub-view. A
+control test toggling Design and Test three times returned exactly 697 nodes
+every round, which is what settling looks like.
+
+**Attempt 4** reached **99.2%** (238 of 240) once the last mislabelled control
+was found: the stop button reads `Pause` in the code view and `Pause test` in the
+plan view.
+
+The lesson is not "write better selectors". It is that a soak harness must report
+whether it actually did anything, because a broken one fails silently in the
+direction of a clean result.
+
 ### Layout integrity
 
 Separate from accessibility, and clean. Six breakpoints (320, 375, 768, 1024,
@@ -233,16 +292,20 @@ What can be said now, all of it measured on this repository:
 - Nine defects found, fixed and pinned; eight P1, one P2, no P0.
 - Eight hypotheses tested and recorded clean with reproducible evidence.
 - Grader mutation 87.5%, every behavioural mutant killed, 11 proven equivalent.
-- Zero WCAG 2.2 AA violations across eight views and three browser engines.
+- Zero WCAG 2.2 AA violations across eight views and three browser engines,
+  verified again on the deployed site after merge.
 - Zero horizontal overflow across six breakpoints.
+- React UI soak over 240 driven interactions: listeners and documents exactly
+  flat, DOM nodes +0.8%, no uncaught errors.
 - 1,819 tests pass, branch coverage 91.10% against an 85% gate.
 - Three findings raised and then refuted rather than reported, listed above and
   in the mutation section, because the count of things checked matters more
   than the count of things found.
 
-Two of the five blockers are closed and a third is half closed. The two that
-remain open, classroom use and hardware validation, are the two no amount of
-engineering here can close.
+Three of the five blockers are closed and a fourth is half closed. The one
+engineering blocker still open is mutation testing beyond the grader: the
+interpreter and the simulator have never been measured. The two that cannot be
+closed here at all are classroom use and hardware validation.
 
 ## Honest boundaries
 
