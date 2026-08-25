@@ -212,13 +212,21 @@ two layout defects that only showed up on an extracted frame:
 Check every one of these before recording. Several are visible in the default
 state of the repository.
 
-- Development probe files in the served asset directory: `_a11y_probe.html`,
-  `_a11y_probe2.html` through `_a11y_probe4.html`, `_perf_probe.html`,
-  `cap.html`, `harness.html`, `harness_bundle.js`, `studio_harness.html`,
-  `_alex_default.png`, `_ped_home.png`, `_ped_typo.png`. Some of these are
-  referenced by the QA harnesses, so they must not be deleted to tidy the shot.
-  Keep them out of frame instead, or check the references first and move them
-  deliberately.
+- Harness files in the served asset directory: `cap.html`, `harness.html`,
+  `harness_bundle.js`, `studio_harness.html`. These four are genuinely
+  referenced, by `build_screenshot_harness.cjs`, `build_web.cjs` and the `qa_*`
+  scripts, so they must not be deleted to tidy the shot. Keep them out of frame
+  instead.
+
+  This list used to also name `_a11y_probe.html` through `_a11y_probe4.html`,
+  `_perf_probe.html`, `_alex_default.png`, `_ped_home.png` and `_ped_typo.png`,
+  and to claim the harnesses referenced some of them. Both halves were wrong,
+  as `CAPTURE_MANIFEST.md` had already recorded: nothing in `scripts/` ever
+  opened those eight files. They were unreferenced scratch, and because
+  `pyproject.toml` globs the whole asset directory into the wheel, all 808 KB
+  of them shipped to every person who installed Kodro. They are deleted, and
+  `tests/unit/test_shipped_assets_are_clean.py` now fails the build if
+  underscore-prefixed scratch reappears there.
 - Repository clutter at the root: `AUDIT_CODEX.md`, `HUMAN_TODO.md`.
 - Any file path containing the machine's user name. This rules out a full-screen
   file explorer and most terminal title bars. Set the terminal to show a short
