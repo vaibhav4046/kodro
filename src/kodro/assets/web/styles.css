@@ -2635,7 +2635,11 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 
 .ls-size { display: flex; gap: 10px; align-items: flex-end; margin-top: 10px; flex-wrap: wrap; }
 .ls-size label { display: flex; flex-direction: column; gap: 3px; font-size: var(--text-sm); color: var(--fg-3); }
-.ls-size input { width: 74px; }
+/* 24px is the WCAG 2.2 AA minimum target size (SC 2.5.8). These two arena
+   inputs rendered at 74x19 because the rule set a width and left the height to
+   the user agent's default, which at this font size is 19px. Width was never
+   the problem; height was, by 5px. */
+.ls-size input { width: 74px; min-height: 24px; }
 
 .ls-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: var(--text-sm); color: var(--fg-3); }
 .ls-field input, .ls-field select, .ls-field textarea { width: 100%; }

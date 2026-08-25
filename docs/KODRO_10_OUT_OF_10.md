@@ -141,10 +141,58 @@ Honest list of what stands between here and a defensible 10/10.
 2. **Mutation testing covers the grader only.** Every behavioural grader mutant
    is killed (87.5%, 11 equivalent). The interpreter and the simulator have not
    been measured.
-3. **No accessibility audit tool** has been run against the shipped build;
-   structural checks only.
-4. **Browser matrix is Chromium only.**
+3. ~~**No accessibility audit tool** has been run against the shipped build;
+   structural checks only.~~ **Closed.** See [Accessibility audit](#accessibility-audit).
+4. **Browser matrix is Chromium only.** *Partially closed:* the accessibility
+   audit now runs on Chromium, Firefox and WebKit. The functional QA harnesses
+   (`qa_ui.mjs`, `qa_web.mjs`, `qa_worlds.mjs`, `qa_performance.mjs`,
+   `qa_interpreter.mjs`) are still Chromium only.
 5. **No human has used the product.** Zero teachers, zero pupils.
+
+## Accessibility audit
+
+Real axe-core 4 against the built app, not a structural approximation. Eight
+views, reached by actually clicking into them, because the landing overlay is a
+modal front door and an audit that only ever sees the front door says nothing
+about the product behind it. Three engines: Chromium, Firefox, WebKit.
+
+Only normative tags are counted as violations (`wcag2a`, `wcag2aa`, `wcag21a`,
+`wcag21aa`, `wcag22aa`). `best-practice` is reported separately, because calling
+a best-practice finding a WCAG failure would overstate the claim in one
+direction and ignoring it would understate the product in the other.
+
+| | Before | After |
+| --- | --- | --- |
+| WCAG 2.2 AA violations | 2 rules, 3 nodes | 0 |
+| axe best-practice | 4 rules, 12 nodes | 0 |
+| views audited | 1 (the overlay) | 8 |
+| engines | 1 | 3 |
+
+What was actually wrong:
+
+- **`target-size`** (serious, SC 2.5.8). The two arena-size inputs in the lesson
+  studio rendered at 74x19 CSS px against a 24x24 minimum. The rule set a width
+  and left height to the user agent, and width was never the failing dimension.
+- **`nested-interactive`** (serious, SC 4.1.2). The arena map SVG carried
+  `role="img"` while containing rocks, flags and a base that each have
+  `role="button"`, `tabIndex=0` and a key handler. ARIA defines `img` as
+  presenting its children, so focusable descendants are a spec violation.
+  Measured honestly: on Chromium's accessibility tree those buttons were still
+  exposed under `img`, so this was a correctness and portability defect rather
+  than a confirmed break, and the fix does not depend on one engine being
+  lenient.
+- Four landmark findings, all best-practice: a duplicate `main` and duplicate
+  `banner` while the home overlay was open, and the `sr-only` `h1` sitting
+  outside every landmark on all eight views. The overlay was already
+  `role="dialog" aria-modal="true"`, so a conforming screen reader ignored the
+  shell behind it; the duplicates were wrong in the DOM regardless.
+
+One finding was raised and then refuted rather than reported: WebKit emits an
+uncaught page error for the localhost Ollama probe that Chromium and Firefox do
+not. A three-case experiment (`.catch()`, `try`/`await`, and a deliberately
+uncaught control) showed WebKit reports the failure that way **even when the
+rejection is handled**, and the product does handle it. Engine reporting
+behaviour, not a defect.
 
 ## Score
 
