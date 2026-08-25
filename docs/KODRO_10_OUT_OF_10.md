@@ -130,6 +130,54 @@ so the `<=` to `<` flip is equivalent for the product as it ships. The test
 states the intended semantics using a synthetic origin-based lesson, and carries
 a guard-the-guard assertion so it cannot go vacuous if that ever changes.
 
+## Mutation testing on the simulator
+
+`engine/motion_model.py` decides what the rover does. It had never been measured.
+
+| Test set | Score |
+| --- | --- |
+| Existing tests | **11.1%** (3 of 27) |
+| After `test_motion_model_optional_params.py` | 63.0% (17 of 27) |
+| After `test_collision_boundaries.py` | 85.2% (23 of 27) |
+| After the last two boundary constructions | **92.6%** (25 of 27) |
+
+The starting number was checked before it was believed, because two earlier
+grader scores were retracted for scoping errors. The narrow run was repeated with
+`test_rover.py` added and returned the identical 11.1%, and two survivors were
+then re-run against the **entire 1,819-test suite**. Both survived that too, so
+the hole was real and repository-wide rather than an artefact of test selection.
+
+**Seventeen of the twenty-four survivors were one mutation in seventeen places:**
+`x or default` flipped to `x and default`.
+
+```python
+g = gravity_mps2 or float(MODEL["gravityEarthMps2"])
+```
+
+Under the flip a caller who passes a real gravity gets Earth's instead. Nothing
+noticed, which means nothing in the suite had ever called these functions with a
+non-default value. Every motion-model test used Earth gravity, traction 1.0 and
+no sensor yaw, so the simulator's entire optional-argument surface was
+unexercised. Kodro ships Mars, Space and Underwater worlds, and that argument is
+exactly how a world changes what the rover can do.
+
+The remaining survivors were comparison boundaries inside `segment_circle_hit`,
+the swept-circle test that decides whether a move ends in a crash. Its own source
+comment records that this function already caused one real bug, a touching rover
+"trapped forever" because every later move reported an immediate hit. The fix for
+that bug was never pinned by a test; the boundary that separates "moving away
+from the rock I am touching" from "moving into it" could be flipped freely.
+
+The two survivors that remain are unreachable rather than unwritten:
+
+- `t > 1e-6` in `phys_turn_radius_cm` needs `tan(steer_deg * pi/180)` to be
+  exactly 1e-6, a steering angle of 0.0000573 degrees. No shipped robot spec
+  has one.
+- `t2 < 0.0` needs `t2` to be exactly zero, which requires `sqrt(disc) == b`,
+  hence `4ac == 0`, hence `c == 0` since `a > 1e-12` past the guard above. A
+  zero `c` is caught by the `c <= 0.0` branch earlier, so that comparison is
+  never reached at its boundary.
+
 ## Remaining blockers
 
 Honest list of what stands between here and a defensible 10/10.
@@ -138,9 +186,9 @@ Honest list of what stands between here and a defensible 10/10.
    See [React full-app soak](#react-full-app-soak). The original obstacle was
    that a browser probe in a hidden pane produces throttled `setTimeout` and
    paused `requestAnimationFrame`. A driven Playwright page has neither problem.
-2. **Mutation testing covers the grader only.** Every behavioural grader mutant
-   is killed (87.5%, 11 equivalent). The interpreter and the simulator have not
-   been measured.
+2. **Mutation testing now covers the grader and the simulator.** Grader 87.5%,
+   motion model 92.6%. See [Mutation testing on the simulator](#mutation-testing-on-the-simulator).
+   The interpreter and the sandbox have still not been measured.
 3. ~~**No accessibility audit tool** has been run against the shipped build;
    structural checks only.~~ **Closed.** See [Accessibility audit](#accessibility-audit).
 4. **Browser matrix is Chromium only.** *Partially closed:* the accessibility
