@@ -25868,14 +25868,28 @@ Object.assign(window, {
       Promise.resolve(window.KodroAI.setModel(name || '')).then(() => refreshAiStatus()).catch(() => {});
     }
     useEffect(() => {
-      // Refresh a few times after mount: the desktop bridge injects late, and in
-      // browser mode the Ollama probe is async, so one shot can miss it.
+      // One status probe, not eight. The old loop refreshed seven extra times
+      // at mount to catch the pywebview bridge injecting late; in browser mode
+      // the bridge is already present and Ollama is absent, so those seven
+      // probes each hit the network and logged a console error, greeting a
+      // first-time visitor with eight red errors before they touch anything.
+      //
+      // When the bridge is already present (browser mode, or desktop injected
+      // before mount) one probe answers definitively; the panel-open effect
+      // below re-checks, so a model started later still lights up. When the
+      // bridge is absent, poll only for its APPEARANCE -- a property read, no
+      // network, no console error -- and probe once when it arrives.
+      if (window.KodroAI) {
+        refreshAiStatus();
+        return undefined;
+      }
       let tries = 0;
-      refreshAiStatus();
       const t = setInterval(() => {
         tries += 1;
-        refreshAiStatus();
-        if (tries > 6) clearInterval(t);
+        if (window.KodroAI || tries > 6) {
+          clearInterval(t);
+          refreshAiStatus();
+        }
       }, 700);
       return () => clearInterval(t);
     }, []);
