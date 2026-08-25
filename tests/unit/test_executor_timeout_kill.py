@@ -32,6 +32,7 @@ from typing import Any
 
 import pytest
 
+from kodro.runtime import executor
 from kodro.runtime.executor import _force_kill_thread
 
 
@@ -159,3 +160,31 @@ def test_a_thread_that_already_finished_is_left_alone(api) -> None:  # type: ign
     recorder = api([1])
     _force_kill_thread(_FakeThread(ident=4242, alive=False))  # type: ignore[arg-type]
     assert recorder.calls == []
+
+
+def test_the_pupil_thread_is_a_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A runaway pupil program must never hold the interpreter open at exit.
+
+    `_force_kill_thread` is best effort: it gives up after three attempts, and
+    the C API can decline. `daemon=True` is what makes that acceptable, because
+    a daemon thread does not keep the process alive. Without it a pupil whose
+    program will not die takes the whole application down with it at shutdown,
+    which is the failure the kill path exists to avoid in the first place.
+
+    Asserted by wrapping the real Thread rather than replacing it, so execution
+    still happens and this cannot pass against a stub.
+    """
+    seen: list[bool] = []
+    real_thread = executor.threading.Thread
+
+    def _spy(*args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("name") == "kodro-pupil-exec":
+            seen.append(bool(kwargs.get("daemon")))
+        return real_thread(*args, **kwargs)
+
+    monkeypatch.setattr(executor.threading, "Thread", _spy)
+
+    result = executor.execute("x = 1")
+
+    assert seen == [True], "the pupil execution thread must be a daemon"
+    assert result.success, "and the program must still actually run"
