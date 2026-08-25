@@ -187,20 +187,62 @@ What was actually wrong:
   `role="dialog" aria-modal="true"`, so a conforming screen reader ignored the
   shell behind it; the duplicates were wrong in the DOM regardless.
 
-One finding was raised and then refuted rather than reported: WebKit emits an
-uncaught page error for the localhost Ollama probe that Chromium and Firefox do
-not. A three-case experiment (`.catch()`, `try`/`await`, and a deliberately
-uncaught control) showed WebKit reports the failure that way **even when the
-rejection is handled**, and the product does handle it. Engine reporting
-behaviour, not a defect.
+### Reproducing it
+
+The harness is deliberately not committed and not wired into CI. This
+repository ships no `package.json` and vendors everything it needs, and adding
+Playwright plus three browser engines to satisfy one gate would cost more than
+the gate is worth. The measurement is reproducible from outside instead:
+
+```bash
+mkdir a11y && cd a11y && npm init -y
+npm install axe-core@4 playwright@latest
+npx playwright install chromium firefox webkit
+```
+
+Serve the built assets on any port and point the harness at it. Run axe with
+`runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa'] }`
+for the compliance number and a second pass on `best-practice` separately.
+Walk into each view first; auditing the landing overlay alone measures the
+front door and nothing behind it.
+
+### Findings raised and then refuted
+
+Recorded because a finding that did not survive checking is not a finding, and
+because both of these would have been plausible bug reports.
+
+| Suspected | Verdict | How it was killed |
+| --- | --- | --- |
+| WebKit throws an uncaught page error on the localhost Ollama probe that Chromium and Firefox do not | not a defect | Three-case experiment: `.catch()`, `try`/`await`, and a deliberately uncaught control. WebKit reports the failure that way **even when the rejection is handled**, and the product does handle it. Engine reporting behaviour |
+| `.editor-tools-menu` renders 140px off the left edge of the viewport at 1440 and wider | not a defect | The layout probe read `display`, `visibility` and `opacity`, none of which capture a closed `<details>`. `checkVisibility()` returned false and `details.open` was false. Opening it measured `left: 0, right: 280` at 1280, 1440 and 1920: fully on screen |
+
+### Layout integrity
+
+Separate from accessibility, and clean. Six breakpoints (320, 375, 768, 1024,
+1440, 1920) across five views: **zero horizontal page scroll everywhere**, and
+no element escaping the viewport once the two false positives above were
+removed. The responsive behaviour holds.
 
 ## Score
 
 Not scored yet. A score before the blockers above are addressed would be a
 guess presented as a measurement.
 
-What can be said now: seven P1 defects found, fixed and pinned; no P0 found; and
-eight hypotheses tested and recorded clean with reproducible evidence.
+What can be said now, all of it measured on this repository:
+
+- Nine defects found, fixed and pinned; eight P1, one P2, no P0.
+- Eight hypotheses tested and recorded clean with reproducible evidence.
+- Grader mutation 87.5%, every behavioural mutant killed, 11 proven equivalent.
+- Zero WCAG 2.2 AA violations across eight views and three browser engines.
+- Zero horizontal overflow across six breakpoints.
+- 1,819 tests pass, branch coverage 91.10% against an 85% gate.
+- Three findings raised and then refuted rather than reported, listed above and
+  in the mutation section, because the count of things checked matters more
+  than the count of things found.
+
+Two of the five blockers are closed and a third is half closed. The two that
+remain open, classroom use and hardware validation, are the two no amount of
+engineering here can close.
 
 ## Honest boundaries
 
