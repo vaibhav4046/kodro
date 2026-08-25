@@ -178,6 +178,51 @@ The two survivors that remain are unreachable rather than unwritten:
   zero `c` is caught by the `c <= 0.0` branch earlier, so that comparison is
   never reached at its boundary.
 
+## Mutation testing on the sandbox
+
+`runtime/sandbox.py` is the boundary between a pupil's program and the machine.
+It had never been measured.
+
+| Test set | Score |
+| --- | --- |
+| Existing tests | **30.0%** (9 of 30) |
+| After `test_sandbox_resource_guards.py` | 66.7% (20 of 30) |
+| After the reporting and boundary cases | 82.8% (24 of 29) |
+| After the malformed-template case | **86.2%** (25 of 29) |
+
+The four survivors are equivalent. Two are the `MAX_POW_EXP + 1` sentinel
+becoming `+ 2`, which no caller can observe because the value is only ever
+compared with `> MAX_POW_EXP` and both exceed it. Two are
+`@dataclass(frozen=True, slots=True)` decorator flips, the same class as the
+four left on the grader. **Every mutant that changes behaviour is killed.**
+
+Two survivors were confirmed against the entire 1,842-test suite before the
+number was believed, and both survived it, so the gap was repository-wide.
+
+### A real bypass, not just a test gap
+
+Reading the survivors turned up a defect:
+
+| Program | Before |
+| --- | --- |
+| `2 ** (1 * 10 ** 9)` | refused, `oversized-power` |
+| `2 ** (True * 10 ** 9)` | **allowed** |
+
+`_fold_const_int` returned `None` for a bool, on the reasonable-looking grounds
+that a bool is not really an integer. One unfoldable operand makes the whole
+subtree fold to `None`, so the walker never saw an exponent at all. Python
+evaluates `True` as 1 regardless, so the allowed form still built a roughly
+125 MB integer inside one GIL-holding operation that the wall-clock timeout
+cannot interrupt. **Writing `True` instead of `1` was the entire bypass.**
+
+`bool` is a subclass of `int`, so the fix folds it to its integer value.
+`2 ** True` and `2 ** (True + 1)` remain allowed, and non-integer constants
+remain unfoldable.
+
+Nothing in the suite had ever asserted that a size guard *fires*, only that
+ordinary programs pass. That asymmetry is what let the bypass sit undetected
+next to a guard everyone assumed was working.
+
 ## Remaining blockers
 
 Honest list of what stands between here and a defensible 10/10.
@@ -186,9 +231,11 @@ Honest list of what stands between here and a defensible 10/10.
    See [React full-app soak](#react-full-app-soak). The original obstacle was
    that a browser probe in a hidden pane produces throttled `setTimeout` and
    paused `requestAnimationFrame`. A driven Playwright page has neither problem.
-2. **Mutation testing now covers the grader and the simulator.** Grader 87.5%,
-   motion model 92.6%. See [Mutation testing on the simulator](#mutation-testing-on-the-simulator).
-   The interpreter and the sandbox have still not been measured.
+2. ~~**Mutation testing covers the grader only.**~~ **Closed.** Grader 87.5%,
+   motion model 92.6%, sandbox 86.2%, and in all three every mutant that
+   changes behaviour is killed. The remaining survivors are equivalent mutants
+   in each case. See [Mutation testing on the simulator](#mutation-testing-on-the-simulator)
+   and [Mutation testing on the sandbox](#mutation-testing-on-the-sandbox).
 3. ~~**No accessibility audit tool** has been run against the shipped build;
    structural checks only.~~ **Closed.** See [Accessibility audit](#accessibility-audit).
 4. **Browser matrix is Chromium only.** *Partially closed:* the accessibility

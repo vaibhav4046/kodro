@@ -81,9 +81,14 @@ def _fold_const_int(node: ast.expr) -> int | None:
     Returns ``None`` when the subtree references a name/call (not constant).
     """
     if isinstance(node, ast.Constant):
-        return (
-            node.value if isinstance(node.value, int) and not isinstance(node.value, bool) else None
-        )
+        # A bool folds to its integer value. Excluding bools here looked like
+        # ordinary type hygiene and was a hole: one unfoldable operand makes the
+        # whole subtree fold to None, so `2 ** (True * 10 ** 9)` was ALLOWED
+        # while the identical `2 ** (1 * 10 ** 9)` was refused. Python evaluates
+        # True as 1 regardless, so the allowed form still allocated the very
+        # bignum this guard exists to forbid. bool is a subclass of int, so the
+        # isinstance below already covers both.
+        return int(node.value) if isinstance(node.value, int) else None
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
         inner = _fold_const_int(node.operand)
         return None if inner is None else -inner
