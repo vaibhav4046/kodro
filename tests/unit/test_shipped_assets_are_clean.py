@@ -30,11 +30,7 @@ WEB = Path(__file__).resolve().parents[2] / "src" / "kodro" / "assets" / "web"
 
 
 def test_no_underscore_prefixed_scratch_ships_in_the_asset_dir() -> None:
-    scratch = sorted(
-        p.relative_to(WEB).as_posix()
-        for p in WEB.rglob("_*")
-        if p.is_file()
-    )
+    scratch = sorted(p.relative_to(WEB).as_posix() for p in WEB.rglob("_*") if p.is_file())
     assert scratch == [], (
         "development scratch is being packaged into the wheel: "
         f"{scratch}. Delete it, or rename it without the leading underscore "
