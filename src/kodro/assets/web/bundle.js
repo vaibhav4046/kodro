@@ -22195,7 +22195,7 @@ Object.assign(window, {
       "aria-label": "Kodro home"
     }, /*#__PURE__*/React.createElement("div", {
       className: "kh-wrap"
-    }, /*#__PURE__*/React.createElement("header", {
+    }, /*#__PURE__*/React.createElement("div", {
       className: "kh-top"
     }, /*#__PURE__*/React.createElement("div", {
       className: "kh-brand",
@@ -22209,7 +22209,9 @@ Object.assign(window, {
     }, "Robot design and coding"))), /*#__PURE__*/React.createElement("ul", {
       className: "kh-promises",
       "aria-label": "Privacy and access"
-    }, /*#__PURE__*/React.createElement("li", null, "Works offline"), /*#__PURE__*/React.createElement("li", null, "No account"), /*#__PURE__*/React.createElement("li", null, "Work stays here"))), /*#__PURE__*/React.createElement("main", null, /*#__PURE__*/React.createElement("section", {
+    }, /*#__PURE__*/React.createElement("li", null, "Works offline"), /*#__PURE__*/React.createElement("li", null, "No account"), /*#__PURE__*/React.createElement("li", null, "Work stays here"))), /*#__PURE__*/React.createElement("div", {
+      className: "kh-main"
+    }, /*#__PURE__*/React.createElement("section", {
       className: "kh-hero",
       "aria-labelledby": "kh-title"
     }, /*#__PURE__*/React.createElement("div", {
@@ -22428,6 +22430,8 @@ Object.assign(window, {
       setSelected = selectedState[1];
     var w = doc.world;
     var scale = MAP_PX / Math.max(w.width, w.height);
+    var nFlags = (w.samples || []).length;
+    var nRocks = (w.obstacles || []).length;
     var liveValidation = Store.validate(doc);
 
     // Any edit invalidates the last check: a lesson proved solvable before you
@@ -22735,8 +22739,19 @@ Object.assign(window, {
       height: MAP_PX,
       viewBox: '0 0 ' + w.width * scale + ' ' + w.height * scale,
       onClick: mapClick,
-      role: 'img',
-      'aria-label': 'Arena map, ' + w.width + ' by ' + w.height + ' metres, ' + (w.samples || []).length + ' flags and ' + (w.obstacles || []).length + ' rocks'
+      // NOT role="img". The rocks, flags and base inside this SVG each
+      // carry role="button", tabIndex=0 and a key handler, so this is a
+      // container of controls, not a picture. ARIA defines "img" as
+      // presenting its children, which makes focusable descendants a
+      // spec violation (axe: nested-interactive, WCAG 4.1.2) and leaves
+      // their exposure up to each assistive technology rather than
+      // guaranteed. Measured on Chrome's accessibility tree the buttons
+      // were still exposed under "img", so this is a correctness and
+      // portability fix rather than a repair of a confirmed break; the
+      // point is that "group" is the accurate role and does not rely on
+      // one engine being lenient. The summary stays as its name.
+      role: 'group',
+      'aria-label': 'Arena map, ' + w.width + ' by ' + w.height + ' metres, ' + nFlags + ' flag' + (nFlags === 1 ? '' : 's') + ' and ' + nRocks + ' rock' + (nRocks === 1 ? '' : 's')
     }, e('rect', {
       x: 0,
       y: 0,
@@ -35020,12 +35035,12 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("a", {
       className: "skip-link",
       href: "#editor-main"
-    }, simpleExperience ? 'Skip to test workspace' : 'Skip to code editor'), /*#__PURE__*/React.createElement("h1", {
-      className: "sr-only"
-    }, "Kodro, an offline robot design and simulation studio"), /*#__PURE__*/React.createElement("div", {
+    }, simpleExperience ? 'Skip to test workspace' : 'Skip to code editor'), /*#__PURE__*/React.createElement("div", {
       className: "missionbar",
       role: "banner"
-    }, /*#__PURE__*/React.createElement("button", {
+    }, /*#__PURE__*/React.createElement("h1", {
+      className: "sr-only"
+    }, "Kodro, an offline robot design and simulation studio"), /*#__PURE__*/React.createElement("button", {
       type: "button",
       className: "brand brand-home",
       onClick: () => setHomeOpen(true),

@@ -236,7 +236,15 @@
     return (
       <div className="kh-back" ref={backRef} role="dialog" aria-modal="true" aria-label="Kodro home">
         <div className="kh-wrap">
-          <header className="kh-top">
+          {/* A div, not <header>/<main>. This overlay is already a labelled
+              role="dialog" aria-modal="true", so it does not need landmarks of
+              its own, and <header> here maps to banner while the app shell
+              behind it has its own banner and its own <main>. That gave the
+              page two of each whenever the overlay was open. aria-modal means
+              a conforming screen reader ignores the shell anyway, so this was
+              never a confirmed break, but duplicate top-level landmarks are
+              wrong in the DOM regardless of who is lenient about reading them. */}
+          <div className="kh-top">
             <div className="kh-brand" aria-label="Kodro">
               <BrandMark className="kh-brand-mark" />
               <div>
@@ -249,9 +257,9 @@
               <li>No account</li>
               <li>Work stays here</li>
             </ul>
-          </header>
+          </div>
 
-          <main>
+          <div className="kh-main">
             <section className="kh-hero" aria-labelledby="kh-title">
               <div className="kh-copy">
                 <p className="kh-eyebrow">Make code move</p>
@@ -296,7 +304,7 @@
                 </button>
               ))}
             </div>
-          </main>
+          </div>
 
           <footer className="kh-foot">
             <span>Kodro supports learning and early design comparison. It does not certify a physical robot.</span>

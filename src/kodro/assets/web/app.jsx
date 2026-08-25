@@ -2506,9 +2506,14 @@
     return (
       <div className="app" data-stage={activeStage} data-experience={experience} data-simple-view={showSimpleCockpit ? 'plan' : 'code'} data-evidence={evidenceOpen ? 'open' : 'closed'} data-obstacles={(terrain.obstacles || []).length} data-active-world={(terrain.siteId || terrain.id) || ''}>
         <a className="skip-link" href="#editor-main">{simpleExperience ? 'Skip to test workspace' : 'Skip to code editor'}</a>
-        <h1 className="sr-only">Kodro, an offline robot design and simulation studio</h1>
         {/* ---- mission bar ---- */}
         <div className="missionbar" role="banner">
+          {/* The page's h1 lives inside the banner rather than as a bare child
+              of .app. It is sr-only either way, so nothing moves on screen, but
+              outside a landmark it was content a landmark-navigating screen
+              reader user could skip straight past: the one element naming the
+              whole product. */}
+          <h1 className="sr-only">Kodro, an offline robot design and simulation studio</h1>
           {/* The brand is the way home. Clicking a product's logo to get back to
               the start is the one navigation every user already knows, and it
               is what makes the front door somewhere you can return to. */}

@@ -97,6 +97,8 @@
 
     var w = doc.world;
     var scale = MAP_PX / Math.max(w.width, w.height);
+    var nFlags = (w.samples || []).length;
+    var nRocks = (w.obstacles || []).length;
     var liveValidation = Store.validate(doc);
 
     // Any edit invalidates the last check: a lesson proved solvable before you
@@ -324,9 +326,21 @@
               width: MAP_PX, height: MAP_PX,
               viewBox: '0 0 ' + (w.width * scale) + ' ' + (w.height * scale),
               onClick: mapClick,
-              role: 'img',
+              // NOT role="img". The rocks, flags and base inside this SVG each
+              // carry role="button", tabIndex=0 and a key handler, so this is a
+              // container of controls, not a picture. ARIA defines "img" as
+              // presenting its children, which makes focusable descendants a
+              // spec violation (axe: nested-interactive, WCAG 4.1.2) and leaves
+              // their exposure up to each assistive technology rather than
+              // guaranteed. Measured on Chrome's accessibility tree the buttons
+              // were still exposed under "img", so this is a correctness and
+              // portability fix rather than a repair of a confirmed break; the
+              // point is that "group" is the accurate role and does not rely on
+              // one engine being lenient. The summary stays as its name.
+              role: 'group',
               'aria-label': 'Arena map, ' + w.width + ' by ' + w.height + ' metres, '
-                + (w.samples || []).length + ' flags and ' + (w.obstacles || []).length + ' rocks',
+                + nFlags + ' flag' + (nFlags === 1 ? '' : 's') + ' and '
+                + nRocks + ' rock' + (nRocks === 1 ? '' : 's'),
             },
               e('rect', { x: 0, y: 0, width: w.width * scale, height: w.height * scale, className: 'ls-map-floor' }),
               // metre grid, so distances are readable at a glance

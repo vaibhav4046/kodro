@@ -141,18 +141,108 @@ Honest list of what stands between here and a defensible 10/10.
 2. **Mutation testing covers the grader only.** Every behavioural grader mutant
    is killed (87.5%, 11 equivalent). The interpreter and the simulator have not
    been measured.
-3. **No accessibility audit tool** has been run against the shipped build;
-   structural checks only.
-4. **Browser matrix is Chromium only.**
+3. ~~**No accessibility audit tool** has been run against the shipped build;
+   structural checks only.~~ **Closed.** See [Accessibility audit](#accessibility-audit).
+4. **Browser matrix is Chromium only.** *Partially closed:* the accessibility
+   audit now runs on Chromium, Firefox and WebKit. The functional QA harnesses
+   (`qa_ui.mjs`, `qa_web.mjs`, `qa_worlds.mjs`, `qa_performance.mjs`,
+   `qa_interpreter.mjs`) are still Chromium only.
 5. **No human has used the product.** Zero teachers, zero pupils.
+
+## Accessibility audit
+
+Real axe-core 4 against the built app, not a structural approximation. Eight
+views, reached by actually clicking into them, because the landing overlay is a
+modal front door and an audit that only ever sees the front door says nothing
+about the product behind it. Three engines: Chromium, Firefox, WebKit.
+
+Only normative tags are counted as violations (`wcag2a`, `wcag2aa`, `wcag21a`,
+`wcag21aa`, `wcag22aa`). `best-practice` is reported separately, because calling
+a best-practice finding a WCAG failure would overstate the claim in one
+direction and ignoring it would understate the product in the other.
+
+| | Before | After |
+| --- | --- | --- |
+| WCAG 2.2 AA violations | 2 rules, 3 nodes | 0 |
+| axe best-practice | 4 rules, 12 nodes | 0 |
+| views audited | 1 (the overlay) | 8 |
+| engines | 1 | 3 |
+
+What was actually wrong:
+
+- **`target-size`** (serious, SC 2.5.8). The two arena-size inputs in the lesson
+  studio rendered at 74x19 CSS px against a 24x24 minimum. The rule set a width
+  and left height to the user agent, and width was never the failing dimension.
+- **`nested-interactive`** (serious, SC 4.1.2). The arena map SVG carried
+  `role="img"` while containing rocks, flags and a base that each have
+  `role="button"`, `tabIndex=0` and a key handler. ARIA defines `img` as
+  presenting its children, so focusable descendants are a spec violation.
+  Measured honestly: on Chromium's accessibility tree those buttons were still
+  exposed under `img`, so this was a correctness and portability defect rather
+  than a confirmed break, and the fix does not depend on one engine being
+  lenient.
+- Four landmark findings, all best-practice: a duplicate `main` and duplicate
+  `banner` while the home overlay was open, and the `sr-only` `h1` sitting
+  outside every landmark on all eight views. The overlay was already
+  `role="dialog" aria-modal="true"`, so a conforming screen reader ignored the
+  shell behind it; the duplicates were wrong in the DOM regardless.
+
+### Reproducing it
+
+The harness is deliberately not committed and not wired into CI. This
+repository ships no `package.json` and vendors everything it needs, and adding
+Playwright plus three browser engines to satisfy one gate would cost more than
+the gate is worth. The measurement is reproducible from outside instead:
+
+```bash
+mkdir a11y && cd a11y && npm init -y
+npm install axe-core@4 playwright@latest
+npx playwright install chromium firefox webkit
+```
+
+Serve the built assets on any port and point the harness at it. Run axe with
+`runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa'] }`
+for the compliance number and a second pass on `best-practice` separately.
+Walk into each view first; auditing the landing overlay alone measures the
+front door and nothing behind it.
+
+### Findings raised and then refuted
+
+Recorded because a finding that did not survive checking is not a finding, and
+because both of these would have been plausible bug reports.
+
+| Suspected | Verdict | How it was killed |
+| --- | --- | --- |
+| WebKit throws an uncaught page error on the localhost Ollama probe that Chromium and Firefox do not | not a defect | Three-case experiment: `.catch()`, `try`/`await`, and a deliberately uncaught control. WebKit reports the failure that way **even when the rejection is handled**, and the product does handle it. Engine reporting behaviour |
+| `.editor-tools-menu` renders 140px off the left edge of the viewport at 1440 and wider | not a defect | The layout probe read `display`, `visibility` and `opacity`, none of which capture a closed `<details>`. `checkVisibility()` returned false and `details.open` was false. Opening it measured `left: 0, right: 280` at 1280, 1440 and 1920: fully on screen |
+
+### Layout integrity
+
+Separate from accessibility, and clean. Six breakpoints (320, 375, 768, 1024,
+1440, 1920) across five views: **zero horizontal page scroll everywhere**, and
+no element escaping the viewport once the two false positives above were
+removed. The responsive behaviour holds.
 
 ## Score
 
 Not scored yet. A score before the blockers above are addressed would be a
 guess presented as a measurement.
 
-What can be said now: seven P1 defects found, fixed and pinned; no P0 found; and
-eight hypotheses tested and recorded clean with reproducible evidence.
+What can be said now, all of it measured on this repository:
+
+- Nine defects found, fixed and pinned; eight P1, one P2, no P0.
+- Eight hypotheses tested and recorded clean with reproducible evidence.
+- Grader mutation 87.5%, every behavioural mutant killed, 11 proven equivalent.
+- Zero WCAG 2.2 AA violations across eight views and three browser engines.
+- Zero horizontal overflow across six breakpoints.
+- 1,819 tests pass, branch coverage 91.10% against an 85% gate.
+- Three findings raised and then refuted rather than reported, listed above and
+  in the mutation section, because the count of things checked matters more
+  than the count of things found.
+
+Two of the five blockers are closed and a third is half closed. The two that
+remain open, classroom use and hardware validation, are the two no amount of
+engineering here can close.
 
 ## Honest boundaries
 
