@@ -413,11 +413,19 @@ kodro-mcp --list-tools     # the eight tools, printed to stderr
 kodro-mcp                  # start the server (JSON-RPC 2.0 over stdio)
 ```
 
-Register it with a client:
+Register it with a client. The same one-line config works everywhere the
+server has been verified: Claude Code, Claude Desktop, Codex, and
+Cursor-derived editors including Grok Bot (workspace or global
+`.cursor/mcp.json`):
 
 ```json
 {"mcpServers": {"kodro": {"command": "kodro-mcp"}}}
 ```
+
+ChatGPT is the one mainstream client this deliberately does not reach: its
+connectors require a remote HTTPS server, and `kodro-mcp` is local stdio only,
+because a school machine with no network is the whole point. Hosting the
+grader in a cloud would trade away the constraint the product exists to serve.
 
 Eight tools: `list_lessons`, `get_lesson`, `run_program`, `grade_program`,
 `check_api`, `validate_robot_spec`, `prove_contracts`, `pupil_progress`. Plus

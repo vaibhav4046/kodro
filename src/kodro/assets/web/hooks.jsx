@@ -105,8 +105,18 @@
       // below re-checks, so a model started later still lights up. When the
       // bridge is absent, poll only for its APPEARANCE -- a property read, no
       // network, no console error -- and probe once when it arrives.
+      // Browser mode gets NO mount probe at all. Status is only rendered
+      // inside the AI panel, the panel-open effect below refreshes it when it
+      // can actually be seen, and without a desktop bridge the probe is a
+      // fetch to a localhost Ollama that is almost never there: the network
+      // layer logs that refusal as a console error before any catch runs, so
+      // the mount probe bought one red error on every first visit and nothing
+      // a user could observe. Desktop keeps the mount probe, because there the
+      // bridge answers over pywebview without touching the network.
+      const desktop = () =>
+        window.RoboLearn && window.RoboLearn.isAvailable && window.RoboLearn.isAvailable();
       if (window.KodroAI) {
-        refreshAiStatus();
+        if (desktop()) refreshAiStatus();
         return undefined;
       }
       let tries = 0;
@@ -114,7 +124,7 @@
         tries += 1;
         if (window.KodroAI || tries > 6) {
           clearInterval(t);
-          refreshAiStatus();
+          if (desktop()) refreshAiStatus();
         }
       }, 700);
       return () => clearInterval(t);

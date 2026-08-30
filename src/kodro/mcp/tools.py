@@ -331,6 +331,24 @@ def validate_robot_spec(params: dict[str, Any]) -> dict[str, Any]:
         urdf_available = False
 
     warnings: list[str] = []
+    # The converter consumes exactly what the Robot Lab's exportKrs() writes:
+    # name, massKg (or derived.massG) and the drive block. A spec carrying NONE
+    # of those still converts, but every number in the answer is then a
+    # default, not a property of the caller's robot. Saying so is the
+    # difference between validating their spec and silently describing a
+    # different one; an agent that trusts a silently-defaulted answer reasons
+    # about the wrong robot.
+    recognised = [k for k in ("massKg", "derived", "drive") if isinstance(raw, dict) and k in raw]
+    if not recognised:
+        ignored = (
+            sorted(k for k in raw if k not in ("name", "krs"))[:8] if isinstance(raw, dict) else []
+        )
+        warnings.append(
+            "This does not look like a Robot Lab export: none of massKg, "
+            "derived.massG or drive were found, so every figure below is a "
+            "DEFAULT, not a property of this spec."
+            + (f" Ignored keys: {', '.join(ignored)}." if ignored else "")
+        )
     if spec.mass_kg <= 0:
         warnings.append("Mass is zero or negative; the drain model needs a positive mass.")
     if spec.wheel_count == 1:
