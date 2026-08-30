@@ -854,11 +854,16 @@
             style={{ background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
             {cfg.providers.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
-          {isCloud && <span style={{ fontSize: 11, color: cfg.cloudReady ? 'var(--success)' : 'var(--fg-3)' }}>{cfg.cloudReady ? 'connected' : 'needs a key'}</span>}
+          {isCloud && <span style={{ fontSize: 11, color: cfg.cloudReady ? 'var(--success)' : 'var(--fg-3)' }}>{cfg.cloudReady ? 'connected' : (cfg.needsEndpoint ? 'needs an endpoint' : 'needs a key')}</span>}
         </div>
+        {cfg.provider === 'custom' && (
+          <input type="text" aria-label="Endpoint URL" defaultValue={cfg.endpoint} placeholder="http://localhost:8080/v1/chat/completions"
+            onChange={e => { P.setEndpoint(e.target.value); bump(); }}
+            style={{ display: 'block', width: '100%', marginTop: 6, background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
+        )}
         {isCloud && (
           <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-            <input type="password" aria-label="API key" value={keyInput} placeholder={cfg.hasKey ? 'key saved (type to replace)' : 'paste your API key'}
+            <input type="password" aria-label="API key" value={keyInput} placeholder={cfg.hasKey ? 'key saved (type to replace)' : (cfg.provider === 'custom' ? 'API key (optional)' : 'paste your API key')}
               onChange={e => { setKeyInput(e.target.value); P.setKey(cfg.provider, e.target.value); bump(); }}
               style={{ flex: '1 1 180px', background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
             <input type="text" aria-label="Cloud model id" value={cfg.cloudModel} placeholder="model id"

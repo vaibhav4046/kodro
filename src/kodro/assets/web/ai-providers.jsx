@@ -38,11 +38,22 @@
       endpoint: 'https://openrouter.ai/api/v1/chat/completions',
       defaultModel: 'deepseek/deepseek-chat-v3-0324:free',
     },
+    // A user-supplied OpenAI-compatible endpoint: a self-hosted gateway, a LAN
+    // server, a router such as OmniRoute or LiteLLM. The URL is typed by the
+    // user and stored only in this browser, so no host is hardcoded here and
+    // the offline scan stays clean; nothing is contacted until the user both
+    // selects this provider AND enters an endpoint. The key is OPTIONAL,
+    // because many self-hosted gateways take none.
+    custom: {
+      id: 'custom', label: 'Custom endpoint (OpenAI-compatible, your URL)', local: false,
+      defaultModel: '',
+    },
   };
 
   var KEYS = {
     provider: 'kodro_ai_provider',
     cloudModel: 'kodro_ai_cloud_model',
+    endpoint: 'kodro_ai_custom_endpoint',
     key: function (id) { return 'kodro_ai_key_' + id; },
   };
 
@@ -55,6 +66,22 @@
   }
   function isLocal() { return !!(PROVIDERS[providerId()] || {}).local; }
   function keyFor(id) { return lsGet(KEYS.key(id)) || ''; }
+  // The custom endpoint must parse as http(s) before anything is sent to it.
+  // A typo like "localhost:20128" (no scheme) or a javascript: URL is refused
+  // here rather than handed to fetch.
+  function customEndpoint() {
+    var raw = (lsGet(KEYS.endpoint) || '').trim();
+    if (!raw) return '';
+    try {
+      var u = new URL(raw);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+      return raw;
+    } catch (e) { return ''; }
+  }
+  function endpointFor(id) {
+    if (id === 'custom') return customEndpoint();
+    return (PROVIDERS[id] || {}).endpoint || '';
+  }
   function cloudModel() {
     var id = providerId();
     var pr = PROVIDERS[id] || {};
@@ -67,7 +94,10 @@
   function cloudReady() {
     var id = providerId();
     var pr = PROVIDERS[id];
-    return !!(pr && !pr.local && keyFor(id));
+    if (!pr || pr.local) return false;
+    // Custom gateways often take no key, so an endpoint alone makes it ready.
+    if (id === 'custom') return !!customEndpoint();
+    return !!keyFor(id);
   }
 
   function localOnly(url) {
@@ -104,15 +134,40 @@
     var messages = [];
     if (opts.system) messages.push({ role: 'system', content: opts.system });
     messages.push({ role: 'user', content: prompt });
-    var body = { model: model, messages: messages, max_tokens: opts.num_predict || 400 };
+    // stream:false is stated explicitly. Groq and OpenRouter default to a
+    // plain JSON response, but some self-hosted gateways (found live against
+    // OmniRoute) stream server-sent events unless told not to.
+    var body = { model: model, messages: messages, max_tokens: opts.num_predict || 400, stream: false };
     if (opts.temperature != null) body.temperature = opts.temperature;
+    var headers = { 'Content-Type': 'application/json' };
+    if (key) headers.Authorization = 'Bearer ' + key;
     var r = await fetchTimeout(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+      headers: headers,
       body: JSON.stringify(body),
     }, CLOUD_TIMEOUT_MS);
     if (!r.ok) throw new Error(label + ' ' + r.status + ': ' + (await r.text()).slice(0, 200));
-    var j = await r.json();
+    var raw = await r.text();
+    // Insurance for gateways that stream anyway: reassemble the SSE deltas
+    // into one message instead of choking on "data:" prefixed lines.
+    if (/^\s*data:/.test(raw)) {
+      var pieces = [];
+      raw.split(/\r?\n/).forEach(function (line) {
+        line = line.trim();
+        if (line.indexOf('data:') !== 0) return;
+        var payload = line.slice(5).trim();
+        if (!payload || payload === '[DONE]') return;
+        try {
+          var c = JSON.parse(payload);
+          var d = ((c.choices || [])[0] || {}).delta || {};
+          if (d.content) pieces.push(d.content);
+          var m = ((c.choices || [])[0] || {}).message || {};
+          if (m.content) pieces.push(m.content);
+        } catch (e) { void e; }
+      });
+      return pieces.join('').trim();
+    }
+    var j = JSON.parse(raw);
     return (((j.choices || [])[0] || {}).message || {}).content ? j.choices[0].message.content.trim() : '';
   }
 
@@ -144,6 +199,7 @@
       var model = cloudModel();
       if (id === 'groq') return openaiCompatibleGenerate(PROVIDERS.groq.endpoint, 'Groq', prompt, opts, key, model);
       if (id === 'openrouter') return openaiCompatibleGenerate(PROVIDERS.openrouter.endpoint, 'OpenRouter', prompt, opts, key, model);
+      if (id === 'custom') return openaiCompatibleGenerate(customEndpoint(), 'Custom endpoint', prompt, opts, key, model);
     }
     return ollamaGenerate(prompt, opts, ollamaModel);
   }
@@ -182,6 +238,18 @@
       } catch (e) { void e; }
       return ['deepseek/deepseek-chat-v3-0324:free', 'deepseek/deepseek-r1:free', 'meta-llama/llama-3.3-70b-instruct:free'];
     }
+    if (id === 'custom' && customEndpoint()) {
+      try {
+        var hc = {};
+        if (keyFor('custom')) hc.Authorization = 'Bearer ' + keyFor('custom');
+        var rc = await fetch(customEndpoint().replace('/chat/completions', '/models'), { headers: hc });
+        if (rc.ok) {
+          var jc = await rc.json();
+          return (jc.data || []).map(function (m) { return m.id; }).sort();
+        }
+      } catch (e) { void e; }
+      return [];
+    }
     return [];
   }
 
@@ -195,6 +263,8 @@
       cloudReady: cloudReady(),
       cloudModel: cloudModel(),
       hasKey: !!keyFor(id),
+      endpoint: id === 'custom' ? (lsGet(KEYS.endpoint) || '') : (endpointFor(id) || ''),
+      needsEndpoint: id === 'custom' && !customEndpoint(),
       providers: Object.keys(PROVIDERS).map(function (k) {
         return { id: k, label: PROVIDERS[k].label, local: !!PROVIDERS[k].local, hasKey: !!keyFor(k) };
       }),
@@ -204,6 +274,7 @@
   function setProvider(id) { if (PROVIDERS[id]) { lsSet(KEYS.provider, id); lsSet(KEYS.cloudModel, ''); } return config(); }
   function setKey(id, key) { if (PROVIDERS[id] && !PROVIDERS[id].local) lsSet(KEYS.key(id), (key || '').trim()); return config(); }
   function setCloudModel(model) { lsSet(KEYS.cloudModel, (model || '').trim()); return config(); }
+  function setEndpoint(url) { lsSet(KEYS.endpoint, (url || '').trim()); return config(); }
 
   if (typeof window !== 'undefined') {
     window.KodroProviders = {
@@ -212,6 +283,7 @@
       setProvider: setProvider,
       setKey: setKey,
       setCloudModel: setCloudModel,
+      setEndpoint: setEndpoint,
       listCloudModels: listCloudModels,
       cloudReady: cloudReady,
       isLocal: isLocal,

@@ -622,6 +622,45 @@ def test_validate_robot_spec_reads_a_real_studio_export(server: Server) -> None:
     assert payload["warnings"] == []
 
 
+def test_validate_robot_spec_names_a_spec_that_is_not_an_export(server: Server) -> None:
+    """A spec carrying nothing the converter reads must SAY every figure is a default.
+
+    The converter consumes exactly what exportKrs() writes, so a hand-written
+    or hostile spec converts to the default robot. Found live over MCP: a
+    garbage spec and a plausible invented one returned byte-identical default
+    answers with no indication that the input was ignored. An agent that
+    trusts a silently-defaulted answer reasons about the wrong robot, which is
+    the exact failure this server's own description warns against.
+    """
+    payload = structured(
+        call(
+            server,
+            "validate_robot_spec",
+            {
+                "spec": json.dumps(
+                    {"krs": 1, "name": "bomb", "links": "not-a-list", "mass_kg": "NaN"}
+                )
+            },
+        )
+    )
+    assert any("does not look like a Robot Lab export" in w for w in payload["warnings"]), (
+        "an unrecognised spec must be named as one, not silently defaulted"
+    )
+    assert any("DEFAULT" in w for w in payload["warnings"])
+    assert any("links" in w for w in payload["warnings"]), "the ignored keys are listed"
+
+    # And a real export must NOT trip it: the warning keys are exactly the
+    # fields exportKrs() writes, so this cannot fire on legitimate input.
+    clean = structured(
+        call(
+            server,
+            "validate_robot_spec",
+            {"spec": json.dumps({"name": "Probe", "massKg": 1.2, "drive": {"motorCount": 2}})},
+        )
+    )
+    assert not any("does not look like" in w for w in clean["warnings"])
+
+
 def test_validate_robot_spec_falls_back_to_the_derived_mass_in_grams(server: Server) -> None:
     """Older exports carry only derived.massG. Dropping to 0.9 kg would be a lie."""
     payload = structured(

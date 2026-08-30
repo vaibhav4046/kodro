@@ -57,7 +57,7 @@
 \contentsline {section}{\numberline {5.15}Challenges met and fixed}{22}{section.5.15}%
 \contentsline {section}{\numberline {5.16}Packaging}{23}{section.5.16}%
 \contentsline {section}{\numberline {5.17}Web deployment}{23}{section.5.17}%
-\contentsline {section}{\numberline {5.18}The lesson library, the two markers and the learner record}{23}{section.5.18}%
+\contentsline {section}{\numberline {5.18}The lesson library, the two markers and the learner record}{24}{section.5.18}%
 \contentsline {chapter}{\numberline {6}Evaluation}{25}{chapter.6}%
 \contentsline {section}{\numberline {6.1}Evaluation strategy}{25}{section.6.1}%
 \contentsline {section}{\numberline {6.2}Automated verification}{25}{section.6.2}%
