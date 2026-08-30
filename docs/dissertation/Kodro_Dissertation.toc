@@ -70,33 +70,34 @@
 \contentsline {section}{\numberline {6.9}Threats to validity}{33}{section.6.9}%
 \contentsline {section}{\numberline {6.10}The planned human evaluation}{34}{section.6.10}%
 \contentsline {section}{\numberline {6.11}Instrumentation}{34}{section.6.11}%
-\contentsline {section}{\numberline {6.12}Summary of the evaluation}{34}{section.6.12}%
-\contentsline {chapter}{\numberline {7}Discussion and Limitations}{35}{chapter.7}%
-\contentsline {section}{\numberline {7.1}Motion is kinematic, not rigid body}{35}{section.7.1}%
-\contentsline {section}{\numberline {7.2}The physics engine exists but is not on the hot path}{35}{section.7.2}%
-\contentsline {section}{\numberline {7.3}Sensor command coverage is partial}{35}{section.7.3}%
-\contentsline {section}{\numberline {7.4}Procedural geometry, with surface shading and a gated post pass}{36}{section.7.4}%
-\contentsline {section}{\numberline {7.5}Arena bounds, and what the shared definition does not yet gate}{36}{section.7.5}%
-\contentsline {section}{\numberline {7.6}The measured-build simulation is the studio only}{36}{section.7.6}%
-\contentsline {section}{\numberline {7.7}Memory exists, but improvement is not demonstrated}{37}{section.7.7}%
-\contentsline {section}{\numberline {7.8}Build guidance is not purchasing or electrical advice}{37}{section.7.8}%
-\contentsline {section}{\numberline {7.9}Frame rate is measured, not guaranteed}{37}{section.7.9}%
-\contentsline {section}{\numberline {7.10}The small-model ceiling}{37}{section.7.10}%
-\contentsline {chapter}{\numberline {8}Professional Issues}{38}{chapter.8}%
-\contentsline {section}{\numberline {8.1}Ethics}{38}{section.8.1}%
-\contentsline {section}{\numberline {8.2}BCS professional issues and project criteria}{38}{section.8.2}%
-\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{40}{chapter.9}%
-\contentsline {section}{\numberline {9.1}Summary}{40}{section.9.1}%
-\contentsline {section}{\numberline {9.2}Reflection}{40}{section.9.2}%
-\contentsline {section}{\numberline {9.3}Future work}{41}{section.9.3}%
-\contentsline {section}{\numberline {9.4}Closing statement}{41}{section.9.4}%
-\contentsline {chapter}{References}{43}{section*.9}%
-\contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{45}{appendix.A}%
-\contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{46}{appendix.B}%
-\contentsline {chapter}{\numberline {C}Functional Requirements in Full}{47}{appendix.C}%
-\contentsline {chapter}{\numberline {D}Architecture Reference}{49}{appendix.D}%
-\contentsline {chapter}{\numberline {E}Supporting Evaluation Data}{50}{appendix.E}%
-\contentsline {section}{\numberline {E.1}The nine offline module gates, gate by gate}{50}{section.E.1}%
-\contentsline {chapter}{\numberline {F}The Adversarial Panel, Round by Round}{53}{appendix.F}%
-\contentsline {chapter}{\numberline {G}BCS Criteria Traceability}{55}{appendix.G}%
+\contentsline {section}{\numberline {6.12}Anonymous volunteer feedback on the released product}{34}{section.6.12}%
+\contentsline {section}{\numberline {6.13}Summary of the evaluation}{35}{section.6.13}%
+\contentsline {chapter}{\numberline {7}Discussion and Limitations}{37}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Motion is kinematic, not rigid body}{37}{section.7.1}%
+\contentsline {section}{\numberline {7.2}The physics engine exists but is not on the hot path}{37}{section.7.2}%
+\contentsline {section}{\numberline {7.3}Sensor command coverage is partial}{37}{section.7.3}%
+\contentsline {section}{\numberline {7.4}Procedural geometry, with surface shading and a gated post pass}{38}{section.7.4}%
+\contentsline {section}{\numberline {7.5}Arena bounds, and what the shared definition does not yet gate}{38}{section.7.5}%
+\contentsline {section}{\numberline {7.6}The measured-build simulation is the studio only}{38}{section.7.6}%
+\contentsline {section}{\numberline {7.7}Memory exists, but improvement is not demonstrated}{39}{section.7.7}%
+\contentsline {section}{\numberline {7.8}Build guidance is not purchasing or electrical advice}{39}{section.7.8}%
+\contentsline {section}{\numberline {7.9}Frame rate is measured, not guaranteed}{39}{section.7.9}%
+\contentsline {section}{\numberline {7.10}The small-model ceiling}{39}{section.7.10}%
+\contentsline {chapter}{\numberline {8}Professional Issues}{40}{chapter.8}%
+\contentsline {section}{\numberline {8.1}Ethics}{40}{section.8.1}%
+\contentsline {section}{\numberline {8.2}BCS professional issues and project criteria}{40}{section.8.2}%
+\contentsline {chapter}{\numberline {9}Conclusion and Future Work}{42}{chapter.9}%
+\contentsline {section}{\numberline {9.1}Summary}{42}{section.9.1}%
+\contentsline {section}{\numberline {9.2}Reflection}{42}{section.9.2}%
+\contentsline {section}{\numberline {9.3}Future work}{43}{section.9.3}%
+\contentsline {section}{\numberline {9.4}Closing statement}{43}{section.9.4}%
+\contentsline {chapter}{References}{45}{section*.10}%
+\contentsline {chapter}{\numberline {A}Glossary and Abbreviations}{47}{appendix.A}%
+\contentsline {chapter}{\numberline {B}The Command Surface and a First Program}{48}{appendix.B}%
+\contentsline {chapter}{\numberline {C}Functional Requirements in Full}{49}{appendix.C}%
+\contentsline {chapter}{\numberline {D}Architecture Reference}{51}{appendix.D}%
+\contentsline {chapter}{\numberline {E}Supporting Evaluation Data}{52}{appendix.E}%
+\contentsline {section}{\numberline {E.1}The nine offline module gates, gate by gate}{52}{section.E.1}%
+\contentsline {chapter}{\numberline {F}The Adversarial Panel, Round by Round}{55}{appendix.F}%
+\contentsline {chapter}{\numberline {G}BCS Criteria Traceability}{57}{appendix.G}%
 \contentsfinish 
