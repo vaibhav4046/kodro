@@ -83,15 +83,13 @@
 }
 
 % ---- Anonymous volunteer questionnaire toggle -------------------------------
-% \humanfeedbacktrue includes the volunteer-questionnaire material and swaps the
-% ethics statements to their questionnaire-aware variants. It stays FALSE until
-% the supervisor has named the ethics route; the \ethicsroutenote marker prints
-% in red in the ON build so an unconfirmed route cannot reach submission
-% unnoticed. Refresh the counts in the volunteer-feedback section from a
-% same-day export of the form before submitting the ON variant.
+% ON since 30 August 2026, after the supervisor's reply on the review plan.
+% \humanfeedbackfalse removes the questionnaire material and restores the
+% no-human-data ethics statements in one line if that ever needs undoing.
+% Refresh the counts and the figure from a same-day export before submission.
 \newif\ifhumanfeedback
-\humanfeedbackfalse
-\newcommand{\ethicsroutenote}{\textbf{\textcolor{red}{[ETHICS ROUTE TO BE CONFIRMED WITH THE SUPERVISOR BEFORE SUBMISSION]}}}
+\humanfeedbacktrue
+\newcommand{\ethicsroutenote}{The questionnaire and its inclusion in this report were agreed with my supervisor.}
 
 \begin{document}
 
@@ -180,7 +178,7 @@ At commit \texttt{e70b98b}, recorded with its working-tree status in \texttt{doc
 
 \frontsection{Statement of Ethical Compliance}
 \ifhumanfeedback
-The evaluation combines simulated personas and automated traces with one short anonymous questionnaire completed by adult volunteers, reported in Section~\ref{sec:volunteerfeedback}. The questionnaire collected no name, email address or any other personal data, required no sign-in, and carried its consent statement on the face of the form; no conclusion about real users in general is drawn from it. \ethicsroutenote{} The synthetic personas remain language-model constructs, labelled as such at every point of use, and none of the evaluation in Chapter~6 draws a conclusion about real users beyond that questionnaire's stated limits.
+The evaluation combines simulated personas and automated traces with one short anonymous questionnaire completed by adult volunteers, reported in Section~\ref{sec:volunteerfeedback}. The questionnaire collected no name, email address or any other personal data, required no sign-in, and carried its consent statement on the face of the form; no conclusion about real users in general is drawn from it. \ethicsroutenote{} The synthetic personas remain language-model constructs, labelled as such at every point of use, and none of the evaluation in Chapter~6 draws a conclusion about real users beyond that questionnaire's stated limits. The synthetic and automated evaluation continues to sit in data category A0 with participant category 2.
 \else
 The reported evaluation uses simulated personas and automated traces only. It involves no human participants and no personal data used as research data, and it therefore sits in ethics data category A0 with participant category 2. No ethics application was required for the work reported here, and none of the evaluation in Chapter~6 draws a conclusion about real users.
 \fi
@@ -761,7 +759,14 @@ The application is instrumented for this study without requiring a cloud service
 % same-day CSV export of the form, keep that export, and delete this comment.
 After the release described above, a short anonymous questionnaire was circulated to adult volunteers known to the author. The form collected no name, email address or account, required no sign-in, restricted respondents to adults, and stated on its face that anonymous summaries may appear in a university project report. It asked five multiple-choice questions covering respondent background, clarity of purpose, first success at running a program, usefulness of lesson feedback and willingness to recommend, plus one optional free-text question.
 
-This is a favourable convenience sample of people known to the author, and it is reported as anonymous volunteer feedback on the released product, not as a usability study. It does not replace the planned human evaluation above and no general claim is drawn from it. At the time of writing six volunteers had responded: three with a computing or engineering background, one from another field, and two who selected none of the offered backgrounds. Three found the purpose clear straight away and three after a little looking. Four ran a program easily, one after some figuring out, and one got stuck. On lesson feedback, one respondent said it told them exactly what to fix, four that it pointed them in the right direction, and one found it present but confusing. Four would definitely recommend the product to a beginner or a teacher and two probably would. Of the three free-text answers, one asked for more course content and requested no fixes, one said the interface could be more user friendly, and one answered a different question than the one asked and is counted as a non-response, a small instrument lesson recorded for any future questionnaire. The most informative pattern is that the only respondent who got stuck and the only one who found the feedback confusing sit among the two non-technical volunteers, which is the closest signal in this data to the product's intended audience and points at the first-run experience.
+This is a favourable convenience sample of people known to the author, and it is reported as anonymous volunteer feedback on the released product, not as a usability study. It does not replace the planned human evaluation above and no general claim is drawn from it. At the time of writing six volunteers had responded: three with a computing or engineering background, one from another field, and two who selected none of the offered backgrounds. Three found the purpose clear straight away and three after a little looking. Four ran a program easily, one after some figuring out, and one got stuck. On lesson feedback, one respondent said it told them exactly what to fix, four that it pointed them in the right direction, and one found it present but confusing. Four would definitely recommend the product to a beginner or a teacher and two probably would. Of the three free-text answers, one asked for more course content and requested no fixes, one said the interface could be more user friendly, and one answered a different question than the one asked and is counted as a non-response, a small instrument lesson recorded for any future questionnaire. The most informative pattern is that the only respondent who got stuck and the only one who found the feedback confusing sit among the two non-technical volunteers, which is the closest signal in this data to the product's intended audience and points at the first-run experience. Figure~\ref{fig:volunteersummary} reproduces the form's response summary, built from the live form's own charts and verbatim free-text answers at the moment of capture.
+
+\begin{figure}[p]
+\centering
+\includegraphics[height=0.92\textheight,keepaspectratio]{img/form_summary.png}
+\caption{Response summary of the anonymous volunteer questionnaire at N=6, taken from the live form: the five multiple-choice distributions and all three free-text answers, including the one counted as a non-response.}
+\label{fig:volunteersummary}
+\end{figure}
 \fi
 
 \section{Summary of the evaluation}
@@ -808,7 +813,7 @@ This chapter separates the ethical position from the wider BCS professional issu
 
 \section{Ethics}
 \ifhumanfeedback
-The only human input reported in this dissertation is the anonymous volunteer questionnaire of Section~\ref{sec:volunteerfeedback}, which collected no name, email address or any other personal data and required no sign-in; respondents were adults and the form carried its consent statement on its face. \ethicsroutenote{} No other reported work involved human participants. The evaluation personas are language-model constructs, not people, and every section heading, table caption and summary sentence that reports a persona figure states this at the point of use, so a reader who meets one of those tables out of context cannot mistake it for user data.
+The only human input reported in this dissertation is the anonymous volunteer questionnaire of Section~\ref{sec:volunteerfeedback}, which collected no name, email address or any other personal data and required no sign-in; respondents were adults and the form carried its consent statement on its face. \ethicsroutenote{} No other reported work involved human participants. The evaluation personas are language-model constructs, not people, and every section heading, table caption and summary sentence that reports a persona figure states this at the point of use, so a reader who meets one of those tables out of context cannot mistake it for user data. The synthetic and automated evaluation continues to sit in data category A0 with participant category 2.
 \else
 No human participant took part in any study reported in this dissertation, and no personal data was used as research data. The evaluation personas are language-model constructs, not people. Every section heading, table caption and summary sentence that reports a persona figure states this at the point of use, so a reader who meets one of those tables out of context cannot mistake it for user data, and no conclusion about real users is drawn from them anywhere in this dissertation. Under the department's ethics classification the reported work sits in data category A0 with participant category 2.
 \fi
