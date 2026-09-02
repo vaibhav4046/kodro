@@ -142,6 +142,22 @@ evidence, caveat or disclosure was dropped; the relocated material carries its
 caveats into the appendix captions so the body still reads correctly without the
 appendices, which the brief requires.
 
+**SUPERSEDED IN PART, 2 September 2026.** The module lead's announcement made
+the format explicit: 50 pages maximum at an 11pt font with 1-inch margins,
+including the title page, acknowledgements, declaration and references, with no
+limit on the appendix, and the Canvas formatting guidelines to be followed. The
+margin tightening listed above was therefore not a legitimate reduction. Reset
+to `margin=1in`, the 30 August text measured 55 of 50. It measures 50 of 50
+again, 63 sheets with 13 of appendix, after: the contents list brought to two
+sheets (compact heading, 1pt chapter-entry skip, appendix sections left to
+`\ref`), the Section 6.1 artefact-by-artefact provenance moved to a table in
+Appendix E with a summary and pointer left in the body, and prose tightened at
+the ends of Chapters 1, 3, 6 and 9, where a final sheet carrying 3 to 14 lines
+cost a whole page each. Roughly one page of prose was cut in total; nothing
+cited, measured or caveated was removed. The Canvas formatting page has not been
+read here; whether it requires each chapter to open on a new page, or a paper
+size, is for the student to confirm.
+
 ### 3. Submission mechanics
 
 Not verified from this machine: the accepted file format and size cap for the
