@@ -346,6 +346,17 @@ These are ordered by how much damage each one does.
    sheets. The dissertation measures exactly 50 under that rule. State the rule
    with the figure; "50 pages" alone invites the wrong count.
 
+   Made explicit on 2 September 2026 by the module lead's announcement: the 50
+   pages are at an 11pt font with 1-inch margins, and the Canvas formatting
+   guidelines apply. The 20/20/25/20 mm margins that helped reach 50 on 18
+   August were therefore not a legitimate lever; at `margin=1in` the same text
+   measured 55 of 50. It measures 50 of 50 again (63 sheets, 13 of them
+   appendix) after a two-sheet contents list, the Section 6.1 provenance detail
+   moved to a table in Appendix E, and prose tightening at the ends of Chapters
+   1, 3, 6 and 9, where a near-empty final sheet cost a whole page. No evidence,
+   caveat or disclosure was dropped. The Canvas formatting page itself has not
+   been read in this environment and remains the student's to check.
+
 9. **Do not call the city an open world, infinite, procedural, or GTA-like.**
    The 3D city streams scenery chunks around the rover so the skyline stops
    ending at a visible wall. Those chunks are painted, not simulated:
