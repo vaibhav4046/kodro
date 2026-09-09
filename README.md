@@ -228,11 +228,33 @@ cloud provider.
 
 Requires Python 3.12+ and Node.js (Node only if you want to rebuild the UI).
 
+If you are reading this inside a source archive rather than a checkout,
+unzip it, open a terminal in the folder that holds this README, and skip
+the `git clone` line:
+
+```bash
+pip install -e ".[dev]"
+python -m kodro.web   # modern web UI in a native window (pywebview)
+```
+
+If the windowed app cannot start (no WebView2, or a headless machine),
+there are two fallbacks that need no extra setup:
+
+```bash
+python -m kodro                         # the Tk desktop interface
+node scripts/build_web.cjs --static     # writes site/, open site/index.html
+```
+
+The second writes a plain static folder you can open straight in a
+browser with no Python running at all. Nothing above needs a network
+connection, an account or an API key. To run the test suite the report
+quotes, see [Quality](#quality) below.
+
+From a git checkout, the same steps preceded by:
+
 ```bash
 git clone https://github.com/vaibhav4046/kodro.git
 cd kodro
-pip install -e ".[dev]"
-python -m kodro.web   # modern web UI in a native window (pywebview)
 ```
 
 ### Optional: the local AI assistant (Ollama)
