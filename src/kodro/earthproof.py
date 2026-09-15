@@ -7,10 +7,11 @@ that virtual testing caused real-world material, energy, cost, or carbon savings
 
 from __future__ import annotations
 
+import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from hashlib import sha256
-import json
-from typing import Any, Mapping
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -73,7 +74,6 @@ def build_earthproof_report(
     supplied for comparison, not an observed outcome. A carbon quantity is
     emitted only when the caller supplies both a factor and its source.
     """
-
     _validate(design, run, scenario_physical_iterations_avoided)
 
     run_energy_wh = round(run.average_power_w * run.runtime_seconds / 3600.0, 6)
@@ -118,7 +118,10 @@ def build_earthproof_report(
             "proof_success_rate": proof_success_rate,
         },
         "assumptions": {
-            "material_basis": "replaceable component mass multiplied by a caller supplied counterfactual iteration count",
+            "material_basis": (
+                "replaceable component mass multiplied by a caller supplied "
+                "counterfactual iteration count"
+            ),
             "electricity_factor_kg_co2e_per_kwh": factor,
             "electricity_factor_source": source,
         },
@@ -131,9 +134,15 @@ def build_earthproof_report(
             "carbon_statement": (
                 "No carbon claim is produced without an explicit sourced factor."
                 if carbon_value is None
-                else "Carbon describes only the modelled electricity for this run using the supplied factor; it is not lifecycle carbon."
+                else (
+                    "Carbon describes only the modelled electricity for this run using the "
+                    "supplied factor; it is not lifecycle carbon."
+                )
             ),
-            "certification_statement": "EarthProof is engineering evidence, not lifecycle assessment, safety certification, or environmental certification.",
+            "certification_statement": (
+                "EarthProof is engineering evidence, not lifecycle assessment, safety "
+                "certification, or environmental certification."
+            ),
         },
     }
 
@@ -144,7 +153,6 @@ def build_earthproof_report(
 
 def compare_designs(left: Mapping[str, Any], right: Mapping[str, Any]) -> dict[str, Any]:
     """Compare transparent quantities without inventing a composite green score."""
-
     left_name = str(left["design"]["name"])
     right_name = str(right["design"]["name"])
     left_energy = float(left["measured_or_derived"]["run_energy_wh"])
@@ -165,5 +173,8 @@ def compare_designs(left: Mapping[str, Any], right: Mapping[str, Any]) -> dict[s
         "run_energy_difference_wh": round(abs(left_energy - right_energy), 6),
         "lower_robot_mass": lower_label(left_mass, right_mass),
         "robot_mass_difference_kg": round(abs(left_mass - right_mass), 6),
-        "interpretation": "Lower values describe this controlled comparison only; they are not a lifecycle sustainability ranking.",
+        "interpretation": (
+            "Lower values describe this controlled comparison only; they are not a lifecycle "
+            "sustainability ranking."
+        ),
     }
