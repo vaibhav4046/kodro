@@ -31,7 +31,7 @@ jobs:
       - name: Rebuild web bundle
         run: node scripts/build_web.cjs
       - name: Focused judge-surface verification
-        run: python -m pytest tests/unit/test_nextstep_judge_surface.py -q
+        run: python -m pytest tests/unit/test_nextstep_judge_surface.py -q --confcutdir=tests/unit
       - name: Verify generated bundle freshness
         run: node scripts/build_web.cjs --check
       - name: Commit source and generated bundle
