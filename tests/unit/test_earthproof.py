@@ -141,3 +141,29 @@ def test_committed_example_reproduces_byte_for_byte(tmp_path: Path):
         == 0
     )
     assert output.read_bytes() == (root / "docs/eval/earthproof-report.json").read_bytes()
+
+
+def test_comparison_cli_reproduces_judge_evidence_byte_for_byte(tmp_path: Path):
+    root = Path(__file__).parents[2]
+    output = tmp_path / "comparison-report.json"
+    assert (
+        main(
+            [
+                str(root / "docs/eval/earthproof-scenario.json"),
+                "--baseline",
+                str(root / "docs/eval/earthproof-baseline.json"),
+                "--out",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    actual = json.loads(output.read_text(encoding="utf-8"))
+    assert actual["comparison"]["central_operating_energy_change_percent"] == pytest.approx(-50.0)
+    assert actual["comparison"]["claim_boundary"] == (
+        "Energy comparison only; it is not a carbon or lifecycle-impact claim."
+    )
+    assert actual["claims"]["carbon"]["status"] == "not claimed"
+    assert (
+        output.read_bytes() == (root / "docs/eval/earthproof-comparison-report.json").read_bytes()
+    )
