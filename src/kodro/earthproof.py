@@ -293,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.out is None:
         print(rendered, end="")
     else:
-        args.out.write_text(rendered, encoding="utf-8")
+        args.out.write_bytes(rendered.encode("utf-8"))
     return 0
 
 
