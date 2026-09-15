@@ -24,6 +24,7 @@ class Interval:
     high: float
 
     def __post_init__(self) -> None:
+        """Validate interval ordering and sign."""
         if self.low < 0:
             raise ValueError("interval values must be non-negative")
         if not self.low <= self.central <= self.high:
@@ -85,6 +86,7 @@ class Scenario:
     evidence_sources: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        """Validate scenario relationships that must hold together."""
         if not self.name.strip():
             raise ValueError("scenario name must not be empty")
         if self.physical_prototypes_avoided < 0:
