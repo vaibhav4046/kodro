@@ -1,0 +1,31 @@
+{
+  "average_power_w": {
+    "central": 20.0,
+    "high": 24.0,
+    "low": 18.0
+  },
+  "battery_capacity_ah": {
+    "central": 2.2,
+    "high": 2.4,
+    "low": 2.0
+  },
+  "battery_voltage_v": {
+    "central": 11.1,
+    "high": 11.2,
+    "low": 11.0
+  },
+  "evidence_sources": [],
+  "name": "Illustrative classroom rover scenario",
+  "notes": "Illustrative NextStep demonstration input. Prototype avoidance is a scenario assumption, not a measured outcome.",
+  "physical_prototypes_avoided": 1,
+  "prototype_material_mass_kg": {
+    "central": 1.0,
+    "high": 1.2,
+    "low": 0.8
+  },
+  "runtime_hours": {
+    "central": 1.0,
+    "high": 1.5,
+    "low": 0.75
+  }
+}
