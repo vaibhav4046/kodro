@@ -164,6 +164,6 @@ def test_comparison_cli_reproduces_judge_evidence_byte_for_byte(tmp_path: Path):
         "Energy comparison only; it is not a carbon or lifecycle-impact claim."
     )
     assert actual["claims"]["carbon"]["status"] == "not claimed"
-    assert output.read_bytes() == (
-        root / "docs/eval/earthproof-comparison-report.json"
-    ).read_bytes()
+    assert (
+        output.read_bytes() == (root / "docs/eval/earthproof-comparison-report.json").read_bytes()
+    )
