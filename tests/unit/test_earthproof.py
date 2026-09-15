@@ -1,8 +1,9 @@
 import json
+from pathlib import Path
 
 import pytest
 
-from kodro.earthproof import Interval, Scenario, compare, evaluate, report_fingerprint
+from kodro.earthproof import Interval, Scenario, compare, evaluate, main, report_fingerprint
 
 
 def test_energy_and_battery_are_calculated_with_ranges():
@@ -113,3 +114,31 @@ def test_compare_reports_energy_change_without_calling_it_carbon_saving():
     assert result["claim_boundary"] == (
         "Energy comparison only; it is not a carbon or lifecycle-impact claim."
     )
+
+
+def test_factor_without_source_is_flagged():
+    report = evaluate(
+        Scenario(
+            name="sourced factor check",
+            average_power_w=Interval.point(20),
+            runtime_hours=Interval.point(1),
+            grid_carbon_kgco2e_per_kwh=Interval.point(0.2),
+        )
+    )
+    assert any("without a citation" in str(item) for item in report["limitations"])
+
+
+def test_committed_example_reproduces_byte_for_byte(tmp_path: Path):
+    root = Path(__file__).parents[2]
+    output = tmp_path / "report.json"
+    assert (
+        main(
+            [
+                str(root / "docs/eval/earthproof-scenario.json"),
+                "--out",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    assert output.read_bytes() == (root / "docs/eval/earthproof-report.json").read_bytes()
