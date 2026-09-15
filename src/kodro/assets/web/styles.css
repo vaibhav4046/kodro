@@ -1089,7 +1089,7 @@ select.terrain-btn:hover {
 .lesson-hub-backdrop { padding:18px; }
 .modal.lesson-hub-modal {
   width:min(1080px,96vw); max-height:calc(100vh - 36px); padding:0; overflow:hidden;
-  display:grid; grid-template-rows:auto auto minmax(0,1fr) auto;
+  display:grid; grid-template-rows:auto auto auto minmax(0,1fr) auto;
   background:
     radial-gradient(circle at 82% -20%, color-mix(in srgb,var(--cyan) 16%,transparent), transparent 38%),
     linear-gradient(180deg,var(--navy-2),var(--navy));
@@ -2993,3 +2993,5 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
 .curriculum-session-body { padding:0 18px 18px; }
 .curriculum-session-body ol { padding-left:22px; }
 .curriculum summary:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
+
+.lesson-hub-modal > .curriculum-blocks { padding:10px 28px; border-bottom:1px solid var(--border-2); }
