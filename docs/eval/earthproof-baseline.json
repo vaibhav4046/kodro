@@ -1,0 +1,26 @@
+{
+  "average_power_w": {
+    "central": 32.0,
+    "high": 36.0,
+    "low": 28.0
+  },
+  "battery_capacity_ah": {
+    "central": 2.8,
+    "high": 3.0,
+    "low": 2.6
+  },
+  "battery_voltage_v": {
+    "central": 11.1,
+    "high": 11.2,
+    "low": 11.0
+  },
+  "evidence_sources": [],
+  "name": "Illustrative baseline classroom rover",
+  "notes": "Illustrative comparison baseline for NextStep. Energy values are scenario inputs, not measured user impact.",
+  "physical_prototypes_avoided": 0,
+  "runtime_hours": {
+    "central": 1.25,
+    "high": 1.5,
+    "low": 0.9
+  }
+}
