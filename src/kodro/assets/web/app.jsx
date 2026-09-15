@@ -3648,6 +3648,24 @@
                     <div><strong>{browserRunCount}</strong><span>runs recorded for this exact design</span></div>
                     <div><strong>4</strong><span>checks required before power-on</span></div>
                   </div>
+                  <section className="earthproof-card" data-earthproof-nextstep="comparison" aria-label="EarthProof NextStep evidence">
+                    <div className="earthproof-head">
+                      <div>
+                        <span className="eyebrow">EarthProof · NextStep 2026</span>
+                        <h3>Evidence before hardware</h3>
+                      </div>
+                      <span className="earthproof-status">CO2e not claimed</span>
+                    </div>
+                    <p className="earthproof-lede">A reproducible, illustrative scenario comparison keeps the resource-use decision visible before a physical build.</p>
+                    <div className="earthproof-flow" aria-label="Illustrative operating energy comparison">
+                      <div className="earthproof-metric"><span>Baseline</span><strong>0.040 kWh</strong><small>central operating energy</small></div>
+                      <span className="earthproof-arrow" aria-hidden="true">→</span>
+                      <div className="earthproof-metric is-candidate"><span>Candidate</span><strong>0.020 kWh</strong><small>central operating energy</small></div>
+                      <strong className="earthproof-delta">-50%</strong>
+                    </div>
+                    <p className="earthproof-boundary">Energy comparison only; it is not a carbon or lifecycle-impact claim.</p>
+                    <div className="earthproof-foot"><span>illustrative scenario, not measured impact</span><code>evidence 11b6238e6236</code></div>
+                  </section>
                   <div className="browser-build-grid">
                     <section>
                       <div className="eyebrow">Concept bill of materials</div>

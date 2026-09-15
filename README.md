@@ -8,6 +8,16 @@ watch a robot try it in a visual test world.
 
 ![Kodro front door with four routes into learning, design, free play and lesson authoring](docs/design/kodro-home.png)
 
+## NextStep Hacks 2026 · Kodro EarthProof
+
+**Kodro predates the hackathon; EarthProof is the NextStep Hacks 2026 contribution.** It adds auditable environmental scenario evidence at the hardware decision point instead of hiding sustainability behind a green score.
+
+**Design -> Simulate -> Prove -> EarthProof -> Build**
+
+The committed demonstration compares an illustrative baseline at **0.040 kWh** central operating energy with a candidate at **0.020 kWh** (**-50%**). That is an energy scenario comparison only, not measured impact, a carbon saving, or lifecycle assessment. With no sourced carbon factor, **CO2e is not claimed**.
+
+[NextStep submission](NEXTSTEP_SUBMISSION.md) | [EarthProof audit and reproducibility](NEXTSTEP_2026.md)
+
 ## Choose your route
 
 | I want to... | Start with |

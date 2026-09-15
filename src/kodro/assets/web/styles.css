@@ -1660,6 +1660,30 @@ kbd {
 .build-readiness > div { padding:13px 15px; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--navy-2); display:flex; flex-direction:column; gap:2px; }
 .build-readiness strong { color:var(--cyan); font:600 var(--text-5xl)/1 var(--font-mono); }
 .build-readiness span { color:var(--fg-2); font-size:var(--text-sm); }
+.earthproof-card {
+  display:grid; gap:12px; padding:16px 18px; border:1px solid color-mix(in srgb,var(--cyan) 42%,var(--border));
+  border-radius:var(--radius-lg); background:linear-gradient(135deg,color-mix(in srgb,var(--cyan) 8%,var(--navy-2)),var(--navy-2));
+}
+.earthproof-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.earthproof-head h3 { margin:4px 0 0; color:var(--fg-1); font:600 var(--text-3xl)/1.15 var(--font-display); }
+.earthproof-status { padding:5px 9px; border:1px solid color-mix(in srgb,var(--warning) 55%,var(--border)); border-radius:999px; color:var(--warning); font:700 var(--text-xs)/1 var(--font-mono); white-space:nowrap; }
+.earthproof-lede { margin:0; max-width:78ch; color:var(--fg-2); line-height:1.5; }
+.earthproof-flow { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto; gap:10px; align-items:center; }
+.earthproof-metric { min-width:0; padding:11px 13px; border:1px solid var(--border); border-radius:var(--radius-md); background:var(--void); display:grid; gap:3px; }
+.earthproof-metric.is-candidate { border-color:color-mix(in srgb,var(--cyan) 42%,var(--border)); }
+.earthproof-metric span,.earthproof-metric small { color:var(--fg-3); font-size:var(--text-xs); }
+.earthproof-metric strong { color:var(--fg-1); font:650 var(--text-3xl)/1.1 var(--font-mono); font-variant-numeric:tabular-nums; }
+.earthproof-arrow { color:var(--fg-3); font-size:var(--text-2xl); }
+.earthproof-delta { color:var(--cyan); font:700 var(--text-3xl)/1 var(--font-mono); }
+.earthproof-boundary { margin:0; padding:9px 11px; border-left:3px solid var(--warning); background:color-mix(in srgb,var(--warning) 7%,transparent); color:var(--fg-2); font-size:var(--text-sm); line-height:1.45; }
+.earthproof-foot { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; color:var(--fg-3); font-size:var(--text-xs); }
+.earthproof-foot code { color:var(--cyan); font-family:var(--font-mono); }
+@media(max-width:640px){
+  .earthproof-head { flex-direction:column; }
+  .earthproof-flow { grid-template-columns:1fr; }
+  .earthproof-arrow { transform:rotate(90deg); width:max-content; }
+  .earthproof-delta { justify-self:start; }
+}
 .browser-build-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr); gap:24px; }
 .browser-build-grid > section { min-width:0; }
 .browser-bom { margin-top:8px; }

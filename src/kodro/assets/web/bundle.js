@@ -37016,7 +37016,35 @@ say("Survey done")`
     }, browserRunCount > 0 ? 'Download prototype brief' : 'Run a test first')), /*#__PURE__*/React.createElement("div", {
       className: "build-readiness",
       "aria-label": "Prototype brief readiness"
-    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserBuildParts.length), /*#__PURE__*/React.createElement("span", null, "design requirements captured")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserRunCount), /*#__PURE__*/React.createElement("span", null, "runs recorded for this exact design")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "4"), /*#__PURE__*/React.createElement("span", null, "checks required before power-on"))), /*#__PURE__*/React.createElement("div", {
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserBuildParts.length), /*#__PURE__*/React.createElement("span", null, "design requirements captured")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, browserRunCount), /*#__PURE__*/React.createElement("span", null, "runs recorded for this exact design")), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("strong", null, "4"), /*#__PURE__*/React.createElement("span", null, "checks required before power-on"))), /*#__PURE__*/React.createElement("section", {
+      className: "earthproof-card",
+      "data-earthproof-nextstep": "comparison",
+      "aria-label": "EarthProof NextStep evidence"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "earthproof-head"
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("span", {
+      className: "eyebrow"
+    }, "EarthProof \xB7 NextStep 2026"), /*#__PURE__*/React.createElement("h3", null, "Evidence before hardware")), /*#__PURE__*/React.createElement("span", {
+      className: "earthproof-status"
+    }, "CO2e not claimed")), /*#__PURE__*/React.createElement("p", {
+      className: "earthproof-lede"
+    }, "A reproducible, illustrative scenario comparison keeps the resource-use decision visible before a physical build."), /*#__PURE__*/React.createElement("div", {
+      className: "earthproof-flow",
+      "aria-label": "Illustrative operating energy comparison"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "earthproof-metric"
+    }, /*#__PURE__*/React.createElement("span", null, "Baseline"), /*#__PURE__*/React.createElement("strong", null, "0.040 kWh"), /*#__PURE__*/React.createElement("small", null, "central operating energy")), /*#__PURE__*/React.createElement("span", {
+      className: "earthproof-arrow",
+      "aria-hidden": "true"
+    }, "\u2192"), /*#__PURE__*/React.createElement("div", {
+      className: "earthproof-metric is-candidate"
+    }, /*#__PURE__*/React.createElement("span", null, "Candidate"), /*#__PURE__*/React.createElement("strong", null, "0.020 kWh"), /*#__PURE__*/React.createElement("small", null, "central operating energy")), /*#__PURE__*/React.createElement("strong", {
+      className: "earthproof-delta"
+    }, "-50%")), /*#__PURE__*/React.createElement("p", {
+      className: "earthproof-boundary"
+    }, "Energy comparison only; it is not a carbon or lifecycle-impact claim."), /*#__PURE__*/React.createElement("div", {
+      className: "earthproof-foot"
+    }, /*#__PURE__*/React.createElement("span", null, "illustrative scenario, not measured impact"), /*#__PURE__*/React.createElement("code", null, "evidence 11b6238e6236"))), /*#__PURE__*/React.createElement("div", {
       className: "browser-build-grid"
     }, /*#__PURE__*/React.createElement("section", null, /*#__PURE__*/React.createElement("div", {
       className: "eyebrow"
