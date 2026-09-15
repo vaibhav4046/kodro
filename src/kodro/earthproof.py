@@ -157,19 +157,13 @@ def evaluate(scenario: Scenario) -> dict[str, object]:
         operating_emissions = energy.multiply(scenario.grid_carbon_kgco2e_per_kwh)
 
     material_avoided: Interval | None = None
-    if (
-        scenario.physical_prototypes_avoided > 0
-        and scenario.prototype_material_mass_kg is not None
-    ):
+    if scenario.physical_prototypes_avoided > 0 and scenario.prototype_material_mass_kg is not None:
         material_avoided = scenario.prototype_material_mass_kg.scale(
             scenario.physical_prototypes_avoided
         )
 
     embodied_avoided: Interval | None = None
-    if (
-        scenario.physical_prototypes_avoided > 0
-        and scenario.prototype_embodied_kgco2e is not None
-    ):
+    if scenario.physical_prototypes_avoided > 0 and scenario.prototype_embodied_kgco2e is not None:
         embodied_avoided = scenario.prototype_embodied_kgco2e.scale(
             scenario.physical_prototypes_avoided
         )
@@ -267,9 +261,7 @@ def compare(baseline: Scenario, candidate: Scenario) -> dict[str, object]:
         "baseline_operating_energy_kwh": baseline_energy.as_dict(),
         "candidate_operating_energy_kwh": candidate_energy.as_dict(),
         "central_operating_energy_change_percent": central_change,
-        "claim_boundary": (
-            "Energy comparison only; it is not a carbon or lifecycle-impact claim."
-        ),
+        "claim_boundary": ("Energy comparison only; it is not a carbon or lifecycle-impact claim."),
     }
 
 
