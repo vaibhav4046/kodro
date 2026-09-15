@@ -24,12 +24,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install focused test runner
+        run: python -m pip install pytest
       - name: Apply approved EarthProof surface
         run: python scripts/nextstep_ui_patch.py
       - name: Rebuild web bundle
         run: node scripts/build_web.cjs
       - name: Focused judge-surface verification
-        run: python -m pytest tests/unit/test_nextstep_judge_surface.py -q --cov-fail-under=0
+        run: python -m pytest tests/unit/test_nextstep_judge_surface.py -q
       - name: Verify generated bundle freshness
         run: node scripts/build_web.cjs --check
       - name: Commit source and generated bundle
