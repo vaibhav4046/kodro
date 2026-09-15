@@ -33,8 +33,7 @@ def test_no_carbon_claim_is_created_without_user_factor():
     )
     assert report["metrics"]["operational_emissions_kgco2e"] is None
     assert any(
-        str(item).startswith("No grid-carbon factor supplied")
-        for item in report["limitations"]
+        str(item).startswith("No grid-carbon factor supplied") for item in report["limitations"]
     )
 
 
