@@ -1,0 +1,69 @@
+{
+  "claims": {
+    "avoided_hardware": {
+      "basis": "user-supplied scenario assumption",
+      "count": 1,
+      "status": "scenario estimate"
+    },
+    "carbon": {
+      "basis": "user-supplied grid factor; EarthProof ships no default factor",
+      "status": "not claimed"
+    },
+    "operating_energy": {
+      "basis": "average_power_w * runtime_hours",
+      "status": "calculated"
+    }
+  },
+  "comparison": {
+    "baseline": "Illustrative baseline classroom rover",
+    "baseline_operating_energy_kwh": {
+      "central": 0.04,
+      "high": 0.054,
+      "low": 0.0252
+    },
+    "candidate": "Illustrative classroom rover scenario",
+    "candidate_operating_energy_kwh": {
+      "central": 0.02,
+      "high": 0.036,
+      "low": 0.0135
+    },
+    "central_operating_energy_change_percent": -50.0,
+    "claim_boundary": "Energy comparison only; it is not a carbon or lifecycle-impact claim.",
+    "schema": "kodro-earthproof-comparison/v1"
+  },
+  "fingerprint_sha256": "11b6238e6236acc14225e45b847f5e36b633d2ea441ba71db4f4adb45c1ab42f",
+  "limitations": [
+    "Results are scenario estimates, not lifecycle-assessment certification.",
+    "Virtual validation does not prove that a physical prototype would have been built or avoided.",
+    "Real hardware safety, mechanical fit and electrical protection still require competent review.",
+    "No grid-carbon factor supplied; no operational CO2e estimate was produced.",
+    "No prototype embodied-impact factor supplied; no embodied CO2e avoidance was claimed."
+  ],
+  "method": "transparent-range-arithmetic/v1",
+  "metrics": {
+    "battery_capacity_wh": {
+      "central": 24.42,
+      "high": 26.88,
+      "low": 22.0
+    },
+    "operating_energy_kwh": {
+      "central": 0.02,
+      "high": 0.036,
+      "low": 0.0135
+    },
+    "operational_emissions_kgco2e": null,
+    "scenario_embodied_emissions_avoided_kgco2e": null,
+    "scenario_material_avoided_kg": {
+      "central": 1.0,
+      "high": 1.2,
+      "low": 0.8
+    }
+  },
+  "scenario": {
+    "evidence_sources": [],
+    "name": "Illustrative classroom rover scenario",
+    "notes": "Illustrative NextStep demonstration input. Prototype avoidance is a scenario assumption, not a measured outcome.",
+    "physical_prototypes_avoided": 1
+  },
+  "schema": "kodro-earthproof/v1"
+}
