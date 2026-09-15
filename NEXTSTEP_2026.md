@@ -34,13 +34,13 @@ automated QA suite.
 
 ### Built during NextStep Hacks 2026
 
-The `nextstep-2026-earthproof` branch adds:
+The dated NextStep branches and pull requests add:
 
-1. `src/kodro/earthproof.py`: a deterministic EarthProof evidence engine.
-2. `tests/unit/test_earthproof.py`: focused regression coverage for the new engine.
-3. `docs/eval/earthproof-scenario.json`: an explicitly illustrative input scenario.
-4. `docs/eval/earthproof-report.json`: the reproducible machine-readable output.
-5. This disclosure, methodology, demo plan and judging audit.
+1. `src/kodro/earthproof.py`: the deterministic EarthProof evidence engine and baseline comparison CLI.
+2. `tests/unit/test_earthproof.py`, `tests/unit/test_earthproof_validation.py` and `tests/unit/test_nextstep_judge_surface.py`: calculation, validation, reproducibility and judge-surface coverage.
+3. `docs/eval/earthproof-scenario.json` and `docs/eval/earthproof-baseline.json`: explicitly illustrative candidate and baseline inputs.
+4. `docs/eval/earthproof-report.json` and `docs/eval/earthproof-comparison-report.json`: reproducible machine-readable outputs.
+5. The in-product EarthProof card at the Build decision point, plus this disclosure, methodology, demo plan and judging audit.
 
 No claim is made that pre-existing Kodro was built during NextStep.
 
@@ -80,12 +80,13 @@ From the repository root:
 
 ```bash
 python -m kodro.earthproof docs/eval/earthproof-scenario.json \
-  --out /tmp/earthproof-report.json
-python -m pytest tests/unit/test_earthproof.py -q --cov-fail-under=0
+  --baseline docs/eval/earthproof-baseline.json \
+  --out /tmp/earthproof-comparison-report.json
+python -m pytest tests/unit/test_earthproof.py tests/unit/test_nextstep_judge_surface.py -q --cov-fail-under=0
 ```
 
-Compare `/tmp/earthproof-report.json` with
-`docs/eval/earthproof-report.json`. The illustrative scenario intentionally
+Compare `/tmp/earthproof-comparison-report.json` with
+`docs/eval/earthproof-comparison-report.json`. The illustrative scenario intentionally
 contains no carbon or embodied-impact factor, so the correct report makes no
 CO2e claim.
 
@@ -119,7 +120,7 @@ Learning, Design and Technology.
 | Adherence to Track | EarthProof directly addresses resource use in physical prototyping and makes the environmental assumptions reviewable. | Environmental benefit remains scenario-based until user studies measure real avoided builds. |
 | Completion | The new engine has a CLI, deterministic JSON output, example evidence and automated tests. Existing Kodro remains a working browser/desktop product. | Judge demo must use the tested path and not imply industrial certification. |
 | Learning | The hackathon contribution introduces uncertainty ranges, claim boundaries, factor provenance and reproducibility into a robotics project. | Explain what was learned rather than pretending all of Kodro was new. |
-| Design | The existing product already has a Design -> Prove -> Build user journey; this change deliberately avoids a rushed visual redesign. | EarthProof is repository/CLI evidence in this release, not a new UI panel. |
+| Design | The existing product already has a Design -> Prove -> Build user journey; this change deliberately avoids a rushed visual redesign. | The Build-stage EarthProof card makes the canonical comparison visible in-product; authoring arbitrary EarthProof scenarios remains a source/CLI workflow in this research release. |
 | Technology | Deterministic interval calculations, provenance warnings, evidence fingerprints and comparisons sit alongside Kodro's existing simulation/proof/test stack. | Keep the demo focused; listing every subsystem will dilute the technical story. |
 
 ## Three-minute judge demo
@@ -166,3 +167,9 @@ Before submission, all of the following must be true:
 - demo video is 3 to 5 minutes and visibly runs the product
 - repository and live product links work in a logged-out browser
 - no environmental number is presented without its assumption/provenance
+
+## Final judge surface
+
+The live Build stage now includes an **EarthProof card** tied by regression tests to the canonical comparison report. It shows the illustrative central operating-energy comparison **0.040 kWh -> 0.020 kWh (-50%)**, labels the result as **illustrative scenario, not measured impact**, and states **CO2e not claimed**. The exact boundary remains: **Energy comparison only; it is not a carbon or lifecycle-impact claim.**
+
+This closes the judge-comprehension gap without turning EarthProof into a marketing score. The product-level story is now **Design -> Simulate -> Prove -> EarthProof -> Build** while the editable environmental scenario workflow remains deliberately auditable in JSON/CLI form.
