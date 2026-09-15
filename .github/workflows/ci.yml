@@ -243,6 +243,9 @@ jobs:
       # mistyped number, a full disk. Every one of those has to end in a refusal
       # with a reason, and an authored lesson must grade through exactly the same
       # dispatch as a shipped one.
+      - name: Teacher curriculum flow gate
+        run: node scripts/qa_curriculum.mjs
+
       - name: Lesson Studio document + store gate
         run: node scripts/qa_lesson_studio.mjs
 

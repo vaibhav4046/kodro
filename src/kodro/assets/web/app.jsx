@@ -644,6 +644,7 @@
     const simpleExperience = experience !== 'expert';
     const [lessonHubOpen, setLessonHubOpen] = useState(false);
     const [lessonBrowseAll, setLessonBrowseAll] = useState(false);
+    const [lessonPlanMode, setLessonPlanMode] = useState(false);
     function openLessonLibrary() {
       if (!classroom) setMode('classroom');
       setActiveStage('prove');
@@ -3523,9 +3524,13 @@
                 </div>
                 <button className="btn-mini lesson-teacher-link" onClick={() => { setLessonHubOpen(false); openTeacher(); }}>View progress</button>
               </div>
-              <div className={'lesson-hub-scroll' + (simpleExperience && !lessonBrowseAll ? ' lesson-hub-focused' : '')}>
+              <div className="curriculum-blocks" role="group" aria-label="Lesson library view">
+                <button type="button" className="btn-mini" aria-pressed={!lessonPlanMode} onClick={() => setLessonPlanMode(false)}>Student challenges</button>
+                <button type="button" className="btn-mini" aria-pressed={lessonPlanMode} onClick={() => setLessonPlanMode(true)}>Teacher lesson plans</button>
+              </div>
+              <div className={'lesson-hub-scroll' + (simpleExperience && !lessonBrowseAll && !lessonPlanMode ? ' lesson-hub-focused' : '')}>
                 {lessons.length === 0 && <p className="lesson-hub-loading">Loading the offline lesson library…</p>}
-                {simpleExperience && !lessonBrowseAll && lessons.length > 0 ? (() => {
+                {lessonPlanMode && window.KodroCurriculum ? <window.KodroCurriculum lessons={lessons} results={lessonResults} onStart={loadLesson} /> : simpleExperience && !lessonBrowseAll && lessons.length > 0 ? (() => {
                   const lesson = recommendedLesson();
                   if (!lesson) return null;
                   const result = lessonResults[lesson.id];
