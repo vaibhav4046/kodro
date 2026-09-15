@@ -170,14 +170,8 @@ def evaluate(scenario: Scenario) -> dict[str, object]:
 
     limitations = [
         "Results are scenario estimates, not lifecycle-assessment certification.",
-        (
-            "Virtual validation does not prove that a physical prototype would have been "
-            "built or avoided."
-        ),
-        (
-            "Real hardware safety, mechanical fit and electrical protection still require "
-            "competent review."
-        ),
+        "Virtual validation does not prove that a physical prototype would have been built or avoided.",
+        "Real hardware safety, mechanical fit and electrical protection still require competent review.",
     ]
     if scenario.grid_carbon_kgco2e_per_kwh is None:
         limitations.append(
@@ -192,16 +186,13 @@ def evaluate(scenario: Scenario) -> dict[str, object]:
         or scenario.prototype_embodied_kgco2e is not None
     ) and not scenario.evidence_sources:
         limitations.append(
-            "Environmental factors were supplied without a citation; add evidence_sources "
-            "before presenting them as externally grounded."
+            "Environmental factors were supplied without a citation; add evidence_sources before presenting them as externally grounded."
         )
 
     metrics: dict[str, object] = {
         "operating_energy_kwh": energy.as_dict(),
         "battery_capacity_wh": battery_wh.as_dict() if battery_wh else None,
-        "operational_emissions_kgco2e": (
-            operating_emissions.as_dict() if operating_emissions else None
-        ),
+        "operational_emissions_kgco2e": operating_emissions.as_dict() if operating_emissions else None,
         "scenario_material_avoided_kg": material_avoided.as_dict() if material_avoided else None,
         "scenario_embodied_emissions_avoided_kgco2e": (
             embodied_avoided.as_dict() if embodied_avoided else None
@@ -213,9 +204,7 @@ def evaluate(scenario: Scenario) -> dict[str, object]:
             "basis": "average_power_w * runtime_hours",
         },
         "avoided_hardware": {
-            "status": (
-                "scenario estimate" if scenario.physical_prototypes_avoided else "not claimed"
-            ),
+            "status": "scenario estimate" if scenario.physical_prototypes_avoided else "not claimed",
             "basis": "user-supplied scenario assumption",
             "count": scenario.physical_prototypes_avoided,
         },
@@ -261,7 +250,7 @@ def compare(baseline: Scenario, candidate: Scenario) -> dict[str, object]:
         "baseline_operating_energy_kwh": baseline_energy.as_dict(),
         "candidate_operating_energy_kwh": candidate_energy.as_dict(),
         "central_operating_energy_change_percent": central_change,
-        "claim_boundary": ("Energy comparison only; it is not a carbon or lifecycle-impact claim."),
+        "claim_boundary": "Energy comparison only; it is not a carbon or lifecycle-impact claim.",
     }
 
 
@@ -283,11 +272,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Generate auditable sustainability scenario evidence for a Kodro robot."
     )
-    parser.add_argument("scenario", type=Path)
+    parser.add_argument("scenario", type=Path, help="Candidate robot scenario JSON")
+    parser.add_argument(
+        "--baseline",
+        type=Path,
+        help="Optional baseline scenario to add an auditable operating-energy comparison",
+    )
     parser.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
 
-    report = evaluate(_load(args.scenario))
+    candidate = _load(args.scenario)
+    report = evaluate(candidate)
+    if args.baseline is not None:
+        report["comparison"] = compare(_load(args.baseline), candidate)
     report["fingerprint_sha256"] = report_fingerprint(report)
     rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"
     if args.out is None:
