@@ -1089,7 +1089,7 @@ select.terrain-btn:hover {
 .lesson-hub-backdrop { padding:18px; }
 .modal.lesson-hub-modal {
   width:min(1080px,96vw); max-height:calc(100vh - 36px); padding:0; overflow:hidden;
-  display:grid; grid-template-rows:auto auto minmax(0,1fr) auto;
+  display:grid; grid-template-rows:auto auto auto minmax(0,1fr) auto;
   background:
     radial-gradient(circle at 82% -20%, color-mix(in srgb,var(--cyan) 16%,transparent), transparent 38%),
     linear-gradient(180deg,var(--navy-2),var(--navy));
@@ -3001,3 +3001,21 @@ body{ text-rendering:optimizeLegibility; font-feature-settings:"kern" 1,"liga" 1
   .learning-annotation-card { max-height: none; }
   .vibe-project-diff > div { grid-template-columns: 1fr; }
 }
+
+/* Classroom plans use the same tokens and lesson launch as the student library. */
+.curriculum { color:var(--fg-1); font-size:1rem; line-height:1.6; }
+.curriculum p { color:var(--fg-2); max-width:75ch; }
+.curriculum-blocks { display:flex; flex-wrap:wrap; gap:8px; padding:12px 0; }
+.curriculum-blocks .btn-mini { white-space:normal; font-size:.875rem; min-height:40px; }
+.curriculum-blocks [aria-pressed="true"] { border-color:var(--cyan); color:var(--cyan); }
+.curriculum-heading { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.curriculum-heading h4 { font-size:1.2rem; margin:12px 0; }
+.curriculum-sessions { list-style:none; padding:0; }
+.curriculum-sessions > li { border:1px solid var(--border); border-radius:10px; margin:12px 0; }
+.curriculum-sessions summary { cursor:pointer; padding:16px; font-size:1rem; }
+.curriculum-sessions summary span { display:block; color:var(--fg-2); padding-top:4px; font-size:.875rem; }
+.curriculum-session-body { padding:0 18px 18px; }
+.curriculum-session-body ol { padding-left:22px; }
+.curriculum summary:focus-visible { outline:2px solid var(--cyan); outline-offset:3px; }
+
+.lesson-hub-modal > .curriculum-blocks { padding:10px 28px; border-bottom:1px solid var(--border-2); }

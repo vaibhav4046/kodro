@@ -145,7 +145,7 @@
       key: 'lessons',
       kicker: 'Start here',
       title: 'Learn to code',
-      desc: 'Follow 24 guided lessons with a working program, a clear goal and feedback after every run.',
+      desc: 'Follow 24 guided challenges, or choose a ready-to-teach lesson plan for your class.',
       go: 'Open the lessons',
       icon: 'report',
       className: 'kh-card-primary',

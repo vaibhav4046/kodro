@@ -1,5 +1,15 @@
 # Getting started for teachers
 
+## Open a ready-to-teach plan
+
+From **Learn to code**, open **Teacher lesson plans**. Choose one of the four
+blocks to see session objectives, prior knowledge and suggested timings.
+**Open challenge** loads the existing starter program and arena.
+**Download lesson plan** saves a text plan you can adapt or print.
+Completion counts use saved graded attempts for the current learner (or this
+device in the browser edition); they do not represent a whole class.
+
+
 Kodro is a robot coding and kinematic simulation app for pupils aged 5 to
 16. Pupils choose a robot, edit a program, and watch it run in a visual test
 world. Kodro supports practice and early design comparison. It does not
