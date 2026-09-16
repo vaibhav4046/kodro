@@ -6,11 +6,25 @@ Kodro EarthProof
 
 ## Tagline
 
-Evidence before hardware: design, prove and compare a robot before deciding what to build.
+Prove the build decision before resources become hardware.
 
 ## One-line pitch
 
-Kodro EarthProof is a virtual-first robotics workflow that moves early failure into deterministic simulation, then makes the energy, battery and material assumptions behind the physical-build decision inspectable instead of hiding them behind a green score.
+Kodro EarthProof is a **pre-build evidence gate** for robotics: it uses deterministic simulation and proof to ask whether a robot version has enough evidence to justify becoming hardware, then exposes the energy, battery and material assumptions behind that decision without inventing environmental claims.
+
+## Core judge pitch
+
+Most robotics tools ask: **"Does this robot work?"**
+
+Kodro EarthProof asks: **"Do we have enough evidence to justify building this version at all?"**
+
+EarthProof is **not a sustainability dashboard** added to a robotics simulator. It is the evidence checkpoint between simulation and committing motors, batteries, sensors and materials to a physical build. Kodro's existing design and simulation workflow produces the engineering evidence; EarthProof makes the resource assumptions and environmental claim boundaries inspectable at the moment a user decides what should become hardware.
+
+That changes the role of simulation. A successful run is no longer the end of the story. It becomes evidence for a build decision.
+
+**Design -> Simulate -> Prove -> EarthProof -> Build**
+
+Kodro itself predates NextStep Hacks 2026. EarthProof is the hackathon contribution that turns that existing simulation capability into an auditable pre-build decision workflow.
 
 ## The problem
 
@@ -105,11 +119,11 @@ The next milestone is validation, not a bigger green score. I want classroom and
 
 ## Judge demo: 3 minutes 40 seconds
 
-**0:00-0:20 | Problem**  
-Show a small pile / image of motors, batteries, sensors and chassis parts. Say: "In robotics, we often spend hardware before we have evidence the design works. Kodro moves early failure into software."
+**0:00-0:20 | The decision**  
+Open on the physical parts or the robot design and say: "Most robotics tools ask, 'Does this robot work?' Kodro EarthProof asks, 'Do we have enough evidence to justify building this version at all?' EarthProof is the pre-build evidence gate between simulation and committing resources to hardware."
 
 **0:20-0:45 | The loop**  
-Open Kodro and state the five-step loop once: **Design -> Simulate -> Prove -> EarthProof -> Build.** Explicitly say that Kodro itself predates NextStep and EarthProof is the hackathon contribution.
+Open Kodro and state the five-step loop once: **Design -> Simulate -> Prove -> EarthProof -> Build.** Explicitly say: "EarthProof is not a sustainability dashboard added to the simulator. It changes what the simulation is for: evidence for the build decision." Then state that Kodro itself predates NextStep and EarthProof is the hackathon contribution.
 
 **0:45-1:20 | Design + simulation**  
 Show the existing robot specification and controller. Run it in the 3D environment. Do not tour menus.
@@ -127,7 +141,7 @@ Run the comparison command. Show that the same baseline, candidate and -50% resu
 Point to the `null` operational CO2e field in the report and the matching in-product boundary. Say: "Kodro does not invent the missing number. No sourced carbon factor, no carbon claim."
 
 **3:20-3:40 | Close**  
-"Kodro EarthProof makes robotics more accessible and gives learners one more reason to test before they buy or build: evidence. Design it. Prove it. EarthProof it. Then build."
+"EarthProof is not measuring how green a robot is after we build it. It asks whether the evidence justifies building that version in the first place. Design it. Simulate it. Prove it. EarthProof it. Then build."
 
 ## Judge questions to be ready for
 
