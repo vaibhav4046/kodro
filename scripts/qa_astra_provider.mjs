@@ -9,6 +9,7 @@ import { existsSync, readFileSync } from 'node:fs';
 
 const web = (f) => readFileSync(new URL('../src/kodro/assets/web/' + f, import.meta.url), 'utf8');
 const source = web('astra-provider.js');
+const baseSource = web('ai-providers.jsx');
 const panels = web('panels.jsx');
 const index = web('index.html');
 const sw = web('sw.js');
@@ -66,6 +67,9 @@ check('legacy Astra key is never read', !reads.includes(LEGACY_KEY), reads.join(
 check('loading the adapter makes zero network requests', requests.length === 0, String(requests.length));
 check('Astra remains visible as a first-class provider', P.config().providers.some((p) => p.id === 'astra'));
 check('Kodro remains offline/local by default', P.config().provider === 'ollama' && P.isLocal() === true);
+check('base provider source exposes no Groq runtime', !baseSource.includes('api.groq.com') && !baseSource.includes("id: 'groq'"));
+check('base provider source exposes no OpenRouter runtime', !baseSource.includes('openrouter.ai') && !baseSource.includes("id: 'openrouter'"));
+check('base provider source exposes no arbitrary cloud endpoint runtime', !baseSource.includes("id: 'custom'"));
 
 P.setProvider('astra');
 const astraCfg = P.config();
