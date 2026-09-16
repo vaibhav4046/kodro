@@ -1,24 +1,25 @@
-/* Kodro GPT-6 Astra provider adapter.
+/* Kodro GPT-6 Astra provider presentation.
  *
- * Loaded before bundle.js. The compiled bundle assigns window.KodroProviders;
- * this adapter intercepts that assignment and adds Astra without changing the
- * default: Ollama remains local/offline until a user explicitly selects Astra.
+ * Loaded before bundle.js. Astra is intentionally NOT an executable provider in
+ * the public web build: Ollama is the only active runtime. We still expose
+ * Astra in the provider picker so users can understand the two legitimate
+ * connection concepts without Kodro pretending a ChatGPT subscription is an
+ * API credential or making a paid request on the user's behalf.
  *
- * Astra is server managed. The browser never reads, stores, or transmits an
- * OpenAI credential and never calls OpenAI directly. It sends only a normalized
- * prompt/schema request to Kodro's server proxy.
+ * API access is separately billed and must be connected through a secure
+ * user-controlled backend/local gateway. ChatGPT subscription access to Astra
+ * belongs in supported ChatGPT surfaces such as Work or Codex; it does not
+ * authorize this webpage to call the OpenAI API.
  */
-(function (window, fetch, localStorage) {
+(function (window, localStorage) {
   'use strict';
 
-  if (!window || typeof fetch !== 'function') return;
+  if (!window) return;
 
   var PROVIDER_ID = 'astra';
   var MODEL = 'gpt-6-astra';
-  var PROXY_ENDPOINT = 'https://kodro-ca2.vercel.app/api/astra';
   var PROVIDER_KEY = 'kodro_ai_provider';
   var MODEL_KEY = 'kodro_ai_cloud_model';
-  var TIMEOUT_MS = 120000;
 
   function lsGet(key) {
     try { return localStorage && localStorage.getItem(key); } catch (e) { return null; }
@@ -31,50 +32,26 @@
     } catch (e) { void e; }
   }
 
-  // One-way migration from the original browser-BYOK experiment. The literal
-  // is intentionally used ONLY for deletion: never read the old value into JS.
+  // Delete legacy browser-BYOK state without ever reading its value into JS.
   try { if (localStorage) localStorage.removeItem('kodro_ai_key_astra'); } catch (e) { void e; }
 
   function selected() { return lsGet(PROVIDER_KEY) === PROVIDER_ID; }
 
-  async function astraGenerate(prompt, opts) {
-    opts = opts || {};
-    var requested = Number(opts.num_predict) || 400;
-    var maxOutput = Math.max(1024, Math.min(4096, requested * 2));
-    var body = {
-      input: String(prompt == null ? '' : prompt),
-      max_output_tokens: maxOutput,
-    };
-    if (opts.system) body.instructions = String(opts.system);
-    if (opts.format) body.schema = opts.format;
-
-    var ctrl = new AbortController();
-    var timer = setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS);
-    var res;
-    try {
-      res = await fetch(PROXY_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: ctrl.signal,
-      });
-    } catch (e) {
-      if (e && e.name === 'AbortError') throw new Error('GPT-6 Astra proxy took too long, try again');
-      throw e;
-    } finally {
-      clearTimeout(timer);
-    }
-
-    if (!res.ok) {
-      var detail = '';
-      try { detail = (await res.text()).slice(0, 240); } catch (e) { void e; }
-      throw new Error('Astra proxy ' + res.status + (detail ? ': ' + detail : ''));
-    }
-    var json = await res.json();
-    if (json && json.error) throw new Error('Astra proxy: ' + (json.error.message || json.error || 'request failed'));
-    var text = json && typeof json.output_text === 'string' ? json.output_text.trim() : '';
-    if (!text) throw new Error('GPT-6 Astra returned no text');
-    return text;
+  function unavailableConfig(cfg, providers) {
+    return Object.assign({}, cfg, {
+      provider: PROVIDER_ID,
+      label: 'OpenAI GPT-6 Astra (not connected)',
+      local: false,
+      cloudReady: false,
+      cloudModel: MODEL,
+      hasKey: false,
+      serverManaged: false,
+      unavailable: true,
+      endpoint: '',
+      needsEndpoint: false,
+      connectionOptions: ['api', 'chatgpt'],
+      providers: providers,
+    });
   }
 
   function wrap(base) {
@@ -88,24 +65,14 @@
       var providers = (cfg.providers || []).filter(function (p) { return p && p.id !== PROVIDER_ID; });
       providers.push({
         id: PROVIDER_ID,
-        label: 'OpenAI GPT-6 Astra (server managed)',
+        label: 'OpenAI GPT-6 Astra (not connected)',
         local: false,
         hasKey: false,
-        serverManaged: true,
+        unavailable: true,
+        connectionOptions: ['api', 'chatgpt'],
       });
       if (!selected()) return Object.assign({}, cfg, { providers: providers });
-      return Object.assign({}, cfg, {
-        provider: PROVIDER_ID,
-        label: 'OpenAI GPT-6 Astra (server managed)',
-        local: false,
-        cloudReady: true,
-        cloudModel: MODEL,
-        hasKey: false,
-        serverManaged: true,
-        endpoint: PROXY_ENDPOINT,
-        needsEndpoint: false,
-        providers: providers,
-      });
+      return unavailableConfig(cfg, providers);
     };
 
     wrapped.setProvider = function (id) {
@@ -116,6 +83,8 @@
       }
       return base.setProvider(id);
     };
+
+    // Compatibility no-op: never accept or persist an OpenAI key in the web UI.
     wrapped.setKey = function (id, value) {
       if (id === PROVIDER_ID) {
         void value;
@@ -136,7 +105,7 @@
       return base.listCloudModels();
     };
     wrapped.cloudReady = function () {
-      if (selected()) return true;
+      if (selected()) return false;
       return base.cloudReady();
     };
     wrapped.isLocal = function () {
@@ -144,7 +113,10 @@
       return base.isLocal();
     };
     wrapped.generate = async function (prompt, opts, ollamaModel) {
-      if (selected()) return astraGenerate(prompt, opts);
+      if (selected()) {
+        void prompt; void opts; void ollamaModel;
+        throw new Error('GPT-6 Astra is not connected in this web runtime. Use Local (Ollama), or connect Astra through a supported user-controlled API/ChatGPT workflow.');
+      }
       return base.generate(prompt, opts, ollamaModel);
     };
 
@@ -163,4 +135,4 @@
   } catch (e) {
     if (captured) window.KodroProviders = captured;
   }
-})(window, window.fetch ? window.fetch.bind(window) : null, window.localStorage);
+})(window, window.localStorage);
