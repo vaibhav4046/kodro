@@ -30,14 +30,13 @@ def _remote_urls(text: str) -> list[str]:
 #: it; these are the top-level generated artefacts that must also be excluded.)
 _EXCLUDED_SCRIPTS = {"bundle.js", "harness_bundle.js"}
 
-#: The two BYOK (bring-your-own-key) assistant modules are the ONLY shipped files
-#: allowed to reference a remote host, and only these free-tier providers: the
+#: BYOK (bring-your-own-key) assistant modules are the ONLY shipped files
+#: allowed to reference a remote host, and only these documented providers: the
 #: user opts in with their own key and the request goes to exactly one of these,
-#: or to the local Ollama server. Paid-only providers are deliberately not
-#: offered. localhost is local (the machine itself), so it is filtered as
-#: non-remote everywhere and is not listed here.
-_BYOK_FILES = {"ai-providers.jsx", "ai-web.jsx"}
-_BYOK_ALLOWED_HOSTS = {"api.groq.com", "openrouter.ai"}
+#: or to the local Ollama server. localhost is local (the machine itself), so it
+#: is filtered as non-remote everywhere and is not listed here.
+_BYOK_FILES = {"ai-providers.jsx", "ai-web.jsx", "astra-provider.js"}
+_BYOK_ALLOWED_HOSTS = {"api.groq.com", "openrouter.ai", "api.openai.com"}
 
 #: Datasheet-provenance citation hosts, scoped per file. ``parts-db.js`` is a
 #: pure DATA module (no ``fetch``/``.src`` anywhere in it -- asserted below): each
@@ -134,17 +133,17 @@ def test_app_css_and_js_have_no_remote_dependencies() -> None:
 def test_no_network_apis_in_app_code() -> None:
     """No remote fetch / XHR / WebSocket in ANY shipped web script.
 
-    The offline constraint forbids reaching the *network* -- CDNs, cloud APIs,
-    sockets. This scans EVERY hand-written ``*.js``/``*.jsx`` the build ships
-    (see ``_shipped_web_scripts``), not a hand-picked subset, so the proof also
-    covers the network-capable modules (``ai-providers.jsx`` / ``ai-web.jsx``)
-    that earlier lists silently excluded.
+    The offline constraint forbids reaching the *network* unless the user has
+    explicitly selected a documented BYOK provider. This scans EVERY hand-written
+    ``*.js``/``*.jsx`` the build ships (see ``_shipped_web_scripts``), not a
+    hand-picked subset, so the proof also covers all network-capable provider
+    modules rather than silently excluding them.
 
     Two guarantees, over the whole file set:
 
     * XHR / WebSocket / EventSource constructors are banned everywhere.
     * The only non-local host any file may reference is one of the documented
-      BYOK cloud endpoints (in the two BYOK modules) or the datasheet-provenance
+      BYOK cloud endpoints (in the BYOK modules) or the datasheet-provenance
       citation host in ``parts-db.js`` -- and that data module is proven fetch-free
       so its cited host is text, not a network target. A remote fetch needs a
       remote host literal, so a clean host set proves no external fetch
@@ -180,7 +179,7 @@ def test_no_network_apis_in_app_code() -> None:
         f"non-local hosts referenced outside the BYOK allow-list: {host_offenders}"
     )
 
-    # ...and the exception is real, not vacuous: the two BYOK files together
+    # ...and the exception is real, not vacuous: the BYOK files together
     # reference EXACTLY the documented cloud hosts (nothing more, nothing less).
     byok_hosts: set[str] = set()
     for name in _BYOK_FILES:
