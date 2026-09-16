@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 
 const web = (f) => readFileSync(new URL('../src/kodro/assets/web/' + f, import.meta.url), 'utf8');
 const source = web('astra-provider.js');
+const panels = web('panels.jsx');
 const index = web('index.html');
 const sw = web('sw.js');
 const PROXY = 'https://kodro-ca2.vercel.app/api/astra';
@@ -72,7 +73,7 @@ check('Kodro remains offline/local by default', P.config().provider === 'ollama'
 P.setProvider('astra');
 const astraCfg = P.config();
 check('Astra selection is explicit', astraCfg.provider === 'astra' && astraCfg.local === false);
-check('Astra is server managed and ready without a browser key', P.cloudReady() === true && astraCfg.cloudReady === true && astraCfg.hasKey === false);
+check('Astra is server managed and ready without a browser key', P.cloudReady() === true && astraCfg.cloudReady === true && astraCfg.hasKey === false && astraCfg.serverManaged === true);
 check('Astra label describes server management', astraCfg.label === 'OpenAI GPT-6 Astra (server managed)', astraCfg.label);
 check('Astra model is pinned in the UI', astraCfg.cloudModel === 'gpt-6-astra');
 check('Astra proxy endpoint is fixed', astraCfg.endpoint === PROXY, astraCfg.endpoint);
@@ -81,6 +82,15 @@ check('Astra model list does not silently drift', JSON.stringify(await P.listClo
 P.setKey('astra', 'must-not-persist');
 check('setKey compatibility path never persists an Astra secret',
   !Array.from(data.values()).includes('must-not-persist') && !writes.some(([, v]) => v === 'must-not-persist'));
+
+// Static UI regression: server-managed providers must not render credential or
+// editable model controls. Other cloud providers retain their existing BYOK UI.
+check('provider picker suppresses API-key field for server-managed providers',
+  /isCloud\s*&&\s*!cfg\.serverManaged/.test(panels) && /aria-label="API key"/.test(panels));
+check('provider picker identifies server-managed connection',
+  panels.includes('Server-managed connection') && panels.includes('cfg.serverManaged'));
+check('provider picker locks server-managed model',
+  panels.includes('readOnly={!!cfg.serverManaged}'));
 
 const schema = {
   type: 'object',
