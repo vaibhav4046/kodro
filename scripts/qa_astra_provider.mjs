@@ -1,15 +1,17 @@
-/* Deterministic QA for the browser side of GPT-6 Astra.
- * The browser must never own an OpenAI credential. It may select Astra and send
- * a normalized request only to the Kodro server proxy.
+/* Deterministic QA for Kodro's zero-cost Astra presentation.
+ *
+ * Ollama is the only executable runtime in the public web app. Astra remains
+ * visible so users understand the supported connection paths, but selecting it
+ * must never trigger a network request or imply that a ChatGPT subscription is
+ * an API credential.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 const web = (f) => readFileSync(new URL('../src/kodro/assets/web/' + f, import.meta.url), 'utf8');
 const source = web('astra-provider.js');
 const panels = web('panels.jsx');
 const index = web('index.html');
 const sw = web('sw.js');
-const PROXY = 'https://kodro-ca2.vercel.app/api/astra';
 const LEGACY_KEY = 'kodro_ai_key_astra';
 
 let pass = 0, fail = 0;
@@ -33,12 +35,7 @@ const storage = {
 const requests = [];
 async function mockFetch(url, options = {}) {
   requests.push({ url: String(url), options });
-  return {
-    ok: true,
-    status: 200,
-    json: async () => ({ output_text: '{"program":[]}' }),
-    text: async () => '',
-  };
+  throw new Error('zero-cost runtime must never fetch Astra');
 }
 
 const win = { fetch: mockFetch, localStorage: storage };
@@ -67,63 +64,51 @@ check('adapter wraps bundle provider assignment', P !== base && P.__kodroAstraWr
 check('legacy Astra key is deleted on initialization', removals.includes(LEGACY_KEY) && !data.has(LEGACY_KEY));
 check('legacy Astra key is never read', !reads.includes(LEGACY_KEY), reads.join(','));
 check('loading the adapter makes zero network requests', requests.length === 0, String(requests.length));
-check('Astra appears as a first-class provider', P.config().providers.some((p) => p.id === 'astra'));
+check('Astra remains visible as a first-class provider', P.config().providers.some((p) => p.id === 'astra'));
 check('Kodro remains offline/local by default', P.config().provider === 'ollama' && P.isLocal() === true);
 
 P.setProvider('astra');
 const astraCfg = P.config();
-check('Astra selection is explicit', astraCfg.provider === 'astra' && astraCfg.local === false);
-check('Astra is server managed and ready without a browser key', P.cloudReady() === true && astraCfg.cloudReady === true && astraCfg.hasKey === false && astraCfg.serverManaged === true);
-check('Astra label describes server management', astraCfg.label === 'OpenAI GPT-6 Astra (server managed)', astraCfg.label);
-check('Astra model is pinned in the UI', astraCfg.cloudModel === 'gpt-6-astra');
-check('Astra proxy endpoint is fixed', astraCfg.endpoint === PROXY, astraCfg.endpoint);
-check('Astra model list does not silently drift', JSON.stringify(await P.listCloudModels()) === '["gpt-6-astra"]');
+check('Astra selection is explicit', astraCfg.provider === 'astra');
+check('Astra is clearly unavailable in the public web runtime',
+  astraCfg.unavailable === true && astraCfg.cloudReady === false && P.cloudReady() === false);
+check('Astra label says it is not connected', astraCfg.label === 'OpenAI GPT-6 Astra (not connected)', astraCfg.label);
+check('Astra exposes no active endpoint', !astraCfg.endpoint, String(astraCfg.endpoint || ''));
+check('Astra has no browser credential state', astraCfg.hasKey === false);
+check('Astra connection metadata distinguishes API and ChatGPT paths',
+  Array.isArray(astraCfg.connectionOptions) && astraCfg.connectionOptions.includes('api') && astraCfg.connectionOptions.includes('chatgpt'));
+check('selecting Astra makes zero network requests', requests.length === 0, String(requests.length));
 
 P.setKey('astra', 'must-not-persist');
 check('setKey compatibility path never persists an Astra secret',
   !Array.from(data.values()).includes('must-not-persist') && !writes.some(([, v]) => v === 'must-not-persist'));
 
-// Static UI regression: server-managed providers must not render credential or
-// editable model controls. Other cloud providers retain their existing BYOK UI.
-check('provider picker suppresses API-key field for server-managed providers',
-  /isCloud\s*&&\s*!cfg\.serverManaged/.test(panels) && /aria-label="API key"/.test(panels));
-check('provider picker identifies server-managed connection',
-  panels.includes('Server-managed connection') && panels.includes('cfg.serverManaged'));
-check('provider picker locks server-managed model',
-  panels.includes('readOnly={!!cfg.serverManaged}'));
+let astraError = '';
+try {
+  await P.generate('make the rover stop', { num_predict: 400 }, 'local-fallback');
+} catch (e) {
+  astraError = String(e && e.message ? e.message : e);
+}
+check('Astra generation fails closed instead of making a paid request',
+  /not connected|unavailable/i.test(astraError), astraError);
+check('attempting Astra generation still makes zero network requests', requests.length === 0, String(requests.length));
 
-const schema = {
-  type: 'object',
-  properties: { program: { type: 'array', items: { type: 'object' } } },
-  required: ['program'],
-};
-const out = await P.generate('make the rover stop', {
-  system: 'Return the fitted robot program.',
-  temperature: 0.9,
-  num_predict: 400,
-  format: schema,
-}, 'local-fallback');
-check('proxy output text is returned to the existing facade', out === '{"program":[]}');
-check('exactly one request is made after explicit Astra use', requests.length === 1, String(requests.length));
+check('Astra source contains no Kodro paid proxy URL', !source.includes('kodro-ca2.vercel.app/api/astra'));
+check('Astra source contains no direct OpenAI API host', !source.includes('api.openai.com'));
+check('Astra source contains no browser Authorization header', !/Authorization\s*:/.test(source));
+check('Astra source has no active fetch call', !/\bfetch\s*\(/.test(source));
+check('public repo contains no executable Astra server proxy',
+  !existsSync(new URL('../api/astra.js', import.meta.url)));
 
-const req = requests[0] || { url: '', options: {} };
-let body = {};
-try { body = JSON.parse(req.options.body || '{}'); } catch (e) { void e; }
-const headerNames = Object.keys(req.options.headers || {}).map((k) => k.toLowerCase());
-check('browser request targets only the Kodro Astra proxy', req.url === PROXY, req.url);
-check('browser sends no Authorization header', !headerNames.includes('authorization'));
-check('browser sends no credential material',
-  !(req.options.body || '').includes('legacy-secret') && !(req.options.body || '').includes('must-not-persist'));
-check('browser sends normalized input', body.input === 'make the rover stop');
-check('browser sends normalized instructions', body.instructions === 'Return the fitted robot program.');
-check('browser sends bounded output budget', body.max_output_tokens === 1024, String(body.max_output_tokens));
-check('browser sends schema as schema, not OpenAI text.format', JSON.stringify(body.schema) === JSON.stringify(schema) && !body.text);
-check('browser does not control model', !Object.prototype.hasOwnProperty.call(body, 'model'));
-check('browser does not control reasoning', !Object.prototype.hasOwnProperty.call(body, 'reasoning'));
-check('browser does not control storage', !Object.prototype.hasOwnProperty.call(body, 'store'));
-check('unsupported temperature is omitted', !Object.prototype.hasOwnProperty.call(body, 'temperature'));
-check('source has no direct OpenAI API host', !source.includes('api.openai.com'));
-check('source has no browser Authorization header', !/Authorization\s*:/.test(source));
+// Product copy must be truthful about both user connection concepts. A ChatGPT
+// subscription can provide Astra in supported ChatGPT surfaces, but it is not an
+// API credential for the Kodro webpage; API access has separate billing.
+check('provider UI marks Astra unavailable in the web runtime',
+  panels.includes('Astra is not connected in this web runtime'));
+check('provider UI explains separately billed API access',
+  panels.includes('API access') && panels.includes('separately billed'));
+check('provider UI explains ChatGPT subscription path without claiming web inference',
+  panels.includes('ChatGPT subscription') && panels.includes('Work or Codex') && panels.includes('does not authorize this webpage'));
 
 const astraPos = index.indexOf('<script src="astra-provider.js"></script>');
 const bundlePos = index.indexOf('<script src="bundle.js"></script>');
@@ -133,9 +118,9 @@ check('service worker precaches Astra adapter', sw.includes("'./astra-provider.j
 P.setProvider('ollama');
 check('switching back restores local provider behaviour', P.isLocal() === true);
 check('non-Astra generation delegates unchanged', (await P.generate('x', {}, 'local')) === 'base-provider');
-check('leaving Astra causes no extra proxy request', requests.length === 1, String(requests.length));
+check('entire QA run made zero Astra/OpenAI network requests', requests.length === 0, String(requests.length));
 
-console.log(`\nAstra browser proxy QA: ${pass} passed, ${fail} failed`);
+console.log(`\nAstra zero-cost runtime QA: ${pass} passed, ${fail} failed`);
 if (fail) {
   console.error(failures.join('\n'));
   process.exit(1);
