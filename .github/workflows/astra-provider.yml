@@ -1,4 +1,4 @@
-name: Astra provider contract
+name: Astra zero-cost runtime contract
 
 on:
   pull_request:
@@ -17,7 +17,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Verify server-side Astra proxy
-        run: node scripts/qa_astra_proxy.mjs
-      - name: Verify keyless Astra browser proxy client
+      - name: Verify Ollama-only runtime and unavailable Astra presentation
         run: node scripts/qa_astra_provider.mjs
