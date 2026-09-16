@@ -30998,10 +30998,10 @@ say("Survey done")`
   }
 
   // ---- Vibe coding (Code with AI) ----
-  // Choose the AI backend: Local (Ollama, offline default) or a bring-your-own-key
-  // FREE-TIER provider (Groq free tier, OpenRouter free models). The key stays in
-  // this browser and is sent only to the chosen provider; Local keeps the app
-  // fully offline.
+  // Choose the AI backend: Local (Ollama, offline default), a browser BYOK
+  // provider (Groq/OpenRouter/custom), or a server-managed provider such as
+  // Astra. Server-managed credentials never enter this browser; Local keeps the
+  // app fully offline.
   function ProviderPicker({
     onChange
   }) {
@@ -31063,7 +31063,7 @@ say("Survey done")`
         fontSize: 11,
         color: cfg.cloudReady ? 'var(--success)' : 'var(--fg-3)'
       }
-    }, cfg.cloudReady ? 'connected' : cfg.needsEndpoint ? 'needs an endpoint' : 'needs a key')), cfg.provider === 'custom' && /*#__PURE__*/React.createElement("input", {
+    }, cfg.serverManaged ? cfg.cloudReady ? 'server managed' : 'server unavailable' : cfg.cloudReady ? 'connected' : cfg.needsEndpoint ? 'needs an endpoint' : 'needs a key')), cfg.provider === 'custom' && /*#__PURE__*/React.createElement("input", {
       type: "text",
       "aria-label": "Endpoint URL",
       defaultValue: cfg.endpoint,
@@ -31090,7 +31090,7 @@ say("Survey done")`
         marginTop: 6,
         flexWrap: 'wrap'
       }
-    }, /*#__PURE__*/React.createElement("input", {
+    }, isCloud && !cfg.serverManaged && /*#__PURE__*/React.createElement("input", {
       type: "password",
       "aria-label": "API key",
       value: keyInput,
@@ -31114,9 +31114,12 @@ say("Survey done")`
       "aria-label": "Cloud model id",
       value: cfg.cloudModel,
       placeholder: "model id",
+      readOnly: !!cfg.serverManaged,
       onChange: e => {
-        P.setCloudModel(e.target.value);
-        bump();
+        if (!cfg.serverManaged) {
+          P.setCloudModel(e.target.value);
+          bump();
+        }
       },
       style: {
         flex: '0 1 160px',
@@ -31127,7 +31130,13 @@ say("Survey done")`
         padding: '5px 8px',
         fontSize: 12
       }
-    })), isCloud && /*#__PURE__*/React.createElement("p", {
+    })), cfg.serverManaged ? /*#__PURE__*/React.createElement("p", {
+      style: {
+        margin: '6px 0 0',
+        fontSize: 10.5,
+        color: 'var(--fg-3)'
+      }
+    }, "Server-managed connection. No API key is stored in this browser; prompts are sent through Kodro's server proxy. Switch to Local for fully offline use.") : isCloud && /*#__PURE__*/React.createElement("p", {
       style: {
         margin: '6px 0 0',
         fontSize: 10.5,
