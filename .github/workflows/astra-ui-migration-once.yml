@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '20'
       - name: Install Node dependencies
-        run: npm ci
+        run: npm install --no-package-lock --no-audit --no-fund
       - name: Apply tested ProviderPicker migration
         run: node scripts/_apply_astra_server_managed_ui.mjs
       - name: Rebuild authoritative web bundle
