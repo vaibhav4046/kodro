@@ -1,0 +1,42 @@
+name: Astra UI migration once
+
+on:
+  push:
+    branches: [astra-server-proxy]
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: astra-server-proxy
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install Node dependencies
+        run: npm ci
+      - name: Apply tested ProviderPicker migration
+        run: node scripts/_apply_astra_server_managed_ui.mjs
+      - name: Rebuild authoritative web bundle
+        run: node scripts/build_web.cjs
+      - name: Verify focused Astra contracts before committing
+        run: |
+          node scripts/qa_astra_proxy.mjs
+          node scripts/qa_astra_provider.mjs
+      - name: Remove one-shot migration machinery
+        run: git rm scripts/_apply_astra_server_managed_ui.mjs .github/workflows/astra-ui-migration-once.yml
+      - name: Commit generated source and bundle
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/kodro/assets/web/panels.jsx src/kodro/assets/web/bundle.js src/kodro/assets/web/sw.js
+          git diff --cached --quiet && { echo "No migration changes produced"; exit 1; }
+          git commit -m "fix: hide Astra browser credential controls"
+          git push origin HEAD:astra-server-proxy
