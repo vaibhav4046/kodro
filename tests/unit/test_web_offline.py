@@ -1,8 +1,8 @@
 """Offline-constraint guard for the web UI.
 
-RoboLearn's hard constraint is 100% offline by default (no cloud, no CDN, no
-accounts). Opt-in cloud provider modules are narrowly host-allowlisted so a
-browser change cannot silently widen the network boundary.
+Kodro's public web build is local-only at runtime. The shipped AI provider code
+may contact localhost (Ollama) but must not contain an executable remote AI host.
+Astra remains a UI-visible unavailable option, not a network provider.
 """
 
 from __future__ import annotations
@@ -21,15 +21,7 @@ def _remote_urls(text: str) -> list[str]:
 
 
 _EXCLUDED_SCRIPTS = {"bundle.js", "harness_bundle.js"}
-
-#: User-key providers remain browser BYOK and may reference only their exact
-#: documented hosts. Astra is deliberately NOT in this set: it is server
-#: managed and the browser may reach only Kodro's Vercel proxy.
-_BYOK_FILES = {"ai-providers.jsx", "ai-web.jsx"}
-_BYOK_ALLOWED_HOSTS = {"api.groq.com", "openrouter.ai"}
-_ASTRA_FILES = {"astra-provider.js"}
-_ASTRA_ALLOWED_HOSTS = {"kodro-ca2.vercel.app"}
-
+_PROVIDER_FILES = {"ai-providers.jsx", "ai-web.jsx", "astra-provider.js"}
 _CITATION_HOSTS: dict[str, set[str]] = {"parts-db.js": {"www.pololu.com"}}
 _NO_FETCH = re.compile(r"\bfetch\s*\(|\.src\s*=")
 _PROTO_RELATIVE = re.compile(r"""["'](//[\w.-]+(?::\d+)?)""")
@@ -95,7 +87,7 @@ def test_app_css_and_js_have_no_remote_dependencies() -> None:
 
 
 def test_no_network_apis_in_app_code() -> None:
-    """Only documented opt-in hosts may appear in hand-written shipped code."""
+    """Hand-written shipped code may not contain remote AI runtime hosts."""
     banned_sockets = re.compile(r"\b(XMLHttpRequest|WebSocket|EventSource)\s*\(")
     scanned: set[str] = set()
     socket_offenders: dict[str, list[str]] = {}
@@ -107,41 +99,28 @@ def test_no_network_apis_in_app_code() -> None:
         sockets = banned_sockets.findall(text)
         if sockets:
             socket_offenders[name] = sockets
-        if name in _ASTRA_FILES:
-            allowed = _ASTRA_ALLOWED_HOSTS
-        elif name in _BYOK_FILES:
-            allowed = _BYOK_ALLOWED_HOSTS
-        else:
-            allowed = _CITATION_HOSTS.get(name, set())
+        allowed = _CITATION_HOSTS.get(name, set())
         stray = _remote_hosts(text) - allowed
         if stray:
             host_offenders[name] = sorted(stray)
         if name in _CITATION_HOSTS and _NO_FETCH.search(text):
             socket_offenders[name] = ["fetch/src in a citation-only module"]
 
-    risky = _BYOK_FILES | _ASTRA_FILES
-    assert scanned >= risky, f"network-capable provider modules not scanned: {risky - scanned}"
+    assert scanned >= _PROVIDER_FILES, (
+        f"AI provider modules not scanned: {_PROVIDER_FILES - scanned}"
+    )
     assert not socket_offenders, f"socket APIs used in app code: {socket_offenders}"
     assert not host_offenders, (
-        f"non-local hosts referenced outside provider allow-lists: {host_offenders}"
+        f"non-local hosts referenced in shipped executable code: {host_offenders}"
     )
 
-    byok_hosts: set[str] = set()
-    for name in _BYOK_FILES:
-        byok_hosts |= _remote_hosts((WEB / name).read_text(encoding="utf-8"))
-    assert byok_hosts == _BYOK_ALLOWED_HOSTS, (
-        "BYOK files must reference exactly the documented cloud hosts "
-        f"(got {sorted(byok_hosts)}, expected {sorted(_BYOK_ALLOWED_HOSTS)})"
+    provider_hosts: set[str] = set()
+    for name in _PROVIDER_FILES:
+        provider_hosts |= _remote_hosts((WEB / name).read_text(encoding="utf-8"))
+    assert provider_hosts == set(), (
+        "public AI provider files must contain no remote runtime hosts "
+        f"(got {sorted(provider_hosts)})"
     )
-
-    astra_hosts: set[str] = set()
-    for name in _ASTRA_FILES:
-        astra_hosts |= _remote_hosts((WEB / name).read_text(encoding="utf-8"))
-    assert astra_hosts == _ASTRA_ALLOWED_HOSTS, (
-        "Astra browser adapter must reference only the server proxy "
-        f"(got {sorted(astra_hosts)}, expected {sorted(_ASTRA_ALLOWED_HOSTS)})"
-    )
-    assert "api.openai.com" not in astra_hosts
 
 
 def test_astra_legacy_key_is_delete_only() -> None:
@@ -154,6 +133,7 @@ def test_astra_legacy_key_is_delete_only() -> None:
     assert f"setItem('{legacy}'" not in text and f'setItem("{legacy}"' not in text
     assert "api.openai.com" not in text
     assert not re.search(r"\bAuthorization\s*:", text)
+    assert not re.search(r"\bfetch\s*\(", text)
 
 
 def test_fonts_css_uses_local_paths() -> None:
