@@ -17,5 +17,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Verify opt-in GPT-6 Astra provider
+      - name: Verify keyless Astra browser proxy client
         run: node scripts/qa_astra_provider.mjs
+      - name: Verify server-side Astra proxy
+        run: node scripts/qa_astra_proxy.mjs
