@@ -1,0 +1,21 @@
+name: Astra provider contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  astra-provider:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify opt-in GPT-6 Astra provider
+        run: node scripts/qa_astra_provider.mjs

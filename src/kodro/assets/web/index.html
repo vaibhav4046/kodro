@@ -126,6 +126,10 @@
   <!-- Kodro bridge: lessons + grader + persistence (provided by Python) -->
   <script src="bridge.js"></script>
 
+  <!-- Install the opt-in GPT-6 Astra provider hook before the compiled bundle
+       creates KodroProviders. It changes no network behaviour until selected. -->
+  <script src="astra-provider.js"></script>
+
   <!-- Pre-compiled React components + app (generated from the .jsx sources) -->
   <script src="bundle.js"></script>
 
