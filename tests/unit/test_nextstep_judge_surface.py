@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 APP = ROOT / "src" / "kodro" / "assets" / "web" / "app.jsx"
 README = ROOT / "README.md"
 AUDIT = ROOT / "NEXTSTEP_2026.md"
+SUBMISSION = ROOT / "NEXTSTEP_SUBMISSION.md"
 REPORT = ROOT / "docs" / "eval" / "earthproof-comparison-report.json"
 
 
@@ -60,3 +61,13 @@ def test_nextstep_audit_describes_the_final_visible_judge_path() -> None:
     assert "earthproof-comparison-report.json" in audit
     assert "EarthProof card" in audit
     assert "0.040" in audit and "0.020" in audit and "-50%" in audit
+
+
+def test_submission_demo_leads_with_the_in_product_earthproof_surface() -> None:
+    """The pitch should show the shipped Build experience before dropping to CLI evidence."""
+    submission = SUBMISSION.read_text(encoding="utf-8")
+
+    assert "Open **Build**" in submission
+    assert "EarthProof card" in submission
+    assert "show the in-product evidence before the terminal" in submission
+    assert submission.index("Open **Build**") < submission.index("Run the comparison command")

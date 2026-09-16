@@ -24,6 +24,8 @@ Kodro already lets a learner or maker design a robot, program it, run it in a vi
 
 EarthProof is the new NextStep layer. It accepts low / central / high scenario inputs, calculates operating-energy and battery-capacity ranges, and can compare a candidate robot with an explicit baseline. If a user states an assumed number of avoided prototypes and a material-mass range, EarthProof can calculate that scenario too.
 
+The final product surfaces this evidence directly at the **Build** decision point. A compact EarthProof card shows the committed illustrative baseline and candidate comparison while keeping the claim boundary visible beside the numbers. The deterministic engine, JSON report, CLI and fingerprint remain available underneath for audit and reproduction.
+
 EarthProof deliberately ships **no default grid-carbon or embodied-impact coefficient**. No supplied factor means no CO2e claim. A supplied environmental factor without a source is flagged. Every report records its assumptions, limitations and a SHA-256 evidence fingerprint.
 
 The result is one coherent decision loop:
@@ -42,7 +44,7 @@ Kodro's pre-existing stack includes Python 3.12, pygame-ce, Pymunk, React, Three
 
 For NextStep I built `kodro.earthproof`, a deterministic pure-Python evidence engine using non-negative low / central / high intervals. Scenario inputs and reports are JSON so every number can be inspected and reproduced. The NextStep tests cover calculations, unsupported-claim refusal, provenance warnings, invalid inputs, zero baselines, deterministic fingerprints, cross-platform byte reproducibility and the judge-facing baseline comparison.
 
-The comparison CLI makes the final demo reproducible in one command:
+The comparison CLI makes the final evidence reproducible in one command:
 
 ```bash
 python -m kodro.earthproof docs/eval/earthproof-scenario.json \
@@ -66,9 +68,10 @@ During NextStep Hacks 2026 I added:
 - factor provenance warnings;
 - baseline-vs-candidate energy comparison;
 - a judge-facing comparison CLI;
+- an in-product EarthProof card at the Build decision point, tied to the canonical comparison evidence;
 - reproducible scenario, baseline and report artifacts;
 - SHA-256 evidence fingerprints;
-- dedicated EarthProof tests and cross-platform reproducibility checks;
+- dedicated EarthProof tests, judge-surface regression tests and cross-platform reproducibility checks;
 - the Earth Forward methodology, claim-boundary audit and submission package.
 
 I am not claiming that pre-existing Kodro was built during NextStep.
@@ -83,11 +86,12 @@ A second challenge was reproducibility. The report is byte-reproducible across o
 
 - Turned Earth Forward from a marketing claim into a deterministic evidence layer.
 - Preserved Kodro's working Design -> Prove -> Build product instead of replacing it with a hackathon mockup.
+- Integrated EarthProof into the visible Build decision rather than leaving it as a terminal-only feature.
 - Made the new work independently inspectable and reproducible.
 - Added a baseline-vs-candidate decision moment without inventing lifecycle impact.
 - Kept uncertainty explicit with low / central / high ranges.
 - Made missing environmental evidence visible instead of filling gaps with assumptions.
-- Verified the integrated repository across Linux, Windows and macOS before merging the first EarthProof release.
+- Verified the integrated repository across Linux, Windows and macOS, including real-browser UI gates.
 
 ## What I learned
 
@@ -107,28 +111,28 @@ Show a small pile / image of motors, batteries, sensors and chassis parts. Say: 
 **0:20-0:45 | The loop**  
 Open Kodro and state the five-step loop once: **Design -> Simulate -> Prove -> EarthProof -> Build.** Explicitly say that Kodro itself predates NextStep and EarthProof is the hackathon contribution.
 
-**0:45-1:25 | Design + simulation**  
+**0:45-1:20 | Design + simulation**  
 Show the existing robot specification and controller. Run it in the 3D environment. Do not tour menus.
 
-**1:25-1:55 | Deterministic proof**  
+**1:20-1:50 | Deterministic proof**  
 Show a seeded proof contract and its pass/fail evidence. State: "AI can help with code, but AI cannot change this verdict. The proof is deterministic and replayable."
 
-**1:55-2:35 | EarthProof before/after**  
-Run the comparison command. Point directly to baseline energy, candidate energy and the -50% central scenario difference. Immediately state: "This is an illustrative energy comparison, not measured carbon savings."
+**1:50-2:25 | EarthProof in the product**  
+Open **Build** and point directly to the **EarthProof card**. Show the baseline at **0.040 kWh**, candidate at **0.020 kWh**, and the **-50% illustrative operating-energy scenario**. Then point to **CO2e not claimed** and say: "This is an illustrative energy comparison, not measured carbon savings." The rule for the recording is simple: **show the in-product evidence before the terminal**.
 
-**2:35-3:00 | The anti-greenwashing moment**  
-Point to the `null` CO2e field. Say: "Kodro does not invent the missing number. No sourced carbon factor, no carbon claim."
+**2:25-2:55 | Reproduce the evidence**  
+Run the comparison command. Show that the same baseline, candidate and -50% result are produced from committed JSON inputs. Point briefly to the assumptions, limitations and SHA-256 fingerprint. Explain that changing evidence changes the fingerprint.
 
-**3:00-3:25 | Reproducibility**  
-Show the assumptions, limitations and SHA-256 fingerprint, plus the dated NextStep pull request. Explain that changing evidence changes the fingerprint.
+**2:55-3:20 | The anti-greenwashing moment**  
+Point to the `null` operational CO2e field in the report and the matching in-product boundary. Say: "Kodro does not invent the missing number. No sourced carbon factor, no carbon claim."
 
-**3:25-3:40 | Close**  
+**3:20-3:40 | Close**  
 "Kodro EarthProof makes robotics more accessible and gives learners one more reason to test before they buy or build: evidence. Design it. Prove it. EarthProof it. Then build."
 
 ## Judge questions to be ready for
 
 **Did Kodro exist before the hackathon?**  
-Yes. Kodro is an MSc research project. The Devpost disclosure and dated Git history identify the EarthProof engine, tests, evidence artifacts, comparison CLI and submission audit as the NextStep work.
+Yes. Kodro is an MSc research project. The Devpost disclosure and dated Git history identify the EarthProof engine, tests, evidence artifacts, comparison CLI, in-product Build card and submission audit as the NextStep work.
 
 **Are you claiming Kodro reduces emissions by 50%?**  
 No. The committed demonstration shows a -50% *central operating-energy difference between two illustrative scenarios*. It is not a carbon or lifecycle claim and is not measured user impact.
@@ -140,7 +144,7 @@ Because grid intensity, component embodied impact and lifecycle boundaries vary.
 No. Kodro's proof is kinematic simulation evidence, not physical-safety certification. Hardware still requires competent mechanical and electrical review.
 
 **What is technically new in this hackathon contribution?**  
-A deterministic environmental evidence layer that combines uncertainty ranges, explicit provenance, unsupported-claim refusal, baseline comparison, reproducible JSON and evidence fingerprints with Kodro's existing virtual-first robotics workflow.
+A deterministic environmental evidence layer that combines uncertainty ranges, explicit provenance, unsupported-claim refusal, baseline comparison, reproducible JSON and evidence fingerprints with Kodro's existing virtual-first robotics workflow, surfaced at the actual pre-build decision point.
 
 ## Built with
 
@@ -155,6 +159,7 @@ Python, pygame-ce, Pymunk, React, Three.js, JavaScript, JSON, pytest, GitHub Act
 - Include the live Kodro application link.
 - Keep the video under 5 minutes; target 3:40.
 - State the before/during disclosure prominently in Devpost.
+- Show the in-product EarthProof card before the terminal comparison.
 - Show the baseline comparison and the `null` CO2e field.
 - Never present illustrative scenario numbers as measured environmental savings.
 - Do not spend demo time listing every Kodro feature.
