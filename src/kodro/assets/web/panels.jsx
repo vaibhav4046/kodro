@@ -846,6 +846,7 @@
     const refresh = () => setCfg(P.config());
     const bump = () => { refresh(); if (onChange) onChange(); };
     const isCloud = cfg.provider !== 'ollama';
+    const isUnavailable = !!cfg.unavailable;
     return (
       <div className="vibe-provider" style={{ margin: '2px 0 8px', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--navy-2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -854,14 +855,14 @@
             style={{ background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
             {cfg.providers.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
-          {isCloud && <span style={{ fontSize: 11, color: cfg.cloudReady ? 'var(--success)' : 'var(--fg-3)' }}>{cfg.serverManaged ? (cfg.cloudReady ? 'server managed' : 'server unavailable') : (cfg.cloudReady ? 'connected' : (cfg.needsEndpoint ? 'needs an endpoint' : 'needs a key'))}</span>}
+          {isCloud && <span style={{ fontSize: 11, color: cfg.cloudReady ? 'var(--success)' : 'var(--fg-3)' }}>{isUnavailable ? 'unavailable' : (cfg.serverManaged ? (cfg.cloudReady ? 'server managed' : 'server unavailable') : (cfg.cloudReady ? 'connected' : (cfg.needsEndpoint ? 'needs an endpoint' : 'needs a key')))}</span>}
         </div>
-        {cfg.provider === 'custom' && (
+        {!isUnavailable && cfg.provider === 'custom' && (
           <input type="text" aria-label="Endpoint URL" defaultValue={cfg.endpoint} placeholder="http://localhost:8080/v1/chat/completions"
             onChange={e => { P.setEndpoint(e.target.value); bump(); }}
             style={{ display: 'block', width: '100%', marginTop: 6, background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
         )}
-        {isCloud && (
+        {isCloud && !isUnavailable && (
           <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
             {isCloud && !cfg.serverManaged && (
               <input type="password" aria-label="API key" value={keyInput} placeholder={cfg.hasKey ? 'key saved (type to replace)' : (cfg.provider === 'custom' ? 'API key (optional)' : 'paste your API key')}
@@ -873,9 +874,11 @@
               style={{ flex: '0 1 160px', background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
           </div>
         )}
-        {cfg.serverManaged
-          ? <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Server-managed connection. No API key is stored in this browser; prompts are sent through Kodro's server proxy. Switch to Local for fully offline use.</p>
-          : isCloud && <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Your key stays in this browser and is sent only to the provider you pick. Switch to Local for fully offline use.</p>}
+        {isUnavailable
+          ? <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Astra is not connected in this web runtime. API access uses a separately billed OpenAI API account and must run through a secure backend or local gateway. A ChatGPT subscription can use Astra in ChatGPT Work or Codex, but it does not authorize this webpage to make API requests.</p>
+          : cfg.serverManaged
+            ? <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Server-managed connection. No API key is stored in this browser. Switch to Local for fully offline use.</p>
+            : isCloud && <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>This cloud provider requires its own connection. Switch to Local for fully offline use.</p>}
       </div>
     );
   }
