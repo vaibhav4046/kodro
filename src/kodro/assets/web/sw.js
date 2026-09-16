@@ -20,7 +20,7 @@
 // precaches the new shell, and deletes the stale cache on activate.
 const CACHE = 'kodro-shell-v1';
 const SHELL = [
-  './', './index.html', './styles.css', './bundle.js',
+  './', './index.html', './styles.css', './bundle.js', './astra-provider.js',
   './interpreter.js', './sound.js', './bridge.js',
   // lessons.json is PRECACHED, not left to runtime caching. It is fetched
   // network-first (see isFreshFirst) so a new deploy reaches returning
