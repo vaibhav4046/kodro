@@ -93,16 +93,16 @@ function emitStaticSite() {
 
 // Stamp the emitted service worker's cache name with a short content hash of
 // EVERY cache-critical runtime asset that ships standalone -- not just
-// bundle.js. interpreter.js, bridge.js, sound.js and styles.css each load via
-// their own <script>/<link> tags (they are NOT bundled into bundle.js) and the
-// shell serves them cache-first; index.html is the shell markup itself. If the
-// stamp hashed bundle.js alone, an interpreter-only, bridge-only, sound-only or
-// CSS-only deploy would leave the cache name unchanged and pin returning
-// visitors to the stale standalone file. Hashing the concatenation means ANY
-// byte change in ANY of these shifts the hash => new sw.js bytes => the browser
-// installs the new SW, precaches the fresh shell, and drops the old cache on
-// activate. The SOURCE sw.js keeps a stable 'kodro-shell-v1' placeholder (clean
-// diffs, no churn in the freshness check); only this site copy is stamped.
+// bundle.js. interpreter.js, bridge.js, sound.js, astra-provider.js and
+// styles.css each load via their own <script>/<link> tags (they are NOT bundled
+// into bundle.js) and the shell serves them cache-first; index.html is the shell
+// markup itself. If the stamp hashed bundle.js alone, a standalone runtime-asset
+// deploy could leave the cache name unchanged and pin returning visitors to a
+// stale file. Hashing the concatenation means ANY byte change in ANY of these
+// shifts the hash => new sw.js bytes => the browser installs the new SW,
+// precaches the fresh shell, and drops the old cache on activate. The SOURCE
+// sw.js keeps a stable 'kodro-shell-v1' placeholder (clean diffs, no churn in
+// the freshness check); only this site copy is stamped.
 // lessons.json is included because it is now PRECACHED in the SW shell (it
 // has to be: the runtime cache never populated on a first visit, so an
 // offline second visit lost every lesson). Precached means a lessons-only
@@ -114,7 +114,7 @@ function stampServiceWorker(siteDir) {
   // Fixed order so the hash is deterministic across rebuilds. sound.js is
   // hashed "if present" (some builds omit it); each file is tagged with its
   // name so adding or removing an asset also shifts the fingerprint.
-  const CACHE_CRITICAL = ['bundle.js', 'interpreter.js', 'bridge.js', 'sound.js', 'styles.css', 'index.html', 'lessons.json'];
+  const CACHE_CRITICAL = ['bundle.js', 'interpreter.js', 'bridge.js', 'sound.js', 'astra-provider.js', 'styles.css', 'index.html', 'lessons.json'];
   const h = crypto.createHash('sha256');
   let hashedAny = false;
   for (const name of CACHE_CRITICAL) {
