@@ -53,6 +53,17 @@ def test_repository_first_impression_names_the_nextstep_innovation() -> None:
     assert "NEXTSTEP_SUBMISSION.md" in top
 
 
+def test_core_pitch_frames_earthproof_as_the_prebuild_decision_gate() -> None:
+    """EarthProof must read as the decision mechanism, not a green add-on."""
+    readme_top = README.read_text(encoding="utf-8")[:5000].lower()
+    submission = SUBMISSION.read_text(encoding="utf-8").lower()
+
+    for surface in (readme_top, submission):
+        assert "pre-build evidence gate" in surface
+        assert "justify building this version" in surface
+        assert "not a sustainability dashboard" in surface
+
+
 def test_nextstep_audit_describes_the_final_visible_judge_path() -> None:
     """The audit must describe the final baseline comparison and in-product surface."""
     audit = AUDIT.read_text(encoding="utf-8")
