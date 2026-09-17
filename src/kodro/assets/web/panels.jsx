@@ -831,10 +831,9 @@
   }
 
   // ---- Vibe coding (Code with AI) ----
-  // Choose the AI backend: Local (Ollama, offline default), a browser BYOK
-  // provider (Groq/OpenRouter/custom), or a server-managed provider such as
-  // Astra. Server-managed credentials never enter this browser; Local keeps the
-  // app fully offline.
+  // Choose the AI backend: Local (Ollama, offline default) or the
+  // unavailable Astra option, which never executes here. There is no
+  // browser cloud-key runtime: Local keeps the app fully offline.
   function ProviderPicker({ onChange }) {
     const P = window.KodroProviders;
     const [cfg, setCfg] = React.useState(P ? P.config() : null);
@@ -1227,7 +1226,7 @@
                   <li>Open-ended code generation is optional. The built-in diagnosis and controls above work now.</li>
                   <li>For private generative help on <b>this computer</b>, install the Ollama app from ollama.com (no account needed)</li>
                   <li>Then run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
-                  <li>Reopen Kodro and code writing lights up. Or pick Groq or OpenRouter above and paste a free key from their site</li>
+                  <li>Reopen Kodro and code writing lights up. There is no cloud-provider option in this build: the only backends are Local Ollama and the built-in deterministic diagnosis.</li>
                 </ol>
               )}
             </div>

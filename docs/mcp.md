@@ -16,7 +16,7 @@ This page is the setup guide. For how the server is built and why, see
 
 ## Install
 
-The server is part of the `robolearn` package, so installing the project
+The server is part of the `kodro` package, so installing the project
 installs it:
 
 ```bash

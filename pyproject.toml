@@ -72,6 +72,7 @@ kodro = "kodro.__main__:main"
 kodro-bench = "kodro.bench:main"
 kodrobench = "kodro.kodrobench:main"
 kodro-prove = "kodro.prove:main"
+kodro-genesis = "kodro.genesis:main"
 kodro-mcp = "kodro.mcp.server:main"
 
 [project.urls]
