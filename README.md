@@ -100,10 +100,9 @@ set honest expectations up front:
 - **Not cloud-connected by default.** No account is ever required and
   nothing leaves your machine on the default path: the local AI
   assistant talks only to an Ollama model on `localhost`, and falls
-  back to a deterministic rule engine when Ollama is absent. You may
-  optionally connect a free-tier key (Groq, or OpenRouter's free
-  models) for a stronger model; that key stays in your browser, is sent
-  only to the provider you pick, and is never required.
+  back to a deterministic rule engine when Ollama is absent. There is
+  no cloud-provider key path in this build: no Groq, OpenRouter or
+  other browser-key runtime exists, so nothing is ever sent to one.
 
 ## The three-stage loop
 
@@ -284,9 +283,9 @@ to a deterministic rule engine. To enable the assistant:
    ```
 
 3. Start Kodro. It detects available Ollama models and shows them in
-   Companion. Requests to local Ollama stay on `localhost:11434`. If you
-   deliberately choose Groq or OpenRouter, the prompt is sent to that
-   provider instead.
+   Companion. Requests to local Ollama stay on `localhost:11434`. No
+   cloud provider option exists in this build, so there is nowhere
+   else a prompt can be sent.
 
 **Using the hosted web build with Ollama.** The desktop app needs none of
 this. The browser build at

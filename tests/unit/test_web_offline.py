@@ -136,6 +136,21 @@ def test_astra_legacy_key_is_delete_only() -> None:
     assert not re.search(r"\bfetch\s*\(", text)
 
 
+def test_no_dead_cloud_provider_affordance() -> None:
+    """User-visible copy must not offer cloud providers that do not exist.
+
+    Regression guard: the vibe panel once told users to "pick Groq or
+    OpenRouter above and paste a free key", but the picker has no such
+    options, so the instruction was a dead end. The generated bundle must
+    match the fixed source, so both files are checked.
+    """
+    source = (WEB / "panels.jsx").read_text(encoding="utf-8")
+    bundle = (WEB / "bundle.js").read_text(encoding="utf-8")
+    for dead in ("Groq or OpenRouter above", "paste a free key"):
+        assert dead not in source, f"dead cloud affordance in panels.jsx: {dead!r}"
+        assert dead not in bundle, f"dead cloud affordance in bundle.js: {dead!r}"
+
+
 def test_fonts_css_uses_local_paths() -> None:
     css = (WEB / "vendor" / "fonts.css").read_text(encoding="utf-8")
     urls = re.findall(r"url\(([^)]+)\)", css)
