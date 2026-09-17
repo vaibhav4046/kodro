@@ -120,6 +120,24 @@
       return base.generate(prompt, opts, ollamaModel);
     };
 
+    // Static connection guide. Pure data: no fetch, no endpoint, no secret
+    // fields. The webpage can render these steps and let the user copy the
+    // MCP server entry into their own client. A ChatGPT subscription is used
+    // in the user's own Codex surface; a separately billed API key, if they
+    // have one, lives in their own client or gateway. Neither ever enters
+    // this page, which is why this guide contains nowhere to type one.
+    wrapped.connectSetup = function () {
+      return {
+        steps: [
+          'Install Kodro locally (pip install -e .) so the MCP server exists on your machine.',
+          'Verify it: run kodro-mcp --list-tools and confirm the 8 tools.',
+          'In Codex (ChatGPT subscription) or any MCP-capable client, add a stdio server named kodro with command kodro-mcp. Copy the JSON below.',
+          'Ask Astra to open a lesson, run the starter, read the grade, fix the failure, and re-prove with prove_contracts. Your API billing, if any, stays in your own client or gateway; a ChatGPT subscription does not authorize this webpage.'
+        ],
+        mcp: { name: 'kodro', command: 'kodro-mcp', transport: 'stdio' },
+      };
+    };
+
     return wrapped;
   }
 

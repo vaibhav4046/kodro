@@ -838,12 +838,28 @@
     const P = window.KodroProviders;
     const [cfg, setCfg] = React.useState(P ? P.config() : null);
     const [keyInput, setKeyInput] = React.useState('');
+    const [copied, setCopied] = React.useState(false);
     if (!P || !cfg) return null;
     // refresh() re-reads the picker's own view; bump() ALSO re-probes panel
     // availability so pasting a cloud key flips the panel from "AI is offline"
     // to ready immediately, without needing to close and reopen the panel.
     const refresh = () => setCfg(P.config());
     const bump = () => { refresh(); if (onChange) onChange(); };
+    const copySetup = () => {
+      const guide = (P && P.connectSetup) ? P.connectSetup() : null;
+      const text = guide ? JSON.stringify(guide.mcp, null, 2) : '';
+      const done = () => { setCopied(true); setTimeout(() => setCopied(false), 2000); };
+      const fallbackCopy = () => {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); document.body.removeChild(ta); done();
+        } catch (e) { void e; }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallbackCopy);
+      } else fallbackCopy();
+    };
     const isCloud = cfg.provider !== 'ollama';
     const isUnavailable = !!cfg.unavailable;
     return (
@@ -874,7 +890,15 @@
           </div>
         )}
         {isUnavailable
-          ? <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Astra is not connected in this web runtime. API access uses a separately billed OpenAI API account and must run through a secure backend or local gateway. A ChatGPT subscription can use Astra in ChatGPT Work or Codex, but it does not authorize this webpage to make API requests.</p>
+          ? <div>
+            <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Astra is not connected in this web runtime. API access uses a separately billed OpenAI API account and must run through a secure backend or local gateway. A ChatGPT subscription can use Astra in ChatGPT Work or Codex, but it does not authorize this webpage to make API requests.</p>
+            <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Connect it yourself instead. Both real paths run outside this page, so no key is ever typed here:</p>
+            <ol style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 10.5, color: 'var(--fg-3)' }}>
+              {(P.connectSetup ? P.connectSetup().steps : []).map((step, i) => <li key={i} style={{ marginTop: 2 }}>{step}</li>)}
+            </ol>
+            <pre style={{ margin: '6px 0 0', padding: 6, fontSize: 10.5, background: 'var(--navy)', border: '1px solid var(--border)', borderRadius: 8, overflowX: 'auto' }}>{JSON.stringify((P.connectSetup ? P.connectSetup().mcp : {}), null, 2)}</pre>
+            <button onClick={copySetup} style={{ marginTop: 6, background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px', fontSize: 12 }}>{copied ? 'Copied' : 'Copy Codex MCP setup'}</button>
+          </div>
           : cfg.serverManaged
             ? <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Server-managed connection. No API key is stored in this browser. Switch to Local for fully offline use.</p>
             : isCloud && <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>This cloud provider requires its own connection. Switch to Local for fully offline use.</p>}

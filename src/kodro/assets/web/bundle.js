@@ -23450,12 +23450,12 @@ Object.assign(window, {
     if (httpOrigin && !localHost) {
       return {
         reason: 'blocked-origin',
-        hint: 'Your browser blocked the local AI (Ollama refuses this origin). Start Ollama allowing this page: set OLLAMA_ORIGINS=' + origin + ' then run ollama serve. Or use the desktop app, or connect a cloud key in the Vibe panel.'
+        hint: 'Your browser blocked the local AI (Ollama refuses this origin). Start Ollama allowing this page: set OLLAMA_ORIGINS=' + origin + ' then run ollama serve. Or use the desktop app.'
       };
     }
     return {
       reason: 'not-running',
-      hint: 'Ollama is not running. Start the Ollama app (or run: ollama serve), then reopen this panel. Or connect a cloud key in the Vibe panel.'
+      hint: 'Ollama is not running. Start the Ollama app (or run: ollama serve), then reopen this panel.'
     };
   }
   let override = null;
@@ -24059,7 +24059,7 @@ Object.assign(window, {
       model = pick(models);
       if (!model) return {
         ok: false,
-        reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b), or connect a cloud key in the Vibe panel.'
+        reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b).'
       };
     }
     // Evict finished/orphaned jobs so a cancelled chat (whose poller stopped
@@ -24356,7 +24356,7 @@ Object.assign(window, {
       model = pick(models);
       if (!model) return {
         ok: false,
-        reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).'
+        reason: 'Ollama has no models.'
       };
     }
     const sys = grounding() + 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
@@ -24426,7 +24426,7 @@ Object.assign(window, {
       model = pick(models);
       if (!model) return {
         ok: false,
-        reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).'
+        reason: 'Ollama has no models.'
       };
     }
     const sources = typeof window !== 'undefined' && window.RoboLearn && window.RoboLearn.searchLessonNotes ? await window.RoboLearn.searchLessonNotes(query, 3, context.lessonId || null) : [];
@@ -30754,6 +30754,7 @@ say("Survey done")`
     const P = window.KodroProviders;
     const [cfg, setCfg] = React.useState(P ? P.config() : null);
     const [keyInput, setKeyInput] = React.useState('');
+    const [copied, setCopied] = React.useState(false);
     if (!P || !cfg) return null;
     // refresh() re-reads the picker's own view; bump() ALSO re-probes panel
     // availability so pasting a cloud key flips the panel from "AI is offline"
@@ -30762,6 +30763,30 @@ say("Survey done")`
     const bump = () => {
       refresh();
       if (onChange) onChange();
+    };
+    const copySetup = () => {
+      const guide = P && P.connectSetup ? P.connectSetup() : null;
+      const text = guide ? JSON.stringify(guide.mcp, null, 2) : '';
+      const done = () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      };
+      const fallbackCopy = () => {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          done();
+        } catch (e) {
+          void e;
+        }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallbackCopy);
+      } else fallbackCopy();
     };
     const isCloud = cfg.provider !== 'ollama';
     const isUnavailable = !!cfg.unavailable;
@@ -30877,13 +30902,52 @@ say("Survey done")`
         padding: '5px 8px',
         fontSize: 12
       }
-    })), isUnavailable ? /*#__PURE__*/React.createElement("p", {
+    })), isUnavailable ? /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("p", {
       style: {
         margin: '6px 0 0',
         fontSize: 10.5,
         color: 'var(--fg-3)'
       }
-    }, "Astra is not connected in this web runtime. API access uses a separately billed OpenAI API account and must run through a secure backend or local gateway. A ChatGPT subscription can use Astra in ChatGPT Work or Codex, but it does not authorize this webpage to make API requests.") : cfg.serverManaged ? /*#__PURE__*/React.createElement("p", {
+    }, "Astra is not connected in this web runtime. API access uses a separately billed OpenAI API account and must run through a secure backend or local gateway. A ChatGPT subscription can use Astra in ChatGPT Work or Codex, but it does not authorize this webpage to make API requests."), /*#__PURE__*/React.createElement("p", {
+      style: {
+        margin: '6px 0 0',
+        fontSize: 10.5,
+        color: 'var(--fg-3)'
+      }
+    }, "Connect it yourself instead. Both real paths run outside this page, so no key is ever typed here:"), /*#__PURE__*/React.createElement("ol", {
+      style: {
+        margin: '4px 0 0',
+        paddingLeft: 18,
+        fontSize: 10.5,
+        color: 'var(--fg-3)'
+      }
+    }, (P.connectSetup ? P.connectSetup().steps : []).map((step, i) => /*#__PURE__*/React.createElement("li", {
+      key: i,
+      style: {
+        marginTop: 2
+      }
+    }, step))), /*#__PURE__*/React.createElement("pre", {
+      style: {
+        margin: '6px 0 0',
+        padding: 6,
+        fontSize: 10.5,
+        background: 'var(--navy)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        overflowX: 'auto'
+      }
+    }, JSON.stringify(P.connectSetup ? P.connectSetup().mcp : {}, null, 2)), /*#__PURE__*/React.createElement("button", {
+      onClick: copySetup,
+      style: {
+        marginTop: 6,
+        background: 'var(--navy)',
+        color: 'var(--fg-1)',
+        border: '1px solid var(--border)',
+        borderRadius: 8,
+        padding: '5px 10px',
+        fontSize: 12
+      }
+    }, copied ? 'Copied' : 'Copy Codex MCP setup')) : cfg.serverManaged ? /*#__PURE__*/React.createElement("p", {
       style: {
         margin: '6px 0 0',
         fontSize: 10.5,

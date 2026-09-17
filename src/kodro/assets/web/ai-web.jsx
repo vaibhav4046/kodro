@@ -74,12 +74,12 @@
     if (httpOrigin && !localHost) {
       return {
         reason: 'blocked-origin',
-        hint: 'Your browser blocked the local AI (Ollama refuses this origin). Start Ollama allowing this page: set OLLAMA_ORIGINS=' + origin + ' then run ollama serve. Or use the desktop app, or connect a cloud key in the Vibe panel.',
+        hint: 'Your browser blocked the local AI (Ollama refuses this origin). Start Ollama allowing this page: set OLLAMA_ORIGINS=' + origin + ' then run ollama serve. Or use the desktop app.',
       };
     }
     return {
       reason: 'not-running',
-      hint: 'Ollama is not running. Start the Ollama app (or run: ollama serve), then reopen this panel. Or connect a cloud key in the Vibe panel.',
+      hint: 'Ollama is not running. Start the Ollama app (or run: ollama serve), then reopen this panel.',
     };
   }
 
@@ -515,7 +515,7 @@
       try { models = await tags(); }
       catch (e) { void e; return { ok: false, reason: ollamaUnavailableReason().hint }; }
       model = pick(models);
-      if (!model) return { ok: false, reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b), or connect a cloud key in the Vibe panel.' };
+      if (!model) return { ok: false, reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b).' };
     }
     // Evict finished/orphaned jobs so a cancelled chat (whose poller stopped
     // before marking the job done) does not accumulate in the map across a
@@ -695,7 +695,7 @@
       let models;
       try { models = await tags(); } catch (e) { void e; return { ok: false, reason: ollamaUnavailableReason().hint }; }
       model = pick(models);
-      if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).' };
+      if (!model) return { ok: false, reason: 'Ollama has no models.' };
     }
     const sys = grounding() + 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
     try {
@@ -731,7 +731,7 @@
       let models;
       try { models = await tags(); } catch (e) { void e; return { ok: false, reason: ollamaUnavailableReason().hint }; }
       model = pick(models);
-      if (!model) return { ok: false, reason: 'Ollama has no models (or connect a cloud key in the Vibe panel).' };
+      if (!model) return { ok: false, reason: 'Ollama has no models.' };
     }
     const sources = (typeof window !== 'undefined' && window.RoboLearn && window.RoboLearn.searchLessonNotes)
       ? await window.RoboLearn.searchLessonNotes(query, 3, context.lessonId || null) : [];

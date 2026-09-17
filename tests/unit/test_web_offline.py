@@ -151,6 +151,34 @@ def test_no_dead_cloud_provider_affordance() -> None:
         assert dead not in bundle, f"dead cloud affordance in bundle.js: {dead!r}"
 
 
+def test_no_dead_cloud_key_hint_in_ai_web() -> None:
+    """Ollama fallback hints must not promise a cloud key that does not exist.
+
+    Companion to the panels.jsx affordance guard: several ai-web.jsx status
+    hints ended with "connect a cloud key in the Vibe panel", but the panel
+    has no such option, so the hint was a dead end. Checked in source and
+    generated bundle together.
+    """
+    source = (WEB / "ai-web.jsx").read_text(encoding="utf-8")
+    bundle = (WEB / "bundle.js").read_text(encoding="utf-8")
+    assert "connect a cloud key" not in source, "dead cloud-key hint in ai-web.jsx"
+    assert "connect a cloud key" not in bundle, "dead cloud-key hint in bundle.js"
+
+
+def test_connect_astra_affordance_ships_in_source_and_bundle() -> None:
+    """The unavailable-Astra panel must offer the Codex/MCP setup help.
+
+    Guards that the connect affordance exists in the source AND made it
+    into the generated bundle (a rebuilt bundle that drops it would
+    silently remove the only in-product Astra connection path).
+    """
+    source = (WEB / "panels.jsx").read_text(encoding="utf-8")
+    bundle = (WEB / "bundle.js").read_text(encoding="utf-8")
+    for marker in ("Copy Codex MCP setup", "does not authorize this webpage"):
+        assert marker in source, f"connect copy missing in panels.jsx: {marker!r}"
+        assert marker in bundle, f"connect copy missing in bundle.js: {marker!r}"
+
+
 def test_fonts_css_uses_local_paths() -> None:
     css = (WEB / "vendor" / "fonts.css").read_text(encoding="utf-8")
     urls = re.findall(r"url\(([^)]+)\)", css)

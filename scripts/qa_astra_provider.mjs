@@ -122,6 +122,22 @@ check('service worker precaches Astra adapter', sw.includes("'./astra-provider.j
 P.setProvider('ollama');
 check('switching back restores local provider behaviour', P.isLocal() === true);
 check('non-Astra generation delegates unchanged', (await P.generate('x', {}, 'local')) === 'base-provider');
+
+// Connect assistance: the panel may guide the user to their own Codex/MCP
+// or API surfaces, but it must never collect a secret or promise web inference.
+check('adapter exposes a static Codex/MCP setup guide', typeof P.connectSetup === 'function');
+const setup = typeof P.connectSetup === 'function' ? P.connectSetup() : null;
+const setupText = JSON.stringify(setup);
+check('setup guide carries no secret-shaped fields',
+  !/key|token|password|secret|authorization/i.test(setupText),
+  setupText.slice(0, 120));
+check('setup MCP entry is the local stdio server',
+  setup && setup.mcp && setup.mcp.command === 'kodro-mcp' && setup.mcp.transport === 'stdio',
+  JSON.stringify((setup && setup.mcp) || null));
+check('setup steps route ChatGPT users to Codex without claiming web inference',
+  Array.isArray(setup.steps) && setup.steps.join(' ').includes('Codex')
+  && setup.steps.join(' ').includes('does not authorize this webpage'));
+check('setup guide makes zero network requests', requests.length === 0, String(requests.length));
 check('entire QA run made zero Astra/OpenAI network requests', requests.length === 0, String(requests.length));
 
 console.log(`\nAstra zero-cost runtime QA: ${pass} passed, ${fail} failed`);
