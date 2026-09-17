@@ -15,6 +15,23 @@ than the gap.
 
 ## [Unreleased]
 
+### Added
+- Genesis experiment loop (`kodro-genesis`, `kodro.genesis`): compare up to
+  4 candidate controllers through the deterministic Prove engine on shared
+  contracts and seed roots, with deterministic ranking, failure diagnosis,
+  byte-stable experiment manifests, and Markdown reports. See
+  `docs/genesis.md`.
+- Regression guard `test_no_dead_cloud_provider_affordance`: shipped web UI
+  must not offer cloud providers that do not exist.
+
+### Fixed
+- Removed dead cloud-provider affordances that promised Groq/OpenRouter picker
+  options and pasted keys which have no runtime: the vibe-panel hint, the
+  provider-picker comment, and two README passages now state the build is
+  Local-Ollama-only plus unavailable Astra. Rebuilt `bundle.js` from source.
+- `docs/mcp.md` install note referenced the retired `robolearn` package name;
+  it now says `kodro`.
+
 ## [2.1.0] - 2026-08-18
 
 ### Added
