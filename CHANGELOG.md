@@ -16,6 +16,12 @@ than the gap.
 ## [Unreleased]
 
 ### Added
+- Read-only WebMCP site tools (`webmcp-tools.js`): `kodro_get_workspace`,
+  `kodro_get_run_evidence`, `kodro_get_capabilities` register only where
+  the browser offers the official surface, inert elsewhere. 24-check gate,
+  browser-verified live reads, `docs/WEBMCP.md`. No mutation surface.
+
+### Added
 - Connect-Astra panel: the unavailable-Astra picker now shows the legitimate
   connection path (local MCP server + Codex steps with copyable stdio JSON)
   via `KodroProviders.connectSetup()`. No secret is collected; the zero-cost
