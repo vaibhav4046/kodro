@@ -16,6 +16,19 @@ than the gap.
 ## [Unreleased]
 
 ### Added
+- Connect-Astra panel: the unavailable-Astra picker now shows the legitimate
+  connection path (local MCP server + Codex steps with copyable stdio JSON)
+  via `KodroProviders.connectSetup()`. No secret is collected; the zero-cost
+  contract grows 32 → 37 checks.
+- Regression guards: connect affordance ships in source and bundle;
+  no "connect a cloud key" hints anywhere shipped.
+
+### Fixed
+- Purged five live "connect a cloud key in the Vibe panel" hints from
+  `ai-web.jsx` that promised an option which does not exist; rebuilt
+  `bundle.js` from source.
+
+### Added
 - Genesis experiment loop (`kodro-genesis`, `kodro.genesis`): compare up to
   4 candidate controllers through the deterministic Prove engine on shared
   contracts and seed roots, with deterministic ranking, failure diagnosis,
