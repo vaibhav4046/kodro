@@ -133,6 +133,9 @@
   <!-- Pre-compiled React components + app (generated from the .jsx sources) -->
   <script src="bundle.js"></script>
 
+  <!-- Read-only agent site tools (WebMCP). Registers Kodro's live workspace
+       only where the browser offers the official surface; inert elsewhere. -->
+  <script src="webmcp-tools.js"></script>
   <!-- PWA: register the service worker so the app works offline after the first
        load. Guarded to http(s) so the desktop (file://) path is a no-op, and
        failures are swallowed so a service-worker problem never blocks the app. -->

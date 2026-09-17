@@ -21,6 +21,7 @@
 const CACHE = 'kodro-shell-v1';
 const SHELL = [
   './', './index.html', './styles.css', './bundle.js', './astra-provider.js',
+  './webmcp-tools.js',
   './interpreter.js', './sound.js', './bridge.js',
   // lessons.json is PRECACHED, not left to runtime caching. It is fetched
   // network-first (see isFreshFirst) so a new deploy reaches returning
