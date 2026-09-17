@@ -1,27 +1,25 @@
-/* Kodro GPT-6 Astra provider adapter.
+/* Kodro GPT-6 Astra provider presentation.
  *
- * Loaded before bundle.js. The compiled bundle assigns window.KodroProviders;
- * this adapter intercepts that one assignment and extends the existing provider
- * layer without changing Kodro's default: Ollama remains local/offline unless a
- * user explicitly selects Astra and supplies their own OpenAI API key.
+ * Loaded before bundle.js. Astra is intentionally NOT an executable provider in
+ * the public web build: Ollama is the only active runtime. We still expose
+ * Astra in the provider picker so users can understand the two legitimate
+ * connection concepts without Kodro pretending a ChatGPT subscription is an
+ * API credential or making a paid request on the user's behalf.
  *
- * Astra uses the OpenAI Responses API. The adapter intentionally does NOT send
- * temperature/top_p, which GPT-6 Astra does not accept. Keys remain in this
- * browser's localStorage and are sent only to api.openai.com when Astra is
- * selected. No OpenAI request is made merely by loading Kodro.
+ * API access is separately billed and must be connected through a secure
+ * user-controlled backend/local gateway. ChatGPT subscription access to Astra
+ * belongs in supported ChatGPT surfaces such as Work or Codex; it does not
+ * authorize this webpage to call the OpenAI API.
  */
-(function (window, fetch, localStorage) {
+(function (window, localStorage) {
   'use strict';
 
-  if (!window || typeof fetch !== 'function') return;
+  if (!window) return;
 
   var PROVIDER_ID = 'astra';
   var MODEL = 'gpt-6-astra';
-  var ENDPOINT = 'https://api.openai.com/v1/responses';
   var PROVIDER_KEY = 'kodro_ai_provider';
   var MODEL_KEY = 'kodro_ai_cloud_model';
-  var API_KEY = 'kodro_ai_key_astra';
-  var TIMEOUT_MS = 120000;
 
   function lsGet(key) {
     try { return localStorage && localStorage.getItem(key); } catch (e) { return null; }
@@ -33,75 +31,27 @@
       else localStorage.setItem(key, value);
     } catch (e) { void e; }
   }
+
+  // Delete legacy browser-BYOK state without ever reading its value into JS.
+  try { if (localStorage) localStorage.removeItem('kodro_ai_key_astra'); } catch (e) { void e; }
+
   function selected() { return lsGet(PROVIDER_KEY) === PROVIDER_ID; }
-  function key() { return (lsGet(API_KEY) || '').trim(); }
 
-  function responseText(payload) {
-    if (!payload) return '';
-    if (typeof payload.output_text === 'string') return payload.output_text.trim();
-    var pieces = [];
-    (payload.output || []).forEach(function (item) {
-      (item && item.content || []).forEach(function (part) {
-        if (part && part.type === 'output_text' && typeof part.text === 'string') pieces.push(part.text);
-      });
+  function unavailableConfig(cfg, providers) {
+    return Object.assign({}, cfg, {
+      provider: PROVIDER_ID,
+      label: 'OpenAI GPT-6 Astra (not connected)',
+      local: false,
+      cloudReady: false,
+      cloudModel: MODEL,
+      hasKey: false,
+      serverManaged: false,
+      unavailable: true,
+      endpoint: '',
+      needsEndpoint: false,
+      connectionOptions: ['api', 'chatgpt'],
+      providers: providers,
     });
-    return pieces.join('').trim();
-  }
-
-  async function astraGenerate(prompt, opts) {
-    opts = opts || {};
-    var secret = key();
-    if (!secret) throw new Error('OpenAI API key required for GPT-6 Astra');
-
-    var requested = Number(opts.num_predict) || 400;
-    // max_output_tokens includes reasoning tokens. Keep enough headroom for low
-    // reasoning effort while retaining a hard cap for classroom-sized replies.
-    var maxOutput = Math.max(1024, Math.min(4096, requested * 2));
-    var body = {
-      model: MODEL,
-      input: String(prompt == null ? '' : prompt),
-      reasoning: { effort: 'low' },
-      max_output_tokens: maxOutput,
-      store: false,
-    };
-    if (opts.system) body.instructions = String(opts.system);
-    if (opts.format) {
-      body.text = {
-        format: {
-          type: 'json_schema',
-          name: 'kodro_program',
-          strict: false,
-          schema: opts.format,
-        },
-      };
-    }
-
-    var ctrl = new AbortController();
-    var timer = setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS);
-    var res;
-    try {
-      res = await fetch(ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + secret,
-        },
-        body: JSON.stringify(body),
-        signal: ctrl.signal,
-      });
-    } catch (e) {
-      if (e && e.name === 'AbortError') throw new Error('GPT-6 Astra took too long, try again');
-      throw e;
-    } finally {
-      clearTimeout(timer);
-    }
-
-    if (!res.ok) throw new Error('OpenAI ' + res.status + ': ' + (await res.text()).slice(0, 240));
-    var json = await res.json();
-    if (json && json.error) throw new Error('OpenAI: ' + (json.error.message || 'request failed'));
-    var text = responseText(json);
-    if (!text) throw new Error('GPT-6 Astra returned no text');
-    return text;
   }
 
   function wrap(base) {
@@ -115,22 +65,14 @@
       var providers = (cfg.providers || []).filter(function (p) { return p && p.id !== PROVIDER_ID; });
       providers.push({
         id: PROVIDER_ID,
-        label: 'OpenAI GPT-6 Astra (your API key)',
+        label: 'OpenAI GPT-6 Astra (not connected)',
         local: false,
-        hasKey: !!key(),
+        hasKey: false,
+        unavailable: true,
+        connectionOptions: ['api', 'chatgpt'],
       });
       if (!selected()) return Object.assign({}, cfg, { providers: providers });
-      return Object.assign({}, cfg, {
-        provider: PROVIDER_ID,
-        label: 'OpenAI GPT-6 Astra (your API key)',
-        local: false,
-        cloudReady: !!key(),
-        cloudModel: MODEL,
-        hasKey: !!key(),
-        endpoint: ENDPOINT,
-        needsEndpoint: false,
-        providers: providers,
-      });
+      return unavailableConfig(cfg, providers);
     };
 
     wrapped.setProvider = function (id) {
@@ -141,17 +83,18 @@
       }
       return base.setProvider(id);
     };
+
+    // Compatibility no-op: never accept or persist an OpenAI key in the web UI.
     wrapped.setKey = function (id, value) {
       if (id === PROVIDER_ID) {
-        lsSet(API_KEY, (value || '').trim());
+        void value;
         return wrapped.config();
       }
       return base.setKey(id, value);
     };
     wrapped.setCloudModel = function (model) {
       if (selected()) {
-        // The challenge integration is deliberately pinned to the Astra alias.
-        // Do not silently drift to a different OpenAI model.
+        void model;
         lsSet(MODEL_KEY, MODEL);
         return wrapped.config();
       }
@@ -162,7 +105,7 @@
       return base.listCloudModels();
     };
     wrapped.cloudReady = function () {
-      if (selected()) return !!key();
+      if (selected()) return false;
       return base.cloudReady();
     };
     wrapped.isLocal = function () {
@@ -170,7 +113,10 @@
       return base.isLocal();
     };
     wrapped.generate = async function (prompt, opts, ollamaModel) {
-      if (selected() && key()) return astraGenerate(prompt, opts);
+      if (selected()) {
+        void prompt; void opts; void ollamaModel;
+        throw new Error('GPT-6 Astra is not connected in this web runtime. Use Local (Ollama), or connect Astra through a supported user-controlled API/ChatGPT workflow.');
+      }
       return base.generate(prompt, opts, ollamaModel);
     };
 
@@ -187,8 +133,6 @@
       set: function (value) { captured = wrap(value); },
     });
   } catch (e) {
-    // Very old embedded browsers may refuse redefining the property. In that
-    // case preserve the existing provider object rather than breaking boot.
     if (captured) window.KodroProviders = captured;
   }
-})(window, window.fetch ? window.fetch.bind(window) : null, window.localStorage);
+})(window, window.localStorage);

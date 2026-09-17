@@ -1,88 +1,99 @@
 # Kodro × GPT-6 Astra Challenge — September 2026
 
-Kodro is an existing open-source robot design, simulation and computing-learning product. This document deliberately separates the pre-existing product from the work added for the Product Hunt GPT-6 Astra Challenge. It is evidence of the challenge integration, not a claim that all of Kodro was created during the event.
+Kodro is an existing open-source robot design, simulation and computing-learning product. This document separates the pre-existing product from challenge-specific Astra exploration and avoids claiming an integration is live when the public runtime cannot authenticate it safely.
 
-## What was added for the challenge
+## Current public runtime
 
-### 1. First-class GPT-6 Astra provider
+Kodro's public GitHub Pages build is **local-first and zero-cost**. Local Ollama is the only executable AI runtime.
 
-Kodro now exposes **OpenAI GPT-6 Astra (your API key)** inside the existing AI-provider picker.
+GPT-6 Astra remains visible in the provider picker as **OpenAI GPT-6 Astra (not connected)** so the product can explain the available connection concepts without making a paid request or collecting an OpenAI credential in browser JavaScript.
 
-- Model: `gpt-6-astra`
-- API: OpenAI Responses API, `POST https://api.openai.com/v1/responses`
-- Reasoning: `low` for interactive classroom latency
-- Storage: `store: false`
-- Structured robot-program generation: Responses API `text.format` JSON Schema
-- Unsupported Astra sampling parameters such as `temperature` and `top_p` are deliberately omitted.
-- The model alias is pinned so the challenge path cannot silently drift to another OpenAI model.
+Selecting Astra:
 
-The integration lives in `src/kodro/assets/web/astra-provider.js`. It wraps Kodro's existing provider abstraction before the compiled application mounts, so all existing AI surfaces that route through `KodroProviders.generate(...)` can use the Astra path without replacing Kodro's simulator, interpreter, grader or evidence systems.
+- makes zero network requests;
+- exposes no active OpenAI or Kodro-paid proxy endpoint;
+- stores no OpenAI API key;
+- reports `cloudReady: false` / unavailable;
+- fails closed if generation is attempted;
+- leaves the user free to switch immediately back to local Ollama.
 
-### 2. Offline-first behaviour is preserved
+The previous experimental Vercel/OpenAI server proxy has been removed from the repository, so Kodro itself cannot spend the maintainer's OpenAI API balance.
 
-Astra is **opt-in**, not a new default.
+## Astra connection concepts
 
-Kodro still starts on local Ollama and makes no OpenAI request merely by loading the application. A user must explicitly select Astra and supply their own OpenAI API key. The key stays in that browser's local storage and is sent in the Authorization header only when the user invokes the selected Astra provider. Switching back to Ollama restores the local path.
+### Separately billed API access
 
-The service worker never intercepts cross-origin AI requests and now precaches the small Astra adapter so the application shell remains offline-capable after first load.
+OpenAI API usage has its own billing. A user who has API access could connect Astra in a future supported integration through a secure backend or local gateway they control. The public Kodro webpage does not ask for, store, forward, or proxy the user's `OPENAI_API_KEY`.
 
-### 3. Teacher curriculum mode
+### ChatGPT subscription access
 
-The challenge build also integrates the teacher-facing curriculum layer merged in PR #45:
+Eligible ChatGPT plans can provide Astra in supported ChatGPT surfaces such as ChatGPT Work and Codex. That access is useful when working on or with Kodro from those products, but it does not make a ChatGPT subscription/session an API credential that the Kodro webpage can spend.
 
-- progressive challenge flow across the 24 guided challenges,
-- four classroom teaching blocks,
-- objectives, prerequisites, timings, support and stretch guidance,
-- downloadable lesson plans,
-- direct launch into the simulator,
+Kodro does not scrape or reuse ChatGPT cookies, session tokens or browser credentials. `Sign in with ChatGPT`, where available, is not represented as model-inference authorization for this webpage.
+
+See `docs/ASTRA_CONNECTIONS.md` for the runtime/authentication boundary.
+
+## Offline-first provider policy
+
+The base web provider layer now exposes only Ollama. Older Groq, OpenRouter and arbitrary cloud-endpoint runtime paths have been removed from the public provider implementation. Legacy browser-stored cloud credential/endpoint entries are deleted rather than reused.
+
+The Astra presentation adapter is loaded before the compiled application and is precached with the shell, but it contains no OpenAI fetch path. The deterministic simulator, interpreter, physics, grader and evidence systems remain independent of AI.
+
+## Teacher curriculum mode
+
+The challenge-era build also contains the teacher-facing curriculum layer merged through the repository's normal development history:
+
+- progressive challenge flow across the 24 guided challenges;
+- four classroom teaching blocks;
+- objectives, prerequisites, timings, support and stretch guidance;
+- downloadable lesson plans;
+- direct launch into the simulator;
 - saved learner progress.
 
-This turns the simulator into a clearer classroom journey while preserving Kodro's existing deterministic lesson grading.
+## Why the boundary matters
 
-## Why Astra is useful here
+Astra can be useful for language reasoning, code explanation and generating fitted-robot program ideas when a legitimate supported connection exists. It should not become the source of truth for robot execution. Kodro's deterministic interpreter, fitted-hardware constraints, simulator and grader retain that responsibility.
 
-Astra is not the physics engine and it is not allowed to decide whether a program actually passed a challenge. Kodro keeps those jobs deterministic.
+The public build therefore prefers an honest unavailable state over silently funding inference, exposing a browser API key, or presenting a ChatGPT subscription as an API entitlement.
 
-Astra is used where language reasoning is valuable: helping a learner turn an intent into code constrained to the fitted robot, reviewing/explaining code, and supporting the product's existing assistant surfaces. Generated code is still checked by Kodro's interpreter and hardware-aware command constraints before it can be treated as a valid robot program.
+## Public demo path
 
-That split is intentional: the model helps with reasoning and language; Kodro's simulator, interpreter, physics, grader and evidence pipeline remain the source of truth for execution.
+1. Open Kodro and show that **Local (Ollama, offline)** is the active provider.
+2. Open the provider picker and show **OpenAI GPT-6 Astra (not connected)**.
+3. Show the explanation for the two concepts: separately billed API access through a secure user-controlled gateway, or Astra usage from supported ChatGPT Work/Codex surfaces.
+4. Select Astra and show that it is marked unavailable and does not ask for an API key.
+5. Attempting generation must fail closed rather than create a cloud request.
+6. Switch back to Ollama and run the normal local robot-program workflow.
+7. Run the resulting program through Kodro's deterministic simulator/grader.
 
-## Judge demo path
-
-1. Open Kodro and enter the coding/Companion experience.
-2. In **AI provider**, select **OpenAI GPT-6 Astra (your API key)**.
-3. Paste an OpenAI API key. The UI should show the provider as connected.
-4. Ask for a small fitted-robot program, for example: `Drive forward 2 metres, turn right, and stop.`
-5. Apply/run the generated program and show that Kodro executes it in the simulator rather than merely displaying model text.
-6. Open a guided lesson and show the progressive challenge / teacher-plan layer.
-7. Switch the provider back to local Ollama to demonstrate that Astra is additive and Kodro's offline-first mode remains intact.
+Do not demo a fake ChatGPT-subscription login or claim that a subscription funds Kodro web inference.
 
 ## Verification
 
-`node scripts/qa_astra_provider.mjs` is a deterministic, no-network contract test. It verifies that:
+`node scripts/qa_astra_provider.mjs` verifies the zero-cost runtime contract, including:
 
-- Kodro remains local/offline by default;
-- Astra is exposed as a provider but makes zero cloud requests on load;
-- Astra requires an explicit user key;
-- the exact request targets the Responses API with model `gpt-6-astra`;
-- `temperature` and `top_p` are absent;
-- reasoning is explicitly configured;
-- structured output uses Responses `text.format` JSON Schema;
-- response storage is disabled;
-- the API key is in the Authorization header and not the JSON body;
-- the runtime adapter loads before `bundle.js`;
-- the service worker precaches the adapter;
-- switching back to Ollama delegates to the existing local provider path.
+- Ollama is the default and sole executable web AI runtime;
+- Groq, OpenRouter and arbitrary cloud endpoint implementations are absent from the base provider source;
+- Astra remains visible but unavailable;
+- Astra exposes no active endpoint;
+- a stale Astra browser key is deleted without being read;
+- selecting Astra makes zero network requests;
+- generation while Astra is selected fails closed and still makes zero network requests;
+- the Astra source contains no shared paid proxy URL, direct `api.openai.com` path, Authorization header or active fetch call;
+- the repository contains no executable `api/astra.js` paid proxy;
+- the UI accurately distinguishes separately billed API access from ChatGPT Work/Codex subscription access;
+- switching back to Ollama restores the local provider path.
 
-The repository also retains its broader CI gates for simulator boot, browser privacy, UI paint/behaviour/layout/modals, interpreter, physics, lesson grading, curriculum, pupil-facing errors, accessibility-related checks and cross-engine fuzzing.
+The repository's broader CI continues to cover simulator boot, browser privacy, generated-bundle freshness, UI behaviour/layout/modals, interpreter, physics, lesson grading, curriculum, accessibility-related checks and cross-engine fuzzing.
 
 ## Official references
 
 - Product Hunt challenge: https://www.producthunt.com/p/gpt-6-astra-challenge
 - GPT-6 Astra model: https://developers.openai.com/api/docs/models/gpt-6-astra
-- OpenAI GPT-6.0 migration/model guide: https://developers.openai.com/api/docs/guides/latest-model
-- OpenAI Responses API: https://developers.openai.com/api/reference/resources/responses
+- OpenAI model guide: https://developers.openai.com/api/docs/guides/latest-model
+- API-key safety: https://help.openai.com/en/articles/5112595-best-practices-for-api-key-safety
+- ChatGPT/API billing separation: https://help.openai.com/en/articles/9039756
 
 ## Provenance
 
-Kodro predates this challenge. The challenge-specific work should be reviewed through Git history and the files above. This repository does not represent pre-existing features as newly created with Astra.
+Kodro predates this challenge. Challenge-specific work should be reviewed through Git history. This repository does not represent pre-existing functionality as newly created with Astra and does not describe an unavailable paid runtime as live.

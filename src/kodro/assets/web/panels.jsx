@@ -831,10 +831,10 @@
   }
 
   // ---- Vibe coding (Code with AI) ----
-  // Choose the AI backend: Local (Ollama, offline default) or a bring-your-own-key
-  // FREE-TIER provider (Groq free tier, OpenRouter free models). The key stays in
-  // this browser and is sent only to the chosen provider; Local keeps the app
-  // fully offline.
+  // Choose the AI backend: Local (Ollama, offline default), a browser BYOK
+  // provider (Groq/OpenRouter/custom), or a server-managed provider such as
+  // Astra. Server-managed credentials never enter this browser; Local keeps the
+  // app fully offline.
   function ProviderPicker({ onChange }) {
     const P = window.KodroProviders;
     const [cfg, setCfg] = React.useState(P ? P.config() : null);
@@ -846,6 +846,7 @@
     const refresh = () => setCfg(P.config());
     const bump = () => { refresh(); if (onChange) onChange(); };
     const isCloud = cfg.provider !== 'ollama';
+    const isUnavailable = !!cfg.unavailable;
     return (
       <div className="vibe-provider" style={{ margin: '2px 0 8px', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--navy-2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -854,24 +855,30 @@
             style={{ background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12.5 }}>
             {cfg.providers.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
           </select>
-          {isCloud && <span style={{ fontSize: 11, color: cfg.cloudReady ? 'var(--success)' : 'var(--fg-3)' }}>{cfg.cloudReady ? 'connected' : (cfg.needsEndpoint ? 'needs an endpoint' : 'needs a key')}</span>}
+          {isCloud && <span style={{ fontSize: 11, color: cfg.cloudReady ? 'var(--success)' : 'var(--fg-3)' }}>{isUnavailable ? 'unavailable' : (cfg.serverManaged ? (cfg.cloudReady ? 'server managed' : 'server unavailable') : (cfg.cloudReady ? 'connected' : (cfg.needsEndpoint ? 'needs an endpoint' : 'needs a key')))}</span>}
         </div>
-        {cfg.provider === 'custom' && (
+        {!isUnavailable && cfg.provider === 'custom' && (
           <input type="text" aria-label="Endpoint URL" defaultValue={cfg.endpoint} placeholder="http://localhost:8080/v1/chat/completions"
             onChange={e => { P.setEndpoint(e.target.value); bump(); }}
             style={{ display: 'block', width: '100%', marginTop: 6, background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
         )}
-        {isCloud && (
+        {isCloud && !isUnavailable && (
           <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-            <input type="password" aria-label="API key" value={keyInput} placeholder={cfg.hasKey ? 'key saved (type to replace)' : (cfg.provider === 'custom' ? 'API key (optional)' : 'paste your API key')}
-              onChange={e => { setKeyInput(e.target.value); P.setKey(cfg.provider, e.target.value); bump(); }}
-              style={{ flex: '1 1 180px', background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
-            <input type="text" aria-label="Cloud model id" value={cfg.cloudModel} placeholder="model id"
-              onChange={e => { P.setCloudModel(e.target.value); bump(); }}
+            {isCloud && !cfg.serverManaged && (
+              <input type="password" aria-label="API key" value={keyInput} placeholder={cfg.hasKey ? 'key saved (type to replace)' : (cfg.provider === 'custom' ? 'API key (optional)' : 'paste your API key')}
+                onChange={e => { setKeyInput(e.target.value); P.setKey(cfg.provider, e.target.value); bump(); }}
+                style={{ flex: '1 1 180px', background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
+            )}
+            <input type="text" aria-label="Cloud model id" value={cfg.cloudModel} placeholder="model id" readOnly={!!cfg.serverManaged}
+              onChange={e => { if (!cfg.serverManaged) { P.setCloudModel(e.target.value); bump(); } }}
               style={{ flex: '0 1 160px', background: 'var(--navy)', color: 'var(--fg-1)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 8px', fontSize: 12 }} />
           </div>
         )}
-        {isCloud && <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Your key stays in this browser and is sent only to the provider you pick. Switch to Local for fully offline use.</p>}
+        {isUnavailable
+          ? <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Astra is not connected in this web runtime. API access uses a separately billed OpenAI API account and must run through a secure backend or local gateway. A ChatGPT subscription can use Astra in ChatGPT Work or Codex, but it does not authorize this webpage to make API requests.</p>
+          : cfg.serverManaged
+            ? <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>Server-managed connection. No API key is stored in this browser. Switch to Local for fully offline use.</p>
+            : isCloud && <p style={{ margin: '6px 0 0', fontSize: 10.5, color: 'var(--fg-3)' }}>This cloud provider requires its own connection. Switch to Local for fully offline use.</p>}
       </div>
     );
   }

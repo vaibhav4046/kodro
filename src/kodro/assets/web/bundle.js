@@ -23233,75 +23233,20 @@ Object.assign(window, {
 })();
 
 ;(function () {
-/* window.KodroProviders -- pluggable AI backend for the assistant.
+/* window.KodroProviders -- zero-cost local AI runtime.
  *
- * Kodro is OFFLINE BY DEFAULT: the default provider is the local Ollama server
- * at http://localhost:11434, and with no other provider selected the app makes
- * ZERO external network calls. A user who wants a hosted model may connect
- * their OWN key (bring-your-own-key) to a FREE-TIER provider: Groq (free API
- * tier) or OpenRouter (which serves free models such as the DeepSeek family).
- * Paid-only providers are deliberately not offered; every path through this
- * app can be exercised without spending money. The key lives only in this
- * browser's localStorage, is sent only to that one provider, and is never
- * logged, uploaded, or shared. Switching back to Ollama (or simply not
- * entering a key) restores the fully offline guarantee.
- *
- * This module owns provider config + a single generate(prompt, opts) entry the
- * assistant facade (ai-web.jsx) routes through, so the rest of the app does not
- * care which model answered.
+ * The public Kodro web build executes AI only through the user's local Ollama
+ * server at localhost. Hosted BYOK providers were removed so opening or using
+ * Kodro cannot accidentally create a cloud bill. Astra is presented separately
+ * by astra-provider.js as an unavailable connection option, not an executable
+ * browser provider.
  */
 (function () {
   'use strict';
 
   var OLLAMA = 'http://localhost:11434';
   var LOCAL_RE = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d+/i;
-
-  // Provider registry. `local:true` providers are the offline guarantee and use
-  // the localhost-only guard; cloud providers require an explicit user key and
-  // are never contacted until one is set AND the provider is selected.
-  // Free-tier only: a stored provider id from an older build (anthropic /
-  // openai) simply falls back to ollama via providerId(), so nothing breaks.
-  var PROVIDERS = {
-    ollama: {
-      id: 'ollama',
-      label: 'Local (Ollama, offline)',
-      local: true
-    },
-    groq: {
-      id: 'groq',
-      label: 'Groq (free tier, your key)',
-      local: false,
-      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-      defaultModel: 'llama-3.3-70b-versatile'
-    },
-    openrouter: {
-      id: 'openrouter',
-      label: 'OpenRouter (free models, your key)',
-      local: false,
-      endpoint: 'https://openrouter.ai/api/v1/chat/completions',
-      defaultModel: 'deepseek/deepseek-chat-v3-0324:free'
-    },
-    // A user-supplied OpenAI-compatible endpoint: a self-hosted gateway, a LAN
-    // server, a router such as OmniRoute or LiteLLM. The URL is typed by the
-    // user and stored only in this browser, so no host is hardcoded here and
-    // the offline scan stays clean; nothing is contacted until the user both
-    // selects this provider AND enters an endpoint. The key is OPTIONAL,
-    // because many self-hosted gateways take none.
-    custom: {
-      id: 'custom',
-      label: 'Custom endpoint (OpenAI-compatible, your URL)',
-      local: false,
-      defaultModel: ''
-    }
-  };
-  var KEYS = {
-    provider: 'kodro_ai_provider',
-    cloudModel: 'kodro_ai_cloud_model',
-    endpoint: 'kodro_ai_custom_endpoint',
-    key: function (id) {
-      return 'kodro_ai_key_' + id;
-    }
-  };
+  var PROVIDER_KEY = 'kodro_ai_provider';
   function lsGet(k) {
     try {
       return localStorage.getItem(k);
@@ -23316,142 +23261,31 @@ Object.assign(window, {
       void e;
     }
   }
+
+  // One-way cleanup of browser credentials/endpoints from older cloud-provider
+  // builds. Values are never read before deletion.
+  try {
+    ['kodro_ai_key_groq', 'kodro_ai_key_openrouter', 'kodro_ai_key_custom', 'kodro_ai_custom_endpoint'].forEach(function (k) {
+      localStorage.removeItem(k);
+    });
+  } catch (e) {
+    void e;
+  }
   function providerId() {
-    var p = lsGet(KEYS.provider);
-    return p && PROVIDERS[p] ? p : 'ollama';
+    return lsGet(PROVIDER_KEY) === 'ollama' ? 'ollama' : 'ollama';
   }
   function isLocal() {
-    return !!(PROVIDERS[providerId()] || {}).local;
+    return true;
   }
-  function keyFor(id) {
-    return lsGet(KEYS.key(id)) || '';
-  }
-  // The custom endpoint must parse as http(s) before anything is sent to it.
-  // A typo like "localhost:20128" (no scheme) or a javascript: URL is refused
-  // here rather than handed to fetch.
-  function customEndpoint() {
-    var raw = (lsGet(KEYS.endpoint) || '').trim();
-    if (!raw) return '';
-    try {
-      var u = new URL(raw);
-      if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
-      return raw;
-    } catch (e) {
-      return '';
-    }
-  }
-  function endpointFor(id) {
-    if (id === 'custom') return customEndpoint();
-    return (PROVIDERS[id] || {}).endpoint || '';
-  }
-  function cloudModel() {
-    var id = providerId();
-    var pr = PROVIDERS[id] || {};
-    return lsGet(KEYS.cloudModel) || pr.defaultModel || '';
-  }
-
-  // A cloud provider is USABLE only when selected AND holding a key. Otherwise
-  // the app silently falls back to the offline path, so a half-configured cloud
-  // provider never blocks the assistant and never leaks a request.
   function cloudReady() {
-    var id = providerId();
-    var pr = PROVIDERS[id];
-    if (!pr || pr.local) return false;
-    // Custom gateways often take no key, so an endpoint alone makes it ready.
-    if (id === 'custom') return !!customEndpoint();
-    return !!keyFor(id);
+    return false;
   }
   function localOnly(url) {
     if (!LOCAL_RE.test(url)) throw new Error('refusing non-local URL (offline): ' + url);
     return url;
   }
-
-  // Time budget for a cloud (BYOK) generate. A cloud API that hangs (network
-  // stall, provider outage, a request that never returns) would otherwise leave
-  // the vibe/review/Ask panel spinning forever, so every cloud request is
-  // wrapped in an AbortController plus timer. The timer is cleared on success
-  // AND on failure, and an aborted request surfaces one clear, honest error.
-  // Mirrors the local Ollama fetch guard (fetchTimeout) in ai-web.jsx.
-  var CLOUD_TIMEOUT_MS = 120000;
-  function fetchTimeout(url, options, ms) {
-    var ctrl = new AbortController();
-    var timer = setTimeout(function () {
-      ctrl.abort();
-    }, ms);
-    var opts = Object.assign({}, options || {}, {
-      signal: ctrl.signal
-    });
-    return fetch(url, opts).then(function (r) {
-      clearTimeout(timer);
-      return r;
-    }, function (e) {
-      clearTimeout(timer);
-      if (e && e.name === 'AbortError') throw new Error('the cloud model took too long, try again');
-      throw e;
-    });
-  }
-
-  // --- cloud generate (BYOK, free-tier providers) ----------------------------
-  // OpenAI-compatible chat/completions, shared by Groq and OpenRouter (both
-  // expose the identical surface). `label` only shapes the error message.
-  async function openaiCompatibleGenerate(endpoint, label, prompt, opts, key, model) {
-    var messages = [];
-    if (opts.system) messages.push({
-      role: 'system',
-      content: opts.system
-    });
-    messages.push({
-      role: 'user',
-      content: prompt
-    });
-    // stream:false is stated explicitly. Groq and OpenRouter default to a
-    // plain JSON response, but some self-hosted gateways (found live against
-    // OmniRoute) stream server-sent events unless told not to.
-    var body = {
-      model: model,
-      messages: messages,
-      max_tokens: opts.num_predict || 400,
-      stream: false
-    };
-    if (opts.temperature != null) body.temperature = opts.temperature;
-    var headers = {
-      'Content-Type': 'application/json'
-    };
-    if (key) headers.Authorization = 'Bearer ' + key;
-    var r = await fetchTimeout(endpoint, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(body)
-    }, CLOUD_TIMEOUT_MS);
-    if (!r.ok) throw new Error(label + ' ' + r.status + ': ' + (await r.text()).slice(0, 200));
-    var raw = await r.text();
-    // Insurance for gateways that stream anyway: reassemble the SSE deltas
-    // into one message instead of choking on "data:" prefixed lines.
-    if (/^\s*data:/.test(raw)) {
-      var pieces = [];
-      raw.split(/\r?\n/).forEach(function (line) {
-        line = line.trim();
-        if (line.indexOf('data:') !== 0) return;
-        var payload = line.slice(5).trim();
-        if (!payload || payload === '[DONE]') return;
-        try {
-          var c = JSON.parse(payload);
-          var d = ((c.choices || [])[0] || {}).delta || {};
-          if (d.content) pieces.push(d.content);
-          var m = ((c.choices || [])[0] || {}).message || {};
-          if (m.content) pieces.push(m.content);
-        } catch (e) {
-          void e;
-        }
-      });
-      return pieces.join('').trim();
-    }
-    var j = JSON.parse(raw);
-    return (((j.choices || [])[0] || {}).message || {}).content ? j.choices[0].message.content.trim() : '';
-  }
-
-  // Ollama non-streaming generate (the offline default).
   async function ollamaGenerate(prompt, opts, model) {
+    opts = opts || {};
     var body = {
       model: model,
       prompt: prompt,
@@ -23474,135 +23308,48 @@ Object.assign(window, {
     var j = await r.json();
     return (j.response || '').trim();
   }
-
-  // The single entry the assistant routes through. `ollamaModel` is the resolved
-  // local model name (the facade already picks it); cloud providers use the
-  // user's configured cloud model. When a cloud provider is selected but not
-  // ready (no key), we fall back to Ollama, preserving the offline default.
   async function generate(prompt, opts, ollamaModel) {
-    opts = opts || {};
-    var id = providerId();
-    var pr = PROVIDERS[id];
-    if (pr && !pr.local && cloudReady()) {
-      var key = keyFor(id);
-      var model = cloudModel();
-      if (id === 'groq') return openaiCompatibleGenerate(PROVIDERS.groq.endpoint, 'Groq', prompt, opts, key, model);
-      if (id === 'openrouter') return openaiCompatibleGenerate(PROVIDERS.openrouter.endpoint, 'OpenRouter', prompt, opts, key, model);
-      if (id === 'custom') return openaiCompatibleGenerate(customEndpoint(), 'Custom endpoint', prompt, opts, key, model);
-    }
-    return ollamaGenerate(prompt, opts, ollamaModel);
-  }
-
-  // List selectable models for the active provider (best effort). Both free
-  // providers expose an OpenAI-compatible /models list; a fetch failure falls
-  // back to a small curated set the user can still override with a free-text
-  // model id. For OpenRouter the FREE models are listed first, because the
-  // whole point of offering it is that nobody has to pay.
-  async function listCloudModels() {
-    var id = providerId();
-    if (id === 'groq' && keyFor('groq')) {
-      try {
-        var rg = await fetch(PROVIDERS.groq.endpoint.replace('/chat/completions', '/models'), {
-          headers: {
-            Authorization: 'Bearer ' + keyFor('groq')
-          }
-        });
-        if (rg.ok) {
-          var jg = await rg.json();
-          return (jg.data || []).map(function (m) {
-            return m.id;
-          }).sort();
-        }
-      } catch (e) {
-        void e;
-      }
-      return ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'qwen-2.5-coder-32b'];
-    }
-    if (id === 'openrouter' && keyFor('openrouter')) {
-      try {
-        var ro = await fetch(PROVIDERS.openrouter.endpoint.replace('/chat/completions', '/models'), {
-          headers: {
-            Authorization: 'Bearer ' + keyFor('openrouter')
-          }
-        });
-        if (ro.ok) {
-          var jo = await ro.json();
-          var ids = (jo.data || []).map(function (m) {
-            return m.id;
-          });
-          var free = ids.filter(function (x) {
-            return /:free$/.test(x);
-          }).sort();
-          var paid = ids.filter(function (x) {
-            return !/:free$/.test(x);
-          }).sort();
-          return free.concat(paid);
-        }
-      } catch (e) {
-        void e;
-      }
-      return ['deepseek/deepseek-chat-v3-0324:free', 'deepseek/deepseek-r1:free', 'meta-llama/llama-3.3-70b-instruct:free'];
-    }
-    if (id === 'custom' && customEndpoint()) {
-      try {
-        var hc = {};
-        if (keyFor('custom')) hc.Authorization = 'Bearer ' + keyFor('custom');
-        var rc = await fetch(customEndpoint().replace('/chat/completions', '/models'), {
-          headers: hc
-        });
-        if (rc.ok) {
-          var jc = await rc.json();
-          return (jc.data || []).map(function (m) {
-            return m.id;
-          }).sort();
-        }
-      } catch (e) {
-        void e;
-      }
-      return [];
-    }
-    return [];
+    return ollamaGenerate(prompt, opts || {}, ollamaModel);
   }
   function config() {
-    var id = providerId();
-    var pr = PROVIDERS[id] || {};
     return {
-      provider: id,
-      label: pr.label || id,
-      local: !!pr.local,
-      cloudReady: cloudReady(),
-      cloudModel: cloudModel(),
-      hasKey: !!keyFor(id),
-      endpoint: id === 'custom' ? lsGet(KEYS.endpoint) || '' : endpointFor(id) || '',
-      needsEndpoint: id === 'custom' && !customEndpoint(),
-      providers: Object.keys(PROVIDERS).map(function (k) {
-        return {
-          id: k,
-          label: PROVIDERS[k].label,
-          local: !!PROVIDERS[k].local,
-          hasKey: !!keyFor(k)
-        };
-      })
+      provider: providerId(),
+      label: 'Local (Ollama, offline)',
+      local: true,
+      cloudReady: false,
+      cloudModel: '',
+      hasKey: false,
+      endpoint: '',
+      needsEndpoint: false,
+      providers: [{
+        id: 'ollama',
+        label: 'Local (Ollama, offline)',
+        local: true,
+        hasKey: false
+      }]
     };
   }
   function setProvider(id) {
-    if (PROVIDERS[id]) {
-      lsSet(KEYS.provider, id);
-      lsSet(KEYS.cloudModel, '');
-    }
+    // Astra is intercepted by astra-provider.js. Every provider known to this
+    // base runtime resolves to Ollama.
+    if (id === 'ollama') lsSet(PROVIDER_KEY, 'ollama');
     return config();
   }
   function setKey(id, key) {
-    if (PROVIDERS[id] && !PROVIDERS[id].local) lsSet(KEYS.key(id), (key || '').trim());
+    void id;
+    void key;
     return config();
   }
   function setCloudModel(model) {
-    lsSet(KEYS.cloudModel, (model || '').trim());
+    void model;
     return config();
   }
   function setEndpoint(url) {
-    lsSet(KEYS.endpoint, (url || '').trim());
+    void url;
     return config();
+  }
+  async function listCloudModels() {
+    return [];
   }
   if (typeof window !== 'undefined') {
     window.KodroProviders = {
@@ -30998,10 +30745,10 @@ say("Survey done")`
   }
 
   // ---- Vibe coding (Code with AI) ----
-  // Choose the AI backend: Local (Ollama, offline default) or a bring-your-own-key
-  // FREE-TIER provider (Groq free tier, OpenRouter free models). The key stays in
-  // this browser and is sent only to the chosen provider; Local keeps the app
-  // fully offline.
+  // Choose the AI backend: Local (Ollama, offline default), a browser BYOK
+  // provider (Groq/OpenRouter/custom), or a server-managed provider such as
+  // Astra. Server-managed credentials never enter this browser; Local keeps the
+  // app fully offline.
   function ProviderPicker({
     onChange
   }) {
@@ -31018,6 +30765,7 @@ say("Survey done")`
       if (onChange) onChange();
     };
     const isCloud = cfg.provider !== 'ollama';
+    const isUnavailable = !!cfg.unavailable;
     return /*#__PURE__*/React.createElement("div", {
       className: "vibe-provider",
       style: {
@@ -31063,7 +30811,7 @@ say("Survey done")`
         fontSize: 11,
         color: cfg.cloudReady ? 'var(--success)' : 'var(--fg-3)'
       }
-    }, cfg.cloudReady ? 'connected' : cfg.needsEndpoint ? 'needs an endpoint' : 'needs a key')), cfg.provider === 'custom' && /*#__PURE__*/React.createElement("input", {
+    }, isUnavailable ? 'unavailable' : cfg.serverManaged ? cfg.cloudReady ? 'server managed' : 'server unavailable' : cfg.cloudReady ? 'connected' : cfg.needsEndpoint ? 'needs an endpoint' : 'needs a key')), !isUnavailable && cfg.provider === 'custom' && /*#__PURE__*/React.createElement("input", {
       type: "text",
       "aria-label": "Endpoint URL",
       defaultValue: cfg.endpoint,
@@ -31083,14 +30831,14 @@ say("Survey done")`
         padding: '5px 8px',
         fontSize: 12
       }
-    }), isCloud && /*#__PURE__*/React.createElement("div", {
+    }), isCloud && !isUnavailable && /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         gap: 6,
         marginTop: 6,
         flexWrap: 'wrap'
       }
-    }, /*#__PURE__*/React.createElement("input", {
+    }, isCloud && !cfg.serverManaged && /*#__PURE__*/React.createElement("input", {
       type: "password",
       "aria-label": "API key",
       value: keyInput,
@@ -31114,9 +30862,12 @@ say("Survey done")`
       "aria-label": "Cloud model id",
       value: cfg.cloudModel,
       placeholder: "model id",
+      readOnly: !!cfg.serverManaged,
       onChange: e => {
-        P.setCloudModel(e.target.value);
-        bump();
+        if (!cfg.serverManaged) {
+          P.setCloudModel(e.target.value);
+          bump();
+        }
       },
       style: {
         flex: '0 1 160px',
@@ -31127,13 +30878,25 @@ say("Survey done")`
         padding: '5px 8px',
         fontSize: 12
       }
-    })), isCloud && /*#__PURE__*/React.createElement("p", {
+    })), isUnavailable ? /*#__PURE__*/React.createElement("p", {
       style: {
         margin: '6px 0 0',
         fontSize: 10.5,
         color: 'var(--fg-3)'
       }
-    }, "Your key stays in this browser and is sent only to the provider you pick. Switch to Local for fully offline use."));
+    }, "Astra is not connected in this web runtime. API access uses a separately billed OpenAI API account and must run through a secure backend or local gateway. A ChatGPT subscription can use Astra in ChatGPT Work or Codex, but it does not authorize this webpage to make API requests.") : cfg.serverManaged ? /*#__PURE__*/React.createElement("p", {
+      style: {
+        margin: '6px 0 0',
+        fontSize: 10.5,
+        color: 'var(--fg-3)'
+      }
+    }, "Server-managed connection. No API key is stored in this browser. Switch to Local for fully offline use.") : isCloud && /*#__PURE__*/React.createElement("p", {
+      style: {
+        margin: '6px 0 0',
+        fontSize: 10.5,
+        color: 'var(--fg-3)'
+      }
+    }, "This cloud provider requires its own connection. Switch to Local for fully offline use."));
   }
 
   // Plain-English reasons for the recogniser's error codes. The raw codes
