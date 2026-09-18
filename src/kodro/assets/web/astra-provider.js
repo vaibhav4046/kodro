@@ -130,7 +130,7 @@
       return {
         steps: [
           'Install Kodro locally (pip install -e .) so the MCP server exists on your machine.',
-          'Verify it: run kodro-mcp --list-tools and confirm the 8 tools.',
+          'Verify it: run kodro-mcp --list-tools and confirm the 9 tools.',
           'In Codex (ChatGPT subscription) or any MCP-capable client, add a stdio server named kodro with command kodro-mcp. Copy the JSON below.',
           'Ask Astra to open a lesson, run the starter, read the grade, fix the failure, and re-prove with prove_contracts. Your API billing, if any, stays in your own client or gateway; a ChatGPT subscription does not authorize this webpage.'
         ],
