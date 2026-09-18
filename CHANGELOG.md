@@ -16,6 +16,10 @@ than the gap.
 ## [Unreleased]
 
 ### Added
+- Vibe input cap (4000 chars) with regression guard; unified no-models
+  hints with the pull command; clarified the offline steps line.
+
+### Added
 - Connect-Astra panel: the unavailable-Astra picker now shows the legitimate
   connection path (local MCP server + Codex steps with copyable stdio JSON)
   via `KodroProviders.connectSetup()`. No secret is collected; the zero-cost

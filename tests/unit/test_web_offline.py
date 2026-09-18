@@ -165,6 +165,19 @@ def test_no_dead_cloud_key_hint_in_ai_web() -> None:
     assert "connect a cloud key" not in bundle, "dead cloud-key hint in bundle.js"
 
 
+def test_vibe_input_is_length_bounded() -> None:
+    """The companion prompt box must cap input length.
+
+    Regression guard: an unbounded textarea let megabyte pastes ride into
+    a 120-second generation call. The cap lives on the input itself so no
+    path can submit more than the model call is budgeted for.
+    """
+    source = (WEB / "panels.jsx").read_text(encoding="utf-8")
+    bundle = (WEB / "bundle.js").read_text(encoding="utf-8")
+    assert "maxLength={4000}" in source, "vibe textarea has no input cap in panels.jsx"
+    assert "maxLength" in bundle, "vibe input cap missing in bundle.js"
+
+
 def test_connect_astra_affordance_ships_in_source_and_bundle() -> None:
     """The unavailable-Astra panel must offer the Codex/MCP setup help.
 
