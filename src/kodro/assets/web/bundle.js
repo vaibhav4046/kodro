@@ -24356,7 +24356,7 @@ Object.assign(window, {
       model = pick(models);
       if (!model) return {
         ok: false,
-        reason: 'Ollama has no models.'
+        reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b).'
       };
     }
     const sys = grounding() + 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
@@ -24426,7 +24426,7 @@ Object.assign(window, {
       model = pick(models);
       if (!model) return {
         ok: false,
-        reason: 'Ollama has no models.'
+        reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b).'
       };
     }
     const sources = typeof window !== 'undefined' && window.RoboLearn && window.RoboLearn.searchLessonNotes ? await window.RoboLearn.searchLessonNotes(query, 3, context.lessonId || null) : [];
@@ -31380,6 +31380,7 @@ say("Survey done")`
     }, /*#__PURE__*/React.createElement("textarea", {
       className: "vibe-input",
       rows: 2,
+      maxLength: 4000,
       placeholder: "Ask what happened, change the world, or describe what the robot should do",
       value: vibePrompt,
       onChange: e => setVibePrompt(e.target.value),
@@ -31409,7 +31410,7 @@ say("Survey done")`
       className: "vibe-hint"
     }, "Proposed edits are previews. Choose Apply or Discard for each one. Nothing runs until you press Run. The conversation stays on this device."), !aiInfo.available && /*#__PURE__*/React.createElement("ol", {
       className: "vibe-steps"
-    }, /*#__PURE__*/React.createElement("li", null, "Open-ended code generation is optional. The built-in diagnosis and controls above work now."), /*#__PURE__*/React.createElement("li", null, "For private generative help on ", /*#__PURE__*/React.createElement("b", null, "this computer"), ", install the Ollama app from ollama.com (no account needed)"), /*#__PURE__*/React.createElement("li", null, "Then run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro and code writing lights up. There is no cloud-provider option in this build: the only backends are Local Ollama and the built-in deterministic diagnosis.")))));
+    }, /*#__PURE__*/React.createElement("li", null, "Open-ended code generation is optional. The built-in diagnosis and controls above work now."), /*#__PURE__*/React.createElement("li", null, "For private generative help on ", /*#__PURE__*/React.createElement("b", null, "this computer"), ", install the Ollama app from ollama.com (no account needed)"), /*#__PURE__*/React.createElement("li", null, "Then run: ", /*#__PURE__*/React.createElement("code", null, "ollama pull qwen2.5-coder:3b"), " (or ", /*#__PURE__*/React.createElement("code", null, "gemma3"), ")"), /*#__PURE__*/React.createElement("li", null, "Reopen Kodro and code writing lights up. The only working backend here is Local Ollama; Astra stays listed but unavailable (connect it through Codex + MCP instead).")))));
   }
 
   // ---- Blocks (visual block editor) ----

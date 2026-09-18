@@ -695,7 +695,7 @@
       let models;
       try { models = await tags(); } catch (e) { void e; return { ok: false, reason: ollamaUnavailableReason().hint }; }
       model = pick(models);
-      if (!model) return { ok: false, reason: 'Ollama has no models.' };
+      if (!model) return { ok: false, reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b).' };
     }
     const sys = grounding() + 'You are a careful code reviewer for a simulated robot in Python. Return a tidied, runnable version of the user code in a python fence, then one or two short plain lines of what you changed and why. Keep the same behaviour.';
     try {
@@ -731,7 +731,7 @@
       let models;
       try { models = await tags(); } catch (e) { void e; return { ok: false, reason: ollamaUnavailableReason().hint }; }
       model = pick(models);
-      if (!model) return { ok: false, reason: 'Ollama has no models.' };
+      if (!model) return { ok: false, reason: 'Ollama has no models. Pull one (e.g. ollama pull qwen2.5-coder:3b).' };
     }
     const sources = (typeof window !== 'undefined' && window.RoboLearn && window.RoboLearn.searchLessonNotes)
       ? await window.RoboLearn.searchLessonNotes(query, 3, context.lessonId || null) : [];
