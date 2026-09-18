@@ -436,6 +436,113 @@ def prove_contracts(params: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def genesis_compare(params: dict[str, Any]) -> dict[str, Any]:
+    """Compare candidate controllers through the Prove engine and rank them.
+
+    The agent proposes programs; this tool measures them. Each candidate
+    runs the same contracts on the same seeds via :mod:`kodro.genesis`, so
+    the winner is the program with the best recorded evidence, never the
+    one a model preferred. The full experiment record is returned, with the
+    per-candidate verdicts and failure diagnoses duplicated at the top level
+    in the same camelCase the rest of this surface uses.
+    """
+    from kodro import genesis
+    from kodro.prove import load_contracts
+
+    raw = params.get("candidates")
+    if not isinstance(raw, (list, tuple)) or not raw:
+        raise ToolError(
+            "'candidates' must be a non-empty array of {name, source} objects "
+            f"(at most {genesis.MAX_CANDIDATES})."
+        )
+    if len(raw) > genesis.MAX_CANDIDATES:
+        raise ToolError(
+            f"at most {genesis.MAX_CANDIDATES} candidates per comparison, got {len(raw)}."
+        )
+    candidates: dict[str, str] = {}
+    for index, entry in enumerate(raw):
+        if not isinstance(entry, dict):
+            raise ToolError(f"candidates[{index}] must be an object with 'name' and 'source'.")
+        name = str(entry.get("name") or "").strip()
+        if not name:
+            raise ToolError(f"candidates[{index}] needs a non-empty 'name'.")
+        source = entry.get("source")
+        if not isinstance(source, str) or not source.strip():
+            raise ToolError(f"candidate {name!r} has no program text.")
+        if len(source) > MAX_SOURCE_CHARS:
+            raise ToolError(
+                f"candidate {name!r} is {len(source)} characters; the limit is {MAX_SOURCE_CHARS}."
+            )
+        if name in candidates:
+            raise ToolError(f"duplicate candidate name {name!r}.")
+        candidates[name] = source
+
+    contracts = load_contracts()
+    wanted = str(params.get("contractId") or "").strip()
+    if wanted:
+        contracts = tuple(c for c in contracts if c.contract_id == wanted)
+        if not contracts:
+            raise ToolError(f"No contract with id {wanted!r}.")
+    # Same absent-versus-zero distinction as ``prove_contracts``: an explicit
+    # ``runs: 0`` is a mistake to report, not a default to apply.
+    raw_runs = params.get("runs")
+    if raw_runs is None:
+        runs = 3
+    else:
+        try:
+            runs = int(raw_runs)
+        except (TypeError, ValueError) as exc:
+            raise ToolError(f"'runs' must be a whole number, got {raw_runs!r}.") from exc
+    if runs < genesis.MIN_RUNS:
+        raise ToolError(f"'runs' must be at least {genesis.MIN_RUNS}.")
+    if runs > genesis.MAX_RUNS:
+        raise ToolError(
+            f"'runs' must be at most {genesis.MAX_RUNS}, got {runs}. "
+            "Each seed runs every contract for every candidate."
+        )
+    raw_seed = params.get("seedRoot")
+    if raw_seed is None:
+        seed_root = 4046
+    else:
+        try:
+            seed_root = int(raw_seed)
+        except (TypeError, ValueError) as exc:
+            raise ToolError(f"'seedRoot' must be a whole number, got {raw_seed!r}.") from exc
+    try:
+        experiment = genesis.run_experiment(candidates, contracts, runs=runs, seed_root=seed_root)
+    except ValueError as exc:
+        raise ToolError(str(exc)) from exc
+    record = _jsonable(experiment)
+    by_name = {entry["name"]: entry for entry in record["candidates"]}
+    return {
+        "schema": record["schema"],
+        "winner": record["winner"],
+        "winnerVerdict": record["winner_verdict"],
+        "ranking": record["ranking"],
+        "seedRoot": record["seed_root"],
+        "runsPerContract": record["runs_per_contract"],
+        "engine": record["engine"],
+        "candidates": [
+            {
+                "name": name,
+                "controllerSha256": by_name[name]["controller_sha256"],
+                "verdict": by_name[name]["manifest"]["verdict"],
+                "manifest": by_name[name]["manifest"],
+            }
+            for name in record["ranking"]
+        ],
+        "diagnosis": {
+            name: {
+                "failedContracts": diag["failed_contracts"],
+                "worstSeed": diag["worst_seed"],
+                "nextAction": diag["next_action"],
+            }
+            for name, diag in record["diagnosis"].items()
+        },
+        "evidenceBoundary": record["evidence_boundary"],
+    }
+
+
 def pupil_progress(params: dict[str, Any]) -> dict[str, Any]:
     """Summarise local progress: attempts, passes and per-concept strength.
 
@@ -631,6 +738,39 @@ TOOLS: Final[tuple[dict[str, Any], ...]] = (
             },
         },
         "handler": prove_contracts,
+    },
+    {
+        "name": "genesis_compare",
+        "description": (
+            "Compare 1-4 named candidate controllers through the Prove engine on shared "
+            "contracts and seeds, then rank them by recorded evidence and diagnose each "
+            "failure. The agent proposes; Kodro measures. Answers 'which program is best?'."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "candidates": {
+                    "type": "array",
+                    "description": "1-4 objects with 'name' and 'source' (program text).",
+                },
+                "contractId": {
+                    "type": "string",
+                    "description": "Optional single contract to run.",
+                },
+                "runs": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 10,
+                    "description": "Seeds per contract per candidate (default 3, maximum 10).",
+                },
+                "seedRoot": {
+                    "type": "integer",
+                    "description": "Root deterministic seed (default 4046).",
+                },
+            },
+            "required": ["candidates"],
+        },
+        "handler": genesis_compare,
     },
     {
         "name": "pupil_progress",

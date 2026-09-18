@@ -94,9 +94,12 @@ ok(
 proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n")
 proc.stdin.flush()
 
-# 2. tools/list -> 8, resources/list -> 25
+# 2. tools/list -> 9, resources/list -> 25. The count moved on from the CA2
+# demo's 8 when genesis_compare landed; authority is docs/mcp.md (updated
+# first, per this file's docstring). docs/ca2/MCP_DEMO_PROMPT.md stays a
+# true dated record of the 8-tool demo and is not edited.
 tools = rpc("tools/list")["result"]["tools"]
-ok(len(tools) == 8, "2  tools/list -> 8 tools", len(tools))
+ok(len(tools) == 9, "2  tools/list -> 9 tools", len(tools))
 resources = rpc("resources/list")["result"]["resources"]
 ok(len(resources) == 25, "   resources/list -> 25 resources", len(resources))
 

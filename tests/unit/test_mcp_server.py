@@ -1,4 +1,4 @@
-"""MCP server tests: the protocol layer and the eight tools behind it.
+"""MCP server tests: the protocol layer and the nine tools behind it.
 
 The dispatcher is deliberately transport-free, so every protocol test here
 hands :meth:`Server.handle` a decoded dict and asserts on a decoded dict -- no
@@ -841,3 +841,56 @@ def test_the_server_never_reaches_the_network(monkeypatch: Any) -> None:
     structured(
         call(srv, "grade_program", {"lessonId": "00_first_drive", "source": "move_forward(3)"})
     )
+
+
+# --- genesis_compare -------------------------------------------------------
+
+
+def test_genesis_compare_picks_the_passing_candidate(server: Server) -> None:
+    payload = structured(
+        call(
+            server,
+            "genesis_compare",
+            {
+                "candidates": [
+                    {"name": "good", "source": "move_forward(3)\n"},
+                    {"name": "broken", "source": "move_forward(100)\n"},
+                ],
+                "contractId": "straight_transit",
+                "runs": 1,
+            },
+        )
+    )
+    assert payload["schema"] == "kodro.genesis-experiment/1"
+    assert payload["winner"] == "good"
+    assert payload["winnerVerdict"] == "pass"
+    assert payload["ranking"][0] == "good"
+    assert payload["seedRoot"] == 4046
+    assert payload["runsPerContract"] == 1
+    assert "Kinematic simulation evidence only" in payload["evidenceBoundary"]
+    assert {c["name"] for c in payload["candidates"]} == {"good", "broken"}
+    assert payload["diagnosis"]["broken"]["failedContracts"] == ["straight_transit"]
+    assert payload["diagnosis"]["broken"]["nextAction"]
+    assert payload["diagnosis"]["good"]["failedContracts"] == []
+
+
+def test_genesis_compare_rejects_bad_batches(server: Server) -> None:
+    good = {"name": "good", "source": "move_forward(3)\n"}
+    cases = [
+        ({}, "candidates"),
+        ({"candidates": []}, "non-empty"),
+        ({"candidates": [good] * 5}, "at most 4"),
+        ({"candidates": [{"name": "good"}]}, "program text"),
+        ({"candidates": [{"source": "move_forward(3)\n"}]}, "name"),
+        ({"candidates": [good, good]}, "duplicate"),
+        ({"candidates": [good], "runs": 0}, "at least 1"),
+        ({"candidates": [good], "runs": 99}, "at most 10"),
+        ({"candidates": [good], "runs": "3"}, "whole number"),
+        ({"candidates": [good], "contractId": "not_a_contract"}, "No contract"),
+        ({"candidates": "good"}, "array"),
+    ]
+    for arguments, fragment in cases:
+        result = call(server, "genesis_compare", arguments)
+        assert result["isError"] is True, arguments
+        text = result["content"][0]["text"]
+        assert fragment in text, (arguments, text)

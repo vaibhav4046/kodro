@@ -16,10 +16,11 @@ than the gap.
 ## [Unreleased]
 
 ### Added
+- Ninth MCP tool `genesis_compare`: 1–4 named candidates through Prove on
+  shared contracts/seeds, ranked by evidence with failure diagnoses. Finale
+  pin moves 8 → 9 (docs/mcp.md updated first; CA2 demo record untouched).
 - Vibe input cap (4000 chars) with regression guard; unified no-models
   hints with the pull command; clarified the offline steps line.
-
-### Added
 - Connect-Astra panel: the unavailable-Astra picker now shows the legitimate
   connection path (local MCP server + Codex steps with copyable stdio JSON)
   via `KodroProviders.connectSetup()`. No secret is collected; the zero-cost
