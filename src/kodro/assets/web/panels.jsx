@@ -1224,6 +1224,7 @@
                 <textarea
                   className="vibe-input"
                   rows={2}
+                  maxLength={4000}
                   placeholder='Ask what happened, change the world, or describe what the robot should do'
                   value={vibePrompt}
                   onChange={e => setVibePrompt(e.target.value)}
@@ -1250,7 +1251,7 @@
                   <li>Open-ended code generation is optional. The built-in diagnosis and controls above work now.</li>
                   <li>For private generative help on <b>this computer</b>, install the Ollama app from ollama.com (no account needed)</li>
                   <li>Then run: <code>ollama pull qwen2.5-coder:3b</code> (or <code>gemma3</code>)</li>
-                  <li>Reopen Kodro and code writing lights up. There is no cloud-provider option in this build: the only backends are Local Ollama and the built-in deterministic diagnosis.</li>
+                  <li>Reopen Kodro and code writing lights up. The only working backend here is Local Ollama; Astra stays listed but unavailable (connect it through Codex + MCP instead).</li>
                 </ol>
               )}
             </div>
