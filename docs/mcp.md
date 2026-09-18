@@ -118,7 +118,7 @@ not written into the test, so adding a tool does not require editing it.
 
 ## What the assistant can call
 
-Eight tools. Arguments marked `*` are required.
+Nine tools. Arguments marked `*` are required.
 
 | Tool | Arguments | What it does |
 |---|---|---|
@@ -129,6 +129,7 @@ Eight tools. Arguments marked `*` are required.
 | `check_api` | `nameContains` | The rover functions pupil code may call, with signatures, read live from the sandbox allow-list. |
 | `validate_robot_spec` | `spec`, `path` | Validates a `.krs` robot spec and reports what the physics model will do with it. |
 | `prove_contracts` | `contractId`, `runs` | Runs the property-based contract checks and returns the verdict per contract. |
+| `genesis_compare` | `candidates*`, `contractId`, `runs`, `seedRoot` | Runs 1–4 named candidate controllers through the same Prove engine on shared contracts and seeds, then ranks them by evidence and diagnoses each failure. The agent proposes; Kodro measures. |
 | `pupil_progress` | `pupilId`, `dbPath` | Summarises local attempts, passes and per-concept strength from this machine's pupil database. |
 
 Resources are the lesson library and the API reference, one URI each, all
