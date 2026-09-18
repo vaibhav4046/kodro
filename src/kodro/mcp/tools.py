@@ -462,9 +462,7 @@ def genesis_compare(params: dict[str, Any]) -> dict[str, Any]:
     candidates: dict[str, str] = {}
     for index, entry in enumerate(raw):
         if not isinstance(entry, dict):
-            raise ToolError(
-                f"candidates[{index}] must be an object with 'name' and 'source'."
-            )
+            raise ToolError(f"candidates[{index}] must be an object with 'name' and 'source'.")
         name = str(entry.get("name") or "").strip()
         if not name:
             raise ToolError(f"candidates[{index}] needs a non-empty 'name'.")
@@ -473,8 +471,7 @@ def genesis_compare(params: dict[str, Any]) -> dict[str, Any]:
             raise ToolError(f"candidate {name!r} has no program text.")
         if len(source) > MAX_SOURCE_CHARS:
             raise ToolError(
-                f"candidate {name!r} is {len(source)} characters; "
-                f"the limit is {MAX_SOURCE_CHARS}."
+                f"candidate {name!r} is {len(source)} characters; the limit is {MAX_SOURCE_CHARS}."
             )
         if name in candidates:
             raise ToolError(f"duplicate candidate name {name!r}.")
@@ -512,9 +509,7 @@ def genesis_compare(params: dict[str, Any]) -> dict[str, Any]:
         except (TypeError, ValueError) as exc:
             raise ToolError(f"'seedRoot' must be a whole number, got {raw_seed!r}.") from exc
     try:
-        experiment = genesis.run_experiment(
-            candidates, contracts, runs=runs, seed_root=seed_root
-        )
+        experiment = genesis.run_experiment(candidates, contracts, runs=runs, seed_root=seed_root)
     except ValueError as exc:
         raise ToolError(str(exc)) from exc
     record = _jsonable(experiment)
