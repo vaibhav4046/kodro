@@ -22006,6 +22006,24 @@ Object.assign(window, {
 .kh-lede em{font-style:normal;color:var(--cyan)}
 .kh-sub{max-width:54ch;margin:22px 0 0;color:var(--fg-2);font-size:clamp(15px,1.7vw,18px);line-height:1.6}
 .kh-sub strong{color:var(--fg-1)}
+.kh-earthproof{
+  margin-top:18px;padding:14px 16px;border:1px solid color-mix(in srgb,var(--cyan) 38%,var(--border));
+  border-radius:var(--radius-xl);background:linear-gradient(155deg,color-mix(in srgb,var(--cyan) 9%,var(--navy-2)),var(--navy));
+}
+.kh-earthproof-pill{
+  display:inline-block;margin-bottom:8px;padding:4px 10px;border-radius:999px;
+  color:var(--void);background:var(--cyan);
+  font:700 var(--text-xs)/1.4 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;
+}
+.kh-earthproof p{margin:8px 0 0;color:var(--fg-2);font-size:var(--text-md);line-height:1.55}
+.kh-earthproof strong{color:var(--fg-1)}
+.kh-earthproof-cta{
+  appearance:none;margin-top:12px;min-height:40px;padding:9px 14px;border-radius:var(--radius-md);
+  border:1px solid var(--cyan);color:var(--void);background:var(--cyan);
+  font:700 var(--text-md)/1.2 var(--font-body);cursor:pointer;
+}
+.kh-earthproof-cta:hover{filter:brightness(1.08)}
+.kh-earthproof-cta:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
 .kh-route{
   position:relative;aspect-ratio:1;border:1px solid var(--border);
   border-radius:38% 62% 58% 42% / 45% 36% 64% 55%;
@@ -22223,7 +22241,20 @@ Object.assign(window, {
       id: "kh-title"
     }, "Design a robot. ", /*#__PURE__*/React.createElement("em", null, "Program it."), " Watch it work."), /*#__PURE__*/React.createElement("p", {
       className: "kh-sub"
-    }, "Build from real hobby parts, write Python and test the result in a simulated world.", /*#__PURE__*/React.createElement("strong", null, " Everything runs on this machine, for free."))), /*#__PURE__*/React.createElement("div", {
+    }, "Build from real hobby parts, write Python and test the result in a simulated world.", /*#__PURE__*/React.createElement("strong", null, " Everything runs on this machine, for free.")), /*#__PURE__*/React.createElement("div", {
+      className: "kh-earthproof",
+      "data-earthproof-home": "entry",
+      "aria-label": "EarthProof NextStep evidence entry"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "kh-earthproof-pill"
+    }, "EarthProof \xB7 NextStep 2026"), /*#__PURE__*/React.createElement("p", null, /*#__PURE__*/React.createElement("strong", null, "Design -> Simulate -> Prove -> EarthProof -> Build."), " Prove the build before you buy the hardware: illustrative ", /*#__PURE__*/React.createElement("strong", null, "0.040 kWh \u2192 0.020 kWh (-50%)"), " central operating-energy scenario. ", /*#__PURE__*/React.createElement("strong", null, "CO2e not claimed"), " \u2014 illustrative scenario, not measured impact."), /*#__PURE__*/React.createElement("p", null, "Energy comparison only; it is not a carbon or lifecycle-impact claim."), /*#__PURE__*/React.createElement("button", {
+      type: "button",
+      className: "kh-earthproof-cta",
+      onClick: () => {
+        const fn = props.onDesign;
+        if (fn) fn();
+      }
+    }, "See the EarthProof decision \u2192 Design, then Build"))), /*#__PURE__*/React.createElement("div", {
       className: "kh-route",
       "aria-hidden": "true"
     }, /*#__PURE__*/React.createElement(BrandMark, {

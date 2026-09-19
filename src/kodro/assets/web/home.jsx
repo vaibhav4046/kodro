@@ -62,6 +62,24 @@
 .kh-lede em{font-style:normal;color:var(--cyan)}
 .kh-sub{max-width:54ch;margin:22px 0 0;color:var(--fg-2);font-size:clamp(15px,1.7vw,18px);line-height:1.6}
 .kh-sub strong{color:var(--fg-1)}
+.kh-earthproof{
+  margin-top:18px;padding:14px 16px;border:1px solid color-mix(in srgb,var(--cyan) 38%,var(--border));
+  border-radius:var(--radius-xl);background:linear-gradient(155deg,color-mix(in srgb,var(--cyan) 9%,var(--navy-2)),var(--navy));
+}
+.kh-earthproof-pill{
+  display:inline-block;margin-bottom:8px;padding:4px 10px;border-radius:999px;
+  color:var(--void);background:var(--cyan);
+  font:700 var(--text-xs)/1.4 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;
+}
+.kh-earthproof p{margin:8px 0 0;color:var(--fg-2);font-size:var(--text-md);line-height:1.55}
+.kh-earthproof strong{color:var(--fg-1)}
+.kh-earthproof-cta{
+  appearance:none;margin-top:12px;min-height:40px;padding:9px 14px;border-radius:var(--radius-md);
+  border:1px solid var(--cyan);color:var(--void);background:var(--cyan);
+  font:700 var(--text-md)/1.2 var(--font-body);cursor:pointer;
+}
+.kh-earthproof-cta:hover{filter:brightness(1.08)}
+.kh-earthproof-cta:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
 .kh-route{
   position:relative;aspect-ratio:1;border:1px solid var(--border);
   border-radius:38% 62% 58% 42% / 45% 36% 64% 55%;
@@ -270,6 +288,25 @@
                   Build from real hobby parts, write Python and test the result in a simulated world.
                   <strong> Everything runs on this machine, for free.</strong>
                 </p>
+                <div className="kh-earthproof" data-earthproof-home="entry" aria-label="EarthProof NextStep evidence entry">
+                  <span className="kh-earthproof-pill">EarthProof · NextStep 2026</span>
+                  <p>
+                    <strong>Design -&gt; Simulate -&gt; Prove -&gt; EarthProof -&gt; Build.</strong> Prove the
+                    build before you buy the hardware: illustrative <strong>0.040 kWh → 0.020 kWh (-50%)</strong> central
+                    operating-energy scenario. <strong>CO2e not claimed</strong> — illustrative scenario, not measured impact.
+                  </p>
+                  <p>Energy comparison only; it is not a carbon or lifecycle-impact claim.</p>
+                  <button
+                    type="button"
+                    className="kh-earthproof-cta"
+                    onClick={() => {
+                      const fn = props.onDesign;
+                      if (fn) fn();
+                    }}
+                  >
+                    See the EarthProof decision → Design, then Build
+                  </button>
+                </div>
               </div>
               <div className="kh-route" aria-hidden="true">
                 <BrandMark className="kh-route-mark" />
