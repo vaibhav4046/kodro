@@ -4,20 +4,23 @@
 
 Design -> Simulate -> Prove -> EarthProof -> Build. Prove the build before you buy the hardware.
 
-- Baseline: **0.040 kWh** central operating energy (0.0252 / 0.0400 / 0.0540 kWh (low/central/high))
-- Candidate: **0.020 kWh** central operating energy (0.0135 / 0.0200 / 0.0360 kWh (low/central/high))
+- Baseline: **0.040 kWh** central operating energy
+  (0.0252 / 0.0400 / 0.0540 kWh (low/high))
+- Candidate: **0.020 kWh** central operating energy
+  (0.0135 / 0.0200 / 0.0360 kWh (low/high))
 - Change: **-50%** central operating-energy scenario
-- CO2e: **not claimed** — illustrative scenario, not measured impact.
+- CO2e: **not claimed** — illustrative scenario,
+  not measured impact.
 
 > Energy comparison only; it is not a carbon or lifecycle-impact claim.
 
 | Metric | Value |
 |---|---|
-| Baseline operating energy (kWh) | 0.0252 / 0.0400 / 0.0540 kWh (low/central/high) |
-| Candidate operating energy (kWh) | 0.0135 / 0.0200 / 0.0360 kWh (low/central/high) |
-| Battery capacity (Wh) | 22.0000 / 24.4200 / 26.8800 Wh (low/central/high) |
+| Baseline operating energy (kWh) | 0.0252 / 0.0400 / 0.0540 kWh (low/high) |
+| Candidate operating energy (kWh) | 0.0135 / 0.0200 / 0.0360 kWh (low/high) |
+| Battery capacity (Wh) | 22.0000 / 24.4200 / 26.8800 Wh (low/high) |
 | Operational CO2e | not claimed (null) |
-| Scenario material avoided (kg) | 0.8000 / 1.0000 / 1.2000 kg (low/central/high) |
+| Scenario material avoided (kg) | 0.8000 / 1.0000 / 1.2000 kg (low/high) |
 
 ## Limitations (always shown)
 
