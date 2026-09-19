@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kodro EarthProof Certificate — Illustrative classroom rover scenario</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#0b1220;color:#e8eef7;margin:0;padding:32px}
+.card{max-width:760px;margin:auto;background:#111c33;border:1px solid #2dd4bf;border-radius:16px;padding:28px}
+.pill{display:inline-block;background:#2dd4bf;color:#06281f;font-weight:800;font-size:12px;letter-spacing:.1em;padding:4px 12px;border-radius:999px;text-transform:uppercase}
+.flow{display:flex;gap:12px;align-items:center;margin:16px 0;flex-wrap:wrap}
+.metric{background:#0b1220;border:1px solid #334155;border-radius:12px;padding:12px 16px;min-width:150px}
+.metric strong{font-size:22px;display:block}
+.delta{font-size:28px;font-weight:800;color:#2dd4bf}
+.boundary{background:#3b2f04;border:1px solid #f59e0b;border-radius:10px;padding:10px 14px;font-size:14px}
+code{background:#0b1220;padding:2px 6px;border-radius:6px;font-size:12px}
+table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+td,th{border:1px solid #334155;padding:8px;text-align:left}
+h1{margin:12px 0 4px}h2{margin-top:20px}
+.classroom{margin-top:16px;border:1px dashed #2dd4bf;border-radius:10px;padding:12px 14px}
+.small{color:#94a3b8;font-size:13px}
+</style>
+</head>
+<body>
+<div class="card">
+<span class="pill">EarthProof · NextStep 2026</span>
+<h1>Evidence before hardware</h1>
+<p>Design -&gt; Simulate -&gt; Prove -&gt; EarthProof -&gt; Build. Prove the build before you buy the hardware.</p>
+<div class="flow">
+<div class="metric"><span>Baseline</span><strong>0.040 kWh</strong><small>central operating energy</small></div>
+<span>→</span>
+<div class="metric"><span>Candidate</span><strong>0.020 kWh</strong><small>central operating energy</small></div>
+<span class="delta">-50%</span>
+</div>
+<p class="boundary"><strong>Energy comparison only; it is not a carbon or lifecycle-impact claim.</strong> CO2e not claimed — illustrative scenario, not measured impact.</p>
+<table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Baseline operating energy (kWh)</td><td>0.0252 / 0.0400 / 0.0540 kWh (low/central/high)</td></tr>
+<tr><td>Candidate operating energy (kWh)</td><td>0.0135 / 0.0200 / 0.0360 kWh (low/central/high)</td></tr>
+<tr><td>Battery capacity (Wh)</td><td>22.0000 / 24.4200 / 26.8800 Wh (low/central/high)</td></tr>
+<tr><td>Operational CO2e</td><td>not claimed (null)</td></tr>
+<tr><td>Scenario material avoided (kg)</td><td>0.8000 / 1.0000 / 1.2000 kg (low/central/high)</td></tr>
+</table>
+<h2>Limitations (always shown)</h2>
+<ul><li>Results are scenario estimates, not lifecycle-assessment certification.</li>
+<li>Virtual validation does not prove that a physical prototype would have been built or avoided.</li>
+<li>Real hardware safety, mechanical fit and electrical protection still require competent review.</li>
+<li>No grid-carbon factor supplied; no operational CO2e estimate was produced.</li>
+<li>No prototype embodied-impact factor supplied; no embodied CO2e avoidance was claimed.</li></ul>
+<section class="classroom"><h2>Classroom scenario (estimate)</h2><p><strong>30 students × 1 prototype(s) each × 1.00 kg</strong> = <strong>30.0 kg</strong> scenario material avoidance. Scenario estimate from user-supplied assumptions, not measured savings. No CO2e claimed.</p></section>
+<p class="small">Method transparent-range-arithmetic/v1 · Schema kodro-earthproof/v1 · Fingerprint <code>evidence 11b6238e6236</code> (11b6238e6236acc14225e45b847f5e36b633d2ea441ba71db4f4adb45c1ab42f)</p>
+<p class="small">Reproduce: <code>python -m kodro.earthproof docs/eval/earthproof-scenario.json --baseline docs/eval/earthproof-baseline.json</code></p>
+</div>
+</body>
+</html>
