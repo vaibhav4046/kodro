@@ -4,9 +4,33 @@ Kodro is an offline robot coding and kinematic simulation app for pupils
 aged 5 to 16, teachers, and beginners. Write or adapt a program, then
 watch a robot try it in a visual test world.
 
-**[Open Kodro in your browser](https://vaibhav4046.github.io/kodro/)**
+[![CI](https://github.com/vaibhav4046/kodro/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/kodro/actions/workflows/ci.yml)
+[![Deploy Pages](https://github.com/vaibhav4046/kodro/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/vaibhav4046/kodro/actions/workflows/deploy-pages.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
-![Kodro front door with four routes into learning, design, free play and lesson authoring](docs/design/kodro-home.png)
+**[Open Kodro in your browser](https://vaibhav4046.github.io/kodro/)** (static build, no account, works offline after the first load)
+
+![Kodro home page on the live site, with four routes into learning, design, free play and lesson authoring](docs/assets/kodro-live-home.png)
+
+*The live site at vaibhav4046.github.io/kodro, captured with Playwright at 1440x900 on 22 November 2026.*
+
+### What this demonstrates
+
+- **Grounded LLM code generation, measured.** `src/kodro/grounding.py`
+  AST-checks generated programs against the robot's fitted command set, and
+  KodroBench (`src/kodro/kodrobench.py`) scores local Ollama models on
+  `invention_rate` and `success@N` against a no-model rule-engine baseline.
+  The committed run is in [`results/kodrobench-v0.1.json`](results/kodrobench-v0.1.json).
+- **A dependency-free MCP server.** `kodro-mcp` (`src/kodro/mcp/`) exposes
+  eight tools (sandboxed interpreter, grader, lesson library, seeded proof
+  contracts) over JSON-RPC on stdio using only the standard library. A test
+  patches `socket` to fail and then calls every tool.
+- **Deterministic evaluation across two engines.** A pupil program runs in a
+  JavaScript interpreter in the browser and in a sandboxed Python engine.
+  CI checks that the two graders agree, and that the seeded Prove contracts
+  (`src/kodro/prove.py`) give byte-identical manifests and fail a deliberately
+  broken controller.
 
 ## NextStep Hacks 2026 · Kodro EarthProof
 
@@ -17,6 +41,32 @@ watch a robot try it in a visual test world.
 The committed demonstration compares an illustrative baseline at **0.040 kWh** central operating energy with a candidate at **0.020 kWh** (**-50%**). That is an energy scenario comparison only, not measured impact, a carbon saving, or lifecycle assessment. With no sourced carbon factor, **CO2e is not claimed**.
 
 [NextStep submission](NEXTSTEP_SUBMISSION.md) | [EarthProof audit and reproducibility](NEXTSTEP_2026.md)
+
+## Quickstart
+
+Needs Python 3.12+. Node.js 22 is only needed for the JavaScript QA gates
+and for rebuilding the UI. No API key, account or network service is needed
+for any step below.
+
+```bash
+git clone https://github.com/vaibhav4046/kodro.git
+cd kodro
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+
+python scripts/demo.py             # serves the browser build on http://localhost:8080
+python -m pytest                   # Python suite, fails under 85% branch coverage
+node scripts/qa_interpreter.mjs    # interpreter QA, needs Node
+python -m kodro.earthproof docs/eval/earthproof-scenario.json --baseline docs/eval/earthproof-baseline.json
+```
+
+The AI Companion is the only part that uses a model. It talks to a local
+[Ollama](https://ollama.com/download) server if one is running and falls back
+to a deterministic rule engine if not (see
+[Optional: the local AI assistant](#optional-the-local-ai-assistant-ollama)).
+The desktop window (`python -m kodro.web`) and the Windows executable are
+covered in [Download and install](#download-and-install).
 
 ## Choose your route
 
@@ -78,11 +128,6 @@ Core design, coding, simulation, and lesson paths need no account or AI.
 > of Liverpool). The specification and design proposal is in
 > [`docs/ca1/`](docs/ca1/) and the dissertation in
 > [`docs/dissertation/`](docs/dissertation/).
-
-[![CI](https://github.com/vaibhav4046/kodro/actions/workflows/ci.yml/badge.svg)](https://github.com/vaibhav4046/kodro/actions/workflows/ci.yml)
-[![Deploy Pages](https://github.com/vaibhav4046/kodro/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/vaibhav4046/kodro/actions/workflows/deploy-pages.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
 ## What Kodro is NOT
 
@@ -188,8 +233,8 @@ What currently ships in this repository:
   twenty four are held to.
 - **Offline by default.** No account, paid service or mandatory network
   call is required for Design, Test, lessons or deterministic checking.
-  Local Ollama is optional, and cloud models are an explicit
-  bring-your-own-key connected mode.
+  Local Ollama is optional. The hosted BYOK cloud providers of earlier
+  builds were removed (`ai-providers.jsx`), so there is no cloud model path.
 
 For what is partial, experimental or only on the roadmap, see
 [`docs/implementation-status.md`](docs/implementation-status.md).
@@ -202,6 +247,10 @@ Design, Prove and Build stages.
 ![Kodro Design, Prove and Build loop](docs/launch/kodro-loop.gif)
 
 ## More screenshots
+
+The front door as captured for the design record:
+
+![Kodro front door with four routes into learning, design, free play and lesson authoring](docs/design/kodro-home.png)
 
 The earlier first-run landing:
 
@@ -230,8 +279,8 @@ the same release; it runs the same Python engine behind a Tk interface
 rather than this one, and
 [`docs/teachers/classroom-setup.md`](docs/teachers/classroom-setup.md)
 sets out where the two differ. Core design, coding, kinematic simulation,
-and lessons do not require AI. Companion needs a local model or an explicitly selected
-cloud provider.
+and lessons do not require AI. Companion uses a local Ollama model when one
+is running and a deterministic rule engine when it is not.
 
 ### Option 2: From source (Windows, macOS, Linux)
 
@@ -337,6 +386,43 @@ and watch it drive; press **Step** to advance one event at a time.
 
 ## Architecture
 
+The same Python-subset program can run in two places: fully in the browser
+(the hosted build), or through the desktop window, which hands it to the
+Python engine over the pywebview bridge. Both paths are graded, and CI checks
+that the two graders agree.
+
+```mermaid
+flowchart LR
+  subgraph browser["Browser / WebView: src/kodro/assets/web"]
+    ui["React UI<br/>app.jsx, home.jsx, RobotLab.jsx"]
+    interp["interpreter.js<br/>Python-subset interpreter"]
+    sim["sim-physics.js + Viewport3D.jsx<br/>kinematics, Three.js worlds"]
+    jsgrade["lesson-grader.jsx"]
+    aiweb["ai-web.jsx / ai-providers.jsx"]
+  end
+  ollama[("Ollama on localhost:11434<br/>optional")]
+  bridge["web/app.py BridgeAPI<br/>(pywebview)"]
+  runtime["runtime/<br/>sandbox, executor, tracer"]
+  engine["engine/<br/>rover, world, terrain, physics"]
+  pygrade["lessons/grader.py"]
+  mcp["mcp/server.py<br/>kodro-mcp, JSON-RPC over stdio"]
+  bench["kodrobench.py + grounding.py"]
+  prove["prove.py<br/>seeded contracts"]
+
+  ui --> interp --> sim
+  interp --> jsgrade
+  aiweb --> ollama
+  ui -- "desktop only" --> bridge
+  bridge --> runtime --> engine
+  bridge --> pygrade
+  runtime --> pygrade
+  mcp --> runtime
+  mcp --> prove
+  prove --> engine
+  bench --> ollama
+  bench --> runtime
+```
+
 | Layer | What | Where |
 | --- | --- | --- |
 | Web UI | Vendored React and Three.js r137, pre compiled to `bundle.js` | `src/kodro/assets/web/` |
@@ -347,6 +433,20 @@ and watch it drive; press **Step** to advance one event at a time.
 
 A fuller diagram and chapter by chapter design are in
 [`docs/dissertation/`](docs/dissertation/).
+
+## Results
+
+Every figure below comes from a named run you can repeat. Counts change as
+the suite grows, so each row says which run it came from.
+
+| What | Result | Where it came from | Reproduce |
+| --- | --- | --- | --- |
+| Python suite, CI (ubuntu, xvfb) | 1,887 passed, 20 skipped; 89.57% branch-aware coverage (gate 85%) | [CI run 35464165865](https://github.com/vaibhav4046/kodro/actions/runs/35464165865) on `main` at `4169e73`, 19 Sep 2026 | `xvfb-run -a pytest -rf --timeout=120 --timeout-method=thread` |
+| Python suite, local (Windows) | 1,885 passed, 22 skipped, 0 failed; 89.39% coverage (9m05s) | Clean clone of `main` at `4169e73`, Python 3.13.3, 22 Nov 2026 | `python -m pytest -rf --timeout=120 --timeout-method=thread` |
+| Interpreter QA | 180 passed, 0 failed | Same CI run | `node scripts/qa_interpreter.mjs` |
+| UI gates in headless Chrome | 6/6 flows, 42/42 behaviour, 6/6 layouts, 13/13 modals | Same CI run; also [`docs/eval/ui_eval.json`](docs/eval/ui_eval.json) (18 Aug 2026) | `node scripts/qa_ui.mjs` |
+| EarthProof comparison | baseline 0.04 kWh, candidate 0.02 kWh, -50.0%; byte-identical to the committed report | [`docs/eval/earthproof-comparison-report.json`](docs/eval/earthproof-comparison-report.json) | see [Quickstart](#quickstart) |
+| KodroBench v0.1 | see [KodroBench](#kodrobench-measuring-grounded-code) | [`results/kodrobench-v0.1.json`](results/kodrobench-v0.1.json) | needs local Ollama models |
 
 ## Quality
 
@@ -366,7 +466,7 @@ python -m pytest                  # Python engine test suite
   rounding, range validation) and malformed input handling are all
   asserted.
 - **UI regression net.** `node scripts/qa_ui.mjs` drives the real
-  bundle in headless Chrome: six rendered flows, 41 behaviour assertions,
+  bundle in headless Chrome: six rendered flows, 42 behaviour assertions,
   six responsive layouts and 13 modal surfaces, written to
   [`docs/eval/ui_eval.json`](docs/eval/ui_eval.json) with the SHA-256 of the
   bundle they ran against. Run it with nothing else competing for the
@@ -374,12 +474,11 @@ python -m pytest                  # Python engine test suite
   wall-clock timers, so concurrent load can time out an assert that passes
   on its own. `qa_worlds.mjs` adds 61 world, robot, quality, site and
   weather identity checks.
-- **Python matrix.** Gated at 85 percent branch-aware coverage. The counts
-  are not restated here, because a restated count goes stale the moment the
-  suite grows: this bullet has carried a figure that the suite had already
-  outgrown. They come out of the run's own coverage and JUnit output into
-  [`docs/eval/test_suite.json`](docs/eval/test_suite.json), which records the
-  commit and working-tree state they belong to. Read them there. The
+- **Python matrix.** Gated at 85 percent branch-aware coverage. The dated
+  counts are in [Results](#results). The generated record
+  [`docs/eval/test_suite.json`](docs/eval/test_suite.json) is older (17 August
+  2026, 1,641 tests at `e70b98b`); it is kept as written because it records the
+  commit and working-tree state its counts belong to. The
   percentage is a floor: the harness drops the coverage contribution of
   node-subprocess tests on Windows outside CI while still running them, so
   CI measures the same suite at or above that figure. The skip count in that
